@@ -4,25 +4,36 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/blevesearch/bleve"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
+	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/qinains/fastergoding"
 )
 
 func main() {
 	fastergoding.Run() // hot reload
-	idx, err := bleve.Open("coreander.db")
+	var cfg Config
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal("Error retrieving user home dir")
+	}
+	if err = cleanenv.ReadConfig(homeDir+"/coreander/coreander.yml", &cfg); err != nil {
+		log.Fatal(fmt.Sprintf("Config file coreander.yml not found in %s/coreander", homeDir))
+	}
+	idx, err := bleve.Open(homeDir + "/coreander/coreander.db")
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No index found, creating a new one")
 		idx, err = create()
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = add(idx)
+		err = add(idx, cfg.LibraryPath)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -55,21 +66,21 @@ func main() {
 			//fmt.Println(searchResults.Hits[0].Fields["Author"].(string))
 			// PARCHE
 			for _, v := range searchResults.Hits {
-				v.ID = strings.Replace(v.ID, "/Users/svera/OneDrive - Adobe Systems Incorporated/epubs/", "", 1)
+				v.ID = strings.Replace(v.ID, cfg.LibraryPath, "", 1)
 			}
-			fmt.Println(searchResults.Hits[0].ID)
 			pages := int(math.Ceil(float64(searchResults.Total) / float64(10)))
 			idx.Search(search)
 			return c.Render("results", fiber.Map{
 				"Keywords":  keywords,
 				"Results":   searchResults.Hits,
 				"Total":     searchResults.Total,
-				"Paginator": pagination(pages, page, keywords),
+				"Paginator": pagination(10, pages, page, keywords),
 			}, "layout")
 		}
-		return c.Render("index", fiber.Map{})
+		return c.Render("index", fiber.Map{}, "layout")
 	})
 
-	app.Static("/files", "/Users/svera/OneDrive - Adobe Systems Incorporated/epubs")
-	app.Listen(":3000")
+	app.Static("/files", cfg.LibraryPath)
+	app.Static("/css", "./css")
+	app.Listen(cfg.Port)
 }

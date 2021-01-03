@@ -25,10 +25,10 @@ func create() (bleve.Index, error) {
 	return index, nil
 }
 
-func add(idx bleve.Index) error {
+func add(idx bleve.Index, libraryPath string) error {
 	// index some data
 	fileList := make([]string, 0)
-	e := filepath.Walk("/Users/svera/OneDrive - Adobe Systems Incorporated/epubs", func(path string, f os.FileInfo, err error) error {
+	e := filepath.Walk(libraryPath, func(path string, f os.FileInfo, err error) error {
 		//e := filepath.Walk(".", func(path string, f os.FileInfo, err error) error {
 		fileList = append(fileList, path)
 		return err
