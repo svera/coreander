@@ -1,16 +1,17 @@
-package main
+package indexer
 
 import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/analysis/lang/es"
 	"github.com/pirmd/epub"
 )
 
-func create() (bleve.Index, error) {
+func Create(dir string) (bleve.Index, error) {
 	indexMapping := bleve.NewIndexMapping()
 	esBookMapping := bleve.NewDocumentMapping()
 	esBookMapping.DefaultAnalyzer = es.AnalyzerName
@@ -18,14 +19,14 @@ func create() (bleve.Index, error) {
 	languageFieldMapping.Index = false
 	esBookMapping.AddFieldMappingsAt("language", languageFieldMapping)
 	indexMapping.AddDocumentMapping("es", esBookMapping)
-	index, err := bleve.New("coreander.db", indexMapping)
+	index, err := bleve.New(dir+"/coreander/coreander.db", indexMapping)
 	if err != nil {
 		return nil, err
 	}
 	return index, nil
 }
 
-func add(idx bleve.Index, libraryPath string) error {
+func Add(idx bleve.Index, libraryPath string) error {
 	// index some data
 	fileList := make([]string, 0)
 	e := filepath.Walk(libraryPath, func(path string, f os.FileInfo, err error) error {
@@ -47,7 +48,6 @@ func add(idx bleve.Index, libraryPath string) error {
 			log.Printf("Error indexing file %s: %s\n", file, err)
 			continue
 		}
-		//fmt.Printf("%v", metadata.Creator[0].FullName)
 		title := ""
 		if len(metadata.Title) > 0 {
 			title = metadata.Title[0]
@@ -72,6 +72,7 @@ func add(idx bleve.Index, libraryPath string) error {
 		}
 
 		log.Printf("Indexing file %s\n", file)
+		file = strings.Replace(file, libraryPath, "", 1)
 		idx.Index(file, b)
 	}
 	return nil

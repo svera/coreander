@@ -1,4 +1,4 @@
-package main
+package config
 
 type Config struct {
 	LibraryPath string `yaml:"library-path" env:"LIBPATH"`

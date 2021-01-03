@@ -1,4 +1,4 @@
-package main
+package indexer
 
 type book struct {
 	Title       string

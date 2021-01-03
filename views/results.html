@@ -9,7 +9,11 @@
                         <button class="btn btn-primary" type="submit" id="button-addon2">Search</button>
                     </div>
                 </form>
+                {{if .Results}}
                 <p>Found {{.Total}} results</p>
+                {{else}}
+                <p>No results found</p>
+                {{end}}
             </div>
         </div>
 
@@ -23,9 +27,7 @@
                 <h5 class="text-start">{{.Fields.Author}}</h5>
                 <p class="mb-1 text-start">{{.Fields.Description}}</p>
             </div>
-            {{end}} {{else}}
-            <p>No results found</p>
-            {{end}}
+            {{end}} {{end}}
         </div>
 
         {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
