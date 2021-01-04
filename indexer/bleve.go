@@ -11,22 +11,37 @@ import (
 	"github.com/pirmd/epub"
 )
 
-func Create(dir string) (bleve.Index, error) {
-	indexMapping := bleve.NewIndexMapping()
-	esBookMapping := bleve.NewDocumentMapping()
-	esBookMapping.DefaultAnalyzer = es.AnalyzerName
-	languageFieldMapping := bleve.NewTextFieldMapping()
-	languageFieldMapping.Index = false
-	esBookMapping.AddFieldMappingsAt("language", languageFieldMapping)
-	indexMapping.AddDocumentMapping("es", esBookMapping)
-	index, err := bleve.New(dir+"/coreander/coreander.db", indexMapping)
-	if err != nil {
-		return nil, err
-	}
-	return index, nil
+type BleveIndexer struct {
+	idx bleve.Index
 }
 
-func Add(idx bleve.Index, libraryPath string) error {
+func New(dir, libraryPath string) (*BleveIndexer, error) {
+	index, err := bleve.Open(dir + "/coreander/coreander.db")
+	if err == bleve.ErrorIndexPathDoesNotExist {
+		log.Println("No index found, creating a new one")
+		indexMapping := bleve.NewIndexMapping()
+		esBookMapping := bleve.NewDocumentMapping()
+		esBookMapping.DefaultAnalyzer = es.AnalyzerName
+		languageFieldMapping := bleve.NewTextFieldMapping()
+		languageFieldMapping.Index = false
+		esBookMapping.AddFieldMappingsAt("language", languageFieldMapping)
+		indexMapping.AddDocumentMapping("es", esBookMapping)
+		index, err = bleve.New(dir+"/coreander/coreander.db", indexMapping)
+		if err != nil {
+			return nil, err
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = add(index, libraryPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	return &BleveIndexer{index}, nil
+}
+
+func add(idx bleve.Index, libraryPath string) error {
 	// index some data
 	fileList := make([]string, 0)
 	e := filepath.Walk(libraryPath, func(path string, f os.FileInfo, err error) error {
@@ -64,7 +79,7 @@ func Add(idx bleve.Index, libraryPath string) error {
 		if len(metadata.Language) > 0 {
 			language = metadata.Language[0]
 		}
-		b := book{
+		bk := book{
 			Title:       title,
 			Author:      author,
 			Description: description,
@@ -73,7 +88,27 @@ func Add(idx bleve.Index, libraryPath string) error {
 
 		log.Printf("Indexing file %s\n", file)
 		file = strings.Replace(file, libraryPath, "", 1)
-		idx.Index(file, b)
+		idx.Index(file, bk)
 	}
 	return nil
+}
+
+func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*bleve.SearchResult, error) {
+	query := bleve.NewMatchQuery(keywords)
+	search := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
+	search.Fields = []string{"Title", "Author", "Description"}
+	searchResults, err := b.idx.Search(search)
+	if err != nil {
+		return nil, err
+	}
+	if searchResults.Total < uint64(page-1)*uint64(resultsPerPage) {
+		page = 1
+		search = bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
+		search.Fields = []string{"Title", "Author", "Description"}
+		searchResults, err = b.idx.Search(search)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return searchResults, nil
 }

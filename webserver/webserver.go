@@ -4,18 +4,18 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/blevesearch/bleve"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
 	"github.com/svera/coreander/config"
+	"github.com/svera/coreander/indexer"
 )
 
 const (
 	resultsPerPage    = 10
-	maxPagesNavigator = 10
+	maxPagesNavigator = 5
 )
 
-func Start(idx bleve.Index, cfg config.Config) {
+func Start(idx *indexer.BleveIndexer, cfg config.Config) {
 	engine := html.New("./views", ".html").Reload(true).Debug(true)
 	app := fiber.New(fiber.Config{
 		Views: engine,
@@ -31,18 +31,11 @@ func Start(idx bleve.Index, cfg config.Config) {
 			page = 1
 		}
 		if keywords != "" {
-			query := bleve.NewMatchQuery(keywords)
-			search := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
-			search.Fields = []string{"Title", "Author", "Description"}
-			searchResults, _ := idx.Search(search)
-			if searchResults.Total < uint64(page-1)*10 {
-				page = 1
-				search = bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
-				search.Fields = []string{"Title", "Author", "Description"}
-				searchResults, _ = idx.Search(search)
+			searchResults, err := idx.Search(keywords, page, resultsPerPage)
+			if err != nil {
+				return fiber.ErrInternalServerError
 			}
 			pages := int(math.Ceil(float64(searchResults.Total) / float64(resultsPerPage)))
-			idx.Search(search)
 			return c.Render("results", fiber.Map{
 				"Keywords":  keywords,
 				"Results":   searchResults.Hits,

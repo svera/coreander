@@ -23,7 +23,7 @@ func pagination(size int, totalPages int, current int, search string) PagesNavig
 		}
 		if current > size/2 {
 			start = current - size/2
-			end = (current + size/2) - 1
+			end = (current + size/2)
 			if end > totalPages {
 				start = totalPages - size
 				end = totalPages
