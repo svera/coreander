@@ -5,16 +5,16 @@ import (
 	"log"
 	"os"
 
+	"github.com/blevesearch/bleve"
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/qinains/fastergoding"
-	"github.com/svera/coreander/config"
-	"github.com/svera/coreander/indexer"
-	"github.com/svera/coreander/webserver"
+	"github.com/svera/coreander/internal/index"
+	"github.com/svera/coreander/internal/webserver"
 )
 
 func main() {
 	fastergoding.Run() // hot reload
-	var cfg config.Config
+	var cfg Config
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -23,6 +23,24 @@ func main() {
 	if err = cleanenv.ReadConfig(homeDir+"/coreander/coreander.yml", &cfg); err != nil {
 		log.Fatal(fmt.Sprintf("Config file coreander.yml not found in %s/coreander", homeDir))
 	}
-	idx, err := indexer.New(homeDir, cfg.LibraryPath)
-	webserver.Start(idx, cfg)
+	if _, err := os.Stat(cfg.LibraryPath); os.IsNotExist(err) {
+		log.Fatal(fmt.Errorf("%s does not exist, exiting", cfg.LibraryPath))
+	}
+	var idx *index.BleveIndexer
+	idx, err = index.Open(homeDir)
+	if err == bleve.ErrorIndexPathDoesNotExist {
+		log.Println("No index found, creating a new one")
+		idx, err = index.Create(homeDir)
+		if err != nil {
+			log.Fatal(err)
+		}
+		go func() {
+			log.Println(fmt.Sprintf("Indexing books at %s, this can take a while depending on the size of your library.", cfg.LibraryPath))
+			err := idx.Add(cfg.LibraryPath)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}()
+	}
+	webserver.Start(idx, cfg.LibraryPath, cfg.Port)
 }

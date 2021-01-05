@@ -1,12 +1,12 @@
-package indexer
+package index
 
-type book struct {
+type Book struct {
 	Title       string
 	Author      string
 	Description string
 	Language    string
 }
 
-func (b book) Type() string {
+func (b Book) Type() string {
 	return b.Language
 }

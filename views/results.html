@@ -2,14 +2,14 @@
     <div class="container">
         <div class="row">
             <div class="col-sm">
-                <form action="/">
+                <form action="">
                     <div class="input-group mb-3">
                         <label for="search" class="visually-hidden">Search</label>
                         <input type="text" name="search" class="form-control form-control-lg" placeholder="Keywords" required autofocus value="{{.Keywords}}">
                         <button class="btn btn-primary" type="submit" id="button-addon2">Search</button>
                     </div>
                 </form>
-                {{if .Results}}
+                {{if gt .Total 0}}
                 <p>Found {{.Total}} results</p>
                 {{else}}
                 <p>No results found</p>
@@ -18,19 +18,19 @@
         </div>
 
         <div class="list-group">
-            {{if .Results}} {{range .Results}}
+            {{if .Results}} {{range $ID, $book := .Results}}
             <div class="list-group-item list-group-item-action">
                 <div class="row">
                     <div class="col-8">
-                        <h4 class="text-start">{{.Fields.Title}}</h4>
+                        <h4 class="text-start">{{$book.Title}}</h4>
                     </div>
                     <div class="col-4 text-end">
-                        <a href="files/{{.ID}}" class="btn btn-secondary">Download</a>
+                        <a href="files/{{$ID}}" class="btn btn-secondary">Download</a>
                     </div>
                 </div>
 
-                <h5 class="text-start">{{.Fields.Author}}</h5>
-                <p class="mb-1 text-start">{{.Fields.Description}}</p>
+                <h5 class="text-start">{{$book.Author}}</h5>
+                <p class="mb-1 text-start">{{$book.Description}}</p>
             </div>
             {{end}} {{end}}
         </div>

@@ -1,13 +1,13 @@
 package webserver
 
 import (
-	"math"
+	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
-	"github.com/svera/coreander/config"
-	"github.com/svera/coreander/indexer"
+	"github.com/svera/coreander/internal/index"
 )
 
 const (
@@ -15,7 +15,7 @@ const (
 	maxPagesNavigator = 5
 )
 
-func Start(idx *indexer.BleveIndexer, cfg config.Config) {
+func Start(idx index.Reader, libraryPath, port string) {
 	engine := html.New("./views", ".html").Reload(true).Debug(true)
 	app := fiber.New(fiber.Config{
 		Views: engine,
@@ -35,18 +35,18 @@ func Start(idx *indexer.BleveIndexer, cfg config.Config) {
 			if err != nil {
 				return fiber.ErrInternalServerError
 			}
-			pages := int(math.Ceil(float64(searchResults.Total) / float64(resultsPerPage)))
 			return c.Render("results", fiber.Map{
 				"Keywords":  keywords,
 				"Results":   searchResults.Hits,
-				"Total":     searchResults.Total,
-				"Paginator": pagination(maxPagesNavigator, pages, page, keywords),
+				"Total":     searchResults.TotalHits,
+				"Paginator": pagination(maxPagesNavigator, searchResults.TotalPages, searchResults.Page, keywords),
 			}, "layout")
 		}
 		return c.Render("index", fiber.Map{}, "layout")
 	})
 
-	app.Static("/files", cfg.LibraryPath)
-	app.Static("/css", "../css")
-	app.Listen(cfg.Port)
+	app.Static("/files", libraryPath)
+	dir, _ := os.Getwd()
+	app.Static("/css", dir+"/public/css")
+	app.Listen(fmt.Sprintf(":%s", port))
 }
