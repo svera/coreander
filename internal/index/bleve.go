@@ -1,11 +1,13 @@
 package index
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/analysis/lang/es"
@@ -17,7 +19,7 @@ type BleveIndexer struct {
 }
 
 func Open(dir string) (*BleveIndexer, error) {
-	index, err := bleve.Open(dir + "/coreander/coreander.db")
+	index, err := bleve.Open(dir + "/coreander/db")
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +34,7 @@ func Create(dir string) (*BleveIndexer, error) {
 	languageFieldMapping.Index = false
 	esBookMapping.AddFieldMappingsAt("language", languageFieldMapping)
 	indexMapping.AddDocumentMapping("es", esBookMapping)
-	index, err := bleve.New(dir+"/coreander/coreander.db", indexMapping)
+	index, err := bleve.New(dir+"/coreander/db", indexMapping)
 	if err != nil {
 		return nil, err
 	}
@@ -43,11 +45,11 @@ func Create(dir string) (*BleveIndexer, error) {
 	return &BleveIndexer{index}, nil
 }
 
-func (b *BleveIndexer) Add(libraryPath string) error {
+// Add scans <libraryPath> for books and adds them to the index in batches of <bathSize>
+func (b *BleveIndexer) Add(libraryPath string, batchSize int) error {
 	// index some data
 	fileList := make([]string, 0)
 	e := filepath.Walk(libraryPath, func(path string, f os.FileInfo, err error) error {
-		//e := filepath.Walk(".", func(path string, f os.FileInfo, err error) error {
 		fileList = append(fileList, path)
 		return err
 	})
@@ -56,44 +58,63 @@ func (b *BleveIndexer) Add(libraryPath string) error {
 		return e
 	}
 
+	batch := b.idx.NewBatch()
+	start := time.Now().Unix()
 	for _, file := range fileList {
 		if filepath.Ext(file) != ".epub" {
 			continue
 		}
-		metadata, err := epub.GetMetadataFromFile(file)
+		bk, err := getBookMetadata(file)
 		if err != nil {
 			log.Printf("Error indexing file %s: %s\n", file, err)
-			continue
-		}
-		title := ""
-		if len(metadata.Title) > 0 {
-			title = metadata.Title[0]
-		}
-		author := ""
-		if len(metadata.Creator) > 0 {
-			author = metadata.Creator[0].FullName
-		}
-		description := ""
-		if len(metadata.Description) > 0 {
-			description = metadata.Description[0]
-		}
-		language := ""
-		if len(metadata.Language) > 0 {
-			language = metadata.Language[0]
-		}
-		bk := Book{
-			Title:       title,
-			Author:      author,
-			Description: description,
-			Language:    language,
 		}
 
 		file = strings.Replace(file, libraryPath, "", 1)
-		b.idx.Index(file, bk)
+		batch.Index(file, bk)
+		if batch.Size() == batchSize {
+			b.idx.Batch(batch)
+			batch.Reset()
+		}
 	}
+	b.idx.Batch(batch)
+	end := time.Now().Unix()
+	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
+	log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
 	return nil
 }
 
+func getBookMetadata(file string) (Book, error) {
+	bk := Book{}
+	metadata, err := epub.GetMetadataFromFile(file)
+	if err != nil {
+		return bk, err
+	}
+	title := ""
+	if len(metadata.Title) > 0 {
+		title = metadata.Title[0]
+	}
+	author := ""
+	if len(metadata.Creator) > 0 {
+		author = metadata.Creator[0].FullName
+	}
+	description := ""
+	if len(metadata.Description) > 0 {
+		description = metadata.Description[0]
+	}
+	language := ""
+	if len(metadata.Language) > 0 {
+		language = metadata.Language[0]
+	}
+	bk = Book{
+		Title:       title,
+		Author:      author,
+		Description: description,
+		Language:    language,
+	}
+	return bk, nil
+}
+
+// Search look for books which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
 func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Results, error) {
 	query := bleve.NewMatchQuery(keywords)
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
@@ -128,6 +149,11 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Resul
 		results.Hits[val.ID] = bk
 	}
 	return &results, nil
+}
+
+// Count returns the number of indexed books
+func (b *BleveIndexer) Count() (uint64, error) {
+	return b.idx.DocCount()
 }
 
 func calculateTotalPages(total, resultsPerPage uint64) int {

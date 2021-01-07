@@ -9,4 +9,5 @@ type Results struct {
 
 type Reader interface {
 	Search(keywords string, page, resultsPerPage int) (*Results, error)
+	Count() (uint64, error)
 }

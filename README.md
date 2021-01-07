@@ -1,6 +1,6 @@
 # Coreander
 
-A personal Ebooks server.
+A personal Ebooks server, Coreander indexes the ebooks (only in Epub format at the moment) that it finds in the passed folder, and provides a web interface to search them.
 
 ## Warning
 

@@ -42,7 +42,11 @@ func Start(idx index.Reader, libraryPath, port string) {
 				"Paginator": pagination(maxPagesNavigator, searchResults.TotalPages, searchResults.Page, keywords),
 			}, "layout")
 		}
-		return c.Render("index", fiber.Map{}, "layout")
+		count, err := idx.Count()
+		if err != nil {
+			return fiber.ErrInternalServerError
+		}
+		return c.Render("index", fiber.Map{"Count": count}, "layout")
 	})
 
 	app.Static("/files", libraryPath)
