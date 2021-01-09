@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 
@@ -23,6 +24,9 @@ func main() {
 	if err = cleanenv.ReadConfig(homeDir+"/coreander/config.yml", &cfg); err != nil {
 		log.Fatal(fmt.Sprintf("Config file config.yml not found in %s/coreander", homeDir))
 	}
+	if !cfg.Verbose {
+		log.SetOutput(ioutil.Discard)
+	}
 	if _, err := os.Stat(cfg.LibraryPath); os.IsNotExist(err) {
 		log.Fatal(fmt.Errorf("%s does not exist, exiting", cfg.LibraryPath))
 	}
@@ -34,13 +38,13 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		go func() {
-			log.Println(fmt.Sprintf("Indexing books at %s, this can take a while depending on the size of your library.", cfg.LibraryPath))
-			err := idx.Add(cfg.LibraryPath, cfg.BatchSize)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}()
 	}
+	go func() {
+		log.Println(fmt.Sprintf("Indexing books at %s, this can take a while depending on the size of your library.", cfg.LibraryPath))
+		err := idx.Add(cfg.LibraryPath, cfg.BatchSize)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 	webserver.Start(idx, cfg.LibraryPath, cfg.Port)
 }

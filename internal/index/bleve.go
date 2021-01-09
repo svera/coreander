@@ -47,15 +47,9 @@ func Create(dir string) (*BleveIndexer, error) {
 
 // Add scans <libraryPath> for books and adds them to the index in batches of <bathSize>
 func (b *BleveIndexer) Add(libraryPath string, batchSize int) error {
-	// index some data
-	fileList := make([]string, 0)
-	e := filepath.Walk(libraryPath, func(path string, f os.FileInfo, err error) error {
-		fileList = append(fileList, path)
+	fileList, err := getFiles(libraryPath)
+	if err != nil {
 		return err
-	})
-
-	if e != nil {
-		return e
 	}
 
 	batch := b.idx.NewBatch()
@@ -66,11 +60,17 @@ func (b *BleveIndexer) Add(libraryPath string, batchSize int) error {
 		}
 		bk, err := getBookMetadata(file)
 		if err != nil {
-			log.Printf("Error indexing file %s: %s\n", file, err)
+			log.Printf("Error extracting metadata from file %s: %s\n", file, err)
+			continue
 		}
 
 		file = strings.Replace(file, libraryPath, "", 1)
-		batch.Index(file, bk)
+		err = batch.Index(file, bk)
+		if err != nil {
+			log.Printf("Error indexing file %s: %s\n", file, err)
+			continue
+		}
+
 		if batch.Size() == batchSize {
 			b.idx.Batch(batch)
 			batch.Reset()
@@ -81,6 +81,19 @@ func (b *BleveIndexer) Add(libraryPath string, batchSize int) error {
 	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 	log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
 	return nil
+}
+
+func getFiles(libraryPath string) ([]string, error) {
+	fileList := make([]string, 0)
+	e := filepath.Walk(libraryPath, func(path string, f os.FileInfo, err error) error {
+		fileList = append(fileList, path)
+		return err
+	})
+
+	if e != nil {
+		return fileList, e
+	}
+	return fileList, nil
 }
 
 func getBookMetadata(file string) (Book, error) {
@@ -126,6 +139,9 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Resul
 	totalPages := calculateTotalPages(searchResults.Total, uint64(resultsPerPage))
 	if totalPages < page {
 		page = totalPages
+		if page == 0 {
+			page = 1
+		}
 		searchOptions = bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 		searchOptions.Fields = []string{"Title", "Author", "Description"}
 		searchResults, err = b.idx.Search(searchOptions)
