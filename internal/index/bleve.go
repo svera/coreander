@@ -1,17 +1,15 @@
 package index
 
 import (
-	"fmt"
 	"log"
 	"math"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/analysis/lang/es"
-	"github.com/pirmd/epub"
+	"github.com/svera/coreander/metadata"
 )
 
 type BleveIndexer struct {
@@ -46,89 +44,41 @@ func Create(dir string) (*BleveIndexer, error) {
 }
 
 // Add scans <libraryPath> for books and adds them to the index in batches of <bathSize>
-func (b *BleveIndexer) Add(libraryPath string, batchSize int) error {
-	fileList, err := getFiles(libraryPath)
-	if err != nil {
-		return err
-	}
-
+func (b *BleveIndexer) Add(libraryPath string, read map[string]metadata.Reader, batchSize int) error {
 	batch := b.idx.NewBatch()
-	start := time.Now().Unix()
-	for _, file := range fileList {
-		if filepath.Ext(file) != ".epub" {
-			continue
+	e := filepath.Walk(libraryPath, func(path string, f os.FileInfo, err error) error {
+		ext := filepath.Ext(path)
+		if _, ok := read[ext]; !ok {
+			return nil
 		}
-		bk, err := getBookMetadata(file)
+		meta, err := read[ext](path)
 		if err != nil {
-			log.Printf("Error extracting metadata from file %s: %s\n", file, err)
-			continue
+			log.Printf("Error extracting metadata from file %s: %s\n", path, err)
+			return nil
 		}
 
-		file = strings.Replace(file, libraryPath, "", 1)
-		err = batch.Index(file, bk)
+		path = strings.Replace(path, libraryPath, "", 1)
+		err = batch.Index(path, meta)
 		if err != nil {
-			log.Printf("Error indexing file %s: %s\n", file, err)
-			continue
+			log.Printf("Error indexing file %s: %s\n", path, err)
+			return nil
 		}
 
 		if batch.Size() == batchSize {
 			b.idx.Batch(batch)
 			batch.Reset()
 		}
-	}
-	b.idx.Batch(batch)
-	end := time.Now().Unix()
-	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
-	log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
-	return nil
-}
-
-func getFiles(libraryPath string) ([]string, error) {
-	fileList := make([]string, 0)
-	e := filepath.Walk(libraryPath, func(path string, f os.FileInfo, err error) error {
-		fileList = append(fileList, path)
-		return err
+		return nil
 	})
-
-	if e != nil {
-		return fileList, e
-	}
-	return fileList, nil
-}
-
-func getBookMetadata(file string) (Book, error) {
-	bk := Book{}
-	metadata, err := epub.GetMetadataFromFile(file)
-	if err != nil {
-		return bk, err
-	}
-	title := ""
-	if len(metadata.Title) > 0 {
-		title = metadata.Title[0]
-	}
-	author := ""
-	if len(metadata.Creator) > 0 {
-		author = metadata.Creator[0].FullName
-	}
-	description := ""
-	if len(metadata.Description) > 0 {
-		description = metadata.Description[0]
-	}
-	language := ""
-	if len(metadata.Language) > 0 {
-		language = metadata.Language[0]
-	}
-	bk = Book{
-		Title:       title,
-		Author:      author,
-		Description: description,
-		Language:    language,
-	}
-	return bk, nil
+	b.idx.Batch(batch)
+	return e
 }
 
 // Search look for books which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
 func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Results, error) {
+	if page < 1 {
+		page = 1
+	}
 	query := bleve.NewMatchQuery(keywords)
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.Fields = []string{"Title", "Author", "Description"}
@@ -153,11 +103,11 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Resul
 		Page:       page,
 		TotalPages: totalPages,
 		TotalHits:  int(searchResults.Total),
-		Hits:       make(map[string]Book, len(searchResults.Hits)),
+		Hits:       make(map[string]metadata.Metadata, len(searchResults.Hits)),
 	}
 
 	for _, val := range searchResults.Hits {
-		bk := Book{
+		bk := metadata.Metadata{
 			Title:       val.Fields["Title"].(string),
 			Author:      val.Fields["Author"].(string),
 			Description: val.Fields["Description"].(string),

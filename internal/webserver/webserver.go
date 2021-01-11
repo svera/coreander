@@ -15,8 +15,9 @@ const (
 	maxPagesNavigator = 5
 )
 
+// Start builds a new Fiber application and set up the required routes
 func Start(idx index.Reader, libraryPath, port string) {
-	engine := html.New("./views", ".html").Reload(true).Debug(true)
+	engine := html.New("./views", ".html")
 	app := fiber.New(fiber.Config{
 		Views: engine,
 	})
@@ -25,9 +26,6 @@ func Start(idx index.Reader, libraryPath, port string) {
 		keywords := c.Query("search")
 		page, err := strconv.Atoi(c.Query("page"))
 		if err != nil {
-			page = 1
-		}
-		if page < 1 {
 			page = 1
 		}
 		if keywords != "" {

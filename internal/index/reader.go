@@ -1,9 +1,11 @@
 package index
 
+import "github.com/svera/coreander/metadata"
+
 type Results struct {
 	Page       int
 	TotalPages int
-	Hits       map[string]Book
+	Hits       map[string]metadata.Metadata
 	TotalHits  int
 }
 

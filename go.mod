@@ -7,7 +7,9 @@ require (
 	github.com/gofiber/fiber/v2 v2.3.2
 	github.com/gofiber/template v1.6.6
 	github.com/ilyakaznacheev/cleanenv v1.2.5
+	github.com/karrick/godirwalk v1.16.1
 	github.com/pirmd/epub v0.1.0
 	github.com/pirmd/verify v0.5.3 // indirect
 	github.com/qinains/fastergoding v0.0.2
+	gopkg.in/fsnotify.v1 v1.4.7
 )

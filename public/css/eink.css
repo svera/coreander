@@ -1,0 +1,24 @@
+.input-group {
+    flex-wrap: nowrap;
+}
+
+.input-group>.form-control {
+    width: 100%;
+}
+
+.list-group-item {
+    border: solid 1px #000;
+}
+
+.list-group-item-action {
+    color: #000;
+}
+
+.btn-primary,
+.btn-secondary {
+    background-color: #000;
+}
+
+main .form-control {
+    border: solid 1px #000;
+}

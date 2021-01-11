@@ -22,27 +22,8 @@ main .form-control {
     position: relative;
     box-sizing: border-box;
     height: auto;
-    /*font-size: 16px;*/
-    border: solid 1px #000;
 }
 
 main .form-control:focus {
     z-index: 2;
-}
-
-.input-group>.form-control {
-    width: 100%;
-}
-
-.list-group-item {
-    border: solid 1px #000;
-}
-
-.list-group-item-action {
-    color: #000;
-}
-
-.btn-primary,
-.btn-secondary {
-    background-color: #000;
 }
