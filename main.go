@@ -37,14 +37,18 @@ func main() {
 func run(cfg Config, homeDir string) {
 	var idx *index.BleveIndexer
 	var err error
-	idx, err = index.Open(homeDir)
+	indexFile, err := bleve.Open(homeDir + "/coreander/db")
+	if err == nil {
+		idx = index.NewBleve(indexFile)
+	}
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No index found, creating a new one")
-		idx, err = index.Create(homeDir)
+		idx, err = index.CreateBleve(homeDir)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
+
 	go func() {
 		start := time.Now().Unix()
 		metadataReaders := map[string]metadata.Reader{

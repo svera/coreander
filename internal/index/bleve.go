@@ -8,7 +8,13 @@ import (
 	"strings"
 
 	"github.com/blevesearch/bleve"
+	"github.com/blevesearch/bleve/analysis/lang/de"
+	"github.com/blevesearch/bleve/analysis/lang/en"
 	"github.com/blevesearch/bleve/analysis/lang/es"
+	"github.com/blevesearch/bleve/analysis/lang/fr"
+	"github.com/blevesearch/bleve/analysis/lang/it"
+	"github.com/blevesearch/bleve/analysis/lang/pt"
+	"github.com/blevesearch/bleve/mapping"
 	"github.com/svera/coreander/metadata"
 )
 
@@ -16,31 +22,30 @@ type BleveIndexer struct {
 	idx bleve.Index
 }
 
-func Open(dir string) (*BleveIndexer, error) {
-	index, err := bleve.Open(dir + "/coreander/db")
-	if err != nil {
-		return nil, err
-	}
-	return &BleveIndexer{index}, nil
+func NewBleve(index bleve.Index) *BleveIndexer {
+	return &BleveIndexer{index}
 }
 
-func Create(dir string) (*BleveIndexer, error) {
+func CreateBleve(dir string) (*BleveIndexer, error) {
 	indexMapping := bleve.NewIndexMapping()
-	esBookMapping := bleve.NewDocumentMapping()
-	esBookMapping.DefaultAnalyzer = es.AnalyzerName
-	languageFieldMapping := bleve.NewTextFieldMapping()
-	languageFieldMapping.Index = false
-	esBookMapping.AddFieldMappingsAt("language", languageFieldMapping)
-	indexMapping.AddDocumentMapping("es", esBookMapping)
+	addLanguageMappings(indexMapping, []string{es.AnalyzerName, en.AnalyzerName, fr.AnalyzerName, de.AnalyzerName, it.AnalyzerName, pt.AnalyzerName})
 	index, err := bleve.New(dir+"/coreander/db", indexMapping)
 	if err != nil {
 		return nil, err
 	}
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	return &BleveIndexer{index}, nil
+}
+
+func addLanguageMappings(indexMapping *mapping.IndexMappingImpl, languages []string) {
+	for _, lang := range languages {
+		bookMapping := bleve.NewDocumentMapping()
+		bookMapping.DefaultAnalyzer = lang
+		languageFieldMapping := bleve.NewTextFieldMapping()
+		languageFieldMapping.Index = false
+		bookMapping.AddFieldMappingsAt("language", languageFieldMapping)
+		indexMapping.AddDocumentMapping(lang, bookMapping)
+	}
 }
 
 // Add scans <libraryPath> for books and adds them to the index in batches of <bathSize>
@@ -75,7 +80,7 @@ func (b *BleveIndexer) Add(libraryPath string, read map[string]metadata.Reader, 
 }
 
 // Search look for books which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
-func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Results, error) {
+func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Result, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -99,7 +104,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Resul
 			return nil, err
 		}
 	}
-	results := Results{
+	results := Result{
 		Page:       page,
 		TotalPages: totalPages,
 		TotalHits:  int(searchResults.Total),
