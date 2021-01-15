@@ -2,11 +2,13 @@ package webserver
 
 import "fmt"
 
+// Page holds the URL of a results page, and if that page is the current one being shown
 type Page struct {
 	Link      string
 	IsCurrent bool
 }
 
+// PagesNavigator contains all pages links, as well as links to the previous and next pages from the current one
 type PagesNavigator struct {
 	Pages        map[int]Page
 	PreviousLink string

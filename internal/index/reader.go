@@ -1,6 +1,6 @@
 package index
 
-import "github.com/svera/coreander/metadata"
+import "github.com/svera/coreander/internal/metadata"
 
 // Result holds the result of a search request, as well as some related metadata
 type Result struct {

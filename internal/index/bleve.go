@@ -15,7 +15,7 @@ import (
 	"github.com/blevesearch/bleve/analysis/lang/it"
 	"github.com/blevesearch/bleve/analysis/lang/pt"
 	"github.com/blevesearch/bleve/mapping"
-	"github.com/svera/coreander/metadata"
+	"github.com/svera/coreander/internal/metadata"
 )
 
 type BleveIndexer struct {

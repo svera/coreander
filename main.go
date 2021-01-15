@@ -9,8 +9,8 @@ import (
 	"github.com/blevesearch/bleve"
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/svera/coreander/internal/index"
+	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/webserver"
-	"github.com/svera/coreander/metadata"
 )
 
 func main() {
