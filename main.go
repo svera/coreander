@@ -63,5 +63,6 @@ func run(cfg Config, homeDir string) {
 		dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 		log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
 	}()
-	webserver.Start(idx, cfg.LibraryPath, cfg.Port)
+	app := webserver.New(idx, cfg.LibraryPath)
+	app.Listen(fmt.Sprintf(":%s", cfg.Port))
 }

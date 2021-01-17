@@ -1,16 +1,6 @@
 <main>
     <div class="container">
-        <div class="row">
-            <div class="col-sm">
-                <form action="">
-                    <div class="input-group mb-3">
-                        <label for="search" class="visually-hidden">Search</label>
-                        <input type="text" name="search" class="form-control form-control-lg" placeholder="Keywords" maxlength="255" required autofocus>
-                        <button class="btn btn-primary" type="submit">Search</button>
-                    </div>
-                </form>
-            </div>
-            <p>Searching through {{.Count}} documents</p>
-        </div>
+        {{template "partials/searchbox" .}}
+        <p>{{t "availability" .Count}}</p>
     </div>
 </main>

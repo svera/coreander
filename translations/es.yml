@@ -1,0 +1,7 @@
+search: "Buscar"
+availability: "%d documentos disponibles"
+download: "Descargar"
+previous: "Anterior"
+next: "Siguiente"
+found_results: "Halladas %d coincidencias"
+searchbox_placeholder: "Título, autores, temas, etc."

@@ -50,6 +50,7 @@ func addLanguageMappings(indexMapping *mapping.IndexMappingImpl, languages []str
 
 // Add scans <libraryPath> for books and adds them to the index in batches of <bathSize>
 func (b *BleveIndexer) Add(libraryPath string, read map[string]metadata.Reader, batchSize int) error {
+	libraryPath = strings.TrimSuffix(libraryPath, "/")
 	batch := b.idx.NewBatch()
 	e := filepath.Walk(libraryPath, func(path string, f os.FileInfo, err error) error {
 		ext := filepath.Ext(path)
@@ -63,6 +64,7 @@ func (b *BleveIndexer) Add(libraryPath string, read map[string]metadata.Reader, 
 		}
 
 		path = strings.Replace(path, libraryPath, "", 1)
+		path = strings.TrimPrefix(path, "/")
 		err = batch.Index(path, meta)
 		if err != nil {
 			log.Printf("Error indexing file %s: %s\n", path, err)

@@ -4,15 +4,14 @@ body {
 }
 
 body {
-    display: flex;
     align-items: center;
-    padding-top: 40px;
     padding-bottom: 40px;
     background-color: #fff;
     color: #000;
 }
 
 main {
+    padding-top: 40px;
     width: 100%;
     padding: 15px;
     margin: auto;

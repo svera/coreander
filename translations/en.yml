@@ -1,0 +1,7 @@
+search: "Search"
+availability: "%d documents available"
+download: "Download"
+previous: "Previous"
+next: "Next"
+found_results: "%d matches found"
+searchbox_placeholder: "Title, authors, subjects, etc."

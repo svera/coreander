@@ -1,13 +1,16 @@
 package webserver
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html"
+	"github.com/svera/coreander/i18n"
 	"github.com/svera/coreander/internal/index"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 const (
@@ -15,19 +18,39 @@ const (
 	maxPagesNavigator = 5
 )
 
-// Start builds a new Fiber application and set up the required routes
-func Start(idx index.Reader, libraryPath, port string) {
-	engine := html.New("./views", ".html")
+func init() {
+	cat, err := i18n.NewCatalogFromFolder("./translations", "en")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	message.DefaultCatalog = cat
+}
+
+// New builds a new Fiber application and set up the required routes
+func New(idx index.Reader, libraryPath string) *fiber.App {
+	var printer *message.Printer
+	engine := html.New("./views", ".html").Reload(true)
+	engine.AddFunc("t", func(key string, values ...interface{}) string {
+		return printer.Sprintf(key, values...)
+	})
+
 	app := fiber.New(fiber.Config{
 		Views: engine,
 	})
 
-	app.Get("/", func(c *fiber.Ctx) error {
+	app.Get("/:lang?", func(c *fiber.Ctx) error {
+		lang := c.Params("lang")
+		printer = message.NewPrinter(language.English)
+		if lang == "es" {
+			printer = message.NewPrinter(language.Spanish)
+		}
 		keywords := c.Query("search")
 		page, err := strconv.Atoi(c.Query("page"))
 		if err != nil {
 			page = 1
 		}
+
 		if keywords != "" {
 			searchResults, err := idx.Search(keywords, page, resultsPerPage)
 			if err != nil {
@@ -51,5 +74,6 @@ func Start(idx index.Reader, libraryPath, port string) {
 	app.Static("/files", libraryPath)
 	dir, _ := os.Getwd()
 	app.Static("/css", dir+"/public/css")
-	app.Listen(fmt.Sprintf(":%s", port))
+
+	return app
 }

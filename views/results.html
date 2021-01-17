@@ -1,21 +1,10 @@
 <main>
     <div class="container">
-        <div class="row">
-            <div class="col-sm">
-                <form action="">
-                    <div class="input-group mb-3">
-                        <label for="search" class="visually-hidden">Search</label>
-                        <input type="text" name="search" class="form-control form-control-lg" placeholder="Keywords" maxlength="255" required autofocus value="{{.Keywords}}">
-                        <button class="btn btn-primary" type="submit">Search</button>
-                    </div>
-                </form>
-                {{if gt .Total 0}}
-                <p>Found {{.Total}} results</p>
-                {{else}}
-                <p>No results found</p>
-                {{end}}
-            </div>
-        </div>
+        {{template "partials/searchbox" .}} {{if gt .Total 0}}
+        <p>{{t "found_results" .Total }}</p>
+        {{else}}
+        <p>No results found</p>
+        {{end}}
 
         <div class="list-group">
             {{if .Results}} {{range $ID, $book := .Results}}
@@ -25,7 +14,7 @@
                         <h4 class="text-start">{{$book.Title}}</h4>
                     </div>
                     <div class="col-4 text-end">
-                        <a href="files/{{$ID}}" class="btn btn-secondary">Download</a>
+                        <a href="files/{{$ID}}" class="btn btn-secondary">{{t "download"}}</a>
                     </div>
                 </div>
 
@@ -40,13 +29,13 @@
             <ul class="pagination justify-content-center flex-wrap">
                 {{$disabled := ""}} {{$ariaDisabled := ""}} {{ if not .Paginator.PreviousLink }} {{$disabled = "disabled"}} {{$ariaDisabled = "aria-disabled=\"true\""}} {{end}}
                 <li class="page-item {{$disabled}}">
-                    <a class="page-link" href="{{.Paginator.PreviousLink}}" tabindex="-1" {{$ariaDisabled}}>Previous</a>
+                    <a class="page-link" href="{{.Paginator.PreviousLink}}" tabindex="-1" {{$ariaDisabled}}>{{t "previous"}}</a>
                 </li>
                 {{range $number, $page := .Paginator.Pages}} {{$active := ""}} {{ if $page.IsCurrent }} {{$active = "active"}} {{end}}
                 <li class="page-item {{$active}}"><a class="page-link" href="{{$page.Link}}">{{$number}}</a></li>
                 {{end}} {{$disabled := ""}} {{$ariaDisabled := ""}} {{ if not .Paginator.NextLink }} {{$disabled = "disabled"}} {{$ariaDisabled = "aria-disabled=\"true\""}} {{end}}
                 <li class="page-item {{$disabled}}">
-                    <a class="page-link" href="{{.Paginator.NextLink}}" tabindex="-1" {{$ariaDisabled}}>Next</a>
+                    <a class="page-link" href="{{.Paginator.NextLink}}" tabindex="-1" {{$ariaDisabled}}>{{t "next"}}</a>
                 </li>
             </ul>
         </nav>
