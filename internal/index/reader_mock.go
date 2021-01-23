@@ -3,6 +3,7 @@ package index
 type ReaderMock struct {
 	SearchFake func(keywords string, page, resultsPerPage int) (*Result, error)
 	CountFake  func() (uint64, error)
+	CloseFake  func() error
 }
 
 func NewReaderMock() *ReaderMock {
@@ -13,6 +14,9 @@ func NewReaderMock() *ReaderMock {
 		CountFake: func() (uint64, error) {
 			return 0, nil
 		},
+		CloseFake: func() error {
+			return nil
+		},
 	}
 }
 
@@ -22,4 +26,8 @@ func (r *ReaderMock) Search(keywords string, page, resultsPerPage int) (*Result,
 
 func (r *ReaderMock) Count() (uint64, error) {
 	return r.CountFake()
+}
+
+func (r *ReaderMock) Close() error {
+	return r.CloseFake()
 }

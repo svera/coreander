@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/blevesearch/bleve"
+	"github.com/blevesearch/bleve/v2"
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/metadata"
@@ -21,15 +21,15 @@ func main() {
 	if err != nil {
 		log.Fatal("Error retrieving user home dir")
 	}
-	if err = cleanenv.ReadConfig(homeDir+"/coreander/config.yml", &cfg); err != nil {
-		log.Fatal(fmt.Sprintf("Config file config.yml not found in %s/coreander", homeDir))
+	if err = cleanenv.ReadEnv(&cfg); err != nil {
+		log.Fatal(fmt.Sprintf("Error parsing configuration from environment variables: %s", err))
 	}
 	/*
 		if !cfg.Verbose {
 			log.SetOutput(ioutil.Discard)
 		}*/
 	if _, err := os.Stat(cfg.LibraryPath); os.IsNotExist(err) {
-		log.Fatal(fmt.Errorf("%s does not exist, exiting", cfg.LibraryPath))
+		log.Fatal(fmt.Errorf("Directory '%s' does not exist, exiting", cfg.LibraryPath))
 	}
 	run(cfg, homeDir)
 }
@@ -48,6 +48,8 @@ func run(cfg Config, homeDir string) {
 			log.Fatal(err)
 		}
 	}
+
+	defer idx.Close()
 
 	go func() {
 		start := time.Now().Unix()

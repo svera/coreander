@@ -18,8 +18,8 @@ The application should build and run in any Go supported platform, but it has be
 Clone the repo and, from its directory, run `go build` to generate the binary and then execute it with `coreander`. That's it. Note that if you want to move the generated binary to a different directory, both the `views` and `public` folders must be copied as well.
 
 ## How to use
-Coreander requires a `config.yml` file to be present in your `$home/coreander` directory. A sample one is distributed with this source code. The main setting there is `library-path`, which tells the application where your books are located.
+Coreander requires a `LIBPATH` environment variable to be set, which tells the application where your books are located.
 
 On first run, Coreander will index the books in your library, creating a database with those entries located at `$home/coreander/db`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.
 
-Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` for the IP address of the machine where the server is running if you want to access it from another machine). It is possible to change the listening port in `$home/coreander/config.yml`, or just executing the application with the `PORT` environment variable (e. g. `PORT=4000 coreander`) 
+Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` for the IP address of the machine where the server is running if you want to access it from another machine). It is possible to change the listening port just executing the application with the `PORT` environment variable (e. g. `PORT=4000 coreander`) 

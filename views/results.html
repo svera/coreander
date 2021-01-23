@@ -3,7 +3,7 @@
         {{template "partials/searchbox" .}} {{if gt .Total 0}}
         <p>{{t "found_results" .Total }}</p>
         {{else}}
-        <p>No results found</p>
+        <p>{{t "found_no_results" }}</p>
         {{end}}
 
         <div class="list-group">
