@@ -20,17 +20,15 @@ const (
 	maxPagesNavigator = 5
 )
 
-func init() {
+// New builds a new Fiber application and set up the required routes
+func New(idx index.Reader, libraryPath string) *fiber.App {
 	cat, err := i18n.NewCatalogFromFolder("./translations", "en")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	message.DefaultCatalog = cat
-}
 
-// New builds a new Fiber application and set up the required routes
-func New(idx index.Reader, libraryPath string) *fiber.App {
 	var printer *message.Printer
 	engine := html.New("./views", ".html").Reload(true)
 	engine.AddFunc("t", func(key string, values ...interface{}) string {
@@ -45,14 +43,18 @@ func New(idx index.Reader, libraryPath string) *fiber.App {
 		Rules: map[string]string{
 			"/": "/en",
 		},
-		StatusCode: http.StatusPermanentRedirect,
+		StatusCode: http.StatusMovedPermanently,
 	}))
 
 	app.Get("/:lang", func(c *fiber.Ctx) error {
 		lang := c.Params("lang")
-		printer = message.NewPrinter(language.English)
-		if lang == "es" {
+		switch lang {
+		case "es":
 			printer = message.NewPrinter(language.Spanish)
+		case "en":
+			printer = message.NewPrinter(language.English)
+		default:
+			return c.SendStatus(http.StatusNotFound)
 		}
 		keywords := c.Query("search")
 		page, err := strconv.Atoi(c.Query("page"))
