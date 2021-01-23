@@ -11,8 +11,6 @@ import (
 	"github.com/svera/coreander/internal/metadata"
 )
 
-//var languages = []string{es.AnalyzerName, en.AnalyzerName, fr.AnalyzerName, de.AnalyzerName, it.AnalyzerName, pt.AnalyzerName}
-
 type BleveIndexer struct {
 	idx bleve.Index
 }
@@ -23,7 +21,6 @@ func NewBleve(index bleve.Index) *BleveIndexer {
 
 func CreateBleve(dir string) (*BleveIndexer, error) {
 	indexMapping := bleve.NewIndexMapping()
-	//addLanguageMappings(indexMapping)
 	index, err := bleve.New(dir+"/coreander/db", indexMapping)
 	if err != nil {
 		return nil, err
@@ -31,18 +28,6 @@ func CreateBleve(dir string) (*BleveIndexer, error) {
 
 	return &BleveIndexer{index}, nil
 }
-
-/*
-func addLanguageMappings(indexMapping *mapping.IndexMappingImpl) {
-	for _, lang := range languages {
-		bookMapping := bleve.NewDocumentMapping()
-		bookMapping.DefaultAnalyzer = lang
-		languageFieldMapping := bleve.NewTextFieldMapping()
-		languageFieldMapping.Index = false
-		bookMapping.AddFieldMappingsAt("language", languageFieldMapping)
-		indexMapping.AddDocumentMapping(lang, bookMapping)
-	}
-}*/
 
 // Add scans <libraryPath> for books and adds them to the index in batches of <bathSize>
 func (b *BleveIndexer) Add(libraryPath string, read map[string]metadata.Reader, batchSize int) error {
@@ -84,13 +69,6 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Resul
 		page = 1
 	}
 
-	//queries := make([]query.Query, 0, len(languages))
-	//for i, lang := range languages {
-	//queries = append(queries, bleve.NewQueryStringQuery(keywords))
-	//queries[i].(*query.QueryStringQuery).Analyzer = lang
-	//}
-
-	//query := bleve.NewDisjunctionQuery(queries...)
 	query := bleve.NewQueryStringQuery(keywords)
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
