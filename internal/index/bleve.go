@@ -8,8 +8,18 @@ import (
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/analysis/lang/de"
+	"github.com/blevesearch/bleve/v2/analysis/lang/en"
+	"github.com/blevesearch/bleve/v2/analysis/lang/es"
+	"github.com/blevesearch/bleve/v2/analysis/lang/fr"
+	"github.com/blevesearch/bleve/v2/analysis/lang/it"
+	"github.com/blevesearch/bleve/v2/analysis/lang/pt"
+	"github.com/blevesearch/bleve/v2/mapping"
+	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/svera/coreander/internal/metadata"
 )
+
+var languages = []string{es.AnalyzerName, en.AnalyzerName, fr.AnalyzerName, de.AnalyzerName, it.AnalyzerName, pt.AnalyzerName}
 
 type BleveIndexer struct {
 	idx bleve.Index
@@ -21,12 +31,24 @@ func NewBleve(index bleve.Index) *BleveIndexer {
 
 func CreateBleve(dir string) (*BleveIndexer, error) {
 	indexMapping := bleve.NewIndexMapping()
+	addLanguageMappings(indexMapping)
 	index, err := bleve.New(dir+"/coreander/db", indexMapping)
 	if err != nil {
 		return nil, err
 	}
 
 	return &BleveIndexer{index}, nil
+}
+
+func addLanguageMappings(indexMapping *mapping.IndexMappingImpl) {
+	for _, lang := range languages {
+		bookMapping := bleve.NewDocumentMapping()
+		bookMapping.DefaultAnalyzer = lang
+		languageFieldMapping := bleve.NewTextFieldMapping()
+		languageFieldMapping.Index = false
+		bookMapping.AddFieldMappingsAt("language", languageFieldMapping)
+		indexMapping.AddDocumentMapping(lang, bookMapping)
+	}
 }
 
 // Add scans <libraryPath> for books and adds them to the index in batches of <bathSize>
@@ -69,7 +91,13 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Resul
 		page = 1
 	}
 
-	query := bleve.NewQueryStringQuery(keywords)
+	queries := make([]query.Query, 0, len(languages))
+	for i, lang := range languages {
+		queries = append(queries, bleve.NewMatchQuery(keywords))
+		queries[i].(*query.MatchQuery).Analyzer = lang
+	}
+
+	query := bleve.NewDisjunctionQuery(queries...)
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.Fields = []string{"Title", "Author", "Description"}

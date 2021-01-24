@@ -13,9 +13,7 @@ import (
 
 func init() {
 	_, filename, _, _ := runtime.Caller(0)
-	dir := path.Dir(filename)
-	os.Chdir(dir)
-	os.Chdir("../..")
+	os.Chdir(path.Dir(filename) + "/../..")
 }
 
 func TestGET(t *testing.T) {

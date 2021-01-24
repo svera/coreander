@@ -28,8 +28,8 @@ func main() {
 		if !cfg.Verbose {
 			log.SetOutput(ioutil.Discard)
 		}*/
-	if _, err := os.Stat(cfg.LibraryPath); os.IsNotExist(err) {
-		log.Fatal(fmt.Errorf("Directory '%s' does not exist, exiting", cfg.LibraryPath))
+	if _, err := os.Stat(cfg.LibPath); os.IsNotExist(err) {
+		log.Fatal(fmt.Errorf("Directory '%s' does not exist, exiting", cfg.LibPath))
 	}
 	run(cfg, homeDir)
 }
@@ -56,8 +56,8 @@ func run(cfg Config, homeDir string) {
 		metadataReaders := map[string]metadata.Reader{
 			".epub": metadata.Epub,
 		}
-		log.Println(fmt.Sprintf("Indexing books at %s, this can take a while depending on the size of your library.", cfg.LibraryPath))
-		err := idx.Add(cfg.LibraryPath, metadataReaders, cfg.BatchSize)
+		log.Println(fmt.Sprintf("Indexing books at %s, this can take a while depending on the size of your library.", cfg.LibPath))
+		err := idx.Add(cfg.LibPath, metadataReaders, cfg.BatchSize)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -65,6 +65,6 @@ func run(cfg Config, homeDir string) {
 		dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 		log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
 	}()
-	app := webserver.New(idx, cfg.LibraryPath)
+	app := webserver.New(idx, cfg.LibPath)
 	app.Listen(fmt.Sprintf(":%s", cfg.Port))
 }
