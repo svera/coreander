@@ -16,6 +16,7 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/lang/pt"
 	"github.com/blevesearch/bleve/v2/mapping"
 	"github.com/blevesearch/bleve/v2/search/query"
+	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/metadata"
 )
 
@@ -40,6 +41,17 @@ func CreateBleve(dir string) (*BleveIndexer, error) {
 	return &BleveIndexer{index}, nil
 }
 
+func CreateMemBleve() (*BleveIndexer, error) {
+	indexMapping := bleve.NewIndexMapping()
+	addLanguageMappings(indexMapping)
+	index, err := bleve.NewMemOnly(indexMapping)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BleveIndexer{index}, nil
+}
+
 func addLanguageMappings(indexMapping *mapping.IndexMappingImpl) {
 	for _, lang := range languages {
 		bookMapping := bleve.NewDocumentMapping()
@@ -52,10 +64,10 @@ func addLanguageMappings(indexMapping *mapping.IndexMappingImpl) {
 }
 
 // Add scans <libraryPath> for books and adds them to the index in batches of <bathSize>
-func (b *BleveIndexer) Add(libraryPath string, read map[string]metadata.Reader, batchSize int) error {
+func (b *BleveIndexer) Add(libraryPath string, fs afero.Fs, read map[string]metadata.Reader, batchSize int) error {
 	libraryPath = strings.TrimSuffix(libraryPath, "/")
 	batch := b.idx.NewBatch()
-	e := filepath.Walk(libraryPath, func(path string, f os.FileInfo, err error) error {
+	e := afero.Walk(fs, libraryPath, func(path string, f os.FileInfo, err error) error {
 		ext := filepath.Ext(path)
 		if _, ok := read[ext]; !ok {
 			return nil
@@ -63,7 +75,7 @@ func (b *BleveIndexer) Add(libraryPath string, read map[string]metadata.Reader, 
 		meta, err := read[ext](path)
 		if err != nil {
 			log.Printf("Error extracting metadata from file %s: %s\n", path, err)
-			return nil
+			return err
 		}
 
 		path = strings.Replace(path, libraryPath, "", 1)
@@ -71,7 +83,7 @@ func (b *BleveIndexer) Add(libraryPath string, read map[string]metadata.Reader, 
 		err = batch.Index(path, meta)
 		if err != nil {
 			log.Printf("Error indexing file %s: %s\n", path, err)
-			return nil
+			return err
 		}
 
 		if batch.Size() == batchSize {

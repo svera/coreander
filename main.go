@@ -8,6 +8,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/webserver"
@@ -53,11 +54,12 @@ func run(cfg Config, homeDir string) {
 
 	go func() {
 		start := time.Now().Unix()
+		var appFs = afero.NewOsFs()
 		metadataReaders := map[string]metadata.Reader{
 			".epub": metadata.Epub,
 		}
 		log.Println(fmt.Sprintf("Indexing books at %s, this can take a while depending on the size of your library.", cfg.LibPath))
-		err := idx.Add(cfg.LibPath, metadataReaders, cfg.BatchSize)
+		err := idx.Add(cfg.LibPath, appFs, metadataReaders, cfg.BatchSize)
 		if err != nil {
 			log.Fatal(err)
 		}

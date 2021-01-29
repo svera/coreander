@@ -4,7 +4,6 @@ go 1.15
 
 require (
 	github.com/RoaringBitmap/roaring v0.5.5 // indirect
-	github.com/blevesearch/bleve v1.0.14
 	github.com/blevesearch/bleve/v2 v2.0.1
 	github.com/glycerine/go-unsnap-stream v0.0.0-20190901134440-81cf024a9e0a // indirect
 	github.com/gofiber/fiber/v2 v2.3.2
@@ -15,6 +14,7 @@ require (
 	github.com/ilyakaznacheev/cleanenv v1.2.5
 	github.com/pirmd/epub v0.1.0
 	github.com/pirmd/verify v0.5.3 // indirect
+	github.com/spf13/afero v1.1.2
 	github.com/tinylib/msgp v1.1.5 // indirect
 	github.com/willf/bitset v1.1.11 // indirect
 	golang.org/x/sys v0.0.0-20210119212857-b64e53b001e4 // indirect
