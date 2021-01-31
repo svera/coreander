@@ -1,13 +1,13 @@
 package webserver
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/redirect/v2"
 	"github.com/gofiber/template/html"
 	"github.com/svera/coreander/i18n"
 	"github.com/svera/coreander/internal/index"
@@ -38,13 +38,6 @@ func New(idx index.Reader, libraryPath string) *fiber.App {
 	app := fiber.New(fiber.Config{
 		Views: engine,
 	})
-
-	app.Use(redirect.New(redirect.Config{
-		Rules: map[string]string{
-			"/": "/en",
-		},
-		StatusCode: http.StatusMovedPermanently,
-	}))
 
 	app.Get("/:lang", func(c *fiber.Ctx) error {
 		lang := c.Params("lang")
@@ -85,6 +78,19 @@ func New(idx index.Reader, libraryPath string) *fiber.App {
 			"Count": count,
 			"Title": "Coreander",
 		}, "layout")
+	})
+
+	app.Get("/", func(c *fiber.Ctx) error {
+		acceptHeader := c.Get(fiber.HeaderAcceptLanguage)
+		languageMatcher := language.NewMatcher([]language.Tag{
+			language.English,
+			language.Spanish,
+		})
+
+		t, _, _ := language.ParseAcceptLanguage(acceptHeader)
+		tag, _, _ := languageMatcher.Match(t...)
+		baseLang, _ := tag.Base()
+		return c.Redirect(fmt.Sprintf("/%s", baseLang.String()))
 	})
 
 	app.Static("/files", libraryPath)

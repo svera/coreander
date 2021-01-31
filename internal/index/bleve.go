@@ -23,36 +23,20 @@ import (
 var languages = []string{es.AnalyzerName, en.AnalyzerName, fr.AnalyzerName, de.AnalyzerName, it.AnalyzerName, pt.AnalyzerName}
 
 type BleveIndexer struct {
-	idx bleve.Index
+	idx         bleve.Index
+	libraryPath string
+	read        map[string]metadata.Reader
 }
 
-func NewBleve(index bleve.Index) *BleveIndexer {
-	return &BleveIndexer{index}
-}
-
-func CreateBleve(dir string) (*BleveIndexer, error) {
-	indexMapping := bleve.NewIndexMapping()
-	addLanguageMappings(indexMapping)
-	index, err := bleve.New(dir+"/coreander/db", indexMapping)
-	if err != nil {
-		return nil, err
+func NewBleve(index bleve.Index, libraryPath string, read map[string]metadata.Reader) *BleveIndexer {
+	return &BleveIndexer{
+		index,
+		libraryPath,
+		read,
 	}
-
-	return &BleveIndexer{index}, nil
 }
 
-func CreateMemBleve() (*BleveIndexer, error) {
-	indexMapping := bleve.NewIndexMapping()
-	addLanguageMappings(indexMapping)
-	index, err := bleve.NewMemOnly(indexMapping)
-	if err != nil {
-		return nil, err
-	}
-
-	return &BleveIndexer{index}, nil
-}
-
-func addLanguageMappings(indexMapping *mapping.IndexMappingImpl) {
+func AddLanguageMappings(indexMapping *mapping.IndexMappingImpl) {
 	for _, lang := range languages {
 		bookMapping := bleve.NewDocumentMapping()
 		bookMapping.DefaultAnalyzer = lang
@@ -63,19 +47,40 @@ func addLanguageMappings(indexMapping *mapping.IndexMappingImpl) {
 	}
 }
 
-// Add scans <libraryPath> for books and adds them to the index in batches of <bathSize>
-func (b *BleveIndexer) Add(libraryPath string, fs afero.Fs, read map[string]metadata.Reader, batchSize int) error {
-	libraryPath = strings.TrimSuffix(libraryPath, "/")
+func (b *BleveIndexer) AddFile(file string) error {
+	ext := filepath.Ext(file)
+	if _, ok := b.read[ext]; !ok {
+		return nil
+	}
+	meta, err := b.read[ext](file)
+	if err != nil {
+		log.Printf("Error extracting metadata from file %s: %s\n", file, err)
+		return err
+	}
+
+	file = strings.Replace(file, b.libraryPath, "", 1)
+	file = strings.TrimPrefix(file, "/")
+	err = b.idx.Index(file, meta)
+	if err != nil {
+		log.Printf("Error indexing file %s: %s\n", file, err)
+		return err
+	}
+	return nil
+}
+
+// AddLibrary scans <libraryPath> for books and adds them to the index in batches of <bathSize>
+func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
+	libraryPath := strings.TrimSuffix(b.libraryPath, "/")
 	batch := b.idx.NewBatch()
 	e := afero.Walk(fs, libraryPath, func(path string, f os.FileInfo, err error) error {
 		ext := filepath.Ext(path)
-		if _, ok := read[ext]; !ok {
+		if _, ok := b.read[ext]; !ok {
 			return nil
 		}
-		meta, err := read[ext](path)
+		meta, err := b.read[ext](path)
 		if err != nil {
 			log.Printf("Error extracting metadata from file %s: %s\n", path, err)
-			return err
+			return nil
 		}
 
 		path = strings.Replace(path, libraryPath, "", 1)
@@ -83,7 +88,7 @@ func (b *BleveIndexer) Add(libraryPath string, fs afero.Fs, read map[string]meta
 		err = batch.Index(path, meta)
 		if err != nil {
 			log.Printf("Error indexing file %s: %s\n", path, err)
-			return err
+			return nil
 		}
 
 		if batch.Size() == batchSize {

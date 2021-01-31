@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/blevesearch/bleve/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/metadata"
@@ -11,24 +12,27 @@ import (
 
 func TestIndexAndSearch(t *testing.T) {
 	for _, tcase := range testCases() {
-		t.Run(tcase.filename, func(t *testing.T) {
-			idx, err := index.CreateMemBleve()
+		t.Run(tcase.name, func(t *testing.T) {
+			indexMapping := bleve.NewIndexMapping()
+			index.AddLanguageMappings(indexMapping)
+			indexMem, err := bleve.NewMemOnly(indexMapping)
 			if err != nil {
 				t.Errorf("Error initialising index")
 			}
-
-			appFS := afero.NewMemMapFs()
-			// create test files and directories
-			appFS.MkdirAll("lib", 0755)
-			afero.WriteFile(appFS, tcase.filename, []byte(""), 0644)
-
 			mockMetadataReaders := map[string]metadata.Reader{
 				".epub": func(file string) (metadata.Metadata, error) {
 					return tcase.mockedMeta, nil
 				},
 			}
 
-			err = idx.Add("lib", appFS, mockMetadataReaders, 1)
+			idx := index.NewBleve(indexMem, "lib", mockMetadataReaders)
+
+			appFS := afero.NewMemMapFs()
+			// create test files and directories
+			appFS.MkdirAll("lib", 0755)
+			afero.WriteFile(appFS, tcase.filename, []byte(""), 0644)
+
+			err = idx.AddLibrary(appFS, 1)
 			if err != nil {
 				t.Errorf("Error indexing: %s", err.Error())
 			}
@@ -44,6 +48,7 @@ func TestIndexAndSearch(t *testing.T) {
 }
 
 type testCase struct {
+	name           string
 	filename       string
 	mockedMeta     metadata.Metadata
 	search         string
@@ -53,6 +58,7 @@ type testCase struct {
 func testCases() []testCase {
 	return []testCase{
 		{
+			"Look for a term without accent must return accented results",
 			"lib/book1.epub",
 			metadata.Metadata{
 				Title:       "Test A",
@@ -75,6 +81,7 @@ func testCases() []testCase {
 			},
 		},
 		{
+			"Look for a term without circumflex accent must return circumflexed results",
 			"lib/book2.epub",
 			metadata.Metadata{
 				Title:       "Test B",

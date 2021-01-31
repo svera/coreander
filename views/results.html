@@ -10,11 +10,11 @@
             {{if .Results}} {{range $ID, $book := .Results}}
             <div class="list-group-item list-group-item-action">
                 <div class="row">
-                    <div class="col-8">
+                    <div class="col-7">
                         <h4 class="text-start">{{$book.Title}}</h4>
                     </div>
-                    <div class="col-4 text-end">
-                        <a href="files/{{$ID}}" class="btn btn-secondary">{{t "download"}}</a>
+                    <div class="col-5 text-end">
+                        <a href="files/{{$ID}}" class="btn btn-secondary btn-sm">{{t "download"}}</a>
                     </div>
                 </div>
 

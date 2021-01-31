@@ -18,25 +18,26 @@ func init() {
 
 func TestGET(t *testing.T) {
 	var cases = []struct {
+		name           string
 		url            string
 		expectedStatus int
 	}{
-		{"/", http.StatusMovedPermanently},
-		{"/es", http.StatusOK},
-		{"/xx", http.StatusNotFound},
+		{"Redirect if the user tries to access to the root URL", "/", http.StatusFound},
+		{"Page loads succesfully if the user tries to access an existent URL", "/es", http.StatusOK},
+		{"Server returns not found if the user tries to access a non-existent URL", "/xx", http.StatusNotFound},
 	}
 	app := webserver.New(index.NewReaderMock(), "")
 
-	for _, tt := range cases {
-		t.Run(tt.url, func(t *testing.T) {
-			req, _ := http.NewRequest("GET", tt.url, nil)
+	for _, tcase := range cases {
+		t.Run(tcase.name, func(t *testing.T) {
+			req, _ := http.NewRequest("GET", tcase.url, nil)
 
 			body, err := app.Test(req)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err.Error())
 			}
-			if body.StatusCode != tt.expectedStatus {
-				t.Errorf("Wrong status code received, expected %d, got %d", tt.expectedStatus, body.StatusCode)
+			if body.StatusCode != tcase.expectedStatus {
+				t.Errorf("Wrong status code received, expected %d, got %d", tcase.expectedStatus, body.StatusCode)
 			}
 		})
 	}
