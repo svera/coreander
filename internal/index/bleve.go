@@ -48,6 +48,7 @@ func AddLanguageMappings(indexMapping *mapping.IndexMappingImpl) {
 }
 
 func (b *BleveIndexer) AddFile(file string) error {
+	libraryPath := strings.TrimSuffix(b.libraryPath, "/")
 	ext := filepath.Ext(file)
 	if _, ok := b.read[ext]; !ok {
 		return nil
@@ -58,7 +59,7 @@ func (b *BleveIndexer) AddFile(file string) error {
 		return err
 	}
 
-	file = strings.Replace(file, b.libraryPath, "", 1)
+	file = strings.Replace(file, libraryPath, "", 1)
 	file = strings.TrimPrefix(file, "/")
 	err = b.idx.Index(file, meta)
 	if err != nil {

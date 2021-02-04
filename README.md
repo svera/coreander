@@ -1,10 +1,7 @@
 # Coreander
-A personal Ebooks server, Coreander indexes the ebooks (only in Epub format at the moment) that it finds in the passed folder, and provides a web interface to search and access them.
+A personal Ebooks server for Linux, Coreander indexes the ebooks (only EPUBs with no DRM at the moment) that it finds in the passed folder, and provides a web interface to search and access them.
 
 ![Coreander screenshot](screenshot.png)
-
-### Warning
-**This code has been quickly hacked away during holidays and lacks proper testing. Although I've been using it extensively without problems, you may find issues, so use it at your own risk.**
 
 ## Features
 * Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for ebooks in multiple languages.
@@ -13,11 +10,33 @@ A personal Ebooks server, Coreander indexes the ebooks (only in Epub format at t
 
 ## Installation
 Only source code is provided at the moment, so you'll have to manually build it. The only requirement is Go 1.15.
-The application should build and run in any Go supported platform, but it has been only tested in Mac OS 10.15 (Catalina).
 
 Clone the repo and, from its directory, run `go build` to generate the binary and then execute it with `coreander`. That's it. Note that if you want to move the generated binary to a different directory, both the `views` and `public` folders must be copied as well.
 
 ## How to use
+Coreander is designed to be run as a service managed by systemd or any other service manager. For example, in Raspbian, just create a file called `/etc/systemd/system/coreander.service` with the following contents:
+
+```
+[Unit]
+Description=coreander
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5s
+WorkingDirectory=<absolute path to directory which contains coreander binary>
+ExecStart=<absolute path to coreander binary>
+PermissionsStartOnly=true
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=sleepservice
+User=<user which will execute this service>
+Environment="LIBPATH=<absolute path to the library>"
+
+```
+
+then, start the service with `service coreander start`. You can manage it with the usual commands `start`, `stop` and `status`. Refer to the your service manager documentation for more information.
+
 Coreander requires a `LIBPATH` environment variable to be set, which tells the application where your books are located.
 
 On first run, Coreander will index the books in your library, creating a database with those entries located at `$home/coreander/db`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.

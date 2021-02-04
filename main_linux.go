@@ -8,11 +8,11 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/rjeczalik/notify"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/webserver"
-	"gopkg.in/fsnotify.v1"
 )
 
 func main() {
@@ -26,10 +26,6 @@ func main() {
 	if err = cleanenv.ReadEnv(&cfg); err != nil {
 		log.Fatal(fmt.Sprintf("Error parsing configuration from environment variables: %s", err))
 	}
-	/*
-		if !cfg.Verbose {
-			log.SetOutput(ioutil.Discard)
-		}*/
 	if _, err := os.Stat(cfg.LibPath); os.IsNotExist(err) {
 		log.Fatal(fmt.Errorf("Directory '%s' does not exist, exiting", cfg.LibPath))
 	}
@@ -57,13 +53,12 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader)
 		}
 		idx = index.NewBleve(indexFile, cfg.LibPath, metadataReaders)
 	}
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
+	c := make(chan notify.EventInfo, 1)
+	if err := notify.Watch(cfg.LibPath, c, notify.InCloseWrite, notify.InMovedTo); err != nil {
 		log.Fatal(err)
 	}
-
 	defer func() {
-		watcher.Close()
+		notify.Stop(c)
 		idx.Close()
 	}()
 
@@ -79,32 +74,19 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader)
 		dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 		log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
 		log.Printf("Starting file watcher on %s\n", cfg.LibPath)
-		fileWatcher(watcher, idx, cfg.LibPath, metadataReaders)
+		fileWatcher(c, idx, cfg.LibPath, metadataReaders)
 	}()
-	if err = watcher.Add(cfg.LibPath); err != nil {
-		log.Fatal(err)
-	}
 	app := webserver.New(idx, cfg.LibPath)
 	app.Listen(fmt.Sprintf(":%s", cfg.Port))
 }
 
-func fileWatcher(watcher *fsnotify.Watcher, idx *index.BleveIndexer, libPath string, readers map[string]metadata.Reader) {
+func fileWatcher(c <-chan (notify.EventInfo), idx *index.BleveIndexer, libPath string, readers map[string]metadata.Reader) {
 	for {
 		select {
-		case event, ok := <-watcher.Events:
-			if !ok {
-				return
+		case ei := <-c:
+			if err := idx.AddFile(ei.Path()); err != nil {
+				log.Printf("Error indexing new file: %s\n", ei.Path())
 			}
-			if event.Op&fsnotify.Create == fsnotify.Create {
-				if err := idx.AddFile(event.Name); err != nil {
-					log.Printf("Error indexing new file: %s\n", event.Name)
-				}
-			}
-		case err, ok := <-watcher.Errors:
-			if !ok {
-				return
-			}
-			log.Println("error:", err)
 		}
 	}
 }
