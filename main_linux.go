@@ -1,6 +1,6 @@
-package main
-
 //+build linux
+
+package main
 
 import (
 	"fmt"
