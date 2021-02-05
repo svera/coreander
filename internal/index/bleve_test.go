@@ -103,5 +103,28 @@ func testCases() []testCase {
 				},
 			},
 		},
+		{
+			"Look for a several not exact terms must return a result with all those terms, even if there is something in between",
+			"lib/book3.epub",
+			metadata.Metadata{
+				Title:       "Test C",
+				Author:      "Clifford D. Simak",
+				Description: "Just test metadata",
+				Language:    "en",
+			},
+			"clifford simak",
+			index.Result{
+				Page:       1,
+				TotalPages: 1,
+				TotalHits:  1,
+				Hits: map[string]metadata.Metadata{
+					"book3.epub": {
+						Title:       "Test C",
+						Author:      "Clifford D. Simak",
+						Description: "Just test metadata",
+					},
+				},
+			},
+		},
 	}
 }

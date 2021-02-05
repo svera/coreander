@@ -7,6 +7,7 @@ A personal Ebooks server for Linux, Coreander indexes the ebooks (only EPUBs wit
 * Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for ebooks in multiple languages.
 * High-performance web server powered by [Fiber](https://github.com/gofiber/fiber).
 * Lightweight, responsive web interface based on [Bootstrap](https://getbootstrap.com/).
+* New books added or removed to/from the library folder are automatically indexed.
 
 ## Installation
 Only source code is provided at the moment, so you'll have to manually build it. The only requirement is Go 1.15.

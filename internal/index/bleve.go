@@ -1,6 +1,7 @@
 package index
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"os"
@@ -28,10 +29,11 @@ type BleveIndexer struct {
 	read        map[string]metadata.Reader
 }
 
+// NewBleve creates a new BleveIndexer instance using the passed parameters
 func NewBleve(index bleve.Index, libraryPath string, read map[string]metadata.Reader) *BleveIndexer {
 	return &BleveIndexer{
 		index,
-		libraryPath,
+		strings.TrimSuffix(libraryPath, "/"),
 		read,
 	}
 }
@@ -47,23 +49,32 @@ func AddLanguageMappings(indexMapping *mapping.IndexMappingImpl) {
 	}
 }
 
+// AddFile adds a file to the index
 func (b *BleveIndexer) AddFile(file string) error {
-	libraryPath := strings.TrimSuffix(b.libraryPath, "/")
 	ext := filepath.Ext(file)
 	if _, ok := b.read[ext]; !ok {
 		return nil
 	}
 	meta, err := b.read[ext](file)
 	if err != nil {
-		log.Printf("Error extracting metadata from file %s: %s\n", file, err)
-		return err
+		return fmt.Errorf("Error extracting metadata from file %s: %s", file, err)
 	}
 
-	file = strings.Replace(file, libraryPath, "", 1)
+	file = strings.Replace(file, b.libraryPath, "", 1)
 	file = strings.TrimPrefix(file, "/")
 	err = b.idx.Index(file, meta)
 	if err != nil {
-		log.Printf("Error indexing file %s: %s\n", file, err)
+		return fmt.Errorf("Error indexing file %s: %s", file, err)
+	}
+	return nil
+}
+
+// RemoveFile removes a file from the index
+func (b *BleveIndexer) RemoveFile(file string) error {
+	file = strings.Replace(file, b.libraryPath, "", 1)
+	file = strings.TrimPrefix(file, "/")
+	err := b.idx.Delete(file)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -71,9 +82,8 @@ func (b *BleveIndexer) AddFile(file string) error {
 
 // AddLibrary scans <libraryPath> for books and adds them to the index in batches of <bathSize>
 func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
-	libraryPath := strings.TrimSuffix(b.libraryPath, "/")
 	batch := b.idx.NewBatch()
-	e := afero.Walk(fs, libraryPath, func(path string, f os.FileInfo, err error) error {
+	e := afero.Walk(fs, b.libraryPath, func(path string, f os.FileInfo, err error) error {
 		ext := filepath.Ext(path)
 		if _, ok := b.read[ext]; !ok {
 			return nil
@@ -84,7 +94,7 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 			return nil
 		}
 
-		path = strings.Replace(path, libraryPath, "", 1)
+		path = strings.Replace(path, b.libraryPath, "", 1)
 		path = strings.TrimPrefix(path, "/")
 		err = batch.Index(path, meta)
 		if err != nil {
@@ -109,10 +119,15 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Resul
 		page = 1
 	}
 
+	terms := strings.Split(keywords, " ")
 	queries := make([]query.Query, 0, len(languages))
-	for i, lang := range languages {
-		queries = append(queries, bleve.NewMatchQuery(keywords))
-		queries[i].(*query.MatchQuery).Analyzer = lang
+	termQueries := make([]query.Query, 0, len(terms))
+	for _, lang := range languages {
+		for j, term := range terms {
+			termQueries = append(termQueries, bleve.NewMatchQuery(term))
+			termQueries[j].(*query.MatchQuery).Analyzer = lang
+		}
+		queries = append(queries, bleve.NewConjunctionQuery(termQueries...))
 	}
 
 	query := bleve.NewDisjunctionQuery(queries...)
@@ -162,6 +177,7 @@ func (b *BleveIndexer) Count() (uint64, error) {
 	return b.idx.DocCount()
 }
 
+// Close closes the index
 func (b *BleveIndexer) Close() error {
 	return b.idx.Close()
 }
