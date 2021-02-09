@@ -64,7 +64,7 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 		log.Fatal(err)
 	}
 	defer func() {
-		// notify.Stop(c)
+		notify.Stop(c)
 		idx.Close()
 	}()
 
@@ -79,7 +79,7 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 		dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 		log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
 		log.Printf("Starting file watcher on %s\n", cfg.LibPath)
-		//fileWatcher(c, idx, cfg.LibPath, metadataReaders)
+		fileWatcher(c, idx, cfg.LibPath, metadataReaders)
 	}()
 	app := webserver.New(idx, cfg.LibPath, homeDir)
 	app.Listen(fmt.Sprintf(":%s", cfg.Port))
