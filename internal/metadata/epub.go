@@ -1,6 +1,10 @@
 package metadata
 
-import "github.com/pirmd/epub"
+import (
+	"time"
+
+	"github.com/pirmd/epub"
+)
 
 func Epub(file string) (Metadata, error) {
 	bk := Metadata{}
@@ -24,11 +28,19 @@ func Epub(file string) (Metadata, error) {
 	if len(metadata.Language) > 0 {
 		language = metadata.Language[0]
 	}
+	year := ""
+	if len(metadata.Date) > 0 {
+		t, err := time.Parse("2006-01-02", metadata.Date[0].Stamp)
+		if err == nil {
+			year = t.Format("2006")
+		}
+	}
 	bk = Metadata{
 		Title:       title,
 		Author:      author,
 		Description: description,
 		Language:    language,
+		Year:        year,
 	}
 	return bk, nil
 }

@@ -9,17 +9,21 @@
         <div class="list-group">
             {{if .Results}} {{range $ID, $book := .Results}}
             <div class="list-group-item list-group-item-action">
+                <img src="covers/{{$ID}}" class="float-start me-3 2-25" style="max-width: 200px">
                 <div class="row">
                     <div class="col-7">
-                        <h4 class="text-start">{{$book.Title}}</h4>
+                        <h4 class="text-start">{{$book.Title}} <small class="small text-muted">{{$book.Year}}</small></h4>
                     </div>
                     <div class="col-5 text-end">
                         <a href="files/{{$ID}}" class="btn btn-secondary btn-sm">{{t "download"}}</a>
                     </div>
                 </div>
-
-                <h5 class="text-start">{{$book.Author}}</h5>
-                <p class="mb-1 text-start">{{$book.Description}}</p>
+                <div class="row">
+                    <div class="col-12">
+                        <h5 class="text-start">{{$book.Author}}</h5>
+                        <p class="mb-1 text-start">{{$book.Description}}</p>
+                    </div>
+                </div>
             </div>
             {{end}} {{end}}
         </div>

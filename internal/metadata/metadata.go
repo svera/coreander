@@ -5,6 +5,7 @@ type Metadata struct {
 	Author      string
 	Description string
 	Language    string
+	Year        string
 }
 
 // Type is a method used by bleve to know which analyzer use with a document

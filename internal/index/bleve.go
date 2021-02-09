@@ -45,6 +45,9 @@ func AddLanguageMappings(indexMapping *mapping.IndexMappingImpl) {
 		languageFieldMapping := bleve.NewTextFieldMapping()
 		languageFieldMapping.Index = false
 		bookMapping.AddFieldMappingsAt("language", languageFieldMapping)
+		yearFieldMapping := bleve.NewTextFieldMapping()
+		yearFieldMapping.Index = false
+		bookMapping.AddFieldMappingsAt("year", yearFieldMapping)
 		indexMapping.AddDocumentMapping(lang, bookMapping)
 	}
 }
@@ -133,7 +136,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Resul
 	query := bleve.NewDisjunctionQuery(queries...)
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
-	searchOptions.Fields = []string{"Title", "Author", "Description"}
+	searchOptions.Fields = []string{"Title", "Author", "Description", "Year"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return nil, err
@@ -148,7 +151,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Resul
 			page = 1
 		}
 		searchOptions = bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
-		searchOptions.Fields = []string{"Title", "Author", "Description"}
+		searchOptions.Fields = []string{"Title", "Author", "Description", "Year"}
 		searchResult, err = b.idx.Search(searchOptions)
 		if err != nil {
 			return nil, err
@@ -166,6 +169,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Resul
 			Title:       val.Fields["Title"].(string),
 			Author:      val.Fields["Author"].(string),
 			Description: val.Fields["Description"].(string),
+			Year:        val.Fields["Year"].(string),
 		}
 		result.Hits[val.ID] = doc
 	}

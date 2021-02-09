@@ -26,7 +26,7 @@ func TestGET(t *testing.T) {
 		{"Page loads succesfully if the user tries to access an existent URL", "/es", http.StatusOK},
 		{"Server returns not found if the user tries to access a non-existent URL", "/xx", http.StatusNotFound},
 	}
-	app := webserver.New(index.NewReaderMock(), "")
+	app := webserver.New(index.NewReaderMock(), "", "")
 
 	for _, tcase := range cases {
 		t.Run(tcase.name, func(t *testing.T) {

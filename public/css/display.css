@@ -26,3 +26,13 @@ main .form-control {
 main .form-control:focus {
     z-index: 2;
 }
+
+.small {
+    font-size: 0.65em;
+}
+
+@media screen and (max-width: 600px) {
+    img {
+        display: none;
+    }
+}

@@ -10,7 +10,6 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/ilyakaznacheev/cleanenv"
-	"github.com/rjeczalik/notify"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/metadata"
@@ -32,6 +31,10 @@ func main() {
 	if _, err := os.Stat(cfg.LibPath); os.IsNotExist(err) {
 		log.Fatal(fmt.Errorf("Directory '%s' does not exist, exiting", cfg.LibPath))
 	}
+	if err = os.MkdirAll(fmt.Sprintf("%s/coreander/cache/covers", homeDir), os.ModePerm); err != nil {
+		log.Fatal(fmt.Errorf("Couldn't create %s, exiting", fmt.Sprintf("%s/coreander/cache/covers", homeDir)))
+	}
+
 	metadataReaders := map[string]metadata.Reader{
 		".epub": metadata.Epub,
 	}
@@ -61,7 +64,7 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 		log.Fatal(err)
 	}
 	defer func() {
-		notify.Stop(c)
+		// notify.Stop(c)
 		idx.Close()
 	}()
 
@@ -76,9 +79,9 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 		dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 		log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
 		log.Printf("Starting file watcher on %s\n", cfg.LibPath)
-		fileWatcher(c, idx, cfg.LibPath, metadataReaders)
+		//fileWatcher(c, idx, cfg.LibPath, metadataReaders)
 	}()
-	app := webserver.New(idx, cfg.LibPath)
+	app := webserver.New(idx, cfg.LibPath, homeDir)
 	app.Listen(fmt.Sprintf(":%s", cfg.Port))
 }
 
