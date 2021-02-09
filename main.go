@@ -1,4 +1,4 @@
-//+build linux
+//+ build linux
 
 package main
 
@@ -10,6 +10,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/rjeczalik/notify"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/metadata"
