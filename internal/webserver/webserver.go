@@ -55,7 +55,19 @@ func New(idx index.Reader, libraryPath, homeDir string) *fiber.App {
 			)
 			if err != nil {
 				log.Println(err)
-				return fiber.ErrInternalServerError
+				dir, _ := os.Getwd()
+				input, err := ioutil.ReadFile(dir + "/public/images/generic.jpg")
+				if err != nil {
+					log.Println(err)
+					return fiber.ErrInternalServerError
+				}
+
+				destinationFile := fmt.Sprintf("%s/coreander/cache/covers/%s.jpg", homeDir, fileName)
+				err = ioutil.WriteFile(destinationFile, input, 0644)
+				if err != nil {
+					log.Println("Error creating", destinationFile)
+					return fiber.ErrInternalServerError
+				}
 			}
 		} else if info.IsDir() {
 			return fiber.ErrBadRequest

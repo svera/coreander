@@ -6,11 +6,13 @@ type Metadata struct {
 	Description string
 	Language    string
 	Year        string
+	Words       float64
+	ReadingTime string
 }
 
 // Type is a method used by bleve to know which analyzer use with a document
 func (b Metadata) Type() string {
-	return b.Language
+	return "simple"
 }
 
 type Reader func(file string) (Metadata, error)

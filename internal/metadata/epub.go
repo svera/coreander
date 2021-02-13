@@ -1,8 +1,14 @@
 package metadata
 
 import (
+	"archive/zip"
+	"io/ioutil"
+	"log"
+	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/pirmd/epub"
 )
 
@@ -42,5 +48,44 @@ func Epub(file string) (Metadata, error) {
 		Language:    language,
 		Year:        year,
 	}
+	w, err := words(file)
+	if err != nil {
+		log.Println(err)
+	}
+	bk.Words = float64(w)
 	return bk, nil
+}
+
+func words(bookFullPath string) (int, error) {
+	r, err := zip.OpenReader(bookFullPath)
+	if err != nil {
+		return 0, err
+	}
+	defer r.Close()
+	count := 0
+	for _, f := range r.File {
+		isContent, err := filepath.Match("OEBPS/Text/*.xhtml", f.Name)
+		if err != nil {
+			return 0, err
+		}
+		if !isContent {
+			continue
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			return 0, err
+		}
+		content, err := ioutil.ReadAll(rc)
+		if err != nil {
+			return 0, err
+		}
+
+		p := bluemonday.StrictPolicy()
+		text := p.Sanitize(string(content))
+		words := strings.Fields(text)
+		count += len(words)
+		rc.Close()
+	}
+	return count, nil
 }
