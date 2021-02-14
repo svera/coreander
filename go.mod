@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/RoaringBitmap/roaring v0.5.5 // indirect
+	github.com/blevesearch/bleve v1.0.14
 	github.com/blevesearch/bleve/v2 v2.0.1
 	github.com/glycerine/go-unsnap-stream v0.0.0-20190901134440-81cf024a9e0a // indirect
 	github.com/gofiber/fiber/v2 v2.3.2

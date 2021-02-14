@@ -14,7 +14,7 @@ func TestIndexAndSearch(t *testing.T) {
 	for _, tcase := range testCases() {
 		t.Run(tcase.name, func(t *testing.T) {
 			indexMapping := bleve.NewIndexMapping()
-			index.AddLanguageMappings(indexMapping)
+			index.AddMappings(indexMapping)
 			indexMem, err := bleve.NewMemOnly(indexMapping)
 			if err != nil {
 				t.Errorf("Error initialising index")
@@ -76,6 +76,8 @@ func testCases() []testCase {
 						Title:       "Test A",
 						Author:      "Pérez",
 						Description: "Just test metadata",
+						Words:       0,
+						ReadingTime: "0h 0m",
 					},
 				},
 			},
@@ -99,6 +101,8 @@ func testCases() []testCase {
 						Title:       "Test B",
 						Author:      "Benoît",
 						Description: "Just test metadata",
+						Words:       0,
+						ReadingTime: "0h 0m",
 					},
 				},
 			},
@@ -122,6 +126,33 @@ func testCases() []testCase {
 						Title:       "Test C",
 						Author:      "Clifford D. Simak",
 						Description: "Just test metadata",
+						Words:       0,
+						ReadingTime: "0h 0m",
+					},
+				},
+			},
+		},
+		{
+			"Look for a several not exact terms must return a result with all those terms, even if there is something in between",
+			"lib/book4.epub",
+			metadata.Metadata{
+				Title:       "Test D",
+				Author:      "James Ellroy",
+				Description: "Just test metadata",
+				Language:    "en",
+			},
+			"james ellroy",
+			index.Result{
+				Page:       1,
+				TotalPages: 1,
+				TotalHits:  1,
+				Hits: map[string]metadata.Metadata{
+					"book4.epub": {
+						Title:       "Test D",
+						Author:      "James Ellroy",
+						Description: "Just test metadata",
+						Words:       0,
+						ReadingTime: "0h 0m",
 					},
 				},
 			},

@@ -12,7 +12,7 @@ type Metadata struct {
 
 // Type is a method used by bleve to know which analyzer use with a document
 func (b Metadata) Type() string {
-	return "simple"
+	return "book"
 }
 
 type Reader func(file string) (Metadata, error)

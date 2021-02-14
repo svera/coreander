@@ -9,22 +9,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/blevesearch/bleve/analysis/token/lowercase"
+	"github.com/blevesearch/bleve/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2"
-	//"github.com/blevesearch/bleve/v2/analysis/lang/de"
-	"github.com/blevesearch/bleve/v2/analysis/analyzer/simple"
-	"github.com/blevesearch/bleve/v2/analysis/lang/en"
-
-	// "github.com/blevesearch/bleve/v2/analysis/lang/es"
-	// "github.com/blevesearch/bleve/v2/analysis/lang/fr"
-	// "github.com/blevesearch/bleve/v2/analysis/lang/it"
-	// "github.com/blevesearch/bleve/v2/analysis/lang/pt"
+	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
+	"github.com/blevesearch/bleve/v2/analysis/char/asciifolding"
 	"github.com/blevesearch/bleve/v2/mapping"
-	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/metadata"
 )
 
-//var languages = []string{es.AnalyzerName, en.AnalyzerName, fr.AnalyzerName, de.AnalyzerName, it.AnalyzerName, pt.AnalyzerName}
+const wordsPerMinute = 300.0
 
 type BleveIndexer struct {
 	idx         bleve.Index
@@ -41,21 +36,30 @@ func NewBleve(index bleve.Index, libraryPath string, read map[string]metadata.Re
 	}
 }
 
-func AddLanguageMappings(indexMapping *mapping.IndexMappingImpl) {
-	//	for _, lang := range languages {
+func AddMappings(indexMapping *mapping.IndexMappingImpl) {
+	err := indexMapping.AddCustomAnalyzer("book",
+		map[string]interface{}{
+			"type": custom.Name,
+			"char_filters": []string{
+				asciifolding.Name,
+			},
+			"tokenizer": unicode.Name,
+			"token_filters": []string{
+				lowercase.Name,
+			},
+		})
+	if err != nil {
+		log.Fatal(err)
+	}
 	bookMapping := bleve.NewDocumentMapping()
-	bookMapping.DefaultAnalyzer = simple.Name
+	bookMapping.DefaultAnalyzer = "book"
 	languageFieldMapping := bleve.NewTextFieldMapping()
 	languageFieldMapping.Index = false
 	bookMapping.AddFieldMappingsAt("language", languageFieldMapping)
 	yearFieldMapping := bleve.NewTextFieldMapping()
 	yearFieldMapping.Index = false
 	bookMapping.AddFieldMappingsAt("year", yearFieldMapping)
-	wordsMapping := bleve.NewNumericFieldMapping()
-	wordsMapping.Index = false
-	bookMapping.AddFieldMappingsAt("words", wordsMapping)
-	indexMapping.AddDocumentMapping(simple.Name, bookMapping)
-	//	}
+	indexMapping.AddDocumentMapping("book", bookMapping)
 }
 
 // AddFile adds a file to the index
@@ -128,18 +132,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Resul
 		page = 1
 	}
 
-	terms := strings.Split(keywords, " ")
-	//queries := make([]query.Query, 0, len(languages))
-	termQueries := make([]query.Query, 0, len(terms))
-	//for _, lang := range languages {
-	for j, term := range terms {
-		termQueries = append(termQueries, bleve.NewMatchQuery(term))
-		termQueries[j].(*query.MatchQuery).Analyzer = en.AnalyzerName
-	}
-	//queries = append(queries, bleve.NewConjunctionQuery(termQueries...))
-	//}
-
-	query := bleve.NewConjunctionQuery(termQueries...)
+	query := bleve.NewQueryStringQuery(keywords)
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.Fields = []string{"Title", "Author", "Description", "Year", "Words"}
@@ -178,9 +171,11 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Resul
 			Year:        val.Fields["Year"].(string),
 			Words:       val.Fields["Words"].(float64),
 		}
-		readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", doc.Words/300))
-		if err == nil {
-			doc.ReadingTime = fmtDuration(readingTime)
+		if doc.Words != 0.0 {
+			readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", doc.Words/wordsPerMinute))
+			if err == nil {
+				doc.ReadingTime = fmtDuration(readingTime)
+			}
 		}
 		result.Hits[val.ID] = doc
 	}
