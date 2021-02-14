@@ -52,7 +52,7 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No index found, creating a new one")
 		indexMapping := bleve.NewIndexMapping()
-		index.LanguageMappings(indexMapping)
+		index.AddMappings(indexMapping)
 		indexFile, err := bleve.New(homeDir+"/coreander/db", indexMapping)
 		if err != nil {
 			log.Fatal(err)
