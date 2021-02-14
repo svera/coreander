@@ -2,6 +2,7 @@ package index
 
 import (
 	"fmt"
+	"html/template"
 	"log"
 	"math"
 	"os"
@@ -167,7 +168,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Resul
 		doc := metadata.Metadata{
 			Title:       val.Fields["Title"].(string),
 			Author:      val.Fields["Author"].(string),
-			Description: val.Fields["Description"].(string),
+			Description: template.HTML(val.Fields["Description"].(string)),
 			Year:        val.Fields["Year"].(string),
 			Words:       val.Fields["Words"].(float64),
 		}

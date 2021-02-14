@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"archive/zip"
+	"html/template"
 	"io/ioutil"
 	"log"
 	"path/filepath"
@@ -44,7 +45,7 @@ func Epub(file string) (Metadata, error) {
 	bk = Metadata{
 		Title:       title,
 		Author:      author,
-		Description: description,
+		Description: template.HTML(description),
 		Language:    language,
 		Year:        year,
 	}

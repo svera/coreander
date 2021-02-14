@@ -24,7 +24,7 @@
                         {{ if ne $book.ReadingTime "" }}
                         <p class="text-start text-muted"><em>{{t "estimated_reading_time"}}: {{$book.ReadingTime}}</em></p>
                         {{ end }}
-                        <p class="mb-1 text-start">{{$book.Description}}</p>
+                        <div class="mb-1">{{$book.Description}}</div>
                     </div>
                 </div>
             </div>

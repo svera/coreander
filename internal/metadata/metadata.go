@@ -1,9 +1,11 @@
 package metadata
 
+import "html/template"
+
 type Metadata struct {
 	Title       string
 	Author      string
-	Description string
+	Description template.HTML
 	Language    string
 	Year        string
 	Words       float64
