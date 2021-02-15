@@ -1,5 +1,5 @@
 # Coreander
-A personal Ebooks server for Linux, Coreander indexes the ebooks (only EPUBs with no DRM at the moment) that it finds in the passed folder, and provides a web interface to search and access them.
+A personal Ebooks server, Coreander indexes the ebooks (only EPUBs with no DRM at the moment) that it finds in the passed folder, and provides a web interface to search and access them.
 
 ![Coreander screenshot](screenshot.png)
 
@@ -7,7 +7,7 @@ A personal Ebooks server for Linux, Coreander indexes the ebooks (only EPUBs wit
 * Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for ebooks in multiple languages.
 * High-performance web server powered by [Fiber](https://github.com/gofiber/fiber).
 * Lightweight, responsive web interface based on [Bootstrap](https://getbootstrap.com/).
-* New books added or removed to/from the library folder are automatically indexed.
+* New books added or removed to/from the library folder are automatically indexed (Linux only).
 
 ## Installation
 Only source code is provided at the moment, so you'll have to manually build it. The only requirement is Go 1.15.
@@ -36,7 +36,7 @@ Environment="LIBPATH=<absolute path to the library>"
 
 ```
 
-then, start the service with `service coreander start`. You can manage it with the usual commands `start`, `stop` and `status`. Refer to the your service manager documentation for more information.
+then, start the service with `service coreander start`. You can manage it with the usual commands `start`, `stop` and `status`. Refer to your service manager documentation for more information.
 
 Coreander requires a `LIBPATH` environment variable to be set, which tells the application where your books are located.
 

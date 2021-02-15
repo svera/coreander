@@ -3,11 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/ilyakaznacheev/cleanenv"
 
 	"github.com/rjeczalik/notify"
 	"github.com/spf13/afero"
@@ -15,32 +13,6 @@ import (
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/webserver"
 )
-
-func main() {
-	//fastergoding.Run() // hot reload
-	var cfg Config
-	var appFs = afero.NewOsFs()
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal("Error retrieving user home dir")
-	}
-	if err = cleanenv.ReadEnv(&cfg); err != nil {
-		log.Fatal(fmt.Sprintf("Error parsing configuration from environment variables: %s", err))
-	}
-	if _, err := os.Stat(cfg.LibPath); os.IsNotExist(err) {
-		log.Fatal(fmt.Errorf("Directory '%s' does not exist, exiting", cfg.LibPath))
-	}
-	if err = os.MkdirAll(fmt.Sprintf("%s/coreander/cache/covers", homeDir), os.ModePerm); err != nil {
-		log.Fatal(fmt.Errorf("Couldn't create %s, exiting", fmt.Sprintf("%s/coreander/cache/covers", homeDir)))
-	}
-
-	metadataReaders := map[string]metadata.Reader{
-		".epub": metadata.Epub,
-	}
-
-	run(cfg, homeDir, metadataReaders, appFs)
-}
 
 func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader, appFs afero.Fs) {
 	var idx *index.BleveIndexer
@@ -64,7 +36,7 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 		log.Fatal(err)
 	}
 	defer func() {
-		//notify.Stop(c)
+		notify.Stop(c)
 		idx.Close()
 	}()
 
