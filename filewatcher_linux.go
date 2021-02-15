@@ -9,9 +9,9 @@ import (
 )
 
 func fileWatcher(idx *index.BleveIndexer, libPath string, readers map[string]metadata.Reader) {
-	log.Printf("Starting file watcher on %s\n", cfg.LibPath)
+	log.Printf("Starting file watcher on %s\n", libPath)
 	c := make(chan notify.EventInfo, 1)
-	if err := notify.Watch(cfg.LibPath, c, notify.InCloseWrite, notify.InMovedTo, notify.InMovedFrom, notify.InDelete); err != nil {
+	if err := notify.Watch(libPath, c, notify.InCloseWrite, notify.InMovedTo, notify.InMovedFrom, notify.InDelete); err != nil {
 		log.Fatal(err)
 	}
 
