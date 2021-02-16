@@ -17,4 +17,7 @@ func (b Metadata) Type() string {
 	return "book"
 }
 
-type Reader func(file string) (Metadata, error)
+type Reader interface {
+	Metadata(file string) (Metadata, error)
+	Cover(bookFullPath string, outputFolder string) error
+}

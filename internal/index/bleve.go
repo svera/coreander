@@ -25,7 +25,7 @@ const wordsPerMinute = 300.0
 type BleveIndexer struct {
 	idx         bleve.Index
 	libraryPath string
-	read        map[string]metadata.Reader
+	reader      map[string]metadata.Reader
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
@@ -66,10 +66,10 @@ func AddMappings(indexMapping *mapping.IndexMappingImpl) {
 // AddFile adds a file to the index
 func (b *BleveIndexer) AddFile(file string) error {
 	ext := filepath.Ext(file)
-	if _, ok := b.read[ext]; !ok {
+	if _, ok := b.reader[ext]; !ok {
 		return nil
 	}
-	meta, err := b.read[ext](file)
+	meta, err := b.reader[ext].Metadata(file)
 	if err != nil {
 		return fmt.Errorf("Error extracting metadata from file %s: %s", file, err)
 	}
@@ -99,10 +99,10 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 	batch := b.idx.NewBatch()
 	e := afero.Walk(fs, b.libraryPath, func(path string, f os.FileInfo, err error) error {
 		ext := filepath.Ext(path)
-		if _, ok := b.read[ext]; !ok {
+		if _, ok := b.reader[ext]; !ok {
 			return nil
 		}
-		meta, err := b.read[ext](path)
+		meta, err := b.reader[ext].Metadata(path)
 		if err != nil {
 			log.Printf("Error extracting metadata from file %s: %s\n", path, err)
 			return nil

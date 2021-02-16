@@ -19,9 +19,12 @@ func TestIndexAndSearch(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error initialising index")
 			}
+
 			mockMetadataReaders := map[string]metadata.Reader{
-				".epub": func(file string) (metadata.Metadata, error) {
-					return tcase.mockedMeta, nil
+				".epub": metadata.ReaderMock{
+					MetadataFake: func(file string) (metadata.Metadata, error) {
+						return tcase.mockedMeta, nil
+					},
 				},
 			}
 

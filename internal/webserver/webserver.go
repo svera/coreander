@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -24,7 +25,7 @@ const (
 )
 
 // New builds a new Fiber application and set up the required routes
-func New(idx index.Reader, libraryPath, homeDir string) *fiber.App {
+func New(idx index.Reader, libraryPath, homeDir string, metadataReaders map[string]metadata.Reader) *fiber.App {
 	cat, err := i18n.NewCatalogFromFolder("./translations", "en")
 	if err != nil {
 		log.Fatal(err)
@@ -47,9 +48,13 @@ func New(idx index.Reader, libraryPath, homeDir string) *fiber.App {
 		if err != nil {
 			return err
 		}
+		ext := filepath.Ext(fileName)
+		if _, ok := metadataReaders[ext]; !ok {
+			return fiber.ErrBadRequest
+		}
 		info, err := os.Stat(fmt.Sprintf("%s/coreander/cache/covers/%s.jpg", homeDir, fileName))
 		if os.IsNotExist(err) {
-			err = metadata.EpubCover(
+			err = metadataReaders[ext].Cover(
 				fmt.Sprintf("%s/%s", libraryPath, fileName),
 				fmt.Sprintf("%s/coreander/cache/covers", homeDir),
 			)
@@ -109,7 +114,7 @@ func New(idx index.Reader, libraryPath, homeDir string) *fiber.App {
 				"Results":   searchResults.Hits,
 				"Total":     searchResults.TotalHits,
 				"Paginator": pagination(maxPagesNavigator, searchResults.TotalPages, searchResults.Page, keywords),
-				"Title":     "Coreander -  Search results",
+				"Title":     "search_results",
 			}, "layout")
 		}
 		count, err := idx.Count()
