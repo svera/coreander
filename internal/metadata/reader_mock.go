@@ -1,12 +1,12 @@
 package metadata
 
-type MetadataReaderMock struct {
+type ReaderMock struct {
 	MetadataFake func(file string) (Metadata, error)
 	CoverFake    func(bookFullPath string, outputFolder string) error
 }
 
-func NewMetadataReaderMock() MetadataReaderMock {
-	return MetadataReaderMock{
+func NewReaderMock() ReaderMock {
+	return ReaderMock{
 		MetadataFake: func(file string) (Metadata, error) {
 			return Metadata{}, nil
 		},
@@ -16,10 +16,10 @@ func NewMetadataReaderMock() MetadataReaderMock {
 	}
 }
 
-func (e MetadataReaderMock) Metadata(file string) (Metadata, error) {
+func (e ReaderMock) Metadata(file string) (Metadata, error) {
 	return e.MetadataFake(file)
 }
 
-func (e MetadataReaderMock) Cover(bookFullPath string, outputFolder string) error {
+func (e ReaderMock) Cover(bookFullPath string, outputFolder string) error {
 	return e.CoverFake(bookFullPath, outputFolder)
 }
