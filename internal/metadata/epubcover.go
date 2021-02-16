@@ -21,8 +21,8 @@ type opf struct {
 	} `xml:"metadata"`
 }
 
-// EpubCover parses the book looking for a cover image, and extracts it to outputFolder
-func EpubCover(bookFullPath string, outputFolder string) error {
+// Cover parses the book looking for a cover image, and extracts it to outputFolder
+func (e EpubReader) Cover(bookFullPath string, outputFolder string) error {
 	r, err := zip.OpenReader(bookFullPath)
 	if err != nil {
 		return err

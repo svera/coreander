@@ -5,10 +5,9 @@ import (
 
 	"github.com/rjeczalik/notify"
 	"github.com/svera/coreander/internal/index"
-	"github.com/svera/coreander/internal/metadata"
 )
 
-func fileWatcher(idx *index.BleveIndexer, libPath string, readers map[string]metadata.Reader) {
+func fileWatcher(idx *index.BleveIndexer, libPath string) {
 	log.Printf("Starting file watcher on %s\n", libPath)
 	c := make(chan notify.EventInfo, 1)
 	if err := notify.Watch(libPath, c, notify.InCloseWrite, notify.InMovedTo, notify.InMovedFrom, notify.InDelete); err != nil {

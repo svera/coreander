@@ -13,7 +13,9 @@ import (
 	"github.com/pirmd/epub"
 )
 
-func Epub(file string) (Metadata, error) {
+type EpubReader struct{}
+
+func (e EpubReader) Metadata(file string) (Metadata, error) {
 	bk := Metadata{}
 	metadata, err := epub.GetMetadataFromFile(file)
 	if err != nil {
@@ -65,7 +67,7 @@ func words(bookFullPath string) (int, error) {
 	defer r.Close()
 	count := 0
 	for _, f := range r.File {
-		isContent, err := filepath.Match("OEBPS/Text/*.xhtml", f.Name)
+		isContent, err := filepath.Match("OEBPS/Text/*.*html", f.Name)
 		if err != nil {
 			return 0, err
 		}

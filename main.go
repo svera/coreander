@@ -35,7 +35,7 @@ func main() {
 	}
 
 	metadataReaders := map[string]metadata.Reader{
-		".epub": metadata.Epub,
+		".epub": metadata.EpubReader{},
 	}
 
 	run(cfg, homeDir, metadataReaders, appFs)
@@ -70,9 +70,9 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 		end := time.Now().Unix()
 		dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 		log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
-		fileWatcher(idx, cfg.LibPath, metadataReaders)
+		fileWatcher(idx, cfg.LibPath)
 	}()
-	app := webserver.New(idx, cfg.LibPath, homeDir)
+	app := webserver.New(idx, cfg.LibPath, homeDir, metadataReaders)
 	err = app.Listen(fmt.Sprintf(":%s", cfg.Port))
 	if err != nil {
 		log.Fatal(err)

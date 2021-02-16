@@ -10,6 +10,19 @@ import (
 	"github.com/svera/coreander/internal/metadata"
 )
 
+type metadataReaderMock struct {
+	MetadataFake func(file string) (metadata.Metadata, error)
+	CoverFake    func(bookFullPath string, outputFolder string) error
+}
+
+func (e metadataReaderMock) Metadata(file string) (metadata.Metadata, error) {
+	return e.MetadataFake(file)
+}
+
+func (e metadataReaderMock) Cover(bookFullPath string, outputFolder string) error {
+	return e.CoverFake(bookFullPath, outputFolder)
+}
+
 func TestIndexAndSearch(t *testing.T) {
 	for _, tcase := range testCases() {
 		t.Run(tcase.name, func(t *testing.T) {
@@ -19,9 +32,12 @@ func TestIndexAndSearch(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error initialising index")
 			}
+
 			mockMetadataReaders := map[string]metadata.Reader{
-				".epub": func(file string) (metadata.Metadata, error) {
-					return tcase.mockedMeta, nil
+				".epub": metadataReaderMock{
+					MetadataFake: func(file string) (metadata.Metadata, error) {
+						return tcase.mockedMeta, nil
+					},
 				},
 			}
 

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/svera/coreander/internal/index"
+	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/webserver"
 )
 
@@ -26,7 +27,11 @@ func TestGET(t *testing.T) {
 		{"Page loads succesfully if the user tries to access an existent URL", "/es", http.StatusOK},
 		{"Server returns not found if the user tries to access a non-existent URL", "/xx", http.StatusNotFound},
 	}
-	app := webserver.New(index.NewReaderMock(), "", "")
+
+	metadataReadersMock := map[string]metadata.Reader{
+		"epub": metadata.NewMetadataReaderMock(),
+	}
+	app := webserver.New(index.NewReaderMock(), "", "", metadataReadersMock)
 
 	for _, tcase := range cases {
 		t.Run(tcase.name, func(t *testing.T) {
