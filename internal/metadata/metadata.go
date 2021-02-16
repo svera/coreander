@@ -12,6 +12,11 @@ type Metadata struct {
 	ReadingTime string
 }
 
+// Type is a method used by bleve to know which analyzer use with a document
+func (b Metadata) Type() string {
+	return "book"
+}
+
 type Reader interface {
 	Metadata(file string) (Metadata, error)
 	Cover(bookFullPath string, outputFolder string) error

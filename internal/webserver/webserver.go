@@ -114,7 +114,7 @@ func New(idx index.Reader, libraryPath, homeDir string, metadataReaders map[stri
 				"Results":   searchResults.Hits,
 				"Total":     searchResults.TotalHits,
 				"Paginator": pagination(maxPagesNavigator, searchResults.TotalPages, searchResults.Page, keywords),
-				"Title":     "Coreander -  Search results",
+				"Title":     "search_results",
 			}, "layout")
 		}
 		count, err := idx.Count()
