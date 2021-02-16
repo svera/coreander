@@ -21,7 +21,7 @@ func TestIndexAndSearch(t *testing.T) {
 			}
 
 			mockMetadataReaders := map[string]metadata.Reader{
-				".epub": metadata.MetadataReaderMock{
+				".epub": metadata.ReaderMock{
 					MetadataFake: func(file string) (metadata.Metadata, error) {
 						return tcase.mockedMeta, nil
 					},
