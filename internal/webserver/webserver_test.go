@@ -29,7 +29,7 @@ func TestGET(t *testing.T) {
 	}
 
 	metadataReadersMock := map[string]metadata.Reader{
-		"epub": metadata.NewMetadataReaderMock(),
+		"epub": metadata.NewReaderMock(),
 	}
 	app := webserver.New(index.NewReaderMock(), "", "", metadataReadersMock)
 
