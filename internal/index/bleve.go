@@ -52,15 +52,13 @@ func AddMappings(indexMapping *mapping.IndexMappingImpl) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	bookMapping := bleve.NewDocumentMapping()
-	bookMapping.DefaultAnalyzer = "book"
+	indexMapping.DefaultAnalyzer = "book"
 	languageFieldMapping := bleve.NewTextFieldMapping()
 	languageFieldMapping.Index = false
-	bookMapping.AddFieldMappingsAt("language", languageFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("language", languageFieldMapping)
 	yearFieldMapping := bleve.NewTextFieldMapping()
 	yearFieldMapping.Index = false
-	bookMapping.AddFieldMappingsAt("year", yearFieldMapping)
-	indexMapping.AddDocumentMapping("book", bookMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("year", yearFieldMapping)
 }
 
 // AddFile adds a file to the index
