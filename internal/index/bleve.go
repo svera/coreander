@@ -16,6 +16,7 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
 	"github.com/blevesearch/bleve/v2/analysis/char/asciifolding"
 	"github.com/blevesearch/bleve/v2/mapping"
+	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/metadata"
 )
@@ -126,12 +127,16 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
 func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Result, error) {
+	query := bleve.NewQueryStringQuery(keywords)
+
+	return b.runQuery(query, page, resultsPerPage)
+}
+
+func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int) (*Result, error) {
 	var result Result
 	if page < 1 {
 		page = 1
 	}
-
-	query := bleve.NewQueryStringQuery(keywords)
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.Fields = []string{"Title", "Author", "Description", "Year", "Words"}

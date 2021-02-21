@@ -97,23 +97,28 @@ func New(idx index.Reader, libraryPath, homeDir string, metadataReaders map[stri
 		default:
 			return c.SendStatus(http.StatusNotFound)
 		}
-		keywords := c.Query("search")
+
 		page, err := strconv.Atoi(c.Query("page"))
 		if err != nil {
 			page = 1
 		}
 
+		var keywords string
+		var searchResults *index.Result
+
+		keywords = c.Query("search")
 		if keywords != "" {
-			searchResults, err := idx.Search(keywords, page, resultsPerPage)
+			searchResults, err = idx.Search(keywords, page, resultsPerPage)
 			if err != nil {
 				return fiber.ErrInternalServerError
 			}
+
 			return c.Render("results", fiber.Map{
 				"Lang":      lang,
 				"Keywords":  keywords,
 				"Results":   searchResults.Hits,
 				"Total":     searchResults.TotalHits,
-				"Paginator": pagination(maxPagesNavigator, searchResults.TotalPages, searchResults.Page, keywords),
+				"Paginator": pagination(maxPagesNavigator, searchResults.TotalPages, searchResults.Page, "search", keywords),
 				"Title":     "search_results",
 			}, "layout")
 		}

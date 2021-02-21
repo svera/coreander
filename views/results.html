@@ -20,7 +20,7 @@
                 </div>
                 <div class="row">
                     <div class="col-12">
-                        <h5 class="text-start">{{$book.Author}}</h5>
+                        <h5 class="text-start"><a href="?search=%2BAuthor&colon;&quot;{{$book.Author}}&quot;">{{$book.Author}}</a></h5>
                         {{ if ne $book.ReadingTime "" }}
                         <p class="text-start text-muted"><em>{{t "estimated_reading_time"}}: {{$book.ReadingTime}}</em></p>
                         {{ end }}

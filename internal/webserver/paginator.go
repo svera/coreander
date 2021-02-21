@@ -1,21 +1,24 @@
 package webserver
 
-import "fmt"
+import (
+	"fmt"
+	"html/template"
+)
 
 // Page holds the URL of a results page, and if that page is the current one being shown
 type Page struct {
-	Link      string
+	Link      template.URL
 	IsCurrent bool
 }
 
 // PagesNavigator contains all pages links, as well as links to the previous and next pages from the current one
 type PagesNavigator struct {
 	Pages        map[int]Page
-	PreviousLink string
-	NextLink     string
+	PreviousLink template.URL
+	NextLink     template.URL
 }
 
-func pagination(size int, totalPages int, current int, search string) PagesNavigator {
+func pagination(size int, totalPages int, current int, searchType, keywords string) PagesNavigator {
 	var nav PagesNavigator
 	start := 1
 	end := size
@@ -39,15 +42,15 @@ func pagination(size int, totalPages int, current int, search string) PagesNavig
 	}
 	for i := start; i <= end; i++ {
 		p := Page{
-			Link: fmt.Sprintf("?search=%s&page=%d", search, i),
+			Link: template.URL(fmt.Sprintf("?%s=%s&page=%d", searchType, keywords, i)),
 		}
 		if i == current {
 			p.IsCurrent = true
 			if i > 1 {
-				nav.PreviousLink = fmt.Sprintf("?search=%s&page=%d", search, i-1)
+				nav.PreviousLink = template.URL(fmt.Sprintf("?%s=%s&page=%d", searchType, keywords, i-1))
 			}
 			if i < totalPages {
-				nav.NextLink = fmt.Sprintf("?search=%s&page=%d", search, i+1)
+				nav.NextLink = template.URL(fmt.Sprintf("?%s=%s&page=%d", searchType, keywords, i+1))
 			}
 		}
 		nav.Pages[i] = p
