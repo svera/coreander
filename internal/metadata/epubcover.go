@@ -15,6 +15,9 @@ func (e EpubReader) Cover(bookFullPath string, outputFolder string) error {
 	if err != nil {
 		return err
 	}
+	if meta.Cover == "" {
+		return fmt.Errorf("No cover image set in %s", bookFullPath)
+	}
 
 	coverExt := filepath.Ext(meta.Cover)
 	outputPath := fmt.Sprintf("%s/%s%s", outputFolder, filepath.Base(bookFullPath), coverExt)
@@ -52,5 +55,4 @@ func extractCover(r *zip.ReadCloser, coverFile, outputPath string) error {
 		return nil
 	}
 	return fmt.Errorf("No cover image found")
-
 }
