@@ -15,7 +15,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	template "github.com/gofiber/template/html"
-	"github.com/svera/coreander/i18n"
+	"github.com/svera/coreander/internal/i18n"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/metadata"
 	"golang.org/x/text/language"
