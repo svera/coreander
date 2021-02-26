@@ -1,7 +1,9 @@
 package webserver
 
 import (
+	"embed"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,6 +13,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	template "github.com/gofiber/template/html"
 	"github.com/svera/coreander/i18n"
 	"github.com/svera/coreander/internal/index"
@@ -24,9 +27,12 @@ const (
 	maxPagesNavigator = 5
 )
 
+//go:embed embedded
+var embedded embed.FS
+
 // New builds a new Fiber application and set up the required routes
 func New(idx index.Reader, libraryPath, homeDir string, metadataReaders map[string]metadata.Reader) *fiber.App {
-	cat, err := i18n.NewCatalogFromFolder("./translations", "en")
+	cat, err := i18n.NewCatalogFromFolder(embedded, "en")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -34,7 +40,12 @@ func New(idx index.Reader, libraryPath, homeDir string, metadataReaders map[stri
 	message.DefaultCatalog = cat
 
 	var printer *message.Printer
-	engine := template.New("./views", ".html").Reload(true)
+	viewsFS, err := fs.Sub(embedded, "embedded/views")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	engine := template.NewFileSystem(http.FS(viewsFS), ".html").Reload(true)
 	engine.AddFunc("t", func(key string, values ...interface{}) string {
 		return printer.Sprintf(key, values...)
 	})
@@ -42,6 +53,14 @@ func New(idx index.Reader, libraryPath, homeDir string, metadataReaders map[stri
 	app := fiber.New(fiber.Config{
 		Views: engine,
 	})
+
+	cssFS, err := fs.Sub(embedded, "embedded/css")
+	if err != nil {
+		log.Fatal(err)
+	}
+	app.Use("/css", filesystem.New(filesystem.Config{
+		Root: http.FS(cssFS),
+	}))
 
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
 		fileName, err := url.QueryUnescape(c.Params("filename"))
@@ -60,8 +79,7 @@ func New(idx index.Reader, libraryPath, homeDir string, metadataReaders map[stri
 			)
 			if err != nil {
 				log.Println(err)
-				dir, _ := os.Getwd()
-				input, err := ioutil.ReadFile(dir + "/public/images/generic.jpg")
+				input, err := embedded.ReadFile("embedded/images/generic.jpg")
 				if err != nil {
 					log.Println(err)
 					return fiber.ErrInternalServerError
@@ -147,8 +165,6 @@ func New(idx index.Reader, libraryPath, homeDir string, metadataReaders map[stri
 	})
 
 	app.Static("/files", libraryPath)
-	dir, _ := os.Getwd()
-	app.Static("/css", dir+"/public/css")
 
 	return app
 }

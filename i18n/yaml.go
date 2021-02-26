@@ -1,7 +1,7 @@
 package i18n
 
 import (
-	"io/ioutil"
+	"io/fs"
 	"path/filepath"
 	"strings"
 
@@ -25,15 +25,17 @@ func (d *yamlDictionary) Lookup(key string) (data string, ok bool) {
 // NewCatalogFromFolder read all translations yml files from dir and generates a
 // translation catalog from them. Each yml file must be named as the two-letter
 // identifier of the language of the translation, e. g. "es" for spanish, "en" for english, etc.
-func NewCatalogFromFolder(dir string, fallbackLang string) (catalog.Catalog, error) {
-	dir = strings.TrimSuffix(dir, "/")
-	files, err := ioutil.ReadDir(dir)
+func NewCatalogFromFolder(dir fs.FS, fallbackLang string) (catalog.Catalog, error) {
+	files, err := fs.ReadDir(dir, "embedded/translations")
 	if err != nil {
 		return nil, err
 	}
 	translations := map[string]catalog.Dictionary{}
 	for _, file := range files {
-		yamlFile, err := ioutil.ReadFile(dir + "/" + file.Name())
+		if file.IsDir() {
+			continue
+		}
+		yamlFile, err := fs.ReadFile(dir, "embedded/translations/"+file.Name())
 		if err != nil {
 			return nil, err
 		}
