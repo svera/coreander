@@ -10,9 +10,9 @@ A personal Ebooks server, Coreander indexes the ebooks (only EPUBs with no DRM a
 * New books added or removed to/from the library folder are automatically indexed (Linux only).
 
 ## Installation
-Only source code is provided at the moment, so you'll have to manually build it. The only requirement is Go 1.15.
+Only source code is provided at the moment, so you'll have to manually build it. The only requirement is Go 1.16.
 
-Clone the repo and, from its directory, run `go build` to generate the binary and then execute it with `coreander`. That's it. Note that if you want to move the generated binary to a different directory, both the `views` and `public` folders must be copied as well.
+Clone the repo and, from its directory, run `go build` to generate the binary and then execute it with `coreander`. That's it.
 
 ## How to use
 Coreander is designed to be run as a service managed by systemd or any other service manager. For example, in Raspbian, just create a file called `/etc/systemd/system/coreander.service` with the following contents:
