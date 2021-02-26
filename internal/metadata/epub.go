@@ -44,12 +44,19 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 			year = t.Format("2006")
 		}
 	}
+	cover := ""
+	for _, val := range metadata.Meta {
+		if val.Name == "cover" {
+			cover = val.Content
+		}
+	}
 	bk = Metadata{
 		Title:       title,
 		Author:      author,
 		Description: template.HTML(description),
 		Language:    language,
 		Year:        year,
+		Cover:       cover,
 	}
 	w, err := words(file)
 	if err != nil {
