@@ -44,3 +44,8 @@ main .form-control:focus {
 .list-group-item-action {
     text-align: start;
 }
+
+a,
+a:hover {
+    color: black;
+}

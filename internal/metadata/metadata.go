@@ -11,6 +11,8 @@ type Metadata struct {
 	Words       float64
 	ReadingTime string
 	Cover       string
+	Series      string
+	SeriesIndex float64
 }
 type Reader interface {
 	Metadata(file string) (Metadata, error)

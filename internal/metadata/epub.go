@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,7 +28,11 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	}
 	author := ""
 	if len(metadata.Creator) > 0 {
-		author = metadata.Creator[0].FullName
+		for _, creator := range metadata.Creator {
+			if creator.Role == "aut" {
+				author = creator.FullName
+			}
+		}
 	}
 	description := ""
 	if len(metadata.Description) > 0 {
@@ -39,15 +44,27 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	}
 	year := ""
 	if len(metadata.Date) > 0 {
-		t, err := time.Parse("2006-01-02", metadata.Date[0].Stamp)
-		if err == nil {
-			year = t.Format("2006")
+		for _, date := range metadata.Date {
+			if date.Event == "publication" {
+				t, err := time.Parse("2006-01-02", date.Stamp)
+				if err == nil {
+					year = t.Format("2006")
+				}
+			}
 		}
 	}
 	cover := ""
+	series := ""
+	var seriesIndex float64 = 0
 	for _, val := range metadata.Meta {
 		if val.Name == "cover" {
 			cover = val.Content
+		}
+		if val.Name == "calibre:series" {
+			series = val.Content
+		}
+		if val.Name == "calibre:series_index" {
+			seriesIndex, _ = strconv.ParseFloat(val.Content, 64)
 		}
 	}
 	bk = Metadata{
@@ -57,6 +74,8 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		Language:    language,
 		Year:        year,
 		Cover:       cover,
+		Series:      series,
+		SeriesIndex: seriesIndex,
 	}
 	w, err := words(file)
 	if err != nil {

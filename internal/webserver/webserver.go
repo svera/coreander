@@ -45,13 +45,14 @@ func New(idx index.Reader, libraryPath, homeDir string, metadataReaders map[stri
 		log.Fatal(err)
 	}
 
-	engine := template.NewFileSystem(http.FS(viewsFS), ".html").Reload(true)
+	engine := template.NewFileSystem(http.FS(viewsFS), ".html")
 	engine.AddFunc("t", func(key string, values ...interface{}) string {
 		return printer.Sprintf(key, values...)
 	})
 
 	app := fiber.New(fiber.Config{
-		Views: engine,
+		Views:                 engine,
+		DisableStartupMessage: true,
 	})
 
 	cssFS, err := fs.Sub(embedded, "embedded/css")
