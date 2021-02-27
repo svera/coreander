@@ -139,7 +139,8 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int) (*R
 	}
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
-	searchOptions.Fields = []string{"Title", "Author", "Description", "Year", "Words"}
+	searchOptions.SortBy([]string{"_score", "Series", "SeriesIndex"})
+	searchOptions.Fields = []string{"Title", "Author", "Description", "Year", "Words", "Series", "SeriesIndex"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return nil, err
@@ -153,8 +154,6 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int) (*R
 		if page == 0 {
 			page = 1
 		}
-		searchOptions = bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
-		searchOptions.Fields = []string{"Title", "Author", "Description", "Year", "Words"}
 		searchResult, err = b.idx.Search(searchOptions)
 		if err != nil {
 			return nil, err
@@ -174,6 +173,8 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int) (*R
 			Description: template.HTML(val.Fields["Description"].(string)),
 			Year:        val.Fields["Year"].(string),
 			Words:       val.Fields["Words"].(float64),
+			Series:      val.Fields["Series"].(string),
+			SeriesIndex: val.Fields["SeriesIndex"].(float64),
 		}
 		if doc.Words != 0.0 {
 			readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", doc.Words/wordsPerMinute))
