@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{.Lang}}">
+<html lang="{{.Lang}}" class="h-100">
 
 <head>
     <meta charset="utf-8">
@@ -18,9 +18,9 @@
 
 </head>
 
-<body class="text-center">
+<body class="text-center d-flex flex-column h-100">
     <header>
-        <nav class="navbar navbar-light bg-light">
+        <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top">
             <div class="container">
                 <span class="navbar-brand mb-0 h1">Coreander</span>
                 <nav class="my-2 my-md-0">
@@ -31,6 +31,11 @@
     </header>
     {{embed}}
 
+    <footer class="footer mt-auto pb-3">
+        <div class="container">
+            <span class="text-muted"><small>{{t "footer"}} - {{.Version}}</small></span>
+        </div>
+    </footer>
 </body>
 
 </html>

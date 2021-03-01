@@ -2,20 +2,12 @@ package webserver_test
 
 import (
 	"net/http"
-	"os"
-	"path"
-	"runtime"
 	"testing"
 
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/webserver"
 )
-
-func init() {
-	_, filename, _, _ := runtime.Caller(0)
-	os.Chdir(path.Dir(filename) + "/../..")
-}
 
 func TestGET(t *testing.T) {
 	var cases = []struct {
@@ -31,7 +23,7 @@ func TestGET(t *testing.T) {
 	metadataReadersMock := map[string]metadata.Reader{
 		"epub": metadata.NewReaderMock(),
 	}
-	app := webserver.New(index.NewReaderMock(), "", "", metadataReadersMock)
+	app := webserver.New(index.NewReaderMock(), "", "", "", metadataReadersMock)
 
 	for _, tcase := range cases {
 		t.Run(tcase.name, func(t *testing.T) {
