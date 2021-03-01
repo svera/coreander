@@ -15,8 +15,9 @@ import (
 	"github.com/svera/coreander/internal/webserver"
 )
 
+var version string = "unknown"
+
 func main() {
-	//fastergoding.Run() // hot reload
 	var cfg Config
 	var appFs = afero.NewOsFs()
 
@@ -72,8 +73,8 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 		log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
 		fileWatcher(idx, cfg.LibPath)
 	}()
-	app := webserver.New(idx, cfg.LibPath, homeDir, metadataReaders)
-	fmt.Printf("Coreander started listening on port %s\n--------------------------------------\n", cfg.Port)
+	app := webserver.New(idx, cfg.LibPath, homeDir, version, metadataReaders)
+	fmt.Printf("Coreander version %s started listening on port %s\n--------------------------------------\n", version, cfg.Port)
 	err = app.Listen(fmt.Sprintf(":%s", cfg.Port))
 	if err != nil {
 		log.Fatal(err)

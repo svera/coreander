@@ -31,7 +31,7 @@ const (
 var embedded embed.FS
 
 // New builds a new Fiber application and set up the required routes
-func New(idx index.Reader, libraryPath, homeDir string, metadataReaders map[string]metadata.Reader) *fiber.App {
+func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader) *fiber.App {
 	cat, err := i18n.NewCatalogFromFolder(embedded, "en")
 	if err != nil {
 		log.Fatal(err)
@@ -107,6 +107,7 @@ func New(idx index.Reader, libraryPath, homeDir string, metadataReaders map[stri
 	})
 
 	app.Get("/:lang", func(c *fiber.Ctx) error {
+		fmt.Println(version)
 		lang := c.Params("lang")
 		switch lang {
 		case "es":
@@ -139,6 +140,7 @@ func New(idx index.Reader, libraryPath, homeDir string, metadataReaders map[stri
 				"Total":     searchResults.TotalHits,
 				"Paginator": pagination(maxPagesNavigator, searchResults.TotalPages, searchResults.Page, "search", keywords),
 				"Title":     "search_results",
+				"Version":   version,
 			}, "layout")
 		}
 		count, err := idx.Count()
@@ -146,9 +148,10 @@ func New(idx index.Reader, libraryPath, homeDir string, metadataReaders map[stri
 			return fiber.ErrInternalServerError
 		}
 		return c.Render("index", fiber.Map{
-			"Lang":  lang,
-			"Count": count,
-			"Title": "Coreander",
+			"Lang":    lang,
+			"Count":   count,
+			"Title":   "Coreander",
+			"Version": version,
 		}, "layout")
 	})
 

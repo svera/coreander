@@ -35,7 +35,7 @@
         </div>
 
         {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
-        <nav aria-label="..." class="mt-5">
+        <nav aria-label="..." class="mt-5 mb-5">
             <ul class="pagination justify-content-center flex-wrap">
                 {{$disabled := ""}} {{$ariaDisabled := ""}} {{ if not .Paginator.PreviousLink }} {{$disabled = "disabled"}} {{$ariaDisabled = "aria-disabled=\"true\""}} {{end}}
                 <li class="page-item {{$disabled}}">
@@ -52,3 +52,4 @@
         {{end}}
 
     </div>
+</main>
