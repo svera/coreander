@@ -12,8 +12,8 @@
                 <img src="covers/{{$ID}}" class="border border-2 border-dark float-start me-3 2-25">
                 <div class="row">
                     <div class="col-7">
-                        {{ if ne $book.Series "" }}
-                        <p class="text-start text-muted text-uppercase mb-0"><a href="?search=%2BSeries&colon;&quot;{{$book.Series}}&quot;">{{$book.Series}} {{$book.SeriesIndex}}</a></p>
+                        {{ if ne $book.Series "" }} {{$seriesTitle := t "series_link_title" $book.Series}}
+                        <p class="text-start text-muted text-uppercase mb-0"><a href="?search=%2BSeries&colon;&quot;{{$book.Series}}&quot;" title={{$seriesTitle}}>{{$book.Series}} {{$book.SeriesIndex}}</a></p>
                         {{ end }}
                         <h4 class="text-start">{{$book.Title}} <small class="small text-muted">{{$book.Year}}</small></h4>
                     </div>
@@ -23,7 +23,8 @@
                 </div>
                 <div class="row">
                     <div class="col-12">
-                        <h5 class="text-start"><a href="?search=%2BAuthor&colon;&quot;{{$book.Author}}&quot;">{{$book.Author}}</a></h5>
+                        {{$authorTitle := t "author_link_title" $book.Author}}
+                        <h5 class="text-start"><a href="?search=%2BAuthor&colon;&quot;{{$book.Author}}&quot;" title={{$authorTitle}}>{{$book.Author}}</a></h5>
                         {{ if ne $book.ReadingTime "" }}
                         <p class="text-start text-muted"><em>{{t "estimated_reading_time"}}: {{$book.ReadingTime}}</em></p>
                         {{ end }}
