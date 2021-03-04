@@ -5,14 +5,19 @@ A personal Ebooks server, Coreander indexes the ebooks (only EPUBs with no DRM a
 
 ## Features
 * Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for ebooks in multiple languages.
+* Search by author, title and even book series ([Calibre's](https://calibre-ebook.com/) `series` meta supported)
+* Estimated reading time calculation. 
 * High-performance web server powered by [Fiber](https://github.com/gofiber/fiber).
 * Lightweight, responsive web interface based on [Bootstrap](https://getbootstrap.com/).
+* Web interface available in English and Spanish, more languages can be easily added.
 * New books added or removed to/from the library folder are automatically indexed (Linux only).
 
-## Installation
+## Building from source
 Only source code is provided at the moment, so you'll have to manually build it. The only requirement is Go 1.16.
 
-Clone the repo and, from its directory, run `go build` to generate the binary and then execute it with `coreander`. That's it.
+There are two possibilites for building Coreander from source:
+* If you have [Mage](https://magefile.org) installed in your system, just type `mage install` from the source code folder.
+* Otherwise, a simple `go build` or `go install` will do, although no version information will be added to the executable.
 
 ## How to use
 Coreander is designed to be run as a service managed by systemd or any other service manager. For example, in Raspbian, just create a file called `/etc/systemd/system/coreander.service` with the following contents:
