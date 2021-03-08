@@ -10,6 +10,10 @@ import (
 func routeSearch(c *fiber.Ctx, idx index.Reader, version string) error {
 	lang := c.Params("lang")
 
+	if lang != "es" && lang != "en" {
+		return fiber.ErrNotFound
+	}
+
 	page, err := strconv.Atoi(c.Query("page"))
 	if err != nil {
 		page = 1
