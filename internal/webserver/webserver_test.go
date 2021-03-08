@@ -23,7 +23,7 @@ func TestGET(t *testing.T) {
 	metadataReadersMock := map[string]metadata.Reader{
 		"epub": metadata.NewReaderMock(),
 	}
-	app := webserver.New(index.NewReaderMock(), "", "", "", metadataReadersMock)
+	app := webserver.New(index.NewReaderMock(), "", "", "", metadataReadersMock, 300)
 
 	for _, tcase := range cases {
 		t.Run(tcase.name, func(t *testing.T) {

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="">
     <meta name="author" content="Sergio Vera">
-    <title>{{t .Title}}</title>
+    <title>{{t .Lang .Title}}</title>
 
     <!-- Bootstrap core CSS -->
     <link href="/css/bootstrap.min.css" rel="stylesheet">
@@ -33,7 +33,7 @@
 
     <footer class="footer mt-auto pb-3">
         <div class="container">
-            <span class="text-muted"><small>{{t "footer"}} - {{.Version}}</small></span>
+            <span class="text-muted"><small>{{t .Lang "footer"}} - {{.Version}}</small></span>
         </div>
     </footer>
 </body>

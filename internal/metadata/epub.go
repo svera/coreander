@@ -5,46 +5,52 @@ import (
 	"html/template"
 	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/pirmd/epub"
+	"github.com/svera/epub"
 )
 
 type EpubReader struct{}
 
 func (e EpubReader) Metadata(file string) (Metadata, error) {
 	bk := Metadata{}
-	metadata, err := epub.GetMetadataFromFile(file)
+	r, err := os.Open(file)
+	if err != nil {
+		return bk, err
+	}
+	defer r.Close()
+	opf, err := epub.GetOPFData(r)
 	if err != nil {
 		return bk, err
 	}
 	title := ""
-	if len(metadata.Title) > 0 {
-		title = metadata.Title[0]
+	if len(opf.Metadata.Title) > 0 {
+		title = opf.Metadata.Title[0]
 	}
 	author := ""
-	if len(metadata.Creator) > 0 {
-		for _, creator := range metadata.Creator {
+	if len(opf.Metadata.Creator) > 0 {
+		for _, creator := range opf.Metadata.Creator {
 			if creator.Role == "aut" {
 				author = creator.FullName
 			}
 		}
 	}
 	description := ""
-	if len(metadata.Description) > 0 {
-		description = metadata.Description[0]
+	if len(opf.Metadata.Description) > 0 {
+		description = opf.Metadata.Description[0]
 	}
 	language := ""
-	if len(metadata.Language) > 0 {
-		language = metadata.Language[0]
+	if len(opf.Metadata.Language) > 0 {
+		language = opf.Metadata.Language[0]
 	}
 	year := ""
-	if len(metadata.Date) > 0 {
-		for _, date := range metadata.Date {
+	if len(opf.Metadata.Date) > 0 {
+		for _, date := range opf.Metadata.Date {
 			if date.Event == "publication" {
 				t, err := time.Parse("2006-01-02", date.Stamp)
 				if err == nil {
@@ -56,9 +62,15 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	cover := ""
 	series := ""
 	var seriesIndex float64 = 0
-	for _, val := range metadata.Meta {
+	for _, val := range opf.Metadata.Meta {
 		if val.Name == "cover" {
-			cover = val.Content
+			id := val.Content
+			for _, item := range opf.Manifest.Item {
+				if item.ID == id {
+					cover = item.Href
+					break
+				}
+			}
 		}
 		if val.Name == "calibre:series" {
 			series = val.Content
