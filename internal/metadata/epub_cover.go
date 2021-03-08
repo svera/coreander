@@ -35,7 +35,7 @@ func (e EpubReader) Cover(bookFullPath string, outputFolder string) error {
 
 func extractCover(r *zip.ReadCloser, coverFile, outputPath string) error {
 	for _, f := range r.File {
-		if f.Name != fmt.Sprintf("OEBPS/Images/%s", coverFile) {
+		if f.Name != fmt.Sprintf("OEBPS/%s", coverFile) {
 			continue
 		}
 		rc, err := f.Open()

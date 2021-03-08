@@ -2,9 +2,9 @@
     <div class="col-sm">
         <form action="">
             <div class="input-group mb-3 mt-5">
-                <label for="search" class="visually-hidden">{{t "search"}}</label>
-                <input type="text" name="search" class="form-control form-control-lg" placeholder={{t "searchbox_placeholder"}} maxlength="255" required autofocus value="{{.Keywords}}">
-                <button class="btn btn-primary" type="submit">{{t "search"}}</button>
+                <label for="search" class="visually-hidden">{{t .Lang "search"}}</label>
+                <input type="text" name="search" class="form-control form-control-lg" placeholder={{t .Lang "searchbox_placeholder"}} maxlength="255" required autofocus value="{{.Keywords}}">
+                <button class="btn btn-primary" type="submit">{{t .Lang "search"}}</button>
             </div>
         </form>
     </div>

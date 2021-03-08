@@ -1,9 +1,10 @@
 <main>
+    {{$lang := .Lang}}
     <div class="container">
         {{template "partials/searchbox" .}} {{if gt .Total 0}}
-        <p>{{t "found_results" .Total }}</p>
+        <p>{{t .Lang "found_results" .Total }}</p>
         {{else}}
-        <p>{{t "found_no_results" }}</p>
+        <p>{{t .Lang "found_no_results" }}</p>
         {{end}}
 
         <div class="list-group">
@@ -12,21 +13,21 @@
                 <img src="covers/{{$ID}}" class="border border-2 border-dark float-start me-3 2-25">
                 <div class="row">
                     <div class="col-7">
-                        {{ if ne $book.Series "" }} {{$seriesTitle := t "series_link_title" $book.Series}}
+                        {{ if ne $book.Series "" }} {{$seriesTitle := t $lang "series_link_title" $book.Series}}
                         <p class="text-start text-muted text-uppercase mb-0"><a href="?search=%2BSeries&colon;&quot;{{$book.Series}}&quot;" title={{$seriesTitle}}>{{$book.Series}} {{$book.SeriesIndex}}</a></p>
                         {{ end }}
                         <h4 class="text-start">{{$book.Title}} <small class="small text-muted">{{$book.Year}}</small></h4>
                     </div>
                     <div class="col-5 text-end">
-                        <a href="files/{{$ID}}" class="btn btn-secondary btn-sm">{{t "download"}}</a>
+                        <a href="files/{{$ID}}" class="btn btn-secondary btn-sm">{{t $lang "download"}}</a>
                     </div>
                 </div>
                 <div class="row">
                     <div class="col-12">
-                        {{$authorTitle := t "author_link_title" $book.Author}}
+                        {{$authorTitle := t $lang "author_link_title" $book.Author}}
                         <h5 class="text-start"><a href="?search=%2BAuthor&colon;&quot;{{$book.Author}}&quot;" title={{$authorTitle}}>{{$book.Author}}</a></h5>
                         {{ if ne $book.ReadingTime "" }}
-                        <p class="text-start text-muted"><em>{{t "estimated_reading_time"}}: {{$book.ReadingTime}}</em></p>
+                        <p class="text-start text-muted"><em>{{t $lang "estimated_reading_time"}}: {{$book.ReadingTime}}</em></p>
                         {{ end }}
                         <div class="mb-1">{{$book.Description}}</div>
                     </div>
@@ -40,13 +41,13 @@
             <ul class="pagination justify-content-center flex-wrap">
                 {{$disabled := ""}} {{$ariaDisabled := ""}} {{ if not .Paginator.PreviousLink }} {{$disabled = "disabled"}} {{$ariaDisabled = "aria-disabled=\"true\""}} {{end}}
                 <li class="page-item {{$disabled}}">
-                    <a class="page-link" href="{{.Paginator.PreviousLink}}" tabindex="-1" {{$ariaDisabled}}>{{t "previous"}}</a>
+                    <a class="page-link" href="{{.Paginator.PreviousLink}}" tabindex="-1" {{$ariaDisabled}}>{{t $lang "previous"}}</a>
                 </li>
                 {{range $number, $page := .Paginator.Pages}} {{$active := ""}} {{ if $page.IsCurrent }} {{$active = "active"}} {{end}}
                 <li class="page-item {{$active}}"><a class="page-link" href="{{$page.Link}}">{{$number}}</a></li>
                 {{end}} {{$disabled := ""}} {{$ariaDisabled := ""}} {{ if not .Paginator.NextLink }} {{$disabled = "disabled"}} {{$ariaDisabled = "aria-disabled=\"true\""}} {{end}}
                 <li class="page-item {{$disabled}}">
-                    <a class="page-link" href="{{.Paginator.NextLink}}" tabindex="-1" {{$ariaDisabled}}>{{t "next"}}</a>
+                    <a class="page-link" href="{{.Paginator.NextLink}}" tabindex="-1" {{$ariaDisabled}}>{{t $lang "next"}}</a>
                 </li>
             </ul>
         </nav>

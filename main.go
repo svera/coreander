@@ -73,7 +73,7 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 		log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
 		fileWatcher(idx, cfg.LibPath)
 	}()
-	app := webserver.New(idx, cfg.LibPath, homeDir, version, metadataReaders)
+	app := webserver.New(idx, cfg.LibPath, homeDir, version, metadataReaders, cfg.CoverMaxWidth)
 	fmt.Printf("Coreander version %s started listening on port %s\n--------------------------------------\n", version, cfg.Port)
 	err = app.Listen(fmt.Sprintf(":%s", cfg.Port))
 	if err != nil {
