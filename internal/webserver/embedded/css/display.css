@@ -57,3 +57,26 @@ a:hover {
     background-color: black;
     border-color: black;
 }
+
+a.collapse-control {
+    text-decoration: none;
+}
+
+a.collapse-control:not(.collapsed):after {
+    content: '▲';
+}
+
+a.collapse-control.collapsed:after {
+    content: '▼';
+}
+
+.collapse:not(.show) {
+    display: block;
+    /* height = lineheight * no of lines to display */
+    height: 7.5em;
+    overflow: hidden;
+}
+
+.collapsing {
+    height: 7.5em;
+}

@@ -8,9 +8,9 @@
         {{end}}
 
         <div class="list-group">
-            {{if .Results}} {{range $ID, $book := .Results}}
+            {{if .Results}} {{range $i, $book := .Results}}
             <div class="list-group-item list-group-item-action">
-                <img src="covers/{{$ID}}" class="border border-2 border-dark float-start me-3 2-25">
+                <img src="covers/{{$book.ID}}" class="border border-2 border-dark float-start me-3 2-25">
                 <div class="row">
                     <div class="col-7">
                         {{ if ne $book.Series "" }} {{$seriesTitle := t $lang "series_link_title" $book.Series}}
@@ -19,7 +19,7 @@
                         <h4 class="text-start">{{$book.Title}} <small class="small text-muted">{{$book.Year}}</small></h4>
                     </div>
                     <div class="col-5 text-end">
-                        <a href="files/{{$ID}}" class="btn btn-secondary btn-sm">{{t $lang "download"}}</a>
+                        <a href="files/{{$book.ID}}" class="btn btn-secondary btn-sm">{{t $lang "download"}}</a>
                     </div>
                 </div>
                 <div class="row">
@@ -29,7 +29,8 @@
                         {{ if ne $book.ReadingTime "" }}
                         <p class="text-start text-muted"><em>{{t $lang "estimated_reading_time"}}: {{$book.ReadingTime}}</em></p>
                         {{ end }}
-                        <div class="mb-1">{{$book.Description}}</div>
+                        <div class="mb-1 collapse" id="collapse-desc{{$i}}">{{$book.Description}}</div>
+                        <a data-bs-toggle="collapse" class="collapse-control collapsed" href="#collapse-desc{{$i}}"></a>
                     </div>
                 </div>
             </div>

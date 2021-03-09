@@ -74,8 +74,9 @@ func testCases() []testCase {
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: map[string]metadata.Metadata{
-					"book1.epub": {
+				Hits: []metadata.Metadata{
+					{
+						ID:          "book1.epub",
 						Title:       "Test A",
 						Author:      "Pérez",
 						Description: "Just test metadata",
@@ -97,8 +98,9 @@ func testCases() []testCase {
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: map[string]metadata.Metadata{
-					"book2.epub": {
+				Hits: []metadata.Metadata{
+					{
+						ID:          "book2.epub",
 						Title:       "Test B",
 						Author:      "Benoît",
 						Description: "Just test metadata",
@@ -120,8 +122,9 @@ func testCases() []testCase {
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: map[string]metadata.Metadata{
-					"book3.epub": {
+				Hits: []metadata.Metadata{
+					{
+						ID:          "book3.epub",
 						Title:       "Test C",
 						Author:      "Clifford D. Simak",
 						Description: "Just test metadata",
@@ -143,8 +146,9 @@ func testCases() []testCase {
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: map[string]metadata.Metadata{
-					"book4.epub": {
+				Hits: []metadata.Metadata{
+					{
+						ID:          "book4.epub",
 						Title:       "Test D",
 						Author:      "James Ellroy",
 						Description: "Just test metadata",

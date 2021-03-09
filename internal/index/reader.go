@@ -6,7 +6,7 @@ import "github.com/svera/coreander/internal/metadata"
 type Result struct {
 	Page       int
 	TotalPages int
-	Hits       map[string]metadata.Metadata
+	Hits       []metadata.Metadata
 	TotalHits  int
 }
 
