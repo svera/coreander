@@ -49,11 +49,12 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int) (*R
 		Page:       page,
 		TotalPages: totalPages,
 		TotalHits:  int(searchResult.Total),
-		Hits:       make(map[string]metadata.Metadata, len(searchResult.Hits)),
+		Hits:       make([]metadata.Metadata, len(searchResult.Hits)),
 	}
 
-	for _, val := range searchResult.Hits {
+	for i, val := range searchResult.Hits {
 		doc := metadata.Metadata{
+			ID:          val.ID,
 			Title:       val.Fields["Title"].(string),
 			Author:      val.Fields["Author"].(string),
 			Description: template.HTML(val.Fields["Description"].(string)),
@@ -68,7 +69,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int) (*R
 				doc.ReadingTime = fmtDuration(readingTime)
 			}
 		}
-		result.Hits[val.ID] = doc
+		result.Hits[i] = doc
 	}
 	return &result, nil
 }

@@ -44,6 +44,14 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 		Root: http.FS(cssFS),
 	}))
 
+	jsFS, err := fs.Sub(embedded, "embedded/js")
+	if err != nil {
+		log.Fatal(err)
+	}
+	app.Use("/js", filesystem.New(filesystem.Config{
+		Root: http.FS(jsFS),
+	}))
+
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
 		return routeCovers(c, homeDir, libraryPath, metadataReaders, coverMaxWidth)
 	})

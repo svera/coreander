@@ -3,6 +3,7 @@ package metadata
 import "html/template"
 
 type Metadata struct {
+	ID          string
 	Title       string
 	Author      string
 	Description template.HTML
