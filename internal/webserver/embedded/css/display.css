@@ -40,7 +40,7 @@ main .form-control:focus {
     }
 }
 
-.list-group-item-action {
+.list-group-item {
     text-align: start;
 }
 

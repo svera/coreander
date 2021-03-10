@@ -2,13 +2,14 @@ package webserver
 
 import (
 	"embed"
+	"html/template"
 	"io/fs"
 	"log"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
-	template "github.com/gofiber/template/html"
+	fibertpl "github.com/gofiber/template/html"
 	"github.com/svera/coreander/internal/i18n"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/metadata"
@@ -69,7 +70,7 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 	return app
 }
 
-func initTemplateEngine() (*template.Engine, error) {
+func initTemplateEngine() (*fibertpl.Engine, error) {
 	cat, err := i18n.NewCatalogFromFolder(embedded, "en")
 	if err != nil {
 		return nil, err
@@ -86,9 +87,9 @@ func initTemplateEngine() (*template.Engine, error) {
 		return nil, err
 	}
 
-	engine := template.NewFileSystem(http.FS(viewsFS), ".html")
-	engine.AddFunc("t", func(lang, key string, values ...interface{}) string {
-		return printers[lang].Sprintf(key, values...)
+	engine := fibertpl.NewFileSystem(http.FS(viewsFS), ".html")
+	engine.AddFunc("t", func(lang, key string, values ...interface{}) template.HTML {
+		return template.HTML(printers[lang].Sprintf(key, values...))
 	})
 
 	return engine, nil

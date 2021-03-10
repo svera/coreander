@@ -12,3 +12,8 @@ coreander: Coreander
 footer: Hecho con palabras por Sergio Vera
 series_link_title: "Buscar más títulos que pertenezcan a %s"
 author_link_title: "Buscar más títulos de %s"
+search_tips: Consejos de búsqueda
+author_tip: Usa el prefijo %s en la caja de búsqueda para buscar solo por autor
+title_tip: Usa el prefijo %s en la caja de búsqueda para buscar solo por título
+series_tip: Usa el prefijo %s en la caja de búsqueda para buscar solo por serie
+double_quotes_tip: Entrecomilla tu búsqueda con comillas dobles para requerir todos los términos y con el mismo orden
