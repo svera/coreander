@@ -12,3 +12,8 @@ coreander: Coreander
 footer: Made with words by Sergio Vera
 series_link_title: "Search for more titles belonging to %s"
 author_link_title: "Search for more titles by %s"
+search_tips: Search tips
+author_tip: Use %s prefix in search box to search by author only
+title_tip: Use %s prefix in search box to search by title only
+series_tip: Use %s prefix in search box to search by series only
+double_quotes_tip: Enclose your search terms in double quotes to require all those terms and with the same order
