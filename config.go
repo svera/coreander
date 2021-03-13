@@ -6,4 +6,5 @@ type Config struct {
 	Port          string `env:"PORT" env-default:"3000"`
 	BatchSize     int    `env:"BATCHSIZE" env-default:"100"`
 	CoverMaxWidth int    `env:"COVERMAXWIDTH" env-default:"300"`
+	SkipReindex   bool   `env:"SKIPREINDEX" env-default:"false"`
 }
