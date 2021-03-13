@@ -50,33 +50,42 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 		idx = index.NewBleve(indexFile, cfg.LibPath, metadataReaders)
 	}
 	if err == bleve.ErrorIndexPathDoesNotExist {
-		log.Println("No index found, creating a new one")
-		indexMapping := bleve.NewIndexMapping()
-		index.AddMappings(indexMapping)
-		indexFile, err := bleve.New(homeDir+"/coreander/db", indexMapping)
-		if err != nil {
-			log.Fatal(err)
-		}
-		idx = index.NewBleve(indexFile, cfg.LibPath, metadataReaders)
+		cfg.SkipReindex = false
+		idx = createIndex(homeDir, cfg.LibPath, metadataReaders)
 	}
 	defer idx.Close()
 
-	go func() {
-		start := time.Now().Unix()
-		log.Println(fmt.Sprintf("Indexing books at %s, this can take a while depending on the size of your library.", cfg.LibPath))
-		err := idx.AddLibrary(appFs, cfg.BatchSize)
-		if err != nil {
-			log.Fatal(err)
-		}
-		end := time.Now().Unix()
-		dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
-		log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
-		fileWatcher(idx, cfg.LibPath)
-	}()
+	if !cfg.SkipReindex {
+		go reindex(idx, appFs, cfg.BatchSize, cfg.LibPath)
+	}
 	app := webserver.New(idx, cfg.LibPath, homeDir, version, metadataReaders, cfg.CoverMaxWidth)
 	fmt.Printf("Coreander version %s started listening on port %s\n\n", version, cfg.Port)
 	err = app.Listen(fmt.Sprintf(":%s", cfg.Port))
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func reindex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath string) {
+	start := time.Now().Unix()
+	log.Println(fmt.Sprintf("Indexing books at %s, this can take a while depending on the size of your library.", libPath))
+	err := idx.AddLibrary(appFs, batchSize)
+	if err != nil {
+		log.Fatal(err)
+	}
+	end := time.Now().Unix()
+	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
+	log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
+	fileWatcher(idx, libPath)
+}
+
+func createIndex(homeDir, libPath string, metadataReaders map[string]metadata.Reader) *index.BleveIndexer {
+	log.Println("No index found, creating a new one")
+	indexMapping := bleve.NewIndexMapping()
+	index.AddMappings(indexMapping)
+	indexFile, err := bleve.New(homeDir+"/coreander/db", indexMapping)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return index.NewBleve(indexFile, libPath, metadataReaders)
 }

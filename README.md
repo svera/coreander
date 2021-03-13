@@ -13,7 +13,7 @@ A personal Ebooks server, Coreander indexes the ebooks (only EPUBs with no DRM a
 * New books added or removed to/from the library folder are automatically indexed (Linux only).
 
 ## Building from source
-Only source code is provided at the moment, so you'll have to manually build it. The only requirement is Go 1.16.
+Coreander's only requirement is Go 1.16.
 
 There are two possibilites for building Coreander from source:
 * If you have [Mage](https://magefile.org) installed in your system, just type `mage install` from the source code folder.
@@ -46,5 +46,8 @@ then, start the service with `service coreander start`. You can manage it with t
 Coreander requires a `LIBPATH` environment variable to be set, which tells the application where your books are located.
 
 On first run, Coreander will index the books in your library, creating a database with those entries located at `$home/coreander/db`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.
+
+Every time is run, the application check for new entries, reindexing the whole library. You can
+avoid this behaviour by setting the environment variable `SKIPREINDEX` to `false`. 
 
 Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` for the IP address of the machine where the server is running if you want to access it from another machine). It is possible to change the listening port just executing the application with the `PORT` environment variable (e. g. `PORT=4000 coreander`) 
