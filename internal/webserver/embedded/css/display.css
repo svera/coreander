@@ -80,3 +80,10 @@ a.collapse-control.collapsed:after {
 .collapsing {
     height: 7.5em;
 }
+
+.form-signin {
+    width: 100%;
+    max-width: 330px;
+    padding: 15px;
+    margin: auto;
+}

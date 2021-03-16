@@ -9,6 +9,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	jwtware "github.com/gofiber/jwt/v2"
 	fibertpl "github.com/gofiber/template/html"
 	"github.com/svera/coreander/internal/i18n"
 	"github.com/svera/coreander/internal/index"
@@ -21,6 +22,8 @@ const (
 	resultsPerPage    = 10
 	maxPagesNavigator = 5
 )
+
+var languages = []string{"en", "es"}
 
 //go:embed embedded
 var embedded embed.FS
@@ -41,6 +44,15 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	app.Get("/:lang/login", func(c *fiber.Ctx) error {
+		return routeLogInForm(c, version)
+	})
+
+	app.Post("login", func(c *fiber.Ctx) error {
+		return routeLogIn(c)
+	})
+
 	app.Use("/css", filesystem.New(filesystem.Config{
 		Root: http.FS(cssFS),
 	}))
@@ -53,16 +65,26 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 		Root: http.FS(jsFS),
 	}))
 
-	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
-		return routeCovers(c, homeDir, libraryPath, metadataReaders, coverMaxWidth)
-	})
-
-	app.Get("/:lang", func(c *fiber.Ctx) error {
-		return routeSearch(c, idx, version)
-	})
-
 	app.Get("/", func(c *fiber.Ctx) error {
 		return routeRoot(c)
+	})
+
+	for _, lang := range languages {
+		// JWT Middleware
+		app.Use("/"+lang, jwtware.New(jwtware.Config{
+			SigningKey:  []byte("secret"),
+			TokenLookup: "cookie:coreander",
+			SuccessHandler: func(c *fiber.Ctx) error {
+				return routeSearch(c, lang, idx, version)
+			},
+			ErrorHandler: func(c *fiber.Ctx, err error) error {
+				return c.Redirect("/" + lang + "/login")
+			},
+		}))
+	}
+
+	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
+		return routeCovers(c, homeDir, libraryPath, metadataReaders, coverMaxWidth)
 	})
 
 	app.Static("/files", libraryPath)
