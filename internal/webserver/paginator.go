@@ -3,6 +3,7 @@ package webserver
 import (
 	"fmt"
 	"html/template"
+	"net/url"
 )
 
 // Page holds the URL of a results page, and if that page is the current one being shown
@@ -42,15 +43,15 @@ func pagination(size int, totalPages int, current int, searchType, keywords stri
 	}
 	for i := start; i <= end; i++ {
 		p := Page{
-			Link: template.URL(fmt.Sprintf("?%s=%s&page=%d", searchType, keywords, i)),
+			Link: template.URL(fmt.Sprintf("?%s=%s&page=%d", searchType, url.QueryEscape(keywords), i)),
 		}
 		if i == current {
 			p.IsCurrent = true
 			if i > 1 {
-				nav.PreviousLink = template.URL(fmt.Sprintf("?%s=%s&page=%d", searchType, keywords, i-1))
+				nav.PreviousLink = template.URL(fmt.Sprintf("?%s=%s&page=%d", searchType, url.QueryEscape(keywords), i-1))
 			}
 			if i < totalPages {
-				nav.NextLink = template.URL(fmt.Sprintf("?%s=%s&page=%d", searchType, keywords, i+1))
+				nav.NextLink = template.URL(fmt.Sprintf("?%s=%s&page=%d", searchType, url.QueryEscape(keywords), i+1))
 			}
 		}
 		nav.Pages[i] = p
