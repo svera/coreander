@@ -45,13 +45,15 @@ func New(idx index.Reader, libraryPath, homeDir, version, secret string, metadat
 		log.Fatal(err)
 	}
 
-	app.Get("/:lang/login", func(c *fiber.Ctx) error {
-		return routeLogInForm(c, version)
-	})
+	if secret != "" {
+		app.Get("/:lang/login", func(c *fiber.Ctx) error {
+			return routeLogInForm(c, version)
+		})
 
-	app.Post("/:lang/login", func(c *fiber.Ctx) error {
-		return routeLogIn(c, secret)
-	})
+		app.Post("/:lang/login", func(c *fiber.Ctx) error {
+			return routeLogIn(c, secret)
+		})
+	}
 
 	app.Use("/css", filesystem.New(filesystem.Config{
 		Root: http.FS(cssFS),
@@ -70,17 +72,19 @@ func New(idx index.Reader, libraryPath, homeDir, version, secret string, metadat
 	})
 
 	// JWT Middleware
-	app.Use("/:lang", jwtware.New(jwtware.Config{
-		SigningKey:  []byte(secret),
-		TokenLookup: "cookie:coreander",
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			lang := c.Params("lang")
-			if _, ok := languages[lang]; !ok {
-				lang = getBaseLanguage(c)
-			}
-			return c.Redirect(lang + "/login")
-		},
-	}))
+	if secret != "" {
+		app.Use("/:lang", jwtware.New(jwtware.Config{
+			SigningKey:  []byte(secret),
+			TokenLookup: "cookie:coreander",
+			ErrorHandler: func(c *fiber.Ctx, err error) error {
+				lang := c.Params("lang")
+				if _, ok := languages[lang]; !ok {
+					lang = getBaseLanguage(c)
+				}
+				return c.Redirect(lang + "/login")
+			},
+		}))
+	}
 
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
 		return routeCovers(c, homeDir, libraryPath, metadataReaders, coverMaxWidth)

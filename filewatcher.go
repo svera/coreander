@@ -7,5 +7,4 @@ import (
 )
 
 func fileWatcher(idx *index.BleveIndexer, libPath string) {
-	return
 }

@@ -26,13 +26,13 @@ func main() {
 		log.Fatal("Error retrieving user home dir")
 	}
 	if err = cleanenv.ReadEnv(&cfg); err != nil {
-		log.Fatal(fmt.Sprintf("Error parsing configuration from environment variables: %s", err))
+		log.Fatal(fmt.Errorf("error parsing configuration from environment variables: %s", err))
 	}
 	if _, err := os.Stat(cfg.LibPath); os.IsNotExist(err) {
-		log.Fatal(fmt.Errorf("Directory '%s' does not exist, exiting", cfg.LibPath))
+		log.Fatal(fmt.Errorf("directory '%s' does not exist, exiting", cfg.LibPath))
 	}
 	if err = os.MkdirAll(fmt.Sprintf("%s/coreander/cache/covers", homeDir), os.ModePerm); err != nil {
-		log.Fatal(fmt.Errorf("Couldn't create %s, exiting", fmt.Sprintf("%s/coreander/cache/covers", homeDir)))
+		log.Fatal(fmt.Errorf("couldn't create %s, exiting", fmt.Sprintf("%s/coreander/cache/covers", homeDir)))
 	}
 
 	metadataReaders := map[string]metadata.Reader{
@@ -43,8 +43,22 @@ func main() {
 }
 
 func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader, appFs afero.Fs) {
+	idx := initIndex(homeDir, cfg, metadataReaders)
+	defer idx.Close()
+
+	if !cfg.SkipReindex {
+		go reindex(idx, appFs, cfg.BatchSize, cfg.LibPath)
+	}
+	app := webserver.New(idx, cfg.LibPath, homeDir, version, cfg.Secret, metadataReaders, cfg.CoverMaxWidth)
+	fmt.Printf("Coreander version %s started listening on port %s\n\n", version, cfg.Port)
+	err := app.Listen(fmt.Sprintf(":%s", cfg.Port))
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func initIndex(homeDir string, cfg Config, metadataReaders map[string]metadata.Reader) *index.BleveIndexer {
 	var idx *index.BleveIndexer
-	var err error
 	indexFile, err := bleve.Open(homeDir + "/coreander/db")
 	if err == nil {
 		idx = index.NewBleve(indexFile, cfg.LibPath, metadataReaders)
@@ -53,17 +67,7 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 		cfg.SkipReindex = false
 		idx = createIndex(homeDir, cfg.LibPath, metadataReaders)
 	}
-	defer idx.Close()
-
-	if !cfg.SkipReindex {
-		go reindex(idx, appFs, cfg.BatchSize, cfg.LibPath)
-	}
-	app := webserver.New(idx, cfg.LibPath, homeDir, version, cfg.Secret, metadataReaders, cfg.CoverMaxWidth)
-	fmt.Printf("Coreander version %s started listening on port %s\n\n", version, cfg.Port)
-	err = app.Listen(fmt.Sprintf(":%s", cfg.Port))
-	if err != nil {
-		log.Fatal(err)
-	}
+	return idx
 }
 
 func reindex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath string) {
