@@ -7,7 +7,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func routeLogIn(c *fiber.Ctx) error {
+func routeLogIn(c *fiber.Ctx, secret string) error {
+	lang := c.Params("lang")
+	if _, ok := languages[lang]; !ok {
+		return fiber.ErrBadRequest
+	}
 	user := c.FormValue("email")
 	pass := c.FormValue("password")
 
@@ -26,7 +30,7 @@ func routeLogIn(c *fiber.Ctx) error {
 	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
 
 	// Generate encoded token and send it as response.
-	t, err := token.SignedString([]byte("secret"))
+	t, err := token.SignedString([]byte(secret))
 
 	if err != nil {
 		return c.SendStatus(fiber.StatusInternalServerError)
@@ -38,5 +42,5 @@ func routeLogIn(c *fiber.Ctx) error {
 		Expires:  time.Now().Add(time.Hour * 72),
 		HTTPOnly: true,
 	})
-	return c.Redirect("/")
+	return c.Redirect("/" + lang)
 }

@@ -23,13 +23,13 @@ const (
 	maxPagesNavigator = 5
 )
 
-var languages = []string{"en", "es"}
+var languages = map[string]struct{}{"en": {}, "es": {}}
 
 //go:embed embedded
 var embedded embed.FS
 
 // New builds a new Fiber application and set up the required routes
-func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int) *fiber.App {
+func New(idx index.Reader, libraryPath, homeDir, version, secret string, metadataReaders map[string]metadata.Reader, coverMaxWidth int) *fiber.App {
 	engine, err := initTemplateEngine()
 	if err != nil {
 		log.Fatal(err)
@@ -49,8 +49,8 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 		return routeLogInForm(c, version)
 	})
 
-	app.Post("login", func(c *fiber.Ctx) error {
-		return routeLogIn(c)
+	app.Post("/:lang/login", func(c *fiber.Ctx) error {
+		return routeLogIn(c, secret)
 	})
 
 	app.Use("/css", filesystem.New(filesystem.Config{
@@ -69,25 +69,28 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 		return routeRoot(c)
 	})
 
-	for _, lang := range languages {
-		// JWT Middleware
-		app.Use("/"+lang, jwtware.New(jwtware.Config{
-			SigningKey:  []byte("secret"),
-			TokenLookup: "cookie:coreander",
-			SuccessHandler: func(c *fiber.Ctx) error {
-				return routeSearch(c, lang, idx, version)
-			},
-			ErrorHandler: func(c *fiber.Ctx, err error) error {
-				return c.Redirect("/" + lang + "/login")
-			},
-		}))
-	}
+	// JWT Middleware
+	app.Use("/:lang", jwtware.New(jwtware.Config{
+		SigningKey:  []byte(secret),
+		TokenLookup: "cookie:coreander",
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			lang := c.Params("lang")
+			if _, ok := languages[lang]; !ok {
+				lang = getBaseLanguage(c)
+			}
+			return c.Redirect(lang + "/login")
+		},
+	}))
 
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
 		return routeCovers(c, homeDir, libraryPath, metadataReaders, coverMaxWidth)
 	})
 
 	app.Static("/files", libraryPath)
+
+	app.Get("/:lang", func(c *fiber.Ctx) error {
+		return routeSearch(c, idx, version)
+	})
 
 	return app
 }
@@ -115,4 +118,17 @@ func initTemplateEngine() (*fibertpl.Engine, error) {
 	})
 
 	return engine, nil
+}
+
+func getBaseLanguage(c *fiber.Ctx) string {
+	acceptHeader := c.Get(fiber.HeaderAcceptLanguage)
+	languageMatcher := language.NewMatcher([]language.Tag{
+		language.English,
+		language.Spanish,
+	})
+
+	t, _, _ := language.ParseAcceptLanguage(acceptHeader)
+	tag, _, _ := languageMatcher.Match(t...)
+	baseLang, _ := tag.Base()
+	return baseLang.String()
 }

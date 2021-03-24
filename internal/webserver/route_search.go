@@ -7,7 +7,11 @@ import (
 	"github.com/svera/coreander/internal/index"
 )
 
-func routeSearch(c *fiber.Ctx, lang string, idx index.Reader, version string) error {
+func routeSearch(c *fiber.Ctx, idx index.Reader, version string) error {
+	lang := c.Params("lang")
+	if _, ok := languages[lang]; !ok {
+		return fiber.ErrBadRequest
+	}
 	page, err := strconv.Atoi(c.Query("page"))
 	if err != nil {
 		page = 1

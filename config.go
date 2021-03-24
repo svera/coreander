@@ -7,4 +7,5 @@ type Config struct {
 	BatchSize     int    `env:"BATCHSIZE" env-default:"100"`
 	CoverMaxWidth int    `env:"COVERMAXWIDTH" env-default:"300"`
 	SkipReindex   bool   `env:"SKIPREINDEX" env-default:"false"`
+	Secret        string `env:"SECRET" `
 }

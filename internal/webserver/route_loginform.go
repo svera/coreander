@@ -11,9 +11,15 @@ func routeLogInForm(c *fiber.Ctx, version string) error {
 		return fiber.ErrNotFound
 	}
 
+	forbidden := false
+	if c.Query("forbidden") == "1" {
+		forbidden = true
+	}
+
 	return c.Render("login", fiber.Map{
-		"Lang":    lang,
-		"Title":   "Coreander",
-		"Version": version,
+		"Lang":      lang,
+		"Title":     "Coreander",
+		"Version":   version,
+		"Forbidden": forbidden,
 	}, "layout")
 }

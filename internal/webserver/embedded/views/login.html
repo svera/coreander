@@ -1,10 +1,15 @@
 <main class="form-signin">
-    <form action="/login" method="POST">
-        <h1 class="h3 mb-3 fw-normal">Please sign in</h1>
-        <label for="inputEmail" class="visually-hidden">Email address</label>
+    {{if .Forbidden }}
+    <div class="alert alert-warning" role="alert">
+        Log in required
+    </div>
+    {{end}}
+    <form action="/{{.Lang}}/login" method="POST">
+        <h1 class="h3 mb-3 fw-normal">{{t .Lang "please_sign_in"}}</h1>
+        <label for="inputEmail" class="visually-hidden">{{t .Lang "email"}}</label>
         <input name="email" type="email" id="inputEmail" class="form-control" placeholder="Email address" required="" autofocus="">
-        <label for="inputPassword" class="visually-hidden">Password</label>
+        <label for="inputPassword" class="visually-hidden">{{t .Lang "password"}}</label>
         <input name="password" type="password" id="inputPassword" class="form-control" placeholder="Password" required="">
-        <button class="w-100 btn btn-lg btn-primary" type="submit">Sign in</button>
+        <button class="w-100 btn btn-lg btn-primary" type="submit">{{t .Lang "sign_in"}}</button>
     </form>
 </main>

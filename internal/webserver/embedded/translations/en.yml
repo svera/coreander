@@ -17,3 +17,8 @@ author_tip: Use %s prefix in search box to search by author only
 title_tip: Use %s prefix in search box to search by title only
 series_tip: Use %s prefix in search box to search by series only
 double_quotes_tip: Enclose your search terms in double quotes to require all those terms and with the same order
+please_sign_in: Please sign in
+email: E-mail
+password: Password
+sign_in: Sign in
+log_in_required: Log in required
