@@ -1,3 +1,4 @@
+//go:build mage
 // +build mage
 
 package main
@@ -76,6 +77,11 @@ func env(platform string) (map[string]string, error) {
 		return map[string]string{
 			"GOOS":   "darwin",
 			"GOARCH": "amd64",
+		}, nil
+	case "osxapple":
+		return map[string]string{
+			"GOOS":   "darwin",
+			"GOARCH": "arm64",
 		}, nil
 	}
 
