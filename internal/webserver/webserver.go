@@ -31,7 +31,7 @@ type sendAttachentFormData struct {
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, smtpSettings SMTP) *fiber.App {
+func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, sender Sender) *fiber.App {
 	engine, err := initTemplateEngine()
 	if err != nil {
 		log.Fatal(err)
@@ -69,7 +69,8 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 			return err
 		}
 
-		return routeSend(c, libraryPath, data.File, data.Email, smtpSettings)
+		routeSend(c, libraryPath, data.File, data.Email, sender)
+		return nil
 	})
 
 	app.Get("/:lang", func(c *fiber.Ctx) error {

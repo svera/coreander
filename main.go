@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/index"
+	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/webserver"
 )
@@ -58,13 +59,13 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 	if !cfg.SkipReindex {
 		go reindex(idx, appFs, cfg.BatchSize, cfg.LibPath)
 	}
-	smtpSettings := webserver.SMTP{
+	smtp := &infrastructure.SMTP{
 		Server:   cfg.SmtpServer,
 		Port:     cfg.SmtpPort,
 		User:     cfg.SmtpUser,
 		Password: cfg.SmtpPassword,
 	}
-	app := webserver.New(idx, cfg.LibPath, homeDir, version, metadataReaders, cfg.CoverMaxWidth, smtpSettings)
+	app := webserver.New(idx, cfg.LibPath, homeDir, version, metadataReaders, cfg.CoverMaxWidth, smtp)
 	fmt.Printf("Coreander version %s started listening on port %s\n\n", version, cfg.Port)
 	err = app.Listen(fmt.Sprintf(":%s", cfg.Port))
 	if err != nil {

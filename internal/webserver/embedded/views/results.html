@@ -27,7 +27,7 @@
                                 aria-expanded="false" data-bs-auto-close="outside">
                                 {{t $lang "actions"}}
                             </button>
-                            <form class="dropdown-menu" method="post" action="send">
+                            <form class="dropdown-menu" method="post" action="send" onsubmit="event.preventDefault(); send(this)">
                                 <a href="files/{{$book.ID}}" class="dropdown-item">{{t $lang "download"}}</a>
                                 <div class="dropdown-divider"></div>
                                 <div class="p-3">
@@ -84,4 +84,27 @@
         {{end}}
 
     </div>
+
+    <script type="text/javascript">
+        function send(form)
+        {
+            fetch('/send', {
+                method: "POST",
+                // Set the headers
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                // Set the post data
+                body: JSON.stringify({
+                    email : form.elements[0].value,
+                    file : form.elements[1].value,
+                })
+            })
+            .catch(function (error){
+                // Catch errors
+                console.log(error);
+            });
+        }
+    </script>
 </main>
