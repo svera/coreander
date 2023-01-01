@@ -25,8 +25,13 @@ const (
 //go:embed embedded
 var embedded embed.FS
 
+type sendAttachentFormData struct {
+	File  string `form:"file"`
+	Email string `form:"email"`
+}
+
 // New builds a new Fiber application and set up the required routes
-func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int) *fiber.App {
+func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, smtpSettings SMTP) *fiber.App {
 	engine, err := initTemplateEngine()
 	if err != nil {
 		log.Fatal(err)
@@ -55,6 +60,16 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
 		return routeCovers(c, homeDir, libraryPath, metadataReaders, coverMaxWidth)
+	})
+
+	app.Post("/send", func(c *fiber.Ctx) error {
+		data := new(sendAttachentFormData)
+
+		if err := c.BodyParser(data); err != nil {
+			return err
+		}
+
+		return routeSend(c, libraryPath, data.File, data.Email, smtpSettings)
 	})
 
 	app.Get("/:lang", func(c *fiber.Ctx) error {

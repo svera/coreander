@@ -58,7 +58,13 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 	if !cfg.SkipReindex {
 		go reindex(idx, appFs, cfg.BatchSize, cfg.LibPath)
 	}
-	app := webserver.New(idx, cfg.LibPath, homeDir, version, metadataReaders, cfg.CoverMaxWidth)
+	smtpSettings := webserver.SMTP{
+		Server:   cfg.SmtpServer,
+		Port:     cfg.SmtpPort,
+		User:     cfg.SmtpUser,
+		Password: cfg.SmtpPassword,
+	}
+	app := webserver.New(idx, cfg.LibPath, homeDir, version, metadataReaders, cfg.CoverMaxWidth, smtpSettings)
 	fmt.Printf("Coreander version %s started listening on port %s\n\n", version, cfg.Port)
 	err = app.Listen(fmt.Sprintf(":%s", cfg.Port))
 	if err != nil {

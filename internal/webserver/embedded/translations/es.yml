@@ -17,3 +17,6 @@ author_tip: Usa el prefijo %s en la caja de búsqueda para buscar solo por autor
 title_tip: Usa el prefijo %s en la caja de búsqueda para buscar solo por título
 series_tip: Usa el prefijo %s en la caja de búsqueda para buscar solo por serie
 double_quotes_tip: Entrecomilla tu búsqueda con comillas dobles para requerir todos los términos y con el mismo orden
+send_to_kindle: Enviar a Kindle
+send: Enviar
+actions: Acciones

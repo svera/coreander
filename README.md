@@ -4,6 +4,7 @@ A personal Ebooks server, Coreander indexes the ebooks (only EPUBs with no DRM a
 ![Coreander screenshot](screenshot.png)
 
 ## Features
+* Single binary with all dependencies included.
 * Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for ebooks in multiple languages.
 * Search by author, title and even book series ([Calibre's](https://calibre-ebook.com/) `series` meta supported)
 * Estimated reading time calculation. 
@@ -11,6 +12,7 @@ A personal Ebooks server, Coreander indexes the ebooks (only EPUBs with no DRM a
 * Lightweight, responsive web interface based on [Bootstrap](https://getbootstrap.com/).
 * Web interface available in English and Spanish, more languages can be easily added.
 * New books added or removed to/from the library folder are automatically indexed (Linux only).
+* Send to Kindle support: Send your documents to your Kindle device wirelessly.
 
 ## Building from source
 Coreander's only requirement is Go 1.16.
