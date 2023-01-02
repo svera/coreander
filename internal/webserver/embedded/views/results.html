@@ -27,7 +27,7 @@
                                 aria-expanded="false" data-bs-auto-close="outside">
                                 {{t $lang "actions"}}
                             </button>
-                            <form class="dropdown-menu" method="post" action="send" onsubmit="event.preventDefault(); send(this)">
+                            <form class="dropdown-menu" method="post" action="send" onsubmit="send(this)">
                                 <a href="files/{{$book.ID}}" class="dropdown-item">{{t $lang "download"}}</a>
                                 <div class="dropdown-divider"></div>
                                 <div class="p-3">
@@ -88,6 +88,7 @@
     <script type="text/javascript">
         function send(form)
         {
+            event.preventDefault();
             fetch('/send', {
                 method: "POST",
                 // Set the headers
