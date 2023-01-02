@@ -12,6 +12,7 @@ import (
 	fibertpl "github.com/gofiber/template/html"
 	"github.com/svera/coreander/internal/i18n"
 	"github.com/svera/coreander/internal/index"
+	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -74,7 +75,11 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 	})
 
 	app.Get("/:lang", func(c *fiber.Ctx) error {
-		return routeSearch(c, idx, version)
+		emailSendingConfigured := true
+		if _, ok := sender.(*infrastructure.NoEmail); ok {
+			emailSendingConfigured = false
+		}
+		return routeSearch(c, idx, version, emailSendingConfigured)
 	})
 
 	app.Get("/", func(c *fiber.Ctx) error {
