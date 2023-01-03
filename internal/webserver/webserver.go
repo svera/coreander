@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"embed"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"log"
@@ -109,8 +110,26 @@ func initTemplateEngine() (*fibertpl.Engine, error) {
 	}
 
 	engine := fibertpl.NewFileSystem(http.FS(viewsFS), ".html")
+
 	engine.AddFunc("t", func(lang, key string, values ...interface{}) template.HTML {
 		return template.HTML(printers[lang].Sprintf(key, values...))
+	})
+
+	engine.AddFunc("dict", func(values ...interface{}) map[string]interface{} {
+		if len(values)%2 != 0 {
+			fmt.Println("invalid dict call")
+			return nil
+		}
+		dict := make(map[string]interface{}, len(values)/2)
+		for i := 0; i < len(values); i += 2 {
+			key, ok := values[i].(string)
+			if !ok {
+				fmt.Println("dict keys must be strings")
+				return nil
+			}
+			dict[key] = values[i+1]
+		}
+		return dict
 	})
 
 	return engine, nil
