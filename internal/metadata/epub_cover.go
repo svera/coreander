@@ -2,57 +2,59 @@ package metadata
 
 import (
 	"archive/zip"
+	"bytes"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
+
+	"github.com/disintegration/imaging"
+	"github.com/gofiber/fiber/v2"
 )
 
 // Cover parses the book looking for a cover image, and extracts it to outputFolder
-func (e EpubReader) Cover(bookFullPath string, outputFolder string) error {
+func (e EpubReader) Cover(bookFullPath string, coverMaxWidth int) ([]byte, error) {
+	var cover []byte
+
 	reader := EpubReader{}
 	meta, err := reader.Metadata(bookFullPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if meta.Cover == "" {
-		return fmt.Errorf("No cover image set in %s", bookFullPath)
+		return nil, fmt.Errorf("no cover image set in %s", bookFullPath)
 	}
 
-	coverExt := filepath.Ext(meta.Cover)
-	outputPath := fmt.Sprintf("%s/%s%s", outputFolder, filepath.Base(bookFullPath), coverExt)
 	r, err := zip.OpenReader(bookFullPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer r.Close()
-	err = extractCover(r, meta.Cover, outputPath)
+	cover, err = extractCover(r, meta.Cover, coverMaxWidth)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return cover, nil
 }
 
-func extractCover(r *zip.ReadCloser, coverFile, outputPath string) error {
+func extractCover(r *zip.ReadCloser, coverFile string, coverMaxWidth int) ([]byte, error) {
 	for _, f := range r.File {
 		if f.Name != fmt.Sprintf("OEBPS/%s", coverFile) {
 			continue
 		}
 		rc, err := f.Open()
 		if err != nil {
-			return err
+			return nil, err
 		}
-		outFile, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		src, err := imaging.Decode(rc)
 		if err != nil {
-			return err
+			return nil, fiber.ErrInternalServerError
 		}
-		_, err = io.Copy(outFile, rc)
+		dst := imaging.Resize(src, coverMaxWidth, 0, imaging.Box)
 		if err != nil {
-			return err
+			return nil, fiber.ErrInternalServerError
 		}
-		outFile.Close()
-		rc.Close()
-		return nil
+
+		buf := new(bytes.Buffer)
+		imaging.Encode(buf, dst, imaging.JPEG)
+		return buf.Bytes(), nil
 	}
-	return fmt.Errorf("No cover image found")
+	return nil, fmt.Errorf("no cover image found")
 }
