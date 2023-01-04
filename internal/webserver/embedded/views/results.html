@@ -3,9 +3,9 @@
     {{$emailSendingConfigured := .EmailSendingConfigured}}
     <div class="container">
         {{template "partials/searchbox" .}} {{if gt .Total 0}}
-        <p>{{t .Lang "found_results" .Total }}</p>
+        <p>{{t .Lang "%d matches found" .Total }}</p>
         {{else}}
-        <p>{{t .Lang "found_no_results" }}</p>
+        <p>{{t .Lang "No matches found" }}</p>
         {{end}}
 
         <div class="list-group">
@@ -14,7 +14,7 @@
                 <img src="covers/{{$book.ID}}" class="border border-2 border-dark float-start me-3 2-25">
                 <div class="row">
                     <div class="col-7">
-                        {{ if ne $book.Series "" }} {{$seriesTitle := t $lang "series_link_title" $book.Series}}
+                        {{ if ne $book.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s" $book.Series}}
                         <p class="text-start text-muted text-uppercase mb-0"><a
                                 href="?search=Series&colon;&quot;{{$book.Series}}&quot;"
                                 title={{$seriesTitle}}>{{$book.Series}} {{$book.SeriesIndex}}</a></p>
@@ -28,11 +28,11 @@
                 </div>
                 <div class="row">
                     <div class="col-12">
-                        {{$authorTitle := t $lang "author_link_title" $book.Author}}
+                        {{$authorTitle := t $lang "Search for more titles by %s" $book.Author}}
                         <h5 class="text-start"><a href="?search=Author&colon;&quot;{{$book.Author}}&quot;"
                                 title={{$authorTitle}}>{{$book.Author}}</a></h5>
                         {{ if ne $book.ReadingTime "" }}
-                        <p class="text-start text-muted"><em>{{t $lang "estimated_reading_time"}}:
+                        <p class="text-start text-muted"><em>{{t $lang "Estimated reading time"}}:
                                 {{$book.ReadingTime}}</em></p>
                         {{ end }}
                         <div class="mb-1 collapse" id="collapse-desc{{$i}}">{{$book.Description}}</div>
@@ -50,7 +50,7 @@
                 "disabled"}} {{$ariaDisabled = "aria-disabled=\"true\""}} {{end}}
                 <li class="page-item {{$disabled}}">
                     <a class="page-link" href="{{.Paginator.PreviousLink}}" tabindex="-1" {{$ariaDisabled}}>{{t $lang
-                        "previous"}}</a>
+                        "Previous"}}</a>
                 </li>
                 {{range $number, $page := .Paginator.Pages}} {{$active := ""}} {{ if $page.IsCurrent }} {{$active =
                 "active"}} {{end}}
@@ -59,7 +59,7 @@
                 "disabled"}} {{$ariaDisabled = "aria-disabled=\"true\""}} {{end}}
                 <li class="page-item {{$disabled}}">
                     <a class="page-link" href="{{.Paginator.NextLink}}" tabindex="-1" {{$ariaDisabled}}>{{t $lang
-                        "next"}}</a>
+                        "Next"}}</a>
                 </li>
             </ul>
         </nav>

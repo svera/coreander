@@ -1,25 +1,25 @@
 <div class="dropdown">
     <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown"
         aria-expanded="false" data-bs-auto-close="outside">
-        {{t .Lang "actions"}}
+        {{t .Lang "Actions"}}
     </button>
     <ul class="dropdown-menu">
-        <li><a href="files/{{.BookID}}" class="dropdown-item">{{t .Lang "download"}}</a></li>
+        <li><a href="files/{{.BookID}}" class="dropdown-item">{{t .Lang "Download"}}</a></li>
         <div class="dropdown-divider"></div>
         {{if not .EmailSendingConfigured}}
-            <li class="dropdown-item disabled">{{t .Lang "no_email_service_configured"}}</li>
+            <li class="dropdown-item disabled">{{t .Lang "Send to email unavailable, no email service configured"}}</li>
         {{else}}
             <li>
                 <form method="post" action="send" onsubmit="send(this)">
                     <div class="p-3">
                         <label for="email" class="form-label">{{t .Lang
-                            "send_to_email"}}</label>
+                            "Send to email"}}</label>
                         <input type="email" class="form-control" id="email" name="email"
                             placeholder="email@example.com" required="required">
                     </div>
                     <div class="p-3">
                         <input type="hidden" name="file" value="{{.BookID}}">
-                        <button type="submit" class="btn btn-primary">{{t .Lang "send"}}</button>
+                        <button type="submit" class="btn btn-primary">{{t .Lang "Send"}}</button>
                     </div>
                 </form>
             </li>

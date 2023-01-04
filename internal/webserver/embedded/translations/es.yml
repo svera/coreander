@@ -1,23 +1,22 @@
-search: "Buscar"
-availability: "%d documentos disponibles"
-download: "Descargar"
-previous: "Anterior"
-next: "Siguiente"
-found_results: "Halladas %d coincidencias"
-found_no_results: "No se han encontrado coincidencias"
-searchbox_placeholder: "Título, autores, temas, etc."
-estimated_reading_time: "Tiempo estimado de lectura"
-search_results: Coreander - resultados de la búsqueda
-coreander: Coreander
-footer: Hecho con palabras por Sergio Vera
-series_link_title: "Buscar más títulos que pertenezcan a %s"
-author_link_title: "Buscar más títulos de %s"
-search_tips: Consejos de búsqueda
-author_tip: Usa el prefijo %s en la caja de búsqueda para buscar solo por autor
-title_tip: Usa el prefijo %s en la caja de búsqueda para buscar solo por título
-series_tip: Usa el prefijo %s en la caja de búsqueda para buscar solo por serie
-double_quotes_tip: Entrecomilla tu búsqueda con comillas dobles para requerir todos los términos y con el mismo orden
-send_to_email: Enviar a correo electrónico
-send: Enviar
-actions: Acciones
-no_email_service_configured: "Enviar a correo electrónico no disponible, no se ha configurado ningún servicio"
+"Search": "Buscar"
+"%d documents available": "%d documentos disponibles"
+"Download": "Descargar"
+"Previous": "Anterior"
+"Next": "Siguiente"
+"%d matches found": "Halladas %d coincidencias"
+"No matches found": "No se han encontrado coincidencias"
+"Title, authors, subjects, etc.": "Título, autores, temas, etc."
+"Estimated reading time": "Tiempo estimado de lectura"
+"Coreander - search results": Coreander - resultados de la búsqueda
+"Made with words by Sergio Vera": Hecho con palabras por Sergio Vera
+"Search for more titles belonging to %s": "Buscar más títulos que pertenezcan a %s"
+"Search for more titles by %s": "Buscar más títulos de %s"
+"Search tips": Consejos de búsqueda
+"Use %s prefix in search box to search by author only": Usa el prefijo %s en la caja de búsqueda para buscar solo por autor
+"Use %s prefix in search box to search by title only": Usa el prefijo %s en la caja de búsqueda para buscar solo por título
+"Use %s prefix in search box to search by series only": Usa el prefijo %s en la caja de búsqueda para buscar solo por serie
+"Enclose your search terms in double quotes to require all those terms and with the same order": Entrecomilla tu búsqueda con comillas dobles para requerir todos los términos y con el mismo orden
+"Send to email": Enviar a correo electrónico
+"Send": Enviar
+"Actions": Acciones
+"Send to email unavailable, no email service configured": "Enviar a correo electrónico no disponible, no se ha configurado ningún servicio"
