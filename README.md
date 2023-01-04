@@ -4,6 +4,7 @@ A personal Ebooks server, Coreander indexes the ebooks (only EPUBs with no DRM a
 ![Coreander screenshot](screenshot.png)
 
 ## Features
+* Single binary with all dependencies included.
 * Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for ebooks in multiple languages.
 * Search by author, title and even book series ([Calibre's](https://calibre-ebook.com/) `series` meta supported)
 * Estimated reading time calculation. 
@@ -11,6 +12,7 @@ A personal Ebooks server, Coreander indexes the ebooks (only EPUBs with no DRM a
 * Lightweight, responsive web interface based on [Bootstrap](https://getbootstrap.com/).
 * Web interface available in English and Spanish, more languages can be easily added.
 * New books added or removed to/from the library folder are automatically indexed (Linux only).
+* Send to email supported.
 
 ## Building from source
 Coreander's only requirement is Go 1.16.
@@ -50,4 +52,13 @@ On first run, Coreander will index the books in your library, creating a databas
 Every time is run, the application check for new entries, reindexing the whole library. You can
 avoid this behaviour by setting the environment variable `SKIPREINDEX` to `true`. 
 
-Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` for the IP address of the machine where the server is running if you want to access it from another machine). It is possible to change the listening port just executing the application with the `PORT` environment variable (e. g. `PORT=4000 coreander`) 
+Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` for the IP address of the machine where the server is running if you want to access it from another machine). It is possible to change the listening port just executing the application with the `PORT` environment variable (e. g. `PORT=4000 coreander`)
+
+### Send to email
+
+Coreander can also send documents through email. This way, you can take advantage of services such as [Amazon's send to email](https://www.amazon.com/gp/help/customer/display.html?nodeId=G7NECT4B4ZWHQ8WV). You can use any email service that allow sending emails using the SMTP protocol, like [GMX](gmx.com). The following environment variables need to be defined:
+
+* `SMTPSERVER`: The URL of the SMTP server to be used, for example `mail.gmx.com`.
+* `SMTPPORT`: The port number used by the email service, defaults to `587`.
+* `SMTPUSER`: The user name.
+* `SMTPPASSWORD`: User's password.

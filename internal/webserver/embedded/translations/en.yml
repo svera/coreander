@@ -17,3 +17,7 @@ author_tip: Use %s prefix in search box to search by author only
 title_tip: Use %s prefix in search box to search by title only
 series_tip: Use %s prefix in search box to search by series only
 double_quotes_tip: Enclose your search terms in double quotes to require all those terms and with the same order
+send_to_email: Send to email
+send: Send
+actions: Actions
+no_email_service_configured: "Send to email unavailable, no email service configured"

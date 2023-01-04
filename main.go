@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/index"
+	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/webserver"
 )
@@ -43,8 +44,12 @@ func main() {
 }
 
 func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader, appFs afero.Fs) {
-	var idx *index.BleveIndexer
-	var err error
+	var (
+		idx    *index.BleveIndexer
+		err    error
+		sender webserver.Sender
+	)
+
 	indexFile, err := bleve.Open(homeDir + "/coreander/db")
 	if err == nil {
 		idx = index.NewBleve(indexFile, cfg.LibPath, metadataReaders)
@@ -58,7 +63,16 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 	if !cfg.SkipReindex {
 		go reindex(idx, appFs, cfg.BatchSize, cfg.LibPath)
 	}
-	app := webserver.New(idx, cfg.LibPath, homeDir, version, metadataReaders, cfg.CoverMaxWidth)
+	sender = &infrastructure.NoEmail{}
+	if cfg.SmtpServer != "" && cfg.SmtpUser != "" && cfg.SmtpPassword != "" {
+		sender = &infrastructure.SMTP{
+			Server:   cfg.SmtpServer,
+			Port:     cfg.SmtpPort,
+			User:     cfg.SmtpUser,
+			Password: cfg.SmtpPassword,
+		}
+	}
+	app := webserver.New(idx, cfg.LibPath, homeDir, version, metadataReaders, cfg.CoverMaxWidth, sender)
 	fmt.Printf("Coreander version %s started listening on port %s\n\n", version, cfg.Port)
 	err = app.Listen(fmt.Sprintf(":%s", cfg.Port))
 	if err != nil {

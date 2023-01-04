@@ -17,3 +17,7 @@ author_tip: Usa el prefijo %s en la caja de búsqueda para buscar solo por autor
 title_tip: Usa el prefijo %s en la caja de búsqueda para buscar solo por título
 series_tip: Usa el prefijo %s en la caja de búsqueda para buscar solo por serie
 double_quotes_tip: Entrecomilla tu búsqueda con comillas dobles para requerir todos los términos y con el mismo orden
+send_to_email: Enviar a correo electrónico
+send: Enviar
+actions: Acciones
+no_email_service_configured: "Enviar a correo electrónico no disponible, no se ha configurado ningún servicio"

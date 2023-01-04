@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"embed"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"log"
@@ -12,6 +13,7 @@ import (
 	fibertpl "github.com/gofiber/template/html"
 	"github.com/svera/coreander/internal/i18n"
 	"github.com/svera/coreander/internal/index"
+	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -25,8 +27,13 @@ const (
 //go:embed embedded
 var embedded embed.FS
 
+type sendAttachentFormData struct {
+	File  string `form:"file"`
+	Email string `form:"email"`
+}
+
 // New builds a new Fiber application and set up the required routes
-func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int) *fiber.App {
+func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, sender Sender) *fiber.App {
 	engine, err := initTemplateEngine()
 	if err != nil {
 		log.Fatal(err)
@@ -57,8 +64,23 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 		return routeCovers(c, homeDir, libraryPath, metadataReaders, coverMaxWidth)
 	})
 
+	app.Post("/send", func(c *fiber.Ctx) error {
+		data := new(sendAttachentFormData)
+
+		if err := c.BodyParser(data); err != nil {
+			return err
+		}
+
+		routeSend(c, libraryPath, data.File, data.Email, sender)
+		return nil
+	})
+
 	app.Get("/:lang", func(c *fiber.Ctx) error {
-		return routeSearch(c, idx, version)
+		emailSendingConfigured := true
+		if _, ok := sender.(*infrastructure.NoEmail); ok {
+			emailSendingConfigured = false
+		}
+		return routeSearch(c, idx, version, emailSendingConfigured)
 	})
 
 	app.Get("/", func(c *fiber.Ctx) error {
@@ -88,8 +110,26 @@ func initTemplateEngine() (*fibertpl.Engine, error) {
 	}
 
 	engine := fibertpl.NewFileSystem(http.FS(viewsFS), ".html")
+
 	engine.AddFunc("t", func(lang, key string, values ...interface{}) template.HTML {
 		return template.HTML(printers[lang].Sprintf(key, values...))
+	})
+
+	engine.AddFunc("dict", func(values ...interface{}) map[string]interface{} {
+		if len(values)%2 != 0 {
+			fmt.Println("invalid dict call")
+			return nil
+		}
+		dict := make(map[string]interface{}, len(values)/2)
+		for i := 0; i < len(values); i += 2 {
+			key, ok := values[i].(string)
+			if !ok {
+				fmt.Println("dict keys must be strings")
+				return nil
+			}
+			dict[key] = values[i+1]
+		}
+		return dict
 	})
 
 	return engine, nil

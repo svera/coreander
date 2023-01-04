@@ -7,7 +7,7 @@ import (
 	"github.com/svera/coreander/internal/index"
 )
 
-func routeSearch(c *fiber.Ctx, idx index.Reader, version string) error {
+func routeSearch(c *fiber.Ctx, idx index.Reader, version string, emailSendingConfigured bool) error {
 	lang := c.Params("lang")
 
 	if lang != "es" && lang != "en" {
@@ -30,13 +30,14 @@ func routeSearch(c *fiber.Ctx, idx index.Reader, version string) error {
 		}
 
 		return c.Render("results", fiber.Map{
-			"Lang":      lang,
-			"Keywords":  keywords,
-			"Results":   searchResults.Hits,
-			"Total":     searchResults.TotalHits,
-			"Paginator": pagination(maxPagesNavigator, searchResults.TotalPages, searchResults.Page, "search", keywords),
-			"Title":     "search_results",
-			"Version":   version,
+			"Lang":                   lang,
+			"Keywords":               keywords,
+			"Results":                searchResults.Hits,
+			"Total":                  searchResults.TotalHits,
+			"Paginator":              pagination(maxPagesNavigator, searchResults.TotalPages, searchResults.Page, "search", keywords),
+			"Title":                  "search_results",
+			"Version":                version,
+			"EmailSendingConfigured": emailSendingConfigured,
 		}, "layout")
 	}
 	count, err := idx.Count()

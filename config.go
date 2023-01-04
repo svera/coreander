@@ -7,4 +7,8 @@ type Config struct {
 	BatchSize     int    `env:"BATCHSIZE" env-default:"100"`
 	CoverMaxWidth int    `env:"COVERMAXWIDTH" env-default:"300"`
 	SkipReindex   bool   `env:"SKIPREINDEX" env-default:"false"`
+	SmtpServer    string `env:"SMTPSERVER"`
+	SmtpPort      int    `env:"SMTPPORT" env-default:"587"`
+	SmtpUser      string `env:"SMTPUSER"`
+	SmtpPassword  string `env:"SMTPPASSWORD"`
 }
