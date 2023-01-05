@@ -1,6 +1,8 @@
 package metadata
 
-import "html/template"
+import (
+	"html/template"
+)
 
 type Metadata struct {
 	ID          string
@@ -17,5 +19,5 @@ type Metadata struct {
 }
 type Reader interface {
 	Metadata(file string) (Metadata, error)
-	Cover(bookFullPath string, outputFolder string) error
+	Cover(bookFullPath string, coverMaxWidth int) ([]byte, error)
 }

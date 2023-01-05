@@ -23,7 +23,7 @@
                         </h4>
                     </div>
                     <div class="col-5 text-end">
-                        {{ template "partials/actions" dict "Lang" $lang "BookID" $book.ID "EmailSendingConfigured" $emailSendingConfigured}}
+                        {{ template "partials/actions" dict "Lang" $lang "BookID" $book.ID "EmailSendingConfigured" $emailSendingConfigured "Index" $i}}
                     </div>
                 </div>
                 <div class="row">
@@ -68,21 +68,31 @@
     </div>
 
     <script type="text/javascript">
-        function send(form)
+        function send(index)
         {
             event.preventDefault();
+            form = document.getElementById("send-email-"+index)
             fetch('/send', {
                 method: "POST",
-                // Set the headers
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json'
                 },
-                // Set the post data
                 body: JSON.stringify({
                     email : form.elements[0].value,
                     file : form.elements[1].value,
                 })
+            })
+            .then((response) => {
+                message = document.getElementById("send-email-message-"+index)
+                message.classList.remove("visually-hidden");
+                if (!response.ok) {
+                    message.innerHTML = '{{t .Lang "There was an error sending the document, please try again later"}}';
+                    message.classList.add("text-danger");
+                } else {
+                    message.innerHTML = '{{t .Lang "Document sent succesfully"}}';
+                    message.classList.add("text-success");
+                }
             })
             .catch(function (error){
                 // Catch errors
