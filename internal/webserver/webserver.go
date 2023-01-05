@@ -7,8 +7,11 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	fibertpl "github.com/gofiber/template/html"
 	"github.com/svera/coreander/internal/i18n"
@@ -60,6 +63,15 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 		Root: http.FS(jsFS),
 	}))
 
+	// Use server-cache for covers
+	app.Use("/covers/:filename", cache.New(cache.Config{
+		ExpirationGenerator: func(c *fiber.Ctx, cfg *cache.Config) time.Duration {
+			newCacheTime, _ := strconv.Atoi(c.GetRespHeader("Cache-Time", "86400"))
+			return time.Second * time.Duration(newCacheTime)
+		},
+		CacheControl: true,
+	}),
+	)
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
 		return routeCovers(c, homeDir, libraryPath, metadataReaders, coverMaxWidth)
 	})
@@ -102,6 +114,7 @@ func initTemplateEngine() (*fibertpl.Engine, error) {
 
 	printers := map[string]*message.Printer{
 		"es": message.NewPrinter(language.Spanish),
+		"en": message.NewPrinter(language.English),
 	}
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {
