@@ -15,7 +15,7 @@ A personal Ebooks server, Coreander indexes the ebooks (only EPUBs with no DRM a
 * Send to email supported.
 
 ## Building from source
-Coreander's only requirement is Go 1.16.
+Coreander's only requirement is Go 1.18.
 
 There are two possibilites for building Coreander from source:
 * If you have [Mage](https://magefile.org) installed in your system, just type `mage install` from the source code folder.

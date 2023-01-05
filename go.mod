@@ -1,6 +1,6 @@
 module github.com/svera/coreander
 
-go 1.17
+go 1.18
 
 require (
 	github.com/blevesearch/bleve v1.0.14
