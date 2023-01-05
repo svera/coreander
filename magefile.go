@@ -36,7 +36,7 @@ func Build(platform string) error {
 
 // Build binary files of the current version for all supported platforms and zip them
 func Release() error {
-	platforms := []string{"rpi32", "osxintel"}
+	platforms := []string{"rpi32", "osxintel", "osxapple"}
 	version, err := version()
 	if err != nil {
 		return err
