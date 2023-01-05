@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/svera/coreander/internal/index"
+	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/webserver"
 )
@@ -23,7 +24,7 @@ func TestGET(t *testing.T) {
 	metadataReadersMock := map[string]metadata.Reader{
 		"epub": metadata.NewReaderMock(),
 	}
-	app := webserver.New(index.NewReaderMock(), "", "", "", metadataReadersMock, 300)
+	app := webserver.New(index.NewReaderMock(), "", "", "", metadataReadersMock, 300, &infrastructure.NoEmail{})
 
 	for _, tcase := range cases {
 		t.Run(tcase.name, func(t *testing.T) {

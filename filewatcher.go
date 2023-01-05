@@ -1,3 +1,4 @@
+//go:build !linux
 // +build !linux
 
 package main
@@ -7,5 +8,4 @@ import (
 )
 
 func fileWatcher(idx *index.BleveIndexer, libPath string) {
-	return
 }

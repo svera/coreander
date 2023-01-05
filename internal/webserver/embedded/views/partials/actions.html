@@ -10,7 +10,7 @@
             <li class="dropdown-item disabled">{{t .Lang "Send to email unavailable, no email service configured"}}</li>
         {{else}}
             <li>
-                <form method="post" action="send" onsubmit="send(this)">
+                <form method="post" action="send" onsubmit='send("{{.Index}}")' id="send-email-{{.Index}}">
                     <div class="p-3">
                         <label for="email" class="form-label">{{t .Lang
                             "Send to email"}}</label>
@@ -18,6 +18,7 @@
                             placeholder="email@example.com" required="required">
                     </div>
                     <div class="p-3">
+                        <p class="visually-hidden text-success fs-6" id="send-email-message-{{.Index}}"></p>
                         <input type="hidden" name="file" value="{{.BookID}}">
                         <button type="submit" class="btn btn-primary">{{t .Lang "Send"}}</button>
                     </div>

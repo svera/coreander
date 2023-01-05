@@ -102,7 +102,6 @@ func initTemplateEngine() (*fibertpl.Engine, error) {
 
 	printers := map[string]*message.Printer{
 		"es": message.NewPrinter(language.Spanish),
-		"en": message.NewPrinter(language.English),
 	}
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {
