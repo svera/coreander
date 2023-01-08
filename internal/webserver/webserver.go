@@ -47,6 +47,15 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 		DisableStartupMessage: true,
 	})
 
+	app.Use(cache.New(cache.Config{
+		ExpirationGenerator: func(c *fiber.Ctx, cfg *cache.Config) time.Duration {
+			newCacheTime, _ := strconv.Atoi(c.GetRespHeader("Cache-Time", "86400"))
+			return time.Second * time.Duration(newCacheTime)
+		},
+		CacheControl: true,
+	}),
+	)
+
 	cssFS, err := fs.Sub(embedded, "embedded/css")
 	if err != nil {
 		log.Fatal(err)
@@ -63,15 +72,14 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 		Root: http.FS(jsFS),
 	}))
 
-	// Use server-cache for covers
-	app.Use("/covers/:filename", cache.New(cache.Config{
-		ExpirationGenerator: func(c *fiber.Ctx, cfg *cache.Config) time.Duration {
-			newCacheTime, _ := strconv.Atoi(c.GetRespHeader("Cache-Time", "86400"))
-			return time.Second * time.Duration(newCacheTime)
-		},
-		CacheControl: true,
-	}),
-	)
+	imagesFS, err := fs.Sub(embedded, "embedded/images")
+	if err != nil {
+		log.Fatal(err)
+	}
+	app.Use("/images", filesystem.New(filesystem.Config{
+		Root: http.FS(imagesFS),
+	}))
+
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
 		return routeCovers(c, homeDir, libraryPath, metadataReaders, coverMaxWidth)
 	})
@@ -87,7 +95,13 @@ func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders
 		return nil
 	})
 
+	app.Get("/:lang/read/:filename", func(c *fiber.Ctx) error {
+		return routeReader(c, libraryPath)
+	})
+
 	app.Get("/:lang", func(c *fiber.Ctx) error {
+		c.Append("Cache-Time", "0")
+
 		emailSendingConfigured := true
 		if _, ok := sender.(*infrastructure.NoEmail); ok {
 			emailSendingConfigured = false
@@ -114,7 +128,6 @@ func initTemplateEngine() (*fibertpl.Engine, error) {
 
 	printers := map[string]*message.Printer{
 		"es": message.NewPrinter(language.Spanish),
-		"en": message.NewPrinter(language.English),
 	}
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {

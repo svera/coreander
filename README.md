@@ -13,6 +13,7 @@ A personal Ebooks server, Coreander indexes the ebooks (only EPUBs with no DRM a
 * Web interface available in English and Spanish, more languages can be easily added.
 * New books added or removed to/from the library folder are automatically indexed (Linux only).
 * Send to email supported.
+* Read indexed epubs from Coreander's interface thanks to [epub.js](http://futurepress.org/).
 
 ## Building from source
 Coreander's only requirement is Go 1.18.

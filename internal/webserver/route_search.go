@@ -35,7 +35,7 @@ func routeSearch(c *fiber.Ctx, idx index.Reader, version string, emailSendingCon
 			"Results":                searchResults.Hits,
 			"Total":                  searchResults.TotalHits,
 			"Paginator":              pagination(maxPagesNavigator, searchResults.TotalPages, searchResults.Page, "search", keywords),
-			"Title":                  "search_results",
+			"Title":                  "Search results",
 			"Version":                version,
 			"EmailSendingConfigured": emailSendingConfigured,
 		}, "layout")
