@@ -4,7 +4,8 @@
         {{t .Lang "Actions"}}
     </button>
     <ul class="dropdown-menu">
-        <li><a href="files/{{.BookID}}" class="dropdown-item">{{t .Lang "Download"}}</a></li>
+        <li><a href="{{.Lang}}/read/{{.BookID}}" class="dropdown-item"><img aria-hidden="true" src="/images/eye.svg" width="32" height="32">&nbsp;&nbsp;{{t .Lang "Read"}}</a></li>
+        <li><a href="files/{{.BookID}}" class="dropdown-item"><img aria-hidden="true" src="/images/cloud-download.svg" width="32" height="32">&nbsp;&nbsp;{{t .Lang "Download"}}</a></li>
         <div class="dropdown-divider"></div>
         {{if not .EmailSendingConfigured}}
             <li class="dropdown-item disabled">{{t .Lang "Send to email unavailable, no email service configured"}}</li>
@@ -20,7 +21,8 @@
                     <div class="p-3">
                         <p class="visually-hidden text-success fs-6" id="send-email-message-{{.Index}}"></p>
                         <input type="hidden" name="file" value="{{.BookID}}">
-                        <button type="submit" class="btn btn-primary">{{t .Lang "Send"}}</button>
+                        <button type="submit" class="btn btn-primary">
+                            <img aria-hidden="true" style="color: white;" src="/images/envelope.svg" width="32" height="32">&nbsp;&nbsp;{{t .Lang "Send"}}</button>
                     </div>
                 </form>
             </li>

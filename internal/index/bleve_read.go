@@ -9,17 +9,18 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/svera/coreander/internal/metadata"
+	"github.com/svera/coreander/internal/webserver"
 )
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
-func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Result, error) {
+func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*webserver.Result, error) {
 	query := bleve.NewQueryStringQuery(keywords)
 
 	return b.runQuery(query, page, resultsPerPage)
 }
 
-func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int) (*Result, error) {
-	var result Result
+func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int) (*webserver.Result, error) {
+	var result webserver.Result
 	if page < 1 {
 		page = 1
 	}
@@ -45,7 +46,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int) (*R
 			return nil, err
 		}
 	}
-	result = Result{
+	result = webserver.Result{
 		Page:       page,
 		TotalPages: totalPages,
 		TotalHits:  int(searchResult.Total),

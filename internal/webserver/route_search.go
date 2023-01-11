@@ -4,10 +4,9 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/internal/index"
 )
 
-func routeSearch(c *fiber.Ctx, idx index.Reader, version string, emailSendingConfigured bool) error {
+func routeSearch(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured bool) error {
 	lang := c.Params("lang")
 
 	if lang != "es" && lang != "en" {
@@ -20,7 +19,7 @@ func routeSearch(c *fiber.Ctx, idx index.Reader, version string, emailSendingCon
 	}
 
 	var keywords string
-	var searchResults *index.Result
+	var searchResults *Result
 
 	keywords = c.Query("search")
 	if keywords != "" {
@@ -35,7 +34,7 @@ func routeSearch(c *fiber.Ctx, idx index.Reader, version string, emailSendingCon
 			"Results":                searchResults.Hits,
 			"Total":                  searchResults.TotalHits,
 			"Paginator":              pagination(maxPagesNavigator, searchResults.TotalPages, searchResults.Page, "search", keywords),
-			"Title":                  "search_results",
+			"Title":                  "Search results",
 			"Version":                version,
 			"EmailSendingConfigured": emailSendingConfigured,
 		}, "layout")

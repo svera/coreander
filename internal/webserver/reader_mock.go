@@ -1,4 +1,4 @@
-package index
+package webserver
 
 // ReaderMock implements the Reader interface with a mockable struct. Just assign to each *Fake property
 // the function you want to execute

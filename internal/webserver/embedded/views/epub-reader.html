@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="{{.Lang}}" class="h-100">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="Sergio Vera">
+    <title>{{t .Lang .Title}}</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Favicons -->
+
+    <meta name="theme-color" content="#000">
+</head>
+
+<body class="text-center d-flex flex-column h-100">
+    <script src="/js/jszip.min.js"></script>
+    <script src="/js/epub.min.js"></script>
+    <script>
+        var book = ePub("/files/{{.Filename}}");
+        var rendition = book.renderTo(document.body, {
+            manager: "continuous",
+            flow: "scrolled",
+          });
+        var displayed = rendition.display();
+    </script>
+
+</body>
+</html>
