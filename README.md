@@ -12,7 +12,7 @@ A personal Ebooks server, Coreander indexes the ebooks (only EPUBs with no DRM a
 * Lightweight, responsive web interface based on [Bootstrap](https://getbootstrap.com/).
 * Web interface available in English and Spanish, more languages can be easily added.
 * New books added or removed to/from the library folder are automatically indexed (Linux only).
-* Send to email supported.
+* [Send to email supported](#send-to-email).
 * Read indexed epubs from Coreander's interface thanks to [epub.js](http://futurepress.org/).
 
 ## Building from source
@@ -57,7 +57,7 @@ Even if the application is still indexing entries, you can access its web interf
 
 ### Send to email
 
-Coreander can also send documents through email. This way, you can take advantage of services such as [Amazon's send to email](https://www.amazon.com/gp/help/customer/display.html?nodeId=G7NECT4B4ZWHQ8WV). You can use any email service that allow sending emails using the SMTP protocol, like [GMX](gmx.com). The following environment variables need to be defined:
+Coreander can also send documents through email. This way, you can take advantage of services such as [Amazon's send to email](https://www.amazon.com/gp/help/customer/display.html?nodeId=G7NECT4B4ZWHQ8WV), which also automatically converts EPUB and other formats to the target device. You can use any email service that allow sending emails using the SMTP protocol, like [GMX](gmx.com). The following environment variables need to be defined:
 
 * `SMTPSERVER`: The URL of the SMTP server to be used, for example `mail.gmx.com`.
 * `SMTPPORT`: The port number used by the email service, defaults to `587`.
