@@ -15,7 +15,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	fibertpl "github.com/gofiber/template/html"
 	"github.com/svera/coreander/internal/i18n"
-	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
 	"golang.org/x/text/language"
@@ -36,7 +35,7 @@ type sendAttachentFormData struct {
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(idx index.Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, sender Sender) *fiber.App {
+func New(idx Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, sender Sender) *fiber.App {
 	engine, err := initTemplateEngine()
 	if err != nil {
 		log.Fatal(err)

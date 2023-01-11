@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/metadata"
+	"github.com/svera/coreander/internal/webserver"
 )
 
 func TestIndexAndSearch(t *testing.T) {
@@ -55,7 +56,7 @@ type testCase struct {
 	filename       string
 	mockedMeta     metadata.Metadata
 	search         string
-	expectedResult index.Result
+	expectedResult webserver.Result
 }
 
 func testCases() []testCase {
@@ -70,7 +71,7 @@ func testCases() []testCase {
 				Language:    "es",
 			},
 			"perez",
-			index.Result{
+			webserver.Result{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
@@ -94,7 +95,7 @@ func testCases() []testCase {
 				Language:    "fr",
 			},
 			"benoit",
-			index.Result{
+			webserver.Result{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
@@ -118,7 +119,7 @@ func testCases() []testCase {
 				Language:    "en",
 			},
 			"clifford simak",
-			index.Result{
+			webserver.Result{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
@@ -142,7 +143,7 @@ func testCases() []testCase {
 				Language:    "en",
 			},
 			"james ellroy",
-			index.Result{
+			webserver.Result{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,

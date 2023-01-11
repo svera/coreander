@@ -10,52 +10,22 @@
 
     <!-- Bootstrap core CSS -->
     <link href="/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/css/display.css" rel="stylesheet">
     <!-- Favicons -->
 
     <meta name="theme-color" content="#000">
 </head>
 
 <body class="text-center d-flex flex-column h-100">
-    <header>
-        <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top">
-            <div class="container">
-                <span class="navbar-brand mb-0 h1">Coreander</span>
-                <nav class="my-2 my-md-0">
-                    {{if eq .Lang "es"}}<span>Es</span>{{else}}<a class="p-2 text-dark" href="/es">Es</a>{{end}} {{if eq .Lang "en"}}<span>En</span>{{else}}<a class="p-2 text-dark" href="/en">En</a>{{end}}
-                </nav>
-            </div>
-        </nav>
-    </header>
-
-    <main>
-        <div class="container mt-5">
-              <div id="area"></div>
-        </div>
-    </main>    
-
     <script src="/js/jszip.min.js"></script>
     <script src="/js/epub.min.js"></script>
     <script>
-        // Load the opf
         var book = ePub("/files/{{.Filename}}");
         var rendition = book.renderTo(document.body, {
             manager: "continuous",
             flow: "scrolled",
           });
         var displayed = rendition.display();
-    
-    
-        displayed.then(function(renderer){
-          // -- do stuff
-        });
-    
-        // Navigation loaded
-        book.loaded.navigation.then(function(toc){
-          // console.log(toc);
-        });    
     </script>
 
 </body>
-
 </html>

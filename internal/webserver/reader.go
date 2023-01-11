@@ -1,4 +1,4 @@
-package index
+package webserver
 
 import "github.com/svera/coreander/internal/metadata"
 
