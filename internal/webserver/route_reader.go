@@ -26,7 +26,7 @@ func routeReader(c *fiber.Ctx, libraryPath string) error {
 
 	return c.Render("epub-reader", fiber.Map{
 		"Lang":     lang,
-		"Title":    "aaa",
+		"Title":    "Coreander",
 		"Filename": filename,
 	})
 
