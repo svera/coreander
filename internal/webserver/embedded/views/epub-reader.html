@@ -23,13 +23,13 @@
             <div class="container justify-content-center">
                 <div class="row">
                     <div class="col">
-                        <a id="prev" href="#prev" class="navlink btn btn-primary text-truncate">«</a>
+                        <a id="prev" href="#prev" class="navlink btn btn-dark text-truncate">«</a>
                     </div>
                     <div class="col-8">
                         <select class="form-select" id="toc"></select>
                     </div>
                     <div class="col">
-                        <a id="next" href="#next" class="navlink btn btn-primary text-truncate">»</a>
+                        <a id="next" href="#next" class="navlink btn btn-dark text-truncate">»</a>
                     </div>
                 </div>
             </div>
@@ -79,15 +79,15 @@
             var $select = document.getElementById("toc");
 
             if (nextSection) {
-                next.className = "btn btn-primary";
+                next.className = "btn btn-dark";
             } else {
-                next.className = "btn btn-primary disabled";
+                next.className = "btn btn-dark disabled";
             }
 
             if (prevSection) {
-                prev.className = "btn btn-primary";
+                prev.className = "btn btn-dark";
             } else {
-                prev.className = "btn btn-primary disabled";
+                prev.className = "btn btn-dark disabled";
             }
 
             book.loaded.navigation.then(function (toc) {
