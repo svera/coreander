@@ -23,7 +23,9 @@ func TestGET(t *testing.T) {
 	metadataReadersMock := map[string]metadata.Reader{
 		"epub": metadata.NewReaderMock(),
 	}
-	app := webserver.New(webserver.NewReaderMock(), "", "", "", metadataReadersMock, 300, &infrastructure.NoEmail{})
+
+	db := infrastructure.Connect("file::memory:?cache=shared")
+	app := webserver.New(webserver.NewReaderMock(), "", "", "", metadataReadersMock, 300, &infrastructure.NoEmail{}, db)
 
 	for _, tcase := range cases {
 		t.Run(tcase.name, func(t *testing.T) {

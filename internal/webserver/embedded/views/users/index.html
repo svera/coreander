@@ -1,0 +1,13 @@
+<main>
+    {{$lang := .Lang}}
+    <div class="container mt-5 text-start">
+        <h2>{{t $lang "Users"}}</h2>
+        <div class="list-group">
+            {{range $i, $user := .Users}}
+            <div class="list-group-item">
+                {{$user.Username}}
+            </div>
+            {{end}}
+        </div>
+    </div>
+</main>

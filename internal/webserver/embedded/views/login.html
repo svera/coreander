@@ -1,0 +1,21 @@
+<main class="form-signin">
+    <div class="container">
+        <div class="row">
+
+        </div>
+    <form method="post" action="/{{.Lang}}/login/" enctype="multipart/form-data">
+        <h1 class="h3 mb-3 fw-normal">{{t .Lang "Please sign in"}}</h1>
+
+        <div class="form-floating">
+            <input type="text" class="form-control" id="floatingInput" placeholder="User name" name="username">
+            <label for="floatingInput" class="form-label">{{t .Lang "Username"}}</label>
+        </div>
+        <div class="form-floating mt-3">
+            <input type="password" class="form-control" id="floatingPassword" placeholder="Password" name="password">
+            <label for="floatingPassword">{{t .Lang "Password"}}</label>
+        </div>
+
+        <button class="w-100 btn btn-lg btn-primary mt-3" type="submit">{{t .Lang "Sign in"}}</button>
+    </form>
+    </div>
+</main>

@@ -8,6 +8,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/ilyakaznacheev/cleanenv"
+	"gorm.io/gorm"
 
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/index"
@@ -19,8 +20,11 @@ import (
 var version string = "unknown"
 
 func main() {
-	var cfg Config
-	var appFs = afero.NewOsFs()
+	var (
+		cfg   Config
+		appFs = afero.NewOsFs()
+		idx   *index.BleveIndexer
+	)
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -32,23 +36,10 @@ func main() {
 	if _, err := os.Stat(cfg.LibPath); os.IsNotExist(err) {
 		log.Fatal(fmt.Errorf("Directory '%s' does not exist, exiting", cfg.LibPath))
 	}
-	if err = os.MkdirAll(fmt.Sprintf("%s/coreander/cache/covers", homeDir), os.ModePerm); err != nil {
-		log.Fatal(fmt.Errorf("Couldn't create %s, exiting", fmt.Sprintf("%s/coreander/cache/covers", homeDir)))
-	}
 
 	metadataReaders := map[string]metadata.Reader{
 		".epub": metadata.EpubReader{},
 	}
-
-	run(cfg, homeDir, metadataReaders, appFs)
-}
-
-func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader, appFs afero.Fs) {
-	var (
-		idx    *index.BleveIndexer
-		err    error
-		sender webserver.Sender
-	)
 
 	indexFile, err := bleve.Open(homeDir + "/coreander/db")
 	if err == nil {
@@ -58,6 +49,17 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 		cfg.SkipReindex = false
 		idx = createIndex(homeDir, cfg.LibPath, metadataReaders)
 	}
+	db := infrastructure.Connect(homeDir + "/coreander/db/database.db")
+
+	run(cfg, db, idx, homeDir, metadataReaders, appFs)
+}
+
+func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metadataReaders map[string]metadata.Reader, appFs afero.Fs) {
+	var (
+		err    error
+		sender webserver.Sender
+	)
+
 	defer idx.Close()
 
 	if !cfg.SkipReindex {
@@ -72,7 +74,7 @@ func run(cfg Config, homeDir string, metadataReaders map[string]metadata.Reader,
 			Password: cfg.SmtpPassword,
 		}
 	}
-	app := webserver.New(idx, cfg.LibPath, homeDir, version, metadataReaders, cfg.CoverMaxWidth, sender)
+	app := webserver.New(idx, cfg.LibPath, homeDir, version, metadataReaders, cfg.CoverMaxWidth, sender, db)
 	fmt.Printf("Coreander version %s started listening on port %s\n\n", version, cfg.Port)
 	err = app.Listen(fmt.Sprintf(":%s", cfg.Port))
 	if err != nil {

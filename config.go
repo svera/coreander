@@ -11,4 +11,5 @@ type Config struct {
 	SmtpPort      int    `env:"SMTPPORT" env-default:"587"`
 	SmtpUser      string `env:"SMTPUSER"`
 	SmtpPassword  string `env:"SMTPPASSWORD"`
+	JwtSecret     string `env:"JWT_SECRET"`
 }

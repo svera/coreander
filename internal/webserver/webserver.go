@@ -7,18 +7,23 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	jwtware "github.com/gofiber/jwt/v3"
 	fibertpl "github.com/gofiber/template/html"
+	"github.com/svera/coreander/internal/controller"
 	"github.com/svera/coreander/internal/i18n"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
+	"github.com/svera/coreander/internal/model"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
+	"gorm.io/gorm"
 )
 
 const (
@@ -35,7 +40,7 @@ type sendAttachentFormData struct {
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(idx Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, sender Sender) *fiber.App {
+func New(idx Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, sender Sender, db *gorm.DB) *fiber.App {
 	engine, err := initTemplateEngine()
 	if err != nil {
 		log.Fatal(err)
@@ -98,6 +103,16 @@ func New(idx Reader, libraryPath, homeDir, version string, metadataReaders map[s
 		return routeReader(c, libraryPath)
 	})
 
+	authRepository := &model.Auth{DB: db}
+	authController := controller.NewAuth(authRepository)
+
+	usersRepository := &model.Users{DB: db}
+	usersController := controller.NewUsers(usersRepository)
+
+	app.Get("/:lang/login", authController.Login)
+	app.Post("/:lang/login", authController.SignInUser)
+	app.Post("/:lang/logout", authController.SignOutUser)
+
 	app.Get("/:lang", func(c *fiber.Ctx) error {
 		c.Append("Cache-Time", "0")
 
@@ -113,6 +128,15 @@ func New(idx Reader, libraryPath, homeDir, version string, metadataReaders map[s
 	})
 
 	app.Static("/files", libraryPath)
+
+	// JWT Middleware
+	app.Use(jwtware.New(jwtware.Config{
+		SigningKey:    []byte(os.Getenv("JWT_SECRET")),
+		SigningMethod: "HS256",
+		TokenLookup:   "cookie:jwt",
+	}))
+
+	app.Get("/:lang/users", usersController.List)
 
 	return app
 }
