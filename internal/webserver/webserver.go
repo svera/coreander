@@ -56,7 +56,7 @@ func New(idx Reader, libraryPath, homeDir, version string, metadataReaders map[s
 			newCacheTime, _ := strconv.Atoi(c.GetRespHeader("Cache-Time", "86400"))
 			return time.Second * time.Duration(newCacheTime)
 		},
-		CacheControl: true,
+		//CacheControl: true,
 	}),
 	)
 
@@ -136,7 +136,10 @@ func New(idx Reader, libraryPath, homeDir, version string, metadataReaders map[s
 		TokenLookup:   "cookie:jwt",
 	}))
 
+	app.Get("/:lang/users/edit/:id", usersController.Edit)
 	app.Get("/:lang/users", usersController.List)
+	app.Get("/:lang/users/new", usersController.New)
+	app.Post("/:lang/users/create", usersController.Create)
 
 	return app
 }

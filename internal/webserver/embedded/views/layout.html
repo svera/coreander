@@ -22,8 +22,21 @@
         <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top">
             <div class="container">
                 <span class="navbar-brand mb-0 h1">Coreander</span>
-                <nav class="my-2 my-md-0">
-                    {{if eq .Lang "es"}}<span>Es</span>{{else}}<a class="p-2 text-dark" href="/es">Es</a>{{end}} {{if eq .Lang "en"}}<span>En</span>{{else}}<a class="p-2 text-dark" href="/en">En</a>{{end}}
+                <nav>
+                    <ul class="navbar-nav">
+                        <li class="nav-item dropdown">
+                            <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                {{.Claims.Name}}
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#">Action</a></li>
+                                <li><a class="dropdown-item" href="#">Another action</a></li>
+                                <li><a class="dropdown-item" href="#">Something else here</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                    {{if eq .Lang "es"}}<span>Es</span>{{else}}<a class="p-2 text-dark" href="/es">Es</a>{{end}} {{if eq
+                    .Lang "en"}}<span>En</span>{{else}}<a class="p-2 text-dark" href="/en">En</a>{{end}}
                 </nav>
             </div>
         </nav>
@@ -32,7 +45,9 @@
 
     <footer class="footer mt-auto pb-3">
         <div class="container">
-            <span class="text-muted"><small>{{t .Lang "Made with words by Sergio Vera"}} - <a href="https://github.com/svera/coreander/releases" target="_blank" rel="noopener noreferrer">{{.Version}}</a></small></span>
+            <span class="text-muted"><small>{{t .Lang "Made with words by Sergio Vera"}} - <a
+                        href="https://github.com/svera/coreander/releases" target="_blank"
+                        rel="noopener noreferrer">{{.Version}}</a></small></span>
         </div>
     </footer>
     <script src="/js/bootstrap.bundle.min.js"></script>

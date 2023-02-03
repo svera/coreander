@@ -1,9 +1,11 @@
 package webserver
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 func routeSearch(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured bool) error {
@@ -18,6 +20,12 @@ func routeSearch(c *fiber.Ctx, idx Reader, version string, emailSendingConfigure
 		page = 1
 	}
 
+	var claims jwt.MapClaims
+	if c.Locals("user") != nil {
+		user := c.Locals("user").(*jwt.Token)
+		claims = user.Claims.(jwt.MapClaims)
+	}
+	fmt.Printf("%v", claims)
 	var keywords string
 	var searchResults *Result
 
@@ -37,6 +45,7 @@ func routeSearch(c *fiber.Ctx, idx Reader, version string, emailSendingConfigure
 			"Title":                  "Search results",
 			"Version":                version,
 			"EmailSendingConfigured": emailSendingConfigured,
+			"Claims":                 claims,
 		}, "layout")
 	}
 	count, err := idx.Count()

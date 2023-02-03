@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/glebarez/sqlite"
+	"github.com/google/uuid"
 	"github.com/svera/coreander/internal/model"
 	"gorm.io/gorm"
 )
@@ -32,7 +33,13 @@ func addDefaultAdmin(db *gorm.DB) {
 	db.Table("users").Count(&result)
 
 	if result == 0 {
-		user := &model.User{gorm.Model{}, "Admin", "admin", model.Hash("admin"), model.RoleRegular}
+		user := &model.User{
+			Uuid:     uuid.NewString(),
+			Name:     "Admin",
+			Username: "admin",
+			Password: model.Hash("admin"),
+			Role:     model.RoleAdmin,
+		}
 		result := db.Create(&user)
 		if result.Error != nil {
 			log.Fatal("Couldn't create default admin")

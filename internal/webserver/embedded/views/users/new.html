@@ -1,0 +1,18 @@
+<main>
+    {{$lang := .Lang}}
+    <div class="container mt-5 text-start">
+        <form method="post" action="/{{$lang}}/users/create" autocomplete="off">
+            {{template "partials/user-form-fields" .}}
+
+            <div class="mb-3">
+                <label for="role" class="form-label">{{t .Lang "Role"}}</label>
+                <select name="role" class="form-control" id="role">
+                    <option value="0">{{t $lang "Regular"}}</option>
+                    <option value="1">{{t $lang "Administrator"}}</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">{{t $lang "Save"}}</button>
+        </form>
+    </div>
+</main>

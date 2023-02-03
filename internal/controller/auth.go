@@ -29,16 +29,15 @@ func (a *Auth) Login(c *fiber.Ctx) error {
 
 // Signs in a user and gives them a JWT.
 func (a *Auth) SignInUser(c *fiber.Ctx) error {
+	var (
+		user model.User
+		err  error
+	)
+
 	// Create a struct so the request body can be mapped here.
 	type loginRequest struct {
 		Username string `form:"username"`
 		Password string `form:"password"`
-	}
-
-	// Create a struct for our custom JWT payload.
-	type jwtClaims struct {
-		User string `form:"user"`
-		jwt.StandardClaims
 	}
 
 	// Get request body.
@@ -51,8 +50,7 @@ func (a *Auth) SignInUser(c *fiber.Ctx) error {
 	}
 
 	// If username or password are incorrect, do not allow access.
-
-	if !a.repository.CheckCredentials(request.Username, request.Password) {
+	if user, err = a.repository.CheckCredentials(request.Username, request.Password); err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(&fiber.Map{
 			"status":  "fail",
 			"message": "Wrong username or password!",
@@ -60,14 +58,13 @@ func (a *Auth) SignInUser(c *fiber.Ctx) error {
 	}
 
 	// Send back JWT as a cookie.
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwtClaims{
-		request.Username,
-		jwt.StandardClaims{
-			Audience:  "coreander-users",
-			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
-			Issuer:    "coreander",
-		},
-	})
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"name":     user.Name,
+		"username": request.Username,
+		"role":     user.Role,
+		"exp":      jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
+	},
+	)
 	signedToken, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(&fiber.Map{

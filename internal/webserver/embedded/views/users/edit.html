@@ -1,0 +1,10 @@
+<main>
+    {{$lang := .Lang}}
+    <div class="container mt-5 text-start">
+        <form method="post" action="/{{$lang}}/users/update/{{.User.ID}}">
+            {{template "partials/user-form-fields" .}}
+            <input type="hidden" value="{{.User.Uuid}}">
+            <button type="submit" class="btn btn-primary">{{t $lang "Save"}}</button>
+        </form>
+    </div>
+</main>
