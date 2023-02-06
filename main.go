@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/internal/controller"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
@@ -57,7 +58,7 @@ func main() {
 func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metadataReaders map[string]metadata.Reader, appFs afero.Fs) {
 	var (
 		err    error
-		sender webserver.Sender
+		sender controller.Sender
 	)
 
 	defer idx.Close()

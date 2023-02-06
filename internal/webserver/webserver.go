@@ -26,11 +26,6 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	resultsPerPage    = 10
-	maxPagesNavigator = 5
-)
-
 //go:embed embedded
 var embedded embed.FS
 
@@ -40,7 +35,7 @@ type sendAttachentFormData struct {
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(idx Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, sender Sender, db *gorm.DB) *fiber.App {
+func New(idx controller.Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, sender controller.Sender, db *gorm.DB) *fiber.App {
 	engine, err := initTemplateEngine()
 	if err != nil {
 		log.Fatal(err)
@@ -85,7 +80,7 @@ func New(idx Reader, libraryPath, homeDir, version string, metadataReaders map[s
 	}))
 
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
-		return routeCovers(c, homeDir, libraryPath, metadataReaders, coverMaxWidth)
+		return controller.Covers(c, homeDir, libraryPath, metadataReaders, coverMaxWidth, embedded)
 	})
 
 	app.Post("/send", func(c *fiber.Ctx) error {
@@ -95,12 +90,12 @@ func New(idx Reader, libraryPath, homeDir, version string, metadataReaders map[s
 			return err
 		}
 
-		routeSend(c, libraryPath, data.File, data.Email, sender)
+		controller.Send(c, libraryPath, data.File, data.Email, sender)
 		return nil
 	})
 
 	app.Get("/:lang/read/:filename", func(c *fiber.Ctx) error {
-		return routeReader(c, libraryPath)
+		return controller.DocReader(c, libraryPath)
 	})
 
 	authRepository := &model.Auth{DB: db}
@@ -111,7 +106,7 @@ func New(idx Reader, libraryPath, homeDir, version string, metadataReaders map[s
 
 	app.Get("/:lang/login", authController.Login)
 	app.Post("/:lang/login", authController.SignInUser)
-	app.Post("/:lang/logout", authController.SignOutUser)
+	app.Get("/:lang/logout", authController.SignOutUser)
 
 	app.Get("/:lang", func(c *fiber.Ctx) error {
 		c.Append("Cache-Time", "0")
@@ -120,11 +115,11 @@ func New(idx Reader, libraryPath, homeDir, version string, metadataReaders map[s
 		if _, ok := sender.(*infrastructure.NoEmail); ok {
 			emailSendingConfigured = false
 		}
-		return routeSearch(c, idx, version, emailSendingConfigured)
+		return controller.Search(c, idx, version, emailSendingConfigured)
 	})
 
 	app.Get("/", func(c *fiber.Ctx) error {
-		return routeRoot(c)
+		return controller.Root(c)
 	})
 
 	app.Static("/files", libraryPath)
@@ -153,6 +148,7 @@ func initTemplateEngine() (*fibertpl.Engine, error) {
 	message.DefaultCatalog = cat
 
 	printers := map[string]*message.Printer{
+		"en": message.NewPrinter(language.English),
 		"es": message.NewPrinter(language.Spanish),
 	}
 	viewsFS, err := fs.Sub(embedded, "embedded/views")

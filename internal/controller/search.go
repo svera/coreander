@@ -1,14 +1,33 @@
-package webserver
+package controller
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/svera/coreander/internal/metadata"
 )
 
-func routeSearch(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured bool) error {
+const (
+	resultsPerPage    = 10
+	maxPagesNavigator = 5
+)
+
+// Result holds the result of a search request, as well as some related metadata
+type Result struct {
+	Page       int
+	TotalPages int
+	Hits       []metadata.Metadata
+	TotalHits  int
+}
+
+// Reader defines a set of reading operations over an index
+type Reader interface {
+	Search(keywords string, page, resultsPerPage int) (*Result, error)
+	Count() (uint64, error)
+	Close() error
+}
+
+func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured bool) error {
 	lang := c.Params("lang")
 
 	if lang != "es" && lang != "en" {
@@ -20,12 +39,12 @@ func routeSearch(c *fiber.Ctx, idx Reader, version string, emailSendingConfigure
 		page = 1
 	}
 
-	var claims jwt.MapClaims
-	if c.Locals("user") != nil {
-		user := c.Locals("user").(*jwt.Token)
-		claims = user.Claims.(jwt.MapClaims)
+	name := ""
+	claims, err := getJWTClaimsFromCookie(c)
+	if err == nil {
+		name = claims["name"].(string)
 	}
-	fmt.Printf("%v", claims)
+
 	var keywords string
 	var searchResults *Result
 
@@ -45,7 +64,7 @@ func routeSearch(c *fiber.Ctx, idx Reader, version string, emailSendingConfigure
 			"Title":                  "Search results",
 			"Version":                version,
 			"EmailSendingConfigured": emailSendingConfigured,
-			"Claims":                 claims,
+			"Name":                   name,
 		}, "layout")
 	}
 	count, err := idx.Count()
@@ -57,5 +76,6 @@ func routeSearch(c *fiber.Ctx, idx Reader, version string, emailSendingConfigure
 		"Count":   count,
 		"Title":   "Coreander",
 		"Version": version,
+		"Name":    name,
 	}, "layout")
 }

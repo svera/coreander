@@ -34,7 +34,6 @@ func (u *Users) List(c *fiber.Ctx) error {
 	if claims["role"].(float64) != model.RoleAdmin {
 		return fiber.ErrForbidden
 	}
-	fmt.Printf("%v", claims)
 	users, _ := u.repository.List()
 	return c.Render("users/index", fiber.Map{
 		"Lang":  c.Params("lang"),

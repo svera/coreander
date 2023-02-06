@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -86,14 +87,42 @@ func (a *Auth) SignInUser(c *fiber.Ctx) error {
 
 // Logs out user and removes their JWT.
 func (a *Auth) SignOutUser(c *fiber.Ctx) error {
+	c.Append("Cache-Time", "0")
+
 	c.Cookie(&fiber.Cookie{
 		Name:     "jwt",
-		Value:    "loggedOut",
+		Value:    "",
 		Path:     "/",
-		Expires:  time.Now().Add(time.Second * 10),
+		Expires:  time.Now().Add(-time.Second * 10),
 		Secure:   false,
 		HTTPOnly: true,
 	})
 
 	return c.Redirect(fmt.Sprintf("/%s", c.Params("lang")))
+}
+
+func getJWTClaimsFromCookie(c *fiber.Ctx) (jwt.MapClaims, error) {
+	var (
+		token *jwt.Token
+		err   error
+	)
+
+	cookie := c.Cookies("jwt")
+	claims := jwt.MapClaims{}
+	if cookie != "" {
+		token, err = jwt.ParseWithClaims(cookie, &claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(os.Getenv("JWT_SECRET")), nil
+		})
+		if err != nil {
+			log.Println(err)
+			return claims, err
+		}
+
+		if err = token.Claims.Valid(); err != nil {
+			return claims, err
+		}
+		return claims, nil
+	}
+
+	return claims, fmt.Errorf("cookie not available")
 }

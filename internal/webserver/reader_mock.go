@@ -1,9 +1,11 @@
 package webserver
 
+import "github.com/svera/coreander/internal/controller"
+
 // ReaderMock implements the Reader interface with a mockable struct. Just assign to each *Fake property
 // the function you want to execute
 type ReaderMock struct {
-	SearchFake func(keywords string, page, resultsPerPage int) (*Result, error)
+	SearchFake func(keywords string, page, resultsPerPage int) (*controller.Result, error)
 	CountFake  func() (uint64, error)
 	CloseFake  func() error
 }
@@ -11,8 +13,8 @@ type ReaderMock struct {
 // NewReaderMock returns a new instance of ReaderMock
 func NewReaderMock() *ReaderMock {
 	return &ReaderMock{
-		SearchFake: func(keywords string, page, resultsPerPage int) (*Result, error) {
-			return &Result{}, nil
+		SearchFake: func(keywords string, page, resultsPerPage int) (*controller.Result, error) {
+			return &controller.Result{}, nil
 		},
 		CountFake: func() (uint64, error) {
 			return 0, nil
@@ -24,7 +26,7 @@ func NewReaderMock() *ReaderMock {
 }
 
 // Search runs the faked search method contained in the instance
-func (r *ReaderMock) Search(keywords string, page, resultsPerPage int) (*Result, error) {
+func (r *ReaderMock) Search(keywords string, page, resultsPerPage int) (*controller.Result, error) {
 	return r.SearchFake(keywords, page, resultsPerPage)
 }
 
