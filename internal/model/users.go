@@ -17,7 +17,7 @@ type User struct {
 	Name     string
 	Username string `gorm:"uniqueIndex"`
 	Password string
-	Role     int
+	Role     float64
 }
 
 type Users struct {

@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/svera/coreander/internal/jwtclaimsreader"
 	"github.com/svera/coreander/internal/metadata"
 )
 
@@ -39,12 +40,7 @@ func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured boo
 		page = 1
 	}
 
-	name := ""
-	claims, err := getJWTClaimsFromCookie(c)
-	if err == nil {
-		name = claims["name"].(string)
-	}
-
+	userData := jwtclaimsreader.UserData(c)
 	var keywords string
 	var searchResults *Result
 
@@ -64,7 +60,7 @@ func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured boo
 			"Title":                  "Search results",
 			"Version":                version,
 			"EmailSendingConfigured": emailSendingConfigured,
-			"Name":                   name,
+			"UserData":               userData,
 		}, "layout")
 	}
 	count, err := idx.Count()
@@ -72,10 +68,10 @@ func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured boo
 		return fiber.ErrInternalServerError
 	}
 	return c.Render("index", fiber.Map{
-		"Lang":    lang,
-		"Count":   count,
-		"Title":   "Coreander",
-		"Version": version,
-		"Name":    name,
+		"Lang":     lang,
+		"Count":    count,
+		"Title":    "Coreander",
+		"Version":  version,
+		"UserData": userData,
 	}, "layout")
 }

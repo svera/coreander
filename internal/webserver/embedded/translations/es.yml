@@ -32,3 +32,8 @@
 "Administrator": "Administrador"
 "Role": "Rol"
 "Name": "Nombre"
+"Login": "Acceso"
+"Sign in": "Acceder"
+"Forbidden": "Acceso no permitido"
+"Please sign in": "Por favor, introduce tus credenciales para acceder"
+"Wrong username or password": "Usuario o contraseña incorrectos"

@@ -19,6 +19,7 @@ import (
 	"github.com/svera/coreander/internal/controller"
 	"github.com/svera/coreander/internal/i18n"
 	"github.com/svera/coreander/internal/infrastructure"
+	"github.com/svera/coreander/internal/jwtclaimsreader"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/model"
 	"golang.org/x/text/language"
@@ -48,7 +49,7 @@ func New(idx controller.Reader, libraryPath, homeDir, version string, metadataRe
 
 	app.Use(cache.New(cache.Config{
 		ExpirationGenerator: func(c *fiber.Ctx, cfg *cache.Config) time.Duration {
-			newCacheTime, _ := strconv.Atoi(c.GetRespHeader("Cache-Time", "86400"))
+			newCacheTime, _ := strconv.Atoi(c.GetRespHeader("Cache-Time", "0"))
 			return time.Second * time.Duration(newCacheTime)
 		},
 		//CacheControl: true,
@@ -80,6 +81,7 @@ func New(idx controller.Reader, libraryPath, homeDir, version string, metadataRe
 	}))
 
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
+		c.Append("Cache-Time", "86400")
 		return controller.Covers(c, homeDir, libraryPath, metadataReaders, coverMaxWidth, embedded)
 	})
 
@@ -98,19 +100,19 @@ func New(idx controller.Reader, libraryPath, homeDir, version string, metadataRe
 		return controller.DocReader(c, libraryPath)
 	})
 
+	app.Use("/", jwtclaimsreader.New(jwtclaimsreader.Config{}))
+
 	authRepository := &model.Auth{DB: db}
-	authController := controller.NewAuth(authRepository)
+	authController := controller.NewAuth(authRepository, version)
 
 	usersRepository := &model.Users{DB: db}
-	usersController := controller.NewUsers(usersRepository)
+	usersController := controller.NewUsers(usersRepository, version)
 
 	app.Get("/:lang/login", authController.Login)
-	app.Post("/:lang/login", authController.SignInUser)
-	app.Get("/:lang/logout", authController.SignOutUser)
+	app.Post("/:lang/login", authController.SignIn)
+	app.Get("/:lang/logout", authController.SignOut)
 
 	app.Get("/:lang", func(c *fiber.Ctx) error {
-		c.Append("Cache-Time", "0")
-
 		emailSendingConfigured := true
 		if _, ok := sender.(*infrastructure.NoEmail); ok {
 			emailSendingConfigured = false
@@ -125,13 +127,24 @@ func New(idx controller.Reader, libraryPath, homeDir, version string, metadataRe
 	app.Static("/files", libraryPath)
 
 	// JWT Middleware
-	app.Use(jwtware.New(jwtware.Config{
+	app.Use("/:lang/", jwtware.New(jwtware.Config{
 		SigningKey:    []byte(os.Getenv("JWT_SECRET")),
 		SigningMethod: "HS256",
 		TokenLookup:   "cookie:jwt",
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
+		},
+		/*
+			ErrorHandler: func(c *fiber.Ctx, err error) error {
+				if err.Error() == "Missing or malformed JWT" {
+					return c.Status(fiber.StatusBadRequest).SendString("Missing or malformed JWT")
+				}
+				return c.Status(fiber.StatusUnauthorized).SendString("Invalid or expired JWT")
+			},
+		*/
 	}))
 
-	app.Get("/:lang/users/edit/:id", usersController.Edit)
+	app.Get("/:lang/users/edit/:uuid", usersController.Edit)
 	app.Get("/:lang/users", usersController.List)
 	app.Get("/:lang/users/new", usersController.New)
 	app.Post("/:lang/users/create", usersController.Create)

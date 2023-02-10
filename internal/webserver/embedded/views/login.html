@@ -1,8 +1,12 @@
 <main class="form-signin">
     <div class="container">
-        <div class="row">
-
+        {{if .Message}}
+        <div class="row mt-5">
+            <div class="alert alert-danger" role="alert">
+                {{t .Lang .Message}}
+              </div>
         </div>
+        {{end}}
     <form method="post" action="/{{.Lang}}/login/" enctype="multipart/form-data">
         <h1 class="h3 mb-3 fw-normal">{{t .Lang "Please sign in"}}</h1>
 

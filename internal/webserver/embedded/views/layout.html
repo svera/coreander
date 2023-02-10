@@ -23,7 +23,7 @@
             <div class="container">
                 <span class="navbar-brand mb-0 h1">Coreander</span>
                 <nav class="d-grid gap-2 d-md-flex justify-content-md-end">
-                    {{if eq .Name ""}}
+                    {{if eq .UserData.Name ""}}
                         <span class="p-2">
                             <a href="/{{.Lang}}/login">{{t .Lang "Login"}}</a>
                         </span>
@@ -31,9 +31,11 @@
                         <ul class="navbar-nav">
                             <li class="nav-item dropdown">
                                     <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                        {{.Name}}
+                                        {{.UserData.Name}}
                                     </button>
                                 <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="/{{.Lang}}/users">{{t .Lang "Users"}}</a></li>
+                                    <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="/{{.Lang}}/logout">{{t .Lang "Logout"}}</a></li>
                                 </ul>
                             </li>
@@ -45,7 +47,7 @@
             </div>
         </nav>
     </header>
-    {{embed}}
+{{embed}}
 
     <footer class="footer mt-auto pb-3">
         <div class="container">

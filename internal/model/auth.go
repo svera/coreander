@@ -10,6 +10,13 @@ type Auth struct {
 	DB *gorm.DB
 }
 
+type UserData struct {
+	Name     string
+	UserName string
+	Uuid     string
+	Role     float64
+}
+
 func (a *Auth) CheckCredentials(username, password string) (User, error) {
 	var user User
 

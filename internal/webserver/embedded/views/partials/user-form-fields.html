@@ -1,10 +1,10 @@
 <div class="mb-3">
     <label for="name" class="form-label">{{t .Lang "Name"}}</label>
-    <input type="text" name="name" class="form-control" id="name" required="required">
+    <input type="text" name="name" class="form-control" id="name" required="required" value="{{.User.Name}}">
 </div>
 <div class="mb-3">
     <label for="username" class="form-label">{{t .Lang "Username"}}</label>
-    <input type="text" name="username" class="form-control" id="username" required="required">
+    <input type="text" name="username" class="form-control" id="username" required="required" value="{{.User.Username}}">
 </div>
 <div class="mb-3">
     <label for="password" class="form-label">{{t .Lang "Password"}}</label>
