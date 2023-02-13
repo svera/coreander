@@ -34,9 +34,19 @@
                                         {{.UserData.Name}}
                                     </button>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="/{{.Lang}}/users">{{t .Lang "Users"}}</a></li>
+                                    <li>
+                                        <a class="dropdown-item" href="/{{.Lang}}/users">
+                                            <img aria-hidden="true" src="/images/people.svg" width="16" height="16">
+                                            {{t .Lang "Users"}}
+                                        </a>
+                                    </li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="/{{.Lang}}/logout">{{t .Lang "Logout"}}</a></li>
+                                    <li>
+                                        <a class="dropdown-item" href="/{{.Lang}}/logout">
+                                            <img aria-hidden="true" src="/images/box-arrow-right.svg" width="16" height="16">
+                                            {{t .Lang "Logout"}}
+                                        </a>
+                                    </li>
                                 </ul>
                             </li>
                         </ul>

@@ -2,6 +2,8 @@ package controller
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -44,13 +46,21 @@ func (u *Users) List(c *fiber.Ctx) error {
 			"layout",
 		)
 	}
-	users, _ := u.repository.List()
+	page, err := strconv.Atoi(c.Query("page"))
+	if err != nil {
+		page = 1
+	}
+	totalRows := u.repository.Total()
+	totalPages := int(math.Ceil(float64(totalRows) / float64(model.ResultsPerPage)))
+
+	users, _ := u.repository.List(page, model.ResultsPerPage)
 	return c.Render("users/index", fiber.Map{
-		"Lang":     c.Params("lang"),
-		"Title":    "Users",
-		"Users":    users,
-		"UserData": userData,
-		"Version":  u.version,
+		"Lang":      c.Params("lang"),
+		"Title":     "Users",
+		"Users":     users,
+		"Paginator": pagination(model.MaxPagesNavigator, totalPages, page, map[string]string{}),
+		"UserData":  userData,
+		"Version":   u.version,
 	}, "layout")
 }
 
@@ -102,12 +112,13 @@ func (u *Users) Create(c *fiber.Ctx) error {
 		return err
 	}
 
-	if !validate(data) {
+	if errs := u.validate(data); len(errs) > 0 {
 		return c.Render("users/new", fiber.Map{
 			"Lang":     c.Params("lang"),
 			"Title":    "Add new user",
 			"UserData": userData,
 			"Version":  u.version,
+			"Errors":   errs,
 		}, "layout")
 	}
 
@@ -131,9 +142,25 @@ func (u *Users) Create(c *fiber.Ctx) error {
 	return c.Redirect(fmt.Sprintf("/%s/users", c.Params("lang")))
 }
 
-func validate(userFormData *newUserFormData) bool {
-	if userFormData.Password != userFormData.RepeatPassword {
-		return false
+func (u *Users) validate(userFormData *newUserFormData) []string {
+	errs := []string{}
+	if userFormData.Name == "" {
+		errs = append(errs, "Name cannot be empty")
 	}
-	return true
+	if userFormData.Role < 1 || userFormData.Role > 2 {
+		errs = append(errs, "Incorrect role")
+	}
+	if userFormData.Password == "" {
+		errs = append(errs, "Password cannot be empty")
+	}
+	if userFormData.RepeatPassword == "" {
+		errs = append(errs, "Repeat password cannot be empty")
+	}
+	if userFormData.Password != userFormData.RepeatPassword {
+		errs = append(errs, "Password and confirmation do not match")
+	}
+	if u.repository.Exist(userFormData.Username) {
+		errs = append(errs, "Username already exist")
+	}
+	return errs
 }

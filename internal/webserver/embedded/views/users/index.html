@@ -16,5 +16,9 @@
             </div>
             {{end}}
         </div>
+        
+        {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
+            {{template "partials/pagination" .}}
+        {{end}}
     </div>
 </main>

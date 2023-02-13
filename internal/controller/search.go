@@ -6,11 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/internal/jwtclaimsreader"
 	"github.com/svera/coreander/internal/metadata"
-)
-
-const (
-	resultsPerPage    = 10
-	maxPagesNavigator = 5
+	"github.com/svera/coreander/internal/model"
 )
 
 // Result holds the result of a search request, as well as some related metadata
@@ -46,7 +42,7 @@ func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured boo
 
 	keywords = c.Query("search")
 	if keywords != "" {
-		searchResults, err = idx.Search(keywords, page, resultsPerPage)
+		searchResults, err = idx.Search(keywords, page, model.ResultsPerPage)
 		if err != nil {
 			return fiber.ErrInternalServerError
 		}
@@ -56,7 +52,7 @@ func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured boo
 			"Keywords":               keywords,
 			"Results":                searchResults.Hits,
 			"Total":                  searchResults.TotalHits,
-			"Paginator":              pagination(maxPagesNavigator, searchResults.TotalPages, searchResults.Page, "search", keywords),
+			"Paginator":              pagination(model.MaxPagesNavigator, searchResults.TotalPages, searchResults.Page, map[string]string{"search": keywords}),
 			"Title":                  "Search results",
 			"Version":                version,
 			"EmailSendingConfigured": emailSendingConfigured,
