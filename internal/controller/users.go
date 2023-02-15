@@ -24,6 +24,10 @@ type newUserFormData struct {
 	Role           float64 `form:"role"`
 }
 
+type deleteUserFormData struct {
+	Uuid string `form:"uuid"`
+}
+
 func NewUsers(repository *model.Users, version string) *Users {
 	return &Users{
 		repository: repository,
@@ -61,6 +65,7 @@ func (u *Users) List(c *fiber.Ctx) error {
 		"Paginator": pagination(model.MaxPagesNavigator, totalPages, page, map[string]string{}),
 		"UserData":  userData,
 		"Version":   u.version,
+		"Admins":    u.repository.Admins(),
 	}, "layout")
 }
 
@@ -139,6 +144,31 @@ func (u *Users) Create(c *fiber.Ctx) error {
 		}, "layout")
 	}
 
+	return c.Redirect(fmt.Sprintf("/%s/users", c.Params("lang")))
+}
+
+func (u *Users) Delete(c *fiber.Ctx) error {
+	userData := jwtclaimsreader.UserData(c)
+	if userData.Role != model.RoleAdmin && userData.Uuid != c.Params("uuid") {
+		return c.Status(fiber.StatusForbidden).Render(
+			"errors/forbidden",
+			fiber.Map{
+				"Lang":     c.Params("lang"),
+				"Title":    "Forbidden",
+				"UserData": userData,
+				"Version":  u.version,
+			},
+			"layout",
+		)
+	}
+
+	data := new(deleteUserFormData)
+
+	if err := c.BodyParser(data); err != nil {
+		return err
+	}
+
+	u.repository.Delete(data.Uuid)
 	return c.Redirect(fmt.Sprintf("/%s/users", c.Params("lang")))
 }
 

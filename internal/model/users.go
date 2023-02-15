@@ -61,3 +61,24 @@ func (u *Users) Exist(username string) bool {
 	user := User{}
 	return u.DB.Where("username = ?", username).First(&user).RowsAffected == 1
 }
+
+func (u *Users) Admins() int64 {
+	var totalRows int64
+	u.DB.Where("role = ?", RoleAdmin).Take(&[]User{}).Count(&totalRows)
+	return totalRows
+}
+
+func (u *Users) Delete(uuid string) error {
+	user, err := u.Find(uuid)
+	if err != nil {
+		return nil
+	}
+	if u.Admins() == 1 && user.Role == RoleAdmin {
+		return nil
+	}
+	result := u.DB.Where("uuid = ?", uuid).Delete(&user)
+	if result.Error != nil {
+		log.Printf("error deleting user: %s\n", result.Error)
+	}
+	return nil
+}

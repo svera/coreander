@@ -134,20 +134,13 @@ func New(idx controller.Reader, libraryPath, homeDir, version string, metadataRe
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
 		},
-		/*
-			ErrorHandler: func(c *fiber.Ctx, err error) error {
-				if err.Error() == "Missing or malformed JWT" {
-					return c.Status(fiber.StatusBadRequest).SendString("Missing or malformed JWT")
-				}
-				return c.Status(fiber.StatusUnauthorized).SendString("Invalid or expired JWT")
-			},
-		*/
 	}))
 
 	app.Get("/:lang/users/edit/:uuid", usersController.Edit)
 	app.Get("/:lang/users", usersController.List)
 	app.Get("/:lang/users/new", usersController.New)
 	app.Post("/:lang/users/create", usersController.Create)
+	app.Post("/:lang/users/delete", usersController.Delete)
 
 	return app
 }

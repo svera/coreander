@@ -1,6 +1,7 @@
 <main>
     {{$lang := .Lang}}
-    <div class="container mt-5 text-start">
+    {{$admins := .Admins}}
+    <div class="container mt-5 pt-5 text-start">
         <div class="row">
             <div class="col">
                 <h2>{{t $lang "Users"}}</h2>
@@ -11,14 +12,52 @@
         </div>
         <div class="list-group">
             {{range $i, $user := .Users}}
-            <div class="list-group-item">
+            <div class="list-group-item d-flex justify-content-between align-items-start">
                 <a href="/{{$lang}}/users/edit/{{$user.Uuid}}">{{$user.Username}}</a>
+                {{ if not (and (eq $admins 1) (eq $user.Role 2.0)) }}
+                <a href="#" data-bs-toggle="modal" data-bs-target="#deleteModal" data-bs-uuid="{{$user.Uuid}}">
+                    <img aria-hidden="true" src="/images/trash3-fill.svg" width="16" height="16">
+                </a>
+                {{end}}
             </div>
             {{end}}
         </div>
-        
+
         {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
-            {{template "partials/pagination" .}}
+        {{template "partials/pagination" .}}
         {{end}}
     </div>
+
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModal" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" action="/{{$lang}}/users/delete">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="deleteModalLabel">{{t $lang "Delete user"}}</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        {{t $lang "Are you sure you want to delete this user?"}}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{t $lang
+                            "Cancel"}}</button>
+                        <button type="submit" class="btn btn-primary">{{t $lang "Delete"}}</button>
+                    </div>
+                    <input type="hidden" name="uuid" value="" class="uuid">
+                </form>
+            </div>
+        </div>
+    </div>
 </main>
+
+<script type="text/javascript">
+    const deleteModal = document.getElementById('deleteModal')
+    deleteModal.addEventListener('show.bs.modal', event => {
+        const link = event.relatedTarget
+        const uuid = link.getAttribute('data-bs-uuid')
+        const modalInput = deleteModal.querySelector('.uuid')
+
+        modalInput.value = uuid;
+    })
+</script>
