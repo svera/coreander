@@ -23,7 +23,7 @@
             <div class="container">
                 <span class="navbar-brand mb-0 h1">Coreander</span>
                 <nav class="d-grid gap-2 d-md-flex justify-content-md-end">
-                    {{if eq .UserData.Name ""}}
+                    {{if eq .Session.Name ""}}
                     <span class="p-2">
                         <a href="/{{.Lang}}/login">{{t .Lang "Login"}}</a>
                     </span>
@@ -31,14 +31,24 @@
                     <ul class="navbar-nav">
                         <li class="nav-item dropdown">
                             <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                {{.UserData.Name}}
+                                {{.Session.Name}}
                             </button>
                             <ul class="dropdown-menu">
-                                {{if eq .UserData.Role 2.0}}
+                                {{if eq .Session.Role 2.0}}
                                 <li>
                                     <a class="dropdown-item" href="/{{.Lang}}/users">
                                         <img aria-hidden="true" src="/images/people-fill.svg" width="16" height="16">
                                         {{t .Lang "Users"}}
+                                    </a>
+                                </li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                {{else}}
+                                <li>
+                                    <a class="dropdown-item" href="/{{.Lang}}/users/{{.Session.Uuid}}/edit">
+                                        <img aria-hidden="true" src="/images/person-fill.svg" width="16" height="16">
+                                        {{t .Lang "Update your profile"}}
                                     </a>
                                 </li>
                                 <li>

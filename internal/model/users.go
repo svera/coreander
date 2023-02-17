@@ -15,7 +15,7 @@ type User struct {
 	gorm.Model
 	Uuid     string `gorm:"uniqueIndex"`
 	Name     string
-	Username string `gorm:"uniqueIndex"`
+	Email    string `gorm:"uniqueIndex"`
 	Password string
 	Role     float64
 }
@@ -52,6 +52,14 @@ func (u *Users) Find(uuid string) (User, error) {
 func (u *Users) Create(user User) error {
 	if result := u.DB.Create(&user); result.Error != nil {
 		log.Printf("error creating user: %s\n", result.Error)
+		return result.Error
+	}
+	return nil
+}
+
+func (u *Users) Update(user User) error {
+	if result := u.DB.Save(&user); result.Error != nil {
+		log.Printf("error updating user: %s\n", result.Error)
 		return result.Error
 	}
 	return nil

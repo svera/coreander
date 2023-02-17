@@ -75,7 +75,16 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 			Password: cfg.SmtpPassword,
 		}
 	}
-	app := webserver.New(idx, cfg.LibPath, homeDir, version, metadataReaders, cfg.CoverMaxWidth, sender, db)
+
+	webserverConfig := webserver.Config{
+		LibraryPath:   cfg.LibPath,
+		HomeDir:       homeDir,
+		Version:       version,
+		CoverMaxWidth: cfg.CoverMaxWidth,
+		JwtSecret:     cfg.JwtSecret,
+		RequireAuth:   cfg.RequireAuth,
+	}
+	app := webserver.New(idx, webserverConfig, metadataReaders, sender, db)
 	fmt.Printf("Coreander version %s started listening on port %s\n\n", version, cfg.Port)
 	err = app.Listen(fmt.Sprintf(":%s", cfg.Port))
 	if err != nil {

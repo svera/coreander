@@ -1,7 +1,7 @@
 <main class="form-signin">
     <div class="container">
         {{if .Message}}
-        <div class="row mt-5">
+        <div class="row mt-5 text-start">
             <div class="alert alert-danger" role="alert">
                 {{t .Lang .Message}}
             </div>
@@ -11,8 +11,8 @@
             <h1 class="h3 mb-3 fw-normal">{{t .Lang "Please sign in"}}</h1>
 
             <div class="form-floating">
-                <input type="text" class="form-control" id="floatingInput" placeholder="User name" name="username">
-                <label for="floatingInput" class="form-label">{{t .Lang "Username"}}</label>
+                <input type="email" class="form-control" id="floatingInput" placeholder="user@example.com" name="email">
+                <label for="floatingInput" class="form-label">{{t .Lang "Email"}}</label>
             </div>
             <div class="form-floating mt-3">
                 <input type="password" class="form-control" id="floatingPassword" placeholder="Password"

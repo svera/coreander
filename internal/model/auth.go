@@ -11,16 +11,16 @@ type Auth struct {
 }
 
 type UserData struct {
-	Name     string
-	UserName string
-	Uuid     string
-	Role     float64
+	Name  string
+	Email string
+	Uuid  string
+	Role  float64
 }
 
-func (a *Auth) CheckCredentials(username, password string) (User, error) {
+func (a *Auth) CheckCredentials(email, password string) (User, error) {
 	var user User
 
-	result := a.DB.Where("username = ? AND password = ?", username, Hash(password)).Take(&user)
+	result := a.DB.Where("email = ? AND password = ?", email, Hash(password)).Take(&user)
 	return user, result.Error
 }
 

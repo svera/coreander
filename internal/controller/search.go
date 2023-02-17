@@ -36,7 +36,7 @@ func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured boo
 		page = 1
 	}
 
-	userData := jwtclaimsreader.UserData(c)
+	session := jwtclaimsreader.SessionData(c)
 	var keywords string
 	var searchResults *Result
 
@@ -56,7 +56,7 @@ func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured boo
 			"Title":                  "Search results",
 			"Version":                version,
 			"EmailSendingConfigured": emailSendingConfigured,
-			"UserData":               userData,
+			"Session":                session,
 		}, "layout")
 	}
 	count, err := idx.Count()
@@ -64,10 +64,10 @@ func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured boo
 		return fiber.ErrInternalServerError
 	}
 	return c.Render("index", fiber.Map{
-		"Lang":     lang,
-		"Count":    count,
-		"Title":    "Coreander",
-		"Version":  version,
-		"UserData": userData,
+		"Lang":    lang,
+		"Count":   count,
+		"Title":   "Coreander",
+		"Version": version,
+		"Session": session,
 	}, "layout")
 }

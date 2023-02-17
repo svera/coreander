@@ -7,8 +7,8 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -19,7 +19,6 @@ import (
 	"github.com/svera/coreander/internal/controller"
 	"github.com/svera/coreander/internal/i18n"
 	"github.com/svera/coreander/internal/infrastructure"
-	"github.com/svera/coreander/internal/jwtclaimsreader"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/model"
 	"golang.org/x/text/language"
@@ -35,8 +34,17 @@ type sendAttachentFormData struct {
 	Email string `form:"email"`
 }
 
+type Config struct {
+	LibraryPath   string
+	HomeDir       string
+	Version       string
+	CoverMaxWidth int
+	JwtSecret     []byte
+	RequireAuth   bool
+}
+
 // New builds a new Fiber application and set up the required routes
-func New(idx controller.Reader, libraryPath, homeDir, version string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, sender controller.Sender, db *gorm.DB) *fiber.App {
+func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.Reader, sender controller.Sender, db *gorm.DB) *fiber.App {
 	engine, err := initTemplateEngine()
 	if err != nil {
 		log.Fatal(err)
@@ -80,9 +88,26 @@ func New(idx controller.Reader, libraryPath, homeDir, version string, metadataRe
 		Root: http.FS(imagesFS),
 	}))
 
+	// JWT Middleware
+	app.Use(jwtware.New(jwtware.Config{
+		SigningKey:    cfg.JwtSecret,
+		SigningMethod: "HS256",
+		TokenLookup:   "cookie:jwt",
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			err = c.Next()
+			if cfg.RequireAuth && !strings.HasPrefix(c.Route().Path, "/:lang/login") {
+				return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
+			}
+			if strings.HasPrefix(c.Route().Path, "/:lang/users") {
+				return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
+			}
+			return err
+		},
+	}))
+
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
 		c.Append("Cache-Time", "86400")
-		return controller.Covers(c, homeDir, libraryPath, metadataReaders, coverMaxWidth, embedded)
+		return controller.Covers(c, cfg.HomeDir, cfg.LibraryPath, metadataReaders, cfg.CoverMaxWidth, embedded)
 	})
 
 	app.Post("/send", func(c *fiber.Ctx) error {
@@ -92,21 +117,19 @@ func New(idx controller.Reader, libraryPath, homeDir, version string, metadataRe
 			return err
 		}
 
-		controller.Send(c, libraryPath, data.File, data.Email, sender)
+		controller.Send(c, cfg.LibraryPath, data.File, data.Email, sender)
 		return nil
 	})
 
 	app.Get("/:lang/read/:filename", func(c *fiber.Ctx) error {
-		return controller.DocReader(c, libraryPath)
+		return controller.DocReader(c, cfg.LibraryPath)
 	})
 
-	app.Use("/", jwtclaimsreader.New(jwtclaimsreader.Config{}))
-
 	authRepository := &model.Auth{DB: db}
-	authController := controller.NewAuth(authRepository, version)
+	authController := controller.NewAuth(authRepository, cfg.Version)
 
 	usersRepository := &model.Users{DB: db}
-	usersController := controller.NewUsers(usersRepository, version)
+	usersController := controller.NewUsers(usersRepository, cfg.Version)
 
 	app.Get("/:lang/login", authController.Login)
 	app.Post("/:lang/login", authController.SignIn)
@@ -117,26 +140,17 @@ func New(idx controller.Reader, libraryPath, homeDir, version string, metadataRe
 		if _, ok := sender.(*infrastructure.NoEmail); ok {
 			emailSendingConfigured = false
 		}
-		return controller.Search(c, idx, version, emailSendingConfigured)
+		return controller.Search(c, idx, cfg.Version, emailSendingConfigured)
 	})
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return controller.Root(c)
 	})
 
-	app.Static("/files", libraryPath)
+	app.Static("/files", cfg.LibraryPath)
 
-	// JWT Middleware
-	app.Use("/:lang/", jwtware.New(jwtware.Config{
-		SigningKey:    []byte(os.Getenv("JWT_SECRET")),
-		SigningMethod: "HS256",
-		TokenLookup:   "cookie:jwt",
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
-		},
-	}))
-
-	app.Get("/:lang/users/edit/:uuid", usersController.Edit)
+	app.Get("/:lang/users/:uuid/edit", usersController.Edit)
+	app.Post("/:lang/users/:uuid/update", usersController.Update)
 	app.Get("/:lang/users", usersController.List)
 	app.Get("/:lang/users/new", usersController.New)
 	app.Post("/:lang/users/create", usersController.Create)

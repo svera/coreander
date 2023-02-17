@@ -26,7 +26,10 @@ func TestGET(t *testing.T) {
 	}
 
 	db := infrastructure.Connect("file::memory:?cache=shared")
-	app := webserver.New(webserver.NewReaderMock(), "", "", "", metadataReadersMock, 300, &infrastructure.NoEmail{}, db)
+	webserverConfig := webserver.Config{
+		CoverMaxWidth: 300,
+	}
+	app := webserver.New(webserver.NewReaderMock(), webserverConfig, metadataReadersMock, &infrastructure.NoEmail{}, db)
 
 	for _, tcase := range cases {
 		t.Run(tcase.name, func(t *testing.T) {

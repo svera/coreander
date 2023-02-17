@@ -1,7 +1,27 @@
 <main>
     {{$lang := .Lang}}
     <div class="container mt-5 text-start">
-        <form method="post" action="/{{$lang}}/users/update/{{.User.ID}}">
+        {{if .Errors}}
+        <div class="row mt-5">
+            <div class="alert alert-danger" role="alert">
+                <ul>
+                    {{range $i, $err := .Errors}}
+                    <li>{{t $lang $err}}</li>
+                    {{end}}
+                </ul>
+            </div>
+        </div>
+        {{end}}
+
+        {{if .Message}}
+        <div class="row mt-5">
+            <div class="alert alert-success" role="alert">
+                {{t $lang .Message}}
+            </div>
+        </div>
+        {{end}}
+
+        <form method="post" action="/{{$lang}}/users/{{.User.Uuid}}/update">
             {{template "partials/user-form-fields" .}}
             <input type="hidden" value="{{.User.Uuid}}">
             <button type="submit" class="btn btn-primary">{{t $lang "Save"}}</button>

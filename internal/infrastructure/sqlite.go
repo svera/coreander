@@ -36,7 +36,7 @@ func addDefaultAdmin(db *gorm.DB) {
 		user := &model.User{
 			Uuid:     uuid.NewString(),
 			Name:     "Admin",
-			Username: "admin",
+			Email:    "admin@example.com",
 			Password: model.Hash("admin"),
 			Role:     model.RoleAdmin,
 		}
