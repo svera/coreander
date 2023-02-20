@@ -54,6 +54,7 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	app := fiber.New(fiber.Config{
 		Views:                 engine,
 		DisableStartupMessage: true,
+		AppName:               cfg.Version,
 	})
 
 	app.Use(cache.New(cache.Config{
@@ -127,10 +128,10 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	})
 
 	authRepository := &model.Auth{DB: db}
-	authController := controller.NewAuth(authRepository, cfg.Version)
+	authController := controller.NewAuth(authRepository)
 
 	usersRepository := &model.Users{DB: db}
-	usersController := controller.NewUsers(usersRepository, cfg.Version, cfg.MinPasswordLength)
+	usersController := controller.NewUsers(usersRepository, cfg.MinPasswordLength)
 
 	app.Get("/:lang/login", authController.Login)
 	app.Post("/:lang/login", authController.SignIn)

@@ -14,7 +14,6 @@ import (
 
 type Users struct {
 	repository        *model.Users
-	version           string
 	minPasswordLength int
 }
 
@@ -44,10 +43,9 @@ type deleteUserFormData struct {
 }
 
 // NewUsers returns a new instance of the users controller
-func NewUsers(repository *model.Users, version string, minPasswordLength int) *Users {
+func NewUsers(repository *model.Users, minPasswordLength int) *Users {
 	return &Users{
 		repository:        repository,
-		version:           version,
 		minPasswordLength: minPasswordLength,
 	}
 }
@@ -63,7 +61,7 @@ func (u *Users) List(c *fiber.Ctx) error {
 				"Lang":    c.Params("lang"),
 				"Title":   "Forbidden",
 				"Session": session,
-				"Version": u.version,
+				"Version": c.App().Config().AppName,
 			},
 			"layout",
 		)
@@ -82,7 +80,7 @@ func (u *Users) List(c *fiber.Ctx) error {
 		"Users":     users,
 		"Paginator": pagination(model.MaxPagesNavigator, totalPages, page, map[string]string{}),
 		"Session":   session,
-		"Version":   u.version,
+		"Version":   c.App().Config().AppName,
 		"Admins":    u.repository.Admins(),
 	}, "layout")
 }
@@ -101,7 +99,7 @@ func (u *Users) Edit(c *fiber.Ctx) error {
 				"Lang":    c.Params("lang"),
 				"Title":   "Forbidden",
 				"Session": session,
-				"Version": u.version,
+				"Version": c.App().Config().AppName,
 			},
 			"layout",
 		)
@@ -113,7 +111,7 @@ func (u *Users) Edit(c *fiber.Ctx) error {
 		"Title":   "Edit user",
 		"User":    user,
 		"Session": session,
-		"Version": u.version,
+		"Version": c.App().Config().AppName,
 	}, "layout")
 }
 
@@ -125,7 +123,7 @@ func (u *Users) New(c *fiber.Ctx) error {
 		"Lang":              c.Params("lang"),
 		"Title":             "Add new user",
 		"Session":           session,
-		"Version":           u.version,
+		"Version":           c.App().Config().AppName,
 		"MinPasswordLength": u.minPasswordLength,
 	}, "layout")
 }
@@ -144,7 +142,7 @@ func (u *Users) Create(c *fiber.Ctx) error {
 			"Lang":    c.Params("lang"),
 			"Title":   "Add new user",
 			"Session": session,
-			"Version": u.version,
+			"Version": c.App().Config().AppName,
 			"Errors":  errs,
 		}, "layout")
 	}
@@ -162,7 +160,7 @@ func (u *Users) Create(c *fiber.Ctx) error {
 			"Lang":     c.Params("lang"),
 			"Title":    "Add new user",
 			"UserData": session,
-			"Version":  u.version,
+			"Version":  c.App().Config().AppName,
 		}, "layout")
 	}
 
@@ -190,7 +188,7 @@ func (u *Users) Update(c *fiber.Ctx) error {
 				"Lang":    c.Params("lang"),
 				"Title":   "Forbidden",
 				"Session": session,
-				"Version": u.version,
+				"Version": c.App().Config().AppName,
 			},
 			"layout",
 		)
@@ -208,7 +206,7 @@ func (u *Users) Update(c *fiber.Ctx) error {
 			"Title":   "Edit user",
 			"User":    user,
 			"Session": session,
-			"Version": u.version,
+			"Version": c.App().Config().AppName,
 			"Errors":  errs,
 		}, "layout")
 	}
@@ -222,7 +220,7 @@ func (u *Users) Update(c *fiber.Ctx) error {
 		"Title":   "Edit user",
 		"User":    user,
 		"Session": session,
-		"Version": u.version,
+		"Version": c.App().Config().AppName,
 		"Message": "Profile succesfully updated",
 	}, "layout")
 }
@@ -248,7 +246,7 @@ func (u *Users) UpdatePassword(c *fiber.Ctx) error {
 				"Lang":    c.Params("lang"),
 				"Title":   "Forbidden",
 				"Session": session,
-				"Version": u.version,
+				"Version": c.App().Config().AppName,
 			},
 			"layout",
 		)
@@ -269,7 +267,7 @@ func (u *Users) UpdatePassword(c *fiber.Ctx) error {
 			"Title":     "Edit user",
 			"User":      user,
 			"Session":   session,
-			"Version":   u.version,
+			"Version":   c.App().Config().AppName,
 			"ActiveTab": "password",
 			"Errors":    errs,
 		}, "layout")
@@ -284,7 +282,7 @@ func (u *Users) UpdatePassword(c *fiber.Ctx) error {
 		"Title":     "Edit user",
 		"User":      user,
 		"Session":   session,
-		"Version":   u.version,
+		"Version":   c.App().Config().AppName,
 		"ActiveTab": "password",
 		"Message":   "Password updated",
 	}, "layout")
@@ -301,7 +299,7 @@ func (u *Users) Delete(c *fiber.Ctx) error {
 				"Lang":    c.Params("lang"),
 				"Title":   "Forbidden",
 				"Session": session,
-				"Version": u.version,
+				"Version": c.App().Config().AppName,
 			},
 			"layout",
 		)

@@ -13,13 +13,11 @@ import (
 
 type Auth struct {
 	repository *model.Auth
-	version    string
 }
 
-func NewAuth(repository *model.Auth, version string) *Auth {
+func NewAuth(repository *model.Auth) *Auth {
 	return &Auth{
 		repository: repository,
-		version:    version,
 	}
 }
 
@@ -29,7 +27,7 @@ func (a *Auth) Login(c *fiber.Ctx) error {
 	return c.Render("login", fiber.Map{
 		"Lang":    c.Params("lang"),
 		"Title":   "Login",
-		"Version": a.version,
+		"Version": c.App().Config().AppName,
 		"Session": session,
 	}, "layout")
 }
@@ -55,7 +53,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).Render("errors/internal", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Login",
-			"Version": a.version,
+			"Version": c.App().Config().AppName,
 			"Session": session,
 		}, "layout")
 	}
@@ -66,7 +64,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 			"Lang":    c.Params("lang"),
 			"Title":   "Login",
 			"Message": "Wrong email or password",
-			"Version": a.version,
+			"Version": c.App().Config().AppName,
 			"Session": session,
 		}, "layout")
 	}
@@ -88,7 +86,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 			"Lang":    c.Params("lang"),
 			"Title":   "Login",
 			"Session": session,
-			"Version": a.version,
+			"Version": c.App().Config().AppName,
 		}, "layout")
 	}
 	c.Cookie(&fiber.Cookie{
