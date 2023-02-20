@@ -1,26 +1,23 @@
-<main class="form-signin">
-    <div class="container">
-        {{if .Message}}
-        <div class="row mt-5 text-start">
-            <div class="alert alert-danger" role="alert">
-                {{t .Lang .Message}}
-            </div>
+<div class="container mt-5">
+    {{if .Message}}
+    <div class="row mt-5 text-start">
+        <div class="alert alert-danger" role="alert">
+            {{t .Lang .Message}}
         </div>
-        {{end}}
-        <form method="post" action="/{{.Lang}}/login/" enctype="multipart/form-data">
-            <h1 class="h3 mb-3 fw-normal">{{t .Lang "Please sign in"}}</h1>
-
-            <div class="form-floating">
-                <input type="email" class="form-control" id="floatingInput" placeholder="user@example.com" name="email">
-                <label for="floatingInput" class="form-label">{{t .Lang "Email"}}</label>
-            </div>
-            <div class="form-floating mt-3">
-                <input type="password" class="form-control" id="floatingPassword" placeholder="Password"
-                    name="password">
-                <label for="floatingPassword">{{t .Lang "Password"}}</label>
-            </div>
-
-            <button class="w-100 btn btn-lg btn-primary mt-3" type="submit">{{t .Lang "Sign in"}}</button>
-        </form>
     </div>
-</main>
+    {{end}}
+    <form method="post" action="/{{.Lang}}/login/" enctype="multipart/form-data">
+        <h2 class="h3 mb-3 fw-normal">{{t .Lang "Please sign in"}}</h2>
+
+        <div class="form-floating">
+            <input type="email" class="form-control" id="floatingInput" placeholder="user@example.com" name="email">
+            <label for="floatingInput" class="form-label">{{t .Lang "Email"}}</label>
+        </div>
+        <div class="form-floating mt-3">
+            <input type="password" class="form-control" id="floatingPassword" placeholder="Password" name="password">
+            <label for="floatingPassword">{{t .Lang "Password"}}</label>
+        </div>
+
+        <button class="w-100 btn btn-lg btn-primary mt-3" type="submit">{{t .Lang "Sign in"}}</button>
+    </form>
+</div>

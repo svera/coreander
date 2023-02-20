@@ -35,12 +35,13 @@ type sendAttachentFormData struct {
 }
 
 type Config struct {
-	LibraryPath   string
-	HomeDir       string
-	Version       string
-	CoverMaxWidth int
-	JwtSecret     []byte
-	RequireAuth   bool
+	LibraryPath       string
+	HomeDir           string
+	Version           string
+	CoverMaxWidth     int
+	JwtSecret         []byte
+	RequireAuth       bool
+	MinPasswordLength int
 }
 
 // New builds a new Fiber application and set up the required routes
@@ -129,7 +130,7 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	authController := controller.NewAuth(authRepository, cfg.Version)
 
 	usersRepository := &model.Users{DB: db}
-	usersController := controller.NewUsers(usersRepository, cfg.Version)
+	usersController := controller.NewUsers(usersRepository, cfg.Version, cfg.MinPasswordLength)
 
 	app.Get("/:lang/login", authController.Login)
 	app.Post("/:lang/login", authController.SignIn)
@@ -151,6 +152,7 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 
 	app.Get("/:lang/users/:uuid/edit", usersController.Edit)
 	app.Post("/:lang/users/:uuid/update", usersController.Update)
+	app.Post("/:lang/users/:uuid/update-password", usersController.UpdatePassword)
 	app.Get("/:lang/users", usersController.List)
 	app.Get("/:lang/users/new", usersController.New)
 	app.Post("/:lang/users/create", usersController.Create)

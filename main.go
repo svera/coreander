@@ -77,12 +77,13 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 	}
 
 	webserverConfig := webserver.Config{
-		LibraryPath:   cfg.LibPath,
-		HomeDir:       homeDir,
-		Version:       version,
-		CoverMaxWidth: cfg.CoverMaxWidth,
-		JwtSecret:     cfg.JwtSecret,
-		RequireAuth:   cfg.RequireAuth,
+		LibraryPath:       cfg.LibPath,
+		HomeDir:           homeDir,
+		Version:           version,
+		CoverMaxWidth:     cfg.CoverMaxWidth,
+		JwtSecret:         cfg.JwtSecret,
+		RequireAuth:       cfg.RequireAuth,
+		MinPasswordLength: cfg.MinPasswordLength,
 	}
 	app := webserver.New(idx, webserverConfig, metadataReaders, sender, db)
 	fmt.Printf("Coreander version %s started listening on port %s\n\n", version, cfg.Port)

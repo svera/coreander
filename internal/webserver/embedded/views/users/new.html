@@ -1,30 +1,48 @@
-<main>
-    {{$lang := .Lang}}
-    <div class="container mt-5 text-start">
-        {{if .Errors}}
-        <div class="row mt-5">
-            <div class="alert alert-danger" role="alert">
-                <ul>
-                    {{range $i, $err := .Errors}}
-                    <li>{{t $lang $err}}</li>
-                    {{end}}
-                </ul>
-            </div>
+{{$lang := .Lang}}
+<div class="container mt-5 text-start">
+    {{if .Errors}}
+    <div class="row mt-5">
+        <div class="alert alert-danger" role="alert">
+            <ul>
+                {{range $i, $err := .Errors}}
+                <li>{{t $lang $err}}</li>
+                {{end}}
+            </ul>
         </div>
-        {{end}}
-
-        <form method="post" action="/{{$lang}}/users/create" autocomplete="off">
-            {{template "partials/user-form-fields" .}}
-
-            <div class="mb-3">
-                <label for="role" class="form-label">{{t .Lang "Role"}}</label>
-                <select name="role" class="form-control" id="role">
-                    <option value="1">{{t $lang "Regular"}}</option>
-                    <option value="2">{{t $lang "Administrator"}}</option>
-                </select>
-            </div>
-
-            <button type="submit" class="btn btn-primary">{{t $lang "Save"}}</button>
-        </form>
     </div>
-</main>
+    {{end}}
+
+    <form method="post" action="/{{$lang}}/users/create" autocomplete="off">
+        <div class="mb-3">
+            <label for="name" class="form-label">{{t .Lang "Name"}}</label>
+            <input type="text" name="name" class="form-control" id="name" required="required" value="{{.User.Name}}" maxlength="20">
+        </div>
+        <div class="mb-3">
+            <label for="email" class="form-label">{{t .Lang "Email"}}</label>
+            <input type="email" name="email" class="form-control" id="email" required="required" value="{{.User.Email}}">
+        </div>        
+        <div class="mb-3">
+            <label for="send-to-email" class="form-label">{{t .Lang "Default send to email address"}}</label>
+            <input type="email" name="send-to-email" class="form-control" id="send-to-email" value="{{.User.SendToEmail}}">
+        </div>
+        <div class="mb-3">
+            <label for="password" class="form-label">{{t .Lang "Password"}}</label>
+            <input type="password" name="password" class="form-control" id="password" required="required"
+                minlength="{{.MinPasswordLength}}">
+        </div>
+        <div class="mb-3">
+            <label for="confirm-password" class="form-label">{{t .Lang "Confirm password"}}</label>
+            <input type="password" name="confirm-password" class="form-control" id="confirm-password"
+                required="required" minlength="{{.MinPasswordLength}}">
+        </div>
+        <div class="mb-3">
+            <label for="role" class="form-label">{{t .Lang "Role"}}</label>
+            <select name="role" class="form-control" id="role">
+                <option value="1">{{t $lang "Regular"}}</option>
+                <option value="2">{{t $lang "Administrator"}}</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">{{t $lang "Save"}}</button>
+    </form>
+</div>

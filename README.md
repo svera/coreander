@@ -63,3 +63,18 @@ Coreander can also send documents through email. This way, you can take advantag
 * `SMTPPORT`: The port number used by the email service, defaults to `587`.
 * `SMTPUSER`: The user name.
 * `SMTPPASSWORD`: User's password.
+
+### Settings
+
+* `LIBPATH`
+* `PORT`
+* `BATCHSIZE`
+* `COVERMAXWIDTH`
+* `SKIPREINDEX`
+* `SMTPSERVER`
+* `SMTPPORT`
+* `SMTPUSER`
+* `SMTPPASSWORD`
+* `JWT_SECRET`
+* `REQUIRE_AUTH`
+* `MINPASSWORDLENGTH`

@@ -1,30 +1,71 @@
-<main>
-    {{$lang := .Lang}}
-    <div class="container mt-5 text-start">
-        {{if .Errors}}
-        <div class="row mt-5">
-            <div class="alert alert-danger" role="alert">
-                <ul>
-                    {{range $i, $err := .Errors}}
-                    <li>{{t $lang $err}}</li>
-                    {{end}}
-                </ul>
-            </div>
+{{$lang := .Lang}}
+<div class="container mt-5 text-start">
+    {{if .Errors}}
+    <div class="row mt-5">
+        <div class="alert alert-danger" role="alert">
+            <ul>
+                {{range $i, $err := .Errors}}
+                <li>{{t $lang $err}}</li>
+                {{end}}
+            </ul>
         </div>
-        {{end}}
-
-        {{if .Message}}
-        <div class="row mt-5">
-            <div class="alert alert-success" role="alert">
-                {{t $lang .Message}}
-            </div>
-        </div>
-        {{end}}
-
-        <form method="post" action="/{{$lang}}/users/{{.User.Uuid}}/update">
-            {{template "partials/user-form-fields" .}}
-            <input type="hidden" value="{{.User.Uuid}}">
-            <button type="submit" class="btn btn-primary">{{t $lang "Save"}}</button>
-        </form>
     </div>
-</main>
+    {{end}}
+
+    {{if .Message}}
+    <div class="row mt-5">
+        <div class="alert alert-success" role="alert">
+            {{t $lang .Message}}
+        </div>
+    </div>
+    {{end}}
+
+    <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class='nav-link {{if ne .ActiveTab "password"}}active{{end}}' id="home-tab" data-bs-toggle="tab" data-bs-target="#profile-tab-pane"
+                type="button" role="tab" aria-controls="home-tab-pane" aria-selected="true">{{t $lang "Profile"}}</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class='nav-link {{if eq .ActiveTab "password"}}active{{end}}' id="profile-tab" data-bs-toggle="tab" data-bs-target="#password-tab-pane"
+                type="button" role="tab" aria-controls="profile-tab-pane" aria-selected="false">{{t $lang "Change password"}}</button>
+        </li>
+    </ul>
+    <div class="tab-content ">
+        <div class='tab-pane fade p-3 {{if ne .ActiveTab "password"}}show active{{end}}' id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab"
+            tabindex="0">
+            <form method="post" action="/{{$lang}}/users/{{.User.Uuid}}/update">
+                <div class="mb-3">
+                    <label for="name" class="form-label">{{t .Lang "Name"}}</label>
+                    <input type="text" name="name" class="form-control" id="name" required="required" value="{{.User.Name}}" maxlength="20">
+                </div>
+                <div class="mb-3">
+                    <label for="send-to-email" class="form-label">{{t .Lang "Default send to email address"}}</label>
+                    <input type="email" name="send-to-email" class="form-control" id="send-to-email" value="{{.User.SendToEmail}}">
+                </div>
+                <button type="submit" class="btn btn-primary">{{t $lang "Save"}}</button>
+            </form>
+        </div>
+        <div class='tab-pane fade p-3 {{if eq .ActiveTab "password"}}show active{{end}}' id="password-tab-pane" role="tabpanel" aria-labelledby="password-tab"
+            tabindex="0">
+            <form method="post" action="/{{$lang}}/users/{{.User.Uuid}}/update-password">
+                <div class="mb-3">
+                    <label for="old-password" class="form-label">{{t .Lang "Current password"}}</label>
+                    <input type="password" name="old-password" class="form-control" id="old-password"
+                        required="required" minlength="{{.MinPasswordLength}}">
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">{{t .Lang "New password"}}</label>
+                    <input type="password" name="password" class="form-control" id="password" required="required"
+                        minlength="{{.MinPasswordLength}}">
+                </div>
+                <div class="mb-3">
+                    <label for="confirm-password" class="form-label">{{t .Lang "Confirm new password"}}</label>
+                    <input type="password" name="confirm-password" class="form-control" id="confirm-password"
+                        required="required" minlength="{{.MinPasswordLength}}">
+                </div>
+
+                <button type="submit" class="btn btn-primary">{{t $lang "Save"}}</button>
+            </form>
+        </div>
+    </div>
+</div>

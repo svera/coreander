@@ -14,7 +14,7 @@ type UserData struct {
 	Name  string
 	Email string
 	Uuid  string
-	Role  float64
+	Role  int
 }
 
 func (a *Auth) CheckCredentials(email, password string) (User, error) {

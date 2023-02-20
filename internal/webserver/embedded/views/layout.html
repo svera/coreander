@@ -34,7 +34,7 @@
                                 {{.Session.Name}}
                             </button>
                             <ul class="dropdown-menu">
-                                {{if eq .Session.Role 2.0}}
+                                {{if eq .Session.Role 2}}
                                 <li>
                                     <a class="dropdown-item" href="/{{.Lang}}/users">
                                         <img aria-hidden="true" src="/images/people-fill.svg" width="16" height="16">
@@ -46,6 +46,7 @@
                                 </li>
                                 {{else}}
                                 <li>
+                                    {{.Session.Role}}
                                     <a class="dropdown-item" href="/{{.Lang}}/users/{{.Session.Uuid}}/edit">
                                         <img aria-hidden="true" src="/images/person-fill.svg" width="16" height="16">
                                         {{t .Lang "Update your profile"}}
@@ -73,7 +74,10 @@
             </div>
         </nav>
     </header>
-    {{embed}}
+
+    <main class="mt-5">
+        {{embed}}
+    </main>
 
     <footer class="footer mt-auto pb-3">
         <div class="container">

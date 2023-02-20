@@ -1,72 +1,72 @@
-<main>
-    {{$lang := .Lang}}
-    {{$emailSendingConfigured := .EmailSendingConfigured}}
-    <div class="container">
-        {{template "partials/searchbox" .}} {{if gt .Total 0}}
-        <p>{{t .Lang "%d matches found" .Total }}</p>
-        {{else}}
-        <p>{{t .Lang "No matches found" }}</p>
-        {{end}}
+{{$lang := .Lang}}
+{{$emailSendingConfigured := .EmailSendingConfigured}}
+<div class="container">
+    {{template "partials/searchbox" .}} {{if gt .Total 0}}
+    <p>{{t .Lang "%d matches found" .Total }}</p>
+    {{else}}
+    <p>{{t .Lang "No matches found" }}</p>
+    {{end}}
 
-        <div class="list-group">
-            {{if .Results}} {{range $i, $book := .Results}}
-            <div class="list-group-item">
-                <img src="covers/{{$book.ID}}" class="border border-2 border-dark float-start me-3 2-25">
-                <div class="row">
-                    <div class="col-7">
-                        {{ if ne $book.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s" $book.Series}}
-                        <p class="text-start text-muted text-uppercase mb-0"><a
-                                href="?search=Series&colon;&quot;{{$book.Series}}&quot;"
-                                title={{$seriesTitle}}>{{$book.Series}} {{$book.SeriesIndex}}</a></p>
-                        {{ end }}
-                        <h4 class="text-start">{{$book.Title}} <small class="small text-muted">{{$book.Year}}</small>
-                        </h4>
-                    </div>
-                    <div class="col-5 text-end">
-                        {{ template "partials/actions" dict "Lang" $lang "BookID" $book.ID "EmailSendingConfigured" $emailSendingConfigured "Index" $i}}
-                    </div>
+    <div class="list-group">
+        {{if .Results}} {{range $i, $book := .Results}}
+        <div class="list-group-item">
+            <img src="covers/{{$book.ID}}" class="border border-2 border-dark float-start me-3 2-25">
+            <div class="row">
+                <div class="col-7">
+                    {{ if ne $book.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
+                    $book.Series}}
+                    <p class="text-start text-muted text-uppercase mb-0"><a
+                            href="?search=Series&colon;&quot;{{$book.Series}}&quot;"
+                            title={{$seriesTitle}}>{{$book.Series}} {{$book.SeriesIndex}}</a></p>
+                    {{ end }}
+                    <h4 class="text-start">{{$book.Title}} <small class="small text-muted">{{$book.Year}}</small>
+                    </h4>
                 </div>
-                <div class="row">
-                    <div class="col-12">
-                        {{$authorTitle := t $lang "Search for more titles by %s" $book.Author}}
-                        <h5 class="text-start"><a href="?search=Author&colon;&quot;{{$book.Author}}&quot;"
-                                title={{$authorTitle}}>{{$book.Author}}</a></h5>
-                        {{ if ne $book.ReadingTime "" }}
-                        <p class="text-start text-muted"><em>{{t $lang "Estimated reading time"}}:
-                                {{$book.ReadingTime}}</em></p>
-                        {{ end }}
-                        <div class="mb-1 collapse" id="collapse-desc{{$i}}">{{$book.Description}}</div>
-                        <a data-bs-toggle="collapse" class="collapse-control collapsed" href="#collapse-desc{{$i}}"></a>
-                    </div>
+                <div class="col-5 text-end">
+                    {{ template "partials/actions" dict "Lang" $lang "BookID" $book.ID "EmailSendingConfigured"
+                    $emailSendingConfigured "Index" $i}}
                 </div>
             </div>
-            {{end}} {{end}}
+            <div class="row">
+                <div class="col-12">
+                    {{$authorTitle := t $lang "Search for more titles by %s" $book.Author}}
+                    <h5 class="text-start"><a href="?search=Author&colon;&quot;{{$book.Author}}&quot;"
+                            title={{$authorTitle}}>{{$book.Author}}</a></h5>
+                    {{ if ne $book.ReadingTime "" }}
+                    <p class="text-start text-muted"><em>{{t $lang "Estimated reading time"}}:
+                            {{$book.ReadingTime}}</em></p>
+                    {{ end }}
+                    <div class="mb-1 collapse" id="collapse-desc{{$i}}">{{$book.Description}}</div>
+                    <a data-bs-toggle="collapse" class="collapse-control collapsed" href="#collapse-desc{{$i}}"></a>
+                </div>
+            </div>
         </div>
-
-        {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
-            {{template "partials/pagination" .}}
-        {{end}}
-
+        {{end}} {{end}}
     </div>
 
-    <script type="text/javascript">
-        function send(index)
-        {
-            event.preventDefault();
-            form = document.getElementById("send-email-"+index)
-            fetch('/send', {
-                method: "POST",
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email : form.elements[0].value,
-                    file : form.elements[1].value,
-                })
+    {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
+    {{template "partials/pagination" .}}
+    {{end}}
+
+</div>
+
+<script type="text/javascript">
+    function send(index) {
+        event.preventDefault();
+        form = document.getElementById("send-email-" + index)
+        fetch('/send', {
+            method: "POST",
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: form.elements[0].value,
+                file: form.elements[1].value,
             })
+        })
             .then((response) => {
-                message = document.getElementById("send-email-message-"+index)
+                message = document.getElementById("send-email-message-" + index)
                 message.classList.remove("visually-hidden");
                 if (!response.ok) {
                     message.innerHTML = '{{t .Lang "There was an error sending the document, please try again later"}}';
@@ -76,10 +76,9 @@
                     message.classList.add("text-success");
                 }
             })
-            .catch(function (error){
+            .catch(function (error) {
                 // Catch errors
                 console.log(error);
             });
-        }
-    </script>
-</main>
+    }
+</script>

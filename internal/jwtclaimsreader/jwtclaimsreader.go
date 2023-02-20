@@ -18,7 +18,7 @@ func SessionData(c *fiber.Ctx) model.UserData {
 			userData.Email = value
 		}
 		if value, ok := userDataMap["Role"].(float64); ok {
-			userData.Role = value
+			userData.Role = int(value)
 		}
 		if value, ok := userDataMap["Uuid"].(string); ok {
 			userData.Uuid = value

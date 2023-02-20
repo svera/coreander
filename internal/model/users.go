@@ -13,11 +13,12 @@ const (
 
 type User struct {
 	gorm.Model
-	Uuid     string `gorm:"uniqueIndex"`
-	Name     string
-	Email    string `gorm:"uniqueIndex"`
-	Password string
-	Role     float64
+	Uuid        string `gorm:"uniqueIndex"`
+	Name        string
+	Email       string `gorm:"uniqueIndex"`
+	SendToEmail string
+	Password    string
+	Role        int
 }
 
 type Users struct {
@@ -26,7 +27,7 @@ type Users struct {
 
 func (u *Users) List(page int, resultsPerPage int) ([]User, error) {
 	users := []User{}
-	result := u.DB.Scopes(Paginate(page, resultsPerPage)).Order("username ASC").Find(&users)
+	result := u.DB.Scopes(Paginate(page, resultsPerPage)).Order("email ASC").Find(&users)
 	if result.Error != nil {
 		log.Printf("error listing users: %s\n", result.Error)
 	}
@@ -65,9 +66,9 @@ func (u *Users) Update(user User) error {
 	return nil
 }
 
-func (u *Users) Exist(username string) bool {
+func (u *Users) Exist(email string) bool {
 	user := User{}
-	return u.DB.Where("username = ?", username).First(&user).RowsAffected == 1
+	return u.DB.Where("email = ?", email).First(&user).RowsAffected == 1
 }
 
 func (u *Users) Admins() int64 {
@@ -89,4 +90,11 @@ func (u *Users) Delete(uuid string) error {
 		log.Printf("error deleting user: %s\n", result.Error)
 	}
 	return nil
+}
+
+func (u *Users) CheckCredentials(email, password string) (User, error) {
+	var user User
+
+	result := u.DB.Where("email = ? AND password = ?", email, Hash(password)).Take(&user)
+	return user, result.Error
 }
