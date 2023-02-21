@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"embed"
+	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -19,6 +20,7 @@ import (
 	"github.com/svera/coreander/internal/controller"
 	"github.com/svera/coreander/internal/i18n"
 	"github.com/svera/coreander/internal/infrastructure"
+	"github.com/svera/coreander/internal/jwtclaimsreader"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/model"
 	"golang.org/x/text/language"
@@ -55,6 +57,35 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		Views:                 engine,
 		DisableStartupMessage: true,
 		AppName:               cfg.Version,
+		ErrorHandler: func(ctx *fiber.Ctx, err error) error {
+			// Status code defaults to 500
+			code := fiber.StatusInternalServerError
+
+			// Retrieve the custom status code if it's a *fiber.Error
+			var e *fiber.Error
+			if errors.As(err, &e) {
+				code = e.Code
+			}
+
+			// Send custom error page
+			err = ctx.Status(code).Render(
+				fmt.Sprintf("errors/%d", code),
+				fiber.Map{
+					"Lang":    ctx.Params("lang"),
+					"Title":   "Coreander",
+					"Session": jwtclaimsreader.SessionData(ctx),
+					"Version": ctx.App().Config().AppName,
+				},
+				"layout")
+
+			if err != nil {
+				// In case the Render fails
+				return ctx.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+			}
+
+			// Return from handler
+			return nil
+		},
 	})
 
 	app.Use(cache.New(cache.Config{

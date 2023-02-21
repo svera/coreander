@@ -55,17 +55,9 @@ func (u *Users) List(c *fiber.Ctx) error {
 	session := jwtclaimsreader.SessionData(c)
 
 	if session.Role != model.RoleAdmin {
-		return c.Status(fiber.StatusForbidden).Render(
-			"errors/forbidden",
-			fiber.Map{
-				"Lang":    c.Params("lang"),
-				"Title":   "Forbidden",
-				"Session": session,
-				"Version": c.App().Config().AppName,
-			},
-			"layout",
-		)
+		return fiber.ErrForbidden
 	}
+
 	page, err := strconv.Atoi(c.Query("page"))
 	if err != nil {
 		page = 1
@@ -93,16 +85,9 @@ func (u *Users) Edit(c *fiber.Ctx) error {
 
 	session := jwtclaimsreader.SessionData(c)
 	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
-		return c.Status(fiber.StatusForbidden).Render(
-			"errors/forbidden",
-			fiber.Map{
-				"Lang":    c.Params("lang"),
-				"Title":   "Forbidden",
-				"Session": session,
-				"Version": c.App().Config().AppName,
-			},
-			"layout",
-		)
+		if session.Role != model.RoleAdmin {
+			return fiber.ErrForbidden
+		}
 	}
 
 	user, _ := u.repository.Find(c.Params("uuid"))
@@ -182,16 +167,9 @@ func (u *Users) Update(c *fiber.Ctx) error {
 	}
 
 	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
-		return c.Status(fiber.StatusForbidden).Render(
-			"errors/forbidden",
-			fiber.Map{
-				"Lang":    c.Params("lang"),
-				"Title":   "Forbidden",
-				"Session": session,
-				"Version": c.App().Config().AppName,
-			},
-			"layout",
-		)
+		if session.Role != model.RoleAdmin {
+			return fiber.ErrForbidden
+		}
 	}
 
 	if user, err = u.repository.Find(c.Params("uuid")); err != nil {
@@ -293,16 +271,9 @@ func (u *Users) Delete(c *fiber.Ctx) error {
 	session := jwtclaimsreader.SessionData(c)
 
 	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
-		return c.Status(fiber.StatusForbidden).Render(
-			"errors/forbidden",
-			fiber.Map{
-				"Lang":    c.Params("lang"),
-				"Title":   "Forbidden",
-				"Session": session,
-				"Version": c.App().Config().AppName,
-			},
-			"layout",
-		)
+		if session.Role != model.RoleAdmin {
+			return fiber.ErrForbidden
+		}
 	}
 
 	data := new(deleteUserFormData)

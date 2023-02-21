@@ -50,12 +50,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 	// Get request body.
 	request := &loginRequest{}
 	if err := c.BodyParser(request); err != nil {
-		return c.Status(fiber.StatusInternalServerError).Render("errors/internal", fiber.Map{
-			"Lang":    c.Params("lang"),
-			"Title":   "Login",
-			"Version": c.App().Config().AppName,
-			"Session": session,
-		}, "layout")
+		return fiber.ErrInternalServerError
 	}
 
 	// If username or password are incorrect, do not allow access.
@@ -82,12 +77,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 	)
 	signedToken, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).Render("errors/internal", fiber.Map{
-			"Lang":    c.Params("lang"),
-			"Title":   "Login",
-			"Session": session,
-			"Version": c.App().Config().AppName,
-		}, "layout")
+		return fiber.ErrInternalServerError
 	}
 	c.Cookie(&fiber.Cookie{
 		Name:     "jwt",
