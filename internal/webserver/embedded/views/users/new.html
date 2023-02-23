@@ -1,18 +1,18 @@
-{{$lang := .Lang}}
 <div class="container mt-5 text-start">
     {{if .Errors}}
     <div class="row mt-5">
         <div class="alert alert-danger" role="alert">
+            <h3>{{t .Lang "Please, fix the following issues"}}</h3>
             <ul>
                 {{range $i, $err := .Errors}}
-                <li>{{t $lang $err}}</li>
+                <li>{{t .Lang $err}}</li>
                 {{end}}
             </ul>
         </div>
     </div>
     {{end}}
 
-    <form method="post" action="/{{$lang}}/users/create" autocomplete="off">
+    <form method="post" action="/{{.Lang}}/users/create" autocomplete="off">
         <div class="mb-3">
             <label for="name" class="form-label">{{t .Lang "Name"}}</label>
             <input type="text" name="name" class="form-control" id="name" required="required" value="{{.User.Name}}" maxlength="20">
@@ -38,11 +38,11 @@
         <div class="mb-3">
             <label for="role" class="form-label">{{t .Lang "Role"}}</label>
             <select name="role" class="form-control" id="role">
-                <option value="1">{{t $lang "Regular"}}</option>
-                <option value="2">{{t $lang "Administrator"}}</option>
+                <option value="1">{{t .Lang "Regular"}}</option>
+                <option value="2">{{t .Lang "Administrator"}}</option>
             </select>
         </div>
 
-        <button type="submit" class="btn btn-primary">{{t $lang "Save"}}</button>
+        <button type="submit" class="btn btn-primary">{{t .Lang "Save"}}</button>
     </form>
 </div>

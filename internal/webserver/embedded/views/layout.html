@@ -36,28 +36,22 @@
                                 {{.Session.Name}}
                             </button>
                             <ul class="dropdown-menu">
-                                {{if eq .Session.Role 2}}
                                 <li>
+                                    {{if eq .Session.Role 2}}
                                     <a class="dropdown-item" href="/{{.Lang}}/users">
                                         <img aria-hidden="true" src="/images/people-fill.svg" width="16" height="16">
                                         {{t .Lang "Users"}}
                                     </a>
-                                </li>
-                                <li>
-                                    <hr class="dropdown-divider">
-                                </li>
-                                {{else}}
-                                <li>
-                                    {{.Session.Role}}
+                                    {{else}}
                                     <a class="dropdown-item" href="/{{.Lang}}/users/{{.Session.Uuid}}/edit">
                                         <img aria-hidden="true" src="/images/person-fill.svg" width="16" height="16">
                                         {{t .Lang "Update your profile"}}
                                     </a>
+                                    {{end}}
                                 </li>
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>
-                                {{end}}
                                 <li>
                                     <a class="dropdown-item" href="/{{.Lang}}/logout">
                                         <img aria-hidden="true" src="/images/box-arrow-right.svg" width="16"

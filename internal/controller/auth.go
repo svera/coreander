@@ -11,11 +11,15 @@ import (
 	"github.com/svera/coreander/internal/model"
 )
 
-type Auth struct {
-	repository *model.Auth
+type authRepository interface {
+	CheckCredentials(email, password string) (model.User, error)
 }
 
-func NewAuth(repository *model.Auth) *Auth {
+type Auth struct {
+	repository authRepository
+}
+
+func NewAuth(repository authRepository) *Auth {
 	return &Auth{
 		repository: repository,
 	}
@@ -66,11 +70,12 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 
 	// Send back JWT as a cookie.
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"userdata": model.UserData{
-			Name:  user.Name,
-			Email: request.Email,
-			Role:  user.Role,
-			Uuid:  user.Uuid,
+		"userdata": model.User{
+			Name:        user.Name,
+			Email:       request.Email,
+			Role:        user.Role,
+			Uuid:        user.Uuid,
+			SendToEmail: user.SendToEmail,
 		},
 		"exp": jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
 	},

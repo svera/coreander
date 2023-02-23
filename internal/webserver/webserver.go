@@ -14,6 +14,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
+	"github.com/gofiber/fiber/v2/middleware/favicon"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	jwtware "github.com/gofiber/jwt/v3"
 	fibertpl "github.com/gofiber/template/html"
@@ -71,7 +72,7 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 			err = ctx.Status(code).Render(
 				fmt.Sprintf("errors/%d", code),
 				fiber.Map{
-					"Lang":    ctx.Params("lang"),
+					"Lang":    ctx.Params("lang", "en"),
 					"Title":   "Coreander",
 					"Session": jwtclaimsreader.SessionData(ctx),
 					"Version": ctx.App().Config().AppName,
@@ -79,21 +80,22 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 				"layout")
 
 			if err != nil {
+				log.Println(err)
 				// In case the Render fails
 				return ctx.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 			}
 
-			// Return from handler
 			return nil
 		},
 	})
+
+	app.Use(favicon.New())
 
 	app.Use(cache.New(cache.Config{
 		ExpirationGenerator: func(c *fiber.Ctx, cfg *cache.Config) time.Duration {
 			newCacheTime, _ := strconv.Atoi(c.GetRespHeader("Cache-Time", "0"))
 			return time.Second * time.Duration(newCacheTime)
 		},
-		//CacheControl: true,
 	}),
 	)
 
@@ -158,10 +160,9 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		return controller.DocReader(c, cfg.LibraryPath)
 	})
 
-	authRepository := &model.Auth{DB: db}
-	authController := controller.NewAuth(authRepository)
+	usersRepository := &model.UserRepository{DB: db}
 
-	usersRepository := &model.Users{DB: db}
+	authController := controller.NewAuth(usersRepository)
 	usersController := controller.NewUsers(usersRepository, cfg.MinPasswordLength)
 
 	app.Get("/:lang/login", authController.Login)

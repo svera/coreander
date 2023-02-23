@@ -12,8 +12,20 @@ import (
 	"github.com/svera/coreander/internal/model"
 )
 
+type usersRepository interface {
+	List(page int, resultsPerPage int) ([]model.User, error)
+	Total() int64
+	Find(uuid string) (model.User, error)
+	Create(user model.User) error
+	Update(user model.User) error
+	Exist(email string) bool
+	Admins() int64
+	Delete(uuid string) error
+	CheckCredentials(email, password string) (model.User, error)
+}
+
 type Users struct {
-	repository        *model.Users
+	repository        usersRepository
 	minPasswordLength int
 }
 
@@ -43,7 +55,7 @@ type deleteUserFormData struct {
 }
 
 // NewUsers returns a new instance of the users controller
-func NewUsers(repository *model.Users, minPasswordLength int) *Users {
+func NewUsers(repository usersRepository, minPasswordLength int) *Users {
 	return &Users{
 		repository:        repository,
 		minPasswordLength: minPasswordLength,
@@ -199,7 +211,7 @@ func (u *Users) Update(c *fiber.Ctx) error {
 		"User":    user,
 		"Session": session,
 		"Version": c.App().Config().AppName,
-		"Message": "Profile succesfully updated",
+		"Message": "Profile updated",
 	}, "layout")
 }
 
@@ -236,8 +248,12 @@ func (u *Users) UpdatePassword(c *fiber.Ctx) error {
 	user.Password = model.Hash(data.Password)
 
 	errs := []string{}
-	if _, err := u.repository.CheckCredentials(user.Email, data.OldPassword); err != nil {
-		errs = append(errs, "The current password is not correct")
+
+	// Allow admins to change password of other users without entering user's current password
+	if session.Uuid == c.Params("uuid") {
+		if _, err := u.repository.CheckCredentials(user.Email, data.OldPassword); err != nil {
+			errs = append(errs, "The current password is not correct")
+		}
 	}
 	if errs = u.validatePassword(data.Password, data.ConfirmPassword, errs); len(errs) > 0 {
 		return c.Render("users/edit", fiber.Map{

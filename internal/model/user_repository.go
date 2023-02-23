@@ -1,31 +1,17 @@
 package model
 
 import (
+	"crypto/sha256"
 	"log"
 
 	"gorm.io/gorm"
 )
 
-const (
-	RoleRegular = 1
-	RoleAdmin   = 2
-)
-
-type User struct {
-	gorm.Model
-	Uuid        string `gorm:"uniqueIndex"`
-	Name        string
-	Email       string `gorm:"uniqueIndex"`
-	SendToEmail string
-	Password    string
-	Role        int
-}
-
-type Users struct {
+type UserRepository struct {
 	DB *gorm.DB
 }
 
-func (u *Users) List(page int, resultsPerPage int) ([]User, error) {
+func (u *UserRepository) List(page int, resultsPerPage int) ([]User, error) {
 	users := []User{}
 	result := u.DB.Scopes(Paginate(page, resultsPerPage)).Order("email ASC").Find(&users)
 	if result.Error != nil {
@@ -34,14 +20,14 @@ func (u *Users) List(page int, resultsPerPage int) ([]User, error) {
 	return users, result.Error
 }
 
-func (u *Users) Total() int64 {
+func (u *UserRepository) Total() int64 {
 	var totalRows int64
 	users := []User{}
 	u.DB.Model(&users).Count(&totalRows)
 	return totalRows
 }
 
-func (u *Users) Find(uuid string) (User, error) {
+func (u *UserRepository) Find(uuid string) (User, error) {
 	user := User{}
 	result := u.DB.Where("uuid = ?", uuid).Take(&user)
 	if result.Error != nil {
@@ -50,7 +36,7 @@ func (u *Users) Find(uuid string) (User, error) {
 	return user, result.Error
 }
 
-func (u *Users) Create(user User) error {
+func (u *UserRepository) Create(user User) error {
 	if result := u.DB.Create(&user); result.Error != nil {
 		log.Printf("error creating user: %s\n", result.Error)
 		return result.Error
@@ -58,7 +44,7 @@ func (u *Users) Create(user User) error {
 	return nil
 }
 
-func (u *Users) Update(user User) error {
+func (u *UserRepository) Update(user User) error {
 	if result := u.DB.Save(&user); result.Error != nil {
 		log.Printf("error updating user: %s\n", result.Error)
 		return result.Error
@@ -66,18 +52,18 @@ func (u *Users) Update(user User) error {
 	return nil
 }
 
-func (u *Users) Exist(email string) bool {
+func (u *UserRepository) Exist(email string) bool {
 	user := User{}
 	return u.DB.Where("email = ?", email).First(&user).RowsAffected == 1
 }
 
-func (u *Users) Admins() int64 {
+func (u *UserRepository) Admins() int64 {
 	var totalRows int64
 	u.DB.Where("role = ?", RoleAdmin).Take(&[]User{}).Count(&totalRows)
 	return totalRows
 }
 
-func (u *Users) Delete(uuid string) error {
+func (u *UserRepository) Delete(uuid string) error {
 	user, err := u.Find(uuid)
 	if err != nil {
 		return nil
@@ -92,9 +78,15 @@ func (u *Users) Delete(uuid string) error {
 	return nil
 }
 
-func (u *Users) CheckCredentials(email, password string) (User, error) {
+func (u *UserRepository) CheckCredentials(email, password string) (User, error) {
 	var user User
 
 	result := u.DB.Where("email = ? AND password = ?", email, Hash(password)).Take(&user)
 	return user, result.Error
+}
+
+func Hash(s string) string {
+	h := sha256.New()
+	h.Write([]byte(s))
+	return string(h.Sum(nil))
 }

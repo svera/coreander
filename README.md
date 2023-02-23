@@ -14,6 +14,7 @@ A personal Ebooks server, Coreander indexes the ebooks (only EPUBs with no DRM a
 * New books added or removed to/from the library folder are automatically indexed (Linux only).
 * [Send to email supported](#send-to-email).
 * Read indexed epubs from Coreander's interface thanks to [epub.js](http://futurepress.org/).
+* Restrictable access only to registered users.
 
 ## Building from source
 Coreander's only requirement is Go 1.18.
@@ -64,17 +65,23 @@ Coreander can also send documents through email. This way, you can take advantag
 * `SMTPUSER`: The user name.
 * `SMTPPASSWORD`: User's password.
 
+### User management and access restriction
+
+Coreander distinguish between two kinds of users: regular users and administrator users, with the latter being the only ones with the ability to create new users.
+
+By default, Coreander allow unrestricted access to its contents, except management areas which require and administrator user. To allow access only to registered users in the whole application, pass the `REQUIRE_AUTH=true` environment variable.
+
 ### Settings
 
-* `LIBPATH`
-* `PORT`
-* `BATCHSIZE`
-* `COVERMAXWIDTH`
-* `SKIPREINDEX`
-* `SMTPSERVER`
-* `SMTPPORT`
-* `SMTPUSER`
-* `SMTPPASSWORD`
-* `JWT_SECRET`
-* `REQUIRE_AUTH`
-* `MINPASSWORDLENGTH`
+* `LIBPATH`: Absolute path to the folder containing the documents.
+* `PORT`: Port number in which the webserver listens for requests. Defaults to 3000.
+* `BATCHSIZE`: Number of documents persisted by the indexer in one write operation. defaults to 100.
+* `COVERMAXWIDTH`: Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 300.
+* `SKIPREINDEX`: Whether to bypass the indexing process or not.
+* `SMTPSERVER`: Address of the send mail server.
+* `SMTPPORT`: Port number of the send mail server. Defaults to 587.
+* `SMTPUSER`: User to authenticate against the SMTP server.
+* `SMTPPASSWORD`: User's password to authenticate against the SMTP server.
+* `JWT_SECRET`: String to use to sign JWTs.
+* `REQUIRE_AUTH`: Require authentication to access the application if true. Defaults to false.
+* `MINPASSWORDLENGTH`: minimum length acceptable for passwords. Defaults to 5.

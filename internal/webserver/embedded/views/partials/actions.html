@@ -16,7 +16,7 @@
                         <label for="email" class="form-label">{{t .Lang
                             "Send to email"}}</label>
                         <input type="email" class="form-control" id="email" name="email"
-                            placeholder="email@example.com" required="required">
+                            placeholder="email@example.com" value="{{.Session.SendToEmail}}" required="required">
                     </div>
                     <div class="p-3">
                         <p class="visually-hidden text-success fs-6" id="send-email-message-{{.Index}}"></p>
