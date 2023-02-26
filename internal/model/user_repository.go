@@ -52,9 +52,10 @@ func (u *UserRepository) Update(user User) error {
 	return nil
 }
 
-func (u *UserRepository) Exist(email string) bool {
+func (u *UserRepository) FindByEmail(email string) User {
 	user := User{}
-	return u.DB.Where("email = ?", email).First(&user).RowsAffected == 1
+	u.DB.Where("email = ?", email).First(&user)
+	return user
 }
 
 func (u *UserRepository) Admins() int64 {

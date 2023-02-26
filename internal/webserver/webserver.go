@@ -184,11 +184,11 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	app.Static("/files", cfg.LibraryPath)
 
 	app.Get("/:lang/users/:uuid/edit", usersController.Edit)
-	app.Post("/:lang/users/:uuid/update", usersController.Update)
+	app.Post("/:lang/users/:uuid/edit", usersController.Update)
 	app.Post("/:lang/users/:uuid/update-password", usersController.UpdatePassword)
 	app.Get("/:lang/users", usersController.List)
 	app.Get("/:lang/users/new", usersController.New)
-	app.Post("/:lang/users/create", usersController.Create)
+	app.Post("/:lang/users/new", usersController.Create)
 	app.Post("/:lang/users/delete", usersController.Delete)
 
 	return app

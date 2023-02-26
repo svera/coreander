@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/glebarez/sqlite"
 	"github.com/google/uuid"
@@ -11,7 +12,7 @@ import (
 )
 
 func Connect(path string) *gorm.DB {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	if _, err := os.Stat(path); os.IsNotExist(err) && !strings.Contains(path, "file::memory") {
 		if _, err = os.Create(path); err != nil {
 			log.Fatal(err)
 		}

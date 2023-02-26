@@ -18,7 +18,7 @@ type usersRepository interface {
 	Find(uuid string) (model.User, error)
 	Create(user model.User) error
 	Update(user model.User) error
-	Exist(email string) bool
+	FindByEmail(email string) model.User
 	Admins() int64
 	Delete(uuid string) error
 	CheckCredentials(email, password string) (model.User, error)
@@ -27,27 +27,6 @@ type usersRepository interface {
 type Users struct {
 	repository        usersRepository
 	minPasswordLength int
-}
-
-type newUserFormData struct {
-	Name            string `form:"name"`
-	Email           string `form:"email"`
-	SendToEmail     string `form:"send-to-email"`
-	Password        string `form:"password"`
-	ConfirmPassword string `form:"confirm-password"`
-	Role            int    `form:"role"`
-}
-
-type editUserFormData struct {
-	Name        string `form:"name"`
-	SendToEmail string `form:"send-to-email"`
-	Role        int    `form:"role"`
-}
-
-type updatePasswordFormData struct {
-	OldPassword     string `form:"old-password"`
-	Password        string `form:"password"`
-	ConfirmPassword string `form:"confirm-password"`
 }
 
 type deleteUserFormData struct {
@@ -116,6 +95,10 @@ func (u *Users) Edit(c *fiber.Ctx) error {
 func (u *Users) New(c *fiber.Ctx) error {
 	session := jwtclaimsreader.SessionData(c)
 
+	if session.Role != model.RoleAdmin {
+		return fiber.ErrForbidden
+	}
+
 	return c.Render("users/new", fiber.Map{
 		"Lang":              c.Params("lang"),
 		"Title":             "Add new user",
@@ -127,14 +110,13 @@ func (u *Users) New(c *fiber.Ctx) error {
 
 // Create gathers information coming from the new user form and creates a new user
 func (u *Users) Create(c *fiber.Ctx) error {
-	data := new(newUserFormData)
 	session := jwtclaimsreader.SessionData(c)
 
-	if err := c.BodyParser(data); err != nil {
-		return err
+	if session.Role != model.RoleAdmin {
+		return fiber.ErrForbidden
 	}
 
-	if errs := u.validateNew(data); len(errs) > 0 {
+	if errs := u.validateNew(c); len(errs) > 0 {
 		return c.Render("users/new", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Add new user",
@@ -144,11 +126,15 @@ func (u *Users) Create(c *fiber.Ctx) error {
 		}, "layout")
 	}
 
+	role, err := strconv.Atoi(c.FormValue("role"))
+	if err != nil {
+		return fiber.ErrBadRequest
+	}
 	user := model.User{
-		Name:     data.Name,
-		Email:    data.Email,
-		Password: model.Hash(data.Password),
-		Role:     data.Role,
+		Name:     c.FormValue("name"),
+		Email:    c.FormValue("email"),
+		Password: model.Hash(c.FormValue("password")),
+		Role:     role,
 		Uuid:     uuid.NewString(),
 	}
 
@@ -171,12 +157,7 @@ func (u *Users) Update(c *fiber.Ctx) error {
 		user model.User
 	)
 
-	data := new(editUserFormData)
 	session := jwtclaimsreader.SessionData(c)
-
-	if err = c.BodyParser(data); err != nil {
-		return err
-	}
 
 	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
 		if session.Role != model.RoleAdmin {
@@ -187,10 +168,10 @@ func (u *Users) Update(c *fiber.Ctx) error {
 	if user, err = u.repository.Find(c.Params("uuid")); err != nil {
 		return fiber.ErrNotFound
 	}
-	user.Name = data.Name
-	user.SendToEmail = data.SendToEmail
+	user.Name = c.FormValue("name")
+	user.SendToEmail = c.FormValue("send-to-email")
 
-	if errs := u.validateUpdate(data); len(errs) > 0 {
+	if errs := u.validateUpdate(c); len(errs) > 0 {
 		return c.Render("users/edit", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Edit user",
@@ -222,12 +203,7 @@ func (u *Users) UpdatePassword(c *fiber.Ctx) error {
 		user model.User
 	)
 
-	data := new(updatePasswordFormData)
 	session := jwtclaimsreader.SessionData(c)
-
-	if err := c.BodyParser(data); err != nil {
-		return err
-	}
 
 	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
 		return c.Status(fiber.StatusForbidden).Render(
@@ -245,17 +221,17 @@ func (u *Users) UpdatePassword(c *fiber.Ctx) error {
 	if user, err = u.repository.Find(c.Params("uuid")); err != nil {
 		return fiber.ErrNotFound
 	}
-	user.Password = model.Hash(data.Password)
+	user.Password = model.Hash(c.FormValue("password"))
 
 	errs := []string{}
 
 	// Allow admins to change password of other users without entering user's current password
 	if session.Uuid == c.Params("uuid") {
-		if _, err := u.repository.CheckCredentials(user.Email, data.OldPassword); err != nil {
+		if _, err := u.repository.CheckCredentials(user.Email, c.FormValue("old-password")); err != nil {
 			errs = append(errs, "The current password is not correct")
 		}
 	}
-	if errs = u.validatePassword(data.Password, data.ConfirmPassword, errs); len(errs) > 0 {
+	if errs = u.validatePassword(c.FormValue("password"), c.FormValue("confirm-password"), errs); len(errs) > 0 {
 		return c.Render("users/edit", fiber.Map{
 			"Lang":      c.Params("lang"),
 			"Title":     "Edit user",
@@ -302,40 +278,40 @@ func (u *Users) Delete(c *fiber.Ctx) error {
 	return c.Redirect(fmt.Sprintf("/%s/users", c.Params("lang")))
 }
 
-func (u *Users) validateNew(data *newUserFormData) []string {
+func (u *Users) validateNew(c *fiber.Ctx) []string {
 	errs := []string{}
 
-	if data.Name == "" {
+	if c.FormValue("name") == "" {
 		errs = append(errs, "Name cannot be empty")
 	}
 
-	if _, err := mail.ParseAddress(data.Email); err != nil {
+	if _, err := mail.ParseAddress(c.FormValue("email")); err != nil {
 		errs = append(errs, "Incorrect email address")
 	}
 
-	if u.repository.Exist(data.Email) {
+	if user := u.repository.FindByEmail(c.FormValue("email")); user.Email != "" {
 		errs = append(errs, "A user with that email address already exist")
 	}
 
-	if _, err := mail.ParseAddress(data.SendToEmail); data.SendToEmail != "" && err != nil {
+	if _, err := mail.ParseAddress(c.FormValue("send-to-email")); c.FormValue("send-to-email") != "" && err != nil {
 		errs = append(errs, "Incorrect send to email address")
 	}
 
-	if data.Role < 1 || data.Role > 2 {
+	if c.FormValue("role") < "1" || c.FormValue("role") > "2" {
 		errs = append(errs, "Incorrect role")
 	}
 
-	return u.validatePassword(data.Password, data.ConfirmPassword, errs)
+	return u.validatePassword(c.FormValue("password"), c.FormValue("confirm-password"), errs)
 }
 
-func (u *Users) validateUpdate(data *editUserFormData) []string {
+func (u *Users) validateUpdate(c *fiber.Ctx) []string {
 	errs := []string{}
 
-	if data.Name == "" {
+	if c.FormValue("name") == "" {
 		errs = append(errs, "Name cannot be empty")
 	}
 
-	if _, err := mail.ParseAddress(data.SendToEmail); data.SendToEmail != "" && err != nil {
+	if _, err := mail.ParseAddress(c.FormValue("send-to-email")); c.FormValue("send-to-email") != "" && err != nil {
 		errs = append(errs, "Incorrect send to email address")
 	}
 

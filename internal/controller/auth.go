@@ -28,6 +28,10 @@ func NewAuth(repository authRepository) *Auth {
 func (a *Auth) Login(c *fiber.Ctx) error {
 	session := jwtclaimsreader.SessionData(c)
 
+	if session.Uuid != "" {
+		return fiber.ErrForbidden
+	}
+
 	return c.Render("login", fiber.Map{
 		"Lang":    c.Params("lang"),
 		"Title":   "Login",
@@ -43,22 +47,14 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 		err  error
 	)
 
-	// Create a struct so the request body can be mapped here.
-	type loginRequest struct {
-		Email    string `form:"email"`
-		Password string `form:"password"`
-	}
-
 	session := jwtclaimsreader.SessionData(c)
 
-	// Get request body.
-	request := &loginRequest{}
-	if err := c.BodyParser(request); err != nil {
-		return fiber.ErrInternalServerError
+	if session.Uuid != "" {
+		return fiber.ErrForbidden
 	}
 
 	// If username or password are incorrect, do not allow access.
-	if user, err = a.repository.CheckCredentials(request.Email, request.Password); err != nil {
+	if user, err = a.repository.CheckCredentials(c.FormValue("email"), c.FormValue("password")); err != nil {
 		return c.Status(fiber.StatusUnauthorized).Render("login", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Login",
@@ -72,7 +68,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userdata": model.User{
 			Name:        user.Name,
-			Email:       request.Email,
+			Email:       user.Email,
 			Role:        user.Role,
 			Uuid:        user.Uuid,
 			SendToEmail: user.SendToEmail,
