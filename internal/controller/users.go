@@ -27,17 +27,15 @@ type usersRepository interface {
 type Users struct {
 	repository        usersRepository
 	minPasswordLength int
-}
-
-type deleteUserFormData struct {
-	Uuid string `form:"uuid"`
+	wordsPerMinute    float64
 }
 
 // NewUsers returns a new instance of the users controller
-func NewUsers(repository usersRepository, minPasswordLength int) *Users {
+func NewUsers(repository usersRepository, minPasswordLength int, wordsPerMinute float64) *Users {
 	return &Users{
 		repository:        repository,
 		minPasswordLength: minPasswordLength,
+		wordsPerMinute:    wordsPerMinute,
 	}
 }
 
@@ -54,7 +52,7 @@ func (u *Users) List(c *fiber.Ctx) error {
 		page = 1
 	}
 	totalRows := u.repository.Total()
-	totalPages := int(math.Ceil(float64(totalRows) / float64(model.ResultsPerPage)))
+	totalPages := int(math.Ceil(float64(totalRows) / model.ResultsPerPage))
 
 	users, _ := u.repository.List(page, model.ResultsPerPage)
 	return c.Render("users/index", fiber.Map{
@@ -99,12 +97,16 @@ func (u *Users) New(c *fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
+	user := model.User{
+		WordsPerMinute: u.wordsPerMinute,
+	}
 	return c.Render("users/new", fiber.Map{
 		"Lang":              c.Params("lang"),
 		"Title":             "Add new user",
 		"Session":           session,
 		"Version":           c.App().Config().AppName,
 		"MinPasswordLength": u.minPasswordLength,
+		"User":              user,
 	}, "layout")
 }
 
@@ -170,6 +172,7 @@ func (u *Users) Update(c *fiber.Ctx) error {
 	}
 	user.Name = c.FormValue("name")
 	user.SendToEmail = c.FormValue("send-to-email")
+	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
 
 	if errs := u.validateUpdate(c); len(errs) > 0 {
 		return c.Render("users/edit", fiber.Map{
@@ -268,13 +271,15 @@ func (u *Users) Delete(c *fiber.Ctx) error {
 		}
 	}
 
-	data := new(deleteUserFormData)
-
-	if err := c.BodyParser(data); err != nil {
-		return err
+	user, err := u.repository.Find(c.FormValue("uuid"))
+	if err != nil {
+		return fiber.ErrNotFound
+	}
+	if u.repository.Admins() == 1 && user.Role == model.RoleAdmin {
+		return fiber.ErrForbidden
 	}
 
-	u.repository.Delete(data.Uuid)
+	u.repository.Delete(c.FormValue("uuid"))
 	return c.Redirect(fmt.Sprintf("/%s/users", c.Params("lang")))
 }
 
@@ -283,6 +288,10 @@ func (u *Users) validateNew(c *fiber.Ctx) []string {
 
 	if c.FormValue("name") == "" {
 		errs = append(errs, "Name cannot be empty")
+	}
+
+	if c.FormValue("words-per-minute") < "1" || c.FormValue("words-per-minute") > "999" {
+		errs = append(errs, "Incorrect reading speed")
 	}
 
 	if _, err := mail.ParseAddress(c.FormValue("email")); err != nil {
@@ -309,6 +318,10 @@ func (u *Users) validateUpdate(c *fiber.Ctx) []string {
 
 	if c.FormValue("name") == "" {
 		errs = append(errs, "Name cannot be empty")
+	}
+
+	if c.FormValue("words-per-minute") < "1" || c.FormValue("words-per-minute") > "999" {
+		errs = append(errs, "Incorrect reading speed")
 	}
 
 	if _, err := mail.ParseAddress(c.FormValue("send-to-email")); c.FormValue("send-to-email") != "" && err != nil {

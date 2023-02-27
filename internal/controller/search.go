@@ -19,12 +19,12 @@ type Result struct {
 
 // Reader defines a set of reading operations over an index
 type Reader interface {
-	Search(keywords string, page, resultsPerPage int) (*Result, error)
+	Search(keywords string, page, resultsPerPage int, wordsPerMinute float64) (*Result, error)
 	Count() (uint64, error)
 	Close() error
 }
 
-func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured bool) error {
+func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured bool, wordsPerMinute float64) error {
 	lang := c.Params("lang")
 
 	if lang != "es" && lang != "en" {
@@ -42,7 +42,7 @@ func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured boo
 
 	keywords = c.Query("search")
 	if keywords != "" {
-		searchResults, err = idx.Search(keywords, page, model.ResultsPerPage)
+		searchResults, err = idx.Search(keywords, page, model.ResultsPerPage, wordsPerMinute)
 		if err != nil {
 			return fiber.ErrInternalServerError
 		}

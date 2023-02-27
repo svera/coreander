@@ -26,6 +26,10 @@
             <input type="email" name="send-to-email" class="form-control" id="send-to-email" value="{{.User.SendToEmail}}">
         </div>
         <div class="mb-3">
+            <label for="words-per-minute" class="form-label">{{t .Lang "Reading speed (in words per minute)"}}</label>
+            <input type="number" name="words-per-minute" class="form-control" id="words-per-minute" value="{{.User.WordsPerMinute}}" min="1" max="999">
+        </div>
+        <div class="mb-3">
             <label for="password" class="form-label">{{t .Lang "Password"}}</label>
             <input type="password" name="password" class="form-control" id="password" required="required"
                 minlength="{{.MinPasswordLength}}">

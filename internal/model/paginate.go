@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	ResultsPerPage    = 10
+	ResultsPerPage    = 10.0
 	MaxPagesNavigator = 5
 )
 

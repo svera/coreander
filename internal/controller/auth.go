@@ -2,7 +2,6 @@ package controller
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,11 +16,13 @@ type authRepository interface {
 
 type Auth struct {
 	repository authRepository
+	secret     []byte
 }
 
-func NewAuth(repository authRepository) *Auth {
+func NewAuth(repository authRepository, secret []byte) *Auth {
 	return &Auth{
 		repository: repository,
+		secret:     secret,
 	}
 }
 
@@ -67,21 +68,22 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 	// Send back JWT as a cookie.
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userdata": model.User{
-			Name:        user.Name,
-			Email:       user.Email,
-			Role:        user.Role,
-			Uuid:        user.Uuid,
-			SendToEmail: user.SendToEmail,
+			Name:           user.Name,
+			Email:          user.Email,
+			Role:           user.Role,
+			Uuid:           user.Uuid,
+			SendToEmail:    user.SendToEmail,
+			WordsPerMinute: user.WordsPerMinute,
 		},
 		"exp": jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
 	},
 	)
-	signedToken, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	signedToken, err := token.SignedString(a.secret)
 	if err != nil {
 		return fiber.ErrInternalServerError
 	}
 	c.Cookie(&fiber.Cookie{
-		Name:     "jwt",
+		Name:     "coreander",
 		Value:    signedToken,
 		Path:     "/",
 		Expires:  time.Now().Add(time.Hour * 24),
@@ -95,7 +97,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 // Logs out user and removes their JWT.
 func (a *Auth) SignOut(c *fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
-		Name:     "jwt",
+		Name:     "coreander",
 		Value:    "",
 		Path:     "/",
 		Expires:  time.Now().Add(-time.Second * 10),

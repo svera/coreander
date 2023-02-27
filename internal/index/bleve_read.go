@@ -13,13 +13,13 @@ import (
 )
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
-func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*controller.Result, error) {
+func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPerMinute float64) (*controller.Result, error) {
 	query := bleve.NewQueryStringQuery(keywords)
 
-	return b.runQuery(query, page, resultsPerPage)
+	return b.runQuery(query, page, resultsPerPage, wordsPerMinute)
 }
 
-func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int) (*controller.Result, error) {
+func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wordsPerMinute float64) (*controller.Result, error) {
 	var result controller.Result
 	if page < 1 {
 		page = 1

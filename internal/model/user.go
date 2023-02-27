@@ -11,10 +11,11 @@ const (
 
 type User struct {
 	gorm.Model
-	Uuid        string `gorm:"uniqueIndex"`
-	Name        string
-	Email       string `gorm:"uniqueIndex"`
-	SendToEmail string
-	Password    string
-	Role        int
+	Uuid           string `gorm:"uniqueIndex"`
+	Name           string
+	Email          string `gorm:"uniqueIndex"`
+	SendToEmail    string
+	Password       string
+	Role           int
+	WordsPerMinute float64
 }

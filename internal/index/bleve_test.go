@@ -40,7 +40,7 @@ func TestIndexAndSearch(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error indexing: %s", err.Error())
 			}
-			res, err := idx.Search(tcase.search, 1, 10)
+			res, err := idx.Search(tcase.search, 1, 10, 250)
 			if err != nil {
 				t.Errorf("Error searching: %s", err.Error())
 			}

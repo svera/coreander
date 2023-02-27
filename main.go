@@ -32,10 +32,10 @@ func main() {
 		log.Fatal("Error retrieving user home dir")
 	}
 	if err = cleanenv.ReadEnv(&cfg); err != nil {
-		log.Fatal(fmt.Sprintf("Error parsing configuration from environment variables: %s", err))
+		log.Fatalf("Error parsing configuration from environment variables: %s", err)
 	}
 	if _, err := os.Stat(cfg.LibPath); os.IsNotExist(err) {
-		log.Fatal(fmt.Errorf("Directory '%s' does not exist, exiting", cfg.LibPath))
+		log.Fatalf("Directory '%s' does not exist, exiting", cfg.LibPath)
 	}
 
 	metadataReaders := map[string]metadata.Reader{
@@ -47,7 +47,7 @@ func main() {
 		idx = index.NewBleve(indexFile, cfg.LibPath, metadataReaders)
 	}
 	if err == bleve.ErrorIndexPathDoesNotExist {
-		cfg.SkipReindex = false
+		cfg.SkipIndexing = false
 		idx = createIndex(homeDir, cfg.LibPath, metadataReaders)
 	}
 	db := infrastructure.Connect(homeDir + "/coreander/db/database.db")
@@ -63,8 +63,8 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 
 	defer idx.Close()
 
-	if !cfg.SkipReindex {
-		go reindex(idx, appFs, cfg.BatchSize, cfg.LibPath)
+	if !cfg.SkipIndexing {
+		go startIndex(idx, appFs, cfg.BatchSize, cfg.LibPath)
 	}
 	sender = &infrastructure.NoEmail{}
 	if cfg.SmtpServer != "" && cfg.SmtpUser != "" && cfg.SmtpPassword != "" {
@@ -84,6 +84,7 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 		JwtSecret:         cfg.JwtSecret,
 		RequireAuth:       cfg.RequireAuth,
 		MinPasswordLength: cfg.MinPasswordLength,
+		WordsPerMinute:    cfg.WordsPerMinute,
 	}
 	app := webserver.New(idx, webserverConfig, metadataReaders, sender, db)
 	fmt.Printf("Coreander version %s started listening on port %s\n\n", version, cfg.Port)
@@ -93,16 +94,16 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 	}
 }
 
-func reindex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath string) {
+func startIndex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath string) {
 	start := time.Now().Unix()
-	log.Println(fmt.Sprintf("Indexing books at %s, this can take a while depending on the size of your library.", libPath))
+	log.Printf("Indexing books at %s, this can take a while depending on the size of your library.", libPath)
 	err := idx.AddLibrary(appFs, batchSize)
 	if err != nil {
 		log.Fatal(err)
 	}
 	end := time.Now().Unix()
 	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
-	log.Println(fmt.Sprintf("Indexing finished, took %d seconds", int(dur.Seconds())))
+	log.Printf("Indexing finished, took %d seconds", int(dur.Seconds()))
 	fileWatcher(idx, libPath)
 }
 

@@ -26,6 +26,9 @@ func SessionData(c *fiber.Ctx) model.User {
 		if value, ok := userDataMap["SendToEmail"].(string); ok {
 			user.SendToEmail = value
 		}
+		if value, ok := userDataMap["WordsPerMinute"].(float64); ok {
+			user.WordsPerMinute = value
+		}
 	}
 
 	return user

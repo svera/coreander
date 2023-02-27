@@ -41,18 +41,18 @@ StandardOutput=syslog
 StandardError=syslog
 SyslogIdentifier=sleepservice
 User=<user which will execute this service>
-Environment="LIBPATH=<absolute path to the library>"
+Environment="LIB_PATH=<absolute path to the library>"
 
 ```
 
 then, start the service with `service coreander start`. You can manage it with the usual commands `start`, `stop` and `status`. Refer to your service manager documentation for more information.
 
-Coreander requires a `LIBPATH` environment variable to be set, which tells the application where your books are located.
+Coreander requires a `LIB_PATH` environment variable to be set, which tells the application where your books are located.
 
 On first run, Coreander will index the books in your library, creating a database with those entries located at `$home/coreander/db`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.
 
 Every time is run, the application check for new entries, reindexing the whole library. You can
-avoid this behaviour by setting the environment variable `SKIPREINDEX` to `true`. 
+avoid this behaviour by setting the environment variable `SKIP_INDEXING` to `true`. 
 
 Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` for the IP address of the machine where the server is running if you want to access it from another machine). It is possible to change the listening port just executing the application with the `PORT` environment variable (e. g. `PORT=4000 coreander`)
 
@@ -60,10 +60,10 @@ Even if the application is still indexing entries, you can access its web interf
 
 Coreander can also send documents through email. This way, you can take advantage of services such as [Amazon's send to email](https://www.amazon.com/gp/help/customer/display.html?nodeId=G7NECT4B4ZWHQ8WV), which also automatically converts EPUB and other formats to the target device. You can use any email service that allow sending emails using the SMTP protocol, like [GMX](gmx.com). The following environment variables need to be defined:
 
-* `SMTPSERVER`: The URL of the SMTP server to be used, for example `mail.gmx.com`.
-* `SMTPPORT`: The port number used by the email service, defaults to `587`.
-* `SMTPUSER`: The user name.
-* `SMTPPASSWORD`: User's password.
+* `SMTP_SERVER`: The URL of the SMTP server to be used, for example `mail.gmx.com`.
+* `SMTP_PORT`: The port number used by the email service, defaults to `587`.
+* `SMTP_USER`: The user name.
+* `SMTP_PASSWORD`: User's password.
 
 ### User management and access restriction
 
@@ -73,15 +73,16 @@ By default, Coreander allow unrestricted access to its contents, except manageme
 
 ### Settings
 
-* `LIBPATH`: Absolute path to the folder containing the documents.
+* `LIB_PATH`: Absolute path to the folder containing the documents.
 * `PORT`: Port number in which the webserver listens for requests. Defaults to 3000.
-* `BATCHSIZE`: Number of documents persisted by the indexer in one write operation. defaults to 100.
-* `COVERMAXWIDTH`: Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 300.
-* `SKIPREINDEX`: Whether to bypass the indexing process or not.
-* `SMTPSERVER`: Address of the send mail server.
-* `SMTPPORT`: Port number of the send mail server. Defaults to 587.
-* `SMTPUSER`: User to authenticate against the SMTP server.
-* `SMTPPASSWORD`: User's password to authenticate against the SMTP server.
+* `BATCH_SIZE`: Number of documents persisted by the indexer in one write operation. defaults to 100.
+* `COVER_MAX_WIDTH`: Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 300.
+* `SKIP_INDEXING`: Whether to bypass the indexing process or not.
+* `SMTP_SERVER`: Address of the send mail server.
+* `SMTP_PORT`: Port number of the send mail server. Defaults to 587.
+* `SMTP_USER`: User to authenticate against the SMTP server.
+* `SMTP_PASSWORD`: User's password to authenticate against the SMTP server.
 * `JWT_SECRET`: String to use to sign JWTs.
 * `REQUIRE_AUTH`: Require authentication to access the application if true. Defaults to false.
-* `MINPASSWORDLENGTH`: minimum length acceptable for passwords. Defaults to 5.
+* `MIN_PASSWORD_LENGTH`: Minimum length acceptable for passwords. Defaults to 5.
+* `WORDS_PER_MINUTE`: Defines a default words per minute reading speed that will be used for not logged-in users. Defaults to 250.

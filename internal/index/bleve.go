@@ -13,8 +13,6 @@ import (
 	"github.com/svera/coreander/internal/metadata"
 )
 
-const wordsPerMinute = 300.0
-
 type BleveIndexer struct {
 	idx         bleve.Index
 	libraryPath string

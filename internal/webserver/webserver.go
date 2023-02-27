@@ -32,11 +32,6 @@ import (
 //go:embed embedded
 var embedded embed.FS
 
-type sendAttachentFormData struct {
-	File  string `form:"file"`
-	Email string `form:"email"`
-}
-
 type Config struct {
 	LibraryPath       string
 	HomeDir           string
@@ -45,6 +40,7 @@ type Config struct {
 	JwtSecret         []byte
 	RequireAuth       bool
 	MinPasswordLength int
+	WordsPerMinute    float64
 }
 
 // New builds a new Fiber application and set up the required routes
@@ -127,13 +123,13 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	app.Use(jwtware.New(jwtware.Config{
 		SigningKey:    cfg.JwtSecret,
 		SigningMethod: "HS256",
-		TokenLookup:   "cookie:jwt",
+		TokenLookup:   "cookie:coreander",
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			err = c.Next()
-			if cfg.RequireAuth && !strings.HasPrefix(c.Route().Path, "/:lang/login") {
+			if cfg.RequireAuth && !strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/login") {
 				return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
 			}
-			if strings.HasPrefix(c.Route().Path, "/:lang/users") {
+			if strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/users") {
 				return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
 			}
 			return err
@@ -146,50 +142,51 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	})
 
 	app.Post("/send", func(c *fiber.Ctx) error {
-		data := new(sendAttachentFormData)
-
-		if err := c.BodyParser(data); err != nil {
-			return err
-		}
-
-		controller.Send(c, cfg.LibraryPath, data.File, data.Email, sender)
+		controller.Send(c, cfg.LibraryPath, c.FormValue("file"), c.FormValue("email"), sender)
 		return nil
-	})
-
-	app.Get("/:lang/read/:filename", func(c *fiber.Ctx) error {
-		return controller.DocReader(c, cfg.LibraryPath)
-	})
-
-	usersRepository := &model.UserRepository{DB: db}
-
-	authController := controller.NewAuth(usersRepository)
-	usersController := controller.NewUsers(usersRepository, cfg.MinPasswordLength)
-
-	app.Get("/:lang/login", authController.Login)
-	app.Post("/:lang/login", authController.SignIn)
-	app.Get("/:lang/logout", authController.SignOut)
-
-	app.Get("/:lang", func(c *fiber.Ctx) error {
-		emailSendingConfigured := true
-		if _, ok := sender.(*infrastructure.NoEmail); ok {
-			emailSendingConfigured = false
-		}
-		return controller.Search(c, idx, cfg.Version, emailSendingConfigured)
-	})
-
-	app.Get("/", func(c *fiber.Ctx) error {
-		return controller.Root(c)
 	})
 
 	app.Static("/files", cfg.LibraryPath)
 
-	app.Get("/:lang/users/:uuid/edit", usersController.Edit)
-	app.Post("/:lang/users/:uuid/edit", usersController.Update)
-	app.Post("/:lang/users/:uuid/update-password", usersController.UpdatePassword)
-	app.Get("/:lang/users", usersController.List)
-	app.Get("/:lang/users/new", usersController.New)
-	app.Post("/:lang/users/new", usersController.Create)
-	app.Post("/:lang/users/delete", usersController.Delete)
+	usersRepository := &model.UserRepository{DB: db}
+
+	authController := controller.NewAuth(usersRepository, cfg.JwtSecret)
+	usersController := controller.NewUsers(usersRepository, cfg.MinPasswordLength, cfg.WordsPerMinute)
+
+	langGroup := app.Group("/:lang<regex(es|en)>")
+
+	langGroup.Get("/", func(c *fiber.Ctx) error {
+		emailSendingConfigured := true
+		if _, ok := sender.(*infrastructure.NoEmail); ok {
+			emailSendingConfigured = false
+		}
+		session := jwtclaimsreader.SessionData(c)
+		wordsPerMinute := session.WordsPerMinute
+		if wordsPerMinute == 0 {
+			wordsPerMinute = cfg.WordsPerMinute
+		}
+		return controller.Search(c, idx, cfg.Version, emailSendingConfigured, wordsPerMinute)
+	})
+
+	langGroup.Get("/read/:filename", func(c *fiber.Ctx) error {
+		return controller.DocReader(c, cfg.LibraryPath)
+	})
+
+	langGroup.Get("/login", authController.Login)
+	langGroup.Post("login", authController.SignIn)
+	langGroup.Get("/logout", authController.SignOut)
+
+	langGroup.Get("/users/:uuid/edit", usersController.Edit)
+	langGroup.Post("/users/:uuid/edit", usersController.Update)
+	langGroup.Post("/users/:uuid/update-password", usersController.UpdatePassword)
+	langGroup.Get("/users", usersController.List)
+	langGroup.Get("/users/new", usersController.New)
+	langGroup.Post("/users/new", usersController.Create)
+	langGroup.Post("/users/delete", usersController.Delete)
+
+	app.Get("/", func(c *fiber.Ctx) error {
+		return controller.Root(c)
+	})
 
 	return app
 }

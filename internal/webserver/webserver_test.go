@@ -22,8 +22,8 @@ func TestGET(t *testing.T) {
 		expectedStatus int
 	}{
 		{"Redirect if the user tries to access to the root URL", "/", http.StatusFound},
-		{"Page loads succesfully if the user tries to access the spanish version", "/es", http.StatusOK},
-		{"Page loads succesfully if the user tries to access the english version", "/en", http.StatusOK},
+		{"Page loads successfully if the user tries to access the spanish version", "/es", http.StatusOK},
+		{"Page loads successfully if the user tries to access the english version", "/en", http.StatusOK},
 		{"Server returns not found if the user tries to access a non-existent URL", "/xx", http.StatusNotFound},
 	}
 
@@ -45,7 +45,7 @@ func TestGET(t *testing.T) {
 	}
 }
 
-func TestAddNewUser(t *testing.T) {
+func TestUserManagement(t *testing.T) {
 	db := infrastructure.Connect("file::memory:?cache=shared")
 	app := bootstrapApp(db)
 
@@ -55,6 +55,7 @@ func TestAddNewUser(t *testing.T) {
 		"password":         {"test"},
 		"confirm-password": {"test"},
 		"role":             {"1"},
+		"words-per-minute": {"250"},
 	}
 
 	adminCookie, err := login(app, "admin@example.com", "admin")
@@ -68,7 +69,7 @@ func TestAddNewUser(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		shouldRedirectToLogin(response, t)
+		mustRedirectToLogin(response, t)
 	})
 
 	t.Run("Try to add a user with an admin active session", func(t *testing.T) {
@@ -76,7 +77,7 @@ func TestAddNewUser(t *testing.T) {
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
-		shouldRedirectToUsersList(response, t)
+		mustRedirectToUsersList(response, t)
 
 		var totalUsers int64
 		db.Take(&[]model.User{}).Count(&totalUsers)
@@ -116,7 +117,7 @@ func TestAddNewUser(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		shouldRedirectToLogin(response, t)
+		mustRedirectToLogin(response, t)
 	})
 
 	t.Run("Try to update a user using another, non admin user session", func(t *testing.T) {
@@ -125,7 +126,7 @@ func TestAddNewUser(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		shouldReturnForbidden(response, t)
+		mustReturnForbidden(response, t)
 	})
 
 	t.Run("Try to update the user in session", func(t *testing.T) {
@@ -160,17 +161,52 @@ func TestAddNewUser(t *testing.T) {
 		"uuid": {testUser.Uuid},
 	}
 	t.Run("Try to delete a user without an active session", func(t *testing.T) {
-		response, err := deleteUser(testUser.Uuid, data, &http.Cookie{}, app)
+		response, err := deleteUser(data, &http.Cookie{}, app)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		shouldRedirectToLogin(response, t)
+		mustRedirectToLogin(response, t)
 	})
 
+	t.Run("Try to delete a user with a regular user's session", func(t *testing.T) {
+		data.Set("name", "Updated test user")
+
+		response, err := deleteUser(data, testUserCookie, app)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnForbidden(response, t)
+	})
+
+	t.Run("Try to delete a user with an admin session", func(t *testing.T) {
+		response, err := deleteUser(data, adminCookie, app)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		var totalUsers int64
+		db.Take(&[]model.User{}).Count(&totalUsers)
+
+		if totalUsers != 1 {
+			t.Errorf("Expected 1 users in the users list, got %d", totalUsers)
+		}
+	})
+
+	t.Run("Try to delete the only existing admin user", func(t *testing.T) {
+		data = url.Values{
+			"uuid": {adminUser.Uuid},
+		}
+		response, err := deleteUser(data, adminCookie, app)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnForbidden(response, t)
+	})
 }
 
-func shouldRedirectToUsersList(response *http.Response, t *testing.T) {
+func mustRedirectToUsersList(response *http.Response, t *testing.T) {
 	if response.StatusCode != http.StatusFound {
 		t.Fatalf("Expected status %d, received %d", http.StatusFound, response.StatusCode)
 	}
@@ -183,7 +219,7 @@ func shouldRedirectToUsersList(response *http.Response, t *testing.T) {
 	}
 }
 
-func shouldRedirectToLogin(response *http.Response, t *testing.T) {
+func mustRedirectToLogin(response *http.Response, t *testing.T) {
 	if response.StatusCode != http.StatusFound {
 		t.Errorf("Expected status %d, received %d", http.StatusFound, response.StatusCode)
 		return
@@ -198,7 +234,7 @@ func shouldRedirectToLogin(response *http.Response, t *testing.T) {
 	}
 }
 
-func shouldReturnForbidden(response *http.Response, t *testing.T) {
+func mustReturnForbidden(response *http.Response, t *testing.T) {
 	if response.StatusCode != http.StatusForbidden {
 		t.Errorf("Expected status %d, received %d", http.StatusForbidden, response.StatusCode)
 	}
@@ -237,7 +273,7 @@ func updateUser(uuid string, data url.Values, cookie *http.Cookie, app *fiber.Ap
 	return app.Test(req)
 }
 
-func deleteUser(uuid string, data url.Values, cookie *http.Cookie, app *fiber.App) (*http.Response, error) {
+func deleteUser(data url.Values, cookie *http.Cookie, app *fiber.App) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodPost, "/en/users/delete", strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, err

@@ -46,6 +46,7 @@
 "Edit user": "Editar usuario"
 "Name cannot be empty": "Debes introducir un nombre"
 "Incorrect email address": "Dirección de correo electrónico incorrecta"
+"Incorrect reading speed": "Velocidad de lectura incorrecta"
 "A user with that email address already exist": "Ya existe un usuario con esa dirección de correo electrónico"
 "Incorrect role": "Rol incorrecto"
 "Password cannot be empty": "Debes introducir una contraseña"
@@ -66,3 +67,5 @@
 "Create": "Crear"
 "Update": "Actualizar"
 "Internal server error": "Error interno del servidor"
+"Reading speed (in words per minute)": "Velocidad de lectura (en palabras por minuto)"
+"Bad request": "Petición incorrecta"

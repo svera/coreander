@@ -69,9 +69,6 @@ func (u *UserRepository) Delete(uuid string) error {
 	if err != nil {
 		return nil
 	}
-	if u.Admins() == 1 && user.Role == RoleAdmin {
-		return nil
-	}
 	result := u.DB.Where("uuid = ?", uuid).Delete(&user)
 	if result.Error != nil {
 		log.Printf("error deleting user: %s\n", result.Error)

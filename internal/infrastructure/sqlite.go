@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 func Connect(path string) *gorm.DB {
 	if _, err := os.Stat(path); os.IsNotExist(err) && !strings.Contains(path, "file::memory") {
+		fmt.Println("entra")
 		if _, err = os.Create(path); err != nil {
 			log.Fatal(err)
 		}
