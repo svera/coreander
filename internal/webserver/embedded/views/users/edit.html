@@ -1,15 +1,6 @@
 <div class="container mt-5 text-start">
     {{if .Errors}}
-    <div class="row mt-5">
-        <div class="alert alert-danger" role="alert">
-            <h3>{{t .Lang "Please, fix the following issues"}}</h3>
-            <ul>
-                {{range $i, $err := .Errors}}
-                <li>{{t .Lang $err}}</li>
-                {{end}}
-            </ul>
-        </div>
-    </div>
+    {{template "partials/errors" .}}
     {{end}}
 
     {{if .Message}}
@@ -44,7 +35,7 @@
                 </div>
                 <div class="mb-3">
                     <label for="words-per-minute" class="form-label">{{t .Lang "Reading speed (in words per minute)"}}</label>
-                    <input type="number" name="words-per-minute" class="form-control" id="words-per-minute" value="{{.User.WordsPerMinute}}" min="1" max="999">
+                    <input type="number" name="words-per-minute" class="form-control" id="words-per-minute" value="{{.User.WordsPerMinute}}" min="1" max="999" required="required">
                 </div>
                 <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
             </form>

@@ -1,15 +1,6 @@
 <div class="container mt-5 text-start">
     {{if .Errors}}
-    <div class="row mt-5">
-        <div class="alert alert-danger" role="alert">
-            <h3>{{t .Lang "Please, fix the following issues"}}</h3>
-            <ul>
-                {{range $i, $err := .Errors}}
-                <li>{{t .Lang $err}}</li>
-                {{end}}
-            </ul>
-        </div>
-    </div>
+    {{template "partials/errors" .}}
     {{end}}
 
     <form method="post" action="/{{.Lang}}/users/new" autocomplete="off">
@@ -27,7 +18,7 @@
         </div>
         <div class="mb-3">
             <label for="words-per-minute" class="form-label">{{t .Lang "Reading speed (in words per minute)"}}</label>
-            <input type="number" name="words-per-minute" class="form-control" id="words-per-minute" value="{{.User.WordsPerMinute}}" min="1" max="999">
+            <input type="number" name="words-per-minute" class="form-control" id="words-per-minute" value="{{.User.WordsPerMinute}}" min="1" max="999" required="required">
         </div>
         <div class="mb-3">
             <label for="password" class="form-label">{{t .Lang "Password"}}</label>
@@ -43,7 +34,7 @@
             <label for="role" class="form-label">{{t .Lang "Role"}}</label>
             <select name="role" class="form-control" id="role">
                 <option value="1">{{t .Lang "Regular"}}</option>
-                <option value="2">{{t .Lang "Administrator"}}</option>
+                <option value="2" {{if eq .User.Role 2}}selected="selected"{{end}}>{{t .Lang "Administrator"}}</option>
             </select>
         </div>
 

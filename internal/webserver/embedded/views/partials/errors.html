@@ -1,0 +1,11 @@
+<div class="row mt-5">
+    <div class="alert alert-danger" role="alert" id="errors">
+        <h3>{{t .Lang "Please, fix the following issues"}}</h3>
+        {{$lang := .Lang}}
+        <ul>
+            {{range $i, $err := .Errors}}
+            <li>{{t $lang $err}}</li>
+            {{end}}
+        </ul>
+    </div>
+</div>

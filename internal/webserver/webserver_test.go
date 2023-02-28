@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
@@ -87,13 +89,39 @@ func TestUserManagement(t *testing.T) {
 		}
 	})
 
+	t.Run("Try to add a user with errors in form using an admin active session", func(t *testing.T) {
+		response, err := addUser(url.Values{}, adminCookie, app)
+		expectedErrorMessages := []string{
+			"Name cannot be empty",
+			"Incorrect reading speed",
+			"Incorrect email address",
+			"Incorrect role",
+			"Confirm password cannot be empty",
+		}
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		doc, err := goquery.NewDocumentFromReader(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		errorMessages := []string{}
+		doc.Find("#errors li").Each(func(i int, s *goquery.Selection) {
+			errorMessages = append(errorMessages, s.Text())
+		})
+		if !reflect.DeepEqual(expectedErrorMessages, errorMessages) {
+			t.Errorf("Expected %d error messages, got %d", len(expectedErrorMessages), len(errorMessages))
+		}
+	})
+
 	t.Run("Try to add a user with a regular user active session", func(t *testing.T) {
 		cookie, err := login(app, "test@example.com", "test")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
-		response, err := addUser(data, cookie, app)
-		if response == nil {
+
+		if response, err := addUser(data, cookie, app); response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		} else if response.StatusCode != http.StatusForbidden {
 			t.Errorf("Expected status %d, received %d", http.StatusForbidden, response.StatusCode)

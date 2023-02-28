@@ -3,7 +3,6 @@ package controller
 import (
 	"fmt"
 	"math"
-	"net/mail"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -118,20 +117,7 @@ func (u *Users) Create(c *fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
-	if errs := u.validateNew(c); len(errs) > 0 {
-		return c.Render("users/new", fiber.Map{
-			"Lang":    c.Params("lang"),
-			"Title":   "Add new user",
-			"Session": session,
-			"Version": c.App().Config().AppName,
-			"Errors":  errs,
-		}, "layout")
-	}
-
-	role, err := strconv.Atoi(c.FormValue("role"))
-	if err != nil {
-		return fiber.ErrBadRequest
-	}
+	role, _ := strconv.Atoi(c.FormValue("role"))
 	user := model.User{
 		Name:     c.FormValue("name"),
 		Email:    c.FormValue("email"),
@@ -139,14 +125,27 @@ func (u *Users) Create(c *fiber.Ctx) error {
 		Role:     role,
 		Uuid:     uuid.NewString(),
 	}
+	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
+
+	errs := user.Validate(u.minPasswordLength)
+	if exist := u.repository.FindByEmail(c.FormValue("email")); exist.Email != "" {
+		errs = append(errs, "A user with that email address already exist")
+	}
+	errs = u.confirmPassword(c.FormValue("password"), c.FormValue("confirm-password"), errs)
+
+	if len(errs) > 0 {
+		return c.Render("users/new", fiber.Map{
+			"Lang":    c.Params("lang"),
+			"Title":   "Add new user",
+			"Session": session,
+			"Version": c.App().Config().AppName,
+			"Errors":  errs,
+			"User":    user,
+		}, "layout")
+	}
 
 	if err := u.repository.Create(user); err != nil {
-		return c.Render("users/new", fiber.Map{
-			"Lang":     c.Params("lang"),
-			"Title":    "Add new user",
-			"UserData": session,
-			"Version":  c.App().Config().AppName,
-		}, "layout")
+		return fiber.ErrInternalServerError
 	}
 
 	return c.Redirect(fmt.Sprintf("/%s/users", c.Params("lang")))
@@ -174,7 +173,8 @@ func (u *Users) Update(c *fiber.Ctx) error {
 	user.SendToEmail = c.FormValue("send-to-email")
 	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
 
-	if errs := u.validateUpdate(c); len(errs) > 0 {
+	errs := user.Validate(u.minPasswordLength)
+	if len(errs) > 0 {
 		return c.Render("users/edit", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Edit user",
@@ -199,7 +199,7 @@ func (u *Users) Update(c *fiber.Ctx) error {
 	}, "layout")
 }
 
-// Update gathers information from the edit user form and updates user password
+// UpdatePassword gathers information from the edit user form and updates user password
 func (u *Users) UpdatePassword(c *fiber.Ctx) error {
 	var (
 		err  error
@@ -226,7 +226,7 @@ func (u *Users) UpdatePassword(c *fiber.Ctx) error {
 	}
 	user.Password = model.Hash(c.FormValue("password"))
 
-	errs := []string{}
+	errs := user.Validate(u.minPasswordLength)
 
 	// Allow admins to change password of other users without entering user's current password
 	if session.Uuid == c.Params("uuid") {
@@ -234,7 +234,8 @@ func (u *Users) UpdatePassword(c *fiber.Ctx) error {
 			errs = append(errs, "The current password is not correct")
 		}
 	}
-	if errs = u.validatePassword(c.FormValue("password"), c.FormValue("confirm-password"), errs); len(errs) > 0 {
+	errs = u.confirmPassword(c.FormValue("password"), c.FormValue("confirm-password"), errs)
+	if len(errs) > 0 {
 		return c.Render("users/edit", fiber.Map{
 			"Lang":      c.Params("lang"),
 			"Title":     "Edit user",
@@ -283,59 +284,7 @@ func (u *Users) Delete(c *fiber.Ctx) error {
 	return c.Redirect(fmt.Sprintf("/%s/users", c.Params("lang")))
 }
 
-func (u *Users) validateNew(c *fiber.Ctx) []string {
-	errs := []string{}
-
-	if c.FormValue("name") == "" {
-		errs = append(errs, "Name cannot be empty")
-	}
-
-	if c.FormValue("words-per-minute") < "1" || c.FormValue("words-per-minute") > "999" {
-		errs = append(errs, "Incorrect reading speed")
-	}
-
-	if _, err := mail.ParseAddress(c.FormValue("email")); err != nil {
-		errs = append(errs, "Incorrect email address")
-	}
-
-	if user := u.repository.FindByEmail(c.FormValue("email")); user.Email != "" {
-		errs = append(errs, "A user with that email address already exist")
-	}
-
-	if _, err := mail.ParseAddress(c.FormValue("send-to-email")); c.FormValue("send-to-email") != "" && err != nil {
-		errs = append(errs, "Incorrect send to email address")
-	}
-
-	if c.FormValue("role") < "1" || c.FormValue("role") > "2" {
-		errs = append(errs, "Incorrect role")
-	}
-
-	return u.validatePassword(c.FormValue("password"), c.FormValue("confirm-password"), errs)
-}
-
-func (u *Users) validateUpdate(c *fiber.Ctx) []string {
-	errs := []string{}
-
-	if c.FormValue("name") == "" {
-		errs = append(errs, "Name cannot be empty")
-	}
-
-	if c.FormValue("words-per-minute") < "1" || c.FormValue("words-per-minute") > "999" {
-		errs = append(errs, "Incorrect reading speed")
-	}
-
-	if _, err := mail.ParseAddress(c.FormValue("send-to-email")); c.FormValue("send-to-email") != "" && err != nil {
-		errs = append(errs, "Incorrect send to email address")
-	}
-
-	return errs
-}
-
-func (u *Users) validatePassword(password string, confirmPassword string, errs []string) []string {
-	if len(password) < u.minPasswordLength {
-		errs = append(errs, fmt.Sprintf("Password must be longer than %d characters", u.minPasswordLength))
-	}
-
+func (u *Users) confirmPassword(password string, confirmPassword string, errs []string) []string {
 	if confirmPassword == "" {
 		errs = append(errs, "Confirm password cannot be empty")
 	}

@@ -19,6 +19,7 @@ require (
 )
 
 require (
+	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/glebarez/go-sqlite v1.20.0 // indirect
 	github.com/glebarez/sqlite v1.6.0 // indirect
@@ -38,6 +39,7 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
+	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/RoaringBitmap/roaring v1.2.1 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect

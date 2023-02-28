@@ -71,6 +71,13 @@ Coreander distinguish between two kinds of users: regular users and administrato
 
 By default, Coreander allow unrestricted access to its contents, except management areas which require and administrator user. To allow access only to registered users in the whole application, pass the `REQUIRE_AUTH=true` environment variable.
 
+On first run, Coreander creates an admin user with the following credentials:
+
+* Email: `admin@example.com`
+* Password: `admin`
+
+**FOr security reasons, it is strongly encouraged to add a new admin and remove the default one as soon as possible.**
+
 ### Settings
 
 * `LIB_PATH`: Absolute path to the folder containing the documents.
