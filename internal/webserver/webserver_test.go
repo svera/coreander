@@ -154,7 +154,7 @@ func TestUserManagement(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		mustReturnForbidden(response, t)
+		mustReturnStatus(response, fiber.StatusForbidden, t)
 	})
 
 	t.Run("Try to update the user in session", func(t *testing.T) {
@@ -185,9 +185,32 @@ func TestUserManagement(t *testing.T) {
 		}
 	})
 
+	t.Run("Try to edit a non existing user with an admin session", func(t *testing.T) {
+		response, err := editUser("abcde", data, adminCookie, app)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		mustReturnStatus(response, fiber.StatusNotFound, t)
+	})
+
 	data = url.Values{
 		"uuid": {testUser.Uuid},
 	}
+
+	t.Run("Try to update a non existing user with an admin session", func(t *testing.T) {
+		data.Set("name", "Updated test user by an admin")
+
+		response, err := updateUser("abcde", data, adminCookie, app)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		mustReturnStatus(response, fiber.StatusNotFound, t)
+	})
+
+	data = url.Values{
+		"uuid": {testUser.Uuid},
+	}
+
 	t.Run("Try to delete a user without an active session", func(t *testing.T) {
 		response, err := deleteUser(data, &http.Cookie{}, app)
 		if response == nil {
@@ -205,7 +228,7 @@ func TestUserManagement(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		mustReturnForbidden(response, t)
+		mustReturnStatus(response, fiber.StatusForbidden, t)
 	})
 
 	t.Run("Try to delete a user with an admin session", func(t *testing.T) {
@@ -230,7 +253,7 @@ func TestUserManagement(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		mustReturnForbidden(response, t)
+		mustReturnStatus(response, fiber.StatusForbidden, t)
 	})
 }
 
@@ -262,9 +285,9 @@ func mustRedirectToLogin(response *http.Response, t *testing.T) {
 	}
 }
 
-func mustReturnForbidden(response *http.Response, t *testing.T) {
-	if response.StatusCode != http.StatusForbidden {
-		t.Errorf("Expected status %d, received %d", http.StatusForbidden, response.StatusCode)
+func mustReturnStatus(response *http.Response, expectedStatus int, t *testing.T) {
+	if response.StatusCode != expectedStatus {
+		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 	}
 }
 
@@ -286,6 +309,15 @@ func addUser(data url.Values, cookie *http.Cookie, app *fiber.App) (*http.Respon
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(cookie)
+
+	return app.Test(req)
+}
+
+func editUser(uuid string, data url.Values, cookie *http.Cookie, app *fiber.App) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/en/users/%s/edit", uuid), strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, err
+	}
 
 	return app.Test(req)
 }

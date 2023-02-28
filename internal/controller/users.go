@@ -65,30 +65,6 @@ func (u *Users) List(c *fiber.Ctx) error {
 	}, "layout")
 }
 
-// Edit renders the edit user form
-func (u *Users) Edit(c *fiber.Ctx) error {
-	if c.Params("uuid") == "" {
-		return fiber.ErrBadRequest
-	}
-
-	session := jwtclaimsreader.SessionData(c)
-	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
-		if session.Role != model.RoleAdmin {
-			return fiber.ErrForbidden
-		}
-	}
-
-	user, _ := u.repository.Find(c.Params("uuid"))
-	return c.Render("users/edit", fiber.Map{
-		"Lang":    c.Params("lang"),
-		"Title":   "Edit user",
-		"User":    user,
-		"Session": session,
-		"Version": c.App().Config().AppName,
-		"Errors":  map[string]string{},
-	}, "layout")
-}
-
 // New renders the new user form
 func (u *Users) New(c *fiber.Ctx) error {
 	session := jwtclaimsreader.SessionData(c)
@@ -153,24 +129,46 @@ func (u *Users) Create(c *fiber.Ctx) error {
 	return c.Redirect(fmt.Sprintf("/%s/users", c.Params("lang")))
 }
 
-// Update gathers information from the edit user form and updates user data
-func (u *Users) Update(c *fiber.Ctx) error {
-	var (
-		err  error
-		user model.User
-	)
+// Edit renders the edit user form
+func (u *Users) Edit(c *fiber.Ctx) error {
+	user, err := u.repository.Find(c.Params("uuid"))
+	if err != nil {
+		return fiber.ErrNotFound
+	}
 
 	session := jwtclaimsreader.SessionData(c)
 
 	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
-		if session.Role != model.RoleAdmin {
-			return fiber.ErrForbidden
-		}
+		return fiber.ErrForbidden
 	}
 
-	if user, err = u.repository.Find(c.Params("uuid")); err != nil {
+	return c.Render("users/edit", fiber.Map{
+		"Lang":    c.Params("lang"),
+		"Title":   "Edit user",
+		"User":    user,
+		"Session": session,
+		"Version": c.App().Config().AppName,
+		"Errors":  map[string]string{},
+	}, "layout")
+}
+
+// Update gathers information from the edit user form and updates user data
+func (u *Users) Update(c *fiber.Ctx) error {
+	user, err := u.repository.Find(c.Params("uuid"))
+	if err != nil {
 		return fiber.ErrNotFound
 	}
+
+	session := jwtclaimsreader.SessionData(c)
+
+	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
+		return fiber.ErrForbidden
+	}
+
+	if c.FormValue("password-tab") == "true" {
+		return u.updatePassword(c, session, user)
+	}
+
 	user.Name = c.FormValue("name")
 	user.SendToEmail = c.FormValue("send-to-email")
 	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
@@ -201,31 +199,8 @@ func (u *Users) Update(c *fiber.Ctx) error {
 	}, "layout")
 }
 
-// UpdatePassword gathers information from the edit user form and updates user password
-func (u *Users) UpdatePassword(c *fiber.Ctx) error {
-	var (
-		err  error
-		user model.User
-	)
-
-	session := jwtclaimsreader.SessionData(c)
-
-	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
-		return c.Status(fiber.StatusForbidden).Render(
-			"errors/forbidden",
-			fiber.Map{
-				"Lang":    c.Params("lang"),
-				"Title":   "Forbidden",
-				"Session": session,
-				"Version": c.App().Config().AppName,
-			},
-			"layout",
-		)
-	}
-
-	if user, err = u.repository.Find(c.Params("uuid")); err != nil {
-		return fiber.ErrNotFound
-	}
+// updatePassword gathers information from the edit user form and updates user password
+func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 	user.Password = model.Hash(c.FormValue("password"))
 
 	errs := user.Validate(u.minPasswordLength)
@@ -260,6 +235,7 @@ func (u *Users) UpdatePassword(c *fiber.Ctx) error {
 		"Session":   session,
 		"Version":   c.App().Config().AppName,
 		"ActiveTab": "password",
+		"Errors":    errs,
 		"Message":   "Password updated",
 	}, "layout")
 }
@@ -269,9 +245,7 @@ func (u *Users) Delete(c *fiber.Ctx) error {
 	session := jwtclaimsreader.SessionData(c)
 
 	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
-		if session.Role != model.RoleAdmin {
-			return fiber.ErrForbidden
-		}
+		return fiber.ErrForbidden
 	}
 
 	user, err := u.repository.Find(c.FormValue("uuid"))

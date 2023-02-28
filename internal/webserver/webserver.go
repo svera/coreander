@@ -176,12 +176,11 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	langGroup.Post("login", authController.SignIn)
 	langGroup.Get("/logout", authController.SignOut)
 
-	langGroup.Get("/users/:uuid/edit", usersController.Edit)
-	langGroup.Post("/users/:uuid/edit", usersController.Update)
-	langGroup.Post("/users/:uuid/update-password", usersController.UpdatePassword)
 	langGroup.Get("/users", usersController.List)
 	langGroup.Get("/users/new", usersController.New)
 	langGroup.Post("/users/new", usersController.Create)
+	langGroup.Get("/users/:uuid<guid>/edit", usersController.Edit)
+	langGroup.Post("/users/:uuid<guid>/edit", usersController.Update)
 	langGroup.Post("/users/delete", usersController.Delete)
 
 	app.Get("/", func(c *fiber.Ctx) error {

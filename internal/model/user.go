@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	RoleRegular = 1
-	RoleAdmin   = 2
+	RoleRegular = iota + 1
+	RoleAdmin
 )
 
 type User struct {
@@ -43,7 +43,7 @@ func (u User) Validate(minPasswordLength int) map[string]string {
 		errs["sendtoemail"] = "Incorrect send to email address"
 	}
 
-	if u.Role < 1 || u.Role > 2 {
+	if u.Role < RoleRegular || u.Role > RoleAdmin {
 		errs["role"] = "Incorrect role"
 	}
 
