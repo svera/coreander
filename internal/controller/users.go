@@ -85,6 +85,7 @@ func (u *Users) Edit(c *fiber.Ctx) error {
 		"User":    user,
 		"Session": session,
 		"Version": c.App().Config().AppName,
+		"Errors":  map[string]string{},
 	}, "layout")
 }
 
@@ -106,6 +107,7 @@ func (u *Users) New(c *fiber.Ctx) error {
 		"Version":           c.App().Config().AppName,
 		"MinPasswordLength": u.minPasswordLength,
 		"User":              user,
+		"Errors":            map[string]string{},
 	}, "layout")
 }
 
@@ -129,7 +131,7 @@ func (u *Users) Create(c *fiber.Ctx) error {
 
 	errs := user.Validate(u.minPasswordLength)
 	if exist := u.repository.FindByEmail(c.FormValue("email")); exist.Email != "" {
-		errs = append(errs, "A user with that email address already exist")
+		errs["email"] = "A user with this email address already exist"
 	}
 	errs = u.confirmPassword(c.FormValue("password"), c.FormValue("confirm-password"), errs)
 
@@ -231,7 +233,7 @@ func (u *Users) UpdatePassword(c *fiber.Ctx) error {
 	// Allow admins to change password of other users without entering user's current password
 	if session.Uuid == c.Params("uuid") {
 		if _, err := u.repository.CheckCredentials(user.Email, c.FormValue("old-password")); err != nil {
-			errs = append(errs, "The current password is not correct")
+			errs["oldpassword"] = "The current password is not correct"
 		}
 	}
 	errs = u.confirmPassword(c.FormValue("password"), c.FormValue("confirm-password"), errs)
@@ -284,13 +286,13 @@ func (u *Users) Delete(c *fiber.Ctx) error {
 	return c.Redirect(fmt.Sprintf("/%s/users", c.Params("lang")))
 }
 
-func (u *Users) confirmPassword(password string, confirmPassword string, errs []string) []string {
+func (u *Users) confirmPassword(password string, confirmPassword string, errs map[string]string) map[string]string {
 	if confirmPassword == "" {
-		errs = append(errs, "Confirm password cannot be empty")
+		errs["confirmpassword"] = "Confirm password cannot be empty"
 	}
 
 	if password != confirmPassword {
-		errs = append(errs, "Password and confirmation do not match")
+		errs["confirmpassword"] = "Password and confirmation do not match"
 	}
 
 	return errs

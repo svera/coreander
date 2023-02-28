@@ -47,7 +47,7 @@
 "Name cannot be empty": "Debes introducir un nombre"
 "Incorrect email address": "Dirección de correo electrónico incorrecta"
 "Incorrect reading speed": "Velocidad de lectura incorrecta"
-"A user with that email address already exist": "Ya existe un usuario con esa dirección de correo electrónico"
+"A user with this email address already exist": "Ya existe un usuario con esta dirección de correo electrónico"
 "Incorrect role": "Rol incorrecto"
 "Password cannot be empty": "Debes introducir una contraseña"
 "Confirm password cannot be empty": "Debes confirmar la contraseña"

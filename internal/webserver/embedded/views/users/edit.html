@@ -1,8 +1,4 @@
 <div class="container mt-5 text-start">
-    {{if .Errors}}
-    {{template "partials/errors" .}}
-    {{end}}
-
     {{if .Message}}
     <div class="row mt-5">
         <div class="alert alert-success" role="alert">
@@ -27,16 +23,31 @@
             <form method="post" action="/{{.Lang}}/users/{{.User.Uuid}}/edit">
                 <div class="mb-3">
                     <label for="name" class="form-label">{{t .Lang "Name"}}</label>
-                    <input type="text" name="name" class="form-control" id="name" required="required" value="{{.User.Name}}" maxlength="20">
+                    <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="20">
+                    {{if ne (index .Errors "name") ""}}
+                    <div class="invalid-feedback">
+                        {{t .Lang .Errors.name}}
+                    </div>
+                    {{end}}
                 </div>
                 <div class="mb-3">
                     <label for="send-to-email" class="form-label">{{t .Lang "Default send to email address"}}</label>
-                    <input type="email" name="send-to-email" class="form-control" id="send-to-email" value="{{.User.SendToEmail}}">
+                    <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}">
+                    {{if ne (index .Errors "sendtoemail") ""}}
+                    <div class="invalid-feedback">
+                        {{t .Lang .Errors.sendtoemail}}
+                    </div>
+                    {{end}}
                 </div>
                 <div class="mb-3">
                     <label for="words-per-minute" class="form-label">{{t .Lang "Reading speed (in words per minute)"}}</label>
-                    <input type="number" name="words-per-minute" class="form-control" id="words-per-minute" value="{{.User.WordsPerMinute}}" min="1" max="999" required="required">
-                </div>
+                    <input type="number" name="words-per-minute" class='form-control {{if ne (index .Errors "wordsperminute") ""}}is-invalid{{end}}' id="words-per-minute" value="{{.User.WordsPerMinute}}" min="1" max="999" required="required">
+                    {{if ne (index .Errors "wordsperminute") ""}}
+                    <div class="invalid-feedback">
+                        {{t .Lang .Errors.wordsperminute}}
+                    </div>
+                    {{end}}
+                </div>                
                 <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
             </form>
         </div>
@@ -46,20 +57,37 @@
                 {{if eq .Session.Uuid .User.Uuid}}
                 <div class="mb-3">
                     <label for="old-password" class="form-label">{{t .Lang "Current password"}}</label>
-                    <input type="password" name="old-password" class="form-control" id="old-password"
+                    <input type="password" name="old-password" class='form-control {{if ne (index .Errors "oldpassword") ""}}is-invalid{{end}}' id="old-password"
                         required="required" minlength="{{.MinPasswordLength}}">
+                    {{if ne (index .Errors "oldpassword") ""}}
+                    <div class="invalid-feedback">
+                        {{t .Lang .Errors.oldpassword}}
+                    </div>
+                    {{end}}    
+    
                 </div>
                 {{end}}
                 <div class="mb-3">
-                    <label for="password" class="form-label">{{t .Lang "New password"}}</label>
-                    <input type="password" name="password" class="form-control" id="password" required="required"
+                    <label for="password" class="form-label">{{t .Lang "Password"}}</label>
+                    <input type="password" name="password" class='form-control {{if ne (index .Errors "password") ""}}is-invalid{{end}}' id="password" required="required"
                         minlength="{{.MinPasswordLength}}">
+                    {{if ne (index .Errors "password") ""}}
+                    <div class="invalid-feedback">
+                        {{t .Lang .Errors.password}}
+                    </div>
+                    {{end}}    
                 </div>
                 <div class="mb-3">
-                    <label for="confirm-password" class="form-label">{{t .Lang "Confirm new password"}}</label>
-                    <input type="password" name="confirm-password" class="form-control" id="confirm-password"
+                    <label for="confirm-password" class="form-label">{{t .Lang "Confirm password"}}</label>
+                    <input type="password" name="confirm-password" class='form-control {{if ne (index .Errors "confirmpassword") ""}}is-invalid{{end}}' id="confirm-password"
                         required="required" minlength="{{.MinPasswordLength}}">
+                    {{if ne (index .Errors "confirmpassword") ""}}
+                    <div class="invalid-feedback">
+                        {{t .Lang .Errors.confirmpassword}}
+                    </div>
+                    {{end}}    
                 </div>
+        
 
                 <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
             </form>

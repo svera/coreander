@@ -24,31 +24,31 @@ type User struct {
 }
 
 // Validate checks all user's fields to ensure they are in the required format
-func (u User) Validate(minPasswordLength int) []string {
-	errs := []string{}
+func (u User) Validate(minPasswordLength int) map[string]string {
+	errs := map[string]string{}
 
 	if u.Name == "" {
-		errs = append(errs, "Name cannot be empty")
+		errs["name"] = "Name cannot be empty"
 	}
 
 	if u.WordsPerMinute < 1 || u.WordsPerMinute > 999 {
-		errs = append(errs, "Incorrect reading speed")
+		errs["wordsperminute"] = "Incorrect reading speed"
 	}
 
 	if _, err := mail.ParseAddress(u.Email); err != nil {
-		errs = append(errs, "Incorrect email address")
+		errs["email"] = "Incorrect email address"
 	}
 
 	if _, err := mail.ParseAddress(u.SendToEmail); u.SendToEmail != "" && err != nil {
-		errs = append(errs, "Incorrect send to email address")
+		errs["sendtoemail"] = "Incorrect send to email address"
 	}
 
 	if u.Role < 1 || u.Role > 2 {
-		errs = append(errs, "Incorrect role")
+		errs["role"] = "Incorrect role"
 	}
 
 	if len(u.Password) < minPasswordLength {
-		errs = append(errs, fmt.Sprintf("Password must be longer than %d characters", minPasswordLength))
+		errs["password"] = fmt.Sprintf("Password must be longer than %d characters", minPasswordLength)
 	}
 
 	return errs

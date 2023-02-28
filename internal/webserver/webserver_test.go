@@ -93,10 +93,10 @@ func TestUserManagement(t *testing.T) {
 		response, err := addUser(url.Values{}, adminCookie, app)
 		expectedErrorMessages := []string{
 			"Name cannot be empty",
-			"Incorrect reading speed",
 			"Incorrect email address",
-			"Incorrect role",
+			"Incorrect reading speed",
 			"Confirm password cannot be empty",
+			"Incorrect role",
 		}
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -107,11 +107,11 @@ func TestUserManagement(t *testing.T) {
 			t.Fatal(err)
 		}
 		errorMessages := []string{}
-		doc.Find("#errors li").Each(func(i int, s *goquery.Selection) {
-			errorMessages = append(errorMessages, s.Text())
+		doc.Find(".invalid-feedback").Each(func(i int, s *goquery.Selection) {
+			errorMessages = append(errorMessages, strings.TrimSpace(s.Text()))
 		})
 		if !reflect.DeepEqual(expectedErrorMessages, errorMessages) {
-			t.Errorf("Expected %d error messages, got %d", len(expectedErrorMessages), len(errorMessages))
+			t.Errorf("Expected %v error messages, got %v", expectedErrorMessages, errorMessages)
 		}
 	})
 
