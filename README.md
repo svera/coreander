@@ -76,7 +76,7 @@ On first run, Coreander creates an admin user with the following credentials:
 * Email: `admin@example.com`
 * Password: `admin`
 
-**FOr security reasons, it is strongly encouraged to add a new admin and remove the default one as soon as possible.**
+**For security reasons, it is strongly encouraged to add a new admin and remove the default one as soon as possible.**
 
 ### Settings
 

@@ -27,20 +27,15 @@ type Reader interface {
 func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured bool, wordsPerMinute float64) error {
 	lang := c.Params("lang")
 
-	if lang != "es" && lang != "en" {
-		return fiber.ErrNotFound
-	}
-
 	page, err := strconv.Atoi(c.Query("page"))
 	if err != nil {
 		page = 1
 	}
 
 	session := jwtclaimsreader.SessionData(c)
-	var keywords string
 	var searchResults *Result
 
-	keywords = c.Query("search")
+	keywords := c.Query("search")
 	if keywords != "" {
 		searchResults, err = idx.Search(keywords, page, model.ResultsPerPage, wordsPerMinute)
 		if err != nil {
