@@ -17,7 +17,7 @@ type usersRepository interface {
 	Find(uuid string) (model.User, error)
 	Create(user model.User) error
 	Update(user model.User) error
-	FindByEmail(email string) model.User
+	FindByEmail(email string) (model.User, error)
 	Admins() int64
 	Delete(uuid string) error
 	CheckCredentials(email, password string) (model.User, error)
@@ -106,7 +106,7 @@ func (u *Users) Create(c *fiber.Ctx) error {
 	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
 
 	errs := user.Validate(u.minPasswordLength)
-	if exist := u.repository.FindByEmail(c.FormValue("email")); exist.Email != "" {
+	if exist, _ := u.repository.FindByEmail(c.FormValue("email")); exist.Email != "" {
 		errs["email"] = "A user with this email address already exist"
 	}
 	errs = u.confirmPassword(c.FormValue("password"), c.FormValue("confirm-password"), errs)
