@@ -50,6 +50,11 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		log.Fatal(err)
 	}
 
+	emailSendingConfigured := true
+	if _, ok := sender.(*infrastructure.NoEmail); ok {
+		emailSendingConfigured = false
+	}
+
 	app := fiber.New(fiber.Config{
 		Views:                 engine,
 		DisableStartupMessage: true,
@@ -126,7 +131,9 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		TokenLookup:   "cookie:coreander",
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			err = c.Next()
-			if cfg.RequireAuth && !strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/login") {
+			if cfg.RequireAuth &&
+				!strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/login") &&
+				!strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/recover") {
 				return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
 			}
 			if strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/users") {
@@ -150,16 +157,12 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 
 	usersRepository := &model.UserRepository{DB: db}
 
-	authController := controller.NewAuth(usersRepository, cfg.JwtSecret)
+	authController := controller.NewAuth(usersRepository, cfg.JwtSecret, emailSendingConfigured)
 	usersController := controller.NewUsers(usersRepository, cfg.MinPasswordLength, cfg.WordsPerMinute)
 
 	langGroup := app.Group("/:lang<regex(es|en)>")
 
 	langGroup.Get("/", func(c *fiber.Ctx) error {
-		emailSendingConfigured := true
-		if _, ok := sender.(*infrastructure.NoEmail); ok {
-			emailSendingConfigured = false
-		}
 		session := jwtclaimsreader.SessionData(c)
 		wordsPerMinute := session.WordsPerMinute
 		if wordsPerMinute == 0 {
@@ -175,6 +178,8 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	langGroup.Get("/login", authController.Login)
 	langGroup.Post("login", authController.SignIn)
 	langGroup.Get("/logout", authController.SignOut)
+	langGroup.Get("/recover", authController.Recover)
+	langGroup.Post("/recover", authController.Request)
 
 	langGroup.Get("/users", usersController.List)
 	langGroup.Get("/users/new", usersController.New)

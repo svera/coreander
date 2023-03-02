@@ -1,0 +1,21 @@
+<div class="container mt-5 text-start">
+    <section class="pb-5">
+        <h2 class="pb-5">{{t .Lang "Recover password"}}</h2>
+        <form method="post" action="/{{.Lang}}/recover" autocomplete="off">
+            <div class="mb-3">
+                <label for="email" class="form-label">{{t .Lang "Email"}}</label>
+                <div class="input-group">
+                    <input type="email" name="email"
+                        class='form-control {{if ne (index .Errors "email") ""}}is-invalid{{end}}' id="email"
+                        required="required" value="{{.User.Email}}">
+                    <button class="btn btn-primary" type="submit">{{t .Lang "Request"}}</button>
+                </div>
+                {{if ne (index .Errors "email") ""}}
+                <div class="invalid-feedback">
+                    {{t .Lang .Errors.email}}
+                </div>
+                {{end}}
+            </div>
+        </form>
+    </section>
+</div>

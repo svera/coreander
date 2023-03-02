@@ -35,8 +35,7 @@ func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured boo
 	session := jwtclaimsreader.SessionData(c)
 	var searchResults *Result
 
-	keywords := c.Query("search")
-	if keywords != "" {
+	if keywords := c.Query("search"); keywords != "" {
 		searchResults, err = idx.Search(keywords, page, model.ResultsPerPage, wordsPerMinute)
 		if err != nil {
 			return fiber.ErrInternalServerError
