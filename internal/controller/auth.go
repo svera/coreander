@@ -55,7 +55,11 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 	}
 
 	// If username or password are incorrect, do not allow access.
-	if user, err = a.repository.CheckCredentials(c.FormValue("email"), c.FormValue("password")); err != nil {
+	user, err = a.repository.CheckCredentials(c.FormValue("email"), c.FormValue("password"))
+	if err != nil {
+		return fiber.ErrInternalServerError
+	}
+	if user.Email == "" {
 		return c.Status(fiber.StatusUnauthorized).Render("login", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Login",

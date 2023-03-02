@@ -79,7 +79,10 @@ func (u *UserRepository) Delete(uuid string) error {
 func (u *UserRepository) CheckCredentials(email, password string) (User, error) {
 	var user User
 
-	result := u.DB.Where("email = ? AND password = ?", email, Hash(password)).Take(&user)
+	result := u.DB.Limit(1).Where("email = ? AND password = ?", email, Hash(password)).Find(&user)
+	if result.Error != nil {
+		log.Printf("error checking user credentials user: %s\n", result.Error)
+	}
 	return user, result.Error
 }
 

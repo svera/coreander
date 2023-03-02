@@ -66,7 +66,14 @@ func TestUserManagement(t *testing.T) {
 	}
 
 	t.Run("Try to add a user without an active session", func(t *testing.T) {
-		response, err := addUser(data, &http.Cookie{}, app)
+		response, err := newUser(data, &http.Cookie{}, app)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustRedirectToLogin(response, t)
+
+		response, err = addUser(data, &http.Cookie{}, app)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -75,7 +82,14 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to add a user with an admin active session", func(t *testing.T) {
-		response, err := addUser(data, adminCookie, app)
+		response, err := newUser(data, adminCookie, app)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnStatus(response, fiber.StatusOK, t)
+
+		response, err = addUser(data, adminCookie, app)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -121,11 +135,12 @@ func TestUserManagement(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if response, err := addUser(data, cookie, app); response == nil {
+		response, err := addUser(data, cookie, app)
+		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
-		} else if response.StatusCode != http.StatusForbidden {
-			t.Errorf("Expected status %d, received %d", http.StatusForbidden, response.StatusCode)
 		}
+
+		mustReturnStatus(response, fiber.StatusForbidden, t)
 	})
 
 	testUser := model.User{}
@@ -140,7 +155,14 @@ func TestUserManagement(t *testing.T) {
 	}
 
 	t.Run("Try to update a user without an active session", func(t *testing.T) {
-		response, err := updateUser(testUser.Uuid, data, &http.Cookie{}, app)
+		response, err := editUser(testUser.Uuid, &http.Cookie{}, app)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustRedirectToLogin(response, t)
+
+		response, err = updateUser(testUser.Uuid, data, &http.Cookie{}, app)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -149,7 +171,14 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to update a user using another, non admin user session", func(t *testing.T) {
-		response, err := updateUser(adminUser.Uuid, data, testUserCookie, app)
+		response, err := editUser(adminUser.Uuid, testUserCookie, app)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnStatus(response, fiber.StatusForbidden, t)
+
+		response, err = updateUser(adminUser.Uuid, data, testUserCookie, app)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -160,7 +189,14 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to update the user in session", func(t *testing.T) {
 		data.Set("name", "Updated test user")
 
-		response, err := updateUser(testUser.Uuid, data, testUserCookie, app)
+		response, err := editUser(testUser.Uuid, testUserCookie, app)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnStatus(response, fiber.StatusOK, t)
+
+		response, err = updateUser(testUser.Uuid, data, testUserCookie, app)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -178,6 +214,13 @@ func TestUserManagement(t *testing.T) {
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
+
+		mustReturnStatus(response, fiber.StatusOK, t)
+
+		response, err = updateUser(testUser.Uuid, data, adminCookie, app)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
 		testUser := model.User{}
 		db.Where("email = ?", "test@example.com").First(&testUser)
 		if testUser.Name != "Updated test user by an admin" {
@@ -186,7 +229,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to edit a non existing user with an admin session", func(t *testing.T) {
-		response, err := editUser("abcde", data, adminCookie, app)
+		response, err := editUser("abcde", adminCookie, app)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -302,6 +345,16 @@ func bootstrapApp(db *gorm.DB) *fiber.App {
 	return webserver.New(webserver.NewReaderMock(), webserverConfig, metadataReadersMock, &infrastructure.NoEmail{}, db)
 }
 
+func newUser(data url.Values, cookie *http.Cookie, app *fiber.App) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, "/en/users/new", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.AddCookie(cookie)
+
+	return app.Test(req)
+}
+
 func addUser(data url.Values, cookie *http.Cookie, app *fiber.App) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodPost, "/en/users/new", strings.NewReader(data.Encode()))
 	if err != nil {
@@ -313,11 +366,12 @@ func addUser(data url.Values, cookie *http.Cookie, app *fiber.App) (*http.Respon
 	return app.Test(req)
 }
 
-func editUser(uuid string, data url.Values, cookie *http.Cookie, app *fiber.App) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/en/users/%s/edit", uuid), strings.NewReader(data.Encode()))
+func editUser(uuid string, cookie *http.Cookie, app *fiber.App) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/en/users/%s/edit", uuid), nil)
 	if err != nil {
 		return nil, err
 	}
+	req.AddCookie(cookie)
 
 	return app.Test(req)
 }

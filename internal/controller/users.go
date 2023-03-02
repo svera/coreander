@@ -207,7 +207,12 @@ func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 
 	// Allow admins to change password of other users without entering user's current password
 	if session.Uuid == c.Params("uuid") {
-		if _, err := u.repository.CheckCredentials(user.Email, c.FormValue("old-password")); err != nil {
+		exist, err := u.repository.CheckCredentials(user.Email, c.FormValue("old-password"))
+		if err != nil {
+			return fiber.ErrInternalServerError
+		}
+
+		if exist.Password == "" {
 			errs["oldpassword"] = "The current password is not correct"
 		}
 	}
