@@ -58,28 +58,27 @@
         fetch('/send', {
             method: "POST",
             headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: JSON.stringify({
-                email: form.elements[0].value,
-                file: form.elements[1].value,
+            body: new URLSearchParams({
+                'email': form.elements[0].value,
+                'file': form.elements[1].value,        
             })
         })
-            .then((response) => {
-                message = document.getElementById("send-email-message-" + index)
-                message.classList.remove("visually-hidden");
-                if (!response.ok) {
-                    message.innerHTML = '{{t .Lang "There was an error sending the document, please try again later"}}';
-                    message.classList.add("text-danger");
-                } else {
-                    message.innerHTML = '{{t .Lang "Document sent succesfully"}}';
-                    message.classList.add("text-success");
-                }
-            })
-            .catch(function (error) {
-                // Catch errors
-                console.log(error);
-            });
+        .then((response) => {
+            message = document.getElementById("send-email-message-" + index)
+            message.classList.remove("visually-hidden");
+            if (!response.ok) {
+                message.innerHTML = '{{t .Lang "There was an error sending the document, please try again later"}}';
+                message.classList.add("text-danger");
+            } else {
+                message.innerHTML = '{{t .Lang "Document sent succesfully"}}';
+                message.classList.add("text-success");
+            }
+        })
+        .catch(function (error) {
+            // Catch errors
+            console.log(error);
+        });
     }
 </script>

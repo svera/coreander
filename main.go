@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/internal/controller"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
@@ -58,7 +57,7 @@ func main() {
 func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metadataReaders map[string]metadata.Reader, appFs afero.Fs) {
 	var (
 		err    error
-		sender controller.Sender
+		sender webserver.Sender
 	)
 
 	defer idx.Close()
@@ -85,6 +84,8 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 		RequireAuth:       cfg.RequireAuth,
 		MinPasswordLength: cfg.MinPasswordLength,
 		WordsPerMinute:    cfg.WordsPerMinute,
+		Hostname:          cfg.Hostname,
+		Port:              cfg.Port,
 	}
 	app := webserver.New(idx, webserverConfig, metadataReaders, sender, db)
 	fmt.Printf("Coreander version %s started listening on port %s\n\n", version, cfg.Port)

@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"net/mail"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -14,13 +15,15 @@ const (
 
 type User struct {
 	gorm.Model
-	Uuid           string `gorm:"uniqueIndex"`
-	Name           string
-	Email          string `gorm:"uniqueIndex"`
-	SendToEmail    string
-	Password       string
-	Role           int
-	WordsPerMinute float64
+	Uuid               string `gorm:"uniqueIndex"`
+	Name               string
+	Email              string `gorm:"uniqueIndex"`
+	SendToEmail        string
+	Password           string
+	Role               int
+	WordsPerMinute     float64
+	RecoveryUUID       string
+	RecoveryValidUntil time.Time
 }
 
 // Validate checks all user's fields to ensure they are in the required format
@@ -49,6 +52,22 @@ func (u User) Validate(minPasswordLength int) map[string]string {
 
 	if len(u.Password) < minPasswordLength {
 		errs["password"] = fmt.Sprintf("Password must be longer than %d characters", minPasswordLength)
+	}
+
+	return errs
+}
+
+func (u User) ConfirmPassword(confirmPassword string, minPasswordLength int, errs map[string]string) map[string]string {
+	if len(u.Password) < minPasswordLength {
+		errs["password"] = fmt.Sprintf("Password must be longer than %d characters", minPasswordLength)
+	}
+
+	if confirmPassword == "" {
+		errs["confirmpassword"] = "Confirm password cannot be empty"
+	}
+
+	if u.Password != confirmPassword {
+		errs["confirmpassword"] = "Password and confirmation do not match"
 	}
 
 	return errs

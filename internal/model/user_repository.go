@@ -3,7 +3,9 @@ package model
 import (
 	"crypto/sha256"
 	"log"
+	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -45,6 +47,7 @@ func (u *UserRepository) Create(user User) error {
 }
 
 func (u *UserRepository) Update(user User) error {
+	user.Password = Hash(user.Password)
 	if result := u.DB.Save(&user); result.Error != nil {
 		log.Printf("error updating user: %s\n", result.Error)
 		return result.Error
@@ -55,6 +58,15 @@ func (u *UserRepository) Update(user User) error {
 func (u *UserRepository) FindByEmail(email string) (User, error) {
 	user := User{}
 	result := u.DB.Where("email = ?", email).First(&user)
+	if result.Error != nil {
+		log.Printf("error retrieving user: %s\n", result.Error)
+	}
+	return user, result.Error
+}
+
+func (u *UserRepository) FindByRecoveryUuid(recoveryUuid string) (User, error) {
+	user := User{}
+	result := u.DB.Where("recovery_uuid = ?", recoveryUuid).First(&user)
 	if result.Error != nil {
 		log.Printf("error retrieving user: %s\n", result.Error)
 	}
@@ -87,6 +99,42 @@ func (u *UserRepository) CheckCredentials(email, password string) (User, error) 
 		log.Printf("error checking user credentials user: %s\n", result.Error)
 	}
 	return user, result.Error
+}
+
+func (u *UserRepository) GenerateRecovery(email string) (User, error) {
+	recovery := User{
+		RecoveryUUID:       uuid.NewString(),
+		RecoveryValidUntil: time.Now().Add(24 * time.Hour),
+	}
+
+	result := u.DB.Limit(1).Where("email = ?", email).Updates(recovery)
+	if result.Error != nil {
+		log.Printf("error generating recovery: %s\n", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return User{}, result.Error
+	}
+
+	return recovery, result.Error
+}
+
+func (u *UserRepository) ClearRecovery(email string) error {
+	recovery := User{
+		RecoveryUUID:       "",
+		RecoveryValidUntil: time.Unix(0, 0),
+	}
+
+	result := u.DB.Limit(1).Where("email = ?", email).Updates(recovery)
+	if result.Error != nil {
+		log.Printf("error clearing recovery: %s\n", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return result.Error
+	}
+
+	return result.Error
 }
 
 func Hash(s string) string {

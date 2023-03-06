@@ -4,7 +4,6 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"html/template"
 	"io/fs"
 	"log"
 	"net/http"
@@ -17,15 +16,12 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/favicon"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	jwtware "github.com/gofiber/jwt/v3"
-	fibertpl "github.com/gofiber/template/html"
 	"github.com/svera/coreander/internal/controller"
 	"github.com/svera/coreander/internal/i18n"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/jwtclaimsreader"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/model"
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
 	"gorm.io/gorm"
 )
 
@@ -41,11 +37,27 @@ type Config struct {
 	RequireAuth       bool
 	MinPasswordLength int
 	WordsPerMinute    float64
+	Hostname          string
+	Port              string
+}
+
+type Sender interface {
+	Send(address, body string) error
+	SendDocument(address string, libraryPath string, fileName string) error
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.Reader, sender controller.Sender, db *gorm.DB) *fiber.App {
-	engine, err := initTemplateEngine()
+func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.Reader, sender Sender, db *gorm.DB) *fiber.App {
+	viewsFS, err := fs.Sub(embedded, "embedded/views")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	printers, err := i18n.Printers(embedded)
+	if err != nil {
+		log.Fatal(err)
+	}
+	engine, err := infrastructure.TemplateEngine(viewsFS, printers)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -124,6 +136,19 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		Root: http.FS(imagesFS),
 	}))
 
+	usersRepository := &model.UserRepository{DB: db}
+
+	authCfg := controller.AuthConfig{
+		MinPasswordLength: cfg.MinPasswordLength,
+		Secret:            cfg.JwtSecret,
+		Hostname:          cfg.Hostname,
+		Port:              cfg.Port,
+	}
+
+	authController := controller.NewAuth(usersRepository, sender, authCfg)
+
+	langGroup := app.Group("/:lang<regex(es|en)>")
+
 	// JWT Middleware
 	app.Use(jwtware.New(jwtware.Config{
 		SigningKey:    cfg.JwtSecret,
@@ -133,7 +158,8 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 			err = c.Next()
 			if cfg.RequireAuth &&
 				!strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/login") &&
-				!strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/recover") {
+				!strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/recover") &&
+				!strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/reset-password") {
 				return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
 			}
 			if strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/users") {
@@ -143,24 +169,30 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		},
 	}))
 
+	langGroup.Get("/login", authController.Login)
+	langGroup.Post("login", authController.SignIn)
+	langGroup.Get("/logout", authController.SignOut)
+	langGroup.Get("/recover", authController.Recover)
+	langGroup.Post("/recover", authController.Request)
+	langGroup.Get("/reset-password", authController.EditPassword)
+	langGroup.Post("/reset-password", authController.UpdatePassword)
+
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
 		c.Append("Cache-Time", "86400")
 		return controller.Covers(c, cfg.HomeDir, cfg.LibraryPath, metadataReaders, cfg.CoverMaxWidth, embedded)
 	})
 
 	app.Post("/send", func(c *fiber.Ctx) error {
+		if c.FormValue("file") == "" || c.FormValue("email") == "" {
+			return fiber.ErrBadRequest
+		}
 		controller.Send(c, cfg.LibraryPath, c.FormValue("file"), c.FormValue("email"), sender)
 		return nil
 	})
 
 	app.Static("/files", cfg.LibraryPath)
 
-	usersRepository := &model.UserRepository{DB: db}
-
-	authController := controller.NewAuth(usersRepository, cfg.JwtSecret, emailSendingConfigured)
 	usersController := controller.NewUsers(usersRepository, cfg.MinPasswordLength, cfg.WordsPerMinute)
-
-	langGroup := app.Group("/:lang<regex(es|en)>")
 
 	langGroup.Get("/", func(c *fiber.Ctx) error {
 		session := jwtclaimsreader.SessionData(c)
@@ -175,12 +207,6 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		return controller.DocReader(c, cfg.LibraryPath)
 	})
 
-	langGroup.Get("/login", authController.Login)
-	langGroup.Post("login", authController.SignIn)
-	langGroup.Get("/logout", authController.SignOut)
-	langGroup.Get("/recover", authController.Recover)
-	langGroup.Post("/recover", authController.Request)
-
 	langGroup.Get("/users", usersController.List)
 	langGroup.Get("/users/new", usersController.New)
 	langGroup.Post("/users/new", usersController.Create)
@@ -193,47 +219,4 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	})
 
 	return app
-}
-
-func initTemplateEngine() (*fibertpl.Engine, error) {
-	cat, err := i18n.NewCatalogFromFolder(embedded, "en")
-	if err != nil {
-		return nil, err
-	}
-
-	message.DefaultCatalog = cat
-
-	printers := map[string]*message.Printer{
-		"en": message.NewPrinter(language.English),
-		"es": message.NewPrinter(language.Spanish),
-	}
-	viewsFS, err := fs.Sub(embedded, "embedded/views")
-	if err != nil {
-		return nil, err
-	}
-
-	engine := fibertpl.NewFileSystem(http.FS(viewsFS), ".html")
-
-	engine.AddFunc("t", func(lang, key string, values ...interface{}) template.HTML {
-		return template.HTML(printers[lang].Sprintf(key, values...))
-	})
-
-	engine.AddFunc("dict", func(values ...interface{}) map[string]interface{} {
-		if len(values)%2 != 0 {
-			fmt.Println("invalid dict call")
-			return nil
-		}
-		dict := make(map[string]interface{}, len(values)/2)
-		for i := 0; i < len(values); i += 2 {
-			key, ok := values[i].(string)
-			if !ok {
-				fmt.Println("dict keys must be strings")
-				return nil
-			}
-			dict[key] = values[i+1]
-		}
-		return dict
-	})
-
-	return engine, nil
 }

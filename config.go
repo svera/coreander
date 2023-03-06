@@ -4,6 +4,8 @@ package main
 type Config struct {
 	// LibPath holds the absolute path to the folder containing the documents
 	LibPath string `env:"LIB_PATH" env-required:"true"`
+	// Hostname stores the name of the host the server is running on
+	Hostname string `env:"HOSTNAME" env-default:"localhost"`
 	// Port defines the port number in which the webserver listens for requests
 	Port string `env:"PORT" env-default:"3000"`
 	// BatchSize indicates the number of documents persisted by the indexer in one operation
