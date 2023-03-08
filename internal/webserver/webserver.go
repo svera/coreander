@@ -42,7 +42,7 @@ type Config struct {
 }
 
 type Sender interface {
-	Send(address, body string) error
+	Send(address, subject, body string) error
 	SendDocument(address string, libraryPath string, fileName string) error
 }
 
@@ -145,7 +145,7 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		Port:              cfg.Port,
 	}
 
-	authController := controller.NewAuth(usersRepository, sender, authCfg)
+	authController := controller.NewAuth(usersRepository, sender, authCfg, printers)
 
 	langGroup := app.Group("/:lang<regex(es|en)>")
 

@@ -6,8 +6,12 @@ require (
 	github.com/blevesearch/bleve v1.0.14
 	github.com/blevesearch/bleve/v2 v2.3.6
 	github.com/disintegration/imaging v1.6.2
+	github.com/glebarez/sqlite v1.6.0
 	github.com/gofiber/fiber/v2 v2.41.0
+	github.com/gofiber/jwt/v3 v3.3.5
 	github.com/gofiber/template v1.7.3
+	github.com/golang-jwt/jwt/v4 v4.4.3
+	github.com/google/uuid v1.3.0
 	github.com/ilyakaznacheev/cleanenv v1.4.2
 	github.com/magefile/mage v1.14.0
 	github.com/microcosm-cc/bluemonday v1.0.21
@@ -16,21 +20,17 @@ require (
 	github.com/svera/epub v0.1.2
 	golang.org/x/text v0.7.0
 	gopkg.in/yaml.v2 v2.4.0
+	gorm.io/gorm v1.24.3
 )
 
 require (
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/glebarez/go-sqlite v1.20.0 // indirect
-	github.com/glebarez/sqlite v1.6.0 // indirect
-	github.com/gofiber/jwt/v3 v3.3.5 // indirect
-	github.com/golang-jwt/jwt/v4 v4.4.3 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20220927061507-ef77025ab5aa // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
-	gorm.io/gorm v1.24.3 // indirect
 	modernc.org/libc v1.22.2 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.5.0 // indirect

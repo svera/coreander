@@ -7,7 +7,7 @@
                 <div class="input-group">
                     <input type="email" name="email"
                         class='form-control {{if ne (index .Errors "email") ""}}is-invalid{{end}}' id="email"
-                        required="required" value="{{.User.Email}}">
+                        required value="{{.User.Email}}">
                     <button class="btn btn-primary" type="submit">{{t .Lang "Request"}}</button>
                 </div>
                 {{if ne (index .Errors "email") ""}}

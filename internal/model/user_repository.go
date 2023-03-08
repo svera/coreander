@@ -66,9 +66,9 @@ func (u *UserRepository) FindByEmail(email string) (User, error) {
 
 func (u *UserRepository) FindByRecoveryUuid(recoveryUuid string) (User, error) {
 	user := User{}
-	result := u.DB.Where("recovery_uuid = ?", recoveryUuid).First(&user)
+	result := u.DB.Limit(1).Where("recovery_uuid = ?", recoveryUuid).First(&user)
 	if result.Error != nil {
-		log.Printf("error retrieving user: %s\n", result.Error)
+		log.Printf("error retrieving user by recovery ID: %s\n", result.Error)
 	}
 	return user, result.Error
 }

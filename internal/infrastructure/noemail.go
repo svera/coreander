@@ -3,7 +3,7 @@ package infrastructure
 type NoEmail struct {
 }
 
-func (s *NoEmail) Send(address, body string) error {
+func (s *NoEmail) Send(address, subject, body string) error {
 	return nil
 }
 

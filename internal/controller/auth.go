@@ -10,6 +10,7 @@ import (
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/jwtclaimsreader"
 	"github.com/svera/coreander/internal/model"
+	"golang.org/x/text/message"
 )
 
 type authRepository interface {
@@ -22,7 +23,7 @@ type authRepository interface {
 }
 
 type recoveryEmail interface {
-	Send(address, body string) error
+	Send(address, subject, body string) error
 }
 
 type Auth struct {
@@ -32,6 +33,7 @@ type Auth struct {
 	minPasswordLength int
 	hostname          string
 	port              string
+	printers          map[string]*message.Printer
 }
 
 type AuthConfig struct {
@@ -46,7 +48,7 @@ const (
 	defaultHttpsPort = "443"
 )
 
-func NewAuth(repository authRepository, sender recoveryEmail, cfg AuthConfig) *Auth {
+func NewAuth(repository authRepository, sender recoveryEmail, cfg AuthConfig, printers map[string]*message.Printer) *Auth {
 	return &Auth{
 		repository:        repository,
 		secret:            cfg.Secret,
@@ -54,6 +56,7 @@ func NewAuth(repository authRepository, sender recoveryEmail, cfg AuthConfig) *A
 		minPasswordLength: cfg.MinPasswordLength,
 		hostname:          cfg.Hostname,
 		port:              cfg.Port,
+		printers:          printers,
 	}
 }
 
@@ -178,10 +181,10 @@ func (a *Auth) Request(c *fiber.Ctx) error {
 	}
 
 	if _, err := mail.ParseAddress(c.FormValue("email")); err != nil {
-		errs["sendtoemail"] = "Incorrect send to email address"
+		errs["email"] = "Incorrect email address"
 	}
 
-	if len(errs) > 1 {
+	if len(errs) > 0 {
 		return c.Render("auth/recover", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Recover password",
@@ -210,9 +213,12 @@ func (a *Auth) Request(c *fiber.Ctx) error {
 			"Port":     port,
 		})
 
-		go a.sender.Send(c.FormValue("email"), string(c.Response().Body()))
+		go a.sender.Send(
+			c.FormValue("email"),
+			a.printers[c.Params("lang")].Sprintf("Password recovery request"),
+			string(c.Response().Body()),
+		)
 	}
-
 	return c.Render("auth/request", fiber.Map{
 		"Lang":    c.Params("lang"),
 		"Title":   "Recover password",

@@ -29,8 +29,8 @@ func TestGET(t *testing.T) {
 		{"Server returns not found if the user tries to access a non-existent URL", "/xx", http.StatusNotFound},
 	}
 
-	db := infrastructure.Connect("file::memory:?cache=shared")
-	app := bootstrapApp(db)
+	db := infrastructure.Connect("file::memory:?cache=shared", 250)
+	app := bootstrapApp(db, &infrastructure.NoEmail{})
 
 	for _, tcase := range cases {
 		t.Run(tcase.name, func(t *testing.T) {
@@ -48,8 +48,8 @@ func TestGET(t *testing.T) {
 }
 
 func TestUserManagement(t *testing.T) {
-	db := infrastructure.Connect("file::memory:?cache=shared")
-	app := bootstrapApp(db)
+	db := infrastructure.Connect("file::memory:?cache=shared", 250)
+	app := bootstrapApp(db, &infrastructure.NoEmail{})
 
 	data := url.Values{
 		"name":             {"Test user"},
@@ -66,7 +66,7 @@ func TestUserManagement(t *testing.T) {
 	}
 
 	t.Run("Try to add a user without an active session", func(t *testing.T) {
-		response, err := newUser(data, &http.Cookie{}, app)
+		response, err := newUser(&http.Cookie{}, app)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -82,7 +82,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to add a user with an admin active session", func(t *testing.T) {
-		response, err := newUser(data, adminCookie, app)
+		response, err := newUser(adminCookie, app)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -334,7 +334,7 @@ func mustReturnStatus(response *http.Response, expectedStatus int, t *testing.T)
 	}
 }
 
-func bootstrapApp(db *gorm.DB) *fiber.App {
+func bootstrapApp(db *gorm.DB, sender webserver.Sender) *fiber.App {
 	metadataReadersMock := map[string]metadata.Reader{
 		"epub": metadata.NewReaderMock(),
 	}
@@ -342,10 +342,10 @@ func bootstrapApp(db *gorm.DB) *fiber.App {
 	webserverConfig := webserver.Config{
 		CoverMaxWidth: 300,
 	}
-	return webserver.New(webserver.NewReaderMock(), webserverConfig, metadataReadersMock, &infrastructure.NoEmail{}, db)
+	return webserver.New(webserver.NewReaderMock(), webserverConfig, metadataReadersMock, sender, db)
 }
 
-func newUser(data url.Values, cookie *http.Cookie, app *fiber.App) (*http.Response, error) {
+func newUser(cookie *http.Cookie, app *fiber.App) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, "/en/users/new", nil)
 	if err != nil {
 		return nil, err

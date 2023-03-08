@@ -49,7 +49,7 @@ func main() {
 		cfg.SkipIndexing = false
 		idx = createIndex(homeDir, cfg.LibPath, metadataReaders)
 	}
-	db := infrastructure.Connect(homeDir + "/coreander/db/database.db")
+	db := infrastructure.Connect(homeDir+"/coreander/db/database.db", cfg.WordsPerMinute)
 
 	run(cfg, db, idx, homeDir, metadataReaders, appFs)
 }
