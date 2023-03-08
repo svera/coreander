@@ -248,4 +248,20 @@ func TestRecover(t *testing.T) {
 	if expectedURL := "/en/login"; url.Path != expectedURL {
 		t.Errorf("Expected location %s, received %s", expectedURL, url.Path)
 	}
+
+	// Try to access again to the reset password page with the same recovery ID leads to an error
+	req, err = http.NewRequest(http.MethodGet, "/en/reset-password", nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+
+	req.URL.RawQuery = q.Encode()
+
+	response, err = app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if expectedStatus := http.StatusBadRequest; response.StatusCode != expectedStatus {
+		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+	}
 }

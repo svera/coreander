@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/jwtclaimsreader"
 	"github.com/svera/coreander/internal/model"
@@ -14,11 +15,8 @@ import (
 )
 
 type authRepository interface {
-	CheckCredentials(email, password string) (model.User, error)
 	FindByEmail(email string) (model.User, error)
 	FindByRecoveryUuid(recoveryUuid string) (model.User, error)
-	GenerateRecovery(email string) (model.User, error)
-	ClearRecovery(email string) error
 	Update(user model.User) error
 }
 
@@ -89,12 +87,12 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 	}
 
 	// If username or password are incorrect, do not allow access.
-	user, err = a.repository.CheckCredentials(c.FormValue("email"), c.FormValue("password"))
+	user, err = a.repository.FindByEmail(c.FormValue("email"))
 	if err != nil {
 		return fiber.ErrInternalServerError
 	}
 
-	if user.Email == "" {
+	if user.Password != model.Hash(c.FormValue("password")) {
 		return c.Status(fiber.StatusUnauthorized).Render("auth/login", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Login",
@@ -194,17 +192,19 @@ func (a *Auth) Request(c *fiber.Ctx) error {
 		}, "layout")
 	}
 
-	user, err := a.repository.GenerateRecovery(c.FormValue("email"))
-	if err != nil {
-		return fiber.ErrInternalServerError
-	}
+	user, err := a.repository.FindByEmail(c.FormValue("email"))
+	if err == nil {
+		user.RecoveryUUID = uuid.NewString()
+		user.RecoveryValidUntil = time.Now().Add(24 * time.Hour)
+		if err := a.repository.Update(user); err != nil {
+			return fiber.ErrInternalServerError
+		}
 
-	port := ":" + a.port
-	if (a.port == "80" && c.Protocol() == "http") ||
-		(a.port == "443" && c.Protocol() == "https") {
-		port = ""
-	}
-	if user.RecoveryUUID != "" {
+		port := ":" + a.port
+		if (a.port == "80" && c.Protocol() == "http") ||
+			(a.port == "443" && c.Protocol() == "https") {
+			port = ""
+		}
 		c.Render("auth/email", fiber.Map{
 			"Lang":     c.Params("lang"),
 			"Uuid":     user.RecoveryUUID,
@@ -219,6 +219,7 @@ func (a *Auth) Request(c *fiber.Ctx) error {
 			string(c.Response().Body()),
 		)
 	}
+
 	return c.Render("auth/request", fiber.Map{
 		"Lang":    c.Params("lang"),
 		"Title":   "Recover password",
@@ -251,6 +252,8 @@ func (a *Auth) UpdatePassword(c *fiber.Ctx) error {
 	}
 
 	user.Password = c.FormValue("password")
+	user.RecoveryUUID = ""
+	user.RecoveryValidUntil = time.Unix(0, 0)
 	errs := map[string]string{}
 	errs = user.ConfirmPassword(c.FormValue("confirm-password"), a.minPasswordLength, errs)
 	if len(errs) > 0 {
@@ -265,10 +268,6 @@ func (a *Auth) UpdatePassword(c *fiber.Ctx) error {
 	}
 
 	if err := a.repository.Update(user); err != nil {
-		return fiber.ErrInternalServerError
-	}
-
-	if err := a.repository.ClearRecovery(user.Email); err != nil {
 		return fiber.ErrInternalServerError
 	}
 

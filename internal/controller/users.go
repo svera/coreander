@@ -20,7 +20,6 @@ type usersRepository interface {
 	FindByEmail(email string) (model.User, error)
 	Admins() int64
 	Delete(uuid string) error
-	CheckCredentials(email, password string) (model.User, error)
 }
 
 type Users struct {
@@ -207,12 +206,12 @@ func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 
 	// Allow admins to change password of other users without entering user's current password
 	if session.Uuid == c.Params("uuid") {
-		exist, err := u.repository.CheckCredentials(user.Email, c.FormValue("old-password"))
+		user, err := u.repository.FindByEmail(user.Email)
 		if err != nil {
 			return fiber.ErrInternalServerError
 		}
 
-		if exist.Password == "" {
+		if user.Password != model.Hash(c.FormValue("old-password")) {
 			errs["oldpassword"] = "The current password is not correct"
 		}
 	}

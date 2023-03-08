@@ -2,10 +2,9 @@ package model
 
 import (
 	"crypto/sha256"
+	"errors"
 	"log"
-	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -56,21 +55,29 @@ func (u *UserRepository) Update(user User) error {
 }
 
 func (u *UserRepository) FindByEmail(email string) (User, error) {
-	user := User{}
-	result := u.DB.Where("email = ?", email).First(&user)
-	if result.Error != nil {
+	var (
+		err  error
+		user User
+	)
+	result := u.DB.Limit(1).Where("email = ?", email).First(&user)
+	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		err = result.Error
 		log.Printf("error retrieving user: %s\n", result.Error)
 	}
-	return user, result.Error
+	return user, err
 }
 
 func (u *UserRepository) FindByRecoveryUuid(recoveryUuid string) (User, error) {
-	user := User{}
+	var (
+		err  error
+		user User
+	)
 	result := u.DB.Limit(1).Where("recovery_uuid = ?", recoveryUuid).First(&user)
-	if result.Error != nil {
+	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		err = result.Error
 		log.Printf("error retrieving user by recovery ID: %s\n", result.Error)
 	}
-	return user, result.Error
+	return user, err
 }
 
 func (u *UserRepository) Admins() int64 {
@@ -89,52 +96,6 @@ func (u *UserRepository) Delete(uuid string) error {
 		log.Printf("error deleting user: %s\n", result.Error)
 	}
 	return nil
-}
-
-func (u *UserRepository) CheckCredentials(email, password string) (User, error) {
-	var user User
-
-	result := u.DB.Limit(1).Where("email = ? AND password = ?", email, Hash(password)).Find(&user)
-	if result.Error != nil {
-		log.Printf("error checking user credentials user: %s\n", result.Error)
-	}
-	return user, result.Error
-}
-
-func (u *UserRepository) GenerateRecovery(email string) (User, error) {
-	recovery := User{
-		RecoveryUUID:       uuid.NewString(),
-		RecoveryValidUntil: time.Now().Add(24 * time.Hour),
-	}
-
-	result := u.DB.Limit(1).Where("email = ?", email).Updates(recovery)
-	if result.Error != nil {
-		log.Printf("error generating recovery: %s\n", result.Error)
-	}
-
-	if result.RowsAffected == 0 {
-		return User{}, result.Error
-	}
-
-	return recovery, result.Error
-}
-
-func (u *UserRepository) ClearRecovery(email string) error {
-	recovery := User{
-		RecoveryUUID:       "",
-		RecoveryValidUntil: time.Unix(0, 0),
-	}
-
-	result := u.DB.Limit(1).Where("email = ?", email).Updates(recovery)
-	if result.Error != nil {
-		log.Printf("error clearing recovery: %s\n", result.Error)
-	}
-
-	if result.RowsAffected == 0 {
-		return result.Error
-	}
-
-	return result.Error
 }
 
 func Hash(s string) string {
