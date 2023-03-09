@@ -48,7 +48,7 @@ func TestGET(t *testing.T) {
 }
 
 func TestUserManagement(t *testing.T) {
-	db := infrastructure.Connect("file::memory:?cache=shared", 250)
+	db := infrastructure.Connect("file::memory:", 250)
 	app := bootstrapApp(db, &infrastructure.NoEmail{})
 
 	data := url.Values{

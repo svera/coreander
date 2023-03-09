@@ -33,7 +33,7 @@ func (s *SMTPMock) SendDocument(address string, libraryPath string, fileName str
 }
 
 func TestAuthentication(t *testing.T) {
-	db := infrastructure.Connect("file::memory:?cache=shared", 250)
+	db := infrastructure.Connect("file::memory:", 250)
 	app := bootstrapApp(db, &infrastructure.SMTP{})
 
 	data := url.Values{

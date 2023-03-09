@@ -267,6 +267,7 @@ func (a *Auth) UpdatePassword(c *fiber.Ctx) error {
 		}, "layout")
 	}
 
+	user.Password = model.Hash(user.Password)
 	if err := a.repository.Update(user); err != nil {
 		return fiber.ErrInternalServerError
 	}
