@@ -108,9 +108,8 @@ func (u *Users) Create(c *fiber.Ctx) error {
 	if exist, _ := u.repository.FindByEmail(c.FormValue("email")); exist.Email != "" {
 		errs["email"] = "A user with this email address already exist"
 	}
-	errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.minPasswordLength, errs)
 
-	if len(errs) > 0 {
+	if errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.minPasswordLength, errs); len(errs) > 0 {
 		return c.Render("users/new", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Add new user",
@@ -173,8 +172,7 @@ func (u *Users) Update(c *fiber.Ctx) error {
 	user.SendToEmail = c.FormValue("send-to-email")
 	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
 
-	errs := user.Validate(u.minPasswordLength)
-	if len(errs) > 0 {
+	if errs := user.Validate(u.minPasswordLength); len(errs) > 0 {
 		return c.Render("users/edit", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Edit user",
@@ -216,8 +214,8 @@ func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 			errs["oldpassword"] = "The current password is not correct"
 		}
 	}
-	errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.minPasswordLength, errs)
-	if len(errs) > 0 {
+
+	if errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.minPasswordLength, errs); len(errs) > 0 {
 		return c.Render("users/edit", fiber.Map{
 			"Lang":      c.Params("lang"),
 			"Title":     "Edit user",

@@ -9,12 +9,12 @@
                         class='form-control {{if ne (index .Errors "email") ""}}is-invalid{{end}}' id="email"
                         required value="{{.User.Email}}">
                     <button class="btn btn-primary" type="submit">{{t .Lang "Request"}}</button>
-                </div>
-                {{if ne (index .Errors "email") ""}}
-                <div class="invalid-feedback">
-                    {{t .Lang .Errors.email}}
-                </div>
-                {{end}}
+                    {{if ne (index .Errors "email") ""}}
+                    <div class="invalid-feedback">
+                        {{t .Lang .Errors.email}}
+                    </div>
+                    {{end}}
+                    </div>
             </div>
         </form>
     </section>

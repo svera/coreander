@@ -192,8 +192,7 @@ func (a *Auth) Request(c *fiber.Ctx) error {
 		}, "layout")
 	}
 
-	user, err := a.repository.FindByEmail(c.FormValue("email"))
-	if err == nil {
+	if user, err := a.repository.FindByEmail(c.FormValue("email")); err == nil {
 		user.RecoveryUUID = uuid.NewString()
 		user.RecoveryValidUntil = time.Now().Add(24 * time.Hour)
 		if err := a.repository.Update(user); err != nil {
@@ -205,12 +204,17 @@ func (a *Auth) Request(c *fiber.Ctx) error {
 			(a.port == "443" && c.Protocol() == "https") {
 			port = ""
 		}
+		recoveryLink := fmt.Sprintf(
+			"%s://%s%s/%s/reset-password?id=%s",
+			c.Protocol(),
+			a.hostname,
+			port,
+			c.Params("lang"),
+			user.RecoveryUUID,
+		)
 		c.Render("auth/email", fiber.Map{
-			"Lang":     c.Params("lang"),
-			"Uuid":     user.RecoveryUUID,
-			"Protocol": c.Protocol(),
-			"Hostname": a.hostname,
-			"Port":     port,
+			"Lang":         c.Params("lang"),
+			"RecoveryLink": recoveryLink,
 		})
 
 		go a.sender.Send(
@@ -230,8 +234,7 @@ func (a *Auth) Request(c *fiber.Ctx) error {
 }
 
 func (a *Auth) EditPassword(c *fiber.Ctx) error {
-	_, err := a.validateRecoveryAccess(c, c.Query("id"))
-	if err != nil {
+	if _, err := a.validateRecoveryAccess(c, c.Query("id")); err != nil {
 		return err
 	}
 
@@ -255,8 +258,8 @@ func (a *Auth) UpdatePassword(c *fiber.Ctx) error {
 	user.RecoveryUUID = ""
 	user.RecoveryValidUntil = time.Unix(0, 0)
 	errs := map[string]string{}
-	errs = user.ConfirmPassword(c.FormValue("confirm-password"), a.minPasswordLength, errs)
-	if len(errs) > 0 {
+
+	if errs = user.ConfirmPassword(c.FormValue("confirm-password"), a.minPasswordLength, errs); len(errs) > 0 {
 		return c.Render("auth/edit-password", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Reset password",

@@ -36,8 +36,7 @@ func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured boo
 	var searchResults *Result
 
 	if keywords := c.Query("search"); keywords != "" {
-		searchResults, err = idx.Search(keywords, page, model.ResultsPerPage, wordsPerMinute)
-		if err != nil {
+		if searchResults, err = idx.Search(keywords, page, model.ResultsPerPage, wordsPerMinute); err != nil {
 			return fiber.ErrInternalServerError
 		}
 

@@ -29,7 +29,7 @@ func TestGET(t *testing.T) {
 		{"Server returns not found if the user tries to access a non-existent URL", "/xx", http.StatusNotFound},
 	}
 
-	db := infrastructure.Connect("file::memory:?cache=shared", 250)
+	db := infrastructure.Connect("file::memory:", 250)
 	app := bootstrapApp(db, &infrastructure.NoEmail{})
 
 	for _, tcase := range cases {

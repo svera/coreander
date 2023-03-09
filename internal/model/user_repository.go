@@ -64,12 +64,9 @@ func (u *UserRepository) Admins() int64 {
 }
 
 func (u *UserRepository) Delete(uuid string) error {
-	user, err := u.FindByUuid(uuid)
-	if err != nil {
-		return nil
-	}
+	var user User
 	result := u.DB.Where("uuid = ?", uuid).Delete(&user)
-	if result.Error != nil {
+	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		log.Printf("error deleting user: %s\n", result.Error)
 	}
 	return nil
