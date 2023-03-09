@@ -14,7 +14,7 @@ import (
 type usersRepository interface {
 	List(page int, resultsPerPage int) ([]model.User, error)
 	Total() int64
-	Find(uuid string) (model.User, error)
+	FindByUuid(uuid string) (model.User, error)
 	Create(user model.User) error
 	Update(user model.User) error
 	FindByEmail(email string) (model.User, error)
@@ -121,6 +121,7 @@ func (u *Users) Create(c *fiber.Ctx) error {
 		}, "layout")
 	}
 
+	user.Password = model.Hash(user.Password)
 	if err := u.repository.Create(user); err != nil {
 		return fiber.ErrInternalServerError
 	}
@@ -130,7 +131,7 @@ func (u *Users) Create(c *fiber.Ctx) error {
 
 // Edit renders the edit user form
 func (u *Users) Edit(c *fiber.Ctx) error {
-	user, err := u.repository.Find(c.Params("uuid"))
+	user, err := u.repository.FindByUuid(c.Params("uuid"))
 	if err != nil {
 		return fiber.ErrNotFound
 	}
@@ -153,7 +154,7 @@ func (u *Users) Edit(c *fiber.Ctx) error {
 
 // Update gathers information from the edit user form and updates user data
 func (u *Users) Update(c *fiber.Ctx) error {
-	user, err := u.repository.Find(c.Params("uuid"))
+	user, err := u.repository.FindByUuid(c.Params("uuid"))
 	if err != nil {
 		return fiber.ErrNotFound
 	}
@@ -228,6 +229,7 @@ func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 		}, "layout")
 	}
 
+	user.Password = model.Hash(user.Password)
 	if err := u.repository.Update(user); err != nil {
 		return fiber.ErrInternalServerError
 	}
@@ -252,7 +254,7 @@ func (u *Users) Delete(c *fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
-	user, err := u.repository.Find(c.FormValue("uuid"))
+	user, err := u.repository.FindByUuid(c.FormValue("uuid"))
 	if err != nil {
 		return fiber.ErrNotFound
 	}

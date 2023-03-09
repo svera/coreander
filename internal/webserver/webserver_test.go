@@ -415,5 +415,8 @@ func login(app *fiber.App, email, password string) (*http.Cookie, error) {
 		return nil, err
 	}
 
+	if len(response.Cookies()) == 0 {
+		return nil, fmt.Errorf("Cookie not set up")
+	}
 	return response.Cookies()[0], nil
 }

@@ -3,6 +3,7 @@ package model
 import (
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"log"
 
 	"gorm.io/gorm"
@@ -28,13 +29,8 @@ func (u *UserRepository) Total() int64 {
 	return totalRows
 }
 
-func (u *UserRepository) Find(uuid string) (User, error) {
-	user := User{}
-	result := u.DB.Where("uuid = ?", uuid).Take(&user)
-	if result.Error != nil {
-		log.Printf("error retrieving user: %s\n", result.Error)
-	}
-	return user, result.Error
+func (u *UserRepository) FindByUuid(uuid string) (User, error) {
+	return u.find("uuid", uuid)
 }
 
 func (u *UserRepository) Create(user User) error {
@@ -46,7 +42,6 @@ func (u *UserRepository) Create(user User) error {
 }
 
 func (u *UserRepository) Update(user User) error {
-	user.Password = Hash(user.Password)
 	if result := u.DB.Save(&user); result.Error != nil {
 		log.Printf("error updating user: %s\n", result.Error)
 		return result.Error
@@ -55,29 +50,11 @@ func (u *UserRepository) Update(user User) error {
 }
 
 func (u *UserRepository) FindByEmail(email string) (User, error) {
-	var (
-		err  error
-		user User
-	)
-	result := u.DB.Limit(1).Where("email = ?", email).First(&user)
-	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		err = result.Error
-		log.Printf("error retrieving user: %s\n", result.Error)
-	}
-	return user, err
+	return u.find("email", email)
 }
 
 func (u *UserRepository) FindByRecoveryUuid(recoveryUuid string) (User, error) {
-	var (
-		err  error
-		user User
-	)
-	result := u.DB.Limit(1).Where("recovery_uuid = ?", recoveryUuid).First(&user)
-	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		err = result.Error
-		log.Printf("error retrieving user by recovery ID: %s\n", result.Error)
-	}
-	return user, err
+	return u.find("recovery_uuid", recoveryUuid)
 }
 
 func (u *UserRepository) Admins() int64 {
@@ -87,7 +64,7 @@ func (u *UserRepository) Admins() int64 {
 }
 
 func (u *UserRepository) Delete(uuid string) error {
-	user, err := u.Find(uuid)
+	user, err := u.FindByUuid(uuid)
 	if err != nil {
 		return nil
 	}
@@ -102,4 +79,17 @@ func Hash(s string) string {
 	h := sha256.New()
 	h.Write([]byte(s))
 	return string(h.Sum(nil))
+}
+
+func (u *UserRepository) find(field, value string) (User, error) {
+	var (
+		err  error
+		user User
+	)
+	result := u.DB.Limit(1).Where(fmt.Sprintf("%s = ?", field), value).Take(&user)
+	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		err = result.Error
+		log.Printf("error retrieving user: %s\n", result.Error)
+	}
+	return user, err
 }
