@@ -121,147 +121,163 @@ func TestRecover(t *testing.T) {
 		"email": {"admin@example.com"},
 	}
 
-	// Check that login page is accessible
-	req, err := http.NewRequest(http.MethodGet, "/en/recover", nil)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-	response, err := app.Test(req)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-	if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
-		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
-	}
-
-	// Check that not posting an email returns an error
-	req, err = http.NewRequest(http.MethodPost, "/en/recover", nil)
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-	response, err = app.Test(req)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-	if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
-		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
-	}
-
-	expectedErrorMessages := []string{
-		"Incorrect email address",
-	}
-
-	doc, err := goquery.NewDocumentFromReader(response.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	errorMessages := []string{}
-	doc.Find(".invalid-feedback").Each(func(i int, s *goquery.Selection) {
-		errorMessages = append(errorMessages, strings.TrimSpace(s.Text()))
+	t.Run("Check that login page is accessible", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodGet, "/en/recover", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		response, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		}
 	})
-	if !reflect.DeepEqual(expectedErrorMessages, errorMessages) {
-		t.Errorf("Expected %v error messages, got %v", expectedErrorMessages, errorMessages)
-	}
 
-	// Check that posting an existing email sends a recovery email
-	req, err = http.NewRequest(http.MethodPost, "/en/recover", strings.NewReader(data.Encode()))
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-	smtpMock.wg.Add(1)
-	response, err = app.Test(req)
-	smtpMock.wg.Wait()
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
+	t.Run("Check that not posting an email returns an error", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, "/en/recover", nil)
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		response, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		}
 
-	if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
-		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
-	}
+		expectedErrorMessages := []string{
+			"Incorrect email address",
+		}
 
-	if !smtpMock.calledSend {
-		t.Error("Email service 'send' method not called")
-	}
+		doc, err := goquery.NewDocumentFromReader(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		errorMessages := []string{}
+		doc.Find(".invalid-feedback").Each(func(i int, s *goquery.Selection) {
+			errorMessages = append(errorMessages, strings.TrimSpace(s.Text()))
+		})
+		if !reflect.DeepEqual(expectedErrorMessages, errorMessages) {
+			t.Errorf("Expected %v error messages, got %v", expectedErrorMessages, errorMessages)
+		}
+	})
 
-	// Try to access the update password without the recovery ID from previous step
-	req, err = http.NewRequest(http.MethodGet, "/en/reset-password", nil)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-	response, err = app.Test(req)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-	if expectedStatus := http.StatusBadRequest; response.StatusCode != expectedStatus {
-		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
-	}
+	t.Run("Check that posting an existing email sends a recovery email", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, "/en/recover", strings.NewReader(data.Encode()))
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		smtpMock.wg.Add(1)
+		response, err := app.Test(req)
+		smtpMock.wg.Wait()
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
 
-	// Try to access the reset password page with a recovery ID
-	adminUser := model.User{}
-	db.Where("email = ?", "admin@example.com").First(&adminUser)
+		if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		}
 
-	req, err = http.NewRequest(http.MethodGet, "/en/reset-password", nil)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
+		if !smtpMock.calledSend {
+			t.Error("Email service 'send' method not called")
+		}
+	})
 
-	q := req.URL.Query()
-	q.Add("id", adminUser.RecoveryUUID)
-	req.URL.RawQuery = q.Encode()
+	t.Run("Try to access the update password without the recovery ID from previous step", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodGet, "/en/reset-password", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		response, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if expectedStatus := http.StatusBadRequest; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		}
+	})
 
-	response, err = app.Test(req)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-	if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
-		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
-	}
+	t.Run("Try to access the reset password page with a recovery ID", func(t *testing.T) {
+		adminUser := model.User{}
+		db.Where("email = ?", "admin@example.com").First(&adminUser)
 
-	// Check that resetting the password successfully redirects to the login page
-	data = url.Values{
-		"password":         {"newPass"},
-		"confirm-password": {"newPass"},
-		"id":               {adminUser.RecoveryUUID},
-	}
+		req, err := http.NewRequest(http.MethodGet, "/en/reset-password", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
 
-	req, err = http.NewRequest(http.MethodPost, "/en/reset-password", strings.NewReader(data.Encode()))
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-	response, err = app.Test(req)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
+		q := req.URL.Query()
+		q.Add("id", adminUser.RecoveryUUID)
+		req.URL.RawQuery = q.Encode()
 
-	if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
-		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
-	}
+		response, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		}
+	})
 
-	url, err := response.Location()
-	if err != nil {
-		t.Error("No location header present")
-		return
-	}
-	if expectedURL := "/en/login"; url.Path != expectedURL {
-		t.Errorf("Expected location %s, received %s", expectedURL, url.Path)
-	}
+	t.Run("Check that resetting the password successfully redirects to the login page", func(t *testing.T) {
+		adminUser := model.User{}
+		db.Where("email = ?", "admin@example.com").First(&adminUser)
+
+		data = url.Values{
+			"password":         {"newPass"},
+			"confirm-password": {"newPass"},
+			"id":               {adminUser.RecoveryUUID},
+		}
+
+		req, err := http.NewRequest(http.MethodPost, "/en/reset-password", strings.NewReader(data.Encode()))
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		response, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		}
+
+		url, err := response.Location()
+		if err != nil {
+			t.Error("No location header present")
+			return
+		}
+		if expectedURL := "/en/login"; url.Path != expectedURL {
+			t.Errorf("Expected location %s, received %s", expectedURL, url.Path)
+		}
+	})
 
 	// Try to access again to the reset password page with the same recovery ID leads to an error
-	req, err = http.NewRequest(http.MethodGet, "/en/reset-password", nil)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
+	t.Run("Try to access again to the reset password page with the same recovery ID leads to an error", func(t *testing.T) {
+		adminUser := model.User{}
+		db.Where("email = ?", "admin@example.com").First(&adminUser)
 
-	req.URL.RawQuery = q.Encode()
+		req, err := http.NewRequest(http.MethodGet, "/en/reset-password", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
 
-	response, err = app.Test(req)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-	if expectedStatus := http.StatusBadRequest; response.StatusCode != expectedStatus {
-		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
-	}
+		q := req.URL.Query()
+		q.Add("id", adminUser.RecoveryUUID)
+		req.URL.RawQuery = q.Encode()
+
+		response, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if expectedStatus := http.StatusBadRequest; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		}
+	})
 }

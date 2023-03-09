@@ -83,7 +83,7 @@ func (u *UserRepository) find(field, value string) (User, error) {
 		err  error
 		user User
 	)
-	result := u.DB.Limit(1).Where(fmt.Sprintf("%s = ?", field), value).Take(&user)
+	result := u.DB.Limit(1).Where(fmt.Sprintf("%s = ?", field), value).Find(&user)
 	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		err = result.Error
 		log.Printf("error retrieving user: %s\n", result.Error)
