@@ -30,7 +30,7 @@ type Auth struct {
 	sender            recoveryEmail
 	minPasswordLength int
 	hostname          string
-	port              string
+	port              int
 	printers          map[string]*message.Printer
 }
 
@@ -38,12 +38,12 @@ type AuthConfig struct {
 	Secret            []byte
 	MinPasswordLength int
 	Hostname          string
-	Port              string
+	Port              int
 }
 
 const (
-	defaultHttpPort  = "80"
-	defaultHttpsPort = "443"
+	defaultHttpPort  = 80
+	defaultHttpsPort = 443
 )
 
 func NewAuth(repository authRepository, sender recoveryEmail, cfg AuthConfig, printers map[string]*message.Printer) *Auth {
@@ -199,9 +199,9 @@ func (a *Auth) Request(c *fiber.Ctx) error {
 			return fiber.ErrInternalServerError
 		}
 
-		port := ":" + a.port
-		if (a.port == "80" && c.Protocol() == "http") ||
-			(a.port == "443" && c.Protocol() == "https") {
+		port := fmt.Sprintf(":%d", a.port)
+		if (a.port == defaultHttpPort && c.Protocol() == "http") ||
+			(a.port == defaultHttpsPort && c.Protocol() == "https") {
 			port = ""
 		}
 		recoveryLink := fmt.Sprintf(

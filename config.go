@@ -7,7 +7,7 @@ type Config struct {
 	// Hostname stores the name of the host the server is running on
 	Hostname string `env:"HOSTNAME" env-default:"localhost"`
 	// Port defines the port number in which the webserver listens for requests
-	Port string `env:"PORT" env-default:"3000"`
+	Port int `env:"PORT" env-default:"3000"`
 	// BatchSize indicates the number of documents persisted by the indexer in one operation
 	BatchSize int `env:"BATCH_SIZE" env-default:"100"`
 	// CoverMaxWidth sets the maximum horizontal size for documents cover thumbnails in pixels

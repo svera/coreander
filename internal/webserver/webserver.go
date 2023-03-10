@@ -38,7 +38,7 @@ type Config struct {
 	MinPasswordLength int
 	WordsPerMinute    float64
 	Hostname          string
-	Port              string
+	Port              int
 }
 
 type Sender interface {

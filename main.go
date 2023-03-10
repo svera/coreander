@@ -88,8 +88,8 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 		Port:              cfg.Port,
 	}
 	app := webserver.New(idx, webserverConfig, metadataReaders, sender, db)
-	fmt.Printf("Coreander version %s started listening on port %s\n\n", version, cfg.Port)
-	err = app.Listen(fmt.Sprintf(":%s", cfg.Port))
+	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)
+	err = app.Listen(fmt.Sprintf(":%d", cfg.Port))
 	if err != nil {
 		log.Fatal(err)
 	}
