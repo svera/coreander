@@ -1,7 +1,15 @@
 <div class="container mt-5">
-    {{if .Message}}
+    {{if .Error}}
     <div class="row mt-5 text-start">
         <div class="alert alert-danger" role="alert">
+            {{t .Lang .Error}}
+        </div>
+    </div>
+    {{end}}
+
+    {{if .Message}}
+    <div class="row mt-5 text-start">
+        <div class="alert alert-success" role="alert">
             {{t .Lang .Message}}
         </div>
     </div>

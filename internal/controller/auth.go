@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/mail"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -65,11 +66,25 @@ func (a *Auth) Login(c *fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
+	resetPassword := fmt.Sprintf(
+		"%s://%s%s/%s/reset-password",
+		c.Protocol(),
+		a.hostname,
+		a.urlPort(c),
+		c.Params("lang"),
+	)
+
+	msg := ""
+	if ref := string(c.Request().Header.Referer()); strings.HasPrefix(ref, resetPassword) {
+		msg = "Password changed successfully. Please sign in."
+	}
+
 	return c.Render("auth/login", fiber.Map{
 		"Lang":    c.Params("lang"),
 		"Title":   "Login",
 		"Version": c.App().Config().AppName,
 		"Session": session,
+		"Message": msg,
 	}, "layout")
 }
 
@@ -96,7 +111,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).Render("auth/login", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Login",
-			"Message": "Wrong email or password",
+			"Error":   "Wrong email or password",
 			"Version": c.App().Config().AppName,
 			"Session": session,
 		}, "layout")
@@ -199,16 +214,11 @@ func (a *Auth) Request(c *fiber.Ctx) error {
 			return fiber.ErrInternalServerError
 		}
 
-		port := fmt.Sprintf(":%d", a.port)
-		if (a.port == defaultHttpPort && c.Protocol() == "http") ||
-			(a.port == defaultHttpsPort && c.Protocol() == "https") {
-			port = ""
-		}
 		recoveryLink := fmt.Sprintf(
 			"%s://%s%s/%s/reset-password?id=%s",
 			c.Protocol(),
 			a.hostname,
-			port,
+			a.urlPort(c),
 			c.Params("lang"),
 			user.RecoveryUUID,
 		)
@@ -265,7 +275,7 @@ func (a *Auth) UpdatePassword(c *fiber.Ctx) error {
 			"Title":   "Reset password",
 			"Session": model.User{},
 			"Version": c.App().Config().AppName,
-			"Uuid":    c.Query("id"),
+			"Uuid":    c.FormValue("id"),
 			"Errors":  errs,
 		}, "layout")
 	}
@@ -302,4 +312,13 @@ func (a *Auth) validateRecoveryAccess(c *fiber.Ctx, recoveryUuid string) (model.
 	}
 
 	return user, nil
+}
+
+func (a *Auth) urlPort(c *fiber.Ctx) string {
+	port := fmt.Sprintf(":%d", a.port)
+	if (a.port == defaultHttpPort && c.Protocol() == "http") ||
+		(a.port == defaultHttpsPort && c.Protocol() == "https") {
+		port = ""
+	}
+	return port
 }
