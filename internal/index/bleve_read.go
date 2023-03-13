@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
@@ -14,9 +15,45 @@ import (
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
 func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPerMinute float64) (*controller.Result, error) {
-	query := bleve.NewQueryStringQuery(keywords)
+	prefixes := []string{"Author:", "Series:", "Title:"}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(strings.Trim(keywords, " "), prefix) {
+			query := bleve.NewQueryStringQuery(keywords)
 
-	return b.runQuery(query, page, resultsPerPage, wordsPerMinute)
+			return b.runQuery(query, page, resultsPerPage, wordsPerMinute)
+		}
+	}
+
+	splitted := strings.Split(keywords, " ")
+
+	var authorQueries []query.Query
+	for _, keyword := range splitted {
+		q := bleve.NewMatchQuery(keyword)
+		q.SetField("Author")
+		authorQueries = append(authorQueries, q)
+	}
+	authorCompoundQuery := bleve.NewConjunctionQuery(authorQueries...)
+	authorCompoundQuery.SetBoost(10)
+
+	var titleQueries []query.Query
+	for _, keyword := range splitted {
+		q := bleve.NewMatchQuery(keyword)
+		q.SetField("Title")
+		titleQueries = append(titleQueries, q)
+	}
+	titleCompoundQuery := bleve.NewConjunctionQuery(titleQueries...)
+	titleCompoundQuery.SetBoost(10)
+
+	var descriptionQueries []query.Query
+	for _, keyword := range splitted {
+		q := bleve.NewMatchQuery(keyword)
+		q.SetField("Description")
+		descriptionQueries = append(descriptionQueries, q)
+	}
+	descriptionCompoundQuery := bleve.NewConjunctionQuery(descriptionQueries...)
+
+	compound := bleve.NewDisjunctionQuery(authorCompoundQuery, titleCompoundQuery, descriptionCompoundQuery)
+	return b.runQuery(compound, page, resultsPerPage, wordsPerMinute)
 }
 
 func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wordsPerMinute float64) (*controller.Result, error) {
@@ -26,7 +63,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 	}
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
-	searchOptions.SortBy([]string{"Series", "SeriesIndex"})
+	searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
 	searchOptions.Fields = []string{"Title", "Author", "Description", "Year", "Words", "Series", "SeriesIndex"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
