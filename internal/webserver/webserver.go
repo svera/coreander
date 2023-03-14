@@ -149,6 +149,13 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 
 	langGroup := app.Group("/:lang<regex(es|en)>")
 
+	langGroup.Get("/login", authController.Login, infrastructure.New(infrastructure.Config{}))
+	langGroup.Post("login", authController.SignIn, infrastructure.New(infrastructure.Config{}))
+	langGroup.Get("/recover", authController.Recover, infrastructure.New(infrastructure.Config{}))
+	langGroup.Post("/recover", authController.Request, infrastructure.New(infrastructure.Config{}))
+	langGroup.Get("/reset-password", authController.EditPassword, infrastructure.New(infrastructure.Config{}))
+	langGroup.Post("/reset-password", authController.UpdatePassword, infrastructure.New(infrastructure.Config{}))
+
 	// JWT Middleware
 	app.Use(jwtware.New(jwtware.Config{
 		SigningKey:    cfg.JwtSecret,
@@ -156,10 +163,7 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		TokenLookup:   "cookie:coreander",
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			err = c.Next()
-			if cfg.RequireAuth &&
-				!strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/login") &&
-				!strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/recover") &&
-				!strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/reset-password") {
+			if cfg.RequireAuth {
 				return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
 			}
 			if strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/users") {
@@ -169,13 +173,7 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		},
 	}))
 
-	langGroup.Get("/login", authController.Login)
-	langGroup.Post("login", authController.SignIn)
 	langGroup.Get("/logout", authController.SignOut)
-	langGroup.Get("/recover", authController.Recover)
-	langGroup.Post("/recover", authController.Request)
-	langGroup.Get("/reset-password", authController.EditPassword)
-	langGroup.Post("/reset-password", authController.UpdatePassword)
 
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
 		c.Append("Cache-Time", "86400")
