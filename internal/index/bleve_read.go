@@ -15,8 +15,7 @@ import (
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
 func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPerMinute float64) (*controller.Result, error) {
-	prefixes := []string{"Author:", "Series:", "Title:"}
-	for _, prefix := range prefixes {
+	for _, prefix := range []string{"Author:", "Series:", "Title:", "\""} {
 		if strings.HasPrefix(strings.Trim(keywords, " "), prefix) {
 			query := bleve.NewQueryStringQuery(keywords)
 
@@ -26,30 +25,26 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPe
 
 	splitted := strings.Split(keywords, " ")
 
-	var authorQueries []query.Query
+	var (
+		authorQueries      []query.Query
+		titleQueries       []query.Query
+		descriptionQueries []query.Query
+	)
+
 	for _, keyword := range splitted {
-		q := bleve.NewMatchQuery(keyword)
-		q.SetField("Author")
-		authorQueries = append(authorQueries, q)
+		qa := bleve.NewMatchQuery(keyword)
+		qa.SetField("Author")
+		authorQueries = append(authorQueries, qa)
+		qt := bleve.NewMatchQuery(keyword)
+		qt.SetField("Title")
+		titleQueries = append(titleQueries, qt)
+		qd := bleve.NewMatchQuery(keyword)
+		qd.SetField("Description")
+		descriptionQueries = append(descriptionQueries, qd)
 	}
+
 	authorCompoundQuery := bleve.NewConjunctionQuery(authorQueries...)
-	authorCompoundQuery.SetBoost(10)
-
-	var titleQueries []query.Query
-	for _, keyword := range splitted {
-		q := bleve.NewMatchQuery(keyword)
-		q.SetField("Title")
-		titleQueries = append(titleQueries, q)
-	}
 	titleCompoundQuery := bleve.NewConjunctionQuery(titleQueries...)
-	titleCompoundQuery.SetBoost(10)
-
-	var descriptionQueries []query.Query
-	for _, keyword := range splitted {
-		q := bleve.NewMatchQuery(keyword)
-		q.SetField("Description")
-		descriptionQueries = append(descriptionQueries, q)
-	}
 	descriptionCompoundQuery := bleve.NewConjunctionQuery(descriptionQueries...)
 
 	compound := bleve.NewDisjunctionQuery(authorCompoundQuery, titleCompoundQuery, descriptionCompoundQuery)
