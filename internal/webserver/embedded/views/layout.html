@@ -24,11 +24,7 @@
                     <a class="text-decoration-none" href="/{{.Lang}}">Coreander</a>
                 </span>
                 <nav class="d-md-flex justify-content-md-end">
-                    {{if eq .Session.Name ""}}
-                    <span class="p-2">
-                        <a href="/{{.Lang}}/login">{{t .Lang "Login"}}</a>
-                    </span>
-                    {{else}}
+                    {{if .Session}}
                     <ul class="navbar-nav">
                         <li class="nav-item dropdown">
                             <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
@@ -67,6 +63,10 @@
                             </ul>
                         </li>
                     </ul>
+                    {{else}}
+                    <span class="p-2">
+                        <a href="/{{.Lang}}/login">{{t .Lang "Login"}}</a>
+                    </span>
                     {{end}}
                     {{if eq .Lang "es"}}<span class="p-2">Es</span>{{else}}<a class="p-2 text-dark"
                         href="/es">Es</a>{{end}} {{if eq
