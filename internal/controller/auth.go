@@ -32,6 +32,7 @@ type Auth struct {
 	hostname          string
 	port              int
 	printers          map[string]*message.Printer
+	sessionTimeout    time.Duration
 }
 
 type AuthConfig struct {
@@ -39,6 +40,7 @@ type AuthConfig struct {
 	MinPasswordLength int
 	Hostname          string
 	Port              int
+	SessionTimeout    time.Duration
 }
 
 const (
@@ -55,6 +57,7 @@ func NewAuth(repository authRepository, sender recoveryEmail, cfg AuthConfig, pr
 		hostname:          cfg.Hostname,
 		port:              cfg.Port,
 		printers:          printers,
+		sessionTimeout:    cfg.SessionTimeout,
 	}
 }
 
@@ -112,7 +115,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 			SendToEmail:    user.SendToEmail,
 			WordsPerMinute: user.WordsPerMinute,
 		},
-		"exp": jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
+		"exp": jwt.NewNumericDate(time.Now().Add(a.sessionTimeout)),
 	},
 	)
 
@@ -124,7 +127,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 		Name:     "coreander",
 		Value:    signedToken,
 		Path:     "/",
-		Expires:  time.Now().Add(time.Hour * 24),
+		Expires:  time.Now().Add(a.sessionTimeout),
 		Secure:   false,
 		HTTPOnly: true,
 	})
@@ -175,7 +178,7 @@ func (a *Auth) Request(c *fiber.Ctx) error {
 
 	if user, err := a.repository.FindByEmail(c.FormValue("email")); err == nil {
 		user.RecoveryUUID = uuid.NewString()
-		user.RecoveryValidUntil = time.Now().Add(24 * time.Hour)
+		user.RecoveryValidUntil = time.Now().Add(a.sessionTimeout)
 		if err := a.repository.Update(user); err != nil {
 			return fiber.ErrInternalServerError
 		}

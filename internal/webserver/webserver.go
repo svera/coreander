@@ -38,6 +38,7 @@ type Config struct {
 	WordsPerMinute    float64
 	Hostname          string
 	Port              int
+	SessionTimeout    time.Duration
 }
 
 type Sender interface {
@@ -137,6 +138,7 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		Secret:            cfg.JwtSecret,
 		Hostname:          cfg.Hostname,
 		Port:              cfg.Port,
+		SessionTimeout:    cfg.SessionTimeout,
 	}
 
 	authController := controller.NewAuth(usersRepository, sender, authCfg, printers)

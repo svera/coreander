@@ -93,3 +93,4 @@ On first run, Coreander creates an admin user with the following credentials:
 * `REQUIRE_AUTH`: Require authentication to access the application if true. Defaults to false.
 * `MIN_PASSWORD_LENGTH`: Minimum length acceptable for passwords. Defaults to 5.
 * `WORDS_PER_MINUTE`: Defines a default words per minute reading speed that will be used for not logged-in users. Defaults to 250.
+* `SESSION_TIMEOUT`: Specifies the maximum time a user session may last. Must be specified following Go's duration strings, for example "24h" for a 24 hours duration. Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h". Defaults to 24 hours.
