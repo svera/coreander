@@ -18,6 +18,7 @@ require (
 	github.com/rjeczalik/notify v0.9.2
 	github.com/spf13/afero v1.9.3
 	github.com/svera/epub v0.1.2
+	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0
 	golang.org/x/text v0.7.0
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/gorm v1.24.3

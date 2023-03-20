@@ -21,6 +21,7 @@ import (
 	"github.com/svera/coreander/internal/jwtclaimsreader"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/model"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -76,11 +77,20 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 				code = e.Code
 			}
 
+			supportedLanguages := []string{"es", "en"}
+			lang := c.Params("lang")
+			if !slices.Contains(supportedLanguages, lang) {
+				lang = c.AcceptsLanguages(supportedLanguages...)
+				if lang == "" {
+					lang = "en"
+				}
+			}
+
 			// Send custom error page
 			err = c.Status(code).Render(
 				fmt.Sprintf("errors/%d", code),
 				fiber.Map{
-					"Lang":    c.Params("lang", "en"),
+					"Lang":    lang,
 					"Title":   "Coreander",
 					"Session": jwtclaimsreader.SessionData(c),
 					"Version": c.App().Config().AppName,

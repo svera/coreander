@@ -2,7 +2,7 @@
     <form method="post" action="/{{.Lang}}/users/new" autocomplete="off">
         <div class="mb-3">
             <label for="name" class="form-label">{{t .Lang "Name"}}</label>
-            <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="20">
+            <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="50">
             {{if ne (index .Errors "name") ""}}
             <div class="invalid-feedback">
                 {{t .Lang .Errors.name}}
@@ -11,7 +11,7 @@
         </div>
         <div class="mb-3">
             <label for="email" class="form-label">{{t .Lang "Email"}}</label>
-            <input type="email" name="email" class='form-control {{if ne (index .Errors "email") ""}}is-invalid{{end}}' id="email" required="required" value="{{.User.Email}}">
+            <input type="email" name="email" class='form-control {{if ne (index .Errors "email") ""}}is-invalid{{end}}' id="email" required="required" value="{{.User.Email}}" maxlength="100">
             {{if ne (index .Errors "email") ""}}
             <div class="invalid-feedback">
                 {{t .Lang .Errors.email}}
@@ -20,7 +20,7 @@
         </div>        
         <div class="mb-3">
             <label for="send-to-email" class="form-label">{{t .Lang "Default send to email address"}}</label>
-            <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}">
+            <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}" maxlength="100">
             {{if ne (index .Errors "sendtoemail") ""}}
             <div class="invalid-feedback">
                 {{t .Lang .Errors.sendtoemail}}
@@ -39,7 +39,7 @@
         <div class="mb-3">
             <label for="password" class="form-label">{{t .Lang "Password"}}</label>
             <input type="password" name="password" class='form-control {{if ne (index .Errors "password") ""}}is-invalid{{end}}' id="password" required="required"
-                minlength="{{.MinPasswordLength}}">
+                minlength="{{.MinPasswordLength}}" maxlength="50">
             {{if ne (index .Errors "password") ""}}
             <div class="invalid-feedback">
                 {{t .Lang .Errors.password .MinPasswordLength}}
@@ -49,7 +49,7 @@
         <div class="mb-3">
             <label for="confirm-password" class="form-label">{{t .Lang "Confirm password"}}</label>
             <input type="password" name="confirm-password" class='form-control {{if ne (index .Errors "confirmpassword") ""}}is-invalid{{end}}' id="confirm-password"
-                required="required" minlength="{{.MinPasswordLength}}">
+                required="required" minlength="{{.MinPasswordLength}}" maxlength="50">
             {{if ne (index .Errors "confirmpassword") ""}}
             <div class="invalid-feedback">
                 {{t .Lang .Errors.confirmpassword}}

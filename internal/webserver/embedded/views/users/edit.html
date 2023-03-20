@@ -23,7 +23,7 @@
             <form method="post" action="/{{.Lang}}/users/{{.User.Uuid}}/edit">
                 <div class="mb-3">
                     <label for="name" class="form-label">{{t .Lang "Name"}}</label>
-                    <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="20">
+                    <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="50">
                     {{if ne (index .Errors "name") ""}}
                     <div class="invalid-feedback">
                         {{t .Lang .Errors.name}}
@@ -32,7 +32,7 @@
                 </div>
                 <div class="mb-3">
                     <label for="send-to-email" class="form-label">{{t .Lang "Default send to email address"}}</label>
-                    <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}">
+                    <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}" maxlength="100">
                     {{if ne (index .Errors "sendtoemail") ""}}
                     <div class="invalid-feedback">
                         {{t .Lang .Errors.sendtoemail}}
@@ -58,7 +58,7 @@
                 <div class="mb-3">
                     <label for="old-password" class="form-label">{{t .Lang "Current password"}}</label>
                     <input type="password" name="old-password" class='form-control {{if ne (index .Errors "oldpassword") ""}}is-invalid{{end}}' id="old-password"
-                        required="required" minlength="{{.MinPasswordLength}}">
+                        required="required" minlength="{{.MinPasswordLength}}" maxlength="50">
                     {{if ne (index .Errors "oldpassword") ""}}
                     <div class="invalid-feedback">
                         {{t .Lang .Errors.oldpassword}}
@@ -69,7 +69,7 @@
                 <div class="mb-3">
                     <label for="password" class="form-label">{{t .Lang "Password"}}</label>
                     <input type="password" name="password" class='form-control {{if ne (index .Errors "password") ""}}is-invalid{{end}}' id="password" required="required"
-                        minlength="{{.MinPasswordLength}}">
+                        minlength="{{.MinPasswordLength}}" maxlength="50">
                     {{if ne (index .Errors "password") ""}}
                     <div class="invalid-feedback">
                         {{t .Lang .Errors.password .MinPasswordLength}}
@@ -79,7 +79,7 @@
                 <div class="mb-3">
                     <label for="confirm-password" class="form-label">{{t .Lang "Confirm password"}}</label>
                     <input type="password" name="confirm-password" class='form-control {{if ne (index .Errors "confirmpassword") ""}}is-invalid{{end}}' id="confirm-password"
-                        required="required" minlength="{{.MinPasswordLength}}">
+                        required="required" minlength="{{.MinPasswordLength}}" maxlength="50">
                     {{if ne (index .Errors "confirmpassword") ""}}
                     <div class="invalid-feedback">
                         {{t .Lang .Errors.confirmpassword}}
