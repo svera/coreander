@@ -77,7 +77,7 @@ func (u *Users) New(c *fiber.Ctx) error {
 	}
 	return c.Render("users/new", fiber.Map{
 		"Lang":              c.Params("lang"),
-		"Title":             "Add new user",
+		"Title":             "Add user",
 		"Session":           session,
 		"Version":           c.App().Config().AppName,
 		"MinPasswordLength": u.minPasswordLength,
@@ -112,7 +112,7 @@ func (u *Users) Create(c *fiber.Ctx) error {
 	if errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.minPasswordLength, errs); len(errs) > 0 {
 		return c.Render("users/new", fiber.Map{
 			"Lang":    c.Params("lang"),
-			"Title":   "Add new user",
+			"Title":   "Add user",
 			"Session": session,
 			"Version": c.App().Config().AppName,
 			"Errors":  errs,
