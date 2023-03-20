@@ -24,7 +24,7 @@
                     <a class="text-decoration-none" href="/{{.Lang}}">Coreander</a>
                 </span>
                 <nav class="d-md-flex justify-content-md-end">
-                    {{if .Session}}
+                    {{if and (.Session) (ne .Session.Name "")}}
                     <ul class="navbar-nav">
                         <li class="nav-item dropdown">
                             <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">

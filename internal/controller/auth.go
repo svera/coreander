@@ -75,11 +75,17 @@ func (a *Auth) Login(c *fiber.Ctx) error {
 		msg = "Password changed successfully. Please sign in."
 	}
 
+	emailSendingConfigured := true
+	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
+		emailSendingConfigured = false
+	}
+
 	return c.Render("auth/login", fiber.Map{
-		"Lang":    c.Params("lang"),
-		"Title":   "Login",
-		"Version": c.App().Config().AppName,
-		"Message": msg,
+		"Lang":                   c.Params("lang"),
+		"Title":                  "Login",
+		"Version":                c.App().Config().AppName,
+		"Message":                msg,
+		"EmailSendingConfigured": emailSendingConfigured,
 	}, "layout")
 }
 
