@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"net/mail"
 	"time"
 
@@ -51,7 +50,7 @@ func (u User) Validate(minPasswordLength int) map[string]string {
 	}
 
 	if len(u.Password) < minPasswordLength {
-		errs["password"] = fmt.Sprintf("Password must be longer than %d characters", minPasswordLength)
+		errs["password"] = "Password must be longer than %d characters"
 	}
 
 	return errs
@@ -59,7 +58,7 @@ func (u User) Validate(minPasswordLength int) map[string]string {
 
 func (u User) ConfirmPassword(confirmPassword string, minPasswordLength int, errs map[string]string) map[string]string {
 	if len(u.Password) < minPasswordLength {
-		errs["password"] = fmt.Sprintf("Password must be longer than %d characters", minPasswordLength)
+		errs["password"] = "Password must be longer than %d characters"
 	}
 
 	if confirmPassword == "" {

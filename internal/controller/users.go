@@ -142,12 +142,13 @@ func (u *Users) Edit(c *fiber.Ctx) error {
 	}
 
 	return c.Render("users/edit", fiber.Map{
-		"Lang":    c.Params("lang"),
-		"Title":   "Edit user",
-		"User":    user,
-		"Session": session,
-		"Version": c.App().Config().AppName,
-		"Errors":  map[string]string{},
+		"Lang":              c.Params("lang"),
+		"Title":             "Edit user",
+		"User":              user,
+		"Session":           session,
+		"Version":           c.App().Config().AppName,
+		"MinPasswordLength": u.minPasswordLength,
+		"Errors":            map[string]string{},
 	}, "layout")
 }
 
@@ -172,14 +173,16 @@ func (u *Users) Update(c *fiber.Ctx) error {
 	user.SendToEmail = c.FormValue("send-to-email")
 	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
 
-	if errs := user.Validate(u.minPasswordLength); len(errs) > 0 {
+	errs := user.Validate(u.minPasswordLength)
+	if len(errs) > 0 {
 		return c.Render("users/edit", fiber.Map{
-			"Lang":    c.Params("lang"),
-			"Title":   "Edit user",
-			"User":    user,
-			"Session": session,
-			"Version": c.App().Config().AppName,
-			"Errors":  errs,
+			"Lang":              c.Params("lang"),
+			"Title":             "Edit user",
+			"User":              user,
+			"Session":           session,
+			"Version":           c.App().Config().AppName,
+			"MinPasswordLength": u.minPasswordLength,
+			"Errors":            errs,
 		}, "layout")
 	}
 
@@ -188,12 +191,14 @@ func (u *Users) Update(c *fiber.Ctx) error {
 	}
 
 	return c.Render("users/edit", fiber.Map{
-		"Lang":    c.Params("lang"),
-		"Title":   "Edit user",
-		"User":    user,
-		"Session": session,
-		"Version": c.App().Config().AppName,
-		"Message": "Profile updated",
+		"Lang":              c.Params("lang"),
+		"Title":             "Edit user",
+		"User":              user,
+		"Session":           session,
+		"Version":           c.App().Config().AppName,
+		"MinPasswordLength": u.minPasswordLength,
+		"Errors":            errs,
+		"Message":           "Profile updated",
 	}, "layout")
 }
 
@@ -217,13 +222,14 @@ func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 
 	if errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.minPasswordLength, errs); len(errs) > 0 {
 		return c.Render("users/edit", fiber.Map{
-			"Lang":      c.Params("lang"),
-			"Title":     "Edit user",
-			"User":      user,
-			"Session":   session,
-			"Version":   c.App().Config().AppName,
-			"ActiveTab": "password",
-			"Errors":    errs,
+			"Lang":              c.Params("lang"),
+			"Title":             "Edit user",
+			"User":              user,
+			"Session":           session,
+			"Version":           c.App().Config().AppName,
+			"MinPasswordLength": u.minPasswordLength,
+			"ActiveTab":         "password",
+			"Errors":            errs,
 		}, "layout")
 	}
 
@@ -233,14 +239,15 @@ func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 	}
 
 	return c.Render("users/edit", fiber.Map{
-		"Lang":      c.Params("lang"),
-		"Title":     "Edit user",
-		"User":      user,
-		"Session":   session,
-		"Version":   c.App().Config().AppName,
-		"ActiveTab": "password",
-		"Errors":    errs,
-		"Message":   "Password updated",
+		"Lang":              c.Params("lang"),
+		"Title":             "Edit user",
+		"User":              user,
+		"Session":           session,
+		"Version":           c.App().Config().AppName,
+		"MinPasswordLength": u.minPasswordLength,
+		"ActiveTab":         "password",
+		"Errors":            errs,
+		"Message":           "Password updated",
 	}, "layout")
 }
 

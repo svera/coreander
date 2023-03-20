@@ -42,7 +42,7 @@
                 minlength="{{.MinPasswordLength}}">
             {{if ne (index .Errors "password") ""}}
             <div class="invalid-feedback">
-                {{t .Lang .Errors.password}}
+                {{t .Lang .Errors.password .MinPasswordLength}}
             </div>
             {{end}}    
         </div>
