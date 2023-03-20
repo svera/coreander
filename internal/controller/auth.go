@@ -10,7 +10,6 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/svera/coreander/internal/infrastructure"
-	"github.com/svera/coreander/internal/jwtclaimsreader"
 	"github.com/svera/coreander/internal/model"
 	"golang.org/x/text/message"
 )
@@ -33,6 +32,7 @@ type Auth struct {
 	hostname          string
 	port              int
 	printers          map[string]*message.Printer
+	sessionTimeout    time.Duration
 }
 
 type AuthConfig struct {
@@ -40,6 +40,7 @@ type AuthConfig struct {
 	MinPasswordLength int
 	Hostname          string
 	Port              int
+	SessionTimeout    time.Duration
 }
 
 const (
@@ -56,16 +57,11 @@ func NewAuth(repository authRepository, sender recoveryEmail, cfg AuthConfig, pr
 		hostname:          cfg.Hostname,
 		port:              cfg.Port,
 		printers:          printers,
+		sessionTimeout:    cfg.SessionTimeout,
 	}
 }
 
 func (a *Auth) Login(c *fiber.Ctx) error {
-	session := jwtclaimsreader.SessionData(c)
-
-	if session.Uuid != "" {
-		return fiber.ErrForbidden
-	}
-
 	resetPassword := fmt.Sprintf(
 		"%s://%s%s/%s/reset-password",
 		c.Protocol(),
@@ -79,12 +75,17 @@ func (a *Auth) Login(c *fiber.Ctx) error {
 		msg = "Password changed successfully. Please sign in."
 	}
 
+	emailSendingConfigured := true
+	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
+		emailSendingConfigured = false
+	}
+
 	return c.Render("auth/login", fiber.Map{
-		"Lang":    c.Params("lang"),
-		"Title":   "Login",
-		"Version": c.App().Config().AppName,
-		"Session": session,
-		"Message": msg,
+		"Lang":                   c.Params("lang"),
+		"Title":                  "Login",
+		"Version":                c.App().Config().AppName,
+		"Message":                msg,
+		"EmailSendingConfigured": emailSendingConfigured,
 	}, "layout")
 }
 
@@ -94,12 +95,6 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 		user model.User
 		err  error
 	)
-
-	session := jwtclaimsreader.SessionData(c)
-
-	if session.Uuid != "" {
-		return fiber.ErrForbidden
-	}
 
 	// If username or password are incorrect, do not allow access.
 	user, err = a.repository.FindByEmail(c.FormValue("email"))
@@ -113,7 +108,6 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 			"Title":   "Login",
 			"Error":   "Wrong email or password",
 			"Version": c.App().Config().AppName,
-			"Session": session,
 		}, "layout")
 	}
 
@@ -127,7 +121,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 			SendToEmail:    user.SendToEmail,
 			WordsPerMinute: user.WordsPerMinute,
 		},
-		"exp": jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
+		"exp": jwt.NewNumericDate(time.Now().Add(a.sessionTimeout)),
 	},
 	)
 
@@ -139,7 +133,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 		Name:     "coreander",
 		Value:    signedToken,
 		Path:     "/",
-		Expires:  time.Now().Add(time.Hour * 24),
+		Expires:  time.Now().Add(a.sessionTimeout),
 		Secure:   false,
 		HTTPOnly: true,
 	})
@@ -162,54 +156,35 @@ func (a *Auth) SignOut(c *fiber.Ctx) error {
 }
 
 func (a *Auth) Recover(c *fiber.Ctx) error {
-	session := jwtclaimsreader.SessionData(c)
-
 	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
 		return fiber.ErrNotFound
-	}
-
-	if session.Uuid != "" {
-		return fiber.ErrForbidden
 	}
 
 	return c.Render("auth/recover", fiber.Map{
 		"Lang":    c.Params("lang"),
 		"Title":   "Recover password",
 		"Version": c.App().Config().AppName,
-		"Session": session,
 		"Errors":  map[string]string{},
 	}, "layout")
 }
 
 func (a *Auth) Request(c *fiber.Ctx) error {
-	session := jwtclaimsreader.SessionData(c)
-	errs := map[string]string{}
-
 	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
 		return fiber.ErrNotFound
 	}
 
-	if session.Uuid != "" {
-		return fiber.ErrForbidden
-	}
-
 	if _, err := mail.ParseAddress(c.FormValue("email")); err != nil {
-		errs["email"] = "Incorrect email address"
-	}
-
-	if len(errs) > 0 {
 		return c.Render("auth/recover", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Recover password",
 			"Version": c.App().Config().AppName,
-			"Session": session,
-			"Errors":  errs,
+			"Errors":  map[string]string{"email": "Incorrect email address"},
 		}, "layout")
 	}
 
 	if user, err := a.repository.FindByEmail(c.FormValue("email")); err == nil {
 		user.RecoveryUUID = uuid.NewString()
-		user.RecoveryValidUntil = time.Now().Add(24 * time.Hour)
+		user.RecoveryValidUntil = time.Now().Add(a.sessionTimeout)
 		if err := a.repository.Update(user); err != nil {
 			return fiber.ErrInternalServerError
 		}
@@ -238,8 +213,7 @@ func (a *Auth) Request(c *fiber.Ctx) error {
 		"Lang":    c.Params("lang"),
 		"Title":   "Recover password",
 		"Version": c.App().Config().AppName,
-		"Session": session,
-		"Errors":  errs,
+		"Errors":  map[string]string{},
 	}, "layout")
 }
 
@@ -252,7 +226,6 @@ func (a *Auth) EditPassword(c *fiber.Ctx) error {
 		"Lang":    c.Params("lang"),
 		"Title":   "Reset password",
 		"Version": c.App().Config().AppName,
-		"Session": model.User{},
 		"Uuid":    c.Query("id"),
 		"Errors":  map[string]string{},
 	}, "layout")
@@ -273,7 +246,6 @@ func (a *Auth) UpdatePassword(c *fiber.Ctx) error {
 		return c.Render("auth/edit-password", fiber.Map{
 			"Lang":    c.Params("lang"),
 			"Title":   "Reset password",
-			"Session": model.User{},
 			"Version": c.App().Config().AppName,
 			"Uuid":    c.FormValue("id"),
 			"Errors":  errs,
@@ -289,18 +261,12 @@ func (a *Auth) UpdatePassword(c *fiber.Ctx) error {
 }
 
 func (a *Auth) validateRecoveryAccess(c *fiber.Ctx, recoveryUuid string) (model.User, error) {
-	session := jwtclaimsreader.SessionData(c)
-
 	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
-		return session, fiber.ErrNotFound
-	}
-
-	if session.Uuid != "" {
-		return session, fiber.ErrForbidden
+		return model.User{}, fiber.ErrNotFound
 	}
 
 	if recoveryUuid == "" {
-		return session, fiber.ErrBadRequest
+		return model.User{}, fiber.ErrBadRequest
 	}
 	user, err := a.repository.FindByRecoveryUuid(recoveryUuid)
 	if err != nil {

@@ -24,7 +24,9 @@
         <div class="form-floating mt-3">
             <input type="password" class="form-control" id="floatingPassword" placeholder="Password" name="password">
             <label for="floatingPassword">{{t .Lang "Password"}}</label>
+            {{if .EmailSendingConfigured}}
             <div id="passwordHelp" class="form-text text-end pb-5"><a href="/{{.Lang}}/recover">{{t .Lang "I don't remember my password"}}</a></div>
+            {{end}}
         </div>
 
         <button class="w-100 btn btn-lg btn-primary mt-3" type="submit">{{t .Lang "Sign in"}}</button>

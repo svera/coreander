@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -22,6 +21,7 @@ import (
 	"github.com/svera/coreander/internal/jwtclaimsreader"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/model"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 )
 
@@ -39,6 +39,7 @@ type Config struct {
 	WordsPerMinute    float64
 	Hostname          string
 	Port              int
+	SessionTimeout    time.Duration
 }
 
 type Sender interface {
@@ -62,16 +63,11 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		log.Fatal(err)
 	}
 
-	emailSendingConfigured := true
-	if _, ok := sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
 	app := fiber.New(fiber.Config{
 		Views:                 engine,
 		DisableStartupMessage: true,
 		AppName:               cfg.Version,
-		ErrorHandler: func(ctx *fiber.Ctx, err error) error {
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			// Status code defaults to 500
 			code := fiber.StatusInternalServerError
 
@@ -81,21 +77,30 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 				code = e.Code
 			}
 
+			supportedLanguages := []string{"es", "en"}
+			lang := c.Params("lang")
+			if !slices.Contains(supportedLanguages, lang) {
+				lang = c.AcceptsLanguages(supportedLanguages...)
+				if lang == "" {
+					lang = "en"
+				}
+			}
+
 			// Send custom error page
-			err = ctx.Status(code).Render(
+			err = c.Status(code).Render(
 				fmt.Sprintf("errors/%d", code),
 				fiber.Map{
-					"Lang":    ctx.Params("lang", "en"),
+					"Lang":    lang,
 					"Title":   "Coreander",
-					"Session": jwtclaimsreader.SessionData(ctx),
-					"Version": ctx.App().Config().AppName,
+					"Session": jwtclaimsreader.SessionData(c),
+					"Version": c.App().Config().AppName,
 				},
 				"layout")
 
 			if err != nil {
 				log.Println(err)
 				// In case the Render fails
-				return ctx.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+				return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 			}
 
 			return nil
@@ -143,39 +148,67 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		Secret:            cfg.JwtSecret,
 		Hostname:          cfg.Hostname,
 		Port:              cfg.Port,
+		SessionTimeout:    cfg.SessionTimeout,
 	}
 
 	authController := controller.NewAuth(usersRepository, sender, authCfg, printers)
 
 	langGroup := app.Group("/:lang<regex(es|en)>")
 
-	// JWT Middleware
+	allowIfNotLoggedInMiddleware := jwtware.New(jwtware.Config{
+		SigningKey:    cfg.JwtSecret,
+		SigningMethod: "HS256",
+		TokenLookup:   "cookie:coreander",
+		SuccessHandler: func(c *fiber.Ctx) error {
+			return fiber.ErrForbidden
+		},
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			return c.Next()
+		},
+	})
+
+	langGroup.Get("/login", allowIfNotLoggedInMiddleware, authController.Login)
+	langGroup.Post("login", allowIfNotLoggedInMiddleware, authController.SignIn)
+	langGroup.Get("/recover", allowIfNotLoggedInMiddleware, authController.Recover)
+	langGroup.Post("/recover", allowIfNotLoggedInMiddleware, authController.Request)
+	langGroup.Get("/reset-password", allowIfNotLoggedInMiddleware, authController.EditPassword)
+	langGroup.Post("/reset-password", allowIfNotLoggedInMiddleware, authController.UpdatePassword)
+
+	alwaysRequireAuthenticationMiddleware := jwtware.New(jwtware.Config{
+		SigningKey:    cfg.JwtSecret,
+		SigningMethod: "HS256",
+		TokenLookup:   "cookie:coreander",
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
+		},
+	})
+
+	usersGroup := langGroup.Group("/users", alwaysRequireAuthenticationMiddleware)
+
+	usersController := controller.NewUsers(usersRepository, cfg.MinPasswordLength, cfg.WordsPerMinute)
+
+	usersGroup.Get("/", usersController.List)
+	usersGroup.Get("/new", usersController.New)
+	usersGroup.Post("/new", usersController.Create)
+	usersGroup.Get("/:uuid<guid>/edit", usersController.Edit)
+	usersGroup.Post("/:uuid<guid>/edit", usersController.Update)
+	usersGroup.Post("/delete", usersController.Delete)
+
+	// Authentication requirement is configurable for all routes below this middleware
 	app.Use(jwtware.New(jwtware.Config{
 		SigningKey:    cfg.JwtSecret,
 		SigningMethod: "HS256",
 		TokenLookup:   "cookie:coreander",
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			err = c.Next()
-			if cfg.RequireAuth &&
-				!strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/login") &&
-				!strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/recover") &&
-				!strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/reset-password") {
-				return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
-			}
-			if strings.HasPrefix(c.Route().Path, "/:lang<regex(es|en)>/users") {
+			if cfg.RequireAuth {
 				return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
 			}
 			return err
 		},
 	}))
 
-	langGroup.Get("/login", authController.Login)
-	langGroup.Post("login", authController.SignIn)
 	langGroup.Get("/logout", authController.SignOut)
-	langGroup.Get("/recover", authController.Recover)
-	langGroup.Post("/recover", authController.Request)
-	langGroup.Get("/reset-password", authController.EditPassword)
-	langGroup.Post("/reset-password", authController.UpdatePassword)
 
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
 		c.Append("Cache-Time", "86400")
@@ -192,27 +225,18 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 
 	app.Static("/files", cfg.LibraryPath)
 
-	usersController := controller.NewUsers(usersRepository, cfg.MinPasswordLength, cfg.WordsPerMinute)
-
 	langGroup.Get("/", func(c *fiber.Ctx) error {
 		session := jwtclaimsreader.SessionData(c)
 		wordsPerMinute := session.WordsPerMinute
 		if wordsPerMinute == 0 {
 			wordsPerMinute = cfg.WordsPerMinute
 		}
-		return controller.Search(c, idx, cfg.Version, emailSendingConfigured, wordsPerMinute)
+		return controller.Search(c, idx, cfg.Version, sender, wordsPerMinute)
 	})
 
 	langGroup.Get("/read/:filename", func(c *fiber.Ctx) error {
 		return controller.DocReader(c, cfg.LibraryPath)
 	})
-
-	langGroup.Get("/users", usersController.List)
-	langGroup.Get("/users/new", usersController.New)
-	langGroup.Post("/users/new", usersController.Create)
-	langGroup.Get("/users/:uuid<guid>/edit", usersController.Edit)
-	langGroup.Post("/users/:uuid<guid>/edit", usersController.Update)
-	langGroup.Post("/users/delete", usersController.Delete)
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return controller.Root(c)

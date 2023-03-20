@@ -86,6 +86,7 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 		WordsPerMinute:    cfg.WordsPerMinute,
 		Hostname:          cfg.Hostname,
 		Port:              cfg.Port,
+		SessionTimeout:    cfg.SessionTimeout,
 	}
 	app := webserver.New(idx, webserverConfig, metadataReaders, sender, db)
 	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)

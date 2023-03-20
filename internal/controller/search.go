@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/jwtclaimsreader"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/model"
@@ -24,8 +25,13 @@ type Reader interface {
 	Close() error
 }
 
-func Search(c *fiber.Ctx, idx Reader, version string, emailSendingConfigured bool, wordsPerMinute float64) error {
+func Search(c *fiber.Ctx, idx Reader, version string, sender Sender, wordsPerMinute float64) error {
 	lang := c.Params("lang")
+
+	emailSendingConfigured := true
+	if _, ok := sender.(*infrastructure.NoEmail); ok {
+		emailSendingConfigured = false
+	}
 
 	page, err := strconv.Atoi(c.Query("page"))
 	if err != nil {

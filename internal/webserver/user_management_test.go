@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
@@ -310,7 +311,8 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender) *fiber.App {
 	}
 
 	webserverConfig := webserver.Config{
-		CoverMaxWidth: 300,
+		CoverMaxWidth:  300,
+		SessionTimeout: 24 * time.Hour,
 	}
 	return webserver.New(webserver.NewReaderMock(), webserverConfig, metadataReadersMock, sender, db)
 }

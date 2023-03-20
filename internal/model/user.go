@@ -1,7 +1,6 @@
 package model
 
 import (
-	"fmt"
 	"net/mail"
 	"time"
 
@@ -34,6 +33,10 @@ func (u User) Validate(minPasswordLength int) map[string]string {
 		errs["name"] = "Name cannot be empty"
 	}
 
+	if len(u.Name) > 50 {
+		errs["name"] = "Name cannot be longer than 50 characters"
+	}
+
 	if u.WordsPerMinute < 1 || u.WordsPerMinute > 999 {
 		errs["wordsperminute"] = "Incorrect reading speed"
 	}
@@ -46,12 +49,24 @@ func (u User) Validate(minPasswordLength int) map[string]string {
 		errs["sendtoemail"] = "Incorrect send to email address"
 	}
 
+	if len(u.Email) > 100 {
+		errs["email"] = "Email cannot be longer than 100 characters"
+	}
+
+	if len(u.SendToEmail) > 100 {
+		errs["sendtoemail"] = "Send to email cannot be longer than 100 characters"
+	}
+
 	if u.Role < RoleRegular || u.Role > RoleAdmin {
 		errs["role"] = "Incorrect role"
 	}
 
 	if len(u.Password) < minPasswordLength {
-		errs["password"] = fmt.Sprintf("Password must be longer than %d characters", minPasswordLength)
+		errs["password"] = "Password must be longer than %d characters"
+	}
+
+	if len(u.Password) > 50 {
+		errs["password"] = "Password cannot be longer than 50 characters"
 	}
 
 	return errs
@@ -59,7 +74,7 @@ func (u User) Validate(minPasswordLength int) map[string]string {
 
 func (u User) ConfirmPassword(confirmPassword string, minPasswordLength int, errs map[string]string) map[string]string {
 	if len(u.Password) < minPasswordLength {
-		errs["password"] = fmt.Sprintf("Password must be longer than %d characters", minPasswordLength)
+		errs["password"] = "Password must be longer than %d characters"
 	}
 
 	if confirmPassword == "" {
