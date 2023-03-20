@@ -1,6 +1,7 @@
-package webserver
+package controller
 
 import (
+	"embed"
 	"fmt"
 	"log"
 	"net/url"
@@ -10,7 +11,7 @@ import (
 	"github.com/svera/coreander/internal/metadata"
 )
 
-func routeCovers(c *fiber.Ctx, homeDir, libraryPath string, metadataReaders map[string]metadata.Reader, coverMaxWidth int) error {
+func Covers(c *fiber.Ctx, homeDir, libraryPath string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, embedded embed.FS) error {
 	var (
 		image []byte
 	)

@@ -1,4 +1,4 @@
-package webserver
+package controller
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func routeReader(c *fiber.Ctx, libraryPath string) error {
+func DocReader(c *fiber.Ctx, libraryPath string) error {
 	lang := c.Params("lang")
 	if lang != "es" && lang != "en" {
 		return fiber.ErrNotFound

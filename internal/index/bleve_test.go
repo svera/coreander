@@ -6,9 +6,9 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/internal/controller"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/metadata"
-	"github.com/svera/coreander/internal/webserver"
 )
 
 func TestIndexAndSearch(t *testing.T) {
@@ -40,7 +40,7 @@ func TestIndexAndSearch(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error indexing: %s", err.Error())
 			}
-			res, err := idx.Search(tcase.search, 1, 10)
+			res, err := idx.Search(tcase.search, 1, 10, 250)
 			if err != nil {
 				t.Errorf("Error searching: %s", err.Error())
 			}
@@ -56,7 +56,7 @@ type testCase struct {
 	filename       string
 	mockedMeta     metadata.Metadata
 	search         string
-	expectedResult webserver.Result
+	expectedResult controller.Result
 }
 
 func testCases() []testCase {
@@ -71,7 +71,7 @@ func testCases() []testCase {
 				Language:    "es",
 			},
 			"perez",
-			webserver.Result{
+			controller.Result{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
@@ -95,7 +95,7 @@ func testCases() []testCase {
 				Language:    "fr",
 			},
 			"benoit",
-			webserver.Result{
+			controller.Result{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
@@ -119,7 +119,7 @@ func testCases() []testCase {
 				Language:    "en",
 			},
 			"clifford simak",
-			webserver.Result{
+			controller.Result{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
@@ -143,7 +143,7 @@ func testCases() []testCase {
 				Language:    "en",
 			},
 			"james ellroy",
-			webserver.Result{
+			controller.Result{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,

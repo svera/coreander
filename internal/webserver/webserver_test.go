@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/svera/coreander/internal/infrastructure"
-	"github.com/svera/coreander/internal/metadata"
-	"github.com/svera/coreander/internal/webserver"
 )
 
 func TestGET(t *testing.T) {
@@ -16,18 +14,17 @@ func TestGET(t *testing.T) {
 		expectedStatus int
 	}{
 		{"Redirect if the user tries to access to the root URL", "/", http.StatusFound},
-		{"Page loads succesfully if the user tries to access an existent URL", "/es", http.StatusOK},
+		{"Page loads successfully if the user tries to access the spanish version", "/es", http.StatusOK},
+		{"Page loads successfully if the user tries to access the english version", "/en", http.StatusOK},
 		{"Server returns not found if the user tries to access a non-existent URL", "/xx", http.StatusNotFound},
 	}
 
-	metadataReadersMock := map[string]metadata.Reader{
-		"epub": metadata.NewReaderMock(),
-	}
-	app := webserver.New(webserver.NewReaderMock(), "", "", "", metadataReadersMock, 300, &infrastructure.NoEmail{})
+	db := infrastructure.Connect("file::memory:", 250)
+	app := bootstrapApp(db, &infrastructure.NoEmail{})
 
 	for _, tcase := range cases {
 		t.Run(tcase.name, func(t *testing.T) {
-			req, _ := http.NewRequest("GET", tcase.url, nil)
+			req, _ := http.NewRequest(http.MethodGet, tcase.url, nil)
 
 			body, err := app.Test(req)
 			if err != nil {

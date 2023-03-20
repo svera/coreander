@@ -42,7 +42,8 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	}
 	description := ""
 	if len(opf.Metadata.Description) > 0 {
-		description = opf.Metadata.Description[0]
+		p := bluemonday.UGCPolicy()
+		description = p.Sanitize(opf.Metadata.Description[0])
 	}
 	language := ""
 	if len(opf.Metadata.Language) > 0 {

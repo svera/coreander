@@ -1,4 +1,4 @@
-package webserver
+package controller
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"golang.org/x/text/language"
 )
 
-func routeRoot(c *fiber.Ctx) error {
+func Root(c *fiber.Ctx) error {
 	acceptHeader := c.Get(fiber.HeaderAcceptLanguage)
 	languageMatcher := language.NewMatcher([]language.Tag{
 		language.English,

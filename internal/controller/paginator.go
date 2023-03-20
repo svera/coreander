@@ -1,8 +1,9 @@
-package webserver
+package controller
 
 import (
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 // Page holds the URL of a results page, and if that page is the current one being shown
@@ -18,7 +19,7 @@ type PagesNavigator struct {
 	NextLink     string
 }
 
-func pagination(size int, totalPages int, current int, searchType, keywords string) PagesNavigator {
+func pagination(size int, totalPages int, current int, params map[string]string) PagesNavigator {
 	var nav PagesNavigator
 	start := 1
 	end := size
@@ -42,18 +43,29 @@ func pagination(size int, totalPages int, current int, searchType, keywords stri
 	}
 	for i := start; i <= end; i++ {
 		p := Page{
-			Link: fmt.Sprintf("?%s=%s&page=%d", searchType, url.QueryEscape(keywords), i),
+			Link: fmt.Sprintf("?%spage=%d", toQueryString(params), i),
 		}
 		if i == current {
 			p.IsCurrent = true
 			if i > 1 {
-				nav.PreviousLink = fmt.Sprintf("?%s=%s&page=%d", searchType, url.QueryEscape(keywords), i-1)
+				nav.PreviousLink = fmt.Sprintf("?%spage=%d", toQueryString(params), i-1)
 			}
 			if i < totalPages {
-				nav.NextLink = fmt.Sprintf("?%s=%s&page=%d", searchType, url.QueryEscape(keywords), i+1)
+				nav.NextLink = fmt.Sprintf("?%spage=%d", toQueryString(params), i+1)
 			}
 		}
 		nav.Pages[i] = p
 	}
 	return nav
+}
+
+func toQueryString(m map[string]string) string {
+	if len(m) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(m))
+	for k, v := range m {
+		parts = append(parts, fmt.Sprintf("%s=%s", k, url.QueryEscape(v)))
+	}
+	return strings.Join(parts, "&") + "&"
 }
