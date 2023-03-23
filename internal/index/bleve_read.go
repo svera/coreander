@@ -29,15 +29,22 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPe
 		authorQueries      []query.Query
 		titleQueries       []query.Query
 		descriptionQueries []query.Query
+		seriesQueries      []query.Query
 	)
 
 	for _, keyword := range splitted {
 		qa := bleve.NewMatchQuery(keyword)
 		qa.SetField("Author")
 		authorQueries = append(authorQueries, qa)
+
 		qt := bleve.NewMatchQuery(keyword)
 		qt.SetField("Title")
 		titleQueries = append(titleQueries, qt)
+
+		qs := bleve.NewMatchQuery(keyword)
+		qs.SetField("Series")
+		seriesQueries = append(seriesQueries, qs)
+
 		qd := bleve.NewMatchQuery(keyword)
 		qd.SetField("Description")
 		descriptionQueries = append(descriptionQueries, qd)
@@ -45,9 +52,10 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPe
 
 	authorCompoundQuery := bleve.NewConjunctionQuery(authorQueries...)
 	titleCompoundQuery := bleve.NewConjunctionQuery(titleQueries...)
+	seriesCompoundQuery := bleve.NewConjunctionQuery(seriesQueries...)
 	descriptionCompoundQuery := bleve.NewConjunctionQuery(descriptionQueries...)
 
-	compound := bleve.NewDisjunctionQuery(authorCompoundQuery, titleCompoundQuery, descriptionCompoundQuery)
+	compound := bleve.NewDisjunctionQuery(authorCompoundQuery, titleCompoundQuery, seriesCompoundQuery, descriptionCompoundQuery)
 	return b.runQuery(compound, page, resultsPerPage, wordsPerMinute)
 }
 
@@ -59,7 +67,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
-	searchOptions.Fields = []string{"Title", "Author", "Description", "Year", "Words", "Series", "SeriesIndex"}
+	searchOptions.Fields = []string{"Title", "Author", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return nil, err
@@ -95,6 +103,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 			Words:       val.Fields["Words"].(float64),
 			Series:      val.Fields["Series"].(string),
 			SeriesIndex: val.Fields["SeriesIndex"].(float64),
+			Pages:       int(val.Fields["Pages"].(float64)),
 		}
 		if doc.Words != 0.0 {
 			readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", doc.Words/wordsPerMinute))

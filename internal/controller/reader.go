@@ -4,15 +4,13 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func DocReader(c *fiber.Ctx, libraryPath string) error {
 	lang := c.Params("lang")
-	if lang != "es" && lang != "en" {
-		return fiber.ErrNotFound
-	}
 
 	encodedFilename := c.Params("filename")
 	filename, err := url.QueryUnescape(encodedFilename)
@@ -22,6 +20,10 @@ func DocReader(c *fiber.Ctx, libraryPath string) error {
 
 	if _, err := os.Stat(fmt.Sprintf("%s/%s", libraryPath, filename)); err != nil {
 		return fiber.ErrNotFound
+	}
+
+	if filepath.Ext(filename) == ".pdf" {
+		return c.Redirect(fmt.Sprintf("/files/%s", encodedFilename))
 	}
 
 	return c.Render("epub-reader", fiber.Map{

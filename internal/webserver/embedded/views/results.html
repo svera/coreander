@@ -30,14 +30,29 @@
             </div>
             <div class="row">
                 <div class="col-12">
+                    {{if $book.Author}}
                     {{$authorTitle := t $lang "Search for more titles by %s" $book.Author}}
                     <h5 class="text-start"><a href="?search=Author&colon;&quot;{{$book.Author}}&quot;"
                             title={{$authorTitle}}>{{$book.Author}}</a></h5>
+                    {{else}}
+                        <h5 class="text-start">{{t $lang "Unknown author"}}</h5>
+                    {{end}}
+
                     {{ if ne $book.ReadingTime "" }}
                     <p class="text-start text-muted"><em>{{t $lang "Estimated reading time"}}:
                             {{$book.ReadingTime}}</em></p>
                     {{ end }}
+
+                    {{ if $book.Pages }}
+                    <p class="text-start text-muted"><em>{{t $lang "%d pages" $book.Pages}}</em></p>
+                    {{ end }}
+
+                    {{if $book.Description}}
                     <div class="mb-1 collapse" id="collapse-desc{{$i}}">{{$book.Description}}</div>
+                    {{else}}
+                    <div class="mb-1"><em>{{t $lang "No description available"}}</em></div>
+                    {{end}}
+
                     <a data-bs-toggle="collapse" class="collapse-control collapsed" href="#collapse-desc{{$i}}"></a>
                 </div>
             </div>
