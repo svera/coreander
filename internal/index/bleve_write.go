@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -18,14 +19,14 @@ func (b *BleveIndexer) AddFile(file string) error {
 	}
 	meta, err := b.reader[ext].Metadata(file)
 	if err != nil {
-		return fmt.Errorf("Error extracting metadata from file %s: %s", file, err)
+		return fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
 
 	file = strings.Replace(file, b.libraryPath, "", 1)
 	file = strings.TrimPrefix(file, "/")
 	err = b.idx.Index(file, meta)
 	if err != nil {
-		return fmt.Errorf("Error indexing file %s: %s", file, err)
+		return fmt.Errorf("error indexing file %s: %s", file, err)
 	}
 	return nil
 }
@@ -44,22 +45,20 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 // AddLibrary scans <libraryPath> for books and adds them to the index in batches of <bathSize>
 func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 	batch := b.idx.NewBatch()
-	e := afero.Walk(fs, b.libraryPath, func(path string, f os.FileInfo, err error) error {
-		ext := filepath.Ext(path)
+	e := afero.Walk(fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
+		ext := filepath.Ext(fullPath)
 		if _, ok := b.reader[ext]; !ok {
 			return nil
 		}
-		meta, err := b.reader[ext].Metadata(path)
+		meta, err := b.reader[ext].Metadata(fullPath)
 		if err != nil {
-			log.Printf("Error extracting metadata from file %s: %s\n", path, err)
+			log.Printf("Error extracting metadata from file %s: %s\n", fullPath, err)
 			return nil
 		}
 
-		path = strings.Replace(path, b.libraryPath, "", 1)
-		path = strings.TrimPrefix(path, "/")
-		err = batch.Index(path, meta)
+		err = batch.Index(path.Base(fullPath), meta)
 		if err != nil {
-			log.Printf("Error indexing file %s: %s\n", path, err)
+			log.Printf("Error indexing file %s: %s\n", fullPath, err)
 			return nil
 		}
 

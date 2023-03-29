@@ -2,6 +2,7 @@ package webserver_test
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -10,7 +11,10 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v2"
+	"github.com/spf13/afero"
+	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/model"
@@ -306,15 +310,31 @@ func mustReturnStatus(response *http.Response, expectedStatus int, t *testing.T)
 }
 
 func bootstrapApp(db *gorm.DB, sender webserver.Sender) *fiber.App {
-	metadataReadersMock := map[string]metadata.Reader{
-		"epub": metadata.NewReaderMock(),
+	var (
+		idx *index.BleveIndexer
+	)
+
+	metadataReaders := map[string]metadata.Reader{
+		".epub": metadata.EpubReader{},
+		".pdf":  metadata.PdfReader{},
 	}
 
 	webserverConfig := webserver.Config{
 		CoverMaxWidth:  300,
 		SessionTimeout: 24 * time.Hour,
 	}
-	return webserver.New(webserver.NewReaderMock(), webserverConfig, metadataReadersMock, sender, db)
+
+	indexFile, err := bleve.NewMemOnly(index.Mapping())
+	if err == nil {
+		idx = index.NewBleve(indexFile, "fixtures", metadataReaders)
+	}
+
+	err = idx.AddLibrary(afero.NewOsFs(), 100)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return webserver.New(idx, webserverConfig, metadataReaders, sender, db)
 }
 
 func newUser(cookie *http.Cookie, app *fiber.App) (*http.Response, error) {

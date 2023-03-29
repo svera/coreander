@@ -12,6 +12,8 @@ import (
 )
 
 func Covers(c *fiber.Ctx, homeDir, libraryPath string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, embedded embed.FS) error {
+	c.Append("Cache-Time", "86400")
+
 	var (
 		image []byte
 	)

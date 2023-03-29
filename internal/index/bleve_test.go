@@ -14,9 +14,7 @@ import (
 func TestIndexAndSearch(t *testing.T) {
 	for _, tcase := range testCases() {
 		t.Run(tcase.name, func(t *testing.T) {
-			indexMapping := bleve.NewIndexMapping()
-			index.AddMappings(indexMapping)
-			indexMem, err := bleve.NewMemOnly(indexMapping)
+			indexMem, err := bleve.NewMemOnly(index.Mapping())
 			if err != nil {
 				t.Errorf("Error initialising index")
 			}

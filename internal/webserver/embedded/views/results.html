@@ -38,6 +38,8 @@
                         <h5 class="text-start">{{t $lang "Unknown author"}}</h5>
                     {{end}}
 
+                    <p><span class='badge text-bg-{{if eq $book.Type "EPUB"}}primary{{else}}danger{{end}}'>{{$book.Type}}</span></p>
+
                     {{ if ne $book.ReadingTime "" }}
                     <p class="text-start text-muted"><em>{{t $lang "Estimated reading time"}}:
                             {{$book.ReadingTime}}</em></p>

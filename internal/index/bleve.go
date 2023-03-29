@@ -28,7 +28,9 @@ func NewBleve(index bleve.Index, libraryPath string, read map[string]metadata.Re
 	}
 }
 
-func AddMappings(indexMapping *mapping.IndexMappingImpl) {
+func Mapping() *mapping.IndexMappingImpl {
+	indexMapping := bleve.NewIndexMapping()
+
 	err := indexMapping.AddCustomAnalyzer("book",
 		map[string]interface{}{
 			"type": custom.Name,
@@ -50,6 +52,8 @@ func AddMappings(indexMapping *mapping.IndexMappingImpl) {
 	yearFieldMapping := bleve.NewTextFieldMapping()
 	yearFieldMapping.Index = false
 	indexMapping.DefaultMapping.AddFieldMappingsAt("year", yearFieldMapping)
+
+	return indexMapping
 }
 
 // Close closes the index

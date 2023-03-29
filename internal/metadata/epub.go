@@ -33,7 +33,7 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		return bk, err
 	}
 	title := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
-	if len(opf.Metadata.Title) > 0 {
+	if len(opf.Metadata.Title) > 0 && len(opf.Metadata.Title[0]) > 0 {
 		title = opf.Metadata.Title[0]
 	}
 	author := ""
@@ -93,6 +93,7 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		Cover:       cover,
 		Series:      series,
 		SeriesIndex: seriesIndex,
+		Type:        "EPUB",
 	}
 	w, err := words(file)
 	if err != nil {

@@ -67,7 +67,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
-	searchOptions.Fields = []string{"Title", "Author", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages"}
+	searchOptions.Fields = []string{"Title", "Author", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return nil, err
@@ -104,6 +104,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 			Series:      val.Fields["Series"].(string),
 			SeriesIndex: val.Fields["SeriesIndex"].(float64),
 			Pages:       int(val.Fields["Pages"].(float64)),
+			Type:        val.Fields["Type"].(string),
 		}
 		if doc.Words != 0.0 {
 			readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", doc.Words/wordsPerMinute))

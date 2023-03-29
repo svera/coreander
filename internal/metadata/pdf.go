@@ -1,14 +1,19 @@
 package metadata
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
+	"log"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/disintegration/imaging"
 	"github.com/flotzilla/pdf_parser"
+	"github.com/gofiber/fiber/v2"
 	"github.com/microcosm-cc/bluemonday"
+	"github.com/sunshineplan/imgconv"
 )
 
 type PdfReader struct{}
@@ -46,6 +51,7 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 		Language:    pdf.GetLanguage(),
 		Year:        year,
 		Pages:       pdf.GetPagesCount(),
+		Type:        "PDF",
 	}
 
 	return bk, nil
@@ -53,7 +59,20 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 
 // Cover parses the document looking for a cover image and returns it
 func (p PdfReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
-	var cover []byte
+	src, err := imgconv.Open(documentFullPath)
+	if err != nil {
+		log.Fatalf("failed to open image: %v", err)
+	}
+	dst := imaging.Resize(src, coverMaxWidth, 0, imaging.Box)
+	if err != nil {
+		return nil, fiber.ErrInternalServerError
+	}
 
-	return cover, fmt.Errorf("no cover available")
+	buf := new(bytes.Buffer)
+	err = imaging.Encode(buf, dst, imaging.JPEG)
+	if err != nil {
+		return []byte{}, fmt.Errorf("no cover available")
+	}
+
+	return buf.Bytes(), nil
 }
