@@ -5,32 +5,12 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/model"
 )
-
-type SMTPMock struct {
-	calledSend bool
-	mu         sync.Mutex
-	wg         sync.WaitGroup
-}
-
-func (s *SMTPMock) Send(address, subject, body string) error {
-	defer s.wg.Done()
-
-	s.mu.Lock()
-	s.calledSend = true
-	s.mu.Unlock()
-	return nil
-}
-
-func (s *SMTPMock) SendDocument(address string, libraryPath string, fileName string) error {
-	return nil
-}
 
 func TestAuthentication(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
