@@ -39,8 +39,9 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	author := ""
 	if len(opf.Metadata.Creator) > 0 {
 		for _, creator := range opf.Metadata.Creator {
-			if creator.Role == "aut" {
+			if creator.Role == "aut" || creator.Role == "" {
 				author = creator.FullName
+				break
 			}
 		}
 	}
@@ -56,10 +57,11 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	year := ""
 	if len(opf.Metadata.Date) > 0 {
 		for _, date := range opf.Metadata.Date {
-			if date.Event == "publication" {
+			if date.Event == "publication" || date.Event == "" {
 				t, err := time.Parse("2006-01-02", date.Stamp)
 				if err == nil {
 					year = t.Format("2006")
+					break
 				}
 			}
 		}
