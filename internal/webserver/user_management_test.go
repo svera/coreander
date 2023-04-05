@@ -7,15 +7,11 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/internal/infrastructure"
-	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/model"
-	"github.com/svera/coreander/internal/webserver"
-	"gorm.io/gorm"
 )
 
 func TestUserManagement(t *testing.T) {
@@ -303,18 +299,6 @@ func mustReturnStatus(response *http.Response, expectedStatus int, t *testing.T)
 	if response.StatusCode != expectedStatus {
 		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 	}
-}
-
-func bootstrapApp(db *gorm.DB, sender webserver.Sender) *fiber.App {
-	metadataReadersMock := map[string]metadata.Reader{
-		"epub": metadata.NewReaderMock(),
-	}
-
-	webserverConfig := webserver.Config{
-		CoverMaxWidth:  300,
-		SessionTimeout: 24 * time.Hour,
-	}
-	return webserver.New(webserver.NewReaderMock(), webserverConfig, metadataReadersMock, sender, db)
 }
 
 func newUser(cookie *http.Cookie, app *fiber.App) (*http.Response, error) {

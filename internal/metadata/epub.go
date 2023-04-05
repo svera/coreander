@@ -2,6 +2,8 @@ package metadata
 
 import (
 	"archive/zip"
+	"bytes"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -11,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bmatcuk/doublestar/v4"
+	"github.com/disintegration/imaging"
+	"github.com/gofiber/fiber/v2"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/svera/epub"
 )
@@ -28,15 +33,16 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	if err != nil {
 		return bk, err
 	}
-	title := ""
-	if len(opf.Metadata.Title) > 0 {
+	title := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	if len(opf.Metadata.Title) > 0 && len(opf.Metadata.Title[0]) > 0 {
 		title = opf.Metadata.Title[0]
 	}
 	author := ""
 	if len(opf.Metadata.Creator) > 0 {
 		for _, creator := range opf.Metadata.Creator {
-			if creator.Role == "aut" {
+			if creator.Role == "aut" || creator.Role == "" {
 				author = creator.FullName
+				break
 			}
 		}
 	}
@@ -52,10 +58,11 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	year := ""
 	if len(opf.Metadata.Date) > 0 {
 		for _, date := range opf.Metadata.Date {
-			if date.Event == "publication" {
+			if date.Event == "publication" || date.Event == "" {
 				t, err := time.Parse("2006-01-02", date.Stamp)
 				if err == nil {
 					year = t.Format("2006")
+					break
 				}
 			}
 		}
@@ -89,6 +96,7 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		Cover:       cover,
 		Series:      series,
 		SeriesIndex: seriesIndex,
+		Type:        "EPUB",
 	}
 	w, err := words(file)
 	if err != nil {
@@ -96,6 +104,31 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	}
 	bk.Words = float64(w)
 	return bk, nil
+}
+
+// Cover parses the document looking for a cover image and returns it
+func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
+	var cover []byte
+
+	reader := EpubReader{}
+	meta, err := reader.Metadata(documentFullPath)
+	if err != nil {
+		return nil, err
+	}
+	if meta.Cover == "" {
+		return nil, fmt.Errorf("no cover image set in %s", documentFullPath)
+	}
+
+	r, err := zip.OpenReader(documentFullPath)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	cover, err = extractCover(r, meta.Cover, coverMaxWidth)
+	if err != nil {
+		return nil, err
+	}
+	return cover, nil
 }
 
 func words(bookFullPath string) (int, error) {
@@ -106,7 +139,7 @@ func words(bookFullPath string) (int, error) {
 	defer r.Close()
 	count := 0
 	for _, f := range r.File {
-		isContent, err := filepath.Match("OEBPS/Text/*.*html", f.Name)
+		isContent, err := doublestar.PathMatch("OEBPS/**/*.*html", f.Name)
 		if err != nil {
 			return 0, err
 		}
@@ -130,4 +163,29 @@ func words(bookFullPath string) (int, error) {
 		rc.Close()
 	}
 	return count, nil
+}
+
+func extractCover(r *zip.ReadCloser, coverFile string, coverMaxWidth int) ([]byte, error) {
+	for _, f := range r.File {
+		if f.Name != fmt.Sprintf("OEBPS/%s", coverFile) {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return nil, err
+		}
+		src, err := imaging.Decode(rc)
+		if err != nil {
+			return nil, fiber.ErrInternalServerError
+		}
+		dst := imaging.Resize(src, coverMaxWidth, 0, imaging.Box)
+		if err != nil {
+			return nil, fiber.ErrInternalServerError
+		}
+
+		buf := new(bytes.Buffer)
+		imaging.Encode(buf, dst, imaging.JPEG)
+		return buf.Bytes(), nil
+	}
+	return nil, fmt.Errorf("no cover image found")
 }

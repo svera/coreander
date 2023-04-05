@@ -1,17 +1,17 @@
 # Coreander
-A personal Ebooks server, Coreander indexes the ebooks (only EPUBs with no DRM at the moment) that it finds in the passed folder, and provides a web interface to search and access them.
+A personal documents server, Coreander indexes the documents (EPUBs and PDFs with no DRM) that it finds in the passed folder, and provides a web interface to search and access them.
 
 ![Coreander screenshot](screenshot.png)
 
 ## Features
 * Single binary with all dependencies included.
-* Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for ebooks in multiple languages.
+* Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for documents in multiple languages.
 * Search by author, title and even book series ([Calibre's](https://calibre-ebook.com/) `series` meta supported)
 * Estimated reading time calculation. 
 * High-performance web server powered by [Fiber](https://github.com/gofiber/fiber).
 * Lightweight, responsive web interface based on [Bootstrap](https://getbootstrap.com/).
 * Web interface available in English and Spanish, more languages can be easily added.
-* New books added or removed to/from the library folder are automatically indexed (Linux only).
+* New documents added or removed to/from the library folder are automatically indexed (Linux only).
 * [Send to email supported](#send-to-email).
 * Read indexed epubs from Coreander's interface thanks to [epub.js](http://futurepress.org/).
 * Restrictable access only to registered users.
@@ -47,9 +47,9 @@ Environment="LIB_PATH=<absolute path to the library>"
 
 then, start the service with `service coreander start`. You can manage it with the usual commands `start`, `stop` and `status`. Refer to your service manager documentation for more information.
 
-Coreander requires a `LIB_PATH` environment variable to be set, which tells the application where your books are located.
+Coreander requires a `LIB_PATH` environment variable to be set, which tells the application where your documents are located.
 
-On first run, Coreander will index the books in your library, creating a database with those entries located at `$home/coreander/db`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.
+On first run, Coreander will index the documents in your library, creating a database with those entries located at `$home/coreander/db`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.
 
 Every time is run, the application check for new entries, reindexing the whole library. You can
 avoid this behaviour by setting the environment variable `SKIP_INDEXING` to `true`. 
@@ -90,7 +90,7 @@ On first run, Coreander creates an admin user with the following credentials:
 ### Settings
 
 * `LIB_PATH`: Absolute path to the folder containing the documents.
-* `PORT`: Port number in which the webserver listens for requests. Defaults to 3000.
+* `PORT`: Port number in which the webserver listens for requests. Specifying 443 (HTTPS) as the port number will automatically try to enable a HTTPS server using [Let's Encrypt](https://letsencrypt.org). Defaults to 3000.
 * `BATCH_SIZE`: Number of documents persisted by the indexer in one write operation. defaults to 100.
 * `COVER_MAX_WIDTH`: Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 300.
 * `SKIP_INDEXING`: Whether to bypass the indexing process or not.

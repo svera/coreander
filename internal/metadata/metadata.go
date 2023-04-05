@@ -16,6 +16,8 @@ type Metadata struct {
 	Cover       string
 	Series      string
 	SeriesIndex float64
+	Pages       int
+	Type        string
 }
 type Reader interface {
 	Metadata(file string) (Metadata, error)

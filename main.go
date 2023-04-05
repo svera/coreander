@@ -39,6 +39,7 @@ func main() {
 
 	metadataReaders := map[string]metadata.Reader{
 		".epub": metadata.EpubReader{},
+		".pdf":  metadata.PdfReader{},
 	}
 
 	indexFile, err := bleve.Open(homeDir + "/coreander/db")
@@ -55,16 +56,16 @@ func main() {
 }
 
 func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metadataReaders map[string]metadata.Reader, appFs afero.Fs) {
-	var (
-		err    error
-		sender webserver.Sender
-	)
+	var sender webserver.Sender
 
 	defer idx.Close()
 
 	if !cfg.SkipIndexing {
 		go startIndex(idx, appFs, cfg.BatchSize, cfg.LibPath)
+	} else {
+		go fileWatcher(idx, cfg.LibPath)
 	}
+
 	sender = &infrastructure.NoEmail{}
 	if cfg.SmtpServer != "" && cfg.SmtpUser != "" && cfg.SmtpPassword != "" {
 		sender = &infrastructure.SMTP{
@@ -90,10 +91,7 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 	}
 	app := webserver.New(idx, webserverConfig, metadataReaders, sender, db)
 	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)
-	err = app.Listen(fmt.Sprintf(":%d", cfg.Port))
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))
 }
 
 func startIndex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath string) {
@@ -111,9 +109,8 @@ func startIndex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath 
 
 func createIndex(homeDir, libPath string, metadataReaders map[string]metadata.Reader) *index.BleveIndexer {
 	log.Println("No index found, creating a new one")
-	indexMapping := bleve.NewIndexMapping()
-	index.AddMappings(indexMapping)
-	indexFile, err := bleve.New(homeDir+"/coreander/db", indexMapping)
+
+	indexFile, err := bleve.New(homeDir+"/coreander/db", index.Mapping())
 	if err != nil {
 		log.Fatal(err)
 	}

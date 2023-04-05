@@ -211,16 +211,11 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	langGroup.Get("/logout", authController.SignOut)
 
 	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
-		c.Append("Cache-Time", "86400")
 		return controller.Covers(c, cfg.HomeDir, cfg.LibraryPath, metadataReaders, cfg.CoverMaxWidth, embedded)
 	})
 
 	app.Post("/send", func(c *fiber.Ctx) error {
-		if c.FormValue("file") == "" || c.FormValue("email") == "" {
-			return fiber.ErrBadRequest
-		}
-		controller.Send(c, cfg.LibraryPath, c.FormValue("file"), c.FormValue("email"), sender)
-		return nil
+		return controller.Send(c, cfg.LibraryPath, c.FormValue("file"), c.FormValue("email"), sender)
 	})
 
 	app.Static("/files", cfg.LibraryPath)
