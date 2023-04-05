@@ -1,6 +1,7 @@
 package webserver_test
 
 import (
+	"embed"
 	"log"
 	"net/http"
 	"sync"
@@ -10,12 +11,16 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/internal/i18n"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/webserver"
 	"gorm.io/gorm"
 )
+
+//go:embed embedded
+var embedded embed.FS
 
 func TestGET(t *testing.T) {
 	var cases = []struct {
@@ -73,7 +78,12 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender) *fiber.App {
 		log.Fatal(err)
 	}
 
-	return webserver.New(idx, webserverConfig, metadataReaders, sender, db)
+	printers, err := i18n.Printers(embedded, "en")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return webserver.New(idx, webserverConfig, metadataReaders, sender, db, printers)
 }
 
 type SMTPMock struct {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"log"
 	"os"
@@ -8,9 +9,11 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/ilyakaznacheev/cleanenv"
+	"golang.org/x/text/message"
 	"gorm.io/gorm"
 
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/internal/i18n"
 	"github.com/svera/coreander/internal/index"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
@@ -18,6 +21,9 @@ import (
 )
 
 var version string = "unknown"
+
+//go:embed internal/webserver/embedded
+var embedded embed.FS
 
 func main() {
 	var (
@@ -52,10 +58,15 @@ func main() {
 	}
 	db := infrastructure.Connect(homeDir+"/coreander/db/database.db", cfg.WordsPerMinute)
 
-	run(cfg, db, idx, homeDir, metadataReaders, appFs)
+	printers, err := i18n.Printers(embedded, "en")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	run(cfg, db, idx, homeDir, metadataReaders, appFs, printers)
 }
 
-func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metadataReaders map[string]metadata.Reader, appFs afero.Fs) {
+func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metadataReaders map[string]metadata.Reader, appFs afero.Fs, printers map[string]*message.Printer) {
 	var sender webserver.Sender
 
 	defer idx.Close()
@@ -89,7 +100,7 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 		Port:              cfg.Port,
 		SessionTimeout:    cfg.SessionTimeout,
 	}
-	app := webserver.New(idx, webserverConfig, metadataReaders, sender, db)
+	app := webserver.New(idx, webserverConfig, metadataReaders, sender, db, printers)
 	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))
 }
