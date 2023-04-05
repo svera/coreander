@@ -40,7 +40,7 @@ func Printers(dir fs.FS, fallbackLang string) (map[string]*message.Printer, erro
 // translation catalog from them. Each yml file must be named as the two-letter
 // identifier of the language of the translation, e. g. "es" for spanish, "en" for english, etc.
 func newCatalogFromFolder(dir fs.FS, fallbackLang string) (catalog.Catalog, error) {
-	files, err := fs.ReadDir(dir, "internal/webserver/embedded/translations")
+	files, err := fs.ReadDir(dir, ".")
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func newCatalogFromFolder(dir fs.FS, fallbackLang string) (catalog.Catalog, erro
 		if file.IsDir() {
 			continue
 		}
-		translationContent, err := fs.ReadFile(dir, "internal/webserver/embedded/translations/"+file.Name())
+		translationContent, err := fs.ReadFile(dir, file.Name())
 		if err != nil {
 			return nil, err
 		}

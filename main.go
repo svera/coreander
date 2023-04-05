@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"time"
@@ -58,7 +59,12 @@ func main() {
 	}
 	db := infrastructure.Connect(homeDir+"/coreander/db/database.db", cfg.WordsPerMinute)
 
-	printers, err := i18n.Printers(embedded, "en")
+	dir, err := fs.Sub(embedded, "internal/webserver/embedded/translations")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	printers, err := i18n.Printers(dir, "en")
 	if err != nil {
 		log.Fatal(err)
 	}
