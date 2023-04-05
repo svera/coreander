@@ -63,8 +63,9 @@ func TestSendDocument(t *testing.T) {
 	}{
 		{"Send no document filename", "admin@example.com", "", http.StatusBadRequest},
 		{"Send no email address", "", "empty.epub", http.StatusBadRequest},
-		{"Send document filename with relative path", "admin@example.com", "folder/empty.epub", http.StatusBadRequest},
-		{"Send document filename and email address", "admin@example.com", "empty.epub", http.StatusOK},
+		{"Send document filename with relative path", "admin@example.com", "folder/../empty.epub", http.StatusBadRequest},
+		{"Send non existing document filename", "admin@example.com", "wrong.epub", http.StatusBadRequest},
+		{"Send document filename and email address", "admin@example.com", "metadata.epub", http.StatusOK},
 	}
 
 	for _, tcase := range cases {

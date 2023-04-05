@@ -1,10 +1,8 @@
 package main
 
 import (
-	"crypto/tls"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"time"
 
@@ -17,7 +15,6 @@ import (
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/webserver"
-	"golang.org/x/crypto/acme/autocert"
 )
 
 var version string = "unknown"
@@ -94,12 +91,7 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 	}
 	app := webserver.New(idx, webserverConfig, metadataReaders, sender, db)
 	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)
-	if cfg.Port == 443 {
-		ln := tlsListener(cfg.Hostname, homeDir)
-		log.Fatal(app.Listener(ln))
-	} else {
-		log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))
-	}
+	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))
 }
 
 func startIndex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath string) {
@@ -123,33 +115,4 @@ func createIndex(homeDir, libPath string, metadataReaders map[string]metadata.Re
 		log.Fatal(err)
 	}
 	return index.NewBleve(indexFile, libPath, metadataReaders)
-}
-
-func tlsListener(hostname, homeDir string) net.Listener {
-	m := &autocert.Manager{
-		Prompt: autocert.AcceptTOS,
-		// Replace with your domain
-		HostPolicy: autocert.HostWhitelist(hostname),
-		// Folder to store the certificates
-		Cache: autocert.DirCache(homeDir + "/coreander/certs"),
-	}
-
-	// TLS Config
-	cfg := &tls.Config{
-		// Get Certificate from Let's Encrypt
-		GetCertificate: m.GetCertificate,
-		// By default NextProtos contains the "h2"
-		// This has to be removed since Fasthttp does not support HTTP/2
-		// Or it will cause a flood of PRI method logs
-		// http://webconcepts.info/concepts/http-method/PRI
-		NextProtos: []string{
-			"http/1.1", "acme-tls/1",
-		},
-	}
-	ln, err := tls.Listen("tcp", ":443", cfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return ln
 }

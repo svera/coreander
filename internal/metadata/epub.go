@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/disintegration/imaging"
 	"github.com/gofiber/fiber/v2"
 	"github.com/microcosm-cc/bluemonday"
@@ -138,7 +139,7 @@ func words(bookFullPath string) (int, error) {
 	defer r.Close()
 	count := 0
 	for _, f := range r.File {
-		isContent, err := filepath.Match("OEBPS/Text/*.*html", f.Name)
+		isContent, err := doublestar.PathMatch("OEBPS/**/*.*html", f.Name)
 		if err != nil {
 			return 0, err
 		}

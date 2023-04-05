@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -15,7 +16,12 @@ func Send(c *fiber.Ctx, libraryPath string, fileName string, address string, sen
 	if c.FormValue("file") == "" || c.FormValue("email") == "" {
 		return fiber.ErrBadRequest
 	}
+
 	if strings.Contains(c.FormValue("file"), string(os.PathSeparator)) {
+		return fiber.ErrBadRequest
+	}
+
+	if _, err := os.Stat(fmt.Sprintf("%s/%s", libraryPath, c.FormValue("file"))); err != nil {
 		return fiber.ErrBadRequest
 	}
 
