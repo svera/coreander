@@ -21,7 +21,7 @@ func TestSearch(t *testing.T) {
 		expectedResults int
 	}{
 		{"Search for documents with no metadata", "/en?search=empty", 2},
-		{"Search for documents with metadata", "/en?search=john+doe", 2},
+		{"Search for documents with metadata", "/en?search=john+doe", 3},
 	}
 
 	for _, tcase := range cases {

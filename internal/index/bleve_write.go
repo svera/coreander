@@ -13,7 +13,7 @@ import (
 
 // AddFile adds a file to the index
 func (b *BleveIndexer) AddFile(file string) error {
-	ext := filepath.Ext(file)
+	ext := strings.ToLower(filepath.Ext(file))
 	if _, ok := b.reader[ext]; !ok {
 		return nil
 	}
@@ -46,7 +46,7 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 	batch := b.idx.NewBatch()
 	e := afero.Walk(fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
-		ext := filepath.Ext(fullPath)
+		ext := strings.ToLower(filepath.Ext(fullPath))
 		if _, ok := b.reader[ext]; !ok {
 			return nil
 		}
