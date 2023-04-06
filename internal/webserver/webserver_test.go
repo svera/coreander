@@ -2,6 +2,7 @@ package webserver_test
 
 import (
 	"embed"
+	"io/fs"
 	"log"
 	"net/http"
 	"sync"
@@ -78,7 +79,12 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender) *fiber.App {
 		log.Fatal(err)
 	}
 
-	printers, err := i18n.Printers(embedded, "en")
+	dir, err := fs.Sub(embedded, "embedded/translations")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	printers, err := i18n.Printers(dir, "en")
 	if err != nil {
 		log.Fatal(err)
 	}
