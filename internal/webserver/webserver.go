@@ -66,6 +66,7 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		Views:                 engine,
 		DisableStartupMessage: true,
 		AppName:               cfg.Version,
+		PassLocalsToViews:     true,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			// Status code defaults to 500
 			code := fiber.StatusInternalServerError
@@ -151,7 +152,11 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 
 	authController := controller.NewAuth(usersRepository, sender, authCfg, printers)
 
-	langGroup := app.Group(fmt.Sprintf("/:lang<regex(%s)>", strings.Join(supportedLanguages, "|")))
+	langGroup := app.Group(fmt.Sprintf("/:lang<regex(%s)>", strings.Join(supportedLanguages, "|")), func(c *fiber.Ctx) error {
+		c.Locals("Lang", c.Params("lang"))
+		c.Locals("SupportedLanguages", supportedLanguages)
+		return c.Next()
+	})
 
 	allowIfNotLoggedInMiddleware := jwtware.New(jwtware.Config{
 		SigningKey:    cfg.JwtSecret,
