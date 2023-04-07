@@ -15,7 +15,7 @@
     <meta name="theme-color" content="#000">
 
 </head>
-{{$lang := .Lang}}
+
 <body class="text-center d-flex flex-column h-100">
     <header>
         <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top">
@@ -68,6 +68,7 @@
                         <a href="/{{.Lang}}/login">{{t .Lang "Login"}}</a>
                     </span>
                     {{end}}
+                    {{$lang := .Lang}}
                     {{range $i, $currentLang := .SupportedLanguages}}
                         {{if eq $lang $currentLang}}
                             <span class="p-2">{{$currentLang}}</span>
