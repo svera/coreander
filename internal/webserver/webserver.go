@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,12 +17,12 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	jwtware "github.com/gofiber/jwt/v3"
 	"github.com/svera/coreander/internal/controller"
-	"github.com/svera/coreander/internal/i18n"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/jwtclaimsreader"
 	"github.com/svera/coreander/internal/metadata"
 	"github.com/svera/coreander/internal/model"
 	"golang.org/x/exp/slices"
+	"golang.org/x/text/message"
 	"gorm.io/gorm"
 )
 
@@ -48,25 +49,24 @@ type Sender interface {
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.Reader, sender Sender, db *gorm.DB) *fiber.App {
+func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.Reader, sender Sender, db *gorm.DB, printers map[string]*message.Printer) *fiber.App {
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	printers, err := i18n.Printers(embedded)
-	if err != nil {
-		log.Fatal(err)
-	}
 	engine, err := infrastructure.TemplateEngine(viewsFS, printers)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	supportedLanguages := supportedLanguages(printers)
+
 	app := fiber.New(fiber.Config{
 		Views:                 engine,
 		DisableStartupMessage: true,
 		AppName:               cfg.Version,
+		PassLocalsToViews:     true,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			// Status code defaults to 500
 			code := fiber.StatusInternalServerError
@@ -77,7 +77,6 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 				code = e.Code
 			}
 
-			supportedLanguages := []string{"es", "en"}
 			lang := c.Params("lang")
 			if !slices.Contains(supportedLanguages, lang) {
 				lang = c.AcceptsLanguages(supportedLanguages...)
@@ -153,7 +152,11 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 
 	authController := controller.NewAuth(usersRepository, sender, authCfg, printers)
 
-	langGroup := app.Group("/:lang<regex(es|en)>")
+	langGroup := app.Group(fmt.Sprintf("/:lang<regex(%s)>", strings.Join(supportedLanguages, "|")), func(c *fiber.Ctx) error {
+		c.Locals("Lang", c.Params("lang"))
+		c.Locals("SupportedLanguages", supportedLanguages)
+		return c.Next()
+	})
 
 	allowIfNotLoggedInMiddleware := jwtware.New(jwtware.Config{
 		SigningKey:    cfg.JwtSecret,
@@ -238,4 +241,16 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	})
 
 	return app
+}
+
+func supportedLanguages(printers map[string]*message.Printer) []string {
+	langs := make([]string, len(printers))
+
+	i := 0
+	for k := range printers {
+		langs[i] = k
+		i++
+	}
+
+	return langs
 }

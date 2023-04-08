@@ -104,7 +104,6 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 
 	if user.Password != model.Hash(c.FormValue("password")) {
 		return c.Status(fiber.StatusUnauthorized).Render("auth/login", fiber.Map{
-			"Lang":    c.Params("lang"),
 			"Title":   "Login",
 			"Error":   "Wrong email or password",
 			"Version": c.App().Config().AppName,
@@ -161,7 +160,6 @@ func (a *Auth) Recover(c *fiber.Ctx) error {
 	}
 
 	return c.Render("auth/recover", fiber.Map{
-		"Lang":    c.Params("lang"),
 		"Title":   "Recover password",
 		"Version": c.App().Config().AppName,
 		"Errors":  map[string]string{},
@@ -175,7 +173,6 @@ func (a *Auth) Request(c *fiber.Ctx) error {
 
 	if _, err := mail.ParseAddress(c.FormValue("email")); err != nil {
 		return c.Render("auth/recover", fiber.Map{
-			"Lang":    c.Params("lang"),
 			"Title":   "Recover password",
 			"Version": c.App().Config().AppName,
 			"Errors":  map[string]string{"email": "Incorrect email address"},
@@ -210,7 +207,6 @@ func (a *Auth) Request(c *fiber.Ctx) error {
 	}
 
 	return c.Render("auth/request", fiber.Map{
-		"Lang":    c.Params("lang"),
 		"Title":   "Recover password",
 		"Version": c.App().Config().AppName,
 		"Errors":  map[string]string{},
@@ -223,7 +219,6 @@ func (a *Auth) EditPassword(c *fiber.Ctx) error {
 	}
 
 	return c.Render("auth/edit-password", fiber.Map{
-		"Lang":    c.Params("lang"),
 		"Title":   "Reset password",
 		"Version": c.App().Config().AppName,
 		"Uuid":    c.Query("id"),
@@ -244,7 +239,6 @@ func (a *Auth) UpdatePassword(c *fiber.Ctx) error {
 
 	if errs = user.ConfirmPassword(c.FormValue("confirm-password"), a.minPasswordLength, errs); len(errs) > 0 {
 		return c.Render("auth/edit-password", fiber.Map{
-			"Lang":    c.Params("lang"),
 			"Title":   "Reset password",
 			"Version": c.App().Config().AppName,
 			"Uuid":    c.FormValue("id"),

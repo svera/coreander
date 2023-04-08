@@ -36,7 +36,7 @@ func Build(platform string) error {
 
 // Build binary files of the current version for all supported platforms and zip them
 func Release() error {
-	platforms := []string{"rpi32", "osxintel", "osxapple"}
+	platforms := []string{"rpi32", "rpi64", "osxintel", "osxapple"}
 	version, err := version()
 	if err != nil {
 		return err
@@ -72,6 +72,11 @@ func env(platform string) (map[string]string, error) {
 			"GOOS":   "linux",
 			"GOARCH": "arm",
 			"GOARM":  "7",
+		}, nil
+	case "rpi64":
+		return map[string]string{
+			"GOOS":   "linux",
+			"GOARCH": "arm64",
 		}, nil
 	case "osxintel":
 		return map[string]string{
