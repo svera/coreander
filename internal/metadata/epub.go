@@ -2,7 +2,6 @@ package metadata
 
 import (
 	"archive/zip"
-	"bytes"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -178,14 +177,7 @@ func extractCover(r *zip.ReadCloser, coverFile string, coverMaxWidth int) ([]byt
 		if err != nil {
 			return nil, fiber.ErrInternalServerError
 		}
-		dst := imaging.Resize(src, coverMaxWidth, 0, imaging.Box)
-		if err != nil {
-			return nil, fiber.ErrInternalServerError
-		}
-
-		buf := new(bytes.Buffer)
-		imaging.Encode(buf, dst, imaging.JPEG)
-		return buf.Bytes(), nil
+		return resize(src, coverMaxWidth, err)
 	}
 	return nil, fmt.Errorf("no cover image found")
 }
