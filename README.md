@@ -90,7 +90,7 @@ On first run, Coreander creates an admin user with the following credentials:
 ### Settings
 
 * `LIB_PATH`: Absolute path to the folder containing the documents.
-* `PORT`: Port number in which the webserver listens for requests. Specifying 443 (HTTPS) as the port number will automatically try to enable a HTTPS server using [Let's Encrypt](https://letsencrypt.org). Defaults to 3000.
+* `PORT`: Port number in which the webserver listens for requests. Defaults to 3000.
 * `BATCH_SIZE`: Number of documents persisted by the indexer in one write operation. defaults to 100.
 * `COVER_MAX_WIDTH`: Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 300.
 * `SKIP_INDEXING`: Whether to bypass the indexing process or not.
