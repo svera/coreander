@@ -77,19 +77,11 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 				code = e.Code
 			}
 
-			lang := c.Params("lang")
-			if !slices.Contains(supportedLanguages, lang) {
-				lang = c.AcceptsLanguages(supportedLanguages...)
-				if lang == "" {
-					lang = "en"
-				}
-			}
-
 			// Send custom error page
 			err = c.Status(code).Render(
 				fmt.Sprintf("errors/%d", code),
 				fiber.Map{
-					"Lang":    lang,
+					"Lang":    chooseBestLanguage(c, supportedLanguages),
 					"Title":   "Coreander",
 					"Session": jwtclaimsreader.SessionData(c),
 					"Version": c.App().Config().AppName,
@@ -182,7 +174,7 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		SigningMethod: "HS256",
 		TokenLookup:   "cookie:coreander",
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
+			return c.Redirect(fmt.Sprintf("/%s/login", chooseBestLanguage(c, supportedLanguages)))
 		},
 	})
 
@@ -205,7 +197,7 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			err = c.Next()
 			if cfg.RequireAuth {
-				return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang", "en")))
+				return c.Redirect(fmt.Sprintf("/%s/login", chooseBestLanguage(c, supportedLanguages)))
 			}
 			return err
 		},
@@ -253,4 +245,16 @@ func supportedLanguages(printers map[string]*message.Printer) []string {
 	}
 
 	return langs
+}
+
+func chooseBestLanguage(c *fiber.Ctx, supportedLanguages []string) string {
+	lang := c.Params("lang")
+	if !slices.Contains(supportedLanguages, lang) {
+		lang = c.AcceptsLanguages(supportedLanguages...)
+		if lang == "" {
+			lang = "en"
+		}
+	}
+
+	return lang
 }

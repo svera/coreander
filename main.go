@@ -93,6 +93,11 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 		}
 	}
 
+	sessionTimeout, err := time.ParseDuration(fmt.Sprintf("%fh", cfg.SessionTimeout))
+	if err != nil {
+		log.Fatal(fmt.Errorf("wrong value for session timeout"))
+	}
+
 	webserverConfig := webserver.Config{
 		LibraryPath:       cfg.LibPath,
 		HomeDir:           homeDir,
@@ -104,7 +109,7 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 		WordsPerMinute:    cfg.WordsPerMinute,
 		Hostname:          cfg.Hostname,
 		Port:              cfg.Port,
-		SessionTimeout:    cfg.SessionTimeout,
+		SessionTimeout:    sessionTimeout,
 	}
 	app := webserver.New(idx, webserverConfig, metadataReaders, sender, db, printers)
 	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)
