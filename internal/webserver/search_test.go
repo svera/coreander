@@ -21,7 +21,7 @@ func TestSearch(t *testing.T) {
 		expectedResults int
 	}{
 		{"Search for documents with no metadata", "/en?search=empty", 2},
-		{"Search for documents with metadata", "/en?search=john+doe", 3},
+		{"Search for documents with metadata", "/en?search=john+doe", 4},
 	}
 
 	for _, tcase := range cases {
@@ -63,7 +63,7 @@ func TestSendDocument(t *testing.T) {
 	}{
 		{"Send no document filename", "admin@example.com", "", http.StatusBadRequest},
 		{"Send no email address", "", "empty.epub", http.StatusBadRequest},
-		{"Send document filename with relative path", "admin@example.com", "folder/../empty.epub", http.StatusBadRequest},
+		{"Send document filename with relative path", "admin@example.com", "nested/../empty.epub", http.StatusBadRequest},
 		{"Send non existing document filename", "admin@example.com", "wrong.epub", http.StatusBadRequest},
 		{"Send document filename and email address", "admin@example.com", "metadata.epub", http.StatusOK},
 	}

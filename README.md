@@ -1,4 +1,7 @@
 # Coreander
+
+[![Go Coverage](https://github.com/svera/coreander/wiki/coverage.svg)](https://raw.githack.com/wiki/svera/coreander/coverage.html)
+
 A personal documents server, Coreander indexes the documents (EPUBs and PDFs with no DRM) that it finds in the passed folder, and provides a web interface to search and access them.
 
 ![Coreander screenshot](screenshot.png)
@@ -16,10 +19,14 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Read indexed epubs from Coreander's interface thanks to [epub.js](http://futurepress.org/).
 * Restrictable access only to registered users.
 
-## Building from source
+## Installation
+
+Binaries for ARM Linux 32 and 64 bits (Raspberry Pi and other SBCs) and Macs with Intel and ARM processors are available at [releases](https://github.com/svera/coreander/releases/latest). Just download and unzip the one appropiate for your system.
+
+### Building from source
 Coreander's only requirement is Go 1.18.
 
-There are two possibilites for building Coreander from source:
+There are two possibilities for building Coreander from source:
 * If you have [Mage](https://magefile.org) installed in your system, just type `mage install` from the source code folder.
 * Otherwise, a simple `go build` or `go install` will do, although no version information will be added to the executable.
 
@@ -102,4 +109,4 @@ On first run, Coreander creates an admin user with the following credentials:
 * `REQUIRE_AUTH`: Require authentication to access the application if true. Defaults to false.
 * `MIN_PASSWORD_LENGTH`: Minimum length acceptable for passwords. Defaults to 5.
 * `WORDS_PER_MINUTE`: Defines a default words per minute reading speed that will be used for not logged-in users. Defaults to 250.
-* `SESSION_TIMEOUT`: Specifies the maximum time a user session may last. Must be specified following Go's duration strings, for example "24h" for a 24 hours duration. Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h". Defaults to 24 hours.
+* `SESSION_TIMEOUT`: Specifies the maximum time a user session may last, in hours. Floating-point values are allowed. Defaults to 24 hours.

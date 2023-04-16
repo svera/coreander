@@ -1,7 +1,5 @@
 package main
 
-import "time"
-
 // Config stores the application configuration
 type Config struct {
 	// LibPath holds the absolute path to the folder containing the documents
@@ -33,5 +31,5 @@ type Config struct {
 	// WordsPerMinute defines a default words per minute reading speed that will be used for not logged-in users
 	WordsPerMinute float64 `env:"WORDS_PER_MINUTE" env-default:"250"`
 	// SessionTimeout specifies the maximum time a user session may last in hours
-	SessionTimeout time.Duration `env:"SESSION_TIMEOUT" env-default:"24h"`
+	SessionTimeout float64 `env:"SESSION_TIMEOUT" env-default:"24"`
 }

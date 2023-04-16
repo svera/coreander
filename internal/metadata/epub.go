@@ -60,7 +60,7 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 			if date.Event == "publication" || date.Event == "" {
 				t, err := time.Parse("2006-01-02", date.Stamp)
 				if err == nil {
-					year = t.Format("2006")
+					year = strings.TrimLeft(t.Format("2006"), "0")
 					break
 				}
 			}
