@@ -23,7 +23,4 @@ jobs:
 
     - name: Test
       run: go test -v ./... --cover
-
-    - name: Update coverage report
-      uses: ncruces/go-coverage-report@main
       
