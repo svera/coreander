@@ -1,7 +1,5 @@
 # Coreander
 
-[![Go Coverage](https://github.com/svera/coreander/wiki/coverage.svg)](https://raw.githack.com/wiki/svera/coreander/coverage.html)
-
 A personal documents server, Coreander indexes the documents (EPUBs and PDFs with no DRM) that it finds in the passed folder, and provides a web interface to search and access them.
 
 ![Coreander screenshot](screenshot.png)
