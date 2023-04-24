@@ -29,21 +29,18 @@ There are two possibilities for building Coreander from source:
 * Otherwise, a simple `go build` or `go install` will do, although no version information will be added to the executable.
 
 ## How to use
-Coreander is designed to be run as a service managed by systemd or any other service manager. For example, in Raspbian, just create a file called `/etc/systemd/system/coreander.service` with the following contents:
+Coreander is designed to be run as a service managed by systemd or any other service manager. For example, in Raspberry Pi OS, just create a file called `/etc/systemd/system/coreander.service` with the following contents:
 
 ```
 [Unit]
 Description=coreander
 
 [Service]
-Type=simple
 Restart=always
 RestartSec=5s
 WorkingDirectory=<absolute path to directory which contains coreander binary>
 ExecStart=<absolute path to coreander binary>
 PermissionsStartOnly=true
-StandardOutput=syslog
-StandardError=syslog
 SyslogIdentifier=sleepservice
 User=<user which will execute this service>
 Environment="LIB_PATH=<absolute path to the library>"
@@ -59,7 +56,7 @@ On first run, Coreander will index the documents in your library, creating a dat
 Every time is run, the application check for new entries, reindexing the whole library. You can
 avoid this behaviour by setting the environment variable `SKIP_INDEXING` to `true`. 
 
-Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` for the IP address of the machine where the server is running if you want to access it from another machine). It is possible to change the listening port just executing the application with the `PORT` environment variable (e. g. `PORT=4000 coreander`)
+Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` with the hostname / IP address of the machine where the server is running if you want to access it from another system). It is possible to change the listening port just executing the application with the `PORT` environment variable (e. g. `PORT=4000 coreander`)
 
 ### Email
 

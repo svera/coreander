@@ -116,3 +116,7 @@ func (s *SMTPMock) SendDocument(address string, libraryPath string, fileName str
 	s.mu.Unlock()
 	return nil
 }
+
+func (s *SMTPMock) From() string {
+	return ""
+}

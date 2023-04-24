@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -46,6 +47,7 @@ type Config struct {
 type Sender interface {
 	Send(address, subject, body string) error
 	SendDocument(address string, libraryPath string, fileName string) error
+	From() string
 }
 
 // New builds a new Fiber application and set up the required routes
@@ -244,6 +246,7 @@ func supportedLanguages(printers map[string]*message.Printer) []string {
 		i++
 	}
 
+	sort.Strings(langs)
 	return langs
 }
 

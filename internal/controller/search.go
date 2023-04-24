@@ -18,6 +18,11 @@ type Result struct {
 	TotalHits  int
 }
 
+type Sender interface {
+	SendDocument(address string, libraryPath string, fileName string) error
+	From() string
+}
+
 // Reader defines a set of reading operations over an index
 type Reader interface {
 	Search(keywords string, page, resultsPerPage int, wordsPerMinute float64) (*Result, error)
@@ -26,8 +31,6 @@ type Reader interface {
 }
 
 func Search(c *fiber.Ctx, idx Reader, version string, sender Sender, wordsPerMinute float64) error {
-	lang := c.Params("lang")
-
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -47,7 +50,6 @@ func Search(c *fiber.Ctx, idx Reader, version string, sender Sender, wordsPerMin
 		}
 
 		return c.Render("results", fiber.Map{
-			"Lang":                   lang,
 			"Keywords":               keywords,
 			"Results":                searchResults.Hits,
 			"Total":                  searchResults.TotalHits,
@@ -55,6 +57,7 @@ func Search(c *fiber.Ctx, idx Reader, version string, sender Sender, wordsPerMin
 			"Title":                  "Search results",
 			"Version":                version,
 			"EmailSendingConfigured": emailSendingConfigured,
+			"EmailFrom":              sender.From(),
 			"Session":                session,
 		}, "layout")
 	}
@@ -63,7 +66,6 @@ func Search(c *fiber.Ctx, idx Reader, version string, sender Sender, wordsPerMin
 		return fiber.ErrInternalServerError
 	}
 	return c.Render("index", fiber.Map{
-		"Lang":    lang,
 		"Count":   count,
 		"Title":   "Coreander",
 		"Version": version,

@@ -52,3 +52,7 @@ func (s *SMTP) SendDocument(address string, libraryPath string, fileName string)
 
 	return nil
 }
+
+func (s *SMTP) From() string {
+	return s.User
+}
