@@ -147,8 +147,14 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	authController := controller.NewAuth(usersRepository, sender, authCfg, printers)
 
 	langGroup := app.Group(fmt.Sprintf("/:lang<regex(%s)>", strings.Join(supportedLanguages, "|")), func(c *fiber.Ctx) error {
+		pathMinusLang := c.Path()[3:]
+		query := string(c.Request().URI().QueryString())
+		if query != "" {
+			pathMinusLang = pathMinusLang + "?" + query
+		}
 		c.Locals("Lang", c.Params("lang"))
 		c.Locals("SupportedLanguages", supportedLanguages)
+		c.Locals("PathMinusLang", pathMinusLang)
 		return c.Next()
 	})
 

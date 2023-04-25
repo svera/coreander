@@ -88,12 +88,13 @@
                             {{end}}
                             <hr class="d-lg-none">
                             {{$lang := .Lang}}
+                            {{$pathMinusLang := .PathMinusLang}}
                             {{range $i, $currentLang := .SupportedLanguages}}
-                            {{if eq $lang $currentLang}}
-                            <li class="p-2">{{$currentLang}}</li>
-                            {{else}}
-                            <a class="p-2 text-dark" href="/{{$currentLang}}">{{$currentLang}}</a>
-                            {{end}}
+                                {{if eq $lang $currentLang}}
+                                    <li class="p-2">{{$currentLang}}</li>
+                                {{else}}
+                                    <a class="p-2 text-dark" href="/{{$currentLang}}{{$pathMinusLang}}">{{$currentLang}}</a>
+                                {{end}}
                             {{end}}
                         </ul>
                     </div>
