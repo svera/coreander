@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"strings"
 
 	"github.com/gofiber/template/html"
 	"golang.org/x/text/message"
@@ -32,6 +33,10 @@ func TemplateEngine(viewsFS fs.FS, printers map[string]*message.Printer) (*html.
 			dict[key] = values[i+1]
 		}
 		return dict
+	})
+
+	engine.AddFunc("uppercase", func(text string) string {
+		return strings.ToUpper(text)
 	})
 
 	return engine, nil

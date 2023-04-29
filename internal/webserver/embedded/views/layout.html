@@ -91,9 +91,9 @@
                             {{$pathMinusLang := .PathMinusLang}}
                             {{range $i, $currentLang := .SupportedLanguages}}
                                 {{if eq $lang $currentLang}}
-                                    <li class="p-2">{{$currentLang}}</li>
+                                    <li class="p-2">{{uppercase $currentLang}}</li>
                                 {{else}}
-                                    <a class="p-2 text-dark" href="/{{$currentLang}}{{$pathMinusLang}}">{{$currentLang}}</a>
+                                    <a class="p-2 text-dark" href="/{{$currentLang}}{{$pathMinusLang}}">{{uppercase $currentLang}}</a>
                                 {{end}}
                             {{end}}
                         </ul>
