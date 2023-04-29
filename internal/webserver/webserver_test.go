@@ -89,7 +89,9 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender) *fiber.App {
 		log.Fatal(err)
 	}
 
-	return webserver.New(idx, webserverConfig, metadataReaders, sender, db, printers)
+	app := webserver.New(webserverConfig, printers)
+	webserver.Routes(app, idx, webserverConfig, metadataReaders, sender, db, printers)
+	return app
 }
 
 type SMTPMock struct {

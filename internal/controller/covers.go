@@ -29,11 +29,7 @@ func Covers(c *fiber.Ctx, homeDir, libraryPath string, metadataReaders map[strin
 	image, err = metadataReaders[ext].Cover(fmt.Sprintf("%s/%s", libraryPath, fileName), coverMaxWidth)
 	if err != nil {
 		log.Println(err)
-		image, err = embedded.ReadFile("embedded/images/generic.jpg")
-		if err != nil {
-			log.Println(err)
-			return fiber.ErrInternalServerError
-		}
+		return fiber.ErrNotFound
 	}
 
 	c.Response().Header.Set(fiber.HeaderContentType, "image/jpeg")

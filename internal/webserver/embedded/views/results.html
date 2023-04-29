@@ -12,7 +12,7 @@
     <div class="list-group">
         {{if .Results}} {{range $i, $book := .Results}}
         <div class="list-group-item">
-            <img src="covers/{{$book.ID}}" class="border border-2 border-dark float-start me-3 2-25">
+            <img src="images/generic.jpg" data-src="covers/{{$book.ID}}" loading="lazy" class="border border-2 border-dark float-start me-3 2-25 cover" alt='{{t $lang "\"%s\" cover" $book.Title}}'>
             <div class="row">
                 <div class="col-7">
                     {{ if ne $book.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
@@ -96,5 +96,17 @@
             // Catch errors
             console.log(error);
         });
+    }
+
+    window.onload = function() {
+        let imgs = document.querySelectorAll('.cover');
+        for (i = 0; i < imgs.length; i++) {
+            if (imgs[i].getAttribute('data-src')) {
+                imgs[i].addEventListener('error', function onError(e) {
+                    this.setAttribute('src', 'images/generic.jpg');
+                });
+                imgs[i].setAttribute('src', imgs[i].getAttribute('data-src'));
+            }
+        }
     }
 </script>
