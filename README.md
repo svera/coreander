@@ -80,7 +80,7 @@ Coreander can send documents through email. This way, you can take advantage of 
 
 Coreander distinguish between two kinds of users: regular users and administrator users, with the latter being the only ones with the ability to create new users.
 
-By default, Coreander allow unrestricted access to its contents, except management areas which require and administrator user. To allow access only to registered users in the whole application, pass the `REQUIRE_AUTH=true` environment variable.
+By default, Coreander allow unrestricted access to its contents, except management areas which require an administrator user. To allow access only to registered users in the whole application, pass the `REQUIRE_AUTH=true` environment variable.
 
 On first run, Coreander creates an admin user with the following credentials:
 
