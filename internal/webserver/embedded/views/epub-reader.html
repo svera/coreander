@@ -26,7 +26,9 @@
                         <a id="prev" href="#prev" class="navlink btn btn-dark text-truncate">«</a>
                     </div>
                     <div class="col-8">
-                        <select class="form-select" id="toc"></select>
+                        <select class="form-select" id="toc">
+                            <option value="">{{t .Lang "Loading document, please wait"}}</option>
+                        </select>
                     </div>
                     <div class="col-2">
                         <a id="next" href="#next" class="navlink btn btn-dark text-truncate">»</a>
@@ -37,7 +39,6 @@
     </header>
 
     <div id="viewer" class="scrolled mt-5"></div>
-
     <script>
         var params = URLSearchParams && new URLSearchParams(document.location.search.substring(1));
         var url = params && params.get("url") && decodeURIComponent(params.get("url"));
@@ -91,12 +92,11 @@
             }
 
             book.loaded.navigation.then(function (toc) {
-                var $select = document.getElementById("toc"),
-                    docfrag = document.createDocumentFragment();
+                let $select = document.getElementById("toc"),
+                    docfrag = document.createDocumentFragment(),
+                    viewer = document.getElementById("viewer");
 
-                if ($select.options.length > 0) {
-                    return;
-                }
+                $select.options.length = 0;
 
                 toc.forEach(function (chapter) {
                     var option = document.createElement("option");

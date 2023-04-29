@@ -10,3 +10,7 @@ func (s *NoEmail) Send(address, subject, body string) error {
 func (s *NoEmail) SendDocument(address string, libraryPath string, fileName string) error {
 	return nil
 }
+
+func (s *NoEmail) From() string {
+	return ""
+}

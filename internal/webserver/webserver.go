@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -26,8 +27,11 @@ import (
 	"gorm.io/gorm"
 )
 
-//go:embed embedded
-var embedded embed.FS
+var (
+	//go:embed embedded
+	embedded           embed.FS
+	supportedLanguages []string
+)
 
 type Config struct {
 	LibraryPath       string
@@ -46,10 +50,11 @@ type Config struct {
 type Sender interface {
 	Send(address, subject, body string) error
 	SendDocument(address string, libraryPath string, fileName string) error
+	From() string
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.Reader, sender Sender, db *gorm.DB, printers map[string]*message.Printer) *fiber.App {
+func New(cfg Config, printers map[string]*message.Printer) *fiber.App {
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {
 		log.Fatal(err)
@@ -60,7 +65,7 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 		log.Fatal(err)
 	}
 
-	supportedLanguages := supportedLanguages(printers)
+	supportedLanguages = getSupportedLanguages(printers)
 
 	app := fiber.New(fiber.Config{
 		Views:                 engine,
@@ -108,6 +113,11 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	}),
 	)
 
+	initResources(app)
+	return app
+}
+
+func initResources(app *fiber.App) {
 	cssFS, err := fs.Sub(embedded, "embedded/css")
 	if err != nil {
 		log.Fatal(err)
@@ -131,7 +141,9 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	app.Use("/images", filesystem.New(filesystem.Config{
 		Root: http.FS(imagesFS),
 	}))
+}
 
+func Routes(app *fiber.App, idx controller.Reader, cfg Config, metadataReaders map[string]metadata.Reader, sender Sender, db *gorm.DB, printers map[string]*message.Printer) {
 	usersRepository := &model.UserRepository{DB: db}
 
 	authCfg := controller.AuthConfig{
@@ -145,8 +157,14 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	authController := controller.NewAuth(usersRepository, sender, authCfg, printers)
 
 	langGroup := app.Group(fmt.Sprintf("/:lang<regex(%s)>", strings.Join(supportedLanguages, "|")), func(c *fiber.Ctx) error {
+		pathMinusLang := c.Path()[3:]
+		query := string(c.Request().URI().QueryString())
+		if query != "" {
+			pathMinusLang = pathMinusLang + "?" + query
+		}
 		c.Locals("Lang", c.Params("lang"))
 		c.Locals("SupportedLanguages", supportedLanguages)
+		c.Locals("PathMinusLang", pathMinusLang)
 		return c.Next()
 	})
 
@@ -231,11 +249,9 @@ func New(idx controller.Reader, cfg Config, metadataReaders map[string]metadata.
 	app.Get("/", func(c *fiber.Ctx) error {
 		return controller.Root(c)
 	})
-
-	return app
 }
 
-func supportedLanguages(printers map[string]*message.Printer) []string {
+func getSupportedLanguages(printers map[string]*message.Printer) []string {
 	langs := make([]string, len(printers))
 
 	i := 0
@@ -244,6 +260,7 @@ func supportedLanguages(printers map[string]*message.Printer) []string {
 		i++
 	}
 
+	sort.Strings(langs)
 	return langs
 }
 
