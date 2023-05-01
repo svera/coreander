@@ -23,7 +23,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPe
 		}
 	}
 
-	splitted := strings.Split(keywords, " ")
+	splitted := strings.Split(strings.TrimSpace(keywords), " ")
 
 	var (
 		authorQueries      []query.Query
@@ -33,6 +33,9 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPe
 	)
 
 	for _, keyword := range splitted {
+		if keyword == "" {
+			continue
+		}
 		qa := bleve.NewMatchQuery(keyword)
 		qa.SetField("Author")
 		authorQueries = append(authorQueries, qa)

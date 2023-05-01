@@ -108,7 +108,7 @@ func testCases() []testCase {
 			},
 		},
 		{
-			"Look for a several not exact terms must return a result with all those terms, even if there is something in between",
+			"Look for several, not exact terms must return a result with all those terms, even if there is something in between",
 			"lib/book3.epub",
 			metadata.Metadata{
 				Title:       "Test C",
@@ -132,7 +132,7 @@ func testCases() []testCase {
 			},
 		},
 		{
-			"Look for a several not exact terms must return a result with all those terms, even if there is something in between",
+			"Look for several, not exact terms must return a result with all those terms, even if there is something in between",
 			"lib/book4.epub",
 			metadata.Metadata{
 				Title:       "Test D",
@@ -149,6 +149,30 @@ func testCases() []testCase {
 					{
 						ID:          "book4.epub",
 						Title:       "Test D",
+						Author:      "James Ellroy",
+						Description: "Just test metadata",
+					},
+				},
+			},
+		},
+		{
+			"Look for several, not exact terms with multiple leading, trailing and in-between spaces must return a result with all those terms, even if there is something in between",
+			"lib/book5.epub",
+			metadata.Metadata{
+				Title:       "Test E",
+				Author:      "James Ellroy",
+				Description: "Just test metadata",
+				Language:    "en",
+			},
+			" james       ellroy ",
+			controller.Result{
+				Page:       1,
+				TotalPages: 1,
+				TotalHits:  1,
+				Hits: []metadata.Metadata{
+					{
+						ID:          "book5.epub",
+						Title:       "Test E",
 						Author:      "James Ellroy",
 						Description: "Just test metadata",
 					},
