@@ -34,7 +34,6 @@ func Delete(c *fiber.Ctx, libraryPath string, writer IdxWriter, appFs afero.Fs) 
 	fullPath := fmt.Sprintf("%s"+string(os.PathSeparator)+"%s", libraryPath, c.FormValue("file"))
 
 	if _, err := appFs.Stat(fullPath); err != nil {
-		log.Println(err)
 		return fiber.ErrBadRequest
 	}
 
