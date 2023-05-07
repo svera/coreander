@@ -17,6 +17,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/favicon"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	jwtware "github.com/gofiber/jwt/v3"
+	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/controller"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/jwtclaimsreader"
@@ -143,7 +144,7 @@ func initResources(app *fiber.App) {
 	}))
 }
 
-func Routes(app *fiber.App, idx controller.Reader, cfg Config, metadataReaders map[string]metadata.Reader, sender Sender, db *gorm.DB, printers map[string]*message.Printer) {
+func Routes(app *fiber.App, idxReader controller.IdxReader, idxWriter controller.IdxWriter, cfg Config, metadataReaders map[string]metadata.Reader, sender Sender, db *gorm.DB, printers map[string]*message.Printer, appFs afero.Fs) {
 	usersRepository := &model.UserRepository{DB: db}
 
 	authCfg := controller.AuthConfig{
@@ -207,6 +208,10 @@ func Routes(app *fiber.App, idx controller.Reader, cfg Config, metadataReaders m
 	usersGroup.Post("/:uuid<guid>/edit", usersController.Update)
 	usersGroup.Post("/delete", usersController.Delete)
 
+	app.Post("/delete", alwaysRequireAuthenticationMiddleware, func(c *fiber.Ctx) error {
+		return controller.Delete(c, cfg.LibraryPath, idxWriter, appFs)
+	})
+
 	// Authentication requirement is configurable for all routes below this middleware
 	app.Use(jwtware.New(jwtware.Config{
 		SigningKey:    cfg.JwtSecret,
@@ -239,7 +244,7 @@ func Routes(app *fiber.App, idx controller.Reader, cfg Config, metadataReaders m
 		if wordsPerMinute == 0 {
 			wordsPerMinute = cfg.WordsPerMinute
 		}
-		return controller.Search(c, idx, cfg.Version, sender, wordsPerMinute)
+		return controller.Search(c, idxReader, cfg.Version, sender, wordsPerMinute)
 	})
 
 	langGroup.Get("/read/:filename", func(c *fiber.Ctx) error {

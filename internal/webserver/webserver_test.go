@@ -36,7 +36,7 @@ func TestGET(t *testing.T) {
 	}
 
 	db := infrastructure.Connect("file::memory:", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{})
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs())
 
 	for _, tcase := range cases {
 		t.Run(tcase.name, func(t *testing.T) {
@@ -53,7 +53,7 @@ func TestGET(t *testing.T) {
 	}
 }
 
-func bootstrapApp(db *gorm.DB, sender webserver.Sender) *fiber.App {
+func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs) *fiber.App {
 	var (
 		idx *index.BleveIndexer
 	)
@@ -90,7 +90,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender) *fiber.App {
 	}
 
 	app := webserver.New(webserverConfig, printers)
-	webserver.Routes(app, idx, webserverConfig, metadataReaders, sender, db, printers)
+	webserver.Routes(app, idx, idx, webserverConfig, metadataReaders, sender, db, printers, appFs)
 	return app
 }
 

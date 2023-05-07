@@ -112,7 +112,7 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 		SessionTimeout:    sessionTimeout,
 	}
 	app := webserver.New(webserverConfig, printers)
-	webserver.Routes(app, idx, webserverConfig, metadataReaders, sender, db, printers)
+	webserver.Routes(app, idx, idx, webserverConfig, metadataReaders, sender, db, printers, appFs)
 	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))
 }

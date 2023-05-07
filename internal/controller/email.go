@@ -13,7 +13,7 @@ func Send(c *fiber.Ctx, libraryPath string, fileName string, address string, sen
 		return fiber.ErrBadRequest
 	}
 
-	if strings.Contains(c.FormValue("file"), string(os.PathSeparator)) {
+	if strings.Contains(c.FormValue("file"), ".."+string(os.PathSeparator)) {
 		return fiber.ErrBadRequest
 	}
 

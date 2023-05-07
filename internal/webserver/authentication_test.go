@@ -8,13 +8,14 @@ import (
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/spf13/afero"
 	"github.com/svera/coreander/internal/infrastructure"
 	"github.com/svera/coreander/internal/model"
 )
 
 func TestAuthentication(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
-	app := bootstrapApp(db, &infrastructure.SMTP{})
+	app := bootstrapApp(db, &infrastructure.SMTP{}, afero.NewMemMapFs())
 
 	data := url.Values{
 		"email":    {"admin@example.com"},
@@ -77,7 +78,7 @@ func TestAuthentication(t *testing.T) {
 
 func TestRecoverNoEmailService(t *testing.T) {
 	db := infrastructure.Connect("file::memory:?cache=shared", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{})
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs())
 
 	req, err := http.NewRequest(http.MethodGet, "/en/recover", nil)
 	if err != nil {
@@ -95,7 +96,7 @@ func TestRecoverNoEmailService(t *testing.T) {
 func TestRecover(t *testing.T) {
 	db := infrastructure.Connect("file::memory:?cache=shared", 250)
 	smtpMock := &SMTPMock{}
-	app := bootstrapApp(db, smtpMock)
+	app := bootstrapApp(db, smtpMock, afero.NewMemMapFs())
 
 	data := url.Values{
 		"email": {"admin@example.com"},
