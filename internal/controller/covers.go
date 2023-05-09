@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"os"
 	"path/filepath"
 
 	"github.com/gofiber/fiber/v2"
@@ -26,7 +27,7 @@ func Covers(c *fiber.Ctx, homeDir, libraryPath string, metadataReaders map[strin
 	if _, ok := metadataReaders[ext]; !ok {
 		return fiber.ErrBadRequest
 	}
-	image, err = metadataReaders[ext].Cover(fmt.Sprintf("%s/%s", libraryPath, fileName), coverMaxWidth)
+	image, err = metadataReaders[ext].Cover(fmt.Sprintf("%s"+string(os.PathSeparator)+"%s", libraryPath, fileName), coverMaxWidth)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrNotFound

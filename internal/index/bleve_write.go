@@ -35,8 +35,7 @@ func (b *BleveIndexer) AddFile(file string) error {
 func (b *BleveIndexer) RemoveFile(file string) error {
 	file = strings.Replace(file, b.libraryPath, "", 1)
 	file = strings.TrimPrefix(file, "/")
-	err := b.idx.Delete(file)
-	if err != nil {
+	if err := b.idx.Delete(file); err != nil {
 		return err
 	}
 	return nil
