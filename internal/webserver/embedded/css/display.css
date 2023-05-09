@@ -30,20 +30,6 @@ main .form-control:focus {
     font-size: 0.65em;
 }
 
-.list-group-item img {
-    max-width: 200px;
-}
-
-@media screen and (max-width: 600px) {
-    img {
-        display: none;
-    }
-}
-
-.list-group-item {
-    text-align: start;
-}
-
 a,
 a:hover {
     color: black;

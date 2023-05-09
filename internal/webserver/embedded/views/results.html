@@ -12,49 +12,55 @@
     <div class="list-group">
         {{if .Results}} {{range $i, $book := .Results}}
         <div class="list-group-item">
-            <img src="images/generic.jpg" data-src="covers/{{$book.ID}}" loading="lazy" class="border border-2 border-dark float-start me-3 2-25 cover" alt='{{t $lang "\"%s\" cover" $book.Title}}'>
             <div class="row">
-                <div class="col-7">
-                    {{ if ne $book.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
-                    $book.Series}}
-                    <p class="text-start text-muted text-uppercase mb-0"><a
-                            href="?search=Series&colon;&quot;{{$book.Series}}&quot;"
-                            title={{$seriesTitle}}>{{$book.Series}} {{$book.SeriesIndex}}</a></p>
-                    {{ end }}
-                    <h4 class="text-start">{{$book.Title}} <small class="small text-muted">{{$book.Year}}</small>
-                    </h4>
+                <div class="col-md-2 col-sm-12">
+                    <img src="images/generic.jpg" data-src="covers/{{$book.ID}}" loading="lazy" class="border border-2 border-dark text-center mb-3 cover img-fluid" alt='{{t $lang "\"%s\" cover" $book.Title}}'>
                 </div>
-                <div class="col-5 text-end">
-                    {{ template "partials/actions" dict "Lang" $lang "Book" $book "EmailSendingConfigured"
-                    $emailSendingConfigured "Index" $i "Session" $session "EmailFrom" $emailFrom}}
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-12">
-                    {{if $book.Author}}
-                    {{$authorTitle := t $lang "Search for more titles by %s" $book.Author}}
-                    <h5 class="text-start"><a href="?search=Author&colon;&quot;{{$book.Author}}&quot;"
-                            title={{$authorTitle}}>{{$book.Author}}</a></h5>
-                    {{else}}
-                        <h5 class="text-start">{{t $lang "Unknown author"}}</h5>
-                    {{end}}
-
-                    {{ if ne $book.ReadingTime "" }}
-                    <p class="text-start text-muted"><em>{{t $lang "Estimated reading time"}}:
-                            {{$book.ReadingTime}}</em></p>
-                    {{ end }}
-
-                    {{ if $book.Pages }}
-                    <p class="text-start text-muted"><em>{{t $lang "%d pages" $book.Pages}}</em></p>
-                    {{ end }}
-
-                    {{if $book.Description}}
-                    <div class="mb-1 collapse" id="collapse-desc{{$i}}">{{$book.Description}}</div>
-                    {{else}}
-                    <div class="mb-1"><em>{{t $lang "No description available"}}</em></div>
-                    {{end}}
-
-                    <a data-bs-toggle="collapse" class="collapse-control collapsed" href="#collapse-desc{{$i}}"></a>
+                <div class="col-md-10 col-sm-12">
+                    <div class="row">
+                        <div class="col-7">
+                            {{ if ne $book.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
+                            $book.Series}}
+                            <p class="text-start text-muted text-uppercase mb-0"><a
+                                    href="?search=Series&colon;&quot;{{$book.Series}}&quot;"
+                                    title={{$seriesTitle}}>{{$book.Series}} {{$book.SeriesIndex}}</a></p>
+                            {{ end }}
+                            <h4 class="text-start">{{$book.Title}} <small class="small text-muted">{{$book.Year}}</small>
+                            </h4>
+                        </div>
+                        <div class="col-5 text-end">
+                            {{ template "partials/actions" dict "Lang" $lang "Book" $book "EmailSendingConfigured"
+                            $emailSendingConfigured "Index" $i "Session" $session "EmailFrom" $emailFrom}}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 text-start">
+                            {{if $book.Author}}
+                            {{$authorTitle := t $lang "Search for more titles by %s" $book.Author}}
+                            <h5><a href="?search=Author&colon;&quot;{{$book.Author}}&quot;"
+                                    title={{$authorTitle}}>{{$book.Author}}</a></h5>
+                            {{else}}
+                                <h5>{{t $lang "Unknown author"}}</h5>
+                            {{end}}
+        
+                            {{ if ne $book.ReadingTime "" }}
+                            <p class="text-muted"><em>{{t $lang "Estimated reading time"}}:
+                                    {{$book.ReadingTime}}</em></p>
+                            {{ end }}
+        
+                            {{ if $book.Pages }}
+                            <p class="text-muted"><em>{{t $lang "%d pages" $book.Pages}}</em></p>
+                            {{ end }}
+        
+                            {{if $book.Description}}
+                            <div class="mb-1 collapse" id="collapse-desc{{$i}}">{{$book.Description}}</div>
+                            {{else}}
+                            <div class="mb-1"><em>{{t $lang "No description available"}}</em></div>
+                            {{end}}
+        
+                            <a data-bs-toggle="collapse" class="collapse-control collapsed" href="#collapse-desc{{$i}}"></a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
