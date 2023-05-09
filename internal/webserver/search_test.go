@@ -114,12 +114,48 @@ func TestSendDocument(t *testing.T) {
 func TestRemoveDocument(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	smtpMock := &SMTPMock{}
+	fixtures := []string{"fixtures/empty.epub"}
+
+	var (
+		contents map[string][]byte
+	)
 
 	appFS := afero.NewMemMapFs()
-	afero.WriteFile(appFS, "fixtures/nested/other.epub", []byte("other file"), 0644)
-	afero.WriteFile(appFS, "fixtures/empty.epub", []byte("empty file"), 0644)
+
+	for _, fileName := range fixtures {
+		file, err := os.Open(fileName)
+		if err != nil {
+			log.Fatalf("Couldn't open %s", fileName)
+		}
+		_, err = file.Read(contents[fileName])
+		if err != nil {
+			log.Fatalf("Couldn't read contents of %s", fileName)
+		}
+		afero.WriteFile(appFS, fileName, contents[fileName], 0644)
+	}
 
 	app := bootstrapApp(db, smtpMock, appFS)
+
+	req, err := http.NewRequest(http.MethodGet, "/en?search=empty", nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	response, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualResults := doc.Find(".list-group-item").Length(); actualResults != 1 {
+		t.Errorf("Expected %d results, got %d", 1, actualResults)
+	}
 
 	user := &model.User{
 		Uuid:           uuid.NewString(),
