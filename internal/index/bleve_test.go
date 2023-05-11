@@ -64,7 +64,7 @@ func testCases() []testCase {
 			"lib/book1.epub",
 			metadata.Metadata{
 				Title:       "Test A",
-				Author:      "Pérez",
+				Authors:     []string{"Pérez"},
 				Description: "Just test metadata",
 				Language:    "es",
 			},
@@ -77,7 +77,7 @@ func testCases() []testCase {
 					{
 						ID:          "book1.epub",
 						Title:       "Test A",
-						Author:      "Pérez",
+						Authors:     []string{"Pérez"},
 						Description: "Just test metadata",
 					},
 				},
@@ -88,7 +88,7 @@ func testCases() []testCase {
 			"lib/book2.epub",
 			metadata.Metadata{
 				Title:       "Test B",
-				Author:      "Benoît",
+				Authors:     []string{"Benoît"},
 				Description: "Just test metadata",
 				Language:    "fr",
 			},
@@ -101,7 +101,7 @@ func testCases() []testCase {
 					{
 						ID:          "book2.epub",
 						Title:       "Test B",
-						Author:      "Benoît",
+						Authors:     []string{"Benoît"},
 						Description: "Just test metadata",
 					},
 				},
@@ -112,7 +112,7 @@ func testCases() []testCase {
 			"lib/book3.epub",
 			metadata.Metadata{
 				Title:       "Test C",
-				Author:      "Clifford D. Simak",
+				Authors:     []string{"Clifford D. Simak"},
 				Description: "Just test metadata",
 				Language:    "en",
 			},
@@ -125,7 +125,7 @@ func testCases() []testCase {
 					{
 						ID:          "book3.epub",
 						Title:       "Test C",
-						Author:      "Clifford D. Simak",
+						Authors:     []string{"Clifford D. Simak"},
 						Description: "Just test metadata",
 					},
 				},
@@ -136,7 +136,7 @@ func testCases() []testCase {
 			"lib/book4.epub",
 			metadata.Metadata{
 				Title:       "Test D",
-				Author:      "James Ellroy",
+				Authors:     []string{"James Ellroy"},
 				Description: "Just test metadata",
 				Language:    "en",
 			},
@@ -149,7 +149,7 @@ func testCases() []testCase {
 					{
 						ID:          "book4.epub",
 						Title:       "Test D",
-						Author:      "James Ellroy",
+						Authors:     []string{"James Ellroy"},
 						Description: "Just test metadata",
 					},
 				},
@@ -160,7 +160,7 @@ func testCases() []testCase {
 			"lib/book5.epub",
 			metadata.Metadata{
 				Title:       "Test E",
-				Author:      "James Ellroy",
+				Authors:     []string{"James Ellroy"},
 				Description: "Just test metadata",
 				Language:    "en",
 			},
@@ -173,7 +173,7 @@ func testCases() []testCase {
 					{
 						ID:          "book5.epub",
 						Title:       "Test E",
-						Author:      "James Ellroy",
+						Authors:     []string{"James Ellroy"},
 						Description: "Just test metadata",
 					},
 				},

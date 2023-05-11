@@ -36,15 +36,20 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	if len(opf.Metadata.Title) > 0 && len(opf.Metadata.Title[0]) > 0 {
 		title = opf.Metadata.Title[0]
 	}
-	author := ""
+	var authors []string
 	if len(opf.Metadata.Creator) > 0 {
 		for _, creator := range opf.Metadata.Creator {
 			if creator.Role == "aut" || creator.Role == "" {
-				author = creator.FullName
-				break
+				names := strings.Split(creator.FullName, "&")
+				//names = strings.Split(strings.Join(names, " "), ",")
+				for i := range names {
+					names[i] = strings.TrimSpace(names[i])
+				}
+				authors = append(authors, names...)
 			}
 		}
 	}
+
 	description := ""
 	if len(opf.Metadata.Description) > 0 {
 		p := bluemonday.UGCPolicy()
@@ -88,7 +93,7 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	}
 	bk = Metadata{
 		Title:       title,
-		Author:      author,
+		Authors:     authors,
 		Description: template.HTML(description),
 		Language:    language,
 		Year:        year,

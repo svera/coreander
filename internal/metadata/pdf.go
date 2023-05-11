@@ -49,7 +49,7 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 
 	bk = Metadata{
 		Title:       title,
-		Author:      pdf.GetAuthor(),
+		Authors:     []string{pdf.GetAuthor()},
 		Description: template.HTML(description),
 		Language:    pdf.GetLanguage(),
 		Year:        year,
