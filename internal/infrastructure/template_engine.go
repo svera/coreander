@@ -39,5 +39,11 @@ func TemplateEngine(viewsFS fs.FS, printers map[string]*message.Printer) (*html.
 		return strings.ToUpper(text)
 	})
 
+	engine.AddFunc("notLast", notLast[string])
+
 	return engine, nil
+}
+
+func notLast[V any](slice []V, index int) bool {
+	return index < len(slice)-1
 }

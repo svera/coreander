@@ -9,7 +9,7 @@
     <p>{{t .Lang "No matches found" }}</p>
     {{end}}
 
-    <div class="list-group">
+    <div class="list-group list-group-flush">
         {{if .Results}} {{range $i, $book := .Results}}
         <div class="list-group-item">
             <div class="row">
@@ -35,10 +35,13 @@
                     </div>
                     <div class="row">
                         <div class="col-12 text-start">
-                            {{if $book.Author}}
-                            {{$authorTitle := t $lang "Search for more titles by %s" $book.Author}}
-                            <h5><a href="?search=Author&colon;&quot;{{$book.Author}}&quot;"
-                                    title={{$authorTitle}}>{{$book.Author}}</a></h5>
+                            {{if $book.Authors}}
+                            <h5>
+                                {{range $i, $author := $book.Authors}}
+                                {{$authorTitle := t $lang "Search for more titles by %s" $author}}
+                                <a href="?search=Authors&colon;&quot;{{$author}}&quot;" title={{$authorTitle}}>{{$author}}</a>{{if notLast $book.Authors $i}}, {{end}}
+                                {{end}}
+                            </h5>
                             {{else}}
                                 <h5>{{t $lang "Unknown author"}}</h5>
                             {{end}}
