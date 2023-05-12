@@ -51,6 +51,10 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		}
 	}
 
+	if len(authors) == 0 {
+		authors = []string{""}
+	}
+
 	description := ""
 	if len(opf.Metadata.Description) > 0 {
 		p := bluemonday.UGCPolicy()
