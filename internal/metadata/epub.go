@@ -40,8 +40,9 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	if len(opf.Metadata.Creator) > 0 {
 		for _, creator := range opf.Metadata.Creator {
 			if creator.Role == "aut" || creator.Role == "" {
+				// Some epub files mistakenly put all authors in a single field instead of using a field for each one.
+				// We want to identify those cases looking for specific separators and then indexing each author properly.
 				names := strings.Split(creator.FullName, "&")
-				//names = strings.Split(strings.Join(names, " "), ",")
 				for i := range names {
 					names[i] = strings.TrimSpace(names[i])
 				}

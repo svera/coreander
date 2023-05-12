@@ -102,17 +102,18 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 			ok      bool
 		)
 
+		// Bleve indexes string slices of one element as just string
 		if authors, ok = val.Fields["Authors"].([]interface{}); !ok {
 			authors = append(authors, val.Fields["Authors"])
 		}
-		aux := make([]string, len(authors))
+		authorsStrings := make([]string, len(authors))
 		for j, author := range authors {
-			aux[j] = author.(string)
+			authorsStrings[j] = author.(string)
 		}
 		doc := metadata.Metadata{
 			ID:          val.ID,
 			Title:       val.Fields["Title"].(string),
-			Authors:     aux,
+			Authors:     authorsStrings,
 			Description: template.HTML(val.Fields["Description"].(string)),
 			Year:        val.Fields["Year"].(string),
 			Words:       val.Fields["Words"].(float64),

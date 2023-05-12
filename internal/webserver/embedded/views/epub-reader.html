@@ -93,8 +93,8 @@
             }
 
             book.loaded.navigation.then(function (toc) {
-                var $select = document.getElementById("toc"),
-                    docfrag = document.createDocumentFragment();
+                let $select = document.getElementById("toc"),
+                    docfrag = document.createDocumentFragment(),
                     loading = document.getElementById("loading");
 
                 if (loading) {
