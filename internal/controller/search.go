@@ -4,10 +4,10 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/internal/infrastructure"
-	"github.com/svera/coreander/internal/jwtclaimsreader"
-	"github.com/svera/coreander/internal/metadata"
-	"github.com/svera/coreander/internal/model"
+	"github.com/svera/coreander/v2/internal/infrastructure"
+	"github.com/svera/coreander/v2/internal/jwtclaimsreader"
+	"github.com/svera/coreander/v2/internal/metadata"
+	"github.com/svera/coreander/v2/internal/model"
 )
 
 // Result holds the result of a search request, as well as some related metadata

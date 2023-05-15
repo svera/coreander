@@ -7,8 +7,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/svera/coreander/internal/jwtclaimsreader"
-	"github.com/svera/coreander/internal/model"
+	"github.com/svera/coreander/v2/internal/jwtclaimsreader"
+	"github.com/svera/coreander/v2/internal/model"
 )
 
 type usersRepository interface {
