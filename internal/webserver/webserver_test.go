@@ -12,11 +12,11 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/internal/i18n"
-	"github.com/svera/coreander/internal/index"
-	"github.com/svera/coreander/internal/infrastructure"
-	"github.com/svera/coreander/internal/metadata"
-	"github.com/svera/coreander/internal/webserver"
+	"github.com/svera/coreander/v2/internal/i18n"
+	"github.com/svera/coreander/v2/internal/index"
+	"github.com/svera/coreander/v2/internal/infrastructure"
+	"github.com/svera/coreander/v2/internal/metadata"
+	"github.com/svera/coreander/v2/internal/webserver"
 	"gorm.io/gorm"
 )
 

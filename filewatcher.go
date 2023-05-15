@@ -3,7 +3,7 @@
 package main
 
 import (
-	"github.com/svera/coreander/internal/index"
+	"github.com/svera/coreander/v2/internal/index"
 )
 
 func fileWatcher(idx *index.BleveIndexer, libPath string) {

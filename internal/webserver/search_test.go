@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/svera/coreander/internal/infrastructure"
+	"github.com/svera/coreander/v2/internal/infrastructure"
 )
 
 func TestSearch(t *testing.T) {
