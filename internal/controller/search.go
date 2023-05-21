@@ -28,6 +28,7 @@ type Reader interface {
 	Search(keywords string, page, resultsPerPage int, wordsPerMinute float64) (*Result, error)
 	Count() (uint64, error)
 	Close() error
+	Document(ID string) (metadata.Metadata, error)
 }
 
 func Search(c *fiber.Ctx, idx Reader, version string, sender Sender, wordsPerMinute float64) error {

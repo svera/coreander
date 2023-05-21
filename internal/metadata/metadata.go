@@ -6,6 +6,7 @@ import (
 
 type Metadata struct {
 	ID          string
+	Filename    string
 	Title       string
 	Authors     []string
 	Description template.HTML

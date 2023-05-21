@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/svera/coreander/v2/internal/controller"
 	"github.com/svera/coreander/v2/internal/metadata"
@@ -70,7 +71,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
-	searchOptions.Fields = []string{"Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type"}
+	searchOptions.Fields = []string{"Filename", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return nil, err
@@ -97,23 +98,11 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 	}
 
 	for i, val := range searchResult.Hits {
-		var (
-			authors []interface{}
-			ok      bool
-		)
-
-		// Bleve indexes string slices of one element as just string
-		if authors, ok = val.Fields["Authors"].([]interface{}); !ok {
-			authors = append(authors, val.Fields["Authors"])
-		}
-		authorsStrings := make([]string, len(authors))
-		for j, author := range authors {
-			authorsStrings[j] = author.(string)
-		}
 		doc := metadata.Metadata{
 			ID:          val.ID,
+			Filename:    val.Fields["Filename"].(string),
 			Title:       val.Fields["Title"].(string),
-			Authors:     authorsStrings,
+			Authors:     authors(val),
 			Description: template.HTML(val.Fields["Description"].(string)),
 			Year:        val.Fields["Year"].(string),
 			Words:       val.Fields["Words"].(float64),
@@ -148,4 +137,52 @@ func (b *BleveIndexer) Count() (uint64, error) {
 
 func calculateTotalPages(total, resultsPerPage uint64) int {
 	return int(math.Ceil(float64(total) / float64(resultsPerPage)))
+}
+
+func (b *BleveIndexer) Document(ID string) (metadata.Metadata, error) {
+	doc := metadata.Metadata{}
+	query := bleve.NewDocIDQuery([]string{ID})
+	searchOptions := bleve.NewSearchRequestOptions(query, 1, 0, false)
+	searchOptions.Fields = []string{"Filename", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type"}
+	searchResult, err := b.idx.Search(searchOptions)
+	if err != nil {
+		return doc, err
+	}
+	if searchResult.Total == 0 {
+		return doc, fmt.Errorf("Document not found")
+	}
+
+	doc = metadata.Metadata{
+		ID:          searchResult.Hits[0].ID,
+		Filename:    searchResult.Hits[0].Fields["Filename"].(string),
+		Title:       searchResult.Hits[0].Fields["Title"].(string),
+		Authors:     authors(searchResult.Hits[0]),
+		Description: template.HTML(searchResult.Hits[0].Fields["Description"].(string)),
+		Year:        searchResult.Hits[0].Fields["Year"].(string),
+		Words:       searchResult.Hits[0].Fields["Words"].(float64),
+		Series:      searchResult.Hits[0].Fields["Series"].(string),
+		SeriesIndex: searchResult.Hits[0].Fields["SeriesIndex"].(float64),
+		Pages:       int(searchResult.Hits[0].Fields["Pages"].(float64)),
+		Type:        searchResult.Hits[0].Fields["Type"].(string),
+	}
+
+	return doc, nil
+}
+
+func authors(val *search.DocumentMatch) []string {
+	var (
+		authors []interface{}
+		ok      bool
+	)
+
+	// Bleve indexes string slices of one element as just string
+	if authors, ok = val.Fields["Authors"].([]interface{}); !ok {
+		authors = append(authors, val.Fields["Authors"])
+	}
+	authorsStrings := make([]string, len(authors))
+	for j, author := range authors {
+		authorsStrings[j] = author.(string)
+	}
+
+	return authorsStrings
 }

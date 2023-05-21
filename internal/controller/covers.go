@@ -4,7 +4,6 @@ import (
 	"embed"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"path/filepath"
 
@@ -12,22 +11,22 @@ import (
 	"github.com/svera/coreander/v2/internal/metadata"
 )
 
-func Covers(c *fiber.Ctx, homeDir, libraryPath string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, embedded embed.FS) error {
+func Covers(c *fiber.Ctx, homeDir, libraryPath string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, embedded embed.FS, idx Reader) error {
 	c.Append("Cache-Time", "86400")
 
 	var (
 		image []byte
 	)
 
-	fileName, err := url.QueryUnescape(c.Params("filename"))
+	document, err := idx.Document(c.Params("ID"))
 	if err != nil {
 		return err
 	}
-	ext := filepath.Ext(fileName)
+	ext := filepath.Ext(document.Filename)
 	if _, ok := metadataReaders[ext]; !ok {
 		return fiber.ErrBadRequest
 	}
-	image, err = metadataReaders[ext].Cover(fmt.Sprintf("%s"+string(os.PathSeparator)+"%s", libraryPath, fileName), coverMaxWidth)
+	image, err = metadataReaders[ext].Cover(fmt.Sprintf("%s"+string(os.PathSeparator)+"%s", libraryPath, document.Filename), coverMaxWidth)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrNotFound

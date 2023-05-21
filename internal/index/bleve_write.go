@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
+	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v2/internal/metadata"
 )
 
 // AddFile adds a file to the index
@@ -22,9 +23,9 @@ func (b *BleveIndexer) AddFile(file string) error {
 		return fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
 
-	file = strings.Replace(file, b.libraryPath, "", 1)
-	file = strings.TrimPrefix(file, "/")
-	err = b.idx.Index(file, meta)
+	meta = b.setFilenameAndID(meta, file)
+
+	err = b.idx.Index(meta.ID, meta)
 	if err != nil {
 		return fmt.Errorf("error indexing file %s: %s", file, err)
 	}
@@ -55,7 +56,9 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 			return nil
 		}
 
-		err = batch.Index(path.Base(fullPath), meta)
+		meta = b.setFilenameAndID(meta, fullPath)
+
+		err = batch.Index(meta.ID, meta)
 		if err != nil {
 			log.Printf("Error indexing file %s: %s\n", fullPath, err)
 			return nil
@@ -67,6 +70,31 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 		}
 		return nil
 	})
+
 	b.idx.Batch(batch)
 	return e
+}
+
+func (b *BleveIndexer) setFilenameAndID(meta metadata.Metadata, file string) metadata.Metadata {
+	slugSource := meta.Title
+	if len(meta.Authors) > 0 {
+		slugSource = strings.Join(meta.Authors, ", ") + "-" + slugSource
+	}
+
+	docSlug := slug.Make(slugSource)
+
+	i := 1
+	for {
+		if doc, _ := b.idx.Document(docSlug); doc == nil {
+			break
+		}
+		i++
+		docSlug = fmt.Sprintf("%s_%d", docSlug, i)
+	}
+
+	meta.ID = docSlug
+	meta.Filename = strings.ReplaceAll(file, b.libraryPath, "")
+	meta.Filename = strings.TrimPrefix(meta.Filename, "/")
+
+	return meta
 }
