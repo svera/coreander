@@ -71,7 +71,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
-	searchOptions.Fields = []string{"Filename", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type"}
+	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 	for i, val := range searchResult.Hits {
 		doc := metadata.Metadata{
 			ID:          val.ID,
-			Filename:    val.Fields["Filename"].(string),
+			Slug:        val.Fields["Slug"].(string),
 			Title:       val.Fields["Title"].(string),
 			Authors:     authors(val),
 			Description: template.HTML(val.Fields["Description"].(string)),
@@ -139,22 +139,23 @@ func calculateTotalPages(total, resultsPerPage uint64) int {
 	return int(math.Ceil(float64(total) / float64(resultsPerPage)))
 }
 
-func (b *BleveIndexer) Document(ID string) (metadata.Metadata, error) {
+func (b *BleveIndexer) Document(slug string) (metadata.Metadata, error) {
 	doc := metadata.Metadata{}
-	query := bleve.NewDocIDQuery([]string{ID})
-	searchOptions := bleve.NewSearchRequestOptions(query, 1, 0, false)
-	searchOptions.Fields = []string{"Filename", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type"}
+	query := bleve.NewTermQuery(slug)
+	query.SetField("Slug")
+	searchOptions := bleve.NewSearchRequest(query)
+	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return doc, err
 	}
 	if searchResult.Total == 0 {
-		return doc, fmt.Errorf("Document not found")
+		return doc, fmt.Errorf("Document with slug %s not found", slug)
 	}
 
 	doc = metadata.Metadata{
 		ID:          searchResult.Hits[0].ID,
-		Filename:    searchResult.Hits[0].Fields["Filename"].(string),
+		Slug:        searchResult.Hits[0].Fields["Slug"].(string),
 		Title:       searchResult.Hits[0].Fields["Title"].(string),
 		Authors:     authors(searchResult.Hits[0]),
 		Description: template.HTML(searchResult.Hits[0].Fields["Description"].(string)),

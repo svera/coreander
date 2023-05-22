@@ -48,10 +48,12 @@ func Mapping() *mapping.IndexMappingImpl {
 	indexMapping.DefaultAnalyzer = "book"
 	languageFieldMapping := bleve.NewTextFieldMapping()
 	languageFieldMapping.Index = false
-	indexMapping.DefaultMapping.AddFieldMappingsAt("language", languageFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Language", languageFieldMapping)
 	yearFieldMapping := bleve.NewTextFieldMapping()
 	yearFieldMapping.Index = false
-	indexMapping.DefaultMapping.AddFieldMappingsAt("year", yearFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Year", yearFieldMapping)
+	slugFieldMapping := bleve.NewKeywordFieldMapping()
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Slug", slugFieldMapping)
 
 	return indexMapping
 }

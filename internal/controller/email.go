@@ -3,24 +3,24 @@ package controller
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func Send(c *fiber.Ctx, libraryPath string, fileName string, address string, sender Sender) error {
-	if c.FormValue("file") == "" || c.FormValue("email") == "" {
+func Send(c *fiber.Ctx, libraryPath string, sender Sender, idx Reader) error {
+	if c.FormValue("slug") == "" || c.FormValue("email") == "" {
 		return fiber.ErrBadRequest
 	}
 
-	if strings.Contains(c.FormValue("file"), ".."+string(os.PathSeparator)) {
+	document, err := idx.Document(c.FormValue("slug"))
+	if err != nil {
 		return fiber.ErrBadRequest
 	}
 
-	if _, err := os.Stat(fmt.Sprintf("%s/%s", libraryPath, c.FormValue("file"))); err != nil {
+	if _, err := os.Stat(fmt.Sprintf("%s/%s", libraryPath, document.ID)); err != nil {
 		return fiber.ErrBadRequest
 	}
 
-	go sender.SendDocument(address, libraryPath, fileName)
+	go sender.SendDocument(c.FormValue("email"), libraryPath, document.ID)
 	return nil
 }

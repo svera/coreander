@@ -2,34 +2,34 @@ package controller
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func DocReader(c *fiber.Ctx, libraryPath string) error {
+func DocReader(c *fiber.Ctx, libraryPath string, idx Reader) error {
 	lang := c.Params("lang")
 
-	encodedFilename := c.Params("filename")
-	filename, err := url.QueryUnescape(encodedFilename)
+	document, err := idx.Document(c.Params("slug"))
 	if err != nil {
-		return fiber.ErrInternalServerError
+		fmt.Println(err)
+		return fiber.ErrBadRequest
 	}
 
-	if _, err := os.Stat(fmt.Sprintf("%s/%s", libraryPath, filename)); err != nil {
+	if _, err := os.Stat(fmt.Sprintf("%s"+string(os.PathSeparator)+"%s", libraryPath, document.ID)); err != nil {
 		return fiber.ErrNotFound
 	}
 
-	if filepath.Ext(filename) == ".pdf" {
-		return c.Redirect(fmt.Sprintf("/files/%s", encodedFilename))
+	if strings.ToLower(filepath.Ext(document.ID)) == ".pdf" {
+		return c.Redirect(fmt.Sprintf("/download/%s", document.Slug))
 	}
 
 	return c.Render("epub-reader", fiber.Map{
 		"Lang":     lang,
 		"Title":    "Coreander",
-		"Filename": filename,
+		"Filename": document.ID,
 	})
 
 }

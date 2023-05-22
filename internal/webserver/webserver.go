@@ -223,12 +223,16 @@ func Routes(app *fiber.App, idx controller.Reader, cfg Config, metadataReaders m
 
 	langGroup.Get("/logout", authController.SignOut)
 
-	app.Get("/covers/:ID", func(c *fiber.Ctx) error {
-		return controller.Covers(c, cfg.HomeDir, cfg.LibraryPath, metadataReaders, cfg.CoverMaxWidth, embedded, idx)
+	app.Get("/covers/:slug", func(c *fiber.Ctx) error {
+		return controller.Covers(c, cfg.HomeDir, cfg.LibraryPath, metadataReaders, cfg.CoverMaxWidth, idx)
 	})
 
 	app.Post("/send", func(c *fiber.Ctx) error {
-		return controller.Send(c, cfg.LibraryPath, c.FormValue("file"), c.FormValue("email"), sender)
+		return controller.Send(c, cfg.LibraryPath, sender, idx)
+	})
+
+	app.Get("/download/:slug", func(c *fiber.Ctx) error {
+		return controller.Download(c, cfg.HomeDir, cfg.LibraryPath, idx)
 	})
 
 	app.Static("/files", cfg.LibraryPath)
@@ -242,8 +246,8 @@ func Routes(app *fiber.App, idx controller.Reader, cfg Config, metadataReaders m
 		return controller.Search(c, idx, cfg.Version, sender, wordsPerMinute)
 	})
 
-	langGroup.Get("/read/:filename", func(c *fiber.Ctx) error {
-		return controller.DocReader(c, cfg.LibraryPath)
+	langGroup.Get("/read/:slug", func(c *fiber.Ctx) error {
+		return controller.DocReader(c, cfg.LibraryPath, idx)
 	})
 
 	app.Get("/", func(c *fiber.Ctx) error {

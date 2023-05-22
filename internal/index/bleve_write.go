@@ -83,18 +83,19 @@ func (b *BleveIndexer) setFilenameAndID(meta metadata.Metadata, file string) met
 
 	docSlug := slug.Make(slugSource)
 
-	i := 1
-	for {
-		if doc, _ := b.idx.Document(docSlug); doc == nil {
-			break
-		}
-		i++
-		docSlug = fmt.Sprintf("%s_%d", docSlug, i)
-	}
+	/*
+		i := 1
+		for {
+			if doc, _ := b.Document(docSlug); doc.Slug == "" {
+				break
+			}
+			i++
+			docSlug = fmt.Sprintf("%s_%d", docSlug, i)
+		}*/
 
-	meta.ID = docSlug
-	meta.Filename = strings.ReplaceAll(file, b.libraryPath, "")
-	meta.Filename = strings.TrimPrefix(meta.Filename, "/")
+	meta.Slug = docSlug
+	meta.ID = strings.ReplaceAll(file, b.libraryPath, "")
+	meta.ID = strings.TrimPrefix(meta.ID, "/")
 
 	return meta
 }
