@@ -27,9 +27,9 @@ func DocReader(c *fiber.Ctx, libraryPath string, idx Reader) error {
 	}
 
 	return c.Render("epub-reader", fiber.Map{
-		"Lang":     lang,
-		"Title":    "Coreander",
-		"Filename": document.ID,
+		"Lang":  lang,
+		"Title": "Coreander",
+		"Slug":  document.Slug,
 	})
 
 }

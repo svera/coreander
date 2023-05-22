@@ -25,7 +25,8 @@
                                     href="?search=Series&colon;&quot;{{$book.Series}}&quot;"
                                     title={{$seriesTitle}}>{{$book.Series}} {{$book.SeriesIndex}}</a></p>
                             {{ end }}
-                            <h4 class="text-start">{{$book.Title}} <small class="small text-muted">{{$book.Year}}</small>
+                            <h4 class="text-start">
+                                <a href="{{$lang}}/read/{{$book.Slug}}">{{$book.Title}}</a> <small class="small text-muted">{{$book.Year}}</small>
                             </h4>
                         </div>
                         <div class="col-5 text-end">

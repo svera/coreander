@@ -235,8 +235,6 @@ func Routes(app *fiber.App, idx controller.Reader, cfg Config, metadataReaders m
 		return controller.Download(c, cfg.HomeDir, cfg.LibraryPath, idx)
 	})
 
-	app.Static("/files", cfg.LibraryPath)
-
 	langGroup.Get("/", func(c *fiber.Ctx) error {
 		session := jwtclaimsreader.SessionData(c)
 		wordsPerMinute := session.WordsPerMinute

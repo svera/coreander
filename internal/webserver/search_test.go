@@ -58,13 +58,13 @@ func TestSendDocument(t *testing.T) {
 	var cases = []struct {
 		name               string
 		email              string
-		file               string
+		slug               string
 		expectedHTTPStatus int
 	}{
-		{"Send no document filename", "admin@example.com", "", http.StatusBadRequest},
-		{"Send no email address", "", "empty.epub", http.StatusBadRequest},
-		{"Send non existing document filename", "admin@example.com", "wrong.epub", http.StatusBadRequest},
-		{"Send document filename and email address", "admin@example.com", "metadata.epub", http.StatusOK},
+		{"Send no document slug", "admin@example.com", "", http.StatusBadRequest},
+		{"Send no email address", "", "empty", http.StatusBadRequest},
+		{"Send non existing document slug", "admin@example.com", "wrong", http.StatusBadRequest},
+		{"Send document slug and email address", "admin@example.com", "john-doe-test-epub", http.StatusOK},
 	}
 
 	for _, tcase := range cases {
@@ -76,7 +76,7 @@ func TestSendDocument(t *testing.T) {
 
 			data := url.Values{
 				"email": {tcase.email},
-				"file":  {tcase.file},
+				"slug":  {tcase.slug},
 			}
 
 			req, err := http.NewRequest(http.MethodPost, "/send", strings.NewReader(data.Encode()))
