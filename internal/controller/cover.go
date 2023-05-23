@@ -26,7 +26,7 @@ func Cover(c *fiber.Ctx, homeDir, libraryPath string, metadataReaders map[string
 	if _, ok := metadataReaders[ext]; !ok {
 		return fiber.ErrBadRequest
 	}
-	image, err = metadataReaders[ext].Cover(fmt.Sprintf("%s"+string(os.PathSeparator)+"%s", libraryPath, document.ID), coverMaxWidth)
+	image, err = metadataReaders[ext].Cover(fmt.Sprintf("%s%s%s", libraryPath, string(os.PathSeparator), document.ID), coverMaxWidth)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrNotFound
