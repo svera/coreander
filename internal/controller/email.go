@@ -2,13 +2,19 @@ package controller
 
 import (
 	"fmt"
+	"net/mail"
 	"os"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func Send(c *fiber.Ctx, libraryPath string, sender Sender, idx Reader) error {
-	if c.FormValue("slug") == "" || c.FormValue("email") == "" {
+	if strings.Trim(c.FormValue("slug"), " ") == "" {
+		return fiber.ErrBadRequest
+	}
+
+	if _, err := mail.ParseAddress(c.FormValue("email")); err != nil {
 		return fiber.ErrBadRequest
 	}
 

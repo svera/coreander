@@ -10,7 +10,7 @@ import (
 	"github.com/svera/coreander/v2/internal/metadata"
 )
 
-func Covers(c *fiber.Ctx, homeDir, libraryPath string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, idx Reader) error {
+func Cover(c *fiber.Ctx, homeDir, libraryPath string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, idx Reader) error {
 	c.Append("Cache-Time", "86400")
 
 	var (

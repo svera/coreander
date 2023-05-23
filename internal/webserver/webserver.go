@@ -223,8 +223,8 @@ func Routes(app *fiber.App, idx controller.Reader, cfg Config, metadataReaders m
 
 	langGroup.Get("/logout", authController.SignOut)
 
-	app.Get("/covers/:slug", func(c *fiber.Ctx) error {
-		return controller.Covers(c, cfg.HomeDir, cfg.LibraryPath, metadataReaders, cfg.CoverMaxWidth, idx)
+	app.Get("/cover/:slug", func(c *fiber.Ctx) error {
+		return controller.Cover(c, cfg.HomeDir, cfg.LibraryPath, metadataReaders, cfg.CoverMaxWidth, idx)
 	})
 
 	app.Post("/send", func(c *fiber.Ctx) error {

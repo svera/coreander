@@ -3,7 +3,6 @@ package controller
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,19 +24,6 @@ func Download(c *fiber.Ctx, homeDir, libraryPath string, idx Reader) error {
 		return fiber.ErrNotFound
 	}
 
-	ext := strings.ToLower(filepath.Ext(document.ID))
-
-	if err != nil {
-		log.Println(err)
-		return fiber.ErrNotFound
-	}
-
-	if ext == ".epub" {
-		c.Response().Header.Set(fiber.HeaderContentType, "application/epub+zip")
-	} else {
-		c.Response().Header.Set(fiber.HeaderContentType, "application/pdf")
-	}
-
 	file, err := os.Open(fullPath)
 	if err != nil {
 		return fiber.ErrInternalServerError
@@ -47,6 +33,15 @@ func Download(c *fiber.Ctx, homeDir, libraryPath string, idx Reader) error {
 		return fiber.ErrInternalServerError
 	}
 
+	ext := strings.ToLower(filepath.Ext(document.ID))
+
+	if ext == ".epub" {
+		c.Response().Header.Set(fiber.HeaderContentType, "application/epub+zip")
+	} else {
+		c.Response().Header.Set(fiber.HeaderContentType, "application/pdf")
+	}
+
+	c.Response().Header.Set(fiber.HeaderContentDisposition, fmt.Sprintf("inline; filename=\"%s\"", filepath.Base(document.ID)))
 	c.Response().BodyWriter().Write(contents)
 	return nil
 }
