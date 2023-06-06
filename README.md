@@ -51,7 +51,7 @@ then, start the service with `service coreander start`. You can manage it with t
 
 Coreander requires a `LIB_PATH` environment variable to be set, which tells the application where your documents are located.
 
-On first run, Coreander will index the documents in your library, creating a database with those entries located at `$home/coreander/db`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.
+On first run, Coreander will index the documents in your library, creating a database with those entries located at `$home/coreander/index`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.
 
 Every time is run, the application check for new entries, reindexing the whole library. You can
 avoid this behaviour by setting the environment variable `SKIP_INDEXING` to `true`. 

@@ -11,8 +11,6 @@ import (
 )
 
 func Download(c *fiber.Ctx, homeDir, libraryPath string, idx Reader) error {
-	c.Append("Cache-Time", "86400")
-
 	document, err := idx.Document(c.Params("slug"))
 	if err != nil {
 		return fiber.ErrBadRequest
@@ -42,6 +40,7 @@ func Download(c *fiber.Ctx, homeDir, libraryPath string, idx Reader) error {
 	}
 
 	c.Response().Header.Set(fiber.HeaderContentDisposition, fmt.Sprintf("inline; filename=\"%s\"", filepath.Base(document.ID)))
+	fmt.Println(document.ID)
 	c.Response().BodyWriter().Write(contents)
 	return nil
 }

@@ -1,4 +1,4 @@
-module github.com/svera/coreander/v2
+module github.com/svera/coreander/v3
 
 go 1.18
 

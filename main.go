@@ -14,14 +14,16 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v2/internal/i18n"
-	"github.com/svera/coreander/v2/internal/index"
-	"github.com/svera/coreander/v2/internal/infrastructure"
-	"github.com/svera/coreander/v2/internal/metadata"
-	"github.com/svera/coreander/v2/internal/webserver"
+	"github.com/svera/coreander/v3/internal/i18n"
+	"github.com/svera/coreander/v3/internal/index"
+	"github.com/svera/coreander/v3/internal/infrastructure"
+	"github.com/svera/coreander/v3/internal/metadata"
+	"github.com/svera/coreander/v3/internal/webserver"
 )
 
 var version string = "unknown"
+
+const indexPath = "/coreander/index"
 
 //go:embed internal/webserver/embedded
 var embedded embed.FS
@@ -49,7 +51,7 @@ func main() {
 		".pdf":  metadata.PdfReader{},
 	}
 
-	indexFile, err := bleve.Open(homeDir + "/coreander/db")
+	indexFile, err := bleve.Open(homeDir + indexPath)
 	if err == nil {
 		idx = index.NewBleve(indexFile, cfg.LibPath, metadataReaders)
 	}
@@ -57,7 +59,7 @@ func main() {
 		cfg.SkipIndexing = false
 		idx = createIndex(homeDir, cfg.LibPath, metadataReaders)
 	}
-	db := infrastructure.Connect(homeDir+"/coreander/db/database.db", cfg.WordsPerMinute)
+	db := infrastructure.Connect(homeDir+"/coreander/database.db", cfg.WordsPerMinute)
 
 	dir, err := fs.Sub(embedded, "internal/webserver/embedded/translations")
 	if err != nil {
@@ -133,7 +135,7 @@ func startIndex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath 
 func createIndex(homeDir, libPath string, metadataReaders map[string]metadata.Reader) *index.BleveIndexer {
 	log.Println("No index found, creating a new one")
 
-	indexFile, err := bleve.New(homeDir+"/coreander/db", index.Mapping())
+	indexFile, err := bleve.New(homeDir+indexPath, index.Mapping())
 	if err != nil {
 		log.Fatal(err)
 	}

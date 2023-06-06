@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/svera/coreander/v2/internal/infrastructure"
+	"github.com/svera/coreander/v3/internal/infrastructure"
 )
 
 func TestSearch(t *testing.T) {
@@ -98,6 +98,36 @@ func TestSendDocument(t *testing.T) {
 			}
 
 			if expectedStatus := tcase.expectedHTTPStatus; response.StatusCode != expectedStatus {
+				t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+			}
+		})
+	}
+}
+
+func TestClashingSlugs(t *testing.T) {
+	db := infrastructure.Connect("file::memory:", 250)
+	smtpMock := &SMTPMock{}
+	app := bootstrapApp(db, smtpMock)
+
+	var cases = []struct {
+		url            string
+		expectedStatus int
+	}{
+		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", 200},
+		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha-2", 200},
+	}
+
+	for _, tcase := range cases {
+		t.Run(tcase.url, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, tcase.url, nil)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err.Error())
+			}
+			response, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err.Error())
+			}
+			if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
 				t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 			}
 		})

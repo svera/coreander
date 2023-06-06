@@ -10,8 +10,8 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
-	"github.com/svera/coreander/v2/internal/controller"
-	"github.com/svera/coreander/v2/internal/metadata"
+	"github.com/svera/coreander/v3/internal/controller"
+	"github.com/svera/coreander/v3/internal/metadata"
 )
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>

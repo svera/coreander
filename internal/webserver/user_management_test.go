@@ -10,8 +10,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v2/internal/infrastructure"
-	"github.com/svera/coreander/v2/internal/model"
+	"github.com/svera/coreander/v3/internal/infrastructure"
+	"github.com/svera/coreander/v3/internal/model"
 )
 
 func TestUserManagement(t *testing.T) {
