@@ -40,7 +40,6 @@ func Download(c *fiber.Ctx, homeDir, libraryPath string, idx Reader) error {
 	}
 
 	c.Response().Header.Set(fiber.HeaderContentDisposition, fmt.Sprintf("inline; filename=\"%s\"", filepath.Base(document.ID)))
-	fmt.Println(document.ID)
 	c.Response().BodyWriter().Write(contents)
 	return nil
 }
