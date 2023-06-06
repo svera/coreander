@@ -45,7 +45,7 @@
         var url = params && params.get("url") && decodeURIComponent(params.get("url"));
         var currentSectionIndex = (params && params.get("loc")) ? params.get("loc") : undefined;
 
-        var book = ePub("/files/{{.Filename}}");
+        var book = ePub("/download/{{.Slug}}", {openAs: "epub"});
         var rendition = book.renderTo("viewer", {
             flow: "scrolled-doc"
         });

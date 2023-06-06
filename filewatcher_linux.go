@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/rjeczalik/notify"
-	"github.com/svera/coreander/v2/internal/index"
+	"github.com/svera/coreander/v3/internal/index"
 )
 
 func fileWatcher(idx *index.BleveIndexer, libPath string) {

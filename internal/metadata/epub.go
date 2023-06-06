@@ -96,6 +96,7 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 			seriesIndex, _ = strconv.ParseFloat(val.Content, 64)
 		}
 	}
+
 	bk = Metadata{
 		Title:       title,
 		Authors:     authors,
