@@ -9,8 +9,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
-	"github.com/svera/coreander/internal/infrastructure"
-	"github.com/svera/coreander/internal/model"
+	"github.com/svera/coreander/v3/internal/infrastructure"
+	"github.com/svera/coreander/v3/internal/model"
 	"golang.org/x/text/message"
 )
 

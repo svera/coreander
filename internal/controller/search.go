@@ -4,10 +4,10 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/internal/infrastructure"
-	"github.com/svera/coreander/internal/jwtclaimsreader"
-	"github.com/svera/coreander/internal/metadata"
-	"github.com/svera/coreander/internal/model"
+	"github.com/svera/coreander/v3/internal/infrastructure"
+	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
+	"github.com/svera/coreander/v3/internal/metadata"
+	"github.com/svera/coreander/v3/internal/model"
 )
 
 // Result holds the result of a search request, as well as some related metadata
@@ -28,6 +28,7 @@ type IdxReader interface {
 	Search(keywords string, page, resultsPerPage int, wordsPerMinute float64) (*Result, error)
 	Count() (uint64, error)
 	Close() error
+	Document(ID string) (metadata.Metadata, error)
 }
 
 func Search(c *fiber.Ctx, idx IdxReader, version string, sender Sender, wordsPerMinute float64) error {

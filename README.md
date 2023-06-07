@@ -11,7 +11,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Estimated reading time calculation. 
 * High-performance web server powered by [Fiber](https://github.com/gofiber/fiber).
 * Lightweight, responsive web interface based on [Bootstrap](https://getbootstrap.com/).
-* Web interface available in English and Spanish, more languages can be easily added.
+* Web interface available in english, spanish and french, more languages can be easily added.
 * New documents added or removed to/from the library folder are automatically indexed (Linux only).
 * [Send to email supported](#send-to-email).
 * Read indexed epubs from Coreander's interface thanks to [epub.js](http://futurepress.org/).
@@ -19,7 +19,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 
 ## Installation
 
-Binaries for ARM Linux 32 and 64 bits (Raspberry Pi and other SBCs) and Macs with Intel and ARM processors are available at [releases](https://github.com/svera/coreander/releases/latest). Just download and unzip the one appropiate for your system.
+Binaries for Windows 64 bit, Linux 32 and 64 bits for both X86 and ARM (Raspberry Pi and other SBCs) and Macs with Intel and Apple processors are available at [releases](https://github.com/svera/coreander/releases/latest). Just download and unzip the one appropiate for your system.
 
 ### Building from source
 Coreander's only requirement is Go 1.18.
@@ -51,7 +51,7 @@ then, start the service with `service coreander start`. You can manage it with t
 
 Coreander requires a `LIB_PATH` environment variable to be set, which tells the application where your documents are located.
 
-On first run, Coreander will index the documents in your library, creating a database with those entries located at `$home/coreander/db`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.
+On first run, Coreander will index the documents in your library, creating a database with those entries located at `$home/coreander/index`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.
 
 Every time is run, the application check for new entries, reindexing the whole library. You can
 avoid this behaviour by setting the environment variable `SKIP_INDEXING` to `true`. 

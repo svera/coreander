@@ -6,9 +6,9 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/internal/controller"
-	"github.com/svera/coreander/internal/index"
-	"github.com/svera/coreander/internal/metadata"
+	"github.com/svera/coreander/v3/internal/controller"
+	"github.com/svera/coreander/v3/internal/index"
+	"github.com/svera/coreander/v3/internal/metadata"
 )
 
 func TestIndexAndSearch(t *testing.T) {
@@ -63,8 +63,9 @@ func testCases() []testCase {
 			"Look for a term without accent must return accented results",
 			"lib/book1.epub",
 			metadata.Metadata{
+				Slug:        "perez-test-a",
 				Title:       "Test A",
-				Author:      "Pérez",
+				Authors:     []string{"Pérez"},
 				Description: "Just test metadata",
 				Language:    "es",
 			},
@@ -76,8 +77,9 @@ func testCases() []testCase {
 				Hits: []metadata.Metadata{
 					{
 						ID:          "book1.epub",
+						Slug:        "perez-test-a",
 						Title:       "Test A",
-						Author:      "Pérez",
+						Authors:     []string{"Pérez"},
 						Description: "Just test metadata",
 					},
 				},
@@ -88,7 +90,8 @@ func testCases() []testCase {
 			"lib/book2.epub",
 			metadata.Metadata{
 				Title:       "Test B",
-				Author:      "Benoît",
+				Slug:        "benoit-test-b",
+				Authors:     []string{"Benoît"},
 				Description: "Just test metadata",
 				Language:    "fr",
 			},
@@ -100,8 +103,9 @@ func testCases() []testCase {
 				Hits: []metadata.Metadata{
 					{
 						ID:          "book2.epub",
+						Slug:        "benoit-test-b",
 						Title:       "Test B",
-						Author:      "Benoît",
+						Authors:     []string{"Benoît"},
 						Description: "Just test metadata",
 					},
 				},
@@ -112,7 +116,8 @@ func testCases() []testCase {
 			"lib/book3.epub",
 			metadata.Metadata{
 				Title:       "Test C",
-				Author:      "Clifford D. Simak",
+				Slug:        "clifford-d-simak-test-c",
+				Authors:     []string{"Clifford D. Simak"},
 				Description: "Just test metadata",
 				Language:    "en",
 			},
@@ -124,8 +129,9 @@ func testCases() []testCase {
 				Hits: []metadata.Metadata{
 					{
 						ID:          "book3.epub",
+						Slug:        "clifford-d-simak-test-c",
 						Title:       "Test C",
-						Author:      "Clifford D. Simak",
+						Authors:     []string{"Clifford D. Simak"},
 						Description: "Just test metadata",
 					},
 				},
@@ -136,7 +142,8 @@ func testCases() []testCase {
 			"lib/book4.epub",
 			metadata.Metadata{
 				Title:       "Test D",
-				Author:      "James Ellroy",
+				Slug:        "james-ellroy-test-d",
+				Authors:     []string{"James Ellroy"},
 				Description: "Just test metadata",
 				Language:    "en",
 			},
@@ -148,8 +155,9 @@ func testCases() []testCase {
 				Hits: []metadata.Metadata{
 					{
 						ID:          "book4.epub",
+						Slug:        "james-ellroy-test-d",
 						Title:       "Test D",
-						Author:      "James Ellroy",
+						Authors:     []string{"James Ellroy"},
 						Description: "Just test metadata",
 					},
 				},
@@ -160,7 +168,8 @@ func testCases() []testCase {
 			"lib/book5.epub",
 			metadata.Metadata{
 				Title:       "Test E",
-				Author:      "James Ellroy",
+				Slug:        "james-ellroy-test-e",
+				Authors:     []string{"James Ellroy"},
 				Description: "Just test metadata",
 				Language:    "en",
 			},
@@ -172,8 +181,9 @@ func testCases() []testCase {
 				Hits: []metadata.Metadata{
 					{
 						ID:          "book5.epub",
+						Slug:        "james-ellroy-test-e",
 						Title:       "Test E",
-						Author:      "James Ellroy",
+						Authors:     []string{"James Ellroy"},
 						Description: "Just test metadata",
 					},
 				},

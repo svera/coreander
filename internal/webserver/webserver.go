@@ -18,11 +18,11 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	jwtware "github.com/gofiber/jwt/v3"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/internal/controller"
-	"github.com/svera/coreander/internal/infrastructure"
-	"github.com/svera/coreander/internal/jwtclaimsreader"
-	"github.com/svera/coreander/internal/metadata"
-	"github.com/svera/coreander/internal/model"
+	"github.com/svera/coreander/v3/internal/controller"
+	"github.com/svera/coreander/v3/internal/infrastructure"
+	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
+	"github.com/svera/coreander/v3/internal/metadata"
+	"github.com/svera/coreander/v3/internal/model"
 	"golang.org/x/exp/slices"
 	"golang.org/x/text/message"
 	"gorm.io/gorm"
@@ -228,15 +228,17 @@ func Routes(app *fiber.App, idxReader controller.IdxReader, idxWriter controller
 
 	langGroup.Get("/logout", authController.SignOut)
 
-	app.Get("/covers/:filename", func(c *fiber.Ctx) error {
-		return controller.Covers(c, cfg.HomeDir, cfg.LibraryPath, metadataReaders, cfg.CoverMaxWidth, embedded)
+	app.Get("/cover/:slug", func(c *fiber.Ctx) error {
+		return controller.Cover(c, cfg.HomeDir, cfg.LibraryPath, metadataReaders, cfg.CoverMaxWidth, idxReader)
 	})
 
 	app.Post("/send", func(c *fiber.Ctx) error {
-		return controller.Send(c, cfg.LibraryPath, c.FormValue("file"), c.FormValue("email"), sender)
+		return controller.Send(c, cfg.LibraryPath, sender, idxReader)
 	})
 
-	app.Static("/files", cfg.LibraryPath)
+	app.Get("/download/:slug", func(c *fiber.Ctx) error {
+		return controller.Download(c, cfg.HomeDir, cfg.LibraryPath, idxReader)
+	})
 
 	langGroup.Get("/", func(c *fiber.Ctx) error {
 		session := jwtclaimsreader.SessionData(c)
@@ -247,8 +249,8 @@ func Routes(app *fiber.App, idxReader controller.IdxReader, idxWriter controller
 		return controller.Search(c, idxReader, cfg.Version, sender, wordsPerMinute)
 	})
 
-	langGroup.Get("/read/:filename", func(c *fiber.Ctx) error {
-		return controller.DocReader(c, cfg.LibraryPath)
+	langGroup.Get("/read/:slug", func(c *fiber.Ctx) error {
+		return controller.DocReader(c, cfg.LibraryPath, idxReader)
 	})
 
 	app.Get("/", func(c *fiber.Ctx) error {

@@ -8,8 +8,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/internal/jwtclaimsreader"
-	"github.com/svera/coreander/internal/model"
+	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
+	"github.com/svera/coreander/v3/internal/model"
 )
 
 type IdxWriter interface {

@@ -9,8 +9,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/internal/infrastructure"
-	"github.com/svera/coreander/internal/model"
+	"github.com/svera/coreander/v3/internal/infrastructure"
+	"github.com/svera/coreander/v3/internal/model"
 )
 
 func TestAuthentication(t *testing.T) {

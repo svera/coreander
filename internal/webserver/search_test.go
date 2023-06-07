@@ -11,8 +11,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/google/uuid"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/internal/infrastructure"
-	"github.com/svera/coreander/internal/model"
+	"github.com/svera/coreander/v3/internal/infrastructure"
+	"github.com/svera/coreander/v3/internal/model"
 )
 
 func TestSearch(t *testing.T) {
@@ -63,15 +63,13 @@ func TestSendDocument(t *testing.T) {
 	var cases = []struct {
 		name               string
 		email              string
-		file               string
+		slug               string
 		expectedHTTPStatus int
 	}{
-		{"Send no document filename", "admin@example.com", "", http.StatusBadRequest},
-		{"Send no email address", "", "empty.epub", http.StatusBadRequest},
-		{"Send document filename with relative path using parent path operator", "admin@example.com", "nested/../empty.epub", http.StatusBadRequest},
-		{"Send document filename with relative path not using parent path operator", "admin@example.com", "nested/other.epub", http.StatusOK},
-		{"Send non existing document filename", "admin@example.com", "wrong.epub", http.StatusBadRequest},
-		{"Send document filename and email address", "admin@example.com", "metadata.epub", http.StatusOK},
+		{"Send no document slug", "admin@example.com", "", http.StatusBadRequest},
+		{"Send no email address", "", "empty", http.StatusBadRequest},
+		{"Send non existing document slug", "admin@example.com", "wrong", http.StatusBadRequest},
+		{"Send document slug and email address", "admin@example.com", "john-doe-test-epub", http.StatusOK},
 	}
 
 	for _, tcase := range cases {
@@ -83,7 +81,7 @@ func TestSendDocument(t *testing.T) {
 
 			data := url.Values{
 				"email": {tcase.email},
-				"file":  {tcase.file},
+				"slug":  {tcase.slug},
 			}
 
 			req, err := http.NewRequest(http.MethodPost, "/send", strings.NewReader(data.Encode()))
@@ -221,6 +219,36 @@ func TestRemoveDocument(t *testing.T) {
 
 			if response.StatusCode != tcase.expectedHTTPStatus {
 				t.Errorf("Expected status %d, received %d", tcase.expectedHTTPStatus, response.StatusCode)
+			}
+		})
+	}
+}
+
+func TestClashingSlugs(t *testing.T) {
+	db := infrastructure.Connect("file::memory:", 250)
+	smtpMock := &SMTPMock{}
+	app := bootstrapApp(db, smtpMock, afero.NewOsFs())
+
+	var cases = []struct {
+		url            string
+		expectedStatus int
+	}{
+		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", 200},
+		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha-2", 200},
+	}
+
+	for _, tcase := range cases {
+		t.Run(tcase.url, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, tcase.url, nil)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err.Error())
+			}
+			response, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err.Error())
+			}
+			if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+				t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 			}
 		})
 	}

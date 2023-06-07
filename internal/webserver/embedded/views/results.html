@@ -9,12 +9,12 @@
     <p>{{t .Lang "No matches found" }}</p>
     {{end}}
 
-    <div class="list-group">
+    <div class="list-group list-group-flush">
         {{if .Results}} {{range $i, $book := .Results}}
         <div class="list-group-item">
             <div class="row">
                 <div class="col-md-2 col-sm-12">
-                    <img src="images/generic.jpg" data-src="covers/{{$book.ID}}" loading="lazy" class="border border-2 border-dark text-center mb-3 cover img-fluid" alt='{{t $lang "\"%s\" cover" $book.Title}}'>
+                    <img src="images/generic.jpg" data-src="cover/{{$book.Slug}}" loading="lazy" class="border border-2 border-dark text-center mb-3 cover img-fluid" alt='{{t $lang "\"%s\" cover" $book.Title}}'>
                 </div>
                 <div class="col-md-10 col-sm-12">
                     <div class="row">
@@ -25,7 +25,8 @@
                                     href="?search=Series&colon;&quot;{{$book.Series}}&quot;"
                                     title={{$seriesTitle}}>{{$book.Series}} {{$book.SeriesIndex}}</a></p>
                             {{ end }}
-                            <h4 class="text-start">{{$book.Title}} <small class="small text-muted">{{$book.Year}}</small>
+                            <h4 class="text-start">
+                                <a href="{{$lang}}/read/{{$book.Slug}}">{{$book.Title}}</a> <small class="small text-muted">{{$book.Year}}</small>
                             </h4>
                         </div>
                         <div class="col-5 text-end">
@@ -35,10 +36,13 @@
                     </div>
                     <div class="row">
                         <div class="col-12 text-start">
-                            {{if $book.Author}}
-                            {{$authorTitle := t $lang "Search for more titles by %s" $book.Author}}
-                            <h5><a href="?search=Author&colon;&quot;{{$book.Author}}&quot;"
-                                    title={{$authorTitle}}>{{$book.Author}}</a></h5>
+                            {{if $book.Authors}}
+                            <h5>
+                                {{range $i, $author := $book.Authors}}
+                                {{$authorTitle := t $lang "Search for more titles by %s" $author}}
+                                <a href="?search=Authors&colon;&quot;{{$author}}&quot;" title={{$authorTitle}}>{{$author}}</a>{{if notLast $book.Authors $i}}, {{end}}
+                                {{end}}
+                            </h5>
                             {{else}}
                                 <h5>{{t $lang "Unknown author"}}</h5>
                             {{end}}
@@ -116,7 +120,7 @@
             },
             body: new URLSearchParams({
                 'email': form.elements[0].value,
-                'file': form.elements[1].value,        
+                'slug': form.elements[1].value,        
             })
         })
         .then((response) => {

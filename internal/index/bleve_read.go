@@ -8,14 +8,15 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
-	"github.com/svera/coreander/internal/controller"
-	"github.com/svera/coreander/internal/metadata"
+	"github.com/svera/coreander/v3/internal/controller"
+	"github.com/svera/coreander/v3/internal/metadata"
 )
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
 func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPerMinute float64) (*controller.Result, error) {
-	for _, prefix := range []string{"Author:", "Series:", "Title:", "\""} {
+	for _, prefix := range []string{"Authors:", "Series:", "Title:", "\""} {
 		if strings.HasPrefix(strings.Trim(keywords, " "), prefix) {
 			query := bleve.NewQueryStringQuery(keywords)
 
@@ -37,7 +38,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPe
 			continue
 		}
 		qa := bleve.NewMatchQuery(keyword)
-		qa.SetField("Author")
+		qa.SetField("Authors")
 		authorQueries = append(authorQueries, qa)
 
 		qt := bleve.NewMatchQuery(keyword)
@@ -70,7 +71,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
-	searchOptions.Fields = []string{"Title", "Author", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type"}
+	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return nil, err
@@ -99,8 +100,9 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 	for i, val := range searchResult.Hits {
 		doc := metadata.Metadata{
 			ID:          val.ID,
+			Slug:        val.Fields["Slug"].(string),
 			Title:       val.Fields["Title"].(string),
-			Author:      val.Fields["Author"].(string),
+			Authors:     authors(val),
 			Description: template.HTML(val.Fields["Description"].(string)),
 			Year:        val.Fields["Year"].(string),
 			Words:       val.Fields["Words"].(float64),
@@ -135,4 +137,53 @@ func (b *BleveIndexer) Count() (uint64, error) {
 
 func calculateTotalPages(total, resultsPerPage uint64) int {
 	return int(math.Ceil(float64(total) / float64(resultsPerPage)))
+}
+
+func (b *BleveIndexer) Document(slug string) (metadata.Metadata, error) {
+	doc := metadata.Metadata{}
+	query := bleve.NewTermQuery(slug)
+	query.SetField("Slug")
+	searchOptions := bleve.NewSearchRequest(query)
+	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type"}
+	searchResult, err := b.idx.Search(searchOptions)
+	if err != nil {
+		return doc, err
+	}
+	if searchResult.Total == 0 {
+		return doc, fmt.Errorf("Document with slug %s not found", slug)
+	}
+
+	doc = metadata.Metadata{
+		ID:          searchResult.Hits[0].ID,
+		Slug:        searchResult.Hits[0].Fields["Slug"].(string),
+		Title:       searchResult.Hits[0].Fields["Title"].(string),
+		Authors:     authors(searchResult.Hits[0]),
+		Description: template.HTML(searchResult.Hits[0].Fields["Description"].(string)),
+		Year:        searchResult.Hits[0].Fields["Year"].(string),
+		Words:       searchResult.Hits[0].Fields["Words"].(float64),
+		Series:      searchResult.Hits[0].Fields["Series"].(string),
+		SeriesIndex: searchResult.Hits[0].Fields["SeriesIndex"].(float64),
+		Pages:       int(searchResult.Hits[0].Fields["Pages"].(float64)),
+		Type:        searchResult.Hits[0].Fields["Type"].(string),
+	}
+
+	return doc, nil
+}
+
+func authors(val *search.DocumentMatch) []string {
+	var (
+		authors []interface{}
+		ok      bool
+	)
+
+	// Bleve indexes string slices of one element as just string
+	if authors, ok = val.Fields["Authors"].([]interface{}); !ok {
+		authors = append(authors, val.Fields["Authors"])
+	}
+	authorsStrings := make([]string, len(authors))
+	for j, author := range authors {
+		authorsStrings[j] = author.(string)
+	}
+
+	return authorsStrings
 }
