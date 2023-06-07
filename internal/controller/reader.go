@@ -23,7 +23,11 @@ func DocReader(c *fiber.Ctx, libraryPath string, idx Reader) error {
 	}
 
 	if strings.ToLower(filepath.Ext(document.ID)) == ".pdf" {
-		return c.Redirect(fmt.Sprintf("/download/%s", document.Slug))
+		return c.Render("pdf-reader", fiber.Map{
+			"Lang":  lang,
+			"Title": "Coreander",
+			"Slug":  document.Slug,
+		})
 	}
 
 	return c.Render("epub-reader", fiber.Map{
