@@ -22,17 +22,14 @@ func DocReader(c *fiber.Ctx, libraryPath string, idx Reader) error {
 		return fiber.ErrNotFound
 	}
 
+	template := "epub-reader"
 	if strings.ToLower(filepath.Ext(document.ID)) == ".pdf" {
-		return c.Render("pdf-reader", fiber.Map{
-			"Lang":  lang,
-			"Title": "Coreander",
-			"Slug":  document.Slug,
-		})
+		template = "pdf-reader"
 	}
 
-	return c.Render("epub-reader", fiber.Map{
+	return c.Render(template, fiber.Map{
 		"Lang":  lang,
-		"Title": "Coreander",
+		"Title": fmt.Sprintf("%s - %s | Coreander", strings.Join(document.Authors, ", "), document.Title),
 		"Slug":  document.Slug,
 	})
 
