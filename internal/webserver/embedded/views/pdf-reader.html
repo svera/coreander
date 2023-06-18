@@ -11,7 +11,7 @@
     <!-- Bootstrap core CSS -->
     <link href="/css/bootstrap.min.css" rel="stylesheet">
     <!-- Favicons -->
-    <script src="/js/pdf.js"></script>
+    <script src="/js/pdf.min.js"></script>
 
     <meta name="theme-color" content="#000">
 </head>
@@ -25,7 +25,7 @@
                         <a id="prev" href="#prev" class="navlink btn btn-dark text-truncate">«</a>
                     </div>
                     <div class="col-8">
-                        Page: <span id="page_num"></span> / <span id="page_count"></span>
+                        <span id="page_num"></span> / <span id="page_count"></span>
                     </div>
                     <div class="col-2">
                         <a id="next" href="#next" class="navlink btn btn-dark text-truncate">»</a>
@@ -35,18 +35,20 @@
         </nav>
     </header>
 
-    <canvas id="the-canvas"></canvas>
+    <main class="mt-5">
+        <div class="container">
+            <canvas id="the-canvas"></canvas>
+        </div>
+    </main>
     
     <script id="script">
-        // If absolute URL from the remote server is provided, configure the CORS
-        // header on that server.
         var url = '/download/{{.Slug}}';
 
         // Loaded via <script> tag, create shortcut to access PDF.js exports.
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
 
         // The workerSrc property shall be specified.
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '/js/pdf.worker.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/js/pdf.worker.min.js';
 
         var pdfDoc = null,
             pageNum = 1,
@@ -106,22 +108,22 @@
          * finised. Otherwise, executes rendering immediately.
          */
         function queueRenderPage(num) {
-        if (pageRendering) {
-            pageNumPending = num;
-        } else {
-            renderPage(num);
-        }
+            if (pageRendering) {
+                pageNumPending = num;
+            } else {
+                renderPage(num);
+            }
         }
 
         /**
          * Displays previous page.
          */
         function onPrevPage() {
-        if (pageNum <= 1) {
-            return;
-        }
-        pageNum--;
-        queueRenderPage(pageNum);
+            if (pageNum <= 1) {
+                return;
+            }
+            pageNum--;
+            queueRenderPage(pageNum);
         }
         document.getElementById('prev').addEventListener('click', onPrevPage);
 
@@ -129,11 +131,11 @@
          * Displays next page.
          */
         function onNextPage() {
-        if (pageNum >= pdfDoc.numPages) {
-            return;
-        }
-        pageNum++;
-        queueRenderPage(pageNum);
+            if (pageNum >= pdfDoc.numPages) {
+                return;
+            }
+            pageNum++;
+            queueRenderPage(pageNum);
         }
         document.getElementById('next').addEventListener('click', onNextPage);
 
@@ -141,11 +143,11 @@
          * Asynchronously downloads PDF.
          */
         pdfjsLib.getDocument(url).promise.then(function(pdfDoc_) {
-        pdfDoc = pdfDoc_;
-        document.getElementById('page_count').textContent = pdfDoc.numPages;
+            pdfDoc = pdfDoc_;
+            document.getElementById('page_count').textContent = pdfDoc.numPages;
 
-        // Initial/first page rendering
-        renderPage(pageNum);
+            // Initial/first page rendering
+            renderPage(pageNum);
         });
     </script>
 </body>
