@@ -37,7 +37,7 @@
 
     <main class="mt-5">
         <div class="container">
-            <canvas id="the-canvas"></canvas>
+            <canvas id="pdf-canvas"></canvas>
         </div>
     </main>
     
@@ -68,7 +68,7 @@
             // Support HiDPI-screens.
             var outputScale = window.devicePixelRatio || 1;
 
-            var canvas = document.getElementById('the-canvas');
+            var canvas = document.getElementById('pdf-canvas');
             var context = canvas.getContext('2d');
 
             canvas.width = Math.floor(viewport.width * outputScale);
