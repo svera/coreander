@@ -28,9 +28,11 @@ func DocReader(c *fiber.Ctx, libraryPath string, idx Reader) error {
 	}
 
 	return c.Render(template, fiber.Map{
-		"Lang":  lang,
-		"Title": fmt.Sprintf("%s - %s | Coreander", strings.Join(document.Authors, ", "), document.Title),
-		"Slug":  document.Slug,
+		"Lang":        lang,
+		"Title":       fmt.Sprintf("%s - %s | Coreander", strings.Join(document.Authors, ", "), document.Title),
+		"Author":      strings.Join(document.Authors, ", "),
+		"Description": document.Description,
+		"Slug":        document.Slug,
 	})
 
 }
