@@ -22,7 +22,7 @@
             <div class="container justify-content-center">
                 <ul class="nav">
                     <li class="nav-item">
-                        <a id="prev" class="btn btn-dark disabled" aria-current="page" href="#prev">«</a>
+                        <a id="prev" class="btn btn-dark" aria-current="page" href="#prev">«</a>
                     </li>
                     <li class="nav-item mx-3">
                         <span id="page_num"></span> / <span id="page_count"></span>
@@ -126,7 +126,7 @@
 
         /**
          * If another page rendering in progress, waits until the rendering is
-         * finised. Otherwise, executes rendering immediately.
+         * finished. Otherwise, executes rendering immediately.
          */
         function queueRenderPage(num) {
             if (pageRendering) {

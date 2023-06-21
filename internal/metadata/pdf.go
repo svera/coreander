@@ -47,10 +47,9 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 		description = p.Sanitize(description)
 	}
 
-	var authors []string
-	if len(pdf.GetAuthor()) > 0 {
-		// Some epub files mistakenly put all authors in a single field instead of using a field for each one.
-		// We want to identify those cases looking for specific separators and then indexing each author properly.
+	authors := []string{""}
+	if pdf.GetAuthor() != "" {
+		// We want to identify cases with multiple authors looking for specific separators and then indexing each author properly.
 		authors = strings.Split(pdf.GetAuthor(), "&")
 		for i := range authors {
 			authors[i] = strings.TrimSpace(authors[i])

@@ -19,7 +19,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 
 ## Installation
 
-Binaries for Windows 64 bit, Linux 32 and 64 bits for both X86 and ARM (Raspberry Pi and other SBCs) and Macs with Intel and Apple processors are available at [releases](https://github.com/svera/coreander/releases/latest). Just download and unzip the one appropiate for your system.
+Binaries for Windows 64 bit, Linux 32 and 64 bits for both X86 and ARM (Raspberry Pi and other SBCs) and Macs with Intel and Apple processors are available at [releases](https://github.com/svera/coreander/releases/latest). Just download and unzip the one appropriate for your system.
 
 ### Building from source
 Coreander's only requirement is Go 1.18.
