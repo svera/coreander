@@ -11,7 +11,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Estimated reading time calculation. 
 * High-performance web server powered by [Fiber](https://github.com/gofiber/fiber).
 * Lightweight, responsive web interface based on [Bootstrap](https://getbootstrap.com/).
-* Web interface available in English and Spanish, more languages can be easily added.
+* Web interface available in english, spanish and french, more languages can be easily added.
 * New documents added or removed to/from the library folder are automatically indexed (Linux only).
 * [Send to email supported](#send-to-email).
 * Read indexed epubs from Coreander's interface thanks to [epub.js](http://futurepress.org/).
