@@ -47,9 +47,18 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 		description = p.Sanitize(description)
 	}
 
+	authors := []string{""}
+	if pdf.GetAuthor() != "" {
+		// We want to identify cases with multiple authors looking for specific separators and then indexing each author properly.
+		authors = strings.Split(pdf.GetAuthor(), "&")
+		for i := range authors {
+			authors[i] = strings.TrimSpace(authors[i])
+		}
+	}
+
 	bk = Metadata{
 		Title:       title,
-		Authors:     []string{pdf.GetAuthor()},
+		Authors:     authors,
 		Description: template.HTML(description),
 		Language:    pdf.GetLanguage(),
 		Year:        year,
