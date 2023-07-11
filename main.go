@@ -25,17 +25,22 @@ var version string = "unknown"
 
 const indexPath = "/coreander/index"
 
-//go:embed internal/webserver/embedded
-var embedded embed.FS
+var (
+	//go:embed internal/webserver/embedded
+	embedded        embed.FS
+	cfg             Config
+	appFs           afero.Fs
+	idx             *index.BleveIndexer
+	db              *gorm.DB
+	printers        map[string]*message.Printer
+	homeDir         string
+	err             error
+	metadataReaders map[string]metadata.Reader
+	sender          webserver.Sender
+)
 
-func main() {
-	var (
-		cfg   Config
-		appFs = afero.NewOsFs()
-		idx   *index.BleveIndexer
-	)
-
-	homeDir, err := os.UserHomeDir()
+func init() {
+	homeDir, err = os.UserHomeDir()
 	if err != nil {
 		log.Fatal("Error retrieving user home dir")
 	}
@@ -46,7 +51,7 @@ func main() {
 		log.Fatalf("Directory '%s' does not exist, exiting", cfg.LibPath)
 	}
 
-	metadataReaders := map[string]metadata.Reader{
+	metadataReaders = map[string]metadata.Reader{
 		".epub": metadata.EpubReader{},
 		".pdf":  metadata.PdfReader{},
 	}
@@ -59,24 +64,22 @@ func main() {
 		cfg.SkipIndexing = false
 		idx = createIndex(homeDir, cfg.LibPath, metadataReaders)
 	}
-	db := infrastructure.Connect(homeDir+"/coreander/database.db", cfg.WordsPerMinute)
+	db = infrastructure.Connect(homeDir+"/coreander/database.db", cfg.WordsPerMinute)
 
 	dir, err := fs.Sub(embedded, "internal/webserver/embedded/translations")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	printers, err := i18n.Printers(dir, "en")
+	printers, err = i18n.Printers(dir, "en")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	run(cfg, db, idx, homeDir, metadataReaders, appFs, printers)
+	appFs = afero.NewOsFs()
 }
 
-func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metadataReaders map[string]metadata.Reader, appFs afero.Fs, printers map[string]*message.Printer) {
-	var sender webserver.Sender
-
+func main() {
 	defer idx.Close()
 
 	if !cfg.SkipIndexing {
@@ -95,26 +98,26 @@ func run(cfg Config, db *gorm.DB, idx *index.BleveIndexer, homeDir string, metad
 		}
 	}
 
-	sessionTimeout, err := time.ParseDuration(fmt.Sprintf("%fh", cfg.SessionTimeout))
+	webserverConfig := webserver.Config{
+		Version:           version,
+		MinPasswordLength: cfg.MinPasswordLength,
+		WordsPerMinute:    cfg.WordsPerMinute,
+		JwtSecret:         cfg.JwtSecret,
+		Hostname:          cfg.Hostname,
+		Port:              cfg.Port,
+		HomeDir:           homeDir,
+		LibPath:           cfg.LibPath,
+		CoverMaxWidth:     cfg.CoverMaxWidth,
+		RequireAuth:       cfg.RequireAuth,
+	}
+
+	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", cfg.SessionTimeout))
 	if err != nil {
 		log.Fatal(fmt.Errorf("wrong value for session timeout"))
 	}
 
-	webserverConfig := webserver.Config{
-		LibraryPath:       cfg.LibPath,
-		HomeDir:           homeDir,
-		Version:           version,
-		CoverMaxWidth:     cfg.CoverMaxWidth,
-		JwtSecret:         cfg.JwtSecret,
-		RequireAuth:       cfg.RequireAuth,
-		MinPasswordLength: cfg.MinPasswordLength,
-		WordsPerMinute:    cfg.WordsPerMinute,
-		Hostname:          cfg.Hostname,
-		Port:              cfg.Port,
-		SessionTimeout:    sessionTimeout,
-	}
-	app := webserver.New(webserverConfig, printers)
-	webserver.Routes(app, idx, webserverConfig, metadataReaders, sender, db, printers)
+	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, printers)
+	app := webserver.New(webserverConfig, printers, controllers)
 	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))
 }

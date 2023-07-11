@@ -31,7 +31,7 @@ type Reader interface {
 	Document(ID string) (metadata.Metadata, error)
 }
 
-func Search(c *fiber.Ctx, idx Reader, version string, sender Sender, wordsPerMinute float64) error {
+func Search(c *fiber.Ctx, idx Reader, sender Sender, wordsPerMinute float64) error {
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -56,7 +56,7 @@ func Search(c *fiber.Ctx, idx Reader, version string, sender Sender, wordsPerMin
 			"Total":                  searchResults.TotalHits,
 			"Paginator":              pagination(model.MaxPagesNavigator, searchResults.TotalPages, searchResults.Page, map[string]string{"search": keywords}),
 			"Title":                  "Search results",
-			"Version":                version,
+			"Version":                c.App().Config().AppName,
 			"EmailSendingConfigured": emailSendingConfigured,
 			"EmailFrom":              sender.From(),
 			"Session":                session,
@@ -69,7 +69,7 @@ func Search(c *fiber.Ctx, idx Reader, version string, sender Sender, wordsPerMin
 	return c.Render("index", fiber.Map{
 		"Count":   count,
 		"Title":   "Coreander",
-		"Version": version,
+		"Version": c.App().Config().AppName,
 		"Session": session,
 	}, "layout")
 }

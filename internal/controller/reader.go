@@ -27,9 +27,14 @@ func DocReader(c *fiber.Ctx, libraryPath string, idx Reader) error {
 		template = "pdf-reader"
 	}
 
+	title := fmt.Sprintf("%s | Coreander", document.Title)
+	authors := strings.Join(document.Authors, ", ")
+	if authors != "" {
+		title = fmt.Sprintf("%s - %s | Coreander", authors, document.Title)
+	}
 	return c.Render(template, fiber.Map{
 		"Lang":        lang,
-		"Title":       fmt.Sprintf("%s - %s | Coreander", strings.Join(document.Authors, ", "), document.Title),
+		"Title":       title,
 		"Author":      strings.Join(document.Authors, ", "),
 		"Description": document.Description,
 		"Slug":        document.Slug,

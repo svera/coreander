@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v2"
@@ -63,15 +62,11 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender) *fiber.App {
 		".pdf":  metadata.PdfReader{},
 	}
 
-	webserverConfig := webserver.Config{
-		CoverMaxWidth:  300,
-		SessionTimeout: 24 * time.Hour,
-		LibraryPath:    "fixtures",
-	}
+	webserverConfig := webserver.Config{}
 
 	indexFile, err := bleve.NewMemOnly(index.Mapping())
 	if err == nil {
-		idx = index.NewBleve(indexFile, webserverConfig.LibraryPath, metadataReaders)
+		idx = index.NewBleve(indexFile, "fixtures", metadataReaders)
 	}
 
 	err = idx.AddLibrary(afero.NewOsFs(), 100)
@@ -89,8 +84,8 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender) *fiber.App {
 		log.Fatal(err)
 	}
 
-	app := webserver.New(webserverConfig, printers)
-	webserver.Routes(app, idx, webserverConfig, metadataReaders, sender, db, printers)
+	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, printers)
+	app := webserver.New(webserverConfig, printers, controllers)
 	return app
 }
 
