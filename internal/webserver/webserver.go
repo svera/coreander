@@ -11,6 +11,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/favicon"
+	"github.com/svera/coreander/v3/internal/i18n"
 	"github.com/svera/coreander/v3/internal/infrastructure"
 	"golang.org/x/exp/slices"
 	"golang.org/x/text/message"
@@ -22,6 +23,7 @@ var (
 	cssFS    fs.FS
 	jsFS     fs.FS
 	imagesFS fs.FS
+	printers map[string]*message.Printer
 )
 
 type Config struct {
@@ -33,7 +35,7 @@ type Config struct {
 	Hostname          string
 	Port              int
 	HomeDir           string
-	LibPath           string
+	LibraryPath       string
 	CoverMaxWidth     int
 	RequireAuth       bool
 }
@@ -61,10 +63,20 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	dir, err := fs.Sub(embedded, "embedded/translations")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	printers, err = i18n.Printers(dir, "en")
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(cfg Config, printers map[string]*message.Printer, controllers Controllers) *fiber.App {
+func New(cfg Config, controllers Controllers) *fiber.App {
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {
 		log.Fatal(err)
@@ -93,11 +105,11 @@ func New(cfg Config, printers map[string]*message.Printer, controllers Controlle
 	}),
 	)
 
-	routes(app, controllers, getSupportedLanguages(printers))
+	routes(app, controllers, getSupportedLanguages())
 	return app
 }
 
-func getSupportedLanguages(printers map[string]*message.Printer) []string {
+func getSupportedLanguages() []string {
 	langs := make([]string, len(printers))
 
 	i := 0
@@ -110,7 +122,7 @@ func getSupportedLanguages(printers map[string]*message.Printer) []string {
 	return langs
 }
 
-func ChooseBestLanguage(c *fiber.Ctx, supportedLanguages []string) string {
+func chooseBestLanguage(c *fiber.Ctx, supportedLanguages []string) string {
 	lang := c.Params("lang")
 	if !slices.Contains(supportedLanguages, lang) {
 		lang = c.AcceptsLanguages(supportedLanguages...)

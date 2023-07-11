@@ -1,20 +1,16 @@
 package main
 
 import (
-	"embed"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/ilyakaznacheev/cleanenv"
-	"golang.org/x/text/message"
 	"gorm.io/gorm"
 
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/i18n"
 	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/infrastructure"
 	"github.com/svera/coreander/v3/internal/metadata"
@@ -26,13 +22,10 @@ var version string = "unknown"
 const indexPath = "/coreander/index"
 
 var (
-	//go:embed internal/webserver/embedded
-	embedded        embed.FS
 	cfg             Config
 	appFs           afero.Fs
 	idx             *index.BleveIndexer
 	db              *gorm.DB
-	printers        map[string]*message.Printer
 	homeDir         string
 	err             error
 	metadataReaders map[string]metadata.Reader
@@ -66,16 +59,6 @@ func init() {
 	}
 	db = infrastructure.Connect(homeDir+"/coreander/database.db", cfg.WordsPerMinute)
 
-	dir, err := fs.Sub(embedded, "internal/webserver/embedded/translations")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	printers, err = i18n.Printers(dir, "en")
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	appFs = afero.NewOsFs()
 }
 
@@ -106,7 +89,7 @@ func main() {
 		Hostname:          cfg.Hostname,
 		Port:              cfg.Port,
 		HomeDir:           homeDir,
-		LibPath:           cfg.LibPath,
+		LibraryPath:       cfg.LibPath,
 		CoverMaxWidth:     cfg.CoverMaxWidth,
 		RequireAuth:       cfg.RequireAuth,
 	}
@@ -116,8 +99,8 @@ func main() {
 		log.Fatal(fmt.Errorf("wrong value for session timeout"))
 	}
 
-	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, printers)
-	app := webserver.New(webserverConfig, printers, controllers)
+	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender)
+	app := webserver.New(webserverConfig, controllers)
 	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))
 }

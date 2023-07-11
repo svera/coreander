@@ -12,7 +12,6 @@ import (
 	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/metadata"
 	"github.com/svera/coreander/v3/internal/model"
-	"golang.org/x/text/message"
 	"gorm.io/gorm"
 )
 
@@ -30,7 +29,7 @@ type Controllers struct {
 	ErrorHandler                          func(c *fiber.Ctx, err error) error
 }
 
-func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, printers map[string]*message.Printer) Controllers {
+func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender) Controllers {
 	usersRepository := &model.UserRepository{DB: db}
 
 	authCfg := controller.AuthConfig{
@@ -48,16 +47,16 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		Auth:  authController,
 		Users: usersController,
 		Cover: func(c *fiber.Ctx) error {
-			return controller.Cover(c, cfg.HomeDir, cfg.LibPath, metadataReaders, cfg.CoverMaxWidth, idx)
+			return controller.Cover(c, cfg.HomeDir, cfg.LibraryPath, metadataReaders, cfg.CoverMaxWidth, idx)
 		},
 		Send: func(c *fiber.Ctx) error {
-			return controller.Send(c, cfg.LibPath, sender, idx)
+			return controller.Send(c, cfg.LibraryPath, sender, idx)
 		},
 		Download: func(c *fiber.Ctx) error {
-			return controller.Download(c, cfg.HomeDir, cfg.LibPath, idx)
+			return controller.Download(c, cfg.HomeDir, cfg.LibraryPath, idx)
 		},
 		Read: func(c *fiber.Ctx) error {
-			return controller.DocReader(c, cfg.LibPath, idx)
+			return controller.DocReader(c, cfg.LibraryPath, idx)
 		},
 		Search: func(c *fiber.Ctx) error {
 			session := jwtclaimsreader.SessionData(c)
@@ -83,7 +82,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			SigningMethod: "HS256",
 			TokenLookup:   "cookie:coreander",
 			ErrorHandler: func(c *fiber.Ctx, err error) error {
-				return c.Redirect(fmt.Sprintf("/%s/login", ChooseBestLanguage(c, getSupportedLanguages(printers))))
+				return c.Redirect(fmt.Sprintf("/%s/login", chooseBestLanguage(c, getSupportedLanguages())))
 			},
 		}),
 		ConfigurableAuthenticationMiddleware: jwtware.New(jwtware.Config{
@@ -93,7 +92,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			ErrorHandler: func(c *fiber.Ctx, err error) error {
 				err = c.Next()
 				if cfg.RequireAuth {
-					return c.Redirect(fmt.Sprintf("/%s/login", ChooseBestLanguage(c, getSupportedLanguages(printers))))
+					return c.Redirect(fmt.Sprintf("/%s/login", chooseBestLanguage(c, getSupportedLanguages())))
 				}
 				return err
 			},
@@ -112,7 +111,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			err = c.Status(code).Render(
 				fmt.Sprintf("errors/%d", code),
 				fiber.Map{
-					"Lang":    ChooseBestLanguage(c, getSupportedLanguages(printers)),
+					"Lang":    chooseBestLanguage(c, getSupportedLanguages()),
 					"Title":   "Coreander",
 					"Session": jwtclaimsreader.SessionData(c),
 					"Version": c.App().Config().AppName,
