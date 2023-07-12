@@ -65,7 +65,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender) *fiber.App {
 
 	indexFile, err := bleve.NewMemOnly(index.Mapping())
 	if err == nil {
-		idx = index.NewBleve(indexFile, "fixtures", metadataReaders)
+		idx = index.NewBleve(indexFile, webserverConfig.LibraryPath, metadataReaders)
 	}
 
 	err = idx.AddLibrary(afero.NewOsFs(), 100)

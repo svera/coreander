@@ -20,6 +20,7 @@ import (
 var version string = "unknown"
 
 const indexPath = "/coreander/index"
+const databasePath = "/coreander/database.db"
 
 var (
 	cfg             Config
@@ -57,7 +58,7 @@ func init() {
 		cfg.SkipIndexing = false
 		idx = createIndex(homeDir, cfg.LibPath, metadataReaders)
 	}
-	db = infrastructure.Connect(homeDir+"/coreander/database.db", cfg.WordsPerMinute)
+	db = infrastructure.Connect(homeDir+databasePath, cfg.WordsPerMinute)
 
 	appFs = afero.NewOsFs()
 }
