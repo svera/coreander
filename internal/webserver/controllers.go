@@ -40,8 +40,13 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		SessionTimeout:    cfg.SessionTimeout,
 	}
 
+	usersCfg := controller.UsersConfig{
+		MinPasswordLength: cfg.MinPasswordLength,
+		WordsPerMinute:    cfg.WordsPerMinute,
+	}
+
 	authController := controller.NewAuth(usersRepository, sender, authCfg, printers)
-	usersController := controller.NewUsers(usersRepository, cfg.MinPasswordLength, cfg.WordsPerMinute)
+	usersController := controller.NewUsers(usersRepository, usersCfg)
 
 	return Controllers{
 		Auth:  authController,

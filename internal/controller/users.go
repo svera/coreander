@@ -28,12 +28,17 @@ type Users struct {
 	wordsPerMinute    float64
 }
 
+type UsersConfig struct {
+	MinPasswordLength int
+	WordsPerMinute    float64
+}
+
 // NewUsers returns a new instance of the users controller
-func NewUsers(repository usersRepository, minPasswordLength int, wordsPerMinute float64) *Users {
+func NewUsers(repository usersRepository, usersCfg UsersConfig) *Users {
 	return &Users{
 		repository:        repository,
-		minPasswordLength: minPasswordLength,
-		wordsPerMinute:    wordsPerMinute,
+		minPasswordLength: usersCfg.MinPasswordLength,
+		wordsPerMinute:    usersCfg.WordsPerMinute,
 	}
 }
 
