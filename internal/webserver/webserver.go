@@ -2,49 +2,42 @@ package webserver
 
 import (
 	"embed"
-	"errors"
-	"fmt"
 	"io/fs"
 	"log"
-	"net/http"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/favicon"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
-	jwtware "github.com/gofiber/jwt/v3"
-	"github.com/svera/coreander/v3/internal/controller"
+	"github.com/svera/coreander/v3/internal/i18n"
 	"github.com/svera/coreander/v3/internal/infrastructure"
-	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
-	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/model"
 	"golang.org/x/exp/slices"
 	"golang.org/x/text/message"
-	"gorm.io/gorm"
 )
 
 var (
 	//go:embed embedded
-	embedded           embed.FS
-	supportedLanguages []string
+	embedded embed.FS
+	cssFS    fs.FS
+	jsFS     fs.FS
+	imagesFS fs.FS
+	printers map[string]*message.Printer
 )
 
 type Config struct {
-	LibraryPath       string
-	HomeDir           string
 	Version           string
-	CoverMaxWidth     int
-	JwtSecret         []byte
-	RequireAuth       bool
+	SessionTimeout    time.Duration
 	MinPasswordLength int
 	WordsPerMinute    float64
+	JwtSecret         []byte
 	Hostname          string
 	Port              int
-	SessionTimeout    time.Duration
+	HomeDir           string
+	LibraryPath       string
+	CoverMaxWidth     int
+	RequireAuth       bool
 }
 
 type Sender interface {
@@ -53,8 +46,37 @@ type Sender interface {
 	From() string
 }
 
+func init() {
+	var err error
+
+	cssFS, err = fs.Sub(embedded, "embedded/css")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	jsFS, err = fs.Sub(embedded, "embedded/js")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	imagesFS, err = fs.Sub(embedded, "embedded/images")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dir, err := fs.Sub(embedded, "embedded/translations")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	printers, err = i18n.Printers(dir, "en")
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 // New builds a new Fiber application and set up the required routes
-func New(cfg Config, printers map[string]*message.Printer) *fiber.App {
+func New(cfg Config, controllers Controllers) *fiber.App {
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {
 		log.Fatal(err)
@@ -65,42 +87,12 @@ func New(cfg Config, printers map[string]*message.Printer) *fiber.App {
 		log.Fatal(err)
 	}
 
-	supportedLanguages = getSupportedLanguages(printers)
-
 	app := fiber.New(fiber.Config{
 		Views:                 engine,
 		DisableStartupMessage: true,
 		AppName:               cfg.Version,
 		PassLocalsToViews:     true,
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			// Status code defaults to 500
-			code := fiber.StatusInternalServerError
-
-			// Retrieve the custom status code if it's a *fiber.Error
-			var e *fiber.Error
-			if errors.As(err, &e) {
-				code = e.Code
-			}
-
-			// Send custom error page
-			err = c.Status(code).Render(
-				fmt.Sprintf("errors/%d", code),
-				fiber.Map{
-					"Lang":    chooseBestLanguage(c, supportedLanguages),
-					"Title":   "Coreander",
-					"Session": jwtclaimsreader.SessionData(c),
-					"Version": c.App().Config().AppName,
-				},
-				"layout")
-
-			if err != nil {
-				log.Println(err)
-				// In case the Render fails
-				return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
-			}
-
-			return nil
-		},
+		ErrorHandler:          controllers.ErrorHandler,
 	})
 
 	app.Use(favicon.New())
@@ -113,147 +105,11 @@ func New(cfg Config, printers map[string]*message.Printer) *fiber.App {
 	}),
 	)
 
-	initResources(app)
+	routes(app, controllers, getSupportedLanguages())
 	return app
 }
 
-func initResources(app *fiber.App) {
-	cssFS, err := fs.Sub(embedded, "embedded/css")
-	if err != nil {
-		log.Fatal(err)
-	}
-	app.Use("/css", filesystem.New(filesystem.Config{
-		Root: http.FS(cssFS),
-	}))
-
-	jsFS, err := fs.Sub(embedded, "embedded/js")
-	if err != nil {
-		log.Fatal(err)
-	}
-	app.Use("/js", filesystem.New(filesystem.Config{
-		Root: http.FS(jsFS),
-	}))
-
-	imagesFS, err := fs.Sub(embedded, "embedded/images")
-	if err != nil {
-		log.Fatal(err)
-	}
-	app.Use("/images", filesystem.New(filesystem.Config{
-		Root: http.FS(imagesFS),
-	}))
-}
-
-func Routes(app *fiber.App, idx controller.Reader, cfg Config, metadataReaders map[string]metadata.Reader, sender Sender, db *gorm.DB, printers map[string]*message.Printer) {
-	usersRepository := &model.UserRepository{DB: db}
-
-	authCfg := controller.AuthConfig{
-		MinPasswordLength: cfg.MinPasswordLength,
-		Secret:            cfg.JwtSecret,
-		Hostname:          cfg.Hostname,
-		Port:              cfg.Port,
-		SessionTimeout:    cfg.SessionTimeout,
-	}
-
-	authController := controller.NewAuth(usersRepository, sender, authCfg, printers)
-
-	langGroup := app.Group(fmt.Sprintf("/:lang<regex(%s)>", strings.Join(supportedLanguages, "|")), func(c *fiber.Ctx) error {
-		pathMinusLang := c.Path()[3:]
-		query := string(c.Request().URI().QueryString())
-		if query != "" {
-			pathMinusLang = pathMinusLang + "?" + query
-		}
-		c.Locals("Lang", c.Params("lang"))
-		c.Locals("SupportedLanguages", supportedLanguages)
-		c.Locals("PathMinusLang", pathMinusLang)
-		return c.Next()
-	})
-
-	allowIfNotLoggedInMiddleware := jwtware.New(jwtware.Config{
-		SigningKey:    cfg.JwtSecret,
-		SigningMethod: "HS256",
-		TokenLookup:   "cookie:coreander",
-		SuccessHandler: func(c *fiber.Ctx) error {
-			return fiber.ErrForbidden
-		},
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return c.Next()
-		},
-	})
-
-	langGroup.Get("/login", allowIfNotLoggedInMiddleware, authController.Login)
-	langGroup.Post("login", allowIfNotLoggedInMiddleware, authController.SignIn)
-	langGroup.Get("/recover", allowIfNotLoggedInMiddleware, authController.Recover)
-	langGroup.Post("/recover", allowIfNotLoggedInMiddleware, authController.Request)
-	langGroup.Get("/reset-password", allowIfNotLoggedInMiddleware, authController.EditPassword)
-	langGroup.Post("/reset-password", allowIfNotLoggedInMiddleware, authController.UpdatePassword)
-
-	alwaysRequireAuthenticationMiddleware := jwtware.New(jwtware.Config{
-		SigningKey:    cfg.JwtSecret,
-		SigningMethod: "HS256",
-		TokenLookup:   "cookie:coreander",
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return c.Redirect(fmt.Sprintf("/%s/login", chooseBestLanguage(c, supportedLanguages)))
-		},
-	})
-
-	usersGroup := langGroup.Group("/users", alwaysRequireAuthenticationMiddleware)
-
-	usersController := controller.NewUsers(usersRepository, cfg.MinPasswordLength, cfg.WordsPerMinute)
-
-	usersGroup.Get("/", usersController.List)
-	usersGroup.Get("/new", usersController.New)
-	usersGroup.Post("/new", usersController.Create)
-	usersGroup.Get("/:uuid<guid>/edit", usersController.Edit)
-	usersGroup.Post("/:uuid<guid>/edit", usersController.Update)
-	usersGroup.Post("/delete", usersController.Delete)
-
-	// Authentication requirement is configurable for all routes below this middleware
-	app.Use(jwtware.New(jwtware.Config{
-		SigningKey:    cfg.JwtSecret,
-		SigningMethod: "HS256",
-		TokenLookup:   "cookie:coreander",
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			err = c.Next()
-			if cfg.RequireAuth {
-				return c.Redirect(fmt.Sprintf("/%s/login", chooseBestLanguage(c, supportedLanguages)))
-			}
-			return err
-		},
-	}))
-
-	langGroup.Get("/logout", authController.SignOut)
-
-	app.Get("/cover/:slug", func(c *fiber.Ctx) error {
-		return controller.Cover(c, cfg.HomeDir, cfg.LibraryPath, metadataReaders, cfg.CoverMaxWidth, idx)
-	})
-
-	app.Post("/send", func(c *fiber.Ctx) error {
-		return controller.Send(c, cfg.LibraryPath, sender, idx)
-	})
-
-	app.Get("/download/:slug", func(c *fiber.Ctx) error {
-		return controller.Download(c, cfg.HomeDir, cfg.LibraryPath, idx)
-	})
-
-	langGroup.Get("/", func(c *fiber.Ctx) error {
-		session := jwtclaimsreader.SessionData(c)
-		wordsPerMinute := session.WordsPerMinute
-		if wordsPerMinute == 0 {
-			wordsPerMinute = cfg.WordsPerMinute
-		}
-		return controller.Search(c, idx, cfg.Version, sender, wordsPerMinute)
-	})
-
-	langGroup.Get("/read/:slug", func(c *fiber.Ctx) error {
-		return controller.DocReader(c, cfg.LibraryPath, idx)
-	})
-
-	app.Get("/", func(c *fiber.Ctx) error {
-		return controller.Root(c)
-	})
-}
-
-func getSupportedLanguages(printers map[string]*message.Printer) []string {
+func getSupportedLanguages() []string {
 	langs := make([]string, len(printers))
 
 	i := 0

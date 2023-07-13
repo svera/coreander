@@ -1,8 +1,6 @@
 package webserver_test
 
 import (
-	"embed"
-	"io/fs"
 	"log"
 	"net/http"
 	"sync"
@@ -12,16 +10,12 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/i18n"
 	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/infrastructure"
 	"github.com/svera/coreander/v3/internal/metadata"
 	"github.com/svera/coreander/v3/internal/webserver"
 	"gorm.io/gorm"
 )
-
-//go:embed embedded
-var embedded embed.FS
 
 func TestGET(t *testing.T) {
 	var cases = []struct {
@@ -79,18 +73,8 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender) *fiber.App {
 		log.Fatal(err)
 	}
 
-	dir, err := fs.Sub(embedded, "embedded/translations")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	printers, err := i18n.Printers(dir, "en")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	app := webserver.New(webserverConfig, printers)
-	webserver.Routes(app, idx, webserverConfig, metadataReaders, sender, db, printers)
+	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender)
+	app := webserver.New(webserverConfig, controllers)
 	return app
 }
 
