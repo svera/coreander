@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/svera/coreander/v3/internal/controller"
 	"github.com/svera/coreander/v3/internal/metadata"
@@ -16,7 +15,7 @@ import (
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
 func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPerMinute float64) (*controller.Result, error) {
-	for _, prefix := range []string{"Authors:", "Series:", "Title:", "\""} {
+	for _, prefix := range []string{"Authors:", "Series:", "Title:", "Subjects:", "\""} {
 		if strings.HasPrefix(strings.Trim(keywords, " "), prefix) {
 			query := bleve.NewQueryStringQuery(keywords)
 
@@ -31,6 +30,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPe
 		titleQueries       []query.Query
 		descriptionQueries []query.Query
 		seriesQueries      []query.Query
+		subjectQueries     []query.Query
 	)
 
 	for _, keyword := range splitted {
@@ -49,6 +49,10 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPe
 		qs.SetField("Series")
 		seriesQueries = append(seriesQueries, qs)
 
+		qu := bleve.NewMatchQuery(keyword)
+		qu.SetField("Subjects")
+		subjectQueries = append(subjectQueries, qt)
+
 		qd := bleve.NewMatchQuery(keyword)
 		qd.SetField("Description")
 		descriptionQueries = append(descriptionQueries, qd)
@@ -58,8 +62,9 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPe
 	titleCompoundQuery := bleve.NewConjunctionQuery(titleQueries...)
 	seriesCompoundQuery := bleve.NewConjunctionQuery(seriesQueries...)
 	descriptionCompoundQuery := bleve.NewConjunctionQuery(descriptionQueries...)
+	subjectCompoundQuery := bleve.NewConjunctionQuery(subjectQueries...)
 
-	compound := bleve.NewDisjunctionQuery(authorCompoundQuery, titleCompoundQuery, seriesCompoundQuery, descriptionCompoundQuery)
+	compound := bleve.NewDisjunctionQuery(authorCompoundQuery, titleCompoundQuery, seriesCompoundQuery, descriptionCompoundQuery, subjectCompoundQuery)
 	return b.runQuery(compound, page, resultsPerPage, wordsPerMinute)
 }
 
@@ -71,7 +76,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
-	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type"}
+	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type", "Subjects"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return nil, err
@@ -102,7 +107,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 			ID:          val.ID,
 			Slug:        val.Fields["Slug"].(string),
 			Title:       val.Fields["Title"].(string),
-			Authors:     authors(val),
+			Authors:     slicer(val.Fields["Authors"]),
 			Description: template.HTML(val.Fields["Description"].(string)),
 			Year:        val.Fields["Year"].(string),
 			Words:       val.Fields["Words"].(float64),
@@ -110,16 +115,23 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 			SeriesIndex: val.Fields["SeriesIndex"].(float64),
 			Pages:       int(val.Fields["Pages"].(float64)),
 			Type:        val.Fields["Type"].(string),
-		}
-		if doc.Words != 0.0 {
-			readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", doc.Words/wordsPerMinute))
-			if err == nil {
-				doc.ReadingTime = fmtDuration(readingTime)
-			}
+			Subjects:    slicer(val.Fields["Subjects"]),
+			ReadingTime: calculateReadingTime(val.Fields["Words"].(float64), wordsPerMinute),
 		}
 		result.Hits[i] = doc
 	}
 	return &result, nil
+}
+
+func calculateReadingTime(words, wordsPerMinute float64) string {
+	if words == 0.0 {
+		return ""
+	}
+	readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", words/wordsPerMinute))
+	if err != nil {
+		return ""
+	}
+	return fmtDuration(readingTime)
 }
 
 func fmtDuration(d time.Duration) string {
@@ -144,7 +156,7 @@ func (b *BleveIndexer) Document(slug string) (metadata.Metadata, error) {
 	query := bleve.NewTermQuery(slug)
 	query.SetField("Slug")
 	searchOptions := bleve.NewSearchRequest(query)
-	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type"}
+	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type", "Subjects"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return doc, err
@@ -157,7 +169,7 @@ func (b *BleveIndexer) Document(slug string) (metadata.Metadata, error) {
 		ID:          searchResult.Hits[0].ID,
 		Slug:        searchResult.Hits[0].Fields["Slug"].(string),
 		Title:       searchResult.Hits[0].Fields["Title"].(string),
-		Authors:     authors(searchResult.Hits[0]),
+		Authors:     slicer(searchResult.Hits[0].Fields["Authors"]),
 		Description: template.HTML(searchResult.Hits[0].Fields["Description"].(string)),
 		Year:        searchResult.Hits[0].Fields["Year"].(string),
 		Words:       searchResult.Hits[0].Fields["Words"].(float64),
@@ -165,25 +177,26 @@ func (b *BleveIndexer) Document(slug string) (metadata.Metadata, error) {
 		SeriesIndex: searchResult.Hits[0].Fields["SeriesIndex"].(float64),
 		Pages:       int(searchResult.Hits[0].Fields["Pages"].(float64)),
 		Type:        searchResult.Hits[0].Fields["Type"].(string),
+		Subjects:    slicer(searchResult.Hits[0].Fields["Subjects"]),
 	}
 
 	return doc, nil
 }
 
-func authors(val *search.DocumentMatch) []string {
+func slicer(val interface{}) []string {
 	var (
-		authors []interface{}
-		ok      bool
+		terms []interface{}
+		ok    bool
 	)
 
 	// Bleve indexes string slices of one element as just string
-	if authors, ok = val.Fields["Authors"].([]interface{}); !ok {
-		authors = append(authors, val.Fields["Authors"])
+	if terms, ok = val.([]interface{}); !ok {
+		terms = append(terms, val)
 	}
-	authorsStrings := make([]string, len(authors))
-	for j, author := range authors {
-		authorsStrings[j] = author.(string)
+	termsStrings := make([]string, len(terms))
+	for j, term := range terms {
+		termsStrings[j] = term.(string)
 	}
 
-	return authorsStrings
+	return termsStrings
 }
