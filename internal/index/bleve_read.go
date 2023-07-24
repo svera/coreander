@@ -195,6 +195,9 @@ func slicer(val interface{}) []string {
 	}
 	termsStrings := make([]string, len(terms))
 	for j, term := range terms {
+		if term == nil {
+			return []string{""}
+		}
 		termsStrings[j] = term.(string)
 	}
 
