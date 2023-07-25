@@ -127,11 +127,10 @@ func calculateReadingTime(words, wordsPerMinute float64) string {
 	if words == 0.0 {
 		return ""
 	}
-	readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", words/wordsPerMinute))
-	if err != nil {
-		return ""
+	if readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", words/wordsPerMinute)); err == nil {
+		return fmtDuration(readingTime)
 	}
-	return fmtDuration(readingTime)
+	return ""
 }
 
 func fmtDuration(d time.Duration) string {
