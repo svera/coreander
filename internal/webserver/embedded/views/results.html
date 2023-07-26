@@ -56,6 +56,15 @@
                             <p class="text-muted"><em>{{t $lang "%d pages" $book.Pages}}</em></p>
                             {{ end }}
         
+                            {{ if $book.Subjects }}
+                            <div class="mb-3">
+                                {{range $i, $subject := $book.Subjects}}
+                                    {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
+                                    <a class="btn btn-secondary btn-sm" href="?search=Subjects&colon;&quot;{{$subject}}&quot;" title={{$subjectTitle}}>{{$subject}}</a>
+                                {{end}}
+                            </div>
+                            {{ end }}
+
                             {{if $book.Description}}
                             <div class="mb-1 collapse" id="collapse-desc{{$i}}">{{$book.Description}}</div>
                             {{else}}
