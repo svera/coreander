@@ -188,6 +188,10 @@ func slicer(val interface{}) []string {
 		ok    bool
 	)
 
+	if val == nil {
+		return []string{}
+	}
+
 	// Bleve indexes string slices of one element as just string
 	if terms, ok = val.([]interface{}); !ok {
 		terms = append(terms, val)
@@ -195,7 +199,7 @@ func slicer(val interface{}) []string {
 	termsStrings := make([]string, len(terms))
 	for j, term := range terms {
 		if term == nil {
-			return []string{""}
+			return termsStrings
 		}
 		termsStrings[j] = term.(string)
 	}
