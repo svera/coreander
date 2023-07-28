@@ -4,8 +4,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="">
-    <meta name="author" content="Sergio Vera">
+    <meta name="description" content="{{.Description}}">
+    <meta name="author" content="{{.Author}}">
     <title>{{t .Lang .Title}}</title>
 
     <!-- Bootstrap core CSS -->
@@ -21,18 +21,18 @@
     <header>
         <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top">
             <div class="container justify-content-center">
-                <div class="row">
-                    <div class="col-2">
-                        <a id="prev" href="#prev" class="navlink btn btn-dark text-truncate">«</a>
-                    </div>
-                    <div class="col-8">
+                <ul class="nav">
+                    <li class="nav-item">
+                    <a id="prev" class="btn btn-dark" aria-current="page" href="#prev">«</a>
+                    </li>
+                    <li class="nav-item mx-3">
                         <select class="form-select" id="toc"></select>
-                    </div>
-                    <div class="col-2">
-                        <a id="next" href="#next" class="navlink btn btn-dark text-truncate">»</a>
-                    </div>
-                </div>
-            </div>
+                    </li>
+                    <li class="nav-item">
+                        <a id="next" class="btn btn-dark" aria-current="page" href="#next">»</a>
+                    </li>
+                </ul>
+            </div>  
         </nav>
     </header>
     <div id="viewer" class="scrolled mt-5"></div>
@@ -65,7 +65,6 @@
         }, false);
 
         rendition.on("relocated", function (location) {
-            window.location.hash = "#prev";
             var $select = document.getElementById("toc");
             for (i = 0; i < $select.options.length; i++) {
                     if ($select.options[i].ref == location.start.href) {

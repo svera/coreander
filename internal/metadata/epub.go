@@ -55,11 +55,36 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		authors = []string{""}
 	}
 
+	var subjects []string
+	if len(opf.Metadata.Subject) > 0 {
+		for _, subject := range opf.Metadata.Subject {
+			// Some epub files mistakenly put all subjects in a single field instead of using a field for each one.
+			// We want to identify those cases looking for specific separators and then indexing each subject properly.
+			names := strings.Split(subject, ",")
+			for i := range names {
+				names[i] = strings.TrimSpace(names[i])
+			}
+			subjects = append(subjects, names...)
+		}
+	}
+
+	if len(subjects) == 0 {
+		subjects = []string{""}
+	}
+
 	description := ""
 	if len(opf.Metadata.Description) > 0 {
-		p := bluemonday.UGCPolicy()
-		description = p.Sanitize(opf.Metadata.Description[0])
+		strict := bluemonday.StrictPolicy()
+		noHTMLDescription := strict.Sanitize(opf.Metadata.Description[0])
+		if noHTMLDescription == opf.Metadata.Description[0] {
+			paragraphs := strings.Split(opf.Metadata.Description[0], "\n")
+			description = "<p>" + strings.Join(paragraphs, "</p><p>") + "</p>"
+		} else {
+			p := bluemonday.UGCPolicy()
+			description = p.Sanitize(opf.Metadata.Description[0])
+		}
 	}
+
 	language := ""
 	if len(opf.Metadata.Language) > 0 {
 		language = opf.Metadata.Language[0]
@@ -107,6 +132,7 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		Series:      series,
 		SeriesIndex: seriesIndex,
 		Type:        "EPUB",
+		Subjects:    subjects,
 	}
 	w, err := words(file)
 	if err != nil {
