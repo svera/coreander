@@ -151,8 +151,8 @@ func TestRemoveDocument(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if actualResults := doc.Find(".list-group-item").Length(); actualResults != 1 {
-		t.Errorf("Expected %d results, got %d", 1, actualResults)
+	if actualResults := doc.Find(".list-group-item").Length(); actualResults != 2 {
+		t.Errorf("Expected %d results, got %d", 2, actualResults)
 	}
 
 	user := &model.User{
