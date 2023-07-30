@@ -78,7 +78,7 @@ Coreander can send documents through email. This way, you can take advantage of 
 
 ### User management and access restriction
 
-Coreander distinguish between two kinds of users: regular users and administrator users, with the latter being the only ones with the ability to create new users.
+Coreander distinguish between two kinds of users: regular users and administrator users, with the latter being the only ones with the ability to create new users and delete documents.
 
 By default, Coreander allow unrestricted access to its contents, except management areas which require an administrator user. To allow access only to registered users in the whole application, pass the `REQUIRE_AUTH=true` environment variable.
 
