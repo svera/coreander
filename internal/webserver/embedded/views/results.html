@@ -103,7 +103,7 @@
                         "Cancel"}}</button>
                     <button type="submit" class="btn btn-primary">{{t .Lang "Delete"}}</button>
                 </div>
-                <input type="hidden" name="file" value="" class="file">
+                <input type="hidden" name="slug" value="" class="slug">
             </form>
         </div>
     </div>
@@ -113,10 +113,10 @@
     const deleteModal = document.getElementById('deleteModal')
     deleteModal.addEventListener('show.bs.modal', event => {
         const link = event.relatedTarget
-        const file = link.getAttribute('data-bs-file')
-        const modalInput = deleteModal.querySelector('.file')
+        const slug = link.getAttribute('data-bs-slug')
+        const modalInput = deleteModal.querySelector('.slug')
 
-        modalInput.value = file;
+        modalInput.value = slug;
     })
 
     function send(index) {
@@ -152,14 +152,13 @@
     function remove() {
         event.preventDefault();
         form = document.getElementById("delete-form");
-        console.log(form.elements['file'].value);
         fetch('/delete', {
             method: "POST",
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
             body: new URLSearchParams({
-                'file': form.elements['file'].value,        
+                'slug': form.elements['slug'].value,        
             })
         })
         .then((response) => {

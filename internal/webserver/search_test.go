@@ -112,7 +112,7 @@ func TestSendDocument(t *testing.T) {
 func TestRemoveDocument(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	smtpMock := &SMTPMock{}
-	fixtures := []string{"fixtures/empty.epub"}
+	fixtures := []string{"fixtures/metadata.epub"}
 
 	var (
 		contents map[string][]byte
@@ -173,13 +173,13 @@ func TestRemoveDocument(t *testing.T) {
 		email              string
 		password           string
 		file               string
+		slug               string
 		expectedHTTPStatus int
 	}{
-		{"Remove no document filename", "admin@example.com", "admin", "", http.StatusBadRequest},
-		{"Remove document filename with relative path using parent path operator", "admin@example.com", "admin", "nested/../empty.epub", http.StatusBadRequest},
-		{"Remove non existing document filename", "admin@example.com", "admin", "wrong.epub", http.StatusBadRequest},
-		{"Remove document filename with a regular user", "regular@example.com", "regular", "empty.epub", http.StatusForbidden},
-		{"Remove document filename with an admin user", "admin@example.com", "admin", "empty.epub", http.StatusOK},
+		{"Remove no document slug", "admin@example.com", "admin", "", "", http.StatusBadRequest},
+		{"Remove non existing document slug", "admin@example.com", "admin", "wrong.epub", "", http.StatusBadRequest},
+		{"Remove document with a regular user", "regular@example.com", "regular", "metadata.epub", "john-doe-test-epub", http.StatusForbidden},
+		{"Remove document with an admin user", "admin@example.com", "admin", "metadata.epub", "john-doe-test-epub", http.StatusOK},
 	}
 
 	for _, tcase := range cases {
@@ -190,7 +190,7 @@ func TestRemoveDocument(t *testing.T) {
 			)
 
 			data := url.Values{
-				"file": {tcase.file},
+				"slug": {tcase.slug},
 			}
 
 			cookie, err := login(app, tcase.email, tcase.password)

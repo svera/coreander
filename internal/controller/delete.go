@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
+	"github.com/svera/coreander/v3/internal/metadata"
 	"github.com/svera/coreander/v3/internal/model"
 )
 
 type IdxWriter interface {
+	Document(ID string) (metadata.Metadata, error)
 	RemoveFile(file string) error
 }
 
@@ -23,16 +24,17 @@ func Delete(c *fiber.Ctx, libraryPath string, writer IdxWriter, appFs afero.Fs) 
 		return fiber.ErrForbidden
 	}
 
-	if c.FormValue("file") == "" {
+	if c.FormValue("slug") == "" {
 		return fiber.ErrBadRequest
 	}
 
-	if strings.Contains(c.FormValue("file"), ".."+string(os.PathSeparator)) {
+	document, err := writer.Document(c.FormValue("slug"))
+	if err != nil {
+		fmt.Println(err)
 		return fiber.ErrBadRequest
 	}
 
-	fullPath := fmt.Sprintf("%s"+string(os.PathSeparator)+"%s", libraryPath, c.FormValue("file"))
-
+	fullPath := fmt.Sprintf("%s%s%s", libraryPath, string(os.PathSeparator), document.ID)
 	if _, err := appFs.Stat(fullPath); err != nil {
 		return fiber.ErrBadRequest
 	}
