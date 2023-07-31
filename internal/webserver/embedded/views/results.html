@@ -95,6 +95,8 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-danger visually-hidden" role="alert" id="delete-document-message">
+                    </div>
                     <p>{{ t .Lang "Are you sure you want to delete this document?"}}</p>
                     <p>{{ t .Lang "This action cannot be undone"}}</p>
                 </div>
@@ -114,9 +116,9 @@
     deleteModal.addEventListener('show.bs.modal', event => {
         const link = event.relatedTarget
         const slug = link.getAttribute('data-bs-slug')
-        const modalInput = deleteModal.querySelector('.slug')
+        const modalInputSlug = deleteModal.querySelector('.slug')
 
-        modalInput.value = slug;
+        modalInputSlug.value = slug;
     })
 
     function send(index) {
@@ -165,6 +167,9 @@
             if (response.ok) {
                 location.reload();
             }
+            message = document.getElementById("delete-document-message")
+            message.classList.remove("visually-hidden");
+            message.innerHTML = '{{t .Lang "There was an error deleting the document"}}';
         })
         .catch(function (error) {
             // Catch errors
