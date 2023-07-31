@@ -9,7 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func DocReader(c *fiber.Ctx, libraryPath string, idx Reader) error {
+func DocReader(c *fiber.Ctx, libraryPath string, idx IdxReader) error {
 	lang := c.Params("lang")
 
 	document, err := idx.Document(c.Params("slug"))

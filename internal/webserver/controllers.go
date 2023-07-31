@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	jwtware "github.com/gofiber/jwt/v3"
+	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/controller"
 	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
@@ -22,6 +23,7 @@ type Controllers struct {
 	Send                                  func(c *fiber.Ctx) error
 	Download                              func(c *fiber.Ctx) error
 	Read                                  func(c *fiber.Ctx) error
+	Delete                                func(c *fiber.Ctx) error
 	Search                                func(c *fiber.Ctx) error
 	AllowIfNotLoggedInMiddleware          func(c *fiber.Ctx) error
 	AlwaysRequireAuthenticationMiddleware func(c *fiber.Ctx) error
@@ -29,7 +31,7 @@ type Controllers struct {
 	ErrorHandler                          func(c *fiber.Ctx, err error) error
 }
 
-func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender) Controllers {
+func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs) Controllers {
 	usersRepository := &model.UserRepository{DB: db}
 
 	authCfg := controller.AuthConfig{
@@ -62,6 +64,9 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		},
 		Read: func(c *fiber.Ctx) error {
 			return controller.DocReader(c, cfg.LibraryPath, idx)
+		},
+		Delete: func(c *fiber.Ctx) error {
+			return controller.Delete(c, cfg.LibraryPath, idx, appFs)
 		},
 		Search: func(c *fiber.Ctx) error {
 			session := jwtclaimsreader.SessionData(c)

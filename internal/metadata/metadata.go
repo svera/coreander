@@ -6,6 +6,7 @@ import (
 
 type Metadata struct {
 	ID          string
+	BaseName    string
 	Slug        string
 	Title       string
 	Authors     []string

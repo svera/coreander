@@ -10,13 +10,14 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
+	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/infrastructure"
 	"github.com/svera/coreander/v3/internal/model"
 )
 
 func TestUserManagement(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{})
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs())
 
 	data := url.Values{
 		"name":             {"Test user"},

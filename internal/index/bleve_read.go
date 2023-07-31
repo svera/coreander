@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"math"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -105,6 +106,7 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 	for i, val := range searchResult.Hits {
 		doc := metadata.Metadata{
 			ID:          val.ID,
+			BaseName:    filepath.Base(val.ID),
 			Slug:        val.Fields["Slug"].(string),
 			Title:       val.Fields["Title"].(string),
 			Authors:     slicer(val.Fields["Authors"]),
@@ -166,6 +168,7 @@ func (b *BleveIndexer) Document(slug string) (metadata.Metadata, error) {
 
 	doc = metadata.Metadata{
 		ID:          searchResult.Hits[0].ID,
+		BaseName:    filepath.Base(searchResult.Hits[0].ID),
 		Slug:        searchResult.Hits[0].Fields["Slug"].(string),
 		Title:       searchResult.Hits[0].Fields["Title"].(string),
 		Authors:     slicer(searchResult.Hits[0].Fields["Authors"]),

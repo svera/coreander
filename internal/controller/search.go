@@ -23,15 +23,15 @@ type Sender interface {
 	From() string
 }
 
-// Reader defines a set of reading operations over an index
-type Reader interface {
+// IdxReader defines a set of reading operations over an index
+type IdxReader interface {
 	Search(keywords string, page, resultsPerPage int, wordsPerMinute float64) (*Result, error)
 	Count() (uint64, error)
 	Close() error
 	Document(ID string) (metadata.Metadata, error)
 }
 
-func Search(c *fiber.Ctx, idx Reader, sender Sender, wordsPerMinute float64) error {
+func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64) error {
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false

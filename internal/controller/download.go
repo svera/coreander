@@ -10,7 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func Download(c *fiber.Ctx, homeDir, libraryPath string, idx Reader) error {
+func Download(c *fiber.Ctx, homeDir, libraryPath string, idx IdxReader) error {
 	document, err := idx.Document(c.Params("slug"))
 	if err != nil {
 		return fiber.ErrBadRequest

@@ -100,7 +100,7 @@ func main() {
 		log.Fatal(fmt.Errorf("wrong value for session timeout"))
 	}
 
-	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender)
+	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
 	app := webserver.New(webserverConfig, controllers)
 	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))

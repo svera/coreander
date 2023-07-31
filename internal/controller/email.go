@@ -9,7 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func Send(c *fiber.Ctx, libraryPath string, sender Sender, idx Reader) error {
+func Send(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader) error {
 	if strings.Trim(c.FormValue("slug"), " ") == "" {
 		return fiber.ErrBadRequest
 	}

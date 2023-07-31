@@ -43,7 +43,7 @@ func TestIndexAndSearch(t *testing.T) {
 				t.Errorf("Error searching: %s", err.Error())
 			}
 			if !reflect.DeepEqual(*res, tcase.expectedResult) {
-				t.Errorf("Wrong result returned, expected %v, got %v", tcase.expectedResult, res)
+				t.Errorf("Wrong result returned, expected %#v, got %#v", tcase.expectedResult, res)
 			}
 		})
 	}
@@ -78,6 +78,7 @@ func testCases() []testCase {
 				Hits: []metadata.Metadata{
 					{
 						ID:          "book1.epub",
+						BaseName:    "book1.epub",
 						Slug:        "perez-test-a",
 						Title:       "Test A",
 						Authors:     []string{"Pérez"},
@@ -106,6 +107,7 @@ func testCases() []testCase {
 				Hits: []metadata.Metadata{
 					{
 						ID:          "book2.epub",
+						BaseName:    "book2.epub",
 						Slug:        "benoit-test-b",
 						Title:       "Test B",
 						Authors:     []string{"Benoît"},
@@ -134,6 +136,7 @@ func testCases() []testCase {
 				Hits: []metadata.Metadata{
 					{
 						ID:          "book3.epub",
+						BaseName:    "book3.epub",
 						Slug:        "clifford-d-simak-test-c",
 						Title:       "Test C",
 						Authors:     []string{"Clifford D. Simak"},
@@ -162,6 +165,7 @@ func testCases() []testCase {
 				Hits: []metadata.Metadata{
 					{
 						ID:          "book4.epub",
+						BaseName:    "book4.epub",
 						Slug:        "james-ellroy-test-d",
 						Title:       "Test D",
 						Authors:     []string{"James Ellroy"},
@@ -190,6 +194,7 @@ func testCases() []testCase {
 				Hits: []metadata.Metadata{
 					{
 						ID:          "book5.epub",
+						BaseName:    "book5.epub",
 						Slug:        "james-ellroy-test-e",
 						Title:       "Test E",
 						Authors:     []string{"James Ellroy"},
