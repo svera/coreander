@@ -112,29 +112,10 @@ func TestSendDocument(t *testing.T) {
 func TestRemoveDocument(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	smtpMock := &SMTPMock{}
-	fixtures := []string{"fixtures/metadata.epub"}
-
-	var (
-		contents map[string][]byte
-	)
-
-	appFS := afero.NewMemMapFs()
-
-	for _, fileName := range fixtures {
-		file, err := os.Open(fileName)
-		if err != nil {
-			log.Fatalf("Couldn't open %s", fileName)
-		}
-		_, err = file.Read(contents[fileName])
-		if err != nil {
-			log.Fatalf("Couldn't read contents of %s", fileName)
-		}
-		afero.WriteFile(appFS, fileName, contents[fileName], 0644)
-	}
-
+	appFS := loadFilesInMemoryFs([]string{"fixtures/metadata.epub"})
 	app := bootstrapApp(db, smtpMock, appFS)
 
-	req, err := http.NewRequest(http.MethodGet, "/en?search=empty", nil)
+	req, err := http.NewRequest(http.MethodGet, "/en?search=john+doe", nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
@@ -151,8 +132,8 @@ func TestRemoveDocument(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if actualResults := doc.Find(".list-group-item").Length(); actualResults != 2 {
-		t.Errorf("Expected %d results, got %d", 2, actualResults)
+	if actualResults := doc.Find(".list-group-item").Length(); actualResults != 4 {
+		t.Errorf("Expected %d results, got %d", 4, actualResults)
 	}
 
 	user := &model.User{
@@ -165,7 +146,7 @@ func TestRemoveDocument(t *testing.T) {
 	}
 	result := db.Create(&user)
 	if result.Error != nil {
-		log.Fatal("Couldn't create default admin")
+		log.Fatal("Couldn't create regular user")
 	}
 
 	var cases = []struct {
@@ -215,6 +196,27 @@ func TestRemoveDocument(t *testing.T) {
 				if _, err := appFS.Stat(tcase.file); !os.IsNotExist(err) {
 					t.Errorf("Expected 'file not exist' error when trying to access a file that should have been removed")
 				}
+
+				req, err := http.NewRequest(http.MethodGet, "/en?search=john+doe", nil)
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err.Error())
+				}
+				response, err := app.Test(req)
+				if err != nil {
+					t.Fatalf("Unexpected error: %v", err.Error())
+				}
+				if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+					t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+				}
+
+				doc, err := goquery.NewDocumentFromReader(response.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if actualResults := doc.Find(".list-group-item").Length(); actualResults != 3 {
+					t.Errorf("Expected %d results, got %d", 3, actualResults)
+				}
 			}
 
 			if response.StatusCode != tcase.expectedHTTPStatus {
@@ -252,4 +254,25 @@ func TestClashingSlugs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func loadFilesInMemoryFs(files []string) afero.Fs {
+	var (
+		contents map[string][]byte
+	)
+
+	appFS := afero.NewMemMapFs()
+
+	for _, fileName := range files {
+		file, err := os.Open(fileName)
+		if err != nil {
+			log.Fatalf("Couldn't open %s", fileName)
+		}
+		_, err = file.Read(contents[fileName])
+		if err != nil {
+			log.Fatalf("Couldn't read contents of %s", fileName)
+		}
+		afero.WriteFile(appFS, fileName, contents[fileName], 0644)
+	}
+	return appFS
 }
