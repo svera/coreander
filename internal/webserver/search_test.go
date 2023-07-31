@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/infrastructure"
@@ -115,26 +116,7 @@ func TestRemoveDocument(t *testing.T) {
 	appFS := loadFilesInMemoryFs([]string{"fixtures/metadata.epub"})
 	app := bootstrapApp(db, smtpMock, appFS)
 
-	req, err := http.NewRequest(http.MethodGet, "/en?search=john+doe", nil)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-	response, err := app.Test(req)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-	if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
-		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
-	}
-
-	doc, err := goquery.NewDocumentFromReader(response.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if actualResults := doc.Find(".list-group-item").Length(); actualResults != 4 {
-		t.Errorf("Expected %d results, got %d", 4, actualResults)
-	}
+	assertSearchResults(app, t, "john+doe", 4)
 
 	user := &model.User{
 		Uuid:           uuid.NewString(),
@@ -197,26 +179,8 @@ func TestRemoveDocument(t *testing.T) {
 					t.Errorf("Expected 'file not exist' error when trying to access a file that should have been removed")
 				}
 
-				req, err := http.NewRequest(http.MethodGet, "/en?search=john+doe", nil)
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err.Error())
-				}
-				response, err := app.Test(req)
-				if err != nil {
-					t.Fatalf("Unexpected error: %v", err.Error())
-				}
-				if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
-					t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
-				}
+				assertSearchResults(app, t, "john+doe", 3)
 
-				doc, err := goquery.NewDocumentFromReader(response.Body)
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				if actualResults := doc.Find(".list-group-item").Length(); actualResults != 3 {
-					t.Errorf("Expected %d results, got %d", 3, actualResults)
-				}
 			}
 
 			if response.StatusCode != tcase.expectedHTTPStatus {
@@ -275,4 +239,27 @@ func loadFilesInMemoryFs(files []string) afero.Fs {
 		afero.WriteFile(appFS, fileName, contents[fileName], 0644)
 	}
 	return appFS
+}
+
+func assertSearchResults(app *fiber.App, t *testing.T, search string, expectedResults int) {
+	req, err := http.NewRequest(http.MethodGet, "/en?search="+search, nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	response, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualResults := doc.Find(".list-group-item").Length(); actualResults != expectedResults {
+		t.Errorf("Expected %d results, got %d", expectedResults, actualResults)
+	}
 }
