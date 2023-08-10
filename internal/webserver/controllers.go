@@ -23,6 +23,7 @@ type Controllers struct {
 	Send                                  func(c *fiber.Ctx) error
 	Download                              func(c *fiber.Ctx) error
 	Read                                  func(c *fiber.Ctx) error
+	Detail                                func(c *fiber.Ctx) error
 	Delete                                func(c *fiber.Ctx) error
 	Search                                func(c *fiber.Ctx) error
 	AllowIfNotLoggedInMiddleware          func(c *fiber.Ctx) error
@@ -64,6 +65,9 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		},
 		Read: func(c *fiber.Ctx) error {
 			return controller.DocReader(c, cfg.LibraryPath, idx)
+		},
+		Detail: func(c *fiber.Ctx) error {
+			return controller.Detail(c, cfg.LibraryPath, sender, idx)
 		},
 		Delete: func(c *fiber.Ctx) error {
 			return controller.Delete(c, cfg.LibraryPath, idx, appFs)
