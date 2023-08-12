@@ -44,9 +44,10 @@
                                 <input type="email" class="form-control" id="email" name="email"
                                     placeholder="email@example.com" value="{{.Session.SendToEmail}}" required="required">
                                 <button type="submit" class="btn btn-primary">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope" viewBox="0 0 16 16">
+                                    <svg id="envelope" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope" viewBox="0 0 16 16">
                                         <path fill="#fff" d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4Zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2Zm13 2.383-4.708 2.825L15 11.105V5.383Zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741ZM1 11.105l4.708-2.897L1 5.383v5.722Z"/>
                                     </svg>
+                                    <span id="spinner" class="spinner-border spinner-border-sm visually-hidden" aria-hidden="true"></span>
                                     &nbsp;&nbsp;{{t .Lang "Send"}}</button>
                             </div>
                             <small class="text-muted"><em>{{t .Lang "Sent from %s" .EmailFrom}}</em></small>    
@@ -83,9 +84,9 @@
                     <h3>{{t $lang "Unknown author"}}</h3>
                     {{end}}
 
-                    {{ if ne .Document.ReadingTime "" }}
+                    {{ if ne .ReadingTime "" }}
                     <p class="text-muted"><em>{{t $lang "Estimated reading time"}}:
-                            {{.Document.ReadingTime}}</em></p>
+                            {{.ReadingTime}}</em></p>
                     {{ end }}
 
                     {{ if .Document.Pages }}
@@ -129,6 +130,13 @@
     function send(slug) {
         event.preventDefault();
         form = document.getElementById("send-email")
+        let submit = document.querySelector('#send-email button');
+        let envelope = document.querySelector('#envelope');
+        let spinner = document.querySelector('#spinner');
+        submit.setAttribute("disabled", true);
+        spinner.classList.remove("visually-hidden");
+        envelope.classList.add("visually-hidden");
+
         fetch('/send', {
             method: "POST",
             headers: {
@@ -149,6 +157,9 @@
                     message.innerHTML = '{{t .Lang "Document sent succesfully"}}';
                     message.classList.add("alert-success");
                 }
+                submit.removeAttribute("disabled");
+                envelope.classList.remove("visually-hidden");
+                spinner.classList.add("visually-hidden");
             })
             .catch(function (error) {
                 // Catch errors

@@ -43,6 +43,10 @@ func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64) 
 	}
 
 	session := jwtclaimsreader.SessionData(c)
+	if session.WordsPerMinute > 0 {
+		wordsPerMinute = session.WordsPerMinute
+	}
+
 	var searchResults *Result
 
 	if keywords := c.Query("search"); keywords != "" {

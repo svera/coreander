@@ -23,10 +23,9 @@ func Send(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader) error 
 		return fiber.ErrBadRequest
 	}
 
-	if _, err := os.Stat(fmt.Sprintf("%s/%s", libraryPath, document.ID)); err != nil {
+	if _, err := os.Stat(fmt.Sprintf("%s%s%s", libraryPath, string(os.PathSeparator), document.ID)); err != nil {
 		return fiber.ErrBadRequest
 	}
 
-	go sender.SendDocument(c.FormValue("email"), libraryPath, document.ID)
-	return nil
+	return sender.SendDocument(c.FormValue("email"), libraryPath, document.ID)
 }

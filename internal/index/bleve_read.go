@@ -6,7 +6,6 @@ import (
 	"math"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search/query"
@@ -118,29 +117,11 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 			Pages:       int(val.Fields["Pages"].(float64)),
 			Type:        val.Fields["Type"].(string),
 			Subjects:    slicer(val.Fields["Subjects"]),
-			ReadingTime: calculateReadingTime(val.Fields["Words"].(float64), wordsPerMinute),
+			ReadingTime: metadata.CalculateReadingTime(val.Fields["Words"].(float64), wordsPerMinute),
 		}
 		result.Hits[i] = doc
 	}
 	return &result, nil
-}
-
-func calculateReadingTime(words, wordsPerMinute float64) string {
-	if words == 0.0 {
-		return ""
-	}
-	if readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", words/wordsPerMinute)); err == nil {
-		return fmtDuration(readingTime)
-	}
-	return ""
-}
-
-func fmtDuration(d time.Duration) string {
-	d = d.Round(time.Minute)
-	h := d / time.Hour
-	d -= h * time.Hour
-	m := d / time.Minute
-	return fmt.Sprintf("%dh %dm", h, m)
 }
 
 // Count returns the number of indexed books

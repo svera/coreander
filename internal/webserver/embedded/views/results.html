@@ -123,7 +123,14 @@
 
     function send(index) {
         event.preventDefault();
-        form = document.getElementById("send-email-" + index)
+        let formID = "send-email-" + index;
+        let submit = document.querySelector('#'+formID+' button');
+        let envelope = document.querySelector('#envelope-'+index);
+        let spinner = document.querySelector('#spinner-'+index);
+        form = document.getElementById(formID);
+        submit.setAttribute("disabled", true);
+        spinner.classList.remove("visually-hidden");
+        envelope.classList.add("visually-hidden");
         fetch('/send', {
             method: "POST",
             headers: {
@@ -144,6 +151,9 @@
                 message.innerHTML = '{{t .Lang "Document sent succesfully"}}';
                 message.classList.add("text-success");
             }
+            submit.removeAttribute("disabled");
+            envelope.classList.remove("visually-hidden");
+            spinner.classList.add("visually-hidden");
         })
         .catch(function (error) {
             // Catch errors

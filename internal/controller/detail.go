@@ -8,9 +8,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v3/internal/infrastructure"
 	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
+	"github.com/svera/coreander/v3/internal/metadata"
 )
 
-func Detail(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader) error {
+func Detail(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wordsPerMinute float64) error {
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -18,6 +19,9 @@ func Detail(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader) erro
 
 	lang := c.Params("lang")
 	session := jwtclaimsreader.SessionData(c)
+	if session.WordsPerMinute > 0 {
+		wordsPerMinute = session.WordsPerMinute
+	}
 
 	document, err := idx.Document(c.Params("slug"))
 	if err != nil {
@@ -42,6 +46,7 @@ func Detail(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader) erro
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              sender.From(),
 		"Session":                session,
+		"ReadingTime":            metadata.CalculateReadingTime(document.Words, wordsPerMinute),
 	}, "layout")
 
 }
