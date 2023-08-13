@@ -68,10 +68,6 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		}
 	}
 
-	if len(subjects) == 0 {
-		subjects = []string{""}
-	}
-
 	description := ""
 	if len(opf.Metadata.Description) > 0 {
 		strict := bluemonday.StrictPolicy()
@@ -175,7 +171,7 @@ func words(bookFullPath string) (int, error) {
 	defer r.Close()
 	count := 0
 	for _, f := range r.File {
-		isContent, err := doublestar.PathMatch("OEBPS/**/*.*html", f.Name)
+		isContent, err := doublestar.PathMatch("O*PS/**/*.*html", f.Name)
 		if err != nil {
 			return 0, err
 		}
@@ -203,7 +199,7 @@ func words(bookFullPath string) (int, error) {
 
 func extractCover(r *zip.ReadCloser, coverFile string, coverMaxWidth int) ([]byte, error) {
 	for _, f := range r.File {
-		if f.Name != fmt.Sprintf("OEBPS/%s", coverFile) {
+		if f.Name != fmt.Sprintf("OEBPS/%s", coverFile) && f.Name != fmt.Sprintf("OPS/%s", coverFile) {
 			continue
 		}
 		rc, err := f.Open()
