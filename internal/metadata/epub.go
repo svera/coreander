@@ -6,7 +6,6 @@ import (
 	"html/template"
 	"io/ioutil"
 	"log"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -16,25 +15,20 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/gofiber/fiber/v2"
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/svera/epub"
+	"github.com/pirmd/epub"
 )
 
 type EpubReader struct{}
 
 func (e EpubReader) Metadata(file string) (Metadata, error) {
 	bk := Metadata{}
-	r, err := os.Open(file)
-	if err != nil {
-		return bk, err
-	}
-	defer r.Close()
-	opf, err := epub.GetOPFData(r)
+	opf, err := epub.GetPackageFromFile(file)
 	if err != nil {
 		return bk, err
 	}
 	title := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
-	if len(opf.Metadata.Title) > 0 && len(opf.Metadata.Title[0]) > 0 {
-		title = opf.Metadata.Title[0]
+	if len(opf.Metadata.Title) > 0 && len(opf.Metadata.Title[0].Value) > 0 {
+		title = opf.Metadata.Title[0].Value
 	}
 	var authors []string
 	if len(opf.Metadata.Creator) > 0 {
@@ -42,7 +36,7 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 			if creator.Role == "aut" || creator.Role == "" {
 				// Some epub files mistakenly put all authors in a single field instead of using a field for each one.
 				// We want to identify those cases looking for specific separators and then indexing each author properly.
-				names := strings.Split(creator.FullName, "&")
+				names := strings.Split(creator.Value, "&")
 				for i := range names {
 					names[i] = strings.TrimSpace(names[i])
 				}
@@ -60,7 +54,7 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		for _, subject := range opf.Metadata.Subject {
 			// Some epub files mistakenly put all subjects in a single field instead of using a field for each one.
 			// We want to identify those cases looking for specific separators and then indexing each subject properly.
-			names := strings.Split(subject, ",")
+			names := strings.Split(subject.Value, ",")
 			for i := range names {
 				names[i] = strings.TrimSpace(names[i])
 			}
@@ -71,25 +65,25 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	description := ""
 	if len(opf.Metadata.Description) > 0 {
 		strict := bluemonday.StrictPolicy()
-		noHTMLDescription := strict.Sanitize(opf.Metadata.Description[0])
-		if noHTMLDescription == opf.Metadata.Description[0] {
-			paragraphs := strings.Split(opf.Metadata.Description[0], "\n")
+		noHTMLDescription := strict.Sanitize(opf.Metadata.Description[0].Value)
+		if noHTMLDescription == opf.Metadata.Description[0].Value {
+			paragraphs := strings.Split(opf.Metadata.Description[0].Value, "\n")
 			description = "<p>" + strings.Join(paragraphs, "</p><p>") + "</p>"
 		} else {
 			p := bluemonday.UGCPolicy()
-			description = p.Sanitize(opf.Metadata.Description[0])
+			description = p.Sanitize(opf.Metadata.Description[0].Value)
 		}
 	}
 
 	language := ""
 	if len(opf.Metadata.Language) > 0 {
-		language = opf.Metadata.Language[0]
+		language = opf.Metadata.Language[0].Value
 	}
 	year := ""
 	if len(opf.Metadata.Date) > 0 {
 		for _, date := range opf.Metadata.Date {
 			if date.Event == "publication" || date.Event == "" {
-				t, err := time.Parse("2006-01-02", date.Stamp)
+				t, err := time.Parse("2006-01-02", date.Value)
 				if err == nil {
 					year = strings.TrimLeft(t.Format("2006"), "0")
 					break
@@ -103,7 +97,7 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	for _, val := range opf.Metadata.Meta {
 		if val.Name == "cover" {
 			id := val.Content
-			for _, item := range opf.Manifest.Item {
+			for _, item := range opf.Manifest.Items {
 				if item.ID == id {
 					cover = item.Href
 					break

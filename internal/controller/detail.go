@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -29,7 +30,7 @@ func Detail(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, word
 		return fiber.ErrBadRequest
 	}
 
-	if _, err := os.Stat(fmt.Sprintf("%s%s%s", libraryPath, string(os.PathSeparator), document.ID)); err != nil {
+	if _, err := os.Stat(filepath.Join(libraryPath, document.ID)); err != nil {
 		return fiber.ErrNotFound
 	}
 
