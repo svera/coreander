@@ -60,7 +60,7 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 
 	app.Get("/cover/:slug", controllers.Cover)
 
-	langGroup.Get("/detail/:slug", controllers.Detail)
+	langGroup.Get("/document/:slug", controllers.Document)
 
 	app.Post("/send", controllers.Send)
 

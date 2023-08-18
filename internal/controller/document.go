@@ -12,7 +12,7 @@ import (
 	"github.com/svera/coreander/v3/internal/metadata"
 )
 
-func Detail(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wordsPerMinute float64) error {
+func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wordsPerMinute float64) error {
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -40,7 +40,7 @@ func Detail(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, word
 		title = fmt.Sprintf("%s - %s | Coreander", authors, document.Title)
 	}
 
-	return c.Render("detail", fiber.Map{
+	return c.Render("document", fiber.Map{
 		"Lang":                   lang,
 		"Title":                  title,
 		"Document":               document,
