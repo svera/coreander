@@ -62,7 +62,7 @@
                     {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
                     .Document.Series}}
                     <p class="text-start text-muted text-uppercase mb-1"><a
-                            href="?search=Series&colon;&quot;{{.Document.Series}}&quot;"
+                            href="/{{$lang}}?search=Series&colon;&quot;{{.Document.Series}}&quot;"
                             title={{$seriesTitle}}>{{.Document.Series}} {{.Document.SeriesIndex}}</a></p>
                     {{ end }}
                     <h2 class="text-start">
@@ -97,7 +97,7 @@
                     <div class="my-3">
                         {{range $i, $subject := .Document.Subjects}}
                         {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                        <a class="btn btn-secondary btn-sm" href="/?search=Subjects&colon;&quot;{{$subject}}&quot;"
+                        <a class="btn btn-secondary btn-sm" href="/{{$lang}}?search=Subjects&colon;&quot;{{$subject}}&quot;"
                             title={{$subjectTitle}}>{{$subject}}</a>
                         {{end}}
                     </div>
@@ -110,6 +110,34 @@
                     {{end}}
                 </div>
             </div>
+            {{ if .SimilarSubjects}}
+            <div class="row mt-5">
+                <div class="col-12 text-start">
+                    <h4>{{t $lang "Other documents with similar subjects"}}</h4>
+                </div>
+            </div>
+            <div class="row mt-3">
+                {{range $i, $doc := .SimilarSubjects}}
+                <div class="col-3">
+                    <div class="card">
+                        <img src="/images/generic.jpg" data-src="/cover/{{$doc.Slug}}" loading="lazy" class="card-img-top cover" alt='{{t $lang "\"%s\" cover" $doc.Title}}'>
+                        <div class="card-body">
+                        <h5 class="card-title"><a href="/{{$lang}}/document/{{$doc.Slug}}">{{$doc.Title}}</a></h5>
+                        {{if $doc.Authors}}
+                        <p class="card-text">
+                            {{range $i, $author := $doc.Authors}}
+                                {{$author}}{{if notLast $doc.Authors $i}}, {{end}}
+                            {{end}}
+                        </p>
+                        {{else}}
+                        <p class="card-text">{{t $lang "Unknown author"}}</p>
+                        {{end}}
+                        </div>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+            {{end}}
         </div>
     </div>
 

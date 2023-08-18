@@ -40,6 +40,11 @@ func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wo
 		title = fmt.Sprintf("%s - %s | Coreander", authors, document.Title)
 	}
 
+	similarSubjects, err := idx.SimilarSubjects(document.Slug, 4)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	return c.Render("document", fiber.Map{
 		"Lang":                   lang,
 		"Title":                  title,
@@ -48,6 +53,7 @@ func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wo
 		"EmailFrom":              sender.From(),
 		"Session":                session,
 		"ReadingTime":            metadata.CalculateReadingTime(document.Words, wordsPerMinute),
+		"SimilarSubjects":        similarSubjects,
 	}, "layout")
 
 }

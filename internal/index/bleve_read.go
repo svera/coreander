@@ -166,6 +166,64 @@ func (b *BleveIndexer) Document(slug string) (metadata.Metadata, error) {
 	return doc, nil
 }
 
+// SimilarSubjects returns an array of metadata of documents by other authors which have similar subjects
+// as the passed one and does not belong to the same collection
+func (b *BleveIndexer) SimilarSubjects(slug string, quantity int) ([]metadata.Metadata, error) {
+	var result []metadata.Metadata
+
+	doc, err := b.Document(slug)
+	if err != nil {
+		return result, err
+	}
+
+	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
+	for _, subject := range doc.Subjects {
+		qu := bleve.NewMatchQuery(subject)
+		qu.SetField("Subjects")
+		subjectsCompoundQuery.AddQuery(qu)
+	}
+	bq := bleve.NewBooleanQuery()
+	bq.AddMust(subjectsCompoundQuery)
+	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
+	sq := bleve.NewMatchQuery(doc.Series)
+	sq.SetField("Series")
+	bq.AddMustNot(sq)
+	authorsCompoundQuery := bleve.NewDisjunctionQuery()
+	for _, author := range doc.Authors {
+		qa := bleve.NewMatchQuery(author)
+		qa.SetField("Authors")
+		authorsCompoundQuery.AddQuery(qa)
+	}
+	bq.AddMustNot(authorsCompoundQuery)
+
+	searchOptions := bleve.NewSearchRequestOptions(bq, quantity, 0, false)
+	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type", "Subjects"}
+	searchResult, err := b.idx.Search(searchOptions)
+	if err != nil {
+		return result, err
+	}
+
+	for _, val := range searchResult.Hits {
+		doc := metadata.Metadata{
+			ID:          val.ID,
+			BaseName:    filepath.Base(val.ID),
+			Slug:        val.Fields["Slug"].(string),
+			Title:       val.Fields["Title"].(string),
+			Authors:     slicer(val.Fields["Authors"]),
+			Description: template.HTML(val.Fields["Description"].(string)),
+			Year:        val.Fields["Year"].(string),
+			Words:       val.Fields["Words"].(float64),
+			Series:      val.Fields["Series"].(string),
+			SeriesIndex: val.Fields["SeriesIndex"].(float64),
+			Pages:       int(val.Fields["Pages"].(float64)),
+			Type:        val.Fields["Type"].(string),
+			Subjects:    slicer(val.Fields["Subjects"]),
+		}
+		result = append(result, doc)
+	}
+	return result, nil
+}
+
 func slicer(val interface{}) []string {
 	var (
 		terms []interface{}

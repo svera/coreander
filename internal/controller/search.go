@@ -29,6 +29,7 @@ type IdxReader interface {
 	Count() (uint64, error)
 	Close() error
 	Document(ID string) (metadata.Metadata, error)
+	SimilarSubjects(slug string, quantity int) ([]metadata.Metadata, error)
 }
 
 func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64) error {
