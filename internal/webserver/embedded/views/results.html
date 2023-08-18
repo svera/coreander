@@ -14,7 +14,7 @@
         <div class="list-group-item">
             <div class="row">
                 <div class="col-md-2 col-sm-12">
-                    <img src="images/generic.jpg" data-src="cover/{{$book.Slug}}" loading="lazy" class="border border-2 border-dark text-center mb-3 cover img-fluid" alt='{{t $lang "\"%s\" cover" $book.Title}}'>
+                    <img src="/images/generic.jpg" data-src="cover/{{$book.Slug}}" loading="lazy" class="border border-2 border-dark text-center mb-3 cover img-fluid" alt='{{t $lang "\"%s\" cover" $book.Title}}'>
                 </div>
                 <div class="col-md-10 col-sm-12">
                     <div class="row">
@@ -22,11 +22,11 @@
                             {{ if ne $book.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
                             $book.Series}}
                             <p class="text-start text-muted text-uppercase mb-0"><a
-                                    href="?search=Series&colon;&quot;{{$book.Series}}&quot;"
+                                    href="/{{$lang}}?search=Series&colon;&quot;{{$book.Series}}&quot;"
                                     title={{$seriesTitle}}>{{$book.Series}} {{$book.SeriesIndex}}</a></p>
                             {{ end }}
                             <h4 class="text-start">
-                                <a href="{{$lang}}/read/{{$book.Slug}}">{{$book.Title}}</a> <small class="small text-muted">{{$book.Year}}</small>
+                                <a href="/{{$lang}}/document/{{$book.Slug}}">{{$book.Title}}</a> <small class="small text-muted">{{$book.Year}}</small>
                             </h4>
                         </div>
                         <div class="col-5 text-end">
@@ -40,7 +40,7 @@
                             <h5>
                                 {{range $i, $author := $book.Authors}}
                                 {{$authorTitle := t $lang "Search for more titles by %s" $author}}
-                                <a href="?search=Authors&colon;&quot;{{$author}}&quot;" title={{$authorTitle}}>{{$author}}</a>{{if notLast $book.Authors $i}}, {{end}}
+                                <a href="/{{$lang}}?search=Authors&colon;&quot;{{$author}}&quot;" title={{$authorTitle}}>{{$author}}</a>{{if notLast $book.Authors $i}}, {{end}}
                                 {{end}}
                             </h5>
                             {{else}}
@@ -60,7 +60,7 @@
                             <div class="mb-3">
                                 {{range $i, $subject := $book.Subjects}}
                                     {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                                    <a class="btn btn-secondary btn-sm" href="?search=Subjects&colon;&quot;{{$subject}}&quot;" title={{$subjectTitle}}>{{$subject}}</a>
+                                    <a class="btn btn-secondary btn-sm" href="/{{$lang}}?search=Subjects&colon;&quot;{{$subject}}&quot;" title={{$subjectTitle}}>{{$subject}}</a>
                                 {{end}}
                             </div>
                             {{ end }}
@@ -123,7 +123,14 @@
 
     function send(index) {
         event.preventDefault();
-        form = document.getElementById("send-email-" + index)
+        let formID = "send-email-" + index;
+        let submit = document.querySelector('#'+formID+' button');
+        let envelope = document.querySelector('#envelope-'+index);
+        let spinner = document.querySelector('#spinner-'+index);
+        form = document.getElementById(formID);
+        submit.setAttribute("disabled", true);
+        spinner.classList.remove("visually-hidden");
+        envelope.classList.add("visually-hidden");
         fetch('/send', {
             method: "POST",
             headers: {
@@ -144,6 +151,9 @@
                 message.innerHTML = '{{t .Lang "Document sent succesfully"}}';
                 message.classList.add("text-success");
             }
+            submit.removeAttribute("disabled");
+            envelope.classList.remove("visually-hidden");
+            spinner.classList.add("visually-hidden");
         })
         .catch(function (error) {
             // Catch errors
@@ -182,7 +192,7 @@
         for (i = 0; i < imgs.length; i++) {
             if (imgs[i].getAttribute('data-src')) {
                 imgs[i].addEventListener('error', function onError(e) {
-                    this.setAttribute('src', 'images/generic.jpg');
+                    this.setAttribute('src', '/images/generic.jpg');
                 });
                 imgs[i].setAttribute('src', imgs[i].getAttribute('data-src'));
             }

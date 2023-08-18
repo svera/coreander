@@ -16,7 +16,7 @@ func Download(c *fiber.Ctx, homeDir, libraryPath string, idx IdxReader) error {
 		return fiber.ErrBadRequest
 	}
 
-	fullPath := fmt.Sprintf("%s%s%s", libraryPath, string(os.PathSeparator), document.ID)
+	fullPath := filepath.Join(libraryPath, document.ID)
 
 	if _, err := os.Stat(fullPath); err != nil {
 		return fiber.ErrNotFound

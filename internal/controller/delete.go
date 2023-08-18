@@ -3,7 +3,7 @@ package controller
 import (
 	"fmt"
 	"log"
-	"os"
+	"path/filepath"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
@@ -34,7 +34,7 @@ func Delete(c *fiber.Ctx, libraryPath string, writer IdxWriter, appFs afero.Fs) 
 		return fiber.ErrBadRequest
 	}
 
-	fullPath := fmt.Sprintf("%s%s%s", libraryPath, string(os.PathSeparator), document.ID)
+	fullPath := filepath.Join(libraryPath, document.ID)
 	if _, err := appFs.Stat(fullPath); err != nil {
 		return fiber.ErrBadRequest
 	}

@@ -1,9 +1,9 @@
 package controller
 
 import (
-	"fmt"
 	"net/mail"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -23,10 +23,9 @@ func Send(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader) error 
 		return fiber.ErrBadRequest
 	}
 
-	if _, err := os.Stat(fmt.Sprintf("%s/%s", libraryPath, document.ID)); err != nil {
+	if _, err := os.Stat(filepath.Join(libraryPath, document.ID)); err != nil {
 		return fiber.ErrBadRequest
 	}
 
-	go sender.SendDocument(c.FormValue("email"), libraryPath, document.ID)
-	return nil
+	return sender.SendDocument(c.FormValue("email"), libraryPath, document.ID)
 }

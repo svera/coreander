@@ -23,6 +23,7 @@ type Controllers struct {
 	Send                                  func(c *fiber.Ctx) error
 	Download                              func(c *fiber.Ctx) error
 	Read                                  func(c *fiber.Ctx) error
+	Document                              func(c *fiber.Ctx) error
 	Delete                                func(c *fiber.Ctx) error
 	Search                                func(c *fiber.Ctx) error
 	AllowIfNotLoggedInMiddleware          func(c *fiber.Ctx) error
@@ -65,16 +66,14 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		Read: func(c *fiber.Ctx) error {
 			return controller.DocReader(c, cfg.LibraryPath, idx)
 		},
+		Document: func(c *fiber.Ctx) error {
+			return controller.Document(c, cfg.LibraryPath, sender, idx, cfg.WordsPerMinute)
+		},
 		Delete: func(c *fiber.Ctx) error {
 			return controller.Delete(c, cfg.LibraryPath, idx, appFs)
 		},
 		Search: func(c *fiber.Ctx) error {
-			session := jwtclaimsreader.SessionData(c)
-			wordsPerMinute := session.WordsPerMinute
-			if wordsPerMinute == 0 {
-				wordsPerMinute = cfg.WordsPerMinute
-			}
-			return controller.Search(c, idx, sender, wordsPerMinute)
+			return controller.Search(c, idx, sender, cfg.WordsPerMinute)
 		},
 		AllowIfNotLoggedInMiddleware: jwtware.New(jwtware.Config{
 			SigningKey:    cfg.JwtSecret,

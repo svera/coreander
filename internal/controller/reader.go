@@ -18,7 +18,7 @@ func DocReader(c *fiber.Ctx, libraryPath string, idx IdxReader) error {
 		return fiber.ErrBadRequest
 	}
 
-	if _, err := os.Stat(fmt.Sprintf("%s%s%s", libraryPath, string(os.PathSeparator), document.ID)); err != nil {
+	if _, err := os.Stat(filepath.Join(libraryPath, document.ID)); err != nil {
 		return fiber.ErrNotFound
 	}
 

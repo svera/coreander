@@ -190,7 +190,7 @@ func TestRemoveDocument(t *testing.T) {
 	}
 }
 
-func TestClashingSlugs(t *testing.T) {
+func TestDocumentAndRead(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	smtpMock := &SMTPMock{}
 	app := bootstrapApp(db, smtpMock, afero.NewOsFs())
@@ -199,8 +199,9 @@ func TestClashingSlugs(t *testing.T) {
 		url            string
 		expectedStatus int
 	}{
-		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", 200},
-		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha-2", 200},
+		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
+		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha-2", http.StatusOK},
+		{"/en/document/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
 	}
 
 	for _, tcase := range cases {
@@ -213,8 +214,8 @@ func TestClashingSlugs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())
 			}
-			if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
-				t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+			if response.StatusCode != tcase.expectedStatus {
+				t.Errorf("Expected status %d, received %d", tcase.expectedStatus, response.StatusCode)
 			}
 		})
 	}

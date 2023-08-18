@@ -1,0 +1,24 @@
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="/delete" onsubmit="remove()" id="delete-form">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="deleteModalLabel">{{t .Lang "Delete document"}}</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger visually-hidden" role="alert" id="delete-document-message">
+                    </div>
+                    <p>{{ t .Lang "Are you sure you want to delete this document?"}}</p>
+                    <p>{{ t .Lang "This action cannot be undone"}}</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{t .Lang
+                        "Cancel"}}</button>
+                    <button type="submit" class="btn btn-primary">{{t .Lang "Delete"}}</button>
+                </div>
+                <input type="hidden" name="slug" value="" class="slug">
+            </form>
+        </div>
+    </div>
+</div>
