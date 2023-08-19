@@ -62,7 +62,7 @@
                     {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
                     .Document.Series}}
                     <p class="text-start text-muted text-uppercase mb-1"><a
-                            href="?search=Series&colon;&quot;{{.Document.Series}}&quot;"
+                            href="/{{$lang}}?search=Series&colon;&quot;{{.Document.Series}}&quot;"
                             title={{$seriesTitle}}>{{.Document.Series}} {{.Document.SeriesIndex}}</a></p>
                     {{ end }}
                     <h2 class="text-start">
@@ -97,7 +97,7 @@
                     <div class="my-3">
                         {{range $i, $subject := .Document.Subjects}}
                         {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                        <a class="btn btn-secondary btn-sm" href="/?search=Subjects&colon;&quot;{{$subject}}&quot;"
+                        <a class="btn btn-secondary btn-sm" href="/{{$lang}}?search=Subjects&colon;&quot;{{$subject}}&quot;"
                             title={{$subjectTitle}}>{{$subject}}</a>
                         {{end}}
                     </div>
