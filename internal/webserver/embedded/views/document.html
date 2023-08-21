@@ -84,9 +84,9 @@
                     <h3>{{t $lang "Unknown author"}}</h3>
                     {{end}}
 
-                    {{ if ne .ReadingTime "" }}
+                    {{ if gt .Document.Words 0.0 }}
                     <p class="text-muted"><em>{{t $lang "Estimated reading time"}}:
-                            {{.ReadingTime}}</em></p>
+                            {{.Document.ReadingTime .WordsPerMinute}}</em></p>
                     {{ end }}
 
                     {{ if .Document.Pages }}
@@ -110,34 +110,38 @@
                     {{end}}
                 </div>
             </div>
-            {{ if .SimilarSubjects}}
-            <div class="row mt-5">
+
+            {{ $length := len .SameSeries }} {{ if gt $length 0 }}
+            <div class="row mt-3">
+                <div class="col-12 text-start">
+                    <h4>{{t $lang "Other documents in %s" .Document.Series}}</h4>
+                </div>
+            </div>
+            {{template "partials/related" dict "Lang" $lang "Related" .SameSeries}}
+            {{end}}         
+
+            {{ $length := len .SameAuthors }} {{ if gt $length 0 }}
+            <div class="row mt-3">
+                <div class="col-12 text-start">
+                    <h4>
+                        {{t $lang "Other documents by "}}
+                        {{range $i, $author := $document.Authors}}
+                            {{$author}}{{if notLast $document.Authors $i}}, {{end}}
+                        {{end}}
+                    </h4>
+                </div>
+            </div>
+            {{template "partials/related" dict "Lang" $lang "Related" .SameAuthors}}
+            {{end}}   
+
+            {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
+            <div class="row mt-3">
                 <div class="col-12 text-start">
                     <h4>{{t $lang "Other documents with similar subjects"}}</h4>
                 </div>
             </div>
-            <div class="row mt-3">
-                {{range $i, $doc := .SimilarSubjects}}
-                <div class="col-3">
-                    <div class="card">
-                        <img src="/images/generic.jpg" data-src="/cover/{{$doc.Slug}}" loading="lazy" class="card-img-top cover" alt='{{t $lang "\"%s\" cover" $doc.Title}}'>
-                        <div class="card-body">
-                        <h5 class="card-title"><a href="/{{$lang}}/document/{{$doc.Slug}}">{{$doc.Title}}</a></h5>
-                        {{if $doc.Authors}}
-                        <p class="card-text">
-                            {{range $i, $author := $doc.Authors}}
-                                {{$author}}{{if notLast $doc.Authors $i}}, {{end}}
-                            {{end}}
-                        </p>
-                        {{else}}
-                        <p class="card-text">{{t $lang "Unknown author"}}</p>
-                        {{end}}
-                        </div>
-                    </div>
-                </div>
-                {{end}}
-            </div>
-            {{end}}
+            {{template "partials/related" dict "Lang" $lang "Related" .SameSubjects}}
+            {{end}}         
         </div>
     </div>
 

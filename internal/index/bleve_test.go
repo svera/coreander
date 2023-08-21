@@ -38,7 +38,7 @@ func TestIndexAndSearch(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error indexing: %s", err.Error())
 			}
-			res, err := idx.Search(tcase.search, 1, 10, 250)
+			res, err := idx.Search(tcase.search, 1, 10)
 			if err != nil {
 				t.Errorf("Error searching: %s", err.Error())
 			}
@@ -54,7 +54,7 @@ type testCase struct {
 	filename       string
 	mockedMeta     metadata.Metadata
 	search         string
-	expectedResult controller.Result
+	expectedResult controller.PaginatedResult
 }
 
 func testCases() []testCase {
@@ -71,7 +71,7 @@ func testCases() []testCase {
 				Subjects:    []string{"History", "Middle age"},
 			},
 			"perez",
-			controller.Result{
+			controller.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
@@ -100,7 +100,7 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"benoit",
-			controller.Result{
+			controller.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
@@ -129,7 +129,7 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"clifford simak",
-			controller.Result{
+			controller.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
@@ -158,7 +158,7 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"james ellroy",
-			controller.Result{
+			controller.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
@@ -187,7 +187,7 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			" james       ellroy ",
-			controller.Result{
+			controller.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,

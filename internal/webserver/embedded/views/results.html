@@ -2,6 +2,8 @@
 {{$emailSendingConfigured := .EmailSendingConfigured}}
 {{$session := .Session}}
 {{$emailFrom := .EmailFrom}}
+{{$wordsPerMinute := .WordsPerMinute}}
+
 <div class="container">
     {{template "partials/searchbox" .}} {{if gt .Total 0}}
     <p>{{t .Lang "%d matches found" .Total }}</p>
@@ -47,9 +49,9 @@
                                 <h5>{{t $lang "Unknown author"}}</h5>
                             {{end}}
         
-                            {{ if ne $book.ReadingTime "" }}
+                            {{ if gt $book.Words 0.0 }}
                             <p class="text-muted"><em>{{t $lang "Estimated reading time"}}:
-                                    {{$book.ReadingTime}}</em></p>
+                                    {{$book.ReadingTime $wordsPerMinute}}</em></p>
                             {{ end }}
         
                             {{ if $book.Pages }}
