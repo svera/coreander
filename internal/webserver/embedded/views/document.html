@@ -114,7 +114,7 @@
             {{ $length := len .SameSeries }} {{ if gt $length 0 }}
             <div class="row mt-3">
                 <div class="col-12 text-start">
-                    <h4>{{t $lang "Other documents in %s" .Document.Series}}</h4>
+                    <h4>{{t $lang "Other documents in collection \"%s\"" .Document.Series}}</h4>
                 </div>
             </div>
             {{template "partials/related" dict "Lang" $lang "Related" .SameSeries}}
@@ -124,7 +124,7 @@
             <div class="row mt-3">
                 <div class="col-12 text-start">
                     <h4>
-                        {{t $lang "Other documents by "}}
+                        {{t $lang "Other documents by"}}
                         {{range $i, $author := $document.Authors}}
                             {{$author}}{{if notLast $document.Authors $i}}, {{end}}
                         {{end}}

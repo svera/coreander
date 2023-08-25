@@ -69,39 +69,11 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*contr
 }
 
 func (b *BleveIndexer) runQuery(query query.Query, results int) ([]metadata.Metadata, error) {
-	var result []metadata.Metadata
-
-	searchOptions := bleve.NewSearchRequestOptions(query, results, 0, false)
-	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type", "Subjects"}
-	searchResult, err := b.idx.Search(searchOptions)
+	res, err := b.runPaginatedQuery(query, 0, results)
 	if err != nil {
 		return nil, err
 	}
-	if searchResult.Total == 0 {
-		return result, nil
-	}
-
-	result = make([]metadata.Metadata, results)
-
-	for i, val := range searchResult.Hits {
-		doc := metadata.Metadata{
-			ID:          val.ID,
-			BaseName:    filepath.Base(val.ID),
-			Slug:        val.Fields["Slug"].(string),
-			Title:       val.Fields["Title"].(string),
-			Authors:     slicer(val.Fields["Authors"]),
-			Description: template.HTML(val.Fields["Description"].(string)),
-			Year:        val.Fields["Year"].(string),
-			Words:       val.Fields["Words"].(float64),
-			Series:      val.Fields["Series"].(string),
-			SeriesIndex: val.Fields["SeriesIndex"].(float64),
-			Pages:       int(val.Fields["Pages"].(float64)),
-			Type:        val.Fields["Type"].(string),
-			Subjects:    slicer(val.Fields["Subjects"]),
-		}
-		result[i] = doc
-	}
-	return result, nil
+	return res.Hits, nil
 }
 
 func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage int) (*controller.PaginatedResult, error) {
@@ -111,7 +83,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	}
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
-	//searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
+	searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
 	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type", "Subjects"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
@@ -135,10 +107,10 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 		Page:       page,
 		TotalPages: totalPages,
 		TotalHits:  int(searchResult.Total),
-		Hits:       make([]metadata.Metadata, len(searchResult.Hits)),
+		Hits:       make([]metadata.Metadata, 0, len(searchResult.Hits)),
 	}
 
-	for i, val := range searchResult.Hits {
+	for _, val := range searchResult.Hits {
 		doc := metadata.Metadata{
 			ID:          val.ID,
 			BaseName:    filepath.Base(val.ID),
@@ -154,7 +126,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 			Type:        val.Fields["Type"].(string),
 			Subjects:    slicer(val.Fields["Subjects"]),
 		}
-		result.Hits[i] = doc
+		result.Hits = append(result.Hits, doc)
 	}
 	return &result, nil
 }
@@ -201,8 +173,8 @@ func (b *BleveIndexer) Document(slug string) (metadata.Metadata, error) {
 	return doc, nil
 }
 
-// SameSubjects returns an array of metadata of documents by other authors which have similar subjects
-// as the passed one and does not belong to the same collection
+// SameSubjects returns an array of metadata of documents by other authors, different between each other,
+// which have similar subjects as the passed one and does not belong to the same collection
 func (b *BleveIndexer) SameSubjects(slug string, quantity int) ([]metadata.Metadata, error) {
 	doc, err := b.Document(slug)
 	if err != nil {
@@ -229,7 +201,25 @@ func (b *BleveIndexer) SameSubjects(slug string, quantity int) ([]metadata.Metad
 	}
 	bq.AddMustNot(authorsCompoundQuery)
 
-	return b.runQuery(bq, quantity)
+	res := make([]metadata.Metadata, 0, quantity)
+	for i := 0; i < quantity; i++ {
+		doc, err := b.runQuery(bq, 1)
+		if err != nil {
+			return res, err
+		}
+		if len(doc) == 0 {
+			return res, nil
+		}
+		res = append(res, doc[0])
+		for _, author := range doc[0].Authors {
+			qa := bleve.NewMatchPhraseQuery(author)
+			qa.SetField("Authors")
+			authorsCompoundQuery.AddQuery(qa)
+		}
+		bq.AddMustNot(authorsCompoundQuery)
+	}
+
+	return res, err
 }
 
 // SameAuthors returns an array of metadata of documents by the same authors which
