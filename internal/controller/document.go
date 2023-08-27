@@ -9,8 +9,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v3/internal/infrastructure"
 	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
-	"github.com/svera/coreander/v3/internal/metadata"
 )
+
+const relatedDocuments = 4
 
 func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wordsPerMinute float64) error {
 	emailSendingConfigured := true
@@ -40,6 +41,21 @@ func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wo
 		title = fmt.Sprintf("%s - %s | Coreander", authors, document.Title)
 	}
 
+	sameSubjects, err := idx.SameSubjects(document.Slug, relatedDocuments)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	sameAuthors, err := idx.SameAuthors(document.Slug, relatedDocuments)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	sameSeries, err := idx.SameSeries(document.Slug, relatedDocuments)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	return c.Render("document", fiber.Map{
 		"Lang":                   lang,
 		"Title":                  title,
@@ -47,7 +63,10 @@ func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wo
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              sender.From(),
 		"Session":                session,
-		"ReadingTime":            metadata.CalculateReadingTime(document.Words, wordsPerMinute),
+		"SameSeries":             sameSeries,
+		"SameAuthors":            sameAuthors,
+		"SameSubjects":           sameSubjects,
+		"WordsPerMinute":         wordsPerMinute,
 	}, "layout")
 
 }

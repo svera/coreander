@@ -14,12 +14,12 @@ import (
 )
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
-func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPerMinute float64) (*controller.Result, error) {
+func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*controller.PaginatedResult, error) {
 	for _, prefix := range []string{"Authors:", "Series:", "Title:", "Subjects:", "\""} {
 		if strings.HasPrefix(strings.Trim(keywords, " "), prefix) {
 			query := bleve.NewQueryStringQuery(keywords)
 
-			return b.runQuery(query, page, resultsPerPage, wordsPerMinute)
+			return b.runPaginatedQuery(query, page, resultsPerPage)
 		}
 	}
 
@@ -65,11 +65,19 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int, wordsPe
 	subjectCompoundQuery := bleve.NewConjunctionQuery(subjectQueries...)
 
 	compound := bleve.NewDisjunctionQuery(authorCompoundQuery, titleCompoundQuery, seriesCompoundQuery, descriptionCompoundQuery, subjectCompoundQuery)
-	return b.runQuery(compound, page, resultsPerPage, wordsPerMinute)
+	return b.runPaginatedQuery(compound, page, resultsPerPage)
 }
 
-func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wordsPerMinute float64) (*controller.Result, error) {
-	var result controller.Result
+func (b *BleveIndexer) runQuery(query query.Query, results int) ([]metadata.Metadata, error) {
+	res, err := b.runPaginatedQuery(query, 0, results)
+	if err != nil {
+		return nil, err
+	}
+	return res.Hits, nil
+}
+
+func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage int) (*controller.PaginatedResult, error) {
+	var result controller.PaginatedResult
 	if page < 1 {
 		page = 1
 	}
@@ -95,14 +103,14 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 			return nil, err
 		}
 	}
-	result = controller.Result{
+	result = controller.PaginatedResult{
 		Page:       page,
 		TotalPages: totalPages,
 		TotalHits:  int(searchResult.Total),
-		Hits:       make([]metadata.Metadata, len(searchResult.Hits)),
+		Hits:       make([]metadata.Metadata, 0, len(searchResult.Hits)),
 	}
 
-	for i, val := range searchResult.Hits {
+	for _, val := range searchResult.Hits {
 		doc := metadata.Metadata{
 			ID:          val.ID,
 			BaseName:    filepath.Base(val.ID),
@@ -117,9 +125,8 @@ func (b *BleveIndexer) runQuery(query query.Query, page, resultsPerPage int, wor
 			Pages:       int(val.Fields["Pages"].(float64)),
 			Type:        val.Fields["Type"].(string),
 			Subjects:    slicer(val.Fields["Subjects"]),
-			ReadingTime: metadata.CalculateReadingTime(val.Fields["Words"].(float64), wordsPerMinute),
 		}
-		result.Hits[i] = doc
+		result.Hits = append(result.Hits, doc)
 	}
 	return &result, nil
 }
@@ -164,6 +171,95 @@ func (b *BleveIndexer) Document(slug string) (metadata.Metadata, error) {
 	}
 
 	return doc, nil
+}
+
+// SameSubjects returns an array of metadata of documents by other authors, different between each other,
+// which have similar subjects as the passed one and does not belong to the same collection
+func (b *BleveIndexer) SameSubjects(slug string, quantity int) ([]metadata.Metadata, error) {
+	doc, err := b.Document(slug)
+	if err != nil {
+		return []metadata.Metadata{}, err
+	}
+
+	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
+	for _, subject := range doc.Subjects {
+		qu := bleve.NewMatchPhraseQuery(subject)
+		qu.SetField("Subjects")
+		subjectsCompoundQuery.AddQuery(qu)
+	}
+	bq := bleve.NewBooleanQuery()
+	bq.AddMust(subjectsCompoundQuery)
+	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
+	sq := bleve.NewMatchPhraseQuery(doc.Series)
+	sq.SetField("Series")
+	bq.AddMustNot(sq)
+	authorsCompoundQuery := bleve.NewDisjunctionQuery()
+	for _, author := range doc.Authors {
+		qa := bleve.NewMatchPhraseQuery(author)
+		qa.SetField("Authors")
+		authorsCompoundQuery.AddQuery(qa)
+	}
+	bq.AddMustNot(authorsCompoundQuery)
+
+	res := make([]metadata.Metadata, 0, quantity)
+	for i := 0; i < quantity; i++ {
+		doc, err := b.runQuery(bq, 1)
+		if err != nil {
+			return res, err
+		}
+		if len(doc) == 0 {
+			return res, nil
+		}
+		res = append(res, doc[0])
+		for _, author := range doc[0].Authors {
+			qa := bleve.NewMatchPhraseQuery(author)
+			qa.SetField("Authors")
+			authorsCompoundQuery.AddQuery(qa)
+		}
+		bq.AddMustNot(authorsCompoundQuery)
+	}
+
+	return res, err
+}
+
+// SameAuthors returns an array of metadata of documents by the same authors which
+// does not belong to the same collection
+func (b *BleveIndexer) SameAuthors(slug string, quantity int) ([]metadata.Metadata, error) {
+	doc, err := b.Document(slug)
+	if err != nil {
+		return []metadata.Metadata{}, err
+	}
+
+	authorsCompoundQuery := bleve.NewDisjunctionQuery()
+	for _, author := range doc.Authors {
+		qu := bleve.NewMatchPhraseQuery(author)
+		qu.SetField("Authors")
+		authorsCompoundQuery.AddQuery(qu)
+	}
+	bq := bleve.NewBooleanQuery()
+	bq.AddMust(authorsCompoundQuery)
+	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
+	sq := bleve.NewMatchPhraseQuery(doc.Series)
+	sq.SetField("Series")
+	bq.AddMustNot(sq)
+
+	return b.runQuery(bq, quantity)
+}
+
+// SameSeries returns an array of metadata of documents in the same series
+func (b *BleveIndexer) SameSeries(slug string, quantity int) ([]metadata.Metadata, error) {
+	doc, err := b.Document(slug)
+	if err != nil {
+		return []metadata.Metadata{}, err
+	}
+
+	bq := bleve.NewBooleanQuery()
+	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
+	sq := bleve.NewMatchPhraseQuery(doc.Series)
+	sq.SetField("Series")
+	bq.AddMust(sq)
+
+	return b.runQuery(bq, quantity)
 }
 
 func slicer(val interface{}) []string {

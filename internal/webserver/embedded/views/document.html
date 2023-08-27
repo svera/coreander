@@ -84,9 +84,9 @@
                     <h3>{{t $lang "Unknown author"}}</h3>
                     {{end}}
 
-                    {{ if ne .ReadingTime "" }}
+                    {{ if gt .Document.Words 0.0 }}
                     <p class="text-muted"><em>{{t $lang "Estimated reading time"}}:
-                            {{.ReadingTime}}</em></p>
+                            {{.Document.ReadingTime .WordsPerMinute}}</em></p>
                     {{ end }}
 
                     {{ if .Document.Pages }}
@@ -110,6 +110,38 @@
                     {{end}}
                 </div>
             </div>
+
+            {{ $length := len .SameSeries }} {{ if gt $length 0 }}
+            <section class="row mt-3">
+                <div class="col-12 text-start">
+                    <h4>{{t $lang "Other documents in collection \"%s\"" .Document.Series}}</h4>
+                </div>
+                {{template "partials/related" dict "Lang" $lang "Related" .SameSeries}}
+            </section>
+            {{end}}         
+
+            {{ $length := len .SameAuthors }} {{ if gt $length 0 }}
+            <section class="row mt-3">
+                <div class="col-12 text-start">
+                    <h4>
+                        {{t $lang "Other documents by"}}
+                        {{range $i, $author := $document.Authors}}
+                            {{$author}}{{if notLast $document.Authors $i}}, {{end}}
+                        {{end}}
+                    </h4>
+                </div>
+                {{template "partials/related" dict "Lang" $lang "Related" .SameAuthors}}
+            </section>
+            {{end}}   
+
+            {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
+            <section class="row mt-3">
+                <div class="col-12 text-start">
+                    <h4>{{t $lang "Other documents with similar subjects"}}</h4>
+                </div>
+                {{template "partials/related" dict "Lang" $lang "Related" .SameSubjects}}
+            </section>
+            {{end}}         
         </div>
     </div>
 

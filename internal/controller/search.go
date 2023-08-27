@@ -10,8 +10,8 @@ import (
 	"github.com/svera/coreander/v3/internal/model"
 )
 
-// Result holds the result of a search request, as well as some related metadata
-type Result struct {
+// PaginatedResult holds the result of a search request, as well as some related metadata
+type PaginatedResult struct {
 	Page       int
 	TotalPages int
 	Hits       []metadata.Metadata
@@ -25,10 +25,13 @@ type Sender interface {
 
 // IdxReader defines a set of reading operations over an index
 type IdxReader interface {
-	Search(keywords string, page, resultsPerPage int, wordsPerMinute float64) (*Result, error)
+	Search(keywords string, page, resultsPerPage int) (*PaginatedResult, error)
 	Count() (uint64, error)
 	Close() error
 	Document(ID string) (metadata.Metadata, error)
+	SameSubjects(slug string, quantity int) ([]metadata.Metadata, error)
+	SameAuthors(slug string, quantity int) ([]metadata.Metadata, error)
+	SameSeries(slug string, quantity int) ([]metadata.Metadata, error)
 }
 
 func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64) error {
@@ -47,10 +50,10 @@ func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64) 
 		wordsPerMinute = session.WordsPerMinute
 	}
 
-	var searchResults *Result
+	var searchResults *PaginatedResult
 
 	if keywords := c.Query("search"); keywords != "" {
-		if searchResults, err = idx.Search(keywords, page, model.ResultsPerPage, wordsPerMinute); err != nil {
+		if searchResults, err = idx.Search(keywords, page, model.ResultsPerPage); err != nil {
 			return fiber.ErrInternalServerError
 		}
 
@@ -64,6 +67,7 @@ func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64) 
 			"EmailSendingConfigured": emailSendingConfigured,
 			"EmailFrom":              sender.From(),
 			"Session":                session,
+			"WordsPerMinute":         wordsPerMinute,
 		}, "layout")
 	}
 	count, err := idx.Count()

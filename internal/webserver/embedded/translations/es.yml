@@ -95,3 +95,6 @@
 "This action cannot be undone": "Esta acción no se puede deshacer"
 "Delete document": "Eliminar documento"
 "There was an error deleting the document": "Ocurrió un error al intentar borrar el documento"
+"Other documents with similar subjects": "Otros documentos de temática similar"
+"Other documents by": "Otros documentos de"
+"Other documents in collection \"%s\"": "Otros documentos en la colección \"%s\""
