@@ -11,6 +11,8 @@ import (
 	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
 )
 
+const relatedDocuments = 4
+
 func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wordsPerMinute float64) error {
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
@@ -39,17 +41,17 @@ func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wo
 		title = fmt.Sprintf("%s - %s | Coreander", authors, document.Title)
 	}
 
-	sameSubjects, err := idx.SameSubjects(document.Slug, 4)
+	sameSubjects, err := idx.SameSubjects(document.Slug, relatedDocuments)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	sameAuthors, err := idx.SameAuthors(document.Slug, 4)
+	sameAuthors, err := idx.SameAuthors(document.Slug, relatedDocuments)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	sameSeries, err := idx.SameSeries(document.Slug, 4)
+	sameSeries, err := idx.SameSeries(document.Slug, relatedDocuments)
 	if err != nil {
 		fmt.Println(err)
 	}
