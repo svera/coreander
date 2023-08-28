@@ -5,19 +5,17 @@
 {{$document := .Document}}
 
 <div class="container">
-    <div class="row mt-5">
-        <div class="alert visually-hidden" role="alert" id="send-email-message">
-            
-        </div>
+    <div class="row mt-5 visually-hidden">
+        <div class="alert" role="alert" id="send-email-message"></div>
     </div>
 
     <div class="row mt-5">
         <div class="col-md-4 col-sm-12">
             <img src="/images/generic.jpg" data-src="/cover/{{.Document.Slug}}" loading="lazy"
-                class="border border-2 border-dark text-center mb-3 cover img-fluid"
+                class="border border-2 border-dark mb-3 cover img-fluid"
                 alt='{{t $lang "\"%s\" cover" .Document.Title}}'>
 
-            <div class="d-grid gap-2 px-5 mb-5">
+            <div class="d-grid gap-2 mb-5">
                 <a href="/{{$lang}}/read/{{.Document.Slug}}" class="btn btn-primary">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16">
                         <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
@@ -181,7 +179,7 @@
         })
             .then((response) => {
                 message = document.getElementById("send-email-message")
-                message.classList.remove("visually-hidden");
+                message.parentNode.classList.remove("visually-hidden");
                 if (!response.ok) {
                     message.innerHTML = '{{t .Lang "There was an error sending the document, please try again later"}}';
                     message.classList.add("alert-danger");

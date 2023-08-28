@@ -58,7 +58,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs) *fiber.A
 	}
 
 	webserverConfig := webserver.Config{
-		CoverMaxWidth:  300,
+		CoverMaxWidth:  600,
 		SessionTimeout: 24 * time.Hour,
 		LibraryPath:    "fixtures",
 	}

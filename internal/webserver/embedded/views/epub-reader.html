@@ -18,7 +18,7 @@
 </head>
 
 <body class="text-center d-flex flex-column h-100">
-    <header>
+    <header class="visually-hidden">
         <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top">
             <div class="container justify-content-center">
                 <ul class="navbar-nav">
@@ -93,6 +93,7 @@
                     loading = document.getElementById("loading");
 
                 if (loading) {
+                    document.getElementsByClassName("visually-hidden")[0].classList.remove("visually-hidden");
                     loading.remove();
                 }
                 

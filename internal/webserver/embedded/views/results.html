@@ -155,10 +155,11 @@
         .then((response) => {
             if (response.ok) {
                 location.reload();
+            } else {
+                message = document.getElementById("delete-document-message")
+                message.classList.remove("visually-hidden");
+                message.innerHTML = '{{t .Lang "There was an error deleting the document"}}';
             }
-            message = document.getElementById("delete-document-message")
-            message.classList.remove("visually-hidden");
-            message.innerHTML = '{{t .Lang "There was an error deleting the document"}}';
         })
         .catch(function (error) {
             // Catch errors
