@@ -2,7 +2,7 @@
 
 <div class="row mt-3">
     {{range $i, $doc := .Related}}
-    <div class="col-6 col-md-3">
+    <div class="col-6 col-lg-3">
         <div class="card border-0">
             <img src="/images/generic.jpg" data-src="/cover/{{$doc.Slug}}" loading="lazy" class="card-img-top border border-1 border-dark rounded-0 cover" alt='{{t $lang "\"%s\" cover" $doc.Title}}'>
             <div class="card-body">

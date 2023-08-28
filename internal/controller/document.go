@@ -67,6 +67,7 @@ func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wo
 		"SameAuthors":            sameAuthors,
 		"SameSubjects":           sameSubjects,
 		"WordsPerMinute":         wordsPerMinute,
+		"Version":                c.App().Config().AppName,
 	}, "layout")
 
 }

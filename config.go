@@ -11,7 +11,7 @@ type Config struct {
 	// BatchSize indicates the number of documents persisted by the indexer in one operation
 	BatchSize int `env:"BATCH_SIZE" env-default:"100"`
 	// CoverMaxWidth sets the maximum horizontal size for documents cover thumbnails in pixels
-	CoverMaxWidth int `env:"COVER_MAX_WIDTH" env-default:"300"`
+	CoverMaxWidth int `env:"COVER_MAX_WIDTH" env-default:"600"`
 	// SkipIndexing signals whether to bypass the indexing process or not
 	SkipIndexing bool `env:"SKIP_INDEXING" env-default:"false"`
 	// SmtpServer points to the address of the send mail server

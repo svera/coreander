@@ -93,8 +93,8 @@ On first run, Coreander creates an admin user with the following credentials:
 
 * `LIB_PATH`: Absolute path to the folder containing the documents.
 * `PORT`: Port number in which the webserver listens for requests. Defaults to 3000.
-* `BATCH_SIZE`: Number of documents persisted by the indexer in one write operation. defaults to 100.
-* `COVER_MAX_WIDTH`: Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 300.
+* `BATCH_SIZE`: Number of documents persisted by the indexer in one write operation. Defaults to 100.
+* `COVER_MAX_WIDTH`: Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 600.
 * `SKIP_INDEXING`: Whether to bypass the indexing process or not.
 * `SMTP_SERVER`: Address of the send mail server.
 * `SMTP_PORT`: Port number of the send mail server. Defaults to 587.
