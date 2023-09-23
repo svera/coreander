@@ -24,7 +24,7 @@
                             {{ if ne $book.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
                             $book.Series}}
                             <p class="text-start text-muted text-uppercase mb-0"><a
-                                    href="/{{$lang}}?search=Series&colon;&quot;{{$book.Series}}&quot;"
+                                    href="/{{$lang}}?search=SeriesEq&colon;&quot;{{$book.Series}}&quot;"
                                     title={{$seriesTitle}}>{{$book.Series}} {{$book.SeriesIndex}}</a></p>
                             {{ end }}
                             <h4 class="text-start">
@@ -42,7 +42,7 @@
                             <h5>
                                 {{range $i, $author := $book.Authors}}
                                 {{$authorTitle := t $lang "Search for more titles by %s" $author}}
-                                <a href="/{{$lang}}?search=Authors&colon;&quot;{{$author}}&quot;" title={{$authorTitle}}>{{$author}}</a>{{if notLast $book.Authors $i}}, {{end}}
+                                <a href="/{{$lang}}?search=AuthorsEq&colon;&quot;{{$author}}&quot;" title={{$authorTitle}}>{{$author}}</a>{{if notLast $book.Authors $i}}, {{end}}
                                 {{end}}
                             </h5>
                             {{else}}

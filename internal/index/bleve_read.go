@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"html/template"
 	"math"
+	"net/url"
 	"path/filepath"
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search/query"
+	"github.com/gosimple/slug"
 	"github.com/svera/coreander/v3/internal/controller"
 	"github.com/svera/coreander/v3/internal/metadata"
 )
@@ -20,6 +22,25 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*contr
 			query := bleve.NewQueryStringQuery(keywords)
 
 			return b.runPaginatedQuery(query, page, resultsPerPage)
+		}
+	}
+
+	for _, prefix := range []string{"AuthorsEq:", "SeriesEq:"} {
+		unescaped, err := url.QueryUnescape(strings.TrimSpace(keywords))
+		if err != nil {
+			break
+		}
+		if strings.HasPrefix(unescaped, prefix) {
+			unescaped = strings.Replace(unescaped, prefix, "", 1)
+			terms := strings.Split(unescaped, ",")
+			qb := bleve.NewDisjunctionQuery()
+			for _, term := range terms {
+				term = strings.ReplaceAll(slug.Make(term), "-", "")
+				qs := bleve.NewTermQuery(term)
+				qs.SetField(strings.TrimSuffix(prefix, ":"))
+				qb.AddQuery(qs)
+			}
+			return b.runPaginatedQuery(qb, page, resultsPerPage)
 		}
 	}
 

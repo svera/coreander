@@ -70,6 +70,7 @@ func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64) 
 			"WordsPerMinute":         wordsPerMinute,
 		}, "layout")
 	}
+
 	count, err := idx.Count()
 	if err != nil {
 		return fiber.ErrInternalServerError
