@@ -2,6 +2,7 @@ package index
 
 import (
 	"log"
+	"path/filepath"
 	"strings"
 
 	"github.com/blevesearch/bleve/analysis/token/lowercase"
@@ -23,7 +24,7 @@ type BleveIndexer struct {
 func NewBleve(index bleve.Index, libraryPath string, read map[string]metadata.Reader) *BleveIndexer {
 	return &BleveIndexer{
 		index,
-		strings.TrimSuffix(libraryPath, "/"),
+		strings.TrimSuffix(libraryPath, string(filepath.Separator)),
 		read,
 	}
 }

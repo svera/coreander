@@ -72,7 +72,7 @@
                     <h3>
                         {{range $i, $author := .Document.Authors}}
                         {{$authorTitle := t $lang "Search for more titles by %s" $author}}
-                        <a href="/{{$lang}}?search=Authors&colon;&quot;{{$author}}&quot;"
+                        <a href="/{{$lang}}?search=AuthorsEq&colon;&quot;{{$author}}&quot;"
                             title={{$authorTitle}}>{{$author}}</a>{{if notLast $document.Authors $i}}, {{end}}
                         {{end}}
                     </h3>

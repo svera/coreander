@@ -9,7 +9,6 @@ import (
 
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/metadata"
 )
 
 // AddFile adds a file to the index
@@ -23,11 +22,21 @@ func (b *BleveIndexer) AddFile(file string) error {
 		return fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
 
-	docSlug := makeSlug(meta)
-	meta = b.setID(meta, file)
-	meta.Slug = b.checkSlug(meta.ID, docSlug, nil)
+	document := Document{
+		Metadata: meta,
+	}
 
-	err = b.idx.Index(meta.ID, meta)
+	docSlug := makeSlug(document)
+	document = b.setID(document, file)
+	document.Slug = b.checkSlug(document.ID, docSlug, nil)
+	document.SeriesEq = strings.ReplaceAll(slug.Make(document.Series), "-", "")
+	document.AuthorsEq = make([]string, len(document.Authors))
+	copy(document.AuthorsEq, meta.Authors)
+	for i := range document.AuthorsEq {
+		document.AuthorsEq[i] = strings.ReplaceAll(slug.Make(document.AuthorsEq[i]), "-", "")
+	}
+
+	err = b.idx.Index(document.ID, document)
 	if err != nil {
 		return fmt.Errorf("error indexing file %s: %s", file, err)
 	}
@@ -37,7 +46,7 @@ func (b *BleveIndexer) AddFile(file string) error {
 // RemoveFile removes a file from the index
 func (b *BleveIndexer) RemoveFile(file string) error {
 	file = strings.Replace(file, b.libraryPath, "", 1)
-	file = strings.TrimPrefix(file, "/")
+	file = strings.TrimPrefix(file, string(filepath.Separator))
 	if err := b.idx.Delete(file); err != nil {
 		return err
 	}
@@ -59,12 +68,23 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 			return nil
 		}
 
-		docSlug := makeSlug(meta)
-		meta = b.setID(meta, fullPath)
-		meta.Slug = b.checkSlug(meta.ID, docSlug, batchSlugs)
+		document := Document{
+			Metadata: meta,
+		}
+
+		docSlug := makeSlug(document)
+		document = b.setID(document, fullPath)
+		document.Slug = b.checkSlug(document.ID, docSlug, batchSlugs)
+		document.SeriesEq = strings.ReplaceAll(slug.Make(document.Series), "-", "")
+		document.AuthorsEq = make([]string, len(document.Authors))
+		copy(document.AuthorsEq, meta.Authors)
+		for i := range document.AuthorsEq {
+			document.AuthorsEq[i] = strings.ReplaceAll(slug.Make(document.AuthorsEq[i]), "-", "")
+		}
+
 		batchSlugs[docSlug] = struct{}{}
 
-		err = batch.Index(meta.ID, meta)
+		err = batch.Index(document.ID, document)
 		if err != nil {
 			log.Printf("Error indexing file %s: %s\n", fullPath, err)
 			return nil
@@ -103,14 +123,14 @@ func (b *BleveIndexer) checkSlug(ID, docSlug string, batchSlugs map[string]struc
 	}
 }
 
-func (b *BleveIndexer) setID(meta metadata.Metadata, file string) metadata.Metadata {
+func (b *BleveIndexer) setID(meta Document, file string) Document {
 	meta.ID = strings.ReplaceAll(file, b.libraryPath, "")
 	meta.ID = strings.TrimPrefix(meta.ID, "/")
 
 	return meta
 }
 
-func makeSlug(meta metadata.Metadata) string {
+func makeSlug(meta Document) string {
 	docSlug := meta.Title
 	if len(meta.Authors) > 0 {
 		docSlug = strings.Join(meta.Authors, ", ") + "-" + docSlug

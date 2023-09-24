@@ -4,19 +4,11 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/infrastructure"
 	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
-	"github.com/svera/coreander/v3/internal/metadata"
 	"github.com/svera/coreander/v3/internal/model"
 )
-
-// PaginatedResult holds the result of a search request, as well as some related metadata
-type PaginatedResult struct {
-	Page       int
-	TotalPages int
-	Hits       []metadata.Metadata
-	TotalHits  int
-}
 
 type Sender interface {
 	SendDocument(address string, libraryPath string, fileName string) error
@@ -25,13 +17,13 @@ type Sender interface {
 
 // IdxReader defines a set of reading operations over an index
 type IdxReader interface {
-	Search(keywords string, page, resultsPerPage int) (*PaginatedResult, error)
+	Search(keywords string, page, resultsPerPage int) (*index.PaginatedResult, error)
 	Count() (uint64, error)
 	Close() error
-	Document(ID string) (metadata.Metadata, error)
-	SameSubjects(slug string, quantity int) ([]metadata.Metadata, error)
-	SameAuthors(slug string, quantity int) ([]metadata.Metadata, error)
-	SameSeries(slug string, quantity int) ([]metadata.Metadata, error)
+	Document(ID string) (index.Document, error)
+	SameSubjects(slug string, quantity int) ([]index.Document, error)
+	SameAuthors(slug string, quantity int) ([]index.Document, error)
+	SameSeries(slug string, quantity int) ([]index.Document, error)
 }
 
 func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64) error {
@@ -50,7 +42,7 @@ func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64) 
 		wordsPerMinute = session.WordsPerMinute
 	}
 
-	var searchResults *PaginatedResult
+	var searchResults *index.PaginatedResult
 
 	if keywords := c.Query("search"); keywords != "" {
 		if searchResults, err = idx.Search(keywords, page, model.ResultsPerPage); err != nil {

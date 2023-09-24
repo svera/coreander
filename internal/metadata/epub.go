@@ -14,7 +14,6 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/disintegration/imaging"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gosimple/slug"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/pirmd/epub"
 )
@@ -31,21 +30,17 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	if len(opf.Metadata.Title) > 0 && len(opf.Metadata.Title[0].Value) > 0 {
 		title = opf.Metadata.Title[0].Value
 	}
-	var authors, authorsEq []string
+	var authors []string
 	if len(opf.Metadata.Creator) > 0 {
 		for _, creator := range opf.Metadata.Creator {
 			if creator.Role == "aut" || creator.Role == "" {
 				// Some epub files mistakenly put all authors in a single field instead of using a field for each one.
 				// We want to identify those cases looking for specific separators and then indexing each author properly.
 				names := strings.Split(creator.Value, "&")
-				namesEq := make([]string, len(names))
-				copy(namesEq, names)
 				for i := range names {
 					names[i] = strings.TrimSpace(names[i])
-					namesEq[i] = strings.ReplaceAll(slug.Make(namesEq[i]), "-", "")
 				}
 				authors = append(authors, names...)
-				authorsEq = append(authorsEq, namesEq...)
 			}
 		}
 	}
@@ -120,13 +115,11 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	bk = Metadata{
 		Title:       title,
 		Authors:     authors,
-		AuthorsEq:   authorsEq,
 		Description: template.HTML(description),
 		Language:    language,
 		Year:        year,
 		Cover:       cover,
 		Series:      series,
-		SeriesEq:    strings.ReplaceAll(slug.Make(series), "-", ""),
 		SeriesIndex: seriesIndex,
 		Type:        "EPUB",
 		Subjects:    subjects,

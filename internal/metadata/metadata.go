@@ -7,19 +7,14 @@ import (
 )
 
 type Metadata struct {
-	ID          string
-	BaseName    string
-	Slug        string
 	Title       string
 	Authors     []string
-	AuthorsEq   []string
 	Description template.HTML
 	Language    string
 	Year        string
 	Words       float64
 	Cover       string
 	Series      string
-	SeriesEq    string
 	SeriesIndex float64
 	Pages       int
 	Type        string
