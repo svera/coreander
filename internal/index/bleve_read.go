@@ -32,7 +32,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Pagin
 		}
 	}
 
-	for _, prefix := range []string{"AuthorsEq:", "SeriesEq:"} {
+	for _, prefix := range []string{"AuthorsEq:", "SeriesEq:", "SubjectsEq:"} {
 		unescaped, err := url.QueryUnescape(strings.TrimSpace(keywords))
 		if err != nil {
 			break

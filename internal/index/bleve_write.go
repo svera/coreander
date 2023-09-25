@@ -22,8 +22,10 @@ func (b *BleveIndexer) AddFile(file string) error {
 		return fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
 
-	document := Document{
-		Metadata: meta,
+	document := DocumentWrite{
+		Document: Document{
+			Metadata: meta,
+		},
 	}
 
 	docSlug := makeSlug(document)
@@ -34,6 +36,11 @@ func (b *BleveIndexer) AddFile(file string) error {
 	copy(document.AuthorsEq, meta.Authors)
 	for i := range document.AuthorsEq {
 		document.AuthorsEq[i] = strings.ReplaceAll(slug.Make(document.AuthorsEq[i]), "-", "")
+	}
+	document.SubjectsEq = make([]string, len(document.Subjects))
+	copy(document.SubjectsEq, meta.Subjects)
+	for i := range document.SubjectsEq {
+		document.SubjectsEq[i] = strings.ReplaceAll(slug.Make(document.SubjectsEq[i]), "-", "")
 	}
 
 	err = b.idx.Index(document.ID, document)
@@ -68,8 +75,10 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 			return nil
 		}
 
-		document := Document{
-			Metadata: meta,
+		document := DocumentWrite{
+			Document: Document{
+				Metadata: meta,
+			},
 		}
 
 		docSlug := makeSlug(document)
@@ -80,6 +89,11 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 		copy(document.AuthorsEq, meta.Authors)
 		for i := range document.AuthorsEq {
 			document.AuthorsEq[i] = strings.ReplaceAll(slug.Make(document.AuthorsEq[i]), "-", "")
+		}
+		document.SubjectsEq = make([]string, len(document.Subjects))
+		copy(document.SubjectsEq, meta.Subjects)
+		for i := range document.SubjectsEq {
+			document.SubjectsEq[i] = strings.ReplaceAll(slug.Make(document.SubjectsEq[i]), "-", "")
 		}
 
 		batchSlugs[docSlug] = struct{}{}
@@ -123,14 +137,14 @@ func (b *BleveIndexer) checkSlug(ID, docSlug string, batchSlugs map[string]struc
 	}
 }
 
-func (b *BleveIndexer) setID(meta Document, file string) Document {
+func (b *BleveIndexer) setID(meta DocumentWrite, file string) DocumentWrite {
 	meta.ID = strings.ReplaceAll(file, b.libraryPath, "")
 	meta.ID = strings.TrimPrefix(meta.ID, "/")
 
 	return meta
 }
 
-func makeSlug(meta Document) string {
+func makeSlug(meta DocumentWrite) string {
 	docSlug := meta.Title
 	if len(meta.Authors) > 0 {
 		docSlug = strings.Join(meta.Authors, ", ") + "-" + docSlug
