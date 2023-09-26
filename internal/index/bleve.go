@@ -59,6 +59,8 @@ func Mapping() *mapping.IndexMappingImpl {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("SeriesEq", seriesEqFieldMapping)
 	authorsEqFieldMapping := bleve.NewKeywordFieldMapping()
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AuthorsEq", authorsEqFieldMapping)
+	subjectsEqFieldMapping := bleve.NewKeywordFieldMapping()
+	indexMapping.DefaultMapping.AddFieldMappingsAt("SubjectsEq", subjectsEqFieldMapping)
 
 	return indexMapping
 }
