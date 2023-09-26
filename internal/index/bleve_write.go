@@ -136,5 +136,5 @@ func makeSlug(meta DocumentWrite) string {
 		docSlug = strings.Join(meta.Authors, ", ") + "-" + docSlug
 	}
 
-	return slug.Make(docSlug)
+	return slug.MakeLang(docSlug, meta.Language)
 }

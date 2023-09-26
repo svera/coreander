@@ -31,7 +31,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Pagin
 		if !strings.HasPrefix(unescaped, prefix) {
 			continue
 		}
-		unescaped = strings.Replace(unescaped, prefix, "", 1)
+		unescaped = strings.TrimPrefix(unescaped, prefix)
 		terms := strings.Split(unescaped, ",")
 		qb := bleve.NewDisjunctionQuery()
 		for _, term := range terms {
