@@ -4,9 +4,8 @@ import "github.com/svera/coreander/v3/internal/metadata"
 
 type Document struct {
 	metadata.Metadata
-	ID       string
-	BaseName string
-	Slug     string
+	ID   string
+	Slug string
 }
 
 // DocumentWrite is an extension to Document that is used only when writing to the index,

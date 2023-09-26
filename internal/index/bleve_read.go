@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"math"
 	"net/url"
-	"path/filepath"
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
@@ -140,9 +139,8 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 
 	for _, val := range searchResult.Hits {
 		doc := Document{
-			ID:       val.ID,
-			BaseName: filepath.Base(val.ID),
-			Slug:     val.Fields["Slug"].(string),
+			ID:   val.ID,
+			Slug: val.Fields["Slug"].(string),
 			Metadata: metadata.Metadata{
 				Title:       val.Fields["Title"].(string),
 				Authors:     slicer(val.Fields["Authors"]),
@@ -185,9 +183,8 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 	}
 
 	doc = Document{
-		ID:       searchResult.Hits[0].ID,
-		BaseName: filepath.Base(searchResult.Hits[0].ID),
-		Slug:     searchResult.Hits[0].Fields["Slug"].(string),
+		ID:   searchResult.Hits[0].ID,
+		Slug: searchResult.Hits[0].Fields["Slug"].(string),
 		Metadata: metadata.Metadata{
 			Title:       searchResult.Hits[0].Fields["Title"].(string),
 			Authors:     slicer(searchResult.Hits[0].Fields["Authors"]),

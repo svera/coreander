@@ -60,8 +60,6 @@ func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wo
 		"Lang":                   lang,
 		"Title":                  title,
 		"Document":               document,
-		"Authors":                strings.Join(document.Authors, ","),
-		"Subjects":               strings.Join(document.Subjects, ","),
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              sender.From(),
 		"Session":                session,

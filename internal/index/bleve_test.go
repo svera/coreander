@@ -75,9 +75,8 @@ func testCases() []testCase {
 				TotalHits:  1,
 				Hits: []index.Document{
 					{
-						ID:       "book1.epub",
-						BaseName: "book1.epub",
-						Slug:     "perez-test-a",
+						ID:   "book1.epub",
+						Slug: "perez-test-a",
 						Metadata: metadata.Metadata{
 							Title:       "Test A",
 							Authors:     []string{"Pérez"},
@@ -105,9 +104,8 @@ func testCases() []testCase {
 				TotalHits:  1,
 				Hits: []index.Document{
 					{
-						ID:       "book2.epub",
-						BaseName: "book2.epub",
-						Slug:     "benoit-test-b",
+						ID:   "book2.epub",
+						Slug: "benoit-test-b",
 						Metadata: metadata.Metadata{
 							Title:       "Test B",
 							Authors:     []string{"Benoît"},
@@ -135,9 +133,8 @@ func testCases() []testCase {
 				TotalHits:  1,
 				Hits: []index.Document{
 					{
-						ID:       "book3.epub",
-						BaseName: "book3.epub",
-						Slug:     "clifford-d-simak-test-c",
+						ID:   "book3.epub",
+						Slug: "clifford-d-simak-test-c",
 						Metadata: metadata.Metadata{
 							Title:       "Test C",
 							Authors:     []string{"Clifford D. Simak"},
@@ -165,9 +162,8 @@ func testCases() []testCase {
 				TotalHits:  1,
 				Hits: []index.Document{
 					{
-						ID:       "book4.epub",
-						BaseName: "book4.epub",
-						Slug:     "james-ellroy-test-d",
+						ID:   "book4.epub",
+						Slug: "james-ellroy-test-d",
 						Metadata: metadata.Metadata{Title: "Test D",
 							Authors:     []string{"James Ellroy"},
 							Description: "Just test metadata",
@@ -194,9 +190,8 @@ func testCases() []testCase {
 				TotalHits:  1,
 				Hits: []index.Document{
 					{
-						ID:       "book5.epub",
-						BaseName: "book5.epub",
-						Slug:     "james-ellroy-test-e",
+						ID:   "book5.epub",
+						Slug: "james-ellroy-test-e",
 						Metadata: metadata.Metadata{Title: "Test E",
 							Authors:     []string{"James Ellroy"},
 							Description: "Just test metadata",

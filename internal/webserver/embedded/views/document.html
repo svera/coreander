@@ -70,10 +70,7 @@
                 <div class="col-12 text-start">
                     {{if .Document.Authors}}
                     <h3>
-                        {{range $i, $author := .Document.Authors}}
-                        {{$authorTitle := t $lang "Search for more titles by %s" $author}}
-                            {{$author}}{{if notLast $document.Authors $i}}, {{end}}
-                        {{end}}
+                        {{join $document.Authors ", "}}
                     </h3>
                     {{else}}
                     <h3>{{t $lang "Unknown author"}}</h3>
@@ -107,7 +104,7 @@
             </div>
 
             {{ $length := len .SameSeries }} {{ if gt $length 0 }}
-            <section class="row mt-3">
+            <section class="row mt-5">
                 <div class="col-9 text-start">
                     <h4>{{t $lang "Other documents in collection \"%s\"" .Document.Series}}</h4>
                 </div>
@@ -121,17 +118,15 @@
             {{end}}         
 
             {{ $length := len .SameAuthors }} {{ if gt $length 0 }}
-            <section class="row mt-3">
+            <section class="row mt-5">
                 <div class="col-9 text-start">
                     <h4>
                         {{t $lang "Other documents by"}}
-                        {{range $i, $author := $document.Authors}}
-                            {{$author}}{{if notLast $document.Authors $i}}, {{end}}
-                        {{end}}
+                        {{join $document.Authors ", "}}
                     </h4>
                 </div>
                 <div class="col-3 text-end">
-                    <a  href="/{{$lang}}?search=AuthorsEq&colon;&quot;{{.Authors}}&quot;">
+                    <a  href='/{{$lang}}?search=AuthorsEq&colon;&quot;{{join $document.Authors ","}}&quot;'>
                             {{t $lang "See all" }}</a>
                 </div>
 
@@ -140,12 +135,12 @@
             {{end}}   
 
             {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
-            <section class="row mt-3">
+            <section class="row mt-5">
                 <div class="col-9 text-start">
                     <h4>{{t $lang "Other documents with similar subjects"}}</h4>
                 </div>
                 <div class="col-3 text-end">
-                    <a  href="/{{$lang}}?search=SubjectsEq&colon;&quot;{{.Subjects}}&quot;">
+                    <a  href='/{{$lang}}?search=SubjectsEq&colon;&quot;{{join $document.Subjects ","}}&quot;'>
                             {{t $lang "See all" }}</a>
                 </div>
 
