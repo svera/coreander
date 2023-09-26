@@ -9,9 +9,7 @@
             <h5 class="card-title"><a href="/{{$lang}}/document/{{$doc.Slug}}">{{$doc.Title}}</a></h5>
             {{if $doc.Authors}}
             <p class="card-text">
-                {{range $i, $author := $doc.Authors}}
-                    {{$author}}{{if notLast $doc.Authors $i}}, {{end}}
-                {{end}}
+                {{join $doc.Authors ", "}}
             </p>
             {{else}}
             <p class="card-text">{{t $lang "Unknown author"}}</p>
