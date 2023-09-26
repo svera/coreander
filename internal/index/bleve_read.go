@@ -13,14 +13,6 @@ import (
 	"github.com/svera/coreander/v3/internal/metadata"
 )
 
-// PaginatedResult holds the result of a search request, as well as some related metadata
-type PaginatedResult struct {
-	Page       int
-	TotalPages int
-	Hits       []Document
-	TotalHits  int
-}
-
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
 func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*PaginatedResult, error) {
 	for _, prefix := range []string{"Authors:", "Series:", "Title:", "Subjects:", "\""} {
@@ -36,18 +28,19 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Pagin
 		if err != nil {
 			break
 		}
-		if strings.HasPrefix(unescaped, prefix) {
-			unescaped = strings.Replace(unescaped, prefix, "", 1)
-			terms := strings.Split(unescaped, ",")
-			qb := bleve.NewDisjunctionQuery()
-			for _, term := range terms {
-				term = strings.ReplaceAll(slug.Make(term), "-", "")
-				qs := bleve.NewTermQuery(term)
-				qs.SetField(strings.TrimSuffix(prefix, ":"))
-				qb.AddQuery(qs)
-			}
-			return b.runPaginatedQuery(qb, page, resultsPerPage)
+		if !strings.HasPrefix(unescaped, prefix) {
+			continue
 		}
+		unescaped = strings.Replace(unescaped, prefix, "", 1)
+		terms := strings.Split(unescaped, ",")
+		qb := bleve.NewDisjunctionQuery()
+		for _, term := range terms {
+			term = strings.ReplaceAll(slug.Make(term), "-", "")
+			qs := bleve.NewTermQuery(term)
+			qs.SetField(strings.TrimSuffix(prefix, ":"))
+			qb.AddQuery(qs)
+		}
+		return b.runPaginatedQuery(qb, page, resultsPerPage)
 	}
 
 	splitted := strings.Split(strings.TrimSpace(keywords), " ")

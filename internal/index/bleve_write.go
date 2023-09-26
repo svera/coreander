@@ -84,17 +84,17 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 		Document: Document{
 			Metadata: meta,
 		},
+		SeriesEq:   strings.ReplaceAll(slug.Make(meta.Series), "-", ""),
+		AuthorsEq:  make([]string, len(meta.Authors)),
+		SubjectsEq: make([]string, len(meta.Subjects)),
 	}
 
 	document.ID = b.ID(document, fullPath)
 	document.Slug = b.Slug(document, batchSlugs)
-	document.SeriesEq = strings.ReplaceAll(slug.Make(document.Series), "-", "")
-	document.AuthorsEq = make([]string, len(document.Authors))
 	copy(document.AuthorsEq, meta.Authors)
 	for i := range document.AuthorsEq {
 		document.AuthorsEq[i] = strings.ReplaceAll(slug.Make(document.AuthorsEq[i]), "-", "")
 	}
-	document.SubjectsEq = make([]string, len(document.Subjects))
 	copy(document.SubjectsEq, meta.Subjects)
 	for i := range document.SubjectsEq {
 		document.SubjectsEq[i] = strings.ReplaceAll(slug.Make(document.SubjectsEq[i]), "-", "")
