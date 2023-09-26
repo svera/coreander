@@ -10,7 +10,7 @@
     </div>
 
     <div class="row mt-5">
-        <div class="col-md-4 col-sm-12">
+        <div class="col-md-4 col-sm-12 pe-3">
             <img src="/images/generic.jpg" data-src="/cover/{{.Document.Slug}}" loading="lazy"
                 class="border border-2 border-dark mb-3 cover img-fluid"
                 alt='{{t $lang "\"%s\" cover" .Document.Title}}'>
@@ -54,14 +54,12 @@
                 {{end}}
             </div>
         </div>
-        <div class="col-md-8 col-sm-12">
+        <div class="col-md-8 col-sm-12 ps-3">
             <div class="row">
                 <div class="col-12">
                     {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
                     .Document.Series}}
-                    <p class="text-start text-muted text-uppercase mb-1"><a
-                            href="/{{$lang}}?search=Series&colon;&quot;{{.Document.Series}}&quot;"
-                            title={{$seriesTitle}}>{{.Document.Series}} {{.Document.SeriesIndex}}</a></p>
+                    <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}} {{.Document.SeriesIndex}}</p>
                     {{ end }}
                     <h2 class="text-start">
                         {{.Document.Title}} <small class="small text-muted">{{.Document.Year}}</small>
@@ -72,11 +70,7 @@
                 <div class="col-12 text-start">
                     {{if .Document.Authors}}
                     <h3>
-                        {{range $i, $author := .Document.Authors}}
-                        {{$authorTitle := t $lang "Search for more titles by %s" $author}}
-                        <a href="/{{$lang}}?search=Authors&colon;&quot;{{$author}}&quot;"
-                            title={{$authorTitle}}>{{$author}}</a>{{if notLast $document.Authors $i}}, {{end}}
-                        {{end}}
+                        {{join $document.Authors ", "}}
                     </h3>
                     {{else}}
                     <h3>{{t $lang "Unknown author"}}</h3>
@@ -95,7 +89,7 @@
                     <div class="my-3">
                         {{range $i, $subject := .Document.Subjects}}
                         {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                        <a class="btn btn-secondary btn-sm" href="/{{$lang}}?search=Subjects&colon;&quot;{{$subject}}&quot;"
+                        <a class="btn btn-secondary btn-sm" href="/{{$lang}}?search=SubjectsEq&colon;&quot;{{$subject}}&quot;"
                             title={{$subjectTitle}}>{{$subject}}</a>
                         {{end}}
                     </div>
@@ -110,33 +104,46 @@
             </div>
 
             {{ $length := len .SameSeries }} {{ if gt $length 0 }}
-            <section class="row mt-3">
-                <div class="col-12 text-start">
+            <section class="row mt-5">
+                <div class="col-9 text-start">
                     <h4>{{t $lang "Other documents in collection \"%s\"" .Document.Series}}</h4>
                 </div>
+                <div class="col-3 text-end">
+                    <a  href="/{{$lang}}?search=SeriesEq&colon;&quot;{{.Document.Series}}&quot;">
+                            {{t $lang "See all" }}</a>
+                </div>
+
                 {{template "partials/related" dict "Lang" $lang "Related" .SameSeries}}
             </section>
             {{end}}         
 
             {{ $length := len .SameAuthors }} {{ if gt $length 0 }}
-            <section class="row mt-3">
-                <div class="col-12 text-start">
+            <section class="row mt-5">
+                <div class="col-9 text-start">
                     <h4>
                         {{t $lang "Other documents by"}}
-                        {{range $i, $author := $document.Authors}}
-                            {{$author}}{{if notLast $document.Authors $i}}, {{end}}
-                        {{end}}
+                        {{join $document.Authors ", "}}
                     </h4>
                 </div>
+                <div class="col-3 text-end">
+                    <a  href='/{{$lang}}?search=AuthorsEq&colon;&quot;{{join $document.Authors ","}}&quot;'>
+                            {{t $lang "See all" }}</a>
+                </div>
+
                 {{template "partials/related" dict "Lang" $lang "Related" .SameAuthors}}
             </section>
             {{end}}   
 
             {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
-            <section class="row mt-3">
-                <div class="col-12 text-start">
+            <section class="row mt-5">
+                <div class="col-9 text-start">
                     <h4>{{t $lang "Other documents with similar subjects"}}</h4>
                 </div>
+                <div class="col-3 text-end">
+                    <a  href='/{{$lang}}?search=SubjectsEq&colon;&quot;{{join $document.Subjects ","}}&quot;'>
+                            {{t $lang "See all" }}</a>
+                </div>
+
                 {{template "partials/related" dict "Lang" $lang "Related" .SameSubjects}}
             </section>
             {{end}}         
@@ -145,18 +152,7 @@
 
 </div>
 
-{{template "partials/delete-modal" .}}
-
 <script type="text/javascript">
-    const deleteModal = document.getElementById('deleteModal')
-    deleteModal.addEventListener('show.bs.modal', event => {
-        const link = event.relatedTarget
-        const slug = link.getAttribute('data-bs-slug')
-        const modalInputSlug = deleteModal.querySelector('.slug')
-
-        modalInputSlug.value = slug;
-    })
-
     function send(slug) {
         event.preventDefault();
         form = document.getElementById("send-email")
@@ -190,32 +186,6 @@
                 submit.removeAttribute("disabled");
                 envelope.classList.remove("visually-hidden");
                 spinner.classList.add("visually-hidden");
-            })
-            .catch(function (error) {
-                // Catch errors
-                console.log(error);
-            });
-    }
-
-    function remove() {
-        event.preventDefault();
-        form = document.getElementById("delete-form");
-        fetch('/delete', {
-            method: "POST",
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: new URLSearchParams({
-                'slug': form.elements['slug'].value,
-            })
-        })
-            .then((response) => {
-                if (response.ok) {
-                    location.reload();
-                }
-                message = document.getElementById("delete-document-message")
-                message.classList.remove("visually-hidden");
-                message.innerHTML = '{{t .Lang "There was an error deleting the document"}}';
             })
             .catch(function (error) {
                 // Catch errors

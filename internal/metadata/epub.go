@@ -4,7 +4,7 @@ import (
 	"archive/zip"
 	"fmt"
 	"html/template"
-	"io/ioutil"
+	"io"
 	"log"
 	"path/filepath"
 	"strconv"
@@ -177,7 +177,7 @@ func words(bookFullPath string) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		content, err := ioutil.ReadAll(rc)
+		content, err := io.ReadAll(rc)
 		if err != nil {
 			return 0, err
 		}

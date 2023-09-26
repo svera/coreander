@@ -23,11 +23,9 @@ func (b *BleveIndexer) AddFile(file string) error {
 		return fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
 
-	docSlug := makeSlug(meta)
-	meta = b.setID(meta, file)
-	meta.Slug = b.checkSlug(meta.ID, docSlug, nil)
+	document := b.createDocument(meta, file, nil)
 
-	err = b.idx.Index(meta.ID, meta)
+	err = b.idx.Index(document.ID, document)
 	if err != nil {
 		return fmt.Errorf("error indexing file %s: %s", file, err)
 	}
@@ -37,7 +35,7 @@ func (b *BleveIndexer) AddFile(file string) error {
 // RemoveFile removes a file from the index
 func (b *BleveIndexer) RemoveFile(file string) error {
 	file = strings.Replace(file, b.libraryPath, "", 1)
-	file = strings.TrimPrefix(file, "/")
+	file = strings.TrimPrefix(file, string(filepath.Separator))
 	if err := b.idx.Delete(file); err != nil {
 		return err
 	}
@@ -59,12 +57,11 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 			return nil
 		}
 
-		docSlug := makeSlug(meta)
-		meta = b.setID(meta, fullPath)
-		meta.Slug = b.checkSlug(meta.ID, docSlug, batchSlugs)
-		batchSlugs[docSlug] = struct{}{}
+		document := b.createDocument(meta, fullPath, batchSlugs)
 
-		err = batch.Index(meta.ID, meta)
+		batchSlugs[document.Slug] = struct{}{}
+
+		err = batch.Index(document.ID, document)
 		if err != nil {
 			log.Printf("Error indexing file %s: %s\n", fullPath, err)
 			return nil
@@ -82,9 +79,34 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 	return e
 }
 
+func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, batchSlugs map[string]struct{}) DocumentWrite {
+	document := DocumentWrite{
+		Document: Document{
+			Metadata: meta,
+		},
+		SeriesEq:   strings.ReplaceAll(slug.Make(meta.Series), "-", ""),
+		AuthorsEq:  make([]string, len(meta.Authors)),
+		SubjectsEq: make([]string, len(meta.Subjects)),
+	}
+
+	document.ID = b.ID(document, fullPath)
+	document.Slug = b.Slug(document, batchSlugs)
+	copy(document.AuthorsEq, meta.Authors)
+	for i := range document.AuthorsEq {
+		document.AuthorsEq[i] = strings.ReplaceAll(slug.Make(document.AuthorsEq[i]), "-", "")
+	}
+	copy(document.SubjectsEq, meta.Subjects)
+	for i := range document.SubjectsEq {
+		document.SubjectsEq[i] = strings.ReplaceAll(slug.Make(document.SubjectsEq[i]), "-", "")
+	}
+
+	return document
+}
+
 // As Bleve index is not updated until the batch is executed, we need to store the slugs
 // processed in the current batch in memory to also compare the current doc slug against them.
-func (b *BleveIndexer) checkSlug(ID, docSlug string, batchSlugs map[string]struct{}) string {
+func (b *BleveIndexer) Slug(document DocumentWrite, batchSlugs map[string]struct{}) string {
+	docSlug := makeSlug(document)
 	i := 1
 	existsInBatch := false
 	for {
@@ -92,7 +114,7 @@ func (b *BleveIndexer) checkSlug(ID, docSlug string, batchSlugs map[string]struc
 		if batchSlugs != nil {
 			_, existsInBatch = batchSlugs[docSlug]
 		}
-		if doc.Slug == docSlug && doc.ID == ID {
+		if doc.Slug == docSlug && doc.ID == document.ID {
 			return docSlug
 		}
 		if doc.Slug == "" && !existsInBatch {
@@ -103,18 +125,16 @@ func (b *BleveIndexer) checkSlug(ID, docSlug string, batchSlugs map[string]struc
 	}
 }
 
-func (b *BleveIndexer) setID(meta metadata.Metadata, file string) metadata.Metadata {
-	meta.ID = strings.ReplaceAll(file, b.libraryPath, "")
-	meta.ID = strings.TrimPrefix(meta.ID, "/")
-
-	return meta
+func (b *BleveIndexer) ID(meta DocumentWrite, file string) string {
+	ID := strings.ReplaceAll(file, b.libraryPath, "")
+	return strings.TrimPrefix(ID, string(filepath.Separator))
 }
 
-func makeSlug(meta metadata.Metadata) string {
+func makeSlug(meta DocumentWrite) string {
 	docSlug := meta.Title
 	if len(meta.Authors) > 0 {
 		docSlug = strings.Join(meta.Authors, ", ") + "-" + docSlug
 	}
 
-	return slug.Make(docSlug)
+	return slug.MakeLang(docSlug, meta.Language)
 }

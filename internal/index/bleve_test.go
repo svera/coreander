@@ -6,7 +6,6 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/controller"
 	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/metadata"
 )
@@ -54,7 +53,7 @@ type testCase struct {
 	filename       string
 	mockedMeta     metadata.Metadata
 	search         string
-	expectedResult controller.PaginatedResult
+	expectedResult index.PaginatedResult
 }
 
 func testCases() []testCase {
@@ -63,7 +62,6 @@ func testCases() []testCase {
 			"Look for a term without accent must return accented results",
 			"lib/book1.epub",
 			metadata.Metadata{
-				Slug:        "perez-test-a",
 				Title:       "Test A",
 				Authors:     []string{"Pérez"},
 				Description: "Just test metadata",
@@ -71,19 +69,20 @@ func testCases() []testCase {
 				Subjects:    []string{"History", "Middle age"},
 			},
 			"perez",
-			controller.PaginatedResult{
+			index.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: []metadata.Metadata{
+				Hits: []index.Document{
 					{
-						ID:          "book1.epub",
-						BaseName:    "book1.epub",
-						Slug:        "perez-test-a",
-						Title:       "Test A",
-						Authors:     []string{"Pérez"},
-						Description: "Just test metadata",
-						Subjects:    []string{"History", "Middle age"},
+						ID:   "book1.epub",
+						Slug: "perez-test-a",
+						Metadata: metadata.Metadata{
+							Title:       "Test A",
+							Authors:     []string{"Pérez"},
+							Description: "Just test metadata",
+							Subjects:    []string{"History", "Middle age"},
+						},
 					},
 				},
 			},
@@ -93,26 +92,26 @@ func testCases() []testCase {
 			"lib/book2.epub",
 			metadata.Metadata{
 				Title:       "Test B",
-				Slug:        "benoit-test-b",
 				Authors:     []string{"Benoît"},
 				Description: "Just test metadata",
 				Language:    "fr",
 				Subjects:    []string{""},
 			},
 			"benoit",
-			controller.PaginatedResult{
+			index.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: []metadata.Metadata{
+				Hits: []index.Document{
 					{
-						ID:          "book2.epub",
-						BaseName:    "book2.epub",
-						Slug:        "benoit-test-b",
-						Title:       "Test B",
-						Authors:     []string{"Benoît"},
-						Description: "Just test metadata",
-						Subjects:    []string{""},
+						ID:   "book2.epub",
+						Slug: "benoit-test-b",
+						Metadata: metadata.Metadata{
+							Title:       "Test B",
+							Authors:     []string{"Benoît"},
+							Description: "Just test metadata",
+							Subjects:    []string{""},
+						},
 					},
 				},
 			},
@@ -122,26 +121,26 @@ func testCases() []testCase {
 			"lib/book3.epub",
 			metadata.Metadata{
 				Title:       "Test C",
-				Slug:        "clifford-d-simak-test-c",
 				Authors:     []string{"Clifford D. Simak"},
 				Description: "Just test metadata",
 				Language:    "en",
 				Subjects:    []string{""},
 			},
 			"clifford simak",
-			controller.PaginatedResult{
+			index.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: []metadata.Metadata{
+				Hits: []index.Document{
 					{
-						ID:          "book3.epub",
-						BaseName:    "book3.epub",
-						Slug:        "clifford-d-simak-test-c",
-						Title:       "Test C",
-						Authors:     []string{"Clifford D. Simak"},
-						Description: "Just test metadata",
-						Subjects:    []string{""},
+						ID:   "book3.epub",
+						Slug: "clifford-d-simak-test-c",
+						Metadata: metadata.Metadata{
+							Title:       "Test C",
+							Authors:     []string{"Clifford D. Simak"},
+							Description: "Just test metadata",
+							Subjects:    []string{""},
+						},
 					},
 				},
 			},
@@ -151,26 +150,25 @@ func testCases() []testCase {
 			"lib/book4.epub",
 			metadata.Metadata{
 				Title:       "Test D",
-				Slug:        "james-ellroy-test-d",
 				Authors:     []string{"James Ellroy"},
 				Description: "Just test metadata",
 				Language:    "en",
 				Subjects:    []string{""},
 			},
 			"james ellroy",
-			controller.PaginatedResult{
+			index.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: []metadata.Metadata{
+				Hits: []index.Document{
 					{
-						ID:          "book4.epub",
-						BaseName:    "book4.epub",
-						Slug:        "james-ellroy-test-d",
-						Title:       "Test D",
-						Authors:     []string{"James Ellroy"},
-						Description: "Just test metadata",
-						Subjects:    []string{""},
+						ID:   "book4.epub",
+						Slug: "james-ellroy-test-d",
+						Metadata: metadata.Metadata{Title: "Test D",
+							Authors:     []string{"James Ellroy"},
+							Description: "Just test metadata",
+							Subjects:    []string{""},
+						},
 					},
 				},
 			},
@@ -180,26 +178,25 @@ func testCases() []testCase {
 			"lib/book5.epub",
 			metadata.Metadata{
 				Title:       "Test E",
-				Slug:        "james-ellroy-test-e",
 				Authors:     []string{"James Ellroy"},
 				Description: "Just test metadata",
 				Language:    "en",
 				Subjects:    []string{""},
 			},
 			" james       ellroy ",
-			controller.PaginatedResult{
+			index.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: []metadata.Metadata{
+				Hits: []index.Document{
 					{
-						ID:          "book5.epub",
-						BaseName:    "book5.epub",
-						Slug:        "james-ellroy-test-e",
-						Title:       "Test E",
-						Authors:     []string{"James Ellroy"},
-						Description: "Just test metadata",
-						Subjects:    []string{""},
+						ID:   "book5.epub",
+						Slug: "james-ellroy-test-e",
+						Metadata: metadata.Metadata{Title: "Test E",
+							Authors:     []string{"James Ellroy"},
+							Description: "Just test metadata",
+							Subjects:    []string{""},
+						},
 					},
 				},
 			},

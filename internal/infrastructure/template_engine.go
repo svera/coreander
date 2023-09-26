@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/gofiber/template/html"
@@ -40,6 +41,14 @@ func TemplateEngine(viewsFS fs.FS, printers map[string]*message.Printer) (*html.
 	})
 
 	engine.AddFunc("notLast", notLast[string])
+
+	engine.AddFunc("basename", func(path string) string {
+		return filepath.Base(path)
+	})
+
+	engine.AddFunc("join", func(elems []string, sep string) string {
+		return strings.Join(elems, sep)
+	})
 
 	return engine, nil
 }
