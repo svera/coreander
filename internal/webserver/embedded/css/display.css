@@ -6,8 +6,6 @@ body {
 body {
     align-items: center;
     padding-bottom: 40px;
-    background-color: #fff;
-    color: #000;
 }
 
 main {
@@ -28,20 +26,6 @@ main .form-control:focus {
 
 .small {
     font-size: 0.65em;
-}
-
-a,
-a:hover {
-    color: black;
-}
-
-.page-link {
-    color: black;
-}
-
-.page-item.active .page-link {
-    background-color: black;
-    border-color: black;
 }
 
 a.collapse-control {
