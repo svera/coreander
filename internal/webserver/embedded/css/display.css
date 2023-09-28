@@ -50,3 +50,51 @@ a.collapse-control.collapsed:after {
 .collapsing {
     height: 7.5em;
 }
+
+:root, [data-bs-theme=light] {
+    --bs-link-color-rgb: 0, 0, 0;
+    --bs-link-hover-color-rgb: 0, 0, 0;
+    .pagination {
+        --bs-pagination-active-bg: #000000;
+        --bs-pagination-active-border-color: #000000;
+        --bs-pagination-color: #000000;
+    }
+    .navbar {
+        --bs-navbar-color: rgba(255, 255, 255, 1);
+        --bs-navbar-hover-color: rgba(255, 255, 255, 0.75);
+        --bs-navbar-disabled-color: rgba(255, 255, 255, 0.25);
+        --bs-navbar-active-color: #fff;
+        --bs-navbar-brand-color: #fff;
+        --bs-navbar-brand-hover-color: #fff;
+        --bs-navbar-toggler-border-color: rgba(255, 255, 255, 0.1);
+        --bs-navbar-toggler-icon-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        --bs-bg-opacity: 1;
+        background-color: rgba(var(--bs-light-rgb), var(--bs-bg-opacity)) !important;
+    }
+}
+
+[data-bs-theme=dark] {
+    color-scheme: dark;
+    --bs-link-color: white;
+    --bs-link-hover-color: white;
+    --bs-link-color-rgb: 255, 255, 255;
+    --bs-link-hover-color-rgb: 139, 185, 254;
+    .pagination {
+        --bs-pagination-active-bg: #ffffff;
+        --bs-pagination-active-color: #000000;
+        --bs-pagination-active-border-color: #ffffff;
+        --bs-pagination-color: #ffffff;
+    }
+    .navbar {
+        --bs-navbar-color: rgba(255, 255, 255, 0.55);
+        --bs-navbar-hover-color: rgba(255, 255, 255, 0.75);
+        --bs-navbar-disabled-color: rgba(255, 255, 255, 0.25);
+        --bs-navbar-active-color: #fff;
+        --bs-navbar-brand-color: #fff;
+        --bs-navbar-brand-hover-color: #fff;
+        --bs-navbar-toggler-border-color: rgba(255, 255, 255, 0.1);
+        --bs-navbar-toggler-icon-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        --bs-bg-opacity: 1;
+        background-color: rgba(var(--bs-dark-rgb), var(--bs-bg-opacity)) !important;
+    }      
+  }
