@@ -6,8 +6,6 @@ body {
 body {
     align-items: center;
     padding-bottom: 40px;
-    background-color: #fff;
-    color: #000;
 }
 
 main {
@@ -28,20 +26,6 @@ main .form-control:focus {
 
 .small {
     font-size: 0.65em;
-}
-
-a,
-a:hover {
-    color: black;
-}
-
-.page-link {
-    color: black;
-}
-
-.page-item.active .page-link {
-    background-color: black;
-    border-color: black;
 }
 
 a.collapse-control {
@@ -65,4 +49,41 @@ a.collapse-control.collapsed:after {
 
 .collapsing {
     height: 7.5em;
+}
+
+.nav-item .bi {
+    width: 1em;
+    height: 1em;
+}      
+
+:root, [data-bs-theme=light] {
+    --bs-link-color-rgb: 0, 0, 0;
+    --bs-link-hover-color-rgb: 0, 0, 0;
+    .pagination {
+        --bs-pagination-active-bg: #000000;
+        --bs-pagination-active-border-color: #000000;
+        --bs-pagination-color: #000000;
+    }
+    .navbar {
+        --bs-bg-opacity: 1;
+        background-color: rgba(var(--bs-light-rgb), var(--bs-bg-opacity)) !important;
+    }
+}
+
+[data-bs-theme=dark] {
+    color-scheme: dark;
+    --bs-link-color: white;
+    --bs-link-hover-color: white;
+    --bs-link-color-rgb: 255, 255, 255;
+    --bs-link-hover-color-rgb: 139, 185, 254;
+    .pagination {
+        --bs-pagination-active-bg: #ffffff;
+        --bs-pagination-active-color: #000000;
+        --bs-pagination-active-border-color: #ffffff;
+        --bs-pagination-color: #ffffff;
+    }
+    .navbar {
+        --bs-bg-opacity: 1;
+        background-color: rgba(var(--bs-dark-rgb), var(--bs-bg-opacity)) !important;
+    }
 }
