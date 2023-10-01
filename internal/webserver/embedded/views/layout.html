@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{.Lang}}" class="h-100" data-bs-theme="dark">
+<html lang="{{.Lang}}" class="h-100" data-bs-theme="light">
 
 <head>
     <meta charset="utf-8">
@@ -12,7 +12,6 @@
     <link href="/css/bootstrap.min.css" rel="stylesheet">
     <link href="/css/display.css" rel="stylesheet">
     <!-- Favicons -->
-
     <meta name="theme-color" content="#000">
     <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
@@ -20,7 +19,7 @@
     <link rel="manifest" href="/images/site.webmanifest">
     <link rel="mask-icon" href="/images/safari-pinned-tab.svg" color="#5bbad5">
     <meta name="msapplication-TileColor" content="#da532c">
-    <meta name="theme-color" content="#ffffff">
+    <script src="/js/color-mode-toggler.js"></script>
 </head>
 
 <body class="text-center d-flex flex-column h-100">
@@ -99,9 +98,11 @@
                                 {{if eq $lang $currentLang}}
                                     <li class="p-2">{{uppercase $currentLang}}</li>
                                 {{else}}
-                                    <a class="p-2" href="/{{$currentLang}}{{$pathMinusLang}}">{{uppercase $currentLang}}</a>
+                                    <li class="p-2"><a href="/{{$currentLang}}{{$pathMinusLang}}">{{uppercase $currentLang}}</a></li>
                                 {{end}}
                             {{end}}
+                            <hr class="d-lg-none">
+                            {{template "partials/color-mode-toggle" dict "Lang" $lang}}
                         </ul>
                     </div>
                 </div>

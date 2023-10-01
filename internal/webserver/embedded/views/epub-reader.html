@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{.Lang}}" class="h-100">
+<html lang="{{.Lang}}" class="h-100" data-bs-theme="light">
 
 <head>
     <meta charset="utf-8">
@@ -10,22 +10,33 @@
 
     <!-- Bootstrap core CSS -->
     <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/display.css" rel="stylesheet">
     <!-- Favicons -->
     <script src="/js/jszip.min.js"></script>
     <script src="/js/epub.min.js"></script>
 
     <meta name="theme-color" content="#000">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+    <link rel="manifest" href="/images/site.webmanifest">
+    <link rel="mask-icon" href="/images/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
 </head>
 
 <body class="text-center d-flex flex-column h-100">
     <header class="visually-hidden">
-        <nav class="navbar navbar-expand-md navbar-light bg-light fixed-top">
+        <nav class="navbar navbar-expand-md fixed-top">
             <div class="container justify-content-center">
-                <ul class="navbar-nav">
+                <ul class="nav">
                     <li class="nav-item">
-                        <a id="prev" class="btn btn-dark" aria-current="page" href="#prev">«</a>
+                        <a id="prev" class="btn" aria-current="page" href="#prev">«</a>
+                    </li>
+                    <li class="nav-item">
                         <select class="form-select w-75 d-inline" id="toc"></select>
-                        <a id="next" class="btn btn-dark" aria-current="page" href="#next">»</a>
+                    </li>
+                    <li class="nav-item">
+                        <a id="next" class="btn" aria-current="page" href="#next">»</a>
                     </li>
                 </ul>
             </div>  
@@ -76,15 +87,15 @@
             var $select = document.getElementById("toc");
 
             if (nextSection) {
-                next.className = "btn btn-dark";
+                next.className = "btn";
             } else {
-                next.className = "btn btn-dark disabled";
+                next.className = "btn disabled";
             }
 
             if (prevSection) {
-                prev.className = "btn btn-dark";
+                prev.className = "btn";
             } else {
-                prev.className = "btn btn-dark disabled";
+                prev.className = "btn disabled";
             }
 
             book.loaded.navigation.then(function (toc) {
