@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/controller"
 	"github.com/svera/coreander/v3/internal/index"
+	"github.com/svera/coreander/v3/internal/infrastructure"
 	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/metadata"
 	"github.com/svera/coreander/v3/internal/model"
@@ -19,6 +20,7 @@ import (
 type Controllers struct {
 	Auth                                  *controller.Auth
 	Users                                 *controller.Users
+	Highlights                            *controller.Highlights
 	Cover                                 func(c *fiber.Ctx) error
 	Send                                  func(c *fiber.Ctx) error
 	Download                              func(c *fiber.Ctx) error
@@ -34,6 +36,7 @@ type Controllers struct {
 
 func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs) Controllers {
 	usersRepository := &model.UserRepository{DB: db}
+	highlightsRepository := &model.HighlightRepository{DB: db}
 
 	authCfg := controller.AuthConfig{
 		MinPasswordLength: cfg.MinPasswordLength,
@@ -50,10 +53,16 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 
 	authController := controller.NewAuth(usersRepository, sender, authCfg, printers)
 	usersController := controller.NewUsers(usersRepository, usersCfg)
+	highlightsController := controller.NewHighlights(highlightsRepository, idx)
+	emailSendingConfigured := true
+	if _, ok := sender.(*infrastructure.NoEmail); ok {
+		emailSendingConfigured = false
+	}
 
 	return Controllers{
-		Auth:  authController,
-		Users: usersController,
+		Auth:       authController,
+		Users:      usersController,
+		Highlights: highlightsController,
 		Cover: func(c *fiber.Ctx) error {
 			return controller.Cover(c, cfg.HomeDir, cfg.LibraryPath, metadataReaders, cfg.CoverMaxWidth, idx)
 		},
@@ -91,7 +100,12 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			SigningMethod: "HS256",
 			TokenLookup:   "cookie:coreander",
 			ErrorHandler: func(c *fiber.Ctx, err error) error {
-				return c.Redirect(fmt.Sprintf("/%s/login", chooseBestLanguage(c, getSupportedLanguages())))
+				return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
+					"Lang":                   chooseBestLanguage(c, getSupportedLanguages()),
+					"Title":                  "Login",
+					"Version":                c.App().Config().AppName,
+					"EmailSendingConfigured": emailSendingConfigured,
+				}, "layout")
 			},
 		}),
 		ConfigurableAuthenticationMiddleware: jwtware.New(jwtware.Config{
@@ -101,7 +115,12 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			ErrorHandler: func(c *fiber.Ctx, err error) error {
 				err = c.Next()
 				if cfg.RequireAuth {
-					return c.Redirect(fmt.Sprintf("/%s/login", chooseBestLanguage(c, getSupportedLanguages())))
+					return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
+						"Lang":                   chooseBestLanguage(c, getSupportedLanguages()),
+						"Title":                  "Login",
+						"Version":                c.App().Config().AppName,
+						"EmailSendingConfigured": emailSendingConfigured,
+					}, "layout")
 				}
 				return err
 			},

@@ -51,6 +51,8 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 	usersGroup.Post("/:uuid<guid>/edit", controllers.Users.Update)
 	usersGroup.Post("/delete", controllers.Users.Delete)
 
+	app.Post("/highlight", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlight)
+	app.Delete("/highlight/:slug", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Highlights.Remove)
 	app.Post("/delete", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Delete)
 
 	// Authentication requirement is configurable for all routes below this middleware

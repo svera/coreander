@@ -7,13 +7,13 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/model"
+	"github.com/svera/coreander/v3/internal/search"
 )
 
 type IdxWriter interface {
-	Document(ID string) (index.Document, error)
+	Document(ID string) (search.Document, error)
 	RemoveFile(file string) error
 }
 
