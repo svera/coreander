@@ -20,13 +20,14 @@ type IdxReader interface {
 	Search(keywords string, page, resultsPerPage int) (*search.PaginatedResult, error)
 	Count() (uint64, error)
 	Close() error
-	Document(ID string) (search.Document, error)
+	Document(Slug string) (search.Document, error)
+	Documents(IDs []string) ([]search.Document, error)
 	SameSubjects(slug string, quantity int) ([]search.Document, error)
 	SameAuthors(slug string, quantity int) ([]search.Document, error)
 	SameSeries(slug string, quantity int) ([]search.Document, error)
 }
 
-func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64) error {
+func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64, highlights model.HighlightRepository) error {
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -47,6 +48,10 @@ func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64) 
 	if keywords := c.Query("search"); keywords != "" {
 		if searchResults, err = idx.Search(keywords, page, model.ResultsPerPage); err != nil {
 			return fiber.ErrInternalServerError
+		}
+
+		if session.ID > 0 {
+			searchResults.Hits = highlights.Highlighted(int(session.ID), searchResults.Hits)
 		}
 
 		return c.Render("results", fiber.Map{

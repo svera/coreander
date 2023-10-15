@@ -53,7 +53,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 
 	authController := controller.NewAuth(usersRepository, sender, authCfg, printers)
 	usersController := controller.NewUsers(usersRepository, usersCfg)
-	highlightsController := controller.NewHighlights(highlightsRepository, idx)
+	highlightsController := controller.NewHighlights(highlightsRepository, usersRepository, sender, cfg.WordsPerMinute, idx)
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -82,7 +82,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			return controller.Delete(c, cfg.LibraryPath, idx, appFs)
 		},
 		Search: func(c *fiber.Ctx) error {
-			return controller.Search(c, idx, sender, cfg.WordsPerMinute)
+			return controller.Search(c, idx, sender, cfg.WordsPerMinute, *highlightsRepository)
 		},
 		AllowIfNotLoggedInMiddleware: jwtware.New(jwtware.Config{
 			SigningKey:    cfg.JwtSecret,

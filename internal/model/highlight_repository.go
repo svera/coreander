@@ -3,6 +3,8 @@ package model
 import (
 	"log"
 
+	"github.com/svera/coreander/v3/internal/search"
+	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -11,19 +13,33 @@ type HighlightRepository struct {
 	DB *gorm.DB
 }
 
-func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int) ([]Highlight, error) {
-	highlights := []Highlight{}
-	result := u.DB.Scopes(Paginate(page, resultsPerPage)).Select("path").Where("user_id = ?", userID).Order("created_at DESC").Find(&highlights)
+func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int) ([]string, int64, error) {
+	highlights := []string{}
+	var total int64
+	result := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("highlights").Select("path").Where("user_id = ?", userID).Order("created_at DESC").Pluck("path", &highlights)
 	if result.Error != nil {
 		log.Printf("error listing highlights: %s\n", result.Error)
 	}
-	return highlights, result.Error
+	u.DB.Table("highlights").Where("user_id = ?", userID).Count(&total)
+	return highlights, total, result.Error
 }
 
-func (u *HighlightRepository) Highlighted(userID int, documentPath string) bool {
-	var count int64
-	u.DB.Select("path").Where("user_id = ? and PATH = ?", userID, documentPath).Count(&count)
-	return count == 1
+func (u *HighlightRepository) Highlighted(userID int, documents []search.Document) []search.Document {
+	highlights := make([]string, 0, len(documents))
+	paths := make([]string, 0, len(documents))
+	for _, path := range documents {
+		paths = append(paths, path.ID)
+	}
+	u.DB.Table("highlights").Where(
+		"user_id = ? AND path IN (?)",
+		userID,
+		paths,
+	).Pluck("path", &highlights)
+	for i, doc := range documents {
+		documents[i].Highlighted = slices.Contains(highlights, doc.ID)
+	}
+
+	return documents
 }
 
 func (u *HighlightRepository) Highlight(userID int, documentPath string) error {
@@ -41,74 +57,3 @@ func (u *HighlightRepository) Remove(userID int, documentPath string) error {
 	}
 	return u.DB.Delete(&highlight).Error
 }
-
-/*
-func (u *UserRepository) Total() int64 {
-	var totalRows int64
-	users := []User{}
-	u.DB.Model(&users).Count(&totalRows)
-	return totalRows
-}
-
-func (u *UserRepository) FindByUuid(uuid string) (User, error) {
-	return u.find("uuid", uuid)
-}
-
-func (u *UserRepository) Create(user User) error {
-	if result := u.DB.Create(&user); result.Error != nil {
-		log.Printf("error creating user: %s\n", result.Error)
-		return result.Error
-	}
-	return nil
-}
-
-func (u *UserRepository) Update(user User) error {
-	if result := u.DB.Save(&user); result.Error != nil {
-		log.Printf("error updating user: %s\n", result.Error)
-		return result.Error
-	}
-	return nil
-}
-
-func (u *UserRepository) FindByEmail(email string) (User, error) {
-	return u.find("email", email)
-}
-
-func (u *UserRepository) FindByRecoveryUuid(recoveryUuid string) (User, error) {
-	return u.find("recovery_uuid", recoveryUuid)
-}
-
-func (u *UserRepository) Admins() int64 {
-	var totalRows int64
-	u.DB.Where("role = ?", RoleAdmin).Take(&[]User{}).Count(&totalRows)
-	return totalRows
-}
-
-func (u *UserRepository) Delete(uuid string) error {
-	var user User
-	result := u.DB.Where("uuid = ?", uuid).Delete(&user)
-	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		log.Printf("error deleting user: %s\n", result.Error)
-	}
-	return nil
-}
-
-func Hash(s string) string {
-	h := sha256.New()
-	h.Write([]byte(s))
-	return string(h.Sum(nil))
-}
-
-func (u *UserRepository) find(field, value string) (User, error) {
-	var (
-		err  error
-		user User
-	)
-	result := u.DB.Limit(1).Where(fmt.Sprintf("%s = ?", field), value).Find(&user)
-	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		err = result.Error
-		log.Printf("error retrieving user: %s\n", result.Error)
-	}
-	return user, err
-}
-*/

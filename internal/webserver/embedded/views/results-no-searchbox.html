@@ -5,10 +5,11 @@
 {{$wordsPerMinute := .WordsPerMinute}}
 
 <div class="container">
-    {{template "partials/searchbox" .}} {{if gt .Total 0}}
-    <p>{{t .Lang "%d matches found" .Total }}</p>
+    <h2>{{t .Lang "Highlights"}}</h2>
+    {{if gt .Total 0}}
+    <p>{{t .Lang "%d highlighted documents" .Total }}</p>
     {{else}}
-    <p>{{t .Lang "No matches found" }}</p>
+    <p>{{t .Lang "No highlighted documents" }}</p>
     {{end}}
 
     <div class="list-group list-group-flush">

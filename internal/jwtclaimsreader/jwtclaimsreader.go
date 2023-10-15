@@ -11,6 +11,9 @@ func SessionData(c *fiber.Ctx) model.User {
 	if t, ok := c.Locals("user").(*jwt.Token); ok {
 		claims := t.Claims.(jwt.MapClaims)
 		userDataMap := claims["userdata"].(map[string]interface{})
+		if value, ok := userDataMap["ID"].(float64); ok {
+			user.ID = uint(value)
+		}
 		if value, ok := userDataMap["Name"].(string); ok {
 			user.Name = value
 		}

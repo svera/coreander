@@ -3,7 +3,6 @@ package index
 import (
 	"fmt"
 	"html/template"
-	"math"
 	"net/url"
 	"strings"
 
@@ -113,7 +112,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	if searchResult.Total == 0 {
 		return &result, nil
 	}
-	totalPages := calculateTotalPages(searchResult.Total, uint64(resultsPerPage))
+	totalPages := search.CalculateTotalPages(searchResult.Total, uint64(resultsPerPage))
 	if totalPages < page {
 		page = totalPages
 		if page == 0 {
@@ -158,10 +157,6 @@ func (b *BleveIndexer) Count() (uint64, error) {
 	return b.idx.DocCount()
 }
 
-func calculateTotalPages(total, resultsPerPage uint64) int {
-	return int(math.Ceil(float64(total) / float64(resultsPerPage)))
-}
-
 func (b *BleveIndexer) Document(slug string) (search.Document, error) {
 	doc := search.Document{}
 	query := bleve.NewTermQuery(slug)
@@ -194,6 +189,41 @@ func (b *BleveIndexer) Document(slug string) (search.Document, error) {
 	}
 
 	return doc, nil
+}
+
+func (b *BleveIndexer) Documents(IDs []string) ([]search.Document, error) {
+	docs := make([]search.Document, 0, len(IDs))
+	query := bleve.NewDocIDQuery(IDs)
+	searchOptions := bleve.NewSearchRequest(query)
+	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type", "Subjects"}
+	searchResult, err := b.idx.Search(searchOptions)
+	if err != nil {
+		return docs, err
+	}
+
+	for _, hit := range searchResult.Hits {
+		docs = append(
+			docs,
+			search.Document{
+				ID:   hit.ID,
+				Slug: hit.Fields["Slug"].(string),
+				Metadata: metadata.Metadata{
+					Title:       hit.Fields["Title"].(string),
+					Authors:     slicer(hit.Fields["Authors"]),
+					Description: template.HTML(hit.Fields["Description"].(string)),
+					Year:        hit.Fields["Year"].(string),
+					Words:       hit.Fields["Words"].(float64),
+					Series:      hit.Fields["Series"].(string),
+					SeriesIndex: hit.Fields["SeriesIndex"].(float64),
+					Pages:       int(hit.Fields["Pages"].(float64)),
+					Type:        hit.Fields["Type"].(string),
+					Subjects:    slicer(hit.Fields["Subjects"]),
+				},
+			},
+		)
+	}
+
+	return docs, nil
 }
 
 // SameSubjects returns an array of metadata of documents by other authors, different between each other,
