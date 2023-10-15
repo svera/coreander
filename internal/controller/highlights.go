@@ -11,7 +11,7 @@ import (
 )
 
 type highlightsRepository interface {
-	Highlights(userID int, page int, resultsPerPage int) ([]string, int64, error)
+	Highlights(userID int, page int, resultsPerPage int) (search.PaginatedResult, error)
 	Highlight(userID int, documentPath string) error
 	Remove(userID int, documentPath string) error
 }
@@ -50,20 +50,23 @@ func (h *Highlights) Highlights(c *fiber.Ctx) error {
 		h.wordsPerMinute = session.WordsPerMinute
 	}
 
-	highlights, total, err := h.hlRepository.Highlights(int(session.ID), page, model.ResultsPerPage)
+	highlights, err := h.hlRepository.Highlights(int(session.ID), page, model.ResultsPerPage)
 	if err != nil {
 		return fiber.ErrInternalServerError
 	}
-	searchResults, err := h.idx.Documents(highlights)
-	if err != nil {
-		return fiber.ErrInternalServerError
+	for i, highlight := range highlights.Hits {
+		docs, err := h.idx.Documents([]string{highlight.ID})
+		if err != nil {
+			return fiber.ErrInternalServerError
+		}
+		highlights.Hits[i] = docs[0]
+		highlights.Hits[i].Highlighted = true
 	}
-	totalPages := search.CalculateTotalPages(uint64(total), model.ResultsPerPage)
 
 	return c.Render("results-no-searchbox", fiber.Map{
-		"Results":                searchResults,
-		"Total":                  total,
-		"Paginator":              pagination(model.MaxPagesNavigator, totalPages, page, nil),
+		"Results":                highlights.Hits,
+		"Total":                  highlights.TotalHits,
+		"Paginator":              pagination(model.MaxPagesNavigator, highlights.TotalPages, page, nil),
 		"Title":                  "Highlights",
 		"Version":                c.App().Config().AppName,
 		"EmailSendingConfigured": emailSendingConfigured,

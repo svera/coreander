@@ -13,15 +13,28 @@ type HighlightRepository struct {
 	DB *gorm.DB
 }
 
-func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int) ([]string, int64, error) {
+func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int) (search.PaginatedResult, error) {
 	highlights := []string{}
 	var total int64
+
 	result := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("highlights").Select("path").Where("user_id = ?", userID).Order("created_at DESC").Pluck("path", &highlights)
 	if result.Error != nil {
 		log.Printf("error listing highlights: %s\n", result.Error)
 	}
 	u.DB.Table("highlights").Where("user_id = ?", userID).Count(&total)
-	return highlights, total, result.Error
+
+	paginatedResult := search.PaginatedResult{
+		Page:       page,
+		Hits:       make([]search.Document, len(highlights)),
+		TotalHits:  int(total),
+		TotalPages: search.CalculateTotalPages(uint64(total), ResultsPerPage),
+	}
+
+	for i, path := range highlights {
+		paginatedResult.Hits[i].ID = path
+	}
+
+	return paginatedResult, result.Error
 }
 
 func (u *HighlightRepository) Highlighted(userID int, documents []search.Document) []search.Document {
