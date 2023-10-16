@@ -63,7 +63,7 @@ func (h *Highlights) Highlights(c *fiber.Ctx) error {
 		highlights.Hits[i].Highlighted = true
 	}
 
-	return c.Render("results-no-searchbox", fiber.Map{
+	return c.Render("highlights", fiber.Map{
 		"Results":                highlights.Hits,
 		"Total":                  highlights.TotalHits,
 		"Paginator":              pagination(model.MaxPagesNavigator, highlights.TotalPages, page, nil),

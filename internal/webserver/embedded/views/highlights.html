@@ -1,10 +1,12 @@
 <div class="container">
-    <h2>{{t .Lang "Highlights"}}</h2>
-    {{if gt .Total 0}}
-    <p>{{t .Lang "%d highlighted documents" .Total }}</p>
-    {{else}}
-    <p>{{t .Lang "No highlighted documents" }}</p>
-    {{end}}
+    <div class="py-5">
+        <h1>{{t .Lang "Highlights"}}</h1>
+        {{if gt .Total 0}}
+        <p>{{t .Lang "%d highlighted documents" .Total }}</p>
+        {{else}}
+        <p>{{t .Lang "No highlighted documents" }}</p>
+        {{end}}
+    </div>
 
     {{ template "partials/docs-list" dict "Lang" .Lang "EmailSendingConfigured"
     .EmailSendingConfigured "Session" .Session "EmailFrom" .EmailFrom "Results" .Results "WordsPerMinute" .WordsPerMinute}}
