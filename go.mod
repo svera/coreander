@@ -8,7 +8,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/disintegration/imaging v1.6.2
 	github.com/glebarez/sqlite v1.8.0
-	github.com/gofiber/fiber/v2 v2.49.2
+	github.com/gofiber/fiber/v2 v2.50.0
 	github.com/gofiber/jwt/v3 v3.3.10
 	github.com/gofiber/template v1.8.1
 	github.com/golang-jwt/jwt/v4 v4.5.0
@@ -86,7 +86,7 @@ require (
 	github.com/pirmd/epub v0.3.0
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.49.0 // indirect
+	github.com/valyala/fasthttp v1.50.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect
 	golang.org/x/image v0.7.0 // indirect
