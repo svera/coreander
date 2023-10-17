@@ -39,14 +39,14 @@ func TestUserManagement(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		mustRedirectToLogin(response, t)
+		mustReturnForbiddenAndShowLogin(response, t)
 
 		response, err = addUser(data, &http.Cookie{}, app)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		mustRedirectToLogin(response, t)
+		mustReturnForbiddenAndShowLogin(response, t)
 	})
 
 	t.Run("Try to add a user with an admin active session", func(t *testing.T) {
@@ -128,14 +128,14 @@ func TestUserManagement(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		mustRedirectToLogin(response, t)
+		mustReturnForbiddenAndShowLogin(response, t)
 
 		response, err = updateUser(testUser.Uuid, data, &http.Cookie{}, app)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		mustRedirectToLogin(response, t)
+		mustReturnForbiddenAndShowLogin(response, t)
 	})
 
 	t.Run("Try to update a user using another, non admin user session", func(t *testing.T) {
@@ -228,7 +228,7 @@ func TestUserManagement(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		mustRedirectToLogin(response, t)
+		mustReturnForbiddenAndShowLogin(response, t)
 	})
 
 	t.Run("Try to delete a user with a regular user's session", func(t *testing.T) {
@@ -281,18 +281,22 @@ func mustRedirectToUsersList(response *http.Response, t *testing.T) {
 	}
 }
 
-func mustRedirectToLogin(response *http.Response, t *testing.T) {
-	if response.StatusCode != http.StatusFound {
-		t.Errorf("Expected status %d, received %d", http.StatusFound, response.StatusCode)
+func mustReturnForbiddenAndShowLogin(response *http.Response, t *testing.T) {
+	if response.StatusCode != http.StatusForbidden {
+		t.Errorf("Expected status %d, received %d", http.StatusForbidden, response.StatusCode)
 		return
 	}
-	url, err := response.Location()
+
+	doc, err := goquery.NewDocumentFromReader(response.Body)
 	if err != nil {
-		t.Error("No location header present")
-		return
+		t.Fatal(err)
 	}
-	if url.Path != "/en/login" {
-		t.Errorf("Expected location %s, received %s", "/en/login", url.Path)
+	selection, err := doc.Find("head title").First().Html()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selection != "Login" {
+		t.Errorf("Expected login page, received %s", selection)
 	}
 }
 
