@@ -76,7 +76,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			return controller.DocReader(c, cfg.LibraryPath, idx)
 		},
 		Document: func(c *fiber.Ctx) error {
-			return controller.Document(c, cfg.LibraryPath, sender, idx, cfg.WordsPerMinute)
+			return controller.Document(c, cfg.LibraryPath, sender, idx, cfg.WordsPerMinute, *highlightsRepository)
 		},
 		Delete: func(c *fiber.Ctx) error {
 			return controller.Delete(c, cfg.LibraryPath, idx, appFs)

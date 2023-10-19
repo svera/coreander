@@ -80,42 +80,13 @@ function remove() {
     });
 }
 
-function highlight(index) {
+function highlightToggle(index, slug, el, method) {
     event.preventDefault();
-    let highlightFormParent = document.querySelector("#highlight-" + index);
-    let dehighlightFormParent = document.querySelector("#dehighlight-" + index);
-    let highlightForm = highlightFormParent.querySelector("form");
-    let submit = highlightForm.querySelector('button');
-    fetch('/highlight', {
-        method: "POST",
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: new URLSearchParams({
-            'slug': highlightForm.elements['slug'].value,        
-        })
-    })
-    .then((response) => {
-        if (response.ok) {
-            highlightFormParent.classList.add("visually-hidden");
-            dehighlightFormParent.classList.remove("visually-hidden");
-        } else {
-            console.log(response.body)
-        }
-    })
-    .catch(function (error) {
-        // Catch errors
-        console.log(error);
-    });
-}
-
-function dehighlight(index, slug, el) {
-    event.preventDefault();
-    let highlightFormParent = document.querySelector("#highlight-" + index);
+    let highlightLinkParent = document.querySelector("#highlight-" + index);
     let dehighlightLinkParent = document.querySelector("#dehighlight-" + index);
     fetch(
         el.getAttribute("href"), {
-            method: "DELETE",
+            method: method,
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
@@ -127,11 +98,16 @@ function dehighlight(index, slug, el) {
     )
     .then((response) => {
         if (response.ok) {
-            dehighlightLinkParent.classList.add("visually-hidden");
-            highlightFormParent.classList.remove("visually-hidden");
-        } else {
-            console.log(response.body)
+            if (method == "DELETE") {
+                dehighlightLinkParent.classList.add("visually-hidden");
+                highlightLinkParent.classList.remove("visually-hidden");
+            } else {
+                highlightLinkParent.classList.add("visually-hidden");
+                dehighlightLinkParent.classList.remove("visually-hidden");    
+            }
+            return;
         }
+        console.log(response.body)
     })
     .catch(function (error) {
         // Catch errors

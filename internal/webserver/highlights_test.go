@@ -1,6 +1,7 @@
 package webserver_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v3/internal/infrastructure"
+	"github.com/svera/coreander/v3/internal/model"
 )
 
 func TestHighlights(t *testing.T) {
@@ -18,6 +20,8 @@ func TestHighlights(t *testing.T) {
 	data := url.Values{
 		"slug": {"john-doe-test-epub"},
 	}
+	adminUser := model.User{}
+	db.Where("email = ?", "admin@example.com").First(&adminUser)
 
 	adminCookie, err := login(app, "admin@example.com", "admin")
 	if err != nil {
@@ -41,7 +45,7 @@ func TestHighlights(t *testing.T) {
 
 		mustReturnStatus(response, fiber.StatusOK, t)
 
-		assertHighlights(app, t, adminCookie, 1)
+		assertHighlights(app, t, adminCookie, adminUser.Uuid, 1)
 
 		response, err = highlight(adminCookie, app, strings.NewReader(data.Encode()), fiber.MethodDelete)
 		if err != nil {
@@ -50,12 +54,12 @@ func TestHighlights(t *testing.T) {
 
 		mustReturnStatus(response, fiber.StatusOK, t)
 
-		assertHighlights(app, t, adminCookie, 0)
+		assertHighlights(app, t, adminCookie, adminUser.Uuid, 0)
 	})
 }
 
 func highlight(cookie *http.Cookie, app *fiber.App, reader *strings.Reader, method string) (*http.Response, error) {
-	req, err := http.NewRequest(method, "/highlight", reader)
+	req, err := http.NewRequest(method, "/highlights", reader)
 	if err != nil {
 		return nil, err
 	}
@@ -65,8 +69,8 @@ func highlight(cookie *http.Cookie, app *fiber.App, reader *strings.Reader, meth
 	return app.Test(req)
 }
 
-func assertHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, expectedResults int) {
-	req, err := http.NewRequest(http.MethodGet, "/en/highlights", nil)
+func assertHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, uuid string, expectedResults int) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/en/highlights/%s", uuid), nil)
 	req.AddCookie(cookie)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())

@@ -50,7 +50,12 @@ func (h *Highlights) Highlights(c *fiber.Ctx) error {
 		h.wordsPerMinute = session.WordsPerMinute
 	}
 
-	highlights, err := h.hlRepository.Highlights(int(session.ID), page, model.ResultsPerPage)
+	user, err := h.usrRepository.FindByUuid(c.Params("uuid"))
+	if err != nil {
+		return fiber.ErrBadRequest
+	}
+
+	highlights, err := h.hlRepository.Highlights(int(user.ID), page, model.ResultsPerPage)
 	if err != nil {
 		return fiber.ErrInternalServerError
 	}
