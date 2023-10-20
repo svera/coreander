@@ -80,10 +80,11 @@ function remove() {
     });
 }
 
-function highlightToggle(index, slug, el, method) {
+function highlightToggle(slug, el, method) {
     event.preventDefault();
-    let highlightLinkParent = document.querySelector("#highlight-" + index);
-    let dehighlightLinkParent = document.querySelector("#dehighlight-" + index);
+    let ul = el.closest(".actions")
+    let highlightLinkParent = document.querySelector("li.highlight");
+    let dehighlightLinkParent = document.querySelector("li.dehighlight");
     fetch(
         el.getAttribute("href"), {
             method: method,
