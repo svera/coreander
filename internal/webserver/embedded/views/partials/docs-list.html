@@ -74,3 +74,8 @@
     </div>
     {{end}} {{end}}
 </div>
+
+{{template "partials/delete-modal" .}}
+
+{{template "delete.js" dict "Lang" $lang}}
+{{template "actions.js" dict "Lang" $lang}}
