@@ -45,10 +45,17 @@
                 {{end}}     
 
                 {{if not .EmailSendingConfigured}}
-                    <p>{{t .Lang "Send to email unavailable, no email service configured"}}</p>
+                    <p class="text-start">{{t .Lang "Send to email unavailable, no email service configured"}}</p>
                 {{else}}
                     <div>
-                        <form method="post" action="send" onsubmit="send(this)" class="send-email">
+                        <form method="post" action="send" onsubmit="send(this)" class="send-email mt-3">
+                            <label for="email" class="form-label text-start">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope-fill" viewBox="0 0 16 16">
+                                    <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414.05 3.555ZM0 4.697v7.104l5.803-3.558L0 4.697ZM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586l-1.239-.757Zm3.436-.586L16 11.801V4.697l-5.803 3.546Z"/>
+                                </svg>
+                                &nbsp;&nbsp;{{t .Lang "Send to email"}}
+                            </label>
+    
                             <div class="input-group">
                                 <input type="email" class="form-control" id="email" name="email"
                                     placeholder="email@example.com" value="{{.Session.SendToEmail}}" required="required">
@@ -60,7 +67,9 @@
                                     <span id="spinner" class="spinner-border spinner-border-sm visually-hidden" aria-hidden="true"></span>
                                     &nbsp;&nbsp;{{t .Lang "Send"}}</button>
                             </div>
-                            <small class="text-muted"><em>{{t .Lang "Sent from %s" .EmailFrom}}</em></small>    
+                            <p class="text-end">
+                                <small class="text-muted"><em>{{t .Lang "Sent from %s" .EmailFrom}}</em></small>
+                            </p>
                             <div class="p-3 visually-hidden fs-6 send-email-message"></div>
                         </form>
                     </div>
@@ -74,19 +83,19 @@
                     .Document.Series}}
                     <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}} {{.Document.SeriesIndex}}</p>
                     {{ end }}
-                    <h2 class="text-start">
+                    <h1 class="text-start">
                         {{.Document.Title}} <small class="small text-muted">{{.Document.Year}}</small>
-                    </h2>
+                    </h1>
                 </div>
             </div>
             <div class="row">
                 <div class="col-12 text-start">
                     {{if .Document.Authors}}
-                    <h3>
+                    <h2>
                         {{join $document.Authors ", "}}
-                    </h3>
+                    </h2>
                     {{else}}
-                    <h3>{{t $lang "Unknown author"}}</h3>
+                    <h2>{{t $lang "Unknown author"}}</h2>
                     {{end}}
 
                     {{ if gt .Document.Words 0.0 }}
@@ -118,7 +127,7 @@
 
             {{ $length := len .SameSeries }} {{ if gt $length 0 }}
             <section class="row mt-5">
-                <div class="col-9 text-start">
+                <div class="col-9">
                     <h4>{{t $lang "Other documents in collection \"%s\"" .Document.Series}}</h4>
                 </div>
                 <div class="col-3 text-end">
@@ -132,7 +141,7 @@
 
             {{ $length := len .SameAuthors }} {{ if gt $length 0 }}
             <section class="row mt-5">
-                <div class="col-9 text-start">
+                <div class="col-9">
                     <h4>
                         {{t $lang "Other documents by"}}
                         {{join $document.Authors ", "}}
@@ -149,7 +158,7 @@
 
             {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
             <section class="row mt-5">
-                <div class="col-9 text-start">
+                <div class="col-9">
                     <h4>{{t $lang "Other documents with similar subjects"}}</h4>
                 </div>
                 <div class="col-3 text-end">

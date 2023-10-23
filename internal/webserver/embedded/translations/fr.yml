@@ -103,6 +103,6 @@
 "Dark": "Noir"
 "Auto": "Auto"
 "Highlight": "Ajouter aux favoris"
-"Highlights": "Favoris"
+"%s highlights": "Favoris du %s"
 "Remove from highlights": "Retirer des favoris"
 "%d highlighted documents": "%d documents favoris"

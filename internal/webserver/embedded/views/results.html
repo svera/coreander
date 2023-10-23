@@ -1,8 +1,8 @@
 <div class="container">
     {{template "partials/searchbox" .}} {{if gt .Total 0}}
-    <p>{{t .Lang "%d matches found" .Total }}</p>
+    <p class="text-center">{{t .Lang "%d matches found" .Total }}</p>
     {{else}}
-    <p>{{t .Lang "No matches found" }}</p>
+    <p class="text-center">{{t .Lang "No matches found" }}</p>
     {{end}}
 
     {{ template "partials/docs-list" dict "Lang" .Lang "EmailSendingConfigured"

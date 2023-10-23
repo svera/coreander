@@ -1,10 +1,10 @@
 <div class="container">
     <div class="py-5">
-        <h1>{{t .Lang "Highlights"}}</h1>
+        <h1 class="text-center">{{t .Lang "%s highlights" .Session.Name}}</h1>
         {{if gt .Total 0}}
-        <p>{{t .Lang "%d highlighted documents" .Total }}</p>
+        <p class="text-center">{{t .Lang "%d highlighted documents" .Total }}</p>
         {{else}}
-        <p>{{t .Lang "No highlighted documents" }}</p>
+        <p class="text-center">{{t .Lang "No highlighted documents" }}</p>
         {{end}}
     </div>
 

@@ -1,9 +1,9 @@
 <div class="container">
-    <section class="pb-5">
+    <section class="pb-5 text-center">
         {{template "partials/searchbox" .}}
         <p>{{t .Lang "%d documents available" .Count}}</p>
     </section>
-    <section class="pt-5">
+    <section class="pt-5 text-center">
         <h2 class="mb-3">{{t .Lang "Search tips"}}</h2>
         <p>{{t .Lang "Use %s prefix in search box to search by authors only" `<span
                 class="font-monospace">Authors:</span>`}}</p>
