@@ -23,6 +23,7 @@ type User struct {
 	WordsPerMinute     float64
 	RecoveryUUID       string
 	RecoveryValidUntil time.Time
+	Highlights         []Highlight
 }
 
 // Validate checks all user's fields to ensure they are in the required format

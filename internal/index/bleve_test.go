@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/metadata"
+	"github.com/svera/coreander/v3/internal/search"
 )
 
 func TestIndexAndSearch(t *testing.T) {
@@ -53,7 +54,7 @@ type testCase struct {
 	filename       string
 	mockedMeta     metadata.Metadata
 	search         string
-	expectedResult index.PaginatedResult
+	expectedResult search.PaginatedResult
 }
 
 func testCases() []testCase {
@@ -69,11 +70,11 @@ func testCases() []testCase {
 				Subjects:    []string{"History", "Middle age"},
 			},
 			"perez",
-			index.PaginatedResult{
+			search.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: []index.Document{
+				Hits: []search.Document{
 					{
 						ID:   "book1.epub",
 						Slug: "perez-test-a",
@@ -98,11 +99,11 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"benoit",
-			index.PaginatedResult{
+			search.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: []index.Document{
+				Hits: []search.Document{
 					{
 						ID:   "book2.epub",
 						Slug: "benoit-test-b",
@@ -127,11 +128,11 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"clifford simak",
-			index.PaginatedResult{
+			search.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: []index.Document{
+				Hits: []search.Document{
 					{
 						ID:   "book3.epub",
 						Slug: "clifford-d-simak-test-c",
@@ -156,11 +157,11 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"james ellroy",
-			index.PaginatedResult{
+			search.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: []index.Document{
+				Hits: []search.Document{
 					{
 						ID:   "book4.epub",
 						Slug: "james-ellroy-test-d",
@@ -184,11 +185,11 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			" james       ellroy ",
-			index.PaginatedResult{
+			search.PaginatedResult{
 				Page:       1,
 				TotalPages: 1,
 				TotalHits:  1,
-				Hits: []index.Document{
+				Hits: []search.Document{
 					{
 						ID:   "book5.epub",
 						Slug: "james-ellroy-test-e",

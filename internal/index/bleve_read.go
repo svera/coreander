@@ -3,7 +3,6 @@ package index
 import (
 	"fmt"
 	"html/template"
-	"math"
 	"net/url"
 	"strings"
 
@@ -11,10 +10,11 @@ import (
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/gosimple/slug"
 	"github.com/svera/coreander/v3/internal/metadata"
+	"github.com/svera/coreander/v3/internal/search"
 )
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
-func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*PaginatedResult, error) {
+func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*search.PaginatedResult, error) {
 	for _, prefix := range []string{"Authors:", "Series:", "Title:", "Subjects:", "\""} {
 		if strings.HasPrefix(strings.Trim(keywords, " "), prefix) {
 			query := bleve.NewQueryStringQuery(keywords)
@@ -88,7 +88,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*Pagin
 	return b.runPaginatedQuery(compound, page, resultsPerPage)
 }
 
-func (b *BleveIndexer) runQuery(query query.Query, results int) ([]Document, error) {
+func (b *BleveIndexer) runQuery(query query.Query, results int) ([]search.Document, error) {
 	res, err := b.runPaginatedQuery(query, 0, results)
 	if err != nil {
 		return nil, err
@@ -96,8 +96,8 @@ func (b *BleveIndexer) runQuery(query query.Query, results int) ([]Document, err
 	return res.Hits, nil
 }
 
-func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage int) (*PaginatedResult, error) {
-	var result PaginatedResult
+func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage int) (*search.PaginatedResult, error) {
+	var result search.PaginatedResult
 	if page < 1 {
 		page = 1
 	}
@@ -112,7 +112,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	if searchResult.Total == 0 {
 		return &result, nil
 	}
-	totalPages := calculateTotalPages(searchResult.Total, uint64(resultsPerPage))
+	totalPages := search.CalculateTotalPages(searchResult.Total, uint64(resultsPerPage))
 	if totalPages < page {
 		page = totalPages
 		if page == 0 {
@@ -123,15 +123,15 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 			return nil, err
 		}
 	}
-	result = PaginatedResult{
+	result = search.PaginatedResult{
 		Page:       page,
 		TotalPages: totalPages,
 		TotalHits:  int(searchResult.Total),
-		Hits:       make([]Document, 0, len(searchResult.Hits)),
+		Hits:       make([]search.Document, 0, len(searchResult.Hits)),
 	}
 
 	for _, val := range searchResult.Hits {
-		doc := Document{
+		doc := search.Document{
 			ID:   val.ID,
 			Slug: val.Fields["Slug"].(string),
 			Metadata: metadata.Metadata{
@@ -157,12 +157,8 @@ func (b *BleveIndexer) Count() (uint64, error) {
 	return b.idx.DocCount()
 }
 
-func calculateTotalPages(total, resultsPerPage uint64) int {
-	return int(math.Ceil(float64(total) / float64(resultsPerPage)))
-}
-
-func (b *BleveIndexer) Document(slug string) (Document, error) {
-	doc := Document{}
+func (b *BleveIndexer) Document(slug string) (search.Document, error) {
+	doc := search.Document{}
 	query := bleve.NewTermQuery(slug)
 	query.SetField("Slug")
 	searchOptions := bleve.NewSearchRequest(query)
@@ -175,7 +171,7 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 		return doc, fmt.Errorf("Document with slug %s not found", slug)
 	}
 
-	doc = Document{
+	doc = search.Document{
 		ID:   searchResult.Hits[0].ID,
 		Slug: searchResult.Hits[0].Fields["Slug"].(string),
 		Metadata: metadata.Metadata{
@@ -195,12 +191,47 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 	return doc, nil
 }
 
+func (b *BleveIndexer) Documents(IDs []string) ([]search.Document, error) {
+	docs := make([]search.Document, 0, len(IDs))
+	query := bleve.NewDocIDQuery(IDs)
+	searchOptions := bleve.NewSearchRequest(query)
+	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type", "Subjects"}
+	searchResult, err := b.idx.Search(searchOptions)
+	if err != nil {
+		return docs, err
+	}
+
+	for _, hit := range searchResult.Hits {
+		docs = append(
+			docs,
+			search.Document{
+				ID:   hit.ID,
+				Slug: hit.Fields["Slug"].(string),
+				Metadata: metadata.Metadata{
+					Title:       hit.Fields["Title"].(string),
+					Authors:     slicer(hit.Fields["Authors"]),
+					Description: template.HTML(hit.Fields["Description"].(string)),
+					Year:        hit.Fields["Year"].(string),
+					Words:       hit.Fields["Words"].(float64),
+					Series:      hit.Fields["Series"].(string),
+					SeriesIndex: hit.Fields["SeriesIndex"].(float64),
+					Pages:       int(hit.Fields["Pages"].(float64)),
+					Type:        hit.Fields["Type"].(string),
+					Subjects:    slicer(hit.Fields["Subjects"]),
+				},
+			},
+		)
+	}
+
+	return docs, nil
+}
+
 // SameSubjects returns an array of metadata of documents by other authors, different between each other,
 // which have similar subjects as the passed one and does not belong to the same collection
-func (b *BleveIndexer) SameSubjects(slug string, quantity int) ([]Document, error) {
+func (b *BleveIndexer) SameSubjects(slug string, quantity int) ([]search.Document, error) {
 	doc, err := b.Document(slug)
 	if err != nil {
-		return []Document{}, err
+		return []search.Document{}, err
 	}
 
 	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
@@ -223,7 +254,7 @@ func (b *BleveIndexer) SameSubjects(slug string, quantity int) ([]Document, erro
 	}
 	bq.AddMustNot(authorsCompoundQuery)
 
-	res := make([]Document, 0, quantity)
+	res := make([]search.Document, 0, quantity)
 	for i := 0; i < quantity; i++ {
 		doc, err := b.runQuery(bq, 1)
 		if err != nil {
@@ -246,10 +277,10 @@ func (b *BleveIndexer) SameSubjects(slug string, quantity int) ([]Document, erro
 
 // SameAuthors returns an array of metadata of documents by the same authors which
 // does not belong to the same collection
-func (b *BleveIndexer) SameAuthors(slug string, quantity int) ([]Document, error) {
+func (b *BleveIndexer) SameAuthors(slug string, quantity int) ([]search.Document, error) {
 	doc, err := b.Document(slug)
 	if err != nil {
-		return []Document{}, err
+		return []search.Document{}, err
 	}
 
 	authorsCompoundQuery := bleve.NewDisjunctionQuery()
@@ -269,10 +300,10 @@ func (b *BleveIndexer) SameAuthors(slug string, quantity int) ([]Document, error
 }
 
 // SameSeries returns an array of metadata of documents in the same series
-func (b *BleveIndexer) SameSeries(slug string, quantity int) ([]Document, error) {
+func (b *BleveIndexer) SameSeries(slug string, quantity int) ([]search.Document, error) {
 	doc, err := b.Document(slug)
 	if err != nil {
-		return []Document{}, err
+		return []search.Document{}, err
 	}
 
 	bq := bleve.NewBooleanQuery()

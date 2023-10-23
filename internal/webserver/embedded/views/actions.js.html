@@ -1,0 +1,91 @@
+<script type="text/javascript">
+    function send(el) {
+        event.preventDefault();
+        let form = el.closest(".send-email")
+
+        let submit = form.querySelector('button');
+        let sendIcon = document.querySelector('.bi-send-fill');
+        let spinner = document.querySelector('.spinner-border');
+
+        submit.setAttribute("disabled", true);
+        spinner.classList.remove("visually-hidden");
+        sendIcon.classList.add("visually-hidden");
+        fetch('/send', {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                'email': form.elements[0].value,
+                'slug': form.elements[1].value,        
+            })
+        })
+        .then((response) => {
+            message = el.querySelector(".send-email-message")
+            message.classList.remove("visually-hidden");
+            if (!response.ok) {
+                message.innerHTML = '{{t .Lang "There was an error sending the document, please try again later"}}';
+                message.classList.remove("text-success");
+                message.classList.add("text-danger");
+            } else {
+                message.innerHTML = '{{t .Lang "Document sent succesfully"}}';
+                message.classList.remove("text-danger");
+                message.classList.add("text-success");
+            }
+            submit.removeAttribute("disabled");
+            sendIcon.classList.remove("visually-hidden");
+            spinner.classList.add("visually-hidden");
+        })
+        .catch(function (error) {
+            // Catch errors
+            console.log(error);
+        });
+    }
+
+    function highlightToggle(slug, el, method) {
+        event.preventDefault();
+        let highlightLinkParent = document.querySelector("#highlight");
+        let dehighlightLinkParent = document.querySelector("#dehighlight");
+        fetch(
+            el.getAttribute("href"), {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                credentials: "same-origin",
+                body: new URLSearchParams({
+                    'slug': slug,        
+                })
+            }
+        )
+        .then((response) => {
+            if (response.ok) {
+                if (method == "DELETE") {
+                    dehighlightLinkParent.classList.add("visually-hidden");
+                    highlightLinkParent.classList.remove("visually-hidden");
+                } else {
+                    highlightLinkParent.classList.add("visually-hidden");
+                    dehighlightLinkParent.classList.remove("visually-hidden");    
+                }
+                return;
+            }
+            console.log(response.body)
+        })
+        .catch(function (error) {
+            // Catch errors
+            console.log(error);
+        });
+    }
+
+    window.onload = function () {
+        let imgs = document.querySelectorAll('.cover');
+        for (i = 0; i < imgs.length; i++) {
+            if (imgs[i].getAttribute('data-src')) {
+                imgs[i].addEventListener('error', function onError(e) {
+                    this.setAttribute('src', '/images/generic.jpg');
+                });
+                imgs[i].setAttribute('src', imgs[i].getAttribute('data-src'));
+            }
+        }
+    }
+</script>

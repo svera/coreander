@@ -9,11 +9,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v3/internal/infrastructure"
 	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
+	"github.com/svera/coreander/v3/internal/model"
+	"github.com/svera/coreander/v3/internal/search"
 )
 
 const relatedDocuments = 4
 
-func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wordsPerMinute float64) error {
+func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wordsPerMinute float64, highlights model.HighlightRepository) error {
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -54,6 +56,10 @@ func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wo
 	sameSeries, err := idx.SameSeries(document.Slug, relatedDocuments)
 	if err != nil {
 		fmt.Println(err)
+	}
+
+	if session.ID > 0 {
+		document = highlights.Highlighted(int(session.ID), []search.Document{document})[0]
 	}
 
 	return c.Render("document", fiber.Map{

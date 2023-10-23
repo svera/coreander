@@ -12,6 +12,7 @@ import (
 	"github.com/svera/coreander/v3/internal/infrastructure"
 	"github.com/svera/coreander/v3/internal/model"
 	"golang.org/x/text/message"
+	"gorm.io/gorm"
 )
 
 type authRepository interface {
@@ -113,6 +114,9 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 	// Send back JWT as a cookie.
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userdata": model.User{
+			Model: gorm.Model{
+				ID: user.ID,
+			},
 			Name:           user.Name,
 			Email:          user.Email,
 			Role:           user.Role,

@@ -6,13 +6,13 @@
         <div class="card border-0">
             <img src="/images/generic.jpg" data-src="/cover/{{$doc.Slug}}" loading="lazy" class="card-img-top border border-1 rounded-0 cover" alt='{{t $lang "\"%s\" cover" $doc.Title}}'>
             <div class="card-body">
-            <h5 class="card-title"><a href="/{{$lang}}/document/{{$doc.Slug}}">{{$doc.Title}}</a></h5>
+            <h5 class="card-title text-center"><a href="/{{$lang}}/document/{{$doc.Slug}}">{{$doc.Title}}</a></h5>
             {{if $doc.Authors}}
-            <p class="card-text">
+            <p class="card-text text-center">
                 {{join $doc.Authors ", "}}
             </p>
             {{else}}
-            <p class="card-text">{{t $lang "Unknown author"}}</p>
+            <p class="card-text text-center">{{t $lang "Unknown author"}}</p>
             {{end}}
             </div>
         </div>
