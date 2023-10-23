@@ -44,8 +44,10 @@
 
     function highlightToggle(slug, el, method) {
         event.preventDefault();
-        let highlightLinkParent = document.querySelector("#highlight");
-        let dehighlightLinkParent = document.querySelector("#dehighlight");
+        let parent = el.closest(".actions")
+
+        let highlightLinkParent = parent.querySelector(".highlight");
+        let dehighlightLinkParent = parent.querySelector(".dehighlight");
         fetch(
             el.getAttribute("href"), {
                 method: method,
