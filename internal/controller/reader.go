@@ -10,8 +10,6 @@ import (
 )
 
 func DocReader(c *fiber.Ctx, libraryPath string, idx IdxReader) error {
-	lang := c.Params("lang")
-
 	document, err := idx.Document(c.Params("slug"))
 	if err != nil {
 		fmt.Println(err)
@@ -33,7 +31,6 @@ func DocReader(c *fiber.Ctx, libraryPath string, idx IdxReader) error {
 		title = fmt.Sprintf("%s - %s | Coreander", authors, document.Title)
 	}
 	return c.Render(template, fiber.Map{
-		"Lang":        lang,
 		"Title":       title,
 		"Author":      strings.Join(document.Authors, ", "),
 		"Description": document.Description,

@@ -60,7 +60,6 @@ func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64, 
 			"Total":                  searchResults.TotalHits,
 			"Paginator":              pagination(model.MaxPagesNavigator, searchResults.TotalPages, searchResults.Page, map[string]string{"search": keywords}),
 			"Title":                  "Search results",
-			"Version":                c.App().Config().AppName,
 			"EmailSendingConfigured": emailSendingConfigured,
 			"EmailFrom":              sender.From(),
 			"Session":                session,
@@ -75,7 +74,6 @@ func Search(c *fiber.Ctx, idx IdxReader, sender Sender, wordsPerMinute float64, 
 	return c.Render("index", fiber.Map{
 		"Count":   count,
 		"Title":   "Coreander",
-		"Version": c.App().Config().AppName,
 		"Session": session,
 	}, "layout")
 }

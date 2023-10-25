@@ -32,6 +32,7 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 		c.Locals("Lang", c.Params("lang"))
 		c.Locals("SupportedLanguages", supportedLanguages)
 		c.Locals("PathMinusLang", pathMinusLang)
+		c.Locals("Version", c.App().Config().AppName)
 		return c.Next()
 	})
 

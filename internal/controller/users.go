@@ -59,12 +59,10 @@ func (u *Users) List(c *fiber.Ctx) error {
 
 	users, _ := u.repository.List(page, model.ResultsPerPage)
 	return c.Render("users/index", fiber.Map{
-		"Lang":      c.Params("lang"),
 		"Title":     "Users",
 		"Users":     users,
 		"Paginator": pagination(model.MaxPagesNavigator, totalPages, page, map[string]string{}),
 		"Session":   session,
-		"Version":   c.App().Config().AppName,
 		"Admins":    u.repository.Admins(),
 	}, "layout")
 }
@@ -81,10 +79,8 @@ func (u *Users) New(c *fiber.Ctx) error {
 		WordsPerMinute: u.wordsPerMinute,
 	}
 	return c.Render("users/new", fiber.Map{
-		"Lang":              c.Params("lang"),
 		"Title":             "Add user",
 		"Session":           session,
-		"Version":           c.App().Config().AppName,
 		"MinPasswordLength": u.minPasswordLength,
 		"User":              user,
 		"Errors":            map[string]string{},
@@ -118,7 +114,6 @@ func (u *Users) Create(c *fiber.Ctx) error {
 		return c.Render("users/new", fiber.Map{
 			"Title":   "Add user",
 			"Session": session,
-			"Version": c.App().Config().AppName,
 			"Errors":  errs,
 			"User":    user,
 		}, "layout")
@@ -146,11 +141,9 @@ func (u *Users) Edit(c *fiber.Ctx) error {
 	}
 
 	return c.Render("users/edit", fiber.Map{
-		"Lang":              c.Params("lang"),
 		"Title":             "Edit user",
 		"User":              user,
 		"Session":           session,
-		"Version":           c.App().Config().AppName,
 		"MinPasswordLength": u.minPasswordLength,
 		"Errors":            map[string]string{},
 	}, "layout")
@@ -180,11 +173,9 @@ func (u *Users) Update(c *fiber.Ctx) error {
 	errs := user.Validate(u.minPasswordLength)
 	if len(errs) > 0 {
 		return c.Render("users/edit", fiber.Map{
-			"Lang":              c.Params("lang"),
 			"Title":             "Edit user",
 			"User":              user,
 			"Session":           session,
-			"Version":           c.App().Config().AppName,
 			"MinPasswordLength": u.minPasswordLength,
 			"Errors":            errs,
 		}, "layout")
@@ -195,11 +186,9 @@ func (u *Users) Update(c *fiber.Ctx) error {
 	}
 
 	return c.Render("users/edit", fiber.Map{
-		"Lang":              c.Params("lang"),
 		"Title":             "Edit user",
 		"User":              user,
 		"Session":           session,
-		"Version":           c.App().Config().AppName,
 		"MinPasswordLength": u.minPasswordLength,
 		"Errors":            errs,
 		"Message":           "Profile updated",
@@ -226,11 +215,9 @@ func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 
 	if errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.minPasswordLength, errs); len(errs) > 0 {
 		return c.Render("users/edit", fiber.Map{
-			"Lang":              c.Params("lang"),
 			"Title":             "Edit user",
 			"User":              user,
 			"Session":           session,
-			"Version":           c.App().Config().AppName,
 			"MinPasswordLength": u.minPasswordLength,
 			"ActiveTab":         "password",
 			"Errors":            errs,
@@ -243,11 +230,9 @@ func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 	}
 
 	return c.Render("users/edit", fiber.Map{
-		"Lang":              c.Params("lang"),
 		"Title":             "Edit user",
 		"User":              user,
 		"Session":           session,
-		"Version":           c.App().Config().AppName,
 		"MinPasswordLength": u.minPasswordLength,
 		"ActiveTab":         "password",
 		"Errors":            errs,
