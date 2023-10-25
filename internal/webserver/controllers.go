@@ -59,6 +59,8 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		emailSendingConfigured = false
 	}
 
+	supportedLanguages := getSupportedLanguages()
+
 	return Controllers{
 		Auth:       authController,
 		Users:      usersController,
@@ -101,10 +103,11 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			TokenLookup:   "cookie:coreander",
 			ErrorHandler: func(c *fiber.Ctx, err error) error {
 				return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
-					"Lang":                   chooseBestLanguage(c, getSupportedLanguages()),
+					"Lang":                   chooseBestLanguage(c, supportedLanguages),
 					"Title":                  "Login",
 					"Version":                c.App().Config().AppName,
 					"EmailSendingConfigured": emailSendingConfigured,
+					"SupportedLanguages":     supportedLanguages,
 				}, "layout")
 			},
 		}),
@@ -116,10 +119,11 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 				err = c.Next()
 				if cfg.RequireAuth {
 					return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
-						"Lang":                   chooseBestLanguage(c, getSupportedLanguages()),
+						"Lang":                   chooseBestLanguage(c, supportedLanguages),
 						"Title":                  "Login",
 						"Version":                c.App().Config().AppName,
 						"EmailSendingConfigured": emailSendingConfigured,
+						"SupportedLanguages":     supportedLanguages,
 					}, "layout")
 				}
 				return err
@@ -139,7 +143,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			err = c.Status(code).Render(
 				fmt.Sprintf("errors/%d", code),
 				fiber.Map{
-					"Lang":    chooseBestLanguage(c, getSupportedLanguages()),
+					"Lang":    chooseBestLanguage(c, supportedLanguages),
 					"Title":   "Coreander",
 					"Session": jwtclaimsreader.SessionData(c),
 					"Version": c.App().Config().AppName,
