@@ -21,7 +21,6 @@ func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wo
 		emailSendingConfigured = false
 	}
 
-	lang := c.Params("lang")
 	session := jwtclaimsreader.SessionData(c)
 	if session.WordsPerMinute > 0 {
 		wordsPerMinute = session.WordsPerMinute
@@ -63,7 +62,6 @@ func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wo
 	}
 
 	return c.Render("document", fiber.Map{
-		"Lang":                   lang,
 		"Title":                  title,
 		"Document":               document,
 		"EmailSendingConfigured": emailSendingConfigured,
@@ -73,7 +71,6 @@ func Document(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader, wo
 		"SameAuthors":            sameAuthors,
 		"SameSubjects":           sameSubjects,
 		"WordsPerMinute":         wordsPerMinute,
-		"Version":                c.App().Config().AppName,
 	}, "layout")
 
 }

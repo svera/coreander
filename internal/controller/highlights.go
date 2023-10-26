@@ -73,7 +73,6 @@ func (h *Highlights) Highlights(c *fiber.Ctx) error {
 		"Total":                  highlights.TotalHits,
 		"Paginator":              pagination(model.MaxPagesNavigator, highlights.TotalPages, page, nil),
 		"Title":                  "Highlights",
-		"Version":                c.App().Config().AppName,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              h.sender.From(),
 		"Session":                session,
