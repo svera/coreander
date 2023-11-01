@@ -244,7 +244,7 @@ func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 func (u *Users) Delete(c *fiber.Ctx) error {
 	session := jwtclaimsreader.SessionData(c)
 
-	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
+	if session.Role != model.RoleAdmin {
 		return fiber.ErrForbidden
 	}
 
@@ -253,7 +253,7 @@ func (u *Users) Delete(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 	if u.repository.Admins() == 1 && user.Role == model.RoleAdmin {
-		return fiber.ErrForbidden
+		return fiber.ErrBadRequest
 	}
 
 	u.repository.Delete(c.FormValue("uuid"))

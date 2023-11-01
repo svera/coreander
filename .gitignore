@@ -3,3 +3,4 @@ bin
 tmp
 *.zip
 *.exe
+.air.toml
