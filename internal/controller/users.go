@@ -253,7 +253,7 @@ func (u *Users) Delete(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 	if u.repository.Admins() == 1 && user.Role == model.RoleAdmin {
-		return fiber.ErrBadRequest
+		return fiber.ErrForbidden
 	}
 
 	u.repository.Delete(c.FormValue("uuid"))
