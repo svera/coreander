@@ -3,7 +3,7 @@ package search
 import (
 	"math"
 
-	"github.com/svera/coreander/v3/internal/metadata"
+	"github.com/svera/coreander/v4/internal/metadata"
 )
 
 type Document struct {

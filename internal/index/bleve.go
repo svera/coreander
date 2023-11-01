@@ -11,7 +11,7 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
 	"github.com/blevesearch/bleve/v2/analysis/char/asciifolding"
 	"github.com/blevesearch/bleve/v2/mapping"
-	"github.com/svera/coreander/v3/internal/metadata"
+	"github.com/svera/coreander/v4/internal/metadata"
 )
 
 type BleveIndexer struct {

@@ -27,7 +27,7 @@
                 {{end}}
             </div>
             {{ if not (and (eq $admins 1) (eq $user.Role 2)) }}
-            <a href="#" data-bs-toggle="modal" data-bs-target="#deleteModal" data-bs-uuid="{{$user.Uuid}}">
+            <a href="#" data-bs-toggle="modal" data-bs-target="#deleteModal" data-uuid="{{$user.Uuid}}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash3-fill" viewBox="0 0 16 16">
                     <path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5Zm-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5ZM4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06Zm6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.528ZM8 4.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0V5a.5.5 0 0 0-.5-.5Z"/>
                 </svg>
@@ -45,21 +45,19 @@
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModal" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="post" action="/{{$lang}}/users/delete">
-                <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="deleteModalLabel">{{t $lang "Delete user"}}</h1>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    {{t $lang "Are you sure you want to delete this user?"}}
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{t $lang
-                        "Cancel"}}</button>
-                    <button type="submit" class="btn btn-primary">{{t $lang "Delete"}}</button>
-                </div>
-                <input type="hidden" name="uuid" value="" class="uuid">
-            </form>
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="deleteModalLabel">{{t $lang "Delete user"}}</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger visually-hidden" role="alert" id="delete-document-message"></div>
+                {{t $lang "Are you sure you want to delete this user?"}}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{t $lang
+                    "Cancel"}}</button>
+                <button type="button" data-uuid="" class="btn btn-primary" onclick="remove(this)">{{t $lang "Delete"}}</button>
+            </div>
         </div>
     </div>
 </div>
@@ -69,9 +67,38 @@
     const deleteModal = document.getElementById('deleteModal')
     deleteModal.addEventListener('show.bs.modal', event => {
         const link = event.relatedTarget
-        const uuid = link.getAttribute('data-bs-uuid')
-        const modalInput = deleteModal.querySelector('.uuid')
+        const uuid = link.getAttribute('data-uuid')
+        const modalInput = deleteModal.querySelector('.btn-primary')
 
-        modalInput.value = uuid;
+        modalInput.setAttribute('data-uuid', uuid);
     })
+
+    deleteModal.addEventListener('hidden.bs.modal', event => {
+        let message = document.getElementById('delete-user-message');
+        message.classList.add("visually-hidden");
+    })
+
+    function remove(el) {
+        event.preventDefault();
+        let url = '/{{$lang}}/users' + el.getAttribute('data-uuid');
+        fetch(url, {
+            method: "DELETE",
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        })
+        .then((response) => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                message = document.getElementById("delete-document-message")
+                message.classList.remove("visually-hidden");
+                message.innerHTML = '{{t .Lang "There was an error deleting the user"}}';
+            }
+        })
+        .catch(function (error) {
+            // Catch errors
+            console.log(error);
+        });
+    }
 </script>

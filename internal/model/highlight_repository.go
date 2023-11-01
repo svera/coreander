@@ -3,7 +3,7 @@ package model
 import (
 	"log"
 
-	"github.com/svera/coreander/v3/internal/search"
+	"github.com/svera/coreander/v4/internal/search"
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"

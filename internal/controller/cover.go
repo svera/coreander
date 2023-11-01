@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/metadata"
+	"github.com/svera/coreander/v4/internal/metadata"
 )
 
 func Cover(c *fiber.Ctx, homeDir, libraryPath string, metadataReaders map[string]metadata.Reader, coverMaxWidth int, idx IdxReader) error {

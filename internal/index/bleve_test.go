@@ -6,9 +6,9 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/index"
-	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/search"
+	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/search"
 )
 
 func TestIndexAndSearch(t *testing.T) {

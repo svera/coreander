@@ -8,12 +8,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 	jwtware "github.com/gofiber/jwt/v3"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/controller"
-	"github.com/svera/coreander/v3/internal/index"
-	"github.com/svera/coreander/v3/internal/infrastructure"
-	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
-	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/model"
+	"github.com/svera/coreander/v4/internal/controller"
+	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/infrastructure"
+	"github.com/svera/coreander/v4/internal/jwtclaimsreader"
+	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/model"
 	"gorm.io/gorm"
 )
 

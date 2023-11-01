@@ -7,9 +7,9 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
-	"github.com/svera/coreander/v3/internal/model"
-	"github.com/svera/coreander/v3/internal/search"
+	"github.com/svera/coreander/v4/internal/jwtclaimsreader"
+	"github.com/svera/coreander/v4/internal/model"
+	"github.com/svera/coreander/v4/internal/search"
 )
 
 type IdxWriter interface {

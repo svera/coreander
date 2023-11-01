@@ -7,8 +7,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
-	"github.com/svera/coreander/v3/internal/model"
+	"github.com/svera/coreander/v4/internal/jwtclaimsreader"
+	"github.com/svera/coreander/v4/internal/model"
 )
 
 type usersRepository interface {
@@ -248,14 +248,14 @@ func (u *Users) Delete(c *fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
-	user, err := u.repository.FindByUuid(c.FormValue("uuid"))
+	user, err := u.repository.FindByUuid(c.Params("uuid"))
 	if err != nil {
 		return fiber.ErrNotFound
 	}
 	if u.repository.Admins() == 1 && user.Role == model.RoleAdmin {
-		return fiber.ErrForbidden
+		return fiber.ErrBadRequest
 	}
 
-	u.repository.Delete(c.FormValue("uuid"))
+	u.repository.Delete(c.Params("uuid"))
 	return c.Redirect(fmt.Sprintf("/%s/users", c.Params("lang")))
 }
