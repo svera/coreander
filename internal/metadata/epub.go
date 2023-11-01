@@ -52,6 +52,10 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	var subjects []string
 	if len(opf.Metadata.Subject) > 0 {
 		for _, subject := range opf.Metadata.Subject {
+			subject.Value = strings.TrimSpace(subject.Value)
+			if subject.Value == "" {
+				continue
+			}
 			// Some epub files mistakenly put all subjects in a single field instead of using a field for each one.
 			// We want to identify those cases looking for specific separators and then indexing each subject properly.
 			names := strings.Split(subject.Value, ",")

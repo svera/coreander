@@ -65,7 +65,7 @@ Some features rely on having an SMTP email service set up, and won't be availabl
 * Send document to email.
 * Recover user password.
 
-You can use any email service that allow sending emails using the SMTP protocol, like [GMX](gmx.com). The following environment variables need to be defined:
+You can use any email service that allow sending emails using the SMTP protocol, like [GMX](https://gmx.com/mail). The following environment variables need to be defined:
 
 * `SMTP_SERVER`: The URL of the SMTP server to be used, for example `mail.gmx.com`.
 * `SMTP_PORT`: The port number used by the email service, defaults to `587`.
