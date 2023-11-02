@@ -50,13 +50,13 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-danger visually-hidden" role="alert" id="delete-document-message"></div>
+                <div class="alert alert-danger visually-hidden" role="alert" id="delete-user-message"></div>
                 {{t $lang "Are you sure you want to delete this user?"}}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{t $lang
                     "Cancel"}}</button>
-                <button type="button" data-uuid="" class="btn btn-primary" onclick="remove(this)">{{t $lang "Delete"}}</button>
+                <a href="" class="btn btn-primary" onclick="remove(this)">{{t $lang "Delete"}}</a>
             </div>
         </div>
     </div>
@@ -64,13 +64,13 @@
 
 
 <script type="text/javascript">
-    const deleteModal = document.getElementById('deleteModal')
-    deleteModal.addEventListener('show.bs.modal', event => {
+    const deleteModal = document.getElementById("deleteModal")
+    deleteModal.addEventListener("show.bs.modal", event => {
         const link = event.relatedTarget
-        const uuid = link.getAttribute('data-uuid')
-        const modalInput = deleteModal.querySelector('.btn-primary')
+        const uuid = link.getAttribute("data-uuid")
+        const submit = deleteModal.querySelector(".btn-primary");
 
-        modalInput.setAttribute('data-uuid', uuid);
+        submit.setAttribute("href", "/{{$lang}}/users/" + uuid);
     })
 
     deleteModal.addEventListener('hidden.bs.modal', event => {
@@ -80,18 +80,14 @@
 
     function remove(el) {
         event.preventDefault();
-        let url = '/{{$lang}}/users' + el.getAttribute('data-uuid');
-        fetch(url, {
-            method: "DELETE",
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
+        fetch(el.getAttribute("href"), {
+            method: "DELETE"
         })
         .then((response) => {
             if (response.ok) {
                 location.reload();
             } else {
-                message = document.getElementById("delete-document-message")
+                message = document.getElementById("delete-user-message")
                 message.classList.remove("visually-hidden");
                 message.innerHTML = '{{t .Lang "There was an error deleting the user"}}';
             }

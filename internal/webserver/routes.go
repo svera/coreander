@@ -50,7 +50,7 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 	usersGroup.Post("/", controllers.Users.Create)
 	usersGroup.Get("/:uuid<guid>", controllers.Users.Edit)
 	usersGroup.Put("/:uuid<guid>", controllers.Users.Update)
-	usersGroup.Delete("/", controllers.Users.Delete)
+	usersGroup.Delete("/:uuid<guid>", controllers.Users.Delete)
 
 	langGroup.Get("/highlights/:uuid<guid>", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlights)
 	app.Post("/highlights", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlight)

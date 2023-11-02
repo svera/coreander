@@ -240,7 +240,7 @@ func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 	}, "layout")
 }
 
-// Delete soft-removes a user from the database
+// Delete removes a user from the database
 func (u *Users) Delete(c *fiber.Ctx) error {
 	session := jwtclaimsreader.SessionData(c)
 
@@ -253,9 +253,9 @@ func (u *Users) Delete(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 	if u.repository.Admins() == 1 && user.Role == model.RoleAdmin {
-		return fiber.ErrBadRequest
+		return fiber.ErrForbidden
 	}
 
 	u.repository.Delete(c.Params("uuid"))
-	return c.Redirect(fmt.Sprintf("/%s/users", c.Params("lang")))
+	return nil
 }

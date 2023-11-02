@@ -3,8 +3,6 @@ package model
 import (
 	"net/mail"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 const (
@@ -13,7 +11,9 @@ const (
 )
 
 type User struct {
-	gorm.Model
+	ID                 uint `gorm:"primarykey"`
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 	Uuid               string `gorm:"uniqueIndex"`
 	Name               string
 	Email              string `gorm:"uniqueIndex"`
