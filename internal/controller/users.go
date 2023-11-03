@@ -14,10 +14,10 @@ import (
 type usersRepository interface {
 	List(page int, resultsPerPage int) ([]model.User, error)
 	Total() int64
-	FindByUuid(uuid string) (model.User, error)
-	Create(user model.User) error
-	Update(user model.User) error
-	FindByEmail(email string) (model.User, error)
+	FindByUuid(uuid string) (*model.User, error)
+	Create(user *model.User) error
+	Update(user *model.User) error
+	FindByEmail(email string) (*model.User, error)
 	Admins() int64
 	Delete(uuid string) error
 }
@@ -120,7 +120,7 @@ func (u *Users) Create(c *fiber.Ctx) error {
 	}
 
 	user.Password = model.Hash(user.Password)
-	if err := u.repository.Create(user); err != nil {
+	if err := u.repository.Create(&user); err != nil {
 		return fiber.ErrInternalServerError
 	}
 
@@ -163,7 +163,7 @@ func (u *Users) Update(c *fiber.Ctx) error {
 	}
 
 	if c.FormValue("password-tab") == "true" {
-		return u.updatePassword(c, session, user)
+		return u.updatePassword(c, session, *user)
 	}
 
 	user.Name = c.FormValue("name")
@@ -225,7 +225,7 @@ func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 	}
 
 	user.Password = model.Hash(user.Password)
-	if err := u.repository.Update(user); err != nil {
+	if err := u.repository.Update(&user); err != nil {
 		return fiber.ErrInternalServerError
 	}
 

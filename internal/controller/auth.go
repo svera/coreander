@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"errors"
 	"fmt"
 	"net/mail"
 	"strings"
@@ -13,13 +12,12 @@ import (
 	"github.com/svera/coreander/v3/internal/infrastructure"
 	"github.com/svera/coreander/v3/internal/model"
 	"golang.org/x/text/message"
-	"gorm.io/gorm"
 )
 
 type authRepository interface {
-	FindByEmail(email string) (model.User, error)
-	FindByRecoveryUuid(recoveryUuid string) (model.User, error)
-	Update(user model.User) error
+	FindByEmail(email string) (*model.User, error)
+	FindByRecoveryUuid(recoveryUuid string) (*model.User, error)
+	Update(user *model.User) error
 }
 
 type recoveryEmail interface {
@@ -92,14 +90,14 @@ func (a *Auth) Login(c *fiber.Ctx) error {
 // Signs in a user and gives them a JWT.
 func (a *Auth) SignIn(c *fiber.Ctx) error {
 	var (
-		user model.User
+		user *model.User
 		err  error
 	)
 
 	// If username or password are incorrect, do not allow access.
 	user, err = a.repository.FindByEmail(c.FormValue("email"))
 
-	if errors.Is(err, gorm.ErrRecordNotFound) || user.Password != model.Hash(c.FormValue("password")) {
+	if user == nil || user.Password != model.Hash(c.FormValue("password")) {
 		return c.Status(fiber.StatusUnauthorized).Render("auth/login", fiber.Map{
 			"Title": "Login",
 			"Error": "Wrong email or password",
@@ -239,7 +237,7 @@ func (a *Auth) UpdatePassword(c *fiber.Ctx) error {
 	}
 
 	user.Password = model.Hash(user.Password)
-	if err := a.repository.Update(user); err != nil {
+	if err := a.repository.Update(&user); err != nil {
 		return fiber.ErrInternalServerError
 	}
 
@@ -256,14 +254,14 @@ func (a *Auth) validateRecoveryAccess(c *fiber.Ctx, recoveryUuid string) (model.
 	}
 	user, err := a.repository.FindByRecoveryUuid(recoveryUuid)
 	if err != nil {
-		return user, fiber.ErrInternalServerError
+		return *user, fiber.ErrInternalServerError
 	}
 
 	if user.RecoveryValidUntil.Before(time.Now()) {
-		return user, fiber.ErrBadRequest
+		return *user, fiber.ErrBadRequest
 	}
 
-	return user, nil
+	return *user, nil
 }
 
 func (a *Auth) urlPort(c *fiber.Ctx) string {
