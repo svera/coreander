@@ -52,7 +52,7 @@ func (h *Highlights) Highlights(c *fiber.Ctx) error {
 
 	user, err := h.usrRepository.FindByUuid(c.Params("uuid"))
 	if err != nil {
-		return fiber.ErrBadRequest
+		return fiber.ErrNotFound
 	}
 
 	highlights, err := h.hlRepository.Highlights(int(user.ID), page, model.ResultsPerPage)

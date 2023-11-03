@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"net/mail"
 	"strings"
@@ -97,11 +98,8 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 
 	// If username or password are incorrect, do not allow access.
 	user, err = a.repository.FindByEmail(c.FormValue("email"))
-	if err != nil {
-		return fiber.ErrInternalServerError
-	}
 
-	if user.Password != model.Hash(c.FormValue("password")) {
+	if errors.Is(err, gorm.ErrRecordNotFound) || user.Password != model.Hash(c.FormValue("password")) {
 		return c.Status(fiber.StatusUnauthorized).Render("auth/login", fiber.Map{
 			"Title": "Login",
 			"Error": "Wrong email or password",
@@ -111,9 +109,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 	// Send back JWT as a cookie.
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userdata": model.User{
-			Model: gorm.Model{
-				ID: user.ID,
-			},
+			ID:             user.ID,
 			Name:           user.Name,
 			Email:          user.Email,
 			Role:           user.Role,

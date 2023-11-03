@@ -80,13 +80,8 @@ func Hash(s string) string {
 
 func (u *UserRepository) find(field, value string) (User, error) {
 	var (
-		err  error
 		user User
 	)
-	result := u.DB.Limit(1).Where(fmt.Sprintf("%s = ?", field), value).Find(&user)
-	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		err = result.Error
-		log.Printf("error retrieving user: %s\n", result.Error)
-	}
-	return user, err
+	result := u.DB.Where(fmt.Sprintf("%s = ?", field), value).First(&user)
+	return user, result.Error
 }

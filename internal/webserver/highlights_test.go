@@ -23,8 +23,22 @@ func TestHighlights(t *testing.T) {
 	adminUser := model.User{}
 	db.Where("email = ?", "admin@example.com").First(&adminUser)
 
+	regularUserData := url.Values{
+		"name":             {"Test user"},
+		"email":            {"test@example.com"},
+		"password":         {"test"},
+		"confirm-password": {"test"},
+		"role":             {fmt.Sprint(model.RoleRegular)},
+		"words-per-minute": {"250"},
+	}
+
 	adminCookie, err := login(app, "admin@example.com", "admin")
 	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+
+	response, err := addUser(regularUserData, adminCookie, app)
+	if response == nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
 
@@ -55,6 +69,46 @@ func TestHighlights(t *testing.T) {
 		mustReturnStatus(response, fiber.StatusOK, t)
 
 		assertHighlights(app, t, adminCookie, adminUser.Uuid, 0)
+	})
+
+	t.Run("Deleting a user also remove his/her highlights", func(t *testing.T) {
+		regularUser := model.User{}
+		db.Where("email = ?", "test@example.com").First(&regularUser)
+
+		regularUserCookie, err := login(app, "test@example.com", "test")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		response, err := highlight(regularUserCookie, app, strings.NewReader(data.Encode()), fiber.MethodPost)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnStatus(response, fiber.StatusOK, t)
+
+		assertHighlights(app, t, regularUserCookie, regularUser.Uuid, 1)
+
+		adminCookie, err = login(app, "admin@example.com", "admin")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		data = url.Values{
+			"uuid": {regularUser.Uuid},
+		}
+
+		_, err = deleteUser(data, adminCookie, app)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		assertNoHighlights(app, t, adminCookie, regularUser.Uuid)
+		var total int64
+		db.Table("highlights").Where("user_id = ?", regularUser.ID).Count(&total)
+		if total != 0 {
+			t.Errorf("Expected no highlights in DB for deleted user, got %d", total)
+		}
 	})
 }
 
@@ -90,5 +144,20 @@ func assertHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, uuid st
 
 	if actualResults := doc.Find(".list-group-item").Length(); actualResults != expectedResults {
 		t.Errorf("Expected %d results, got %d", expectedResults, actualResults)
+	}
+}
+
+func assertNoHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, uuid string) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/en/highlights/%s", uuid), nil)
+	req.AddCookie(cookie)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	response, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if expectedStatus := http.StatusNotFound; response.StatusCode != expectedStatus {
+		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 	}
 }
