@@ -96,6 +96,9 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 
 	// If username or password are incorrect, do not allow access.
 	user, err = a.repository.FindByEmail(c.FormValue("email"))
+	if err != nil {
+		return fiber.ErrInternalServerError
+	}
 
 	if user == nil || user.Password != model.Hash(c.FormValue("password")) {
 		return c.Status(fiber.StatusUnauthorized).Render("auth/login", fiber.Map{

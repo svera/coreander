@@ -83,5 +83,8 @@ func (u *UserRepository) find(field, value string) (*User, error) {
 		user User
 	)
 	result := u.DB.Where(fmt.Sprintf("%s = ?", field), value).First(&user)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return &user, nil
+	}
 	return &user, result.Error
 }
