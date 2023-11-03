@@ -19,7 +19,7 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 		log.Printf("Created database at %s\n", path)
 	}
 
-	// Use the following line to connect whe
+	// Use the following line to connect when the temporary code block below is removed
 	//db, err := gorm.Open(sqlite.Open(fmt.Sprintf("%s?_pragma=foreign_keys(1)", path)), &gorm.Config{})
 	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
 	if err != nil {
