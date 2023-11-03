@@ -240,31 +240,31 @@ func (a *Auth) UpdatePassword(c *fiber.Ctx) error {
 	}
 
 	user.Password = model.Hash(user.Password)
-	if err := a.repository.Update(&user); err != nil {
+	if err := a.repository.Update(user); err != nil {
 		return fiber.ErrInternalServerError
 	}
 
 	return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang")))
 }
 
-func (a *Auth) validateRecoveryAccess(c *fiber.Ctx, recoveryUuid string) (model.User, error) {
+func (a *Auth) validateRecoveryAccess(c *fiber.Ctx, recoveryUuid string) (*model.User, error) {
 	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
-		return model.User{}, fiber.ErrNotFound
+		return &model.User{}, fiber.ErrNotFound
 	}
 
 	if recoveryUuid == "" {
-		return model.User{}, fiber.ErrBadRequest
+		return &model.User{}, fiber.ErrBadRequest
 	}
 	user, err := a.repository.FindByRecoveryUuid(recoveryUuid)
 	if err != nil {
-		return *user, fiber.ErrInternalServerError
+		return user, fiber.ErrInternalServerError
 	}
 
 	if user.RecoveryValidUntil.Before(time.Now()) {
-		return *user, fiber.ErrBadRequest
+		return user, fiber.ErrBadRequest
 	}
 
-	return *user, nil
+	return user, nil
 }
 
 func (a *Auth) urlPort(c *fiber.Ctx) string {
