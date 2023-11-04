@@ -3,8 +3,6 @@ package model
 import (
 	"net/mail"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 const (
@@ -13,7 +11,9 @@ const (
 )
 
 type User struct {
-	gorm.Model
+	ID                 uint `gorm:"primarykey"`
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 	Uuid               string `gorm:"uniqueIndex"`
 	Name               string
 	Email              string `gorm:"uniqueIndex"`
@@ -23,7 +23,7 @@ type User struct {
 	WordsPerMinute     float64
 	RecoveryUUID       string
 	RecoveryValidUntil time.Time
-	Highlights         []Highlight
+	Highlights         []Highlight `gorm:"constraint:OnDelete:CASCADE"`
 }
 
 // Validate checks all user's fields to ensure they are in the required format

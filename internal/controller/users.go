@@ -14,10 +14,10 @@ import (
 type usersRepository interface {
 	List(page int, resultsPerPage int) ([]model.User, error)
 	Total() int64
-	FindByUuid(uuid string) (model.User, error)
-	Create(user model.User) error
-	Update(user model.User) error
-	FindByEmail(email string) (model.User, error)
+	FindByUuid(uuid string) (*model.User, error)
+	Create(user *model.User) error
+	Update(user *model.User) error
+	FindByEmail(email string) (*model.User, error)
 	Admins() int64
 	Delete(uuid string) error
 }
@@ -106,7 +106,7 @@ func (u *Users) Create(c *fiber.Ctx) error {
 	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
 
 	errs := user.Validate(u.minPasswordLength)
-	if exist, _ := u.repository.FindByEmail(c.FormValue("email")); exist.Email != "" {
+	if exist, _ := u.repository.FindByEmail(c.FormValue("email")); exist != nil {
 		errs["email"] = "A user with this email address already exist"
 	}
 
@@ -120,7 +120,7 @@ func (u *Users) Create(c *fiber.Ctx) error {
 	}
 
 	user.Password = model.Hash(user.Password)
-	if err := u.repository.Create(user); err != nil {
+	if err := u.repository.Create(&user); err != nil {
 		return fiber.ErrInternalServerError
 	}
 
@@ -163,7 +163,7 @@ func (u *Users) Update(c *fiber.Ctx) error {
 	}
 
 	if c.FormValue("password-tab") == "true" {
-		return u.updatePassword(c, session, user)
+		return u.updatePassword(c, session, *user)
 	}
 
 	user.Name = c.FormValue("name")
@@ -225,7 +225,7 @@ func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 	}
 
 	user.Password = model.Hash(user.Password)
-	if err := u.repository.Update(user); err != nil {
+	if err := u.repository.Update(&user); err != nil {
 		return fiber.ErrInternalServerError
 	}
 
@@ -244,7 +244,7 @@ func (u *Users) updatePassword(c *fiber.Ctx, session, user model.User) error {
 func (u *Users) Delete(c *fiber.Ctx) error {
 	session := jwtclaimsreader.SessionData(c)
 
-	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
+	if session.Role != model.RoleAdmin {
 		return fiber.ErrForbidden
 	}
 

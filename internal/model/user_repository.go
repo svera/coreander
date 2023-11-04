@@ -29,31 +29,31 @@ func (u *UserRepository) Total() int64 {
 	return totalRows
 }
 
-func (u *UserRepository) FindByUuid(uuid string) (User, error) {
+func (u *UserRepository) FindByUuid(uuid string) (*User, error) {
 	return u.find("uuid", uuid)
 }
 
-func (u *UserRepository) Create(user User) error {
-	if result := u.DB.Create(&user); result.Error != nil {
+func (u *UserRepository) Create(user *User) error {
+	if result := u.DB.Create(user); result.Error != nil {
 		log.Printf("error creating user: %s\n", result.Error)
 		return result.Error
 	}
 	return nil
 }
 
-func (u *UserRepository) Update(user User) error {
-	if result := u.DB.Save(&user); result.Error != nil {
+func (u *UserRepository) Update(user *User) error {
+	if result := u.DB.Save(user); result.Error != nil {
 		log.Printf("error updating user: %s\n", result.Error)
 		return result.Error
 	}
 	return nil
 }
 
-func (u *UserRepository) FindByEmail(email string) (User, error) {
+func (u *UserRepository) FindByEmail(email string) (*User, error) {
 	return u.find("email", email)
 }
 
-func (u *UserRepository) FindByRecoveryUuid(recoveryUuid string) (User, error) {
+func (u *UserRepository) FindByRecoveryUuid(recoveryUuid string) (*User, error) {
 	return u.find("recovery_uuid", recoveryUuid)
 }
 
@@ -78,15 +78,13 @@ func Hash(s string) string {
 	return string(h.Sum(nil))
 }
 
-func (u *UserRepository) find(field, value string) (User, error) {
+func (u *UserRepository) find(field, value string) (*User, error) {
 	var (
-		err  error
 		user User
 	)
-	result := u.DB.Limit(1).Where(fmt.Sprintf("%s = ?", field), value).Find(&user)
-	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		err = result.Error
-		log.Printf("error retrieving user: %s\n", result.Error)
+	result := u.DB.Where(fmt.Sprintf("%s = ?", field), value).First(&user)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return nil, nil
 	}
-	return user, err
+	return &user, result.Error
 }
