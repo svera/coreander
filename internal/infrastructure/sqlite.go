@@ -19,12 +19,29 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 		log.Printf("Created database at %s\n", path)
 	}
 
+	// Use the following line to connect when the temporary code block below is removed
+	//db, err := gorm.Open(sqlite.Open(fmt.Sprintf("%s?_pragma=foreign_keys(1)", path)), &gorm.Config{})
 	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if err := db.AutoMigrate(&model.User{}, &model.Highlight{}); err != nil {
+		log.Fatal(err)
+	}
+	// The next block is temporary, used to add constraints to an en existing highlights table
+	// Remove when the new format is established
+	if !db.Migrator().HasConstraint(&model.User{}, "Highlights") {
+		err := db.Migrator().CreateConstraint(&model.User{}, "Highlights")
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = db.Migrator().CreateConstraint(&model.User{}, "fk_users_highlights")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	if res := db.Exec("PRAGMA foreign_keys(1)", nil); res.Error != nil {
 		log.Fatal(err)
 	}
 	addDefaultAdmin(db, wordsPerMinute)

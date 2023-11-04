@@ -24,7 +24,7 @@ func TestUserManagement(t *testing.T) {
 		"email":            {"test@example.com"},
 		"password":         {"test"},
 		"confirm-password": {"test"},
-		"role":             {"1"},
+		"role":             {fmt.Sprint(model.RoleRegular)},
 		"words-per-minute": {"250"},
 	}
 

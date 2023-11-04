@@ -23,7 +23,7 @@ type User struct {
 	WordsPerMinute     float64
 	RecoveryUUID       string
 	RecoveryValidUntil time.Time
-	Highlights         []Highlight
+	Highlights         []Highlight `gorm:"constraint:OnDelete:CASCADE"`
 }
 
 // Validate checks all user's fields to ensure they are in the required format

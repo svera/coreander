@@ -15,9 +15,9 @@ import (
 )
 
 type authRepository interface {
-	FindByEmail(email string) (model.User, error)
-	FindByRecoveryUuid(recoveryUuid string) (model.User, error)
-	Update(user model.User) error
+	FindByEmail(email string) (*model.User, error)
+	FindByRecoveryUuid(recoveryUuid string) (*model.User, error)
+	Update(user *model.User) error
 }
 
 type recoveryEmail interface {
@@ -90,7 +90,7 @@ func (a *Auth) Login(c *fiber.Ctx) error {
 // Signs in a user and gives them a JWT.
 func (a *Auth) SignIn(c *fiber.Ctx) error {
 	var (
-		user model.User
+		user *model.User
 		err  error
 	)
 
@@ -100,7 +100,7 @@ func (a *Auth) SignIn(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	if user.Password != model.Hash(c.FormValue("password")) {
+	if user == nil || user.Password != model.Hash(c.FormValue("password")) {
 		return c.Status(fiber.StatusUnauthorized).Render("auth/login", fiber.Map{
 			"Title": "Login",
 			"Error": "Wrong email or password",
@@ -247,13 +247,13 @@ func (a *Auth) UpdatePassword(c *fiber.Ctx) error {
 	return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang")))
 }
 
-func (a *Auth) validateRecoveryAccess(c *fiber.Ctx, recoveryUuid string) (model.User, error) {
+func (a *Auth) validateRecoveryAccess(c *fiber.Ctx, recoveryUuid string) (*model.User, error) {
 	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
-		return model.User{}, fiber.ErrNotFound
+		return &model.User{}, fiber.ErrNotFound
 	}
 
 	if recoveryUuid == "" {
-		return model.User{}, fiber.ErrBadRequest
+		return &model.User{}, fiber.ErrBadRequest
 	}
 	user, err := a.repository.FindByRecoveryUuid(recoveryUuid)
 	if err != nil {
