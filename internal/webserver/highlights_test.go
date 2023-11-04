@@ -103,12 +103,12 @@ func TestHighlights(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		assertNoHighlights(app, t, adminCookie, regularUser.Uuid)
 		var total int64
 		db.Table("highlights").Where("user_id = ?", regularUser.ID).Count(&total)
 		if total != 0 {
 			t.Errorf("Expected no highlights in DB for deleted user, got %d", total)
 		}
+		assertNoHighlights(app, t, adminCookie, regularUser.Uuid)
 	})
 }
 

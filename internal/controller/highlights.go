@@ -52,6 +52,10 @@ func (h *Highlights) Highlights(c *fiber.Ctx) error {
 
 	user, err := h.usrRepository.FindByUuid(c.Params("uuid"))
 	if err != nil {
+		return fiber.ErrInternalServerError
+	}
+
+	if user == nil {
 		return fiber.ErrNotFound
 	}
 

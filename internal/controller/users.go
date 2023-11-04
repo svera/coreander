@@ -106,7 +106,7 @@ func (u *Users) Create(c *fiber.Ctx) error {
 	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
 
 	errs := user.Validate(u.minPasswordLength)
-	if exist, _ := u.repository.FindByEmail(c.FormValue("email")); exist.Email != "" {
+	if exist, _ := u.repository.FindByEmail(c.FormValue("email")); exist != nil {
 		errs["email"] = "A user with this email address already exist"
 	}
 
