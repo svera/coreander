@@ -19,7 +19,7 @@ type PagesNavigator struct {
 	NextLink     string
 }
 
-func pagination(size int, totalPages int, current int, params map[string]string) PagesNavigator {
+func Pagination(size int, totalPages int, current int, params map[string]string) PagesNavigator {
 	var nav PagesNavigator
 	start := 1
 	end := size

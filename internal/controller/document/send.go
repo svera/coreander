@@ -1,4 +1,4 @@
-package controller
+package document
 
 import (
 	"net/mail"
@@ -9,7 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func Send(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader) error {
+func (d *Controller) Send(c *fiber.Ctx) error {
 	if strings.Trim(c.FormValue("slug"), " ") == "" {
 		return fiber.ErrBadRequest
 	}
@@ -18,14 +18,14 @@ func Send(c *fiber.Ctx, libraryPath string, sender Sender, idx IdxReader) error 
 		return fiber.ErrBadRequest
 	}
 
-	document, err := idx.Document(c.FormValue("slug"))
+	document, err := d.idx.Document(c.FormValue("slug"))
 	if err != nil {
 		return fiber.ErrBadRequest
 	}
 
-	if _, err := os.Stat(filepath.Join(libraryPath, document.ID)); err != nil {
+	if _, err := os.Stat(filepath.Join(d.config.LibraryPath, document.ID)); err != nil {
 		return fiber.ErrBadRequest
 	}
 
-	return sender.SendDocument(c.FormValue("email"), libraryPath, document.ID)
+	return d.sender.SendDocument(c.FormValue("email"), d.config.LibraryPath, document.ID)
 }
