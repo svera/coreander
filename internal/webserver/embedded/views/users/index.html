@@ -19,7 +19,7 @@
         {{range $i, $user := .Users}}
         <div class="list-group-item d-flex justify-content-between align-items-start">
             <div>
-                <a href="/{{$lang}}/users/{{$user.Uuid}}/edit">{{$user.Name}}</a>
+                <a href="/{{$lang}}/users/{{$user.Uuid}}">{{$user.Name}}</a>
                 ({{$user.Email}})
 
                 {{if eq $user.Role 2}}
