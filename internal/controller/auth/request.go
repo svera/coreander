@@ -7,7 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/svera/coreander/v3/internal/infrastructure"
+	"github.com/svera/coreander/v4/internal/infrastructure"
 )
 
 func (a *Controller) Request(c *fiber.Ctx) error {

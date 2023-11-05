@@ -37,7 +37,7 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 	})
 
 	langGroup.Get("/login", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.Login)
-	langGroup.Post("login", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.SignIn)
+	langGroup.Post("/login", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.SignIn)
 	langGroup.Get("/recover", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.Recover)
 	langGroup.Post("/recover", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.Request)
 	langGroup.Get("/reset-password", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.EditPassword)
