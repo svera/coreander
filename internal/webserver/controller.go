@@ -8,7 +8,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 	jwtware "github.com/gofiber/jwt/v3"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/controller"
+	"github.com/svera/coreander/v3/internal/controller/auth"
+	"github.com/svera/coreander/v3/internal/controller/document"
+	"github.com/svera/coreander/v3/internal/controller/highlight"
+	"github.com/svera/coreander/v3/internal/controller/user"
 	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/infrastructure"
 	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
@@ -18,10 +21,10 @@ import (
 )
 
 type Controllers struct {
-	Auth                                  *controller.Auth
-	Users                                 *controller.Users
-	Highlights                            *controller.Highlights
-	Documents                             *controller.Documents
+	Auth                                  *auth.Controller
+	Users                                 *user.Controller
+	Highlights                            *highlight.Controller
+	Documents                             *document.Controller
 	AllowIfNotLoggedInMiddleware          func(c *fiber.Ctx) error
 	AlwaysRequireAuthenticationMiddleware func(c *fiber.Ctx) error
 	ConfigurableAuthenticationMiddleware  func(c *fiber.Ctx) error
@@ -32,7 +35,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 	usersRepository := &model.UserRepository{DB: db}
 	highlightsRepository := &model.HighlightRepository{DB: db}
 
-	authCfg := controller.AuthConfig{
+	authCfg := auth.Config{
 		MinPasswordLength: cfg.MinPasswordLength,
 		Secret:            cfg.JwtSecret,
 		Hostname:          cfg.Hostname,
@@ -40,22 +43,22 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		SessionTimeout:    cfg.SessionTimeout,
 	}
 
-	usersCfg := controller.UsersConfig{
+	usersCfg := user.Config{
 		MinPasswordLength: cfg.MinPasswordLength,
 		WordsPerMinute:    cfg.WordsPerMinute,
 	}
 
-	documentsCfg := controller.DocumentsConfig{
+	documentsCfg := document.Config{
 		WordsPerMinute: cfg.WordsPerMinute,
 		LibraryPath:    cfg.LibraryPath,
 		HomeDir:        cfg.HomeDir,
 		CoverMaxWidth:  cfg.CoverMaxWidth,
 	}
 
-	authController := controller.NewAuth(usersRepository, sender, authCfg, printers)
-	usersController := controller.NewUsers(usersRepository, usersCfg)
-	highlightsController := controller.NewHighlights(highlightsRepository, usersRepository, sender, cfg.WordsPerMinute, idx)
-	documentsController := controller.NewDocuments(highlightsRepository, usersRepository, sender, idx, metadataReaders, appFs, documentsCfg)
+	authController := auth.NewController(usersRepository, sender, authCfg, printers)
+	usersController := user.NewController(usersRepository, usersCfg)
+	highlightsController := highlight.NewController(highlightsRepository, usersRepository, sender, cfg.WordsPerMinute, idx)
+	documentsController := document.NewController(highlightsRepository, sender, idx, metadataReaders, appFs, documentsCfg)
 
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {

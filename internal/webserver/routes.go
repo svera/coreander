@@ -65,7 +65,7 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 
 	app.Get("/cover/:slug", controllers.Documents.Cover)
 
-	langGroup.Get("/document/:slug", controllers.Documents.Document)
+	langGroup.Get("/document/:slug", controllers.Documents.Detail)
 
 	app.Post("/send", controllers.Documents.Send)
 
@@ -73,7 +73,7 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 
 	langGroup.Get("/", controllers.Documents.Search)
 
-	langGroup.Get("/read/:slug", controllers.Documents.DocReader)
+	langGroup.Get("/read/:slug", controllers.Documents.Reader)
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return controller.Root(c)
