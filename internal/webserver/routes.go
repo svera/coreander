@@ -56,24 +56,24 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 	app.Post("/highlights", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlight)
 	app.Delete("/highlights", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Highlights.Remove)
 
-	app.Post("/delete", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Delete)
+	app.Post("/delete", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Documents.Delete)
 
 	// Authentication requirement is configurable for all routes below this middleware
 	app.Use(controllers.ConfigurableAuthenticationMiddleware)
 
 	langGroup.Get("/logout", controllers.Auth.SignOut)
 
-	app.Get("/cover/:slug", controllers.Cover)
+	app.Get("/cover/:slug", controllers.Documents.Cover)
 
-	langGroup.Get("/document/:slug", controllers.Document)
+	langGroup.Get("/document/:slug", controllers.Documents.Detail)
 
-	app.Post("/send", controllers.Send)
+	app.Post("/send", controllers.Documents.Send)
 
-	app.Get("/download/:slug", controllers.Download)
+	app.Get("/download/:slug", controllers.Documents.Download)
 
-	langGroup.Get("/", controllers.Search)
+	langGroup.Get("/", controllers.Documents.Search)
 
-	langGroup.Get("/read/:slug", controllers.Read)
+	langGroup.Get("/read/:slug", controllers.Documents.Reader)
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return controller.Root(c)

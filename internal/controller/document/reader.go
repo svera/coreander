@@ -1,4 +1,4 @@
-package controller
+package document
 
 import (
 	"fmt"
@@ -9,14 +9,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func DocReader(c *fiber.Ctx, libraryPath string, idx IdxReader) error {
-	document, err := idx.Document(c.Params("slug"))
+func (d *Controller) Reader(c *fiber.Ctx) error {
+	document, err := d.idx.Document(c.Params("slug"))
 	if err != nil {
 		fmt.Println(err)
 		return fiber.ErrBadRequest
 	}
 
-	if _, err := os.Stat(filepath.Join(libraryPath, document.ID)); err != nil {
+	if _, err := os.Stat(filepath.Join(d.config.LibraryPath, document.ID)); err != nil {
 		return fiber.ErrNotFound
 	}
 
@@ -36,5 +36,4 @@ func DocReader(c *fiber.Ctx, libraryPath string, idx IdxReader) error {
 		"Description": document.Description,
 		"Slug":        document.Slug,
 	})
-
 }

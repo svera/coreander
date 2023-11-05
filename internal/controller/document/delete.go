@@ -1,4 +1,4 @@
-package controller
+package document
 
 import (
 	"fmt"
@@ -6,18 +6,11 @@ import (
 	"path/filepath"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/model"
-	"github.com/svera/coreander/v3/internal/search"
 )
 
-type IdxWriter interface {
-	Document(ID string) (search.Document, error)
-	RemoveFile(file string) error
-}
-
-func Delete(c *fiber.Ctx, libraryPath string, writer IdxWriter, appFs afero.Fs) error {
+func (d *Controller) Delete(c *fiber.Ctx) error {
 	session := jwtclaimsreader.SessionData(c)
 
 	if session.Role != model.RoleAdmin {
@@ -28,22 +21,22 @@ func Delete(c *fiber.Ctx, libraryPath string, writer IdxWriter, appFs afero.Fs) 
 		return fiber.ErrBadRequest
 	}
 
-	document, err := writer.Document(c.FormValue("slug"))
+	document, err := d.idx.Document(c.FormValue("slug"))
 	if err != nil {
 		fmt.Println(err)
 		return fiber.ErrBadRequest
 	}
 
-	fullPath := filepath.Join(libraryPath, document.ID)
-	if _, err := appFs.Stat(fullPath); err != nil {
+	fullPath := filepath.Join(d.config.LibraryPath, document.ID)
+	if _, err := d.appFs.Stat(fullPath); err != nil {
 		return fiber.ErrBadRequest
 	}
 
-	if err := writer.RemoveFile(fullPath); err != nil {
+	if err := d.idx.RemoveFile(fullPath); err != nil {
 		return fiber.ErrInternalServerError
 	}
 
-	if err := appFs.Remove(fullPath); err != nil {
+	if err := d.appFs.Remove(fullPath); err != nil {
 		log.Printf("error removing file %s", fullPath)
 	}
 

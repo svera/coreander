@@ -1,4 +1,4 @@
-package controller
+package document
 
 import (
 	"fmt"
@@ -10,13 +10,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func Download(c *fiber.Ctx, homeDir, libraryPath string, idx IdxReader) error {
-	document, err := idx.Document(c.Params("slug"))
+func (d *Controller) Download(c *fiber.Ctx) error {
+	document, err := d.idx.Document(c.Params("slug"))
 	if err != nil {
 		return fiber.ErrBadRequest
 	}
 
-	fullPath := filepath.Join(libraryPath, document.ID)
+	fullPath := filepath.Join(d.config.LibraryPath, document.ID)
 
 	if _, err := os.Stat(fullPath); err != nil {
 		return fiber.ErrNotFound
