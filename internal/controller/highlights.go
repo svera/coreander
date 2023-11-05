@@ -14,17 +14,18 @@ type highlightsRepository interface {
 	Highlights(userID int, page int, resultsPerPage int) (search.PaginatedResult, error)
 	Highlight(userID int, documentPath string) error
 	Remove(userID int, documentPath string) error
+	Highlighted(userID int, documents []search.Document) []search.Document
 }
 
 type Highlights struct {
 	hlRepository   highlightsRepository
 	usrRepository  usersRepository
-	idx            IdxReader
+	idx            IdxReaderWriter
 	sender         Sender
 	wordsPerMinute float64
 }
 
-func NewHighlights(hlRepository highlightsRepository, usrRepository usersRepository, sender Sender, wordsPerMinute float64, idx IdxReader) *Highlights {
+func NewHighlights(hlRepository highlightsRepository, usrRepository usersRepository, sender Sender, wordsPerMinute float64, idx IdxReaderWriter) *Highlights {
 	return &Highlights{
 		hlRepository:   hlRepository,
 		usrRepository:  usrRepository,

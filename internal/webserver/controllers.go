@@ -21,13 +21,7 @@ type Controllers struct {
 	Auth                                  *controller.Auth
 	Users                                 *controller.Users
 	Highlights                            *controller.Highlights
-	Cover                                 func(c *fiber.Ctx) error
-	Send                                  func(c *fiber.Ctx) error
-	Download                              func(c *fiber.Ctx) error
-	Read                                  func(c *fiber.Ctx) error
-	Document                              func(c *fiber.Ctx) error
-	Delete                                func(c *fiber.Ctx) error
-	Search                                func(c *fiber.Ctx) error
+	Documents                             *controller.Documents
 	AllowIfNotLoggedInMiddleware          func(c *fiber.Ctx) error
 	AlwaysRequireAuthenticationMiddleware func(c *fiber.Ctx) error
 	ConfigurableAuthenticationMiddleware  func(c *fiber.Ctx) error
@@ -51,9 +45,18 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		WordsPerMinute:    cfg.WordsPerMinute,
 	}
 
+	documentsCfg := controller.DocumentsConfig{
+		WordsPerMinute: cfg.WordsPerMinute,
+		LibraryPath:    cfg.LibraryPath,
+		HomeDir:        cfg.HomeDir,
+		CoverMaxWidth:  cfg.CoverMaxWidth,
+	}
+
 	authController := controller.NewAuth(usersRepository, sender, authCfg, printers)
 	usersController := controller.NewUsers(usersRepository, usersCfg)
 	highlightsController := controller.NewHighlights(highlightsRepository, usersRepository, sender, cfg.WordsPerMinute, idx)
+	documentsController := controller.NewDocuments(highlightsRepository, usersRepository, sender, idx, metadataReaders, appFs, documentsCfg)
+
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -65,27 +68,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		Auth:       authController,
 		Users:      usersController,
 		Highlights: highlightsController,
-		Cover: func(c *fiber.Ctx) error {
-			return controller.Cover(c, cfg.HomeDir, cfg.LibraryPath, metadataReaders, cfg.CoverMaxWidth, idx)
-		},
-		Send: func(c *fiber.Ctx) error {
-			return controller.Send(c, cfg.LibraryPath, sender, idx)
-		},
-		Download: func(c *fiber.Ctx) error {
-			return controller.Download(c, cfg.HomeDir, cfg.LibraryPath, idx)
-		},
-		Read: func(c *fiber.Ctx) error {
-			return controller.DocReader(c, cfg.LibraryPath, idx)
-		},
-		Document: func(c *fiber.Ctx) error {
-			return controller.Document(c, cfg.LibraryPath, sender, idx, cfg.WordsPerMinute, *highlightsRepository)
-		},
-		Delete: func(c *fiber.Ctx) error {
-			return controller.Delete(c, cfg.LibraryPath, idx, appFs)
-		},
-		Search: func(c *fiber.Ctx) error {
-			return controller.Search(c, idx, sender, cfg.WordsPerMinute, *highlightsRepository)
-		},
+		Documents:  documentsController,
 		AllowIfNotLoggedInMiddleware: jwtware.New(jwtware.Config{
 			SigningKey:    cfg.JwtSecret,
 			SigningMethod: "HS256",
