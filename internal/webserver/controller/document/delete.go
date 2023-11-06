@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/model"
+	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 )
 
 func (d *Controller) Delete(c *fiber.Ctx) error {
