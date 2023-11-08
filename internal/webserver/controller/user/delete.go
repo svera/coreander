@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/jwtclaimsreader"
 	"github.com/svera/coreander/v4/internal/model"
+	"github.com/svera/coreander/v4/internal/webserver/jwtclaimsreader"
 )
 
 // Delete removes a user from the database

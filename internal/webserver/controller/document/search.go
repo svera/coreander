@@ -4,11 +4,11 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/controller"
 	"github.com/svera/coreander/v4/internal/infrastructure"
-	"github.com/svera/coreander/v4/internal/jwtclaimsreader"
 	"github.com/svera/coreander/v4/internal/model"
 	"github.com/svera/coreander/v4/internal/search"
+	"github.com/svera/coreander/v4/internal/webserver/controller"
+	"github.com/svera/coreander/v4/internal/webserver/jwtclaimsreader"
 )
 
 func (d *Controller) Search(c *fiber.Ctx) error {

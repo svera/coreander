@@ -8,8 +8,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/infrastructure"
-	"github.com/svera/coreander/v4/internal/jwtclaimsreader"
 	"github.com/svera/coreander/v4/internal/search"
+	"github.com/svera/coreander/v4/internal/webserver/jwtclaimsreader"
 )
 
 func (d *Controller) Detail(c *fiber.Ctx) error {

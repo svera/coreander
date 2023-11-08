@@ -4,8 +4,8 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/jwtclaimsreader"
 	"github.com/svera/coreander/v4/internal/model"
+	"github.com/svera/coreander/v4/internal/webserver/jwtclaimsreader"
 )
 
 // Update gathers information from the edit user form and updates user data
