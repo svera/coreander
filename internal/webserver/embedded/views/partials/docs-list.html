@@ -52,10 +52,10 @@
                         {{ end }}
     
                         {{ if $book.Subjects }}
-                        <div class="mb-3">
+                        <div>
                             {{range $i, $subject := $book.Subjects}}
                                 {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                                <a class="btn btn-secondary btn-sm" href="/{{$lang}}?search=Subjects&colon;&quot;{{$subject}}&quot;" title={{$subjectTitle}}>{{$subject}}</a>
+                                <a class="btn btn-secondary btn-sm mb-3" href="/{{$lang}}?search=Subjects&colon;&quot;{{$subject}}&quot;" title={{$subjectTitle}}>{{$subject}}</a>
                             {{end}}
                         </div>
                         {{ end }}

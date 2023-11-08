@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/controller"
-	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/model"
+	"github.com/svera/coreander/v3/internal/webserver/controller"
+	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 )
 
 // List list all users registered in the database

@@ -7,7 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
-	"github.com/svera/coreander/v3/internal/controller"
+	"github.com/svera/coreander/v3/internal/webserver/controller"
 )
 
 func routes(app *fiber.App, controllers Controllers, supportedLanguages []string) {

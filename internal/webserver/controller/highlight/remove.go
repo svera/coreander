@@ -2,10 +2,10 @@ package highlight
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/jwtclaimsreader"
+	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 )
 
-func (h *Controller) Highlight(c *fiber.Ctx) error {
+func (h *Controller) Remove(c *fiber.Ctx) error {
 	session := jwtclaimsreader.SessionData(c)
 
 	user, err := h.usrRepository.FindByUuid(session.Uuid)
@@ -18,5 +18,5 @@ func (h *Controller) Highlight(c *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	return h.hlRepository.Highlight(int(user.ID), document.ID)
+	return h.hlRepository.Remove(int(user.ID), document.ID)
 }
