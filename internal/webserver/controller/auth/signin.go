@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -56,6 +57,11 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 		Secure:   false,
 		HTTPOnly: true,
 	})
+
+	referer := string(c.Context().Referer())
+	if referer != "" && !strings.HasSuffix(referer, "login") {
+		return c.Redirect(referer)
+	}
 
 	return c.Redirect(fmt.Sprintf("/%s", c.Params("lang")))
 }
