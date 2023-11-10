@@ -52,8 +52,8 @@
         var url = params && params.get("url") && decodeURIComponent(params.get("url"));
         var currentSectionIndex = (params && params.get("loc")) ? params.get("loc") : undefined;
 
-        var book = ePub("/download/{{.Slug}}", {openAs: "epub"});
-        var rendition = book.renderTo("viewer", {
+        var document = ePub("/download/{{.Slug}}", {openAs: "epub"});
+        var rendition = document.renderTo("viewer", {
             flow: "scrolled-doc"
         });
 
@@ -98,7 +98,7 @@
                 prev.className = "btn disabled";
             }
 
-            book.loaded.navigation.then(function (toc) {
+            document.loaded.navigation.then(function (toc) {
                 let $select = document.getElementById("toc"),
                     docfrag = document.createDocumentFragment(),
                     loading = document.getElementById("loading");

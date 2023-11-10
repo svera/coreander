@@ -43,7 +43,7 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 	return nil
 }
 
-// AddLibrary scans <libraryPath> for books and adds them to the index in batches of <bathSize>
+// AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <bathSize>
 func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 	batch := b.idx.NewBatch()
 	batchSlugs := make(map[string]struct{}, batchSize)

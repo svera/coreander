@@ -41,5 +41,5 @@ func fmtDuration(d time.Duration) string {
 
 type Reader interface {
 	Metadata(file string) (Metadata, error)
-	Cover(bookFullPath string, coverMaxWidth int) ([]byte, error)
+	Cover(documentFullPath string, coverMaxWidth int) ([]byte, error)
 }

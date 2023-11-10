@@ -108,7 +108,7 @@ func main() {
 
 func startIndex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath string) {
 	start := time.Now().Unix()
-	log.Printf("Indexing books at %s, this can take a while depending on the size of your library.", libPath)
+	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
 	err := idx.AddLibrary(appFs, batchSize)
 	if err != nil {
 		log.Fatal(err)

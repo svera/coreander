@@ -13,7 +13,7 @@ import (
 	"github.com/svera/coreander/v3/internal/search"
 )
 
-// Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> books, offset by <page>
+// Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> documents, offset by <page>
 func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (*search.PaginatedResult, error) {
 	for _, prefix := range []string{"Authors:", "Series:", "Title:", "Subjects:", "\""} {
 		if strings.HasPrefix(strings.Trim(keywords, " "), prefix) {
@@ -152,7 +152,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	return &result, nil
 }
 
-// Count returns the number of indexed books
+// Count returns the number of indexed documents
 func (b *BleveIndexer) Count() (uint64, error) {
 	return b.idx.DocCount()
 }
