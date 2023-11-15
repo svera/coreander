@@ -5,9 +5,11 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v3/internal/infrastructure"
+	"github.com/svera/coreander/v3/internal/metadata"
 	"github.com/svera/coreander/v3/internal/model"
-	"github.com/svera/coreander/v3/internal/webserver/controller"
+	"github.com/svera/coreander/v3/internal/search"
 	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
+	"github.com/svera/coreander/v3/internal/webserver/view"
 )
 
 func (h *Controller) Highlights(c *fiber.Ctx) error {
@@ -39,19 +41,27 @@ func (h *Controller) Highlights(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.ErrInternalServerError
 	}
-	for i, highlight := range highlights.Hits {
-		docs, err := h.idx.Documents([]string{highlight.ID})
+
+	hits := make([]metadata.Document, len(highlights.Hits()))
+	for i, highlight := range highlights.Hits() {
+		doc, err := h.idx.Documents([]string{highlight.ID})
 		if err != nil {
 			return fiber.ErrInternalServerError
 		}
-		highlights.Hits[i] = docs[0]
-		highlights.Hits[i].Highlighted = true
+		hits[i] = doc[0]
+		hits[i].Highlighted = true
 	}
 
+	paginatedResults := search.NewPaginatedResult[[]metadata.Document](
+		model.ResultsPerPage,
+		page,
+		highlights.TotalHits(),
+		hits,
+	)
+
 	return c.Render("highlights", fiber.Map{
-		"Results":                highlights.Hits,
-		"Total":                  highlights.TotalHits,
-		"Paginator":              controller.Pagination(model.MaxPagesNavigator, highlights.TotalPages, page, nil),
+		"Results":                paginatedResults,
+		"Paginator":              view.Pagination(model.MaxPagesNavigator, paginatedResults, nil),
 		"Title":                  "Highlights",
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              h.sender.From(),

@@ -3,6 +3,7 @@ package model
 import (
 	"log"
 
+	"github.com/svera/coreander/v3/internal/metadata"
 	"github.com/svera/coreander/v3/internal/search"
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
@@ -13,7 +14,7 @@ type HighlightRepository struct {
 	DB *gorm.DB
 }
 
-func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int) (search.PaginatedResult, error) {
+func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int) (search.PaginatedResult[[]metadata.Document], error) {
 	highlights := []string{}
 	var total int64
 
@@ -23,24 +24,26 @@ func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage in
 	}
 	u.DB.Table("highlights").Where("user_id = ?", userID).Count(&total)
 
-	paginatedResult := search.PaginatedResult{
-		Page:       page,
-		Hits:       make([]search.Document, len(highlights)),
-		TotalHits:  int(total),
-		TotalPages: search.CalculateTotalPages(uint64(total), ResultsPerPage),
-	}
+	docs := make([]metadata.Document, len(highlights))
 
 	for i, path := range highlights {
-		paginatedResult.Hits[i].ID = path
+		docs[i].ID = path
 	}
 
-	return paginatedResult, result.Error
+	return search.NewPaginatedResult[[]metadata.Document](
+		resultsPerPage,
+		page,
+		int(total),
+		docs,
+	), result.Error
 }
 
-func (u *HighlightRepository) Highlighted(userID int, documents []search.Document) []search.Document {
-	highlights := make([]string, 0, len(documents))
-	paths := make([]string, 0, len(documents))
-	for _, path := range documents {
+func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results search.PaginatedResult[[]metadata.Document]) search.PaginatedResult[[]metadata.Document] {
+	highlights := make([]string, 0, len(results.Hits()))
+	paths := make([]string, 0, len(results.Hits()))
+	documents := make([]metadata.Document, len(results.Hits()))
+
+	for _, path := range results.Hits() {
 		paths = append(paths, path.ID)
 	}
 	u.DB.Table("highlights").Where(
@@ -48,11 +51,33 @@ func (u *HighlightRepository) Highlighted(userID int, documents []search.Documen
 		userID,
 		paths,
 	).Pluck("path", &highlights)
-	for i, doc := range documents {
+
+	for i, doc := range results.Hits() {
+		documents[i] = doc
 		documents[i].Highlighted = slices.Contains(highlights, doc.ID)
 	}
 
-	return documents
+	return search.NewPaginatedResult[[]metadata.Document](
+		ResultsPerPage,
+		results.Page(),
+		results.TotalHits(),
+		documents,
+	)
+}
+
+func (u *HighlightRepository) Highlighted(userID int, doc metadata.Document) metadata.Document {
+	var count int64
+
+	u.DB.Table("highlights").Where(
+		"user_id = ? AND path = ?",
+		userID,
+		doc.ID,
+	).Count(&count)
+
+	if count == 1 {
+		doc.Highlighted = true
+	}
+	return doc
 }
 
 func (u *HighlightRepository) Highlight(userID int, documentPath string) error {

@@ -10,7 +10,6 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/search"
 )
 
 // AddFile adds a file to the index
@@ -82,7 +81,7 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 
 func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, batchSlugs map[string]struct{}) DocumentWrite {
 	document := DocumentWrite{
-		Document: search.Document{
+		Document: metadata.Document{
 			Metadata: meta,
 		},
 		SeriesEq:   strings.ReplaceAll(slug.Make(meta.Series), "-", ""),

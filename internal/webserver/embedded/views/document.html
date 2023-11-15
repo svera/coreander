@@ -111,14 +111,14 @@
                     <div>
                         {{range $i, $subject := .Document.Subjects}}
                         {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                        <a class="btn btn-secondary btn-sm mb-3" href="/{{$lang}}?search=SubjectsEq&colon;&quot;{{$subject}}&quot;"
+                        <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/{{$lang}}?search=SubjectsEq&colon;&quot;{{$subject}}&quot;"
                             title={{$subjectTitle}}>{{$subject}}</a>
                         {{end}}
                     </div>
                     {{ end }}
 
                     {{if .Document.Description}}
-                    <div class="mb-1">{{.Document.Description}}</div>
+                    <div class="mb-1 mt-3">{{.Document.Description}}</div>
                     {{else}}
                     <div class="mb-1"><em>{{t $lang "No description available"}}</em></div>
                     {{end}}
