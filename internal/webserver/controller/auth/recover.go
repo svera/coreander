@@ -2,7 +2,7 @@ package auth
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/infrastructure"
+	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 )
 
 func (a *Controller) Recover(c *fiber.Ctx) error {

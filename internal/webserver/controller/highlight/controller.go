@@ -2,12 +2,12 @@ package highlight
 
 import (
 	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/model"
-	"github.com/svera/coreander/v3/internal/search"
+	"github.com/svera/coreander/v3/internal/result"
+	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
 type highlightsRepository interface {
-	Highlights(userID int, page int, resultsPerPage int) (search.PaginatedResult[[]metadata.Document], error)
+	Highlights(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
 	Highlight(userID int, documentPath string) error
 	Remove(userID int, documentPath string) error
 	Highlighted(userID int, documents metadata.Document) metadata.Document
@@ -15,15 +15,8 @@ type highlightsRepository interface {
 
 // IdxReaderWriter defines a set of reading and writing operations over an index
 type IdxReaderWriter interface {
-	Search(keywords string, page, resultsPerPage int) (search.PaginatedResult[[]metadata.Document], error)
-	Count() (uint64, error)
-	Close() error
 	Document(Slug string) (metadata.Document, error)
-	Documents(IDs []string) ([]metadata.Document, error)
-	SameSubjects(slug string, quantity int) ([]metadata.Document, error)
-	SameAuthors(slug string, quantity int) ([]metadata.Document, error)
-	SameSeries(slug string, quantity int) ([]metadata.Document, error)
-	RemoveFile(file string) error
+	Documents(IDs []string) (map[string]metadata.Document, error)
 }
 
 type usersRepository interface {

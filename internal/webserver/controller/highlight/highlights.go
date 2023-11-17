@@ -4,11 +4,11 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/infrastructure"
 	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/model"
-	"github.com/svera/coreander/v3/internal/search"
+	"github.com/svera/coreander/v3/internal/result"
+	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
+	"github.com/svera/coreander/v3/internal/webserver/model"
 	"github.com/svera/coreander/v3/internal/webserver/view"
 )
 
@@ -42,21 +42,22 @@ func (h *Controller) Highlights(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	hits := make([]metadata.Document, len(highlights.Hits()))
-	for i, highlight := range highlights.Hits() {
-		doc, err := h.idx.Documents([]string{highlight.ID})
-		if err != nil {
-			return fiber.ErrInternalServerError
-		}
-		hits[i] = doc[0]
-		hits[i].Highlighted = true
+	docs, err := h.idx.Documents(highlights.Hits())
+	if err != nil {
+		return fiber.ErrInternalServerError
 	}
 
-	paginatedResults := search.NewPaginatedResult[[]metadata.Document](
+	docsSortedByHighlightedDate := make([]metadata.Document, len(docs))
+	for i, path := range highlights.Hits() {
+		docsSortedByHighlightedDate[i] = docs[path]
+		docsSortedByHighlightedDate[i].Highlighted = true
+	}
+
+	paginatedResults := result.NewPaginated[[]metadata.Document](
 		model.ResultsPerPage,
 		page,
 		highlights.TotalHits(),
-		hits,
+		docsSortedByHighlightedDate,
 	)
 
 	return c.Render("highlights", fiber.Map{

@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/model"
-	"github.com/svera/coreander/v3/internal/search"
+	"github.com/svera/coreander/v3/internal/result"
+	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
 func TestIndexAndSearch(t *testing.T) {
@@ -55,7 +55,7 @@ type testCase struct {
 	filename       string
 	mockedMeta     metadata.Metadata
 	search         string
-	expectedResult search.PaginatedResult[[]metadata.Document]
+	expectedResult result.Paginated[[]metadata.Document]
 }
 
 func testCases() []testCase {
@@ -71,7 +71,7 @@ func testCases() []testCase {
 				Subjects:    []string{"History", "Middle age"},
 			},
 			"perez",
-			search.NewPaginatedResult[[]metadata.Document](
+			result.NewPaginated[[]metadata.Document](
 				model.ResultsPerPage,
 				1,
 				1,
@@ -100,7 +100,7 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"benoit",
-			search.NewPaginatedResult[[]metadata.Document](
+			result.NewPaginated[[]metadata.Document](
 				model.ResultsPerPage,
 				1,
 				1,
@@ -129,7 +129,7 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"clifford simak",
-			search.NewPaginatedResult[[]metadata.Document](
+			result.NewPaginated[[]metadata.Document](
 				model.ResultsPerPage,
 				1,
 				1,
@@ -158,7 +158,7 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"james ellroy",
-			search.NewPaginatedResult[[]metadata.Document](
+			result.NewPaginated[[]metadata.Document](
 				model.ResultsPerPage,
 				1,
 				1,
@@ -186,7 +186,7 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			" james       ellroy ",
-			search.NewPaginatedResult[[]metadata.Document](
+			result.NewPaginated[[]metadata.Document](
 				model.ResultsPerPage,
 				1,
 				1,

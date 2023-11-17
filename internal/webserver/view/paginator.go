@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/svera/coreander/v3/internal/search"
+	"github.com/svera/coreander/v3/internal/result"
 )
 
 // Page holds the URL of a results page, and if that page is the current one being shown
@@ -21,7 +21,7 @@ type PagesNavigator struct {
 	NextLink     string
 }
 
-func Pagination[T any](size int, results search.PaginatedResult[T], params map[string]string) PagesNavigator {
+func Pagination[T any](size int, results result.Paginated[T], params map[string]string) PagesNavigator {
 	var nav PagesNavigator
 	start := 1
 	end := size

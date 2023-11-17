@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/search"
+	"github.com/svera/coreander/v3/internal/result"
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -14,31 +14,25 @@ type HighlightRepository struct {
 	DB *gorm.DB
 }
 
-func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int) (search.PaginatedResult[[]metadata.Document], error) {
+func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error) {
 	highlights := []string{}
 	var total int64
 
-	result := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("highlights").Select("path").Where("user_id = ?", userID).Order("created_at DESC").Pluck("path", &highlights)
-	if result.Error != nil {
-		log.Printf("error listing highlights: %s\n", result.Error)
+	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("highlights").Select("path").Where("user_id = ?", userID).Order("created_at DESC").Pluck("path", &highlights)
+	if res.Error != nil {
+		log.Printf("error listing highlights: %s\n", res.Error)
 	}
 	u.DB.Table("highlights").Where("user_id = ?", userID).Count(&total)
 
-	docs := make([]metadata.Document, len(highlights))
-
-	for i, path := range highlights {
-		docs[i].ID = path
-	}
-
-	return search.NewPaginatedResult[[]metadata.Document](
+	return result.NewPaginated[[]string](
 		resultsPerPage,
 		page,
 		int(total),
-		docs,
-	), result.Error
+		highlights,
+	), res.Error
 }
 
-func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results search.PaginatedResult[[]metadata.Document]) search.PaginatedResult[[]metadata.Document] {
+func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]metadata.Document]) result.Paginated[[]metadata.Document] {
 	highlights := make([]string, 0, len(results.Hits()))
 	paths := make([]string, 0, len(results.Hits()))
 	documents := make([]metadata.Document, len(results.Hits()))
@@ -57,7 +51,7 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results sea
 		documents[i].Highlighted = slices.Contains(highlights, doc.ID)
 	}
 
-	return search.NewPaginatedResult[[]metadata.Document](
+	return result.NewPaginated[[]metadata.Document](
 		ResultsPerPage,
 		results.Page(),
 		results.TotalHits(),

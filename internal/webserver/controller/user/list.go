@@ -4,8 +4,8 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/model"
 	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
+	"github.com/svera/coreander/v3/internal/webserver/model"
 	"github.com/svera/coreander/v3/internal/webserver/view"
 )
 

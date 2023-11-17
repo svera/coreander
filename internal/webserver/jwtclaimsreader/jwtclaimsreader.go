@@ -3,7 +3,7 @@ package jwtclaimsreader
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/svera/coreander/v3/internal/model"
+	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
 func SessionData(c *fiber.Ctx) model.User {

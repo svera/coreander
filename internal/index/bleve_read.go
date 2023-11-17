@@ -10,11 +10,11 @@ import (
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/gosimple/slug"
 	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/search"
+	"github.com/svera/coreander/v3/internal/result"
 )
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> documents, offset by <page>
-func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (search.PaginatedResult[[]metadata.Document], error) {
+func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result.Paginated[[]metadata.Document], error) {
 	for _, prefix := range []string{"Authors:", "Series:", "Title:", "Subjects:", "\""} {
 		if strings.HasPrefix(strings.Trim(keywords, " "), prefix) {
 			query := bleve.NewQueryStringQuery(keywords)
@@ -96,8 +96,8 @@ func (b *BleveIndexer) runQuery(query query.Query, results int) ([]metadata.Docu
 	return res.Hits(), nil
 }
 
-func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage int) (search.PaginatedResult[[]metadata.Document], error) {
-	var result search.PaginatedResult[[]metadata.Document]
+func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage int) (result.Paginated[[]metadata.Document], error) {
+	var res result.Paginated[[]metadata.Document]
 	if page < 1 {
 		page = 1
 	}
@@ -107,10 +107,10 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type", "Subjects"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
-		return search.PaginatedResult[[]metadata.Document]{}, err
+		return result.Paginated[[]metadata.Document]{}, err
 	}
 	if searchResult.Total == 0 {
-		return result, nil
+		return res, nil
 	}
 
 	docs := make([]metadata.Document, 0, len(searchResult.Hits))
@@ -135,13 +135,13 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 		docs = append(docs, doc)
 	}
 
-	result = search.NewPaginatedResult[[]metadata.Document](
+	res = result.NewPaginated[[]metadata.Document](
 		resultsPerPage,
 		page,
 		int(searchResult.Total),
 		docs,
 	)
-	return result, nil
+	return res, nil
 }
 
 // Count returns the number of indexed documents
@@ -183,8 +183,8 @@ func (b *BleveIndexer) Document(slug string) (metadata.Document, error) {
 	return doc, nil
 }
 
-func (b *BleveIndexer) Documents(IDs []string) ([]metadata.Document, error) {
-	docs := make([]metadata.Document, 0, len(IDs))
+func (b *BleveIndexer) Documents(IDs []string) (map[string]metadata.Document, error) {
+	docs := make(map[string]metadata.Document, len(IDs))
 	query := bleve.NewDocIDQuery(IDs)
 	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type", "Subjects"}
@@ -194,8 +194,7 @@ func (b *BleveIndexer) Documents(IDs []string) ([]metadata.Document, error) {
 	}
 
 	for _, hit := range searchResult.Hits {
-		docs = append(
-			docs,
+		docs[hit.ID] =
 			metadata.Document{
 				ID:   hit.ID,
 				Slug: hit.Fields["Slug"].(string),
@@ -211,8 +210,7 @@ func (b *BleveIndexer) Documents(IDs []string) ([]metadata.Document, error) {
 					Type:        hit.Fields["Type"].(string),
 					Subjects:    slicer(hit.Fields["Subjects"]),
 				},
-			},
-		)
+			}
 	}
 
 	return docs, nil

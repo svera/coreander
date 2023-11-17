@@ -7,7 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/svera/coreander/v3/internal/model"
+	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
 // Signs in a user and gives them a JWT.

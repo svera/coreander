@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/svera/coreander/v3/internal/search"
+	"github.com/svera/coreander/v3/internal/result"
 	"gorm.io/gorm"
 )
 
@@ -14,21 +14,21 @@ type UserRepository struct {
 	DB *gorm.DB
 }
 
-func (u *UserRepository) List(page int, resultsPerPage int) (search.PaginatedResult[[]User], error) {
+func (u *UserRepository) List(page int, resultsPerPage int) (result.Paginated[[]User], error) {
 	users := []User{}
-	result := u.DB.Scopes(Paginate(page, resultsPerPage)).Order("email ASC").Find(&users)
-	if result.Error != nil {
-		log.Printf("error listing users: %s\n", result.Error)
+	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Order("email ASC").Find(&users)
+	if res.Error != nil {
+		log.Printf("error listing users: %s\n", res.Error)
 	}
 
 	totalRows := u.Total()
 
-	return search.NewPaginatedResult[[]User](
+	return result.NewPaginated[[]User](
 		resultsPerPage,
 		page,
 		int(totalRows),
 		users,
-	), result.Error
+	), res.Error
 }
 
 func (u *UserRepository) Total() int64 {
