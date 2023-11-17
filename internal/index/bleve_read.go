@@ -98,6 +98,7 @@ func (b *BleveIndexer) runQuery(query query.Query, results int) ([]metadata.Docu
 
 func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage int) (result.Paginated[[]metadata.Document], error) {
 	var res result.Paginated[[]metadata.Document]
+
 	if page < 1 {
 		page = 1
 	}
@@ -135,13 +136,12 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 		docs = append(docs, doc)
 	}
 
-	res = result.NewPaginated[[]metadata.Document](
+	return result.NewPaginated[[]metadata.Document](
 		resultsPerPage,
 		page,
 		int(searchResult.Total),
 		docs,
-	)
-	return res, nil
+	), nil
 }
 
 // Count returns the number of indexed documents
@@ -163,7 +163,7 @@ func (b *BleveIndexer) Document(slug string) (metadata.Document, error) {
 		return doc, fmt.Errorf("Document with slug %s not found", slug)
 	}
 
-	doc = metadata.Document{
+	return metadata.Document{
 		ID:   searchResult.Hits[0].ID,
 		Slug: searchResult.Hits[0].Fields["Slug"].(string),
 		Metadata: metadata.Metadata{
@@ -178,9 +178,7 @@ func (b *BleveIndexer) Document(slug string) (metadata.Document, error) {
 			Type:        searchResult.Hits[0].Fields["Type"].(string),
 			Subjects:    slicer(searchResult.Hits[0].Fields["Subjects"]),
 		},
-	}
-
-	return doc, nil
+	}, nil
 }
 
 func (b *BleveIndexer) Documents(IDs []string) (map[string]metadata.Document, error) {

@@ -15,25 +15,27 @@ type UserRepository struct {
 }
 
 func (u *UserRepository) List(page int, resultsPerPage int) (result.Paginated[[]User], error) {
-	users := []User{}
+	var users []User
+
 	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Order("email ASC").Find(&users)
 	if res.Error != nil {
 		log.Printf("error listing users: %s\n", res.Error)
 	}
 
-	totalRows := u.Total()
-
 	return result.NewPaginated[[]User](
 		resultsPerPage,
 		page,
-		int(totalRows),
+		int(u.Total()),
 		users,
 	), res.Error
 }
 
 func (u *UserRepository) Total() int64 {
-	var totalRows int64
-	users := []User{}
+	var (
+		totalRows int64
+		users     []User
+	)
+
 	u.DB.Model(&users).Count(&totalRows)
 	return totalRows
 }
@@ -74,6 +76,7 @@ func (u *UserRepository) Admins() int64 {
 
 func (u *UserRepository) Delete(uuid string) error {
 	var user User
+
 	result := u.DB.Where("uuid = ?", uuid).Delete(&user)
 	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		log.Printf("error deleting user: %s\n", result.Error)
@@ -88,9 +91,8 @@ func Hash(s string) string {
 }
 
 func (u *UserRepository) find(field, value string) (*User, error) {
-	var (
-		user User
-	)
+	var user User
+
 	result := u.DB.Where(fmt.Sprintf("%s = ?", field), value).First(&user)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil, nil
