@@ -81,7 +81,7 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 
 func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, batchSlugs map[string]struct{}) DocumentWrite {
 	document := DocumentWrite{
-		Document: metadata.Document{
+		Document: Document{
 			Metadata: meta,
 		},
 		SeriesEq:   strings.ReplaceAll(slug.Make(meta.Series), "-", ""),

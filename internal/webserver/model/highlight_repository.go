@@ -3,7 +3,7 @@ package model
 import (
 	"log"
 
-	"github.com/svera/coreander/v3/internal/metadata"
+	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/result"
 	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
@@ -32,10 +32,10 @@ func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage in
 	), res.Error
 }
 
-func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]metadata.Document]) result.Paginated[[]metadata.Document] {
+func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document] {
 	highlights := make([]string, 0, len(results.Hits()))
 	paths := make([]string, 0, len(results.Hits()))
-	documents := make([]metadata.Document, len(results.Hits()))
+	documents := make([]index.Document, len(results.Hits()))
 
 	for _, path := range results.Hits() {
 		paths = append(paths, path.ID)
@@ -51,7 +51,7 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 		documents[i].Highlighted = slices.Contains(highlights, doc.ID)
 	}
 
-	return result.NewPaginated[[]metadata.Document](
+	return result.NewPaginated[[]index.Document](
 		ResultsPerPage,
 		results.Page(),
 		results.TotalHits(),
@@ -59,7 +59,7 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 	)
 }
 
-func (u *HighlightRepository) Highlighted(userID int, doc metadata.Document) metadata.Document {
+func (u *HighlightRepository) Highlighted(userID int, doc index.Document) index.Document {
 	var count int64
 
 	u.DB.Table("highlights").Where(

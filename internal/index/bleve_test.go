@@ -55,7 +55,7 @@ type testCase struct {
 	filename       string
 	mockedMeta     metadata.Metadata
 	search         string
-	expectedResult result.Paginated[[]metadata.Document]
+	expectedResult result.Paginated[[]index.Document]
 }
 
 func testCases() []testCase {
@@ -71,11 +71,11 @@ func testCases() []testCase {
 				Subjects:    []string{"History", "Middle age"},
 			},
 			"perez",
-			result.NewPaginated[[]metadata.Document](
+			result.NewPaginated[[]index.Document](
 				model.ResultsPerPage,
 				1,
 				1,
-				[]metadata.Document{
+				[]index.Document{
 					{
 						ID:   "book1.epub",
 						Slug: "perez-test-a",
@@ -100,11 +100,11 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"benoit",
-			result.NewPaginated[[]metadata.Document](
+			result.NewPaginated[[]index.Document](
 				model.ResultsPerPage,
 				1,
 				1,
-				[]metadata.Document{
+				[]index.Document{
 					{
 						ID:   "book2.epub",
 						Slug: "benoit-test-b",
@@ -129,11 +129,11 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"clifford simak",
-			result.NewPaginated[[]metadata.Document](
+			result.NewPaginated[[]index.Document](
 				model.ResultsPerPage,
 				1,
 				1,
-				[]metadata.Document{
+				[]index.Document{
 					{
 						ID:   "book3.epub",
 						Slug: "clifford-d-simak-test-c",
@@ -158,11 +158,11 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"james ellroy",
-			result.NewPaginated[[]metadata.Document](
+			result.NewPaginated[[]index.Document](
 				model.ResultsPerPage,
 				1,
 				1,
-				[]metadata.Document{
+				[]index.Document{
 					{
 						ID:   "book4.epub",
 						Slug: "james-ellroy-test-d",
@@ -186,11 +186,11 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			" james       ellroy ",
-			result.NewPaginated[[]metadata.Document](
+			result.NewPaginated[[]index.Document](
 				model.ResultsPerPage,
 				1,
 				1,
-				[]metadata.Document{
+				[]index.Document{
 					{
 						ID:   "book5.epub",
 						Slug: "james-ellroy-test-e",

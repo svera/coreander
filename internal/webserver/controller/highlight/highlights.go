@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/metadata"
+	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/result"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
@@ -47,13 +47,13 @@ func (h *Controller) Highlights(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	docsSortedByHighlightedDate := make([]metadata.Document, len(docs))
+	docsSortedByHighlightedDate := make([]index.Document, len(docs))
 	for i, path := range highlights.Hits() {
 		docsSortedByHighlightedDate[i] = docs[path]
 		docsSortedByHighlightedDate[i].Highlighted = true
 	}
 
-	paginatedResults := result.NewPaginated[[]metadata.Document](
+	paginatedResults := result.NewPaginated[[]index.Document](
 		model.ResultsPerPage,
 		page,
 		highlights.TotalHits(),

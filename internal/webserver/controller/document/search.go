@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/metadata"
+	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/result"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
@@ -28,7 +28,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		d.config.WordsPerMinute = session.WordsPerMinute
 	}
 
-	var searchResults result.Paginated[[]metadata.Document]
+	var searchResults result.Paginated[[]index.Document]
 
 	if keywords := c.Query("search"); keywords != "" {
 		if searchResults, err = d.idx.Search(keywords, page, model.ResultsPerPage); err != nil {
