@@ -5,7 +5,7 @@
 {{$wordsPerMinute := .WordsPerMinute}}
 
 <div class="list-group list-group-flush">
-    {{if .Results}} {{range $i, $document := .Results}}
+    {{if .Results}} {{range $i, $document := .Results.Hits}}
     <div class="list-group-item">
         <div class="row">
             <div class="col-md-2 col-sm-12">
@@ -55,15 +55,15 @@
                         <div>
                             {{range $i, $subject := $document.Subjects}}
                                 {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                                <a class="btn btn-secondary btn-sm mb-3" href="/{{$lang}}?search=Subjects&colon;&quot;{{$subject}}&quot;" title={{$subjectTitle}}>{{$subject}}</a>
+                                <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/{{$lang}}?search=Subjects&colon;&quot;{{$subject}}&quot;" title={{$subjectTitle}}>{{$subject}}</a>
                             {{end}}
                         </div>
                         {{ end }}
 
                         {{if $document.Description}}
-                        <div class="mb-1 collapse" id="collapse-desc{{$i}}">{{$document.Description}}</div>
+                        <div class="mb-1 mt-3 collapse" id="collapse-desc{{$i}}">{{$document.Description}}</div>
                         {{else}}
-                        <div class="mb-1"><em>{{t $lang "No description available"}}</em></div>
+                        <div class="mb-1 mt-3"><em>{{t $lang "No description available"}}</em></div>
                         {{end}}
     
                         <a data-bs-toggle="collapse" class="collapse-control collapsed" href="#collapse-desc{{$i}}"></a>

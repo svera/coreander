@@ -7,7 +7,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"github.com/google/uuid"
-	"github.com/svera/coreander/v3/internal/model"
+	"github.com/svera/coreander/v3/internal/webserver/model"
 	"gorm.io/gorm"
 )
 

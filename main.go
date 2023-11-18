@@ -12,9 +12,9 @@ import (
 
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/index"
-	"github.com/svera/coreander/v3/internal/infrastructure"
 	"github.com/svera/coreander/v3/internal/metadata"
 	"github.com/svera/coreander/v3/internal/webserver"
+	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 )
 
 var version string = "unknown"

@@ -1,9 +1,11 @@
-package controller
+package view
 
 import (
 	"fmt"
 	"net/url"
 	"strings"
+
+	"github.com/svera/coreander/v3/internal/result"
 )
 
 // Page holds the URL of a results page, and if that page is the current one being shown
@@ -19,38 +21,38 @@ type PagesNavigator struct {
 	NextLink     string
 }
 
-func Pagination(size int, totalPages int, current int, params map[string]string) PagesNavigator {
+func Pagination[T any](size int, results result.Paginated[T], params map[string]string) PagesNavigator {
 	var nav PagesNavigator
 	start := 1
 	end := size
-	if totalPages > size {
+	if results.TotalPages() > size {
 		nav = PagesNavigator{
 			Pages: make(map[int]Page, size),
 		}
-		if current > size/2 {
-			start = current - size/2
-			end = (current + size/2)
-			if end > totalPages {
-				start = totalPages - size
-				end = totalPages
+		if results.Page() > size/2 {
+			start = results.Page() - size/2
+			end = (results.Page() + size/2)
+			if end > results.TotalPages() {
+				start = results.TotalPages() - size
+				end = results.TotalPages()
 			}
 		}
 	} else {
 		nav = PagesNavigator{
-			Pages: make(map[int]Page, totalPages),
+			Pages: make(map[int]Page, results.TotalPages()),
 		}
-		end = totalPages
+		end = results.TotalPages()
 	}
 	for i := start; i <= end; i++ {
 		p := Page{
 			Link: fmt.Sprintf("?%spage=%d", toQueryString(params), i),
 		}
-		if i == current {
+		if i == results.Page() {
 			p.IsCurrent = true
 			if i > 1 {
 				nav.PreviousLink = fmt.Sprintf("?%spage=%d", toQueryString(params), i-1)
 			}
-			if i < totalPages {
+			if i < results.TotalPages() {
 				nav.NextLink = fmt.Sprintf("?%spage=%d", toQueryString(params), i+1)
 			}
 		}

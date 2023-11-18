@@ -7,8 +7,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/infrastructure"
-	"github.com/svera/coreander/v3/internal/search"
+	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 )
 
@@ -55,7 +54,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 	}
 
 	if session.ID > 0 {
-		document = d.hlRepository.Highlighted(int(session.ID), []search.Document{document})[0]
+		document = d.hlRepository.Highlighted(int(session.ID), document)
 	}
 
 	return c.Render("document", fiber.Map{

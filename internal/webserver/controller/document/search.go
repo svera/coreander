@@ -4,11 +4,12 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/infrastructure"
-	"github.com/svera/coreander/v3/internal/model"
-	"github.com/svera/coreander/v3/internal/search"
-	"github.com/svera/coreander/v3/internal/webserver/controller"
+	"github.com/svera/coreander/v3/internal/index"
+	"github.com/svera/coreander/v3/internal/result"
+	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
+	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v3/internal/webserver/view"
 )
 
 func (d *Controller) Search(c *fiber.Ctx) error {
@@ -27,7 +28,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		d.config.WordsPerMinute = session.WordsPerMinute
 	}
 
-	var searchResults *search.PaginatedResult
+	var searchResults result.Paginated[[]index.Document]
 
 	if keywords := c.Query("search"); keywords != "" {
 		if searchResults, err = d.idx.Search(keywords, page, model.ResultsPerPage); err != nil {
@@ -35,14 +36,13 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		}
 
 		if session.ID > 0 {
-			searchResults.Hits = d.hlRepository.Highlighted(int(session.ID), searchResults.Hits)
+			searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 		}
 
 		return c.Render("results", fiber.Map{
 			"Keywords":               keywords,
-			"Results":                searchResults.Hits,
-			"Total":                  searchResults.TotalHits,
-			"Paginator":              controller.Pagination(model.MaxPagesNavigator, searchResults.TotalPages, searchResults.Page, map[string]string{"search": keywords}),
+			"Results":                searchResults,
+			"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, map[string]string{"search": keywords}),
 			"Title":                  "Search results",
 			"EmailSendingConfigured": emailSendingConfigured,
 			"EmailFrom":              d.sender.From(),

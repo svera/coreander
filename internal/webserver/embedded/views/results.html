@@ -1,6 +1,6 @@
 <div class="container">
-    {{template "partials/searchbox" .}} {{if gt .Total 0}}
-    <p class="text-center">{{t .Lang "%d matches found" .Total }}</p>
+    {{template "partials/searchbox" .}} {{if gt .Results.TotalHits 0}}
+    <p class="text-center">{{t .Lang "%d matches found" .Results.TotalHits }}</p>
     {{else}}
     <p class="text-center">{{t .Lang "No matches found" }}</p>
     {{end}}
