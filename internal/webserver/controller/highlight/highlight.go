@@ -2,7 +2,7 @@ package highlight
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
+	"github.com/svera/coreander/v4/internal/webserver/jwtclaimsreader"
 )
 
 func (h *Controller) Highlight(c *fiber.Ctx) error {

@@ -1,6 +1,6 @@
 package index
 
-import "github.com/svera/coreander/v3/internal/metadata"
+import "github.com/svera/coreander/v4/internal/metadata"
 
 type Document struct {
 	metadata.Metadata

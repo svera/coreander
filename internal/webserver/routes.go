@@ -7,7 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
-	"github.com/svera/coreander/v3/internal/webserver/controller"
+	"github.com/svera/coreander/v4/internal/webserver/controller"
 )
 
 func routes(app *fiber.App, controllers Controllers, supportedLanguages []string) {
@@ -37,7 +37,7 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 	})
 
 	langGroup.Get("/login", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.Login)
-	langGroup.Post("login", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.SignIn)
+	langGroup.Post("/login", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.SignIn)
 	langGroup.Get("/recover", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.Recover)
 	langGroup.Post("/recover", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.Request)
 	langGroup.Get("/reset-password", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.EditPassword)
@@ -47,10 +47,10 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 
 	usersGroup.Get("/", controllers.Users.List)
 	usersGroup.Get("/new", controllers.Users.New)
-	usersGroup.Post("/new", controllers.Users.Create)
-	usersGroup.Get("/:uuid<guid>/edit", controllers.Users.Edit)
-	usersGroup.Post("/:uuid<guid>/edit", controllers.Users.Update)
-	usersGroup.Post("/delete", controllers.Users.Delete)
+	usersGroup.Post("/", controllers.Users.Create)
+	usersGroup.Get("/:uuid<guid>", controllers.Users.Edit)
+	usersGroup.Put("/:uuid<guid>", controllers.Users.Update)
+	usersGroup.Delete("/:uuid<guid>", controllers.Users.Delete)
 
 	langGroup.Get("/highlights/:uuid<guid>", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlights)
 	app.Post("/highlights", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlight)

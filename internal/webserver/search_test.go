@@ -12,8 +12,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 func TestSearch(t *testing.T) {

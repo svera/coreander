@@ -1,9 +1,9 @@
 package highlight
 
 import (
-	"github.com/svera/coreander/v3/internal/index"
-	"github.com/svera/coreander/v3/internal/result"
-	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 type highlightsRepository interface {

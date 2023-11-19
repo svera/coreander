@@ -9,8 +9,8 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/gosimple/slug"
-	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/result"
+	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/result"
 )
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> documents, offset by <page>
