@@ -12,7 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/favicon"
 	"github.com/svera/coreander/v4/internal/i18n"
-	"github.com/svera/coreander/v4/internal/infrastructure"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"golang.org/x/exp/slices"
 	"golang.org/x/text/message"
 )

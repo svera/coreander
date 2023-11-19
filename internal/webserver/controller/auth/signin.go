@@ -2,11 +2,12 @@ package auth
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/svera/coreander/v4/internal/model"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // Signs in a user and gives them a JWT.
@@ -56,6 +57,11 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 		Secure:   false,
 		HTTPOnly: true,
 	})
+
+	referer := string(c.Context().Referer())
+	if referer != "" && !strings.HasSuffix(referer, "login") {
+		return c.Redirect(referer)
+	}
 
 	return c.Redirect(fmt.Sprintf("/%s", c.Params("lang")))
 }

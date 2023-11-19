@@ -9,14 +9,14 @@ import (
 	jwtware "github.com/gofiber/jwt/v3"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/infrastructure"
 	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/model"
 	"github.com/svera/coreander/v4/internal/webserver/controller/auth"
 	"github.com/svera/coreander/v4/internal/webserver/controller/document"
 	"github.com/svera/coreander/v4/internal/webserver/controller/highlight"
 	"github.com/svera/coreander/v4/internal/webserver/controller/user"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/jwtclaimsreader"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 	"gorm.io/gorm"
 )
 
@@ -67,6 +67,16 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 
 	supportedLanguages := getSupportedLanguages()
 
+	forbidden := func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
+			"Lang":                   chooseBestLanguage(c, supportedLanguages),
+			"Title":                  "Login",
+			"Version":                c.App().Config().AppName,
+			"EmailSendingConfigured": emailSendingConfigured,
+			"SupportedLanguages":     supportedLanguages,
+		}, "layout")
+	}
+
 	return Controllers{
 		Auth:       authController,
 		Users:      usersController,
@@ -88,13 +98,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			SigningMethod: "HS256",
 			TokenLookup:   "cookie:coreander",
 			ErrorHandler: func(c *fiber.Ctx, err error) error {
-				return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
-					"Lang":                   chooseBestLanguage(c, supportedLanguages),
-					"Title":                  "Login",
-					"Version":                c.App().Config().AppName,
-					"EmailSendingConfigured": emailSendingConfigured,
-					"SupportedLanguages":     supportedLanguages,
-				}, "layout")
+				return forbidden(c)
 			},
 		}),
 		ConfigurableAuthenticationMiddleware: jwtware.New(jwtware.Config{
@@ -104,13 +108,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			ErrorHandler: func(c *fiber.Ctx, err error) error {
 				err = c.Next()
 				if cfg.RequireAuth {
-					return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
-						"Lang":                   chooseBestLanguage(c, supportedLanguages),
-						"Title":                  "Login",
-						"Version":                c.App().Config().AppName,
-						"EmailSendingConfigured": emailSendingConfigured,
-						"SupportedLanguages":     supportedLanguages,
-					}, "layout")
+					return forbidden(c)
 				}
 				return err
 			},

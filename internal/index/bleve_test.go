@@ -8,7 +8,8 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/search"
+	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 func TestIndexAndSearch(t *testing.T) {
@@ -42,7 +43,7 @@ func TestIndexAndSearch(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error searching: %s", err.Error())
 			}
-			if !reflect.DeepEqual(*res, tcase.expectedResult) {
+			if !reflect.DeepEqual(res, tcase.expectedResult) {
 				t.Errorf("Wrong result returned, expected %#v, got %#v", tcase.expectedResult, res)
 			}
 		})
@@ -54,7 +55,7 @@ type testCase struct {
 	filename       string
 	mockedMeta     metadata.Metadata
 	search         string
-	expectedResult search.PaginatedResult
+	expectedResult result.Paginated[[]index.Document]
 }
 
 func testCases() []testCase {
@@ -70,11 +71,11 @@ func testCases() []testCase {
 				Subjects:    []string{"History", "Middle age"},
 			},
 			"perez",
-			search.PaginatedResult{
-				Page:       1,
-				TotalPages: 1,
-				TotalHits:  1,
-				Hits: []search.Document{
+			result.NewPaginated[[]index.Document](
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
 					{
 						ID:   "book1.epub",
 						Slug: "perez-test-a",
@@ -86,7 +87,7 @@ func testCases() []testCase {
 						},
 					},
 				},
-			},
+			),
 		},
 		{
 			"Look for a term without circumflex accent must return circumflexed results",
@@ -99,11 +100,11 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"benoit",
-			search.PaginatedResult{
-				Page:       1,
-				TotalPages: 1,
-				TotalHits:  1,
-				Hits: []search.Document{
+			result.NewPaginated[[]index.Document](
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
 					{
 						ID:   "book2.epub",
 						Slug: "benoit-test-b",
@@ -115,7 +116,7 @@ func testCases() []testCase {
 						},
 					},
 				},
-			},
+			),
 		},
 		{
 			"Look for several, not exact terms must return a result with all those terms, even if there is something in between",
@@ -128,11 +129,11 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"clifford simak",
-			search.PaginatedResult{
-				Page:       1,
-				TotalPages: 1,
-				TotalHits:  1,
-				Hits: []search.Document{
+			result.NewPaginated[[]index.Document](
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
 					{
 						ID:   "book3.epub",
 						Slug: "clifford-d-simak-test-c",
@@ -144,7 +145,7 @@ func testCases() []testCase {
 						},
 					},
 				},
-			},
+			),
 		},
 		{
 			"Look for several, not exact terms must return a result with all those terms, even if there is something in between",
@@ -157,11 +158,11 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			"james ellroy",
-			search.PaginatedResult{
-				Page:       1,
-				TotalPages: 1,
-				TotalHits:  1,
-				Hits: []search.Document{
+			result.NewPaginated[[]index.Document](
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
 					{
 						ID:   "book4.epub",
 						Slug: "james-ellroy-test-d",
@@ -172,7 +173,7 @@ func testCases() []testCase {
 						},
 					},
 				},
-			},
+			),
 		},
 		{
 			"Look for several, not exact terms with multiple leading, trailing and in-between spaces must return a result with all those terms, even if there is something in between",
@@ -185,11 +186,11 @@ func testCases() []testCase {
 				Subjects:    []string{""},
 			},
 			" james       ellroy ",
-			search.PaginatedResult{
-				Page:       1,
-				TotalPages: 1,
-				TotalHits:  1,
-				Hits: []search.Document{
+			result.NewPaginated[[]index.Document](
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
 					{
 						ID:   "book5.epub",
 						Slug: "james-ellroy-test-e",
@@ -200,7 +201,7 @@ func testCases() []testCase {
 						},
 					},
 				},
-			},
+			),
 		},
 	}
 }

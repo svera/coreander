@@ -2,8 +2,8 @@ package user
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/model"
 	"github.com/svera/coreander/v4/internal/webserver/jwtclaimsreader"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // Edit renders the edit user form

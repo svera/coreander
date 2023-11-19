@@ -161,8 +161,8 @@ func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, e
 	return cover, nil
 }
 
-func words(bookFullPath string) (int, error) {
-	r, err := zip.OpenReader(bookFullPath)
+func words(documentFullPath string) (int, error) {
+	r, err := zip.OpenReader(documentFullPath)
 	if err != nil {
 		return 0, err
 	}

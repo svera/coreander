@@ -1,13 +1,12 @@
 package user
 
 import (
-	"math"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/model"
-	"github.com/svera/coreander/v4/internal/webserver/controller"
 	"github.com/svera/coreander/v4/internal/webserver/jwtclaimsreader"
+	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
 // List list all users registered in the database
@@ -22,14 +21,12 @@ func (u *Controller) List(c *fiber.Ctx) error {
 	if err != nil {
 		page = 1
 	}
-	totalRows := u.repository.Total()
-	totalPages := int(math.Ceil(float64(totalRows) / model.ResultsPerPage))
 
 	users, _ := u.repository.List(page, model.ResultsPerPage)
 	return c.Render("users/index", fiber.Map{
 		"Title":     "Users",
-		"Users":     users,
-		"Paginator": controller.Pagination(model.MaxPagesNavigator, totalPages, page, map[string]string{}),
+		"Users":     users.Hits(),
+		"Paginator": view.Pagination(model.MaxPagesNavigator, users, map[string]string{}),
 		"Session":   session,
 		"Admins":    u.repository.Admins(),
 	}, "layout")

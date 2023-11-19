@@ -7,12 +7,13 @@ import (
 	"golang.org/x/text/language"
 )
 
-func Root(c *fiber.Ctx) error {
+func Root(c *fiber.Ctx, supportedLanguages []string) error {
 	acceptHeader := c.Get(fiber.HeaderAcceptLanguage)
-	languageMatcher := language.NewMatcher([]language.Tag{
-		language.English,
-		language.Spanish,
-	})
+	tags := make([]language.Tag, len(supportedLanguages))
+	for i, lang := range supportedLanguages {
+		tags[i] = language.Make(lang)
+	}
+	languageMatcher := language.NewMatcher(tags)
 
 	t, _, _ := language.ParseAcceptLanguage(acceptHeader)
 	tag, _, _ := languageMatcher.Match(t...)

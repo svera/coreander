@@ -76,6 +76,6 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 	langGroup.Get("/read/:slug", controllers.Documents.Reader)
 
 	app.Get("/", func(c *fiber.Ctx) error {
-		return controller.Root(c)
+		return controller.Root(c, supportedLanguages)
 	})
 }

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/infrastructure"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 )
 
 func (a *Controller) Login(c *fiber.Ctx) error {

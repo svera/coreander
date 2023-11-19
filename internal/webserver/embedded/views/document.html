@@ -81,7 +81,7 @@
                 <div class="col-12">
                     {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
                     .Document.Series}}
-                    <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}} {{.Document.SeriesIndex}}</p>
+                    <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</p>
                     {{ end }}
                     <h1 class="text-start">
                         {{.Document.Title}} <small class="small text-muted">{{.Document.Year}}</small>
@@ -108,17 +108,17 @@
                     {{ end }}
 
                     {{ if .Document.Subjects }}
-                    <div class="my-3">
+                    <div>
                         {{range $i, $subject := .Document.Subjects}}
                         {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                        <a class="btn btn-secondary btn-sm" href="/{{$lang}}?search=SubjectsEq&colon;&quot;{{$subject}}&quot;"
+                        <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/{{$lang}}?search=SubjectsEq&colon;&quot;{{$subject}}&quot;"
                             title={{$subjectTitle}}>{{$subject}}</a>
                         {{end}}
                     </div>
                     {{ end }}
 
                     {{if .Document.Description}}
-                    <div class="mb-1">{{.Document.Description}}</div>
+                    <div class="mb-1 mt-3">{{.Document.Description}}</div>
                     {{else}}
                     <div class="mb-1"><em>{{t $lang "No description available"}}</em></div>
                     {{end}}

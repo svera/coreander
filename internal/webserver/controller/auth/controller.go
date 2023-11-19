@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/model"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 	"golang.org/x/text/message"
 )
 

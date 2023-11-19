@@ -5,65 +5,65 @@
 {{$wordsPerMinute := .WordsPerMinute}}
 
 <div class="list-group list-group-flush">
-    {{if .Results}} {{range $i, $book := .Results}}
+    {{if .Results}} {{range $i, $document := .Results.Hits}}
     <div class="list-group-item">
         <div class="row">
             <div class="col-md-2 col-sm-12">
-                <img src="/images/generic.jpg" data-src="/cover/{{$book.Slug}}" loading="lazy" class="border border-2 text-center mb-3 cover img-fluid" alt='{{t $lang "\"%s\" cover" $book.Title}}'>
+                <img src="/images/generic.jpg" data-src="/cover/{{$document.Slug}}" loading="lazy" class="border border-2 text-center mb-3 cover img-fluid" alt='{{t $lang "\"%s\" cover" $document.Title}}'>
             </div>
             <div class="col-md-10 col-sm-12">
                 <div class="row">
                     <div class="col-7">
-                        {{ if ne $book.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
-                        $book.Series}}
+                        {{ if ne $document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
+                        $document.Series}}
                         <p class="text-start text-muted text-uppercase mb-0"><a
-                                href="/{{$lang}}?search=SeriesEq&colon;&quot;{{$book.Series}}&quot;"
-                                title={{$seriesTitle}}>{{$book.Series}} {{$book.SeriesIndex}}</a></p>
+                                href="/{{$lang}}?search=SeriesEq&colon;&quot;{{$document.Series}}&quot;"
+                                title={{$seriesTitle}}>{{$document.Series}}{{ if ne $document.SeriesIndex 0.0 }} {{$document.SeriesIndex}}{{end}}</a></p>
                         {{ end }}
                         <h4 class="text-start">
-                            <a href="/{{$lang}}/document/{{$book.Slug}}">{{$book.Title}}</a> <small class="small text-muted">{{$book.Year}}</small>
+                            <a href="/{{$lang}}/document/{{$document.Slug}}">{{$document.Title}}</a> <small class="small text-muted">{{$document.Year}}</small>
                         </h4>
                     </div>
                     <div class="col-5 text-end">
-                        {{ template "partials/actions" dict "Lang" $lang "Book" $book "EmailSendingConfigured"
+                        {{ template "partials/actions" dict "Lang" $lang "Document" $document "EmailSendingConfigured"
                         $emailSendingConfigured "Index" $i "Session" $session "EmailFrom" $emailFrom}}
                     </div>
                 </div>
                 <div class="row">
                     <div class="col-12 text-start">
-                        {{if $book.Authors}}
+                        {{if $document.Authors}}
                         <h5>
-                            {{range $i, $author := $book.Authors}}
+                            {{range $i, $author := $document.Authors}}
                             {{$authorTitle := t $lang "Search for more titles by %s" $author}}
-                            <a href="/{{$lang}}?search=AuthorsEq&colon;&quot;{{$author}}&quot;" title={{$authorTitle}}>{{$author}}</a>{{if notLast $book.Authors $i}}, {{end}}
+                            <a href="/{{$lang}}?search=AuthorsEq&colon;&quot;{{$author}}&quot;" title={{$authorTitle}}>{{$author}}</a>{{if notLast $document.Authors $i}}, {{end}}
                             {{end}}
                         </h5>
                         {{else}}
                             <h5>{{t $lang "Unknown author"}}</h5>
                         {{end}}
     
-                        {{ if gt $book.Words 0.0 }}
+                        {{ if gt $document.Words 0.0 }}
                         <p class="text-muted"><em>{{t $lang "Estimated reading time"}}:
-                                {{$book.ReadingTime $wordsPerMinute}}</em></p>
+                                {{$document.ReadingTime $wordsPerMinute}}</em></p>
                         {{ end }}
     
-                        {{ if $book.Pages }}
-                        <p class="text-muted"><em>{{t $lang "%d pages" $book.Pages}}</em></p>
+                        {{ if $document.Pages }}
+                        <p class="text-muted"><em>{{t $lang "%d pages" $document.Pages}}</em></p>
                         {{ end }}
     
-                        {{ if $book.Subjects }}
+                        {{ if $document.Subjects }}
                         <div>
-                            {{range $i, $subject := $book.Subjects}}
+                            {{range $i, $subject := $document.Subjects}}
                                 {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                                <a class="btn btn-secondary btn-sm mb-3" href="/{{$lang}}?search=Subjects&colon;&quot;{{$subject}}&quot;" title={{$subjectTitle}}>{{$subject}}</a>
+                                <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/{{$lang}}?search=Subjects&colon;&quot;{{$subject}}&quot;" title={{$subjectTitle}}>{{$subject}}</a>
                             {{end}}
                         </div>
                         {{ end }}
 
-                        {{if $book.Description}}
-                        <div class="mb-1 collapse" id="collapse-desc{{$i}}">{{$book.Description}}</div>
+                        {{if $document.Description}}
+                        <div class="mb-1 mt-3 collapse" id="collapse-desc{{$i}}">{{$document.Description}}</div>
                         {{else}}
-                        <div class="mb-1"><em>{{t $lang "No description available"}}</em></div>
+                        <div class="mb-1 mt-3"><em>{{t $lang "No description available"}}</em></div>
                         {{end}}
     
                         <a data-bs-toggle="collapse" class="collapse-control collapsed" href="#collapse-desc{{$i}}"></a>

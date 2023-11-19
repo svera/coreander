@@ -2,12 +2,13 @@ package user
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/model"
+	"github.com/svera/coreander/v4/internal/result"
 	"github.com/svera/coreander/v4/internal/webserver/jwtclaimsreader"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 type usersRepository interface {
-	List(page int, resultsPerPage int) ([]model.User, error)
+	List(page int, resultsPerPage int) (result.Paginated[[]model.User], error)
 	Total() int64
 	FindByUuid(uuid string) (*model.User, error)
 	Create(user *model.User) error

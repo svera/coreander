@@ -32,7 +32,7 @@ func NewBleve(index bleve.Index, libraryPath string, read map[string]metadata.Re
 func Mapping() *mapping.IndexMappingImpl {
 	indexMapping := bleve.NewIndexMapping()
 
-	err := indexMapping.AddCustomAnalyzer("book",
+	err := indexMapping.AddCustomAnalyzer("document",
 		map[string]interface{}{
 			"type": custom.Name,
 			"char_filters": []string{
@@ -46,7 +46,7 @@ func Mapping() *mapping.IndexMappingImpl {
 	if err != nil {
 		log.Fatal(err)
 	}
-	indexMapping.DefaultAnalyzer = "book"
+	indexMapping.DefaultAnalyzer = "document"
 	languageFieldMapping := bleve.NewTextFieldMapping()
 	languageFieldMapping.Index = false
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Language", languageFieldMapping)
