@@ -16,4 +16,19 @@
         <p>{{t .Lang "Enclose your search terms in double quotes to require all those terms and with the same order"}}
         </p>
     </section>
+    {{if and (.Session) (ne .Session.Name "")}}
+        <section class="row pt-5">
+                <div class="col-9">
+                        <h2>{{t .Lang "Your highlights" .Highlights}}</h2>
+                </div>
+                <div class="col-3 text-end">
+                        <a  href="/{{.Lang}}/{{.Session.Uuid}}/highlights">
+                                {{t .Lang "See all" }}
+                        </a>
+                </div>
+    
+                {{template "partials/related" dict "Lang" .Lang "Related" .Highlights}}
+        </section>
+        <script type="text/javascript" src="/js/cover-loader.js"></script>
+    {{end}}
 </div>
