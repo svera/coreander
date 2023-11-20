@@ -3,19 +3,6 @@
         {{template "partials/searchbox" .}}
         <p>{{t .Lang "%d documents available" .Count}}</p>
     </section>
-    <section class="pt-5 text-center">
-        <h2 class="mb-3">{{t .Lang "Search tips"}}</h2>
-        <p>{{t .Lang "Use %s prefix in search box to search by authors only" `<span
-                class="font-monospace">Authors:</span>`}}</p>
-        <p>{{t .Lang "Use %s prefix in search box to search by title only" `<span
-                class="font-monospace">Title:</span>`}}</p>
-        <p>{{t .Lang "Use %s prefix in search box to search by series only" `<span
-                class="font-monospace">Series:</span>`}}</p>
-        <p>{{t .Lang "Use %s prefix in search box to search by subjects only" `<span
-                class="font-monospace">Subjects:</span>`}}</p>
-        <p>{{t .Lang "Enclose your search terms in double quotes to require all those terms and with the same order"}}
-        </p>
-    </section>
     {{if and (.Session) (ne .Session.Name "")}}
         <section class="row pt-5">
                 <div class="col-9">
@@ -27,8 +14,22 @@
                         </a>
                 </div>
     
-                {{template "partials/related" dict "Lang" .Lang "Related" .Highlights}}
+                {{template "partials/related" dict "Lang" .Lang "Related" .Highlights "ColWidth" 2}}
         </section>
         <script type="text/javascript" src="/js/cover-loader.js"></script>
+    {{else}}
+        <section class="pt-5 text-center">
+                <h2 class="mb-3">{{t .Lang "Search tips"}}</h2>
+                <p>{{t .Lang "Use %s prefix in search box to search by authors only" `<span
+                        class="font-monospace">Authors:</span>`}}</p>
+                <p>{{t .Lang "Use %s prefix in search box to search by title only" `<span
+                        class="font-monospace">Title:</span>`}}</p>
+                <p>{{t .Lang "Use %s prefix in search box to search by series only" `<span
+                        class="font-monospace">Series:</span>`}}</p>
+                <p>{{t .Lang "Use %s prefix in search box to search by subjects only" `<span
+                        class="font-monospace">Subjects:</span>`}}</p>
+                <p>{{t .Lang "Enclose your search terms in double quotes to require all those terms and with the same order"}}
+                </p>
+        </section>
     {{end}}
 </div>

@@ -135,7 +135,7 @@
                             {{t $lang "See all" }}</a>
                 </div>
 
-                {{template "partials/related" dict "Lang" $lang "Related" .SameSeries}}
+                {{template "partials/related" dict "Lang" $lang "Related" .SameSeries "ColWidth" 3}}
             </section>
             {{end}}         
 
@@ -152,7 +152,7 @@
                             {{t $lang "See all" }}</a>
                 </div>
 
-                {{template "partials/related" dict "Lang" $lang "Related" .SameAuthors}}
+                {{template "partials/related" dict "Lang" $lang "Related" .SameAuthors "ColWidth" 3}}
             </section>
             {{end}}   
 
@@ -166,7 +166,7 @@
                             {{t $lang "See all" }}</a>
                 </div>
 
-                {{template "partials/related" dict "Lang" $lang "Related" .SameSubjects}}
+                {{template "partials/related" dict "Lang" $lang "Related" .SameSubjects "ColWidth" 3}}
             </section>
             {{end}}         
         </div>

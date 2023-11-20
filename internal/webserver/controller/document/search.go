@@ -56,7 +56,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	highlights, err := d.hlRepository.Highlights(int(session.ID), page, 4)
+	highlights, err := d.hlRepository.Highlights(int(session.ID), page, 6)
 	if err != nil {
 		return fiber.ErrInternalServerError
 	}
