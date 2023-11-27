@@ -55,9 +55,29 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.ErrInternalServerError
 	}
+
+	highlights, err := d.hlRepository.Highlights(int(session.ID), page, 6)
+	if err != nil {
+		return fiber.ErrInternalServerError
+	}
+
+	docs, err := d.idx.Documents(highlights.Hits())
+	if err != nil {
+		return fiber.ErrInternalServerError
+	}
+
+	docsSortedByHighlightedDate := make([]index.Document, len(docs))
+	for i, path := range highlights.Hits() {
+		docsSortedByHighlightedDate[i] = docs[path]
+		docsSortedByHighlightedDate[i].Highlighted = true
+	}
+
 	return c.Render("index", fiber.Map{
-		"Count":   count,
-		"Title":   "Coreander",
-		"Session": session,
+		"Count":                  count,
+		"Title":                  "Coreander",
+		"Session":                session,
+		"Highlights":             docsSortedByHighlightedDate,
+		"EmailSendingConfigured": emailSendingConfigured,
+		"EmailFrom":              d.sender.From(),
 	}, "layout")
 }

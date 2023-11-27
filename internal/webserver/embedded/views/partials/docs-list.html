@@ -8,10 +8,20 @@
     {{if .Results}} {{range $i, $document := .Results.Hits}}
     <div class="list-group-item">
         <div class="row">
-            <div class="col-md-2 col-sm-12">
-                <img src="/images/generic.jpg" data-src="/cover/{{$document.Slug}}" loading="lazy" class="border border-2 text-center mb-3 cover img-fluid" alt='{{t $lang "\"%s\" cover" $document.Title}}'>
+            <div class="card col-lg-2 col-md-3 col-sm-12 border border-0">
+                <img src="/images/generic.jpg" data-src="/cover/{{$document.Slug}}" loading="lazy" class="border border-2 text-center mb-3 cover img-fluid card-img" alt='{{t $lang "\"%s\" cover" $document.Title}}'>
+                <div class="card-img-overlay">
+                    <h5 class="card-title text-center mx-1">{{$document.Title}}</h5>
+                    <p class="card-text text-center mx-1">
+                        {{if $document.Authors}}
+                            {{join $document.Authors ", "}}
+                        {{else}}
+                            {{t $lang "Unknown author"}}
+                        {{end}}
+                    </p>
+                </div>
             </div>
-            <div class="col-md-10 col-sm-12">
+            <div class="col-lg-10 col-md-9 col-sm-12">
                 <div class="row">
                     <div class="col-7">
                         {{ if ne $document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
@@ -25,8 +35,14 @@
                         </h4>
                     </div>
                     <div class="col-5 text-end">
-                        {{ template "partials/actions" dict "Lang" $lang "Document" $document "EmailSendingConfigured"
-                        $emailSendingConfigured "Index" $i "Session" $session "EmailFrom" $emailFrom}}
+                        <div class="dropdown">
+                            <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown"
+                                aria-expanded="false" data-bs-auto-close="outside">
+                                {{t $lang "Actions"}}
+                            </button>
+                            {{ template "partials/actions" dict "Lang" $lang "Document" $document "EmailSendingConfigured"
+                            $emailSendingConfigured "Index" $i "Session" $session "EmailFrom" $emailFrom}}
+                        </div>
                     </div>
                 </div>
                 <div class="row">
@@ -79,3 +95,4 @@
 
 {{template "delete.js" dict "Lang" $lang}}
 {{template "actions.js" dict "Lang" $lang}}
+<script type="text/javascript" src="/js/cover-loader.js"></script>

@@ -24,9 +24,11 @@ type IdxReaderWriter interface {
 	SameAuthors(slug string, quantity int) ([]index.Document, error)
 	SameSeries(slug string, quantity int) ([]index.Document, error)
 	RemoveFile(file string) error
+	Documents(IDs []string) (map[string]index.Document, error)
 }
 
 type highlightsRepository interface {
+	Highlights(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
 	Highlighted(userID int, doc index.Document) index.Document
 	HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
 }

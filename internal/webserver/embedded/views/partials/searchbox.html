@@ -3,7 +3,7 @@
         <form action="">
             <div class="input-group mb-3 mt-5">
                 <label for="search" class="visually-hidden">{{t .Lang "search"}}</label>
-                <input type="text" name="search" id="searchbox" class="form-control form-control-lg" placeholder={{t .Lang "Title, authors, subjects, etc."}} maxlength="255" required autofocus value="{{.Keywords}}">
+                <input type="search" name="search" id="searchbox" class="form-control form-control-lg" placeholder={{t .Lang "Title, authors, subjects, etc."}} maxlength="255" required autofocus value="{{.Keywords}}">
                 <button class="btn btn-primary" type="submit">{{t .Lang "Search"}}</button>
             </div>
         </form>
