@@ -19,7 +19,7 @@ window.onload = function () {
             }
             let cardTitle = img.nextElementSibling.getElementsByClassName('card-title')[0];
             let cardTitleLink = cardTitle.getElementsByTagName('a')[0]
-            if (cardTitleLink != null) {
+            if (cardTitleLink) {
                 cardTitleLink.text = '';
             } else {
                 cardTitle.innerHTML = ''
