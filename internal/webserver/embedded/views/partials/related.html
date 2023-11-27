@@ -1,22 +1,13 @@
-{{$lang := .Lang}}
-{{$colWidth := .ColWidth}}
-
-<div class="row mt-3 pe-0">
-    {{range $i, $doc := .Related}}
-    <div class="col-6 col-lg-{{$colWidth}} pe-0">
-        <div class="card border-0">
-            <img src="/images/generic.jpg" data-src="/cover/{{$doc.Slug}}" loading="lazy" class="card-img-top border border-1 rounded-0 cover" alt='{{t $lang "\"%s\" cover" $doc.Title}}'>
-            <div class="card-body">
-            <h5 class="card-title text-center"><a href="/{{$lang}}/document/{{$doc.Slug}}">{{$doc.Title}}</a></h5>
-            {{if $doc.Authors}}
+<div class="card border-0">
+    <img src="/images/generic.jpg" data-src="/cover/{{.Document.Slug}}" loading="lazy" class="card-img-top border border-1 rounded-0 cover" alt='{{t .Lang "\"%s\" cover" .Document.Title}}'>
+    <div class="card-img-overlay card-body">
+        <h5 class="card-title text-center"><a href="/{{.Lang}}/document/{{.Document.Slug}}" class="stretched-link text-decoration-none">{{.Document.Title}}</a></h5>
+        {{if .Document.Authors}}
             <p class="card-text text-center">
-                {{join $doc.Authors ", "}}
+                {{join .Document.Authors ", "}}
             </p>
-            {{else}}
-            <p class="card-text text-center">{{t $lang "Unknown author"}}</p>
-            {{end}}
-            </div>
-        </div>
+        {{else}}
+            <p class="card-text text-center">{{t .Lang "Unknown author"}}</p>
+        {{end}}
     </div>
-    {{end}}
 </div>

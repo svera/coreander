@@ -73,9 +73,11 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	}
 
 	return c.Render("index", fiber.Map{
-		"Count":      count,
-		"Title":      "Coreander",
-		"Session":    session,
-		"Highlights": docsSortedByHighlightedDate,
+		"Count":                  count,
+		"Title":                  "Coreander",
+		"Session":                session,
+		"Highlights":             docsSortedByHighlightedDate,
+		"EmailSendingConfigured": emailSendingConfigured,
+		"EmailFrom":              d.sender.From(),
 	}, "layout")
 }

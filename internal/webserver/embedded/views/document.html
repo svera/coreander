@@ -6,10 +6,21 @@
 
 <div class="container">
     <div class="row mt-5">
-        <div class="col-md-4 col-sm-12 pe-3">
+        <div class="card col-md-4 col-sm-12 pe-3 border border-0">
             <img src="/images/generic.jpg" data-src="/cover/{{.Document.Slug}}" loading="lazy"
                 class="border border-2 mb-3 cover img-fluid"
                 alt='{{t $lang "\"%s\" cover" .Document.Title}}'>
+
+            <div class="card-img-overlay">
+                <h2 class="card-title text-center mx-1 mt-5">{{.Document.Title}}</h2>
+                <h3 class="card-text text-center mx-1 mt-3">
+                    {{if .Document.Authors}}
+                        {{join .Document.Authors ", "}}
+                    {{else}}
+                        {{t $lang "Unknown author"}}
+                    {{end}}
+                </h3>
+            </div>
 
             <div class="d-grid gap-2 mb-5 actions">
                 <a href="/{{$lang}}/read/{{.Document.Slug}}" class="btn btn-primary">
@@ -135,7 +146,13 @@
                             {{t $lang "See all" }}</a>
                 </div>
 
-                {{template "partials/related" dict "Lang" $lang "Related" .SameSeries "ColWidth" 3}}
+                <div class="row mt-3 pe-0">
+                    {{range $i, $doc := .SameSeries}}
+                        <div class="col-6 col-lg-3 pe-0">
+                            {{template "partials/related" dict "Lang" $lang "Document" $doc}}
+                        </div>
+                    {{end}}
+                </div>
             </section>
             {{end}}         
 
@@ -152,7 +169,13 @@
                             {{t $lang "See all" }}</a>
                 </div>
 
-                {{template "partials/related" dict "Lang" $lang "Related" .SameAuthors "ColWidth" 3}}
+                <div class="row mt-3 pe-0">
+                    {{range $i, $doc := .SameAuthors}}
+                    <div class="col-6 col-lg-3 pe-0">
+                        {{template "partials/related" dict "Lang" $lang "Document" $doc}}
+                    </div>
+                    {{end}}
+                </div>
             </section>
             {{end}}   
 
@@ -166,7 +189,13 @@
                             {{t $lang "See all" }}</a>
                 </div>
 
-                {{template "partials/related" dict "Lang" $lang "Related" .SameSubjects "ColWidth" 3}}
+                <div class="row mt-3 pe-0">
+                    {{range $i, $doc := .SameSubjects}}
+                    <div class="col-6 col-lg-3 pe-0">
+                        {{template "partials/related" dict "Lang" $lang "Document" $doc}}
+                    </div>
+                    {{end}}
+                </div>
             </section>
             {{end}}         
         </div>

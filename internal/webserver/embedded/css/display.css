@@ -75,7 +75,7 @@ a.collapse-control.collapsed:after {
     --bs-link-color: white;
     --bs-link-hover-color: white;
     --bs-link-color-rgb: 255, 255, 255;
-    --bs-link-hover-color-rgb: 139, 185, 254;
+    --bs-link-hover-color-rgb: 255, 255, 255;
     .pagination {
         --bs-pagination-active-bg: #ffffff;
         --bs-pagination-active-color: #000000;
@@ -86,4 +86,8 @@ a.collapse-control.collapsed:after {
         --bs-bg-opacity: 1;
         background-color: rgba(var(--bs-dark-rgb), var(--bs-bg-opacity)) !important;
     }
+}
+
+.card-img-overlay a, .card-img-overlay p, .card-img-overlay h2, .card-img-overlay h3 {
+    color: rgba(255,255,255,0.8);
 }
