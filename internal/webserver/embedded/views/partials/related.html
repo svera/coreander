@@ -1,5 +1,5 @@
 <div class="card border-0">
-    <img src="/images/generic.jpg" data-src="/cover/{{.Document.Slug}}" loading="lazy" class="card-img-top border border-1 rounded-0 cover" alt='{{t .Lang "\"%s\" cover" .Document.Title}}'>
+    <img src="/images/generic.jpg" data-src="/cover/{{.Document.Slug}}" loading="lazy" class="card-img-top border border-1 rounded-0 cover mb-3" alt='{{t .Lang "\"%s\" cover" .Document.Title}}'>
     <div class="card-img-overlay card-body">
         <h5 class="card-title text-center"><a href="/{{.Lang}}/document/{{.Document.Slug}}" class="stretched-link text-decoration-none">{{.Document.Title}}</a></h5>
         {{if .Document.Authors}}
