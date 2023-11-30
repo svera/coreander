@@ -17,3 +17,7 @@ type DocumentWrite struct {
 	SeriesEq   string
 	SubjectsEq []string
 }
+
+func (d DocumentWrite) BleveType() string {
+	return d.Language
+}

@@ -3,7 +3,6 @@ module github.com/svera/coreander/v3
 go 1.21
 
 require (
-	github.com/blevesearch/bleve v1.0.14
 	github.com/blevesearch/bleve/v2 v2.3.8
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/disintegration/imaging v1.6.2

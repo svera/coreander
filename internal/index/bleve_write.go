@@ -58,7 +58,6 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 		}
 
 		document := b.createDocument(meta, fullPath, batchSlugs)
-
 		batchSlugs[document.Slug] = struct{}{}
 
 		err = batch.Index(document.ID, document)

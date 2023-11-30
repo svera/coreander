@@ -5,11 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/blevesearch/bleve/analysis/token/lowercase"
-	"github.com/blevesearch/bleve/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
 	"github.com/blevesearch/bleve/v2/analysis/char/asciifolding"
+	"github.com/blevesearch/bleve/v2/analysis/lang/en"
+	"github.com/blevesearch/bleve/v2/analysis/lang/es"
+	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
+	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
 	"github.com/svera/coreander/v3/internal/metadata"
 )
@@ -32,6 +34,30 @@ func NewBleve(index bleve.Index, libraryPath string, read map[string]metadata.Re
 func Mapping() *mapping.IndexMappingImpl {
 	indexMapping := bleve.NewIndexMapping()
 
+	languages := []string{es.AnalyzerName, en.AnalyzerName}
+
+	keywordFieldMapping := bleve.NewKeywordFieldMapping()
+	keywordFieldMappingNotIndexable := bleve.NewKeywordFieldMapping()
+
+	for _, lang := range languages {
+		documentMapping := bleve.NewDocumentMapping()
+		documentMapping.DefaultAnalyzer = lang
+		textFieldMapping := bleve.NewTextFieldMapping()
+		textFieldMapping.Analyzer = lang
+
+		documentMapping.AddFieldMappingsAt("Title", textFieldMapping)
+		documentMapping.AddFieldMappingsAt("Description", textFieldMapping)
+		documentMapping.AddFieldMappingsAt("Subjects", textFieldMapping)
+		documentMapping.AddFieldMappingsAt("Slug", keywordFieldMapping)
+		documentMapping.AddFieldMappingsAt("SeriesEq", keywordFieldMapping)
+		documentMapping.AddFieldMappingsAt("AuthorsEq", keywordFieldMapping)
+		documentMapping.AddFieldMappingsAt("SubjectsEq", keywordFieldMapping)
+		documentMapping.AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
+		documentMapping.AddFieldMappingsAt("Year", keywordFieldMappingNotIndexable)
+
+		indexMapping.AddDocumentMapping(lang, documentMapping)
+	}
+
 	err := indexMapping.AddCustomAnalyzer("document",
 		map[string]interface{}{
 			"type": custom.Name,
@@ -46,21 +72,9 @@ func Mapping() *mapping.IndexMappingImpl {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	indexMapping.DefaultAnalyzer = "document"
-	languageFieldMapping := bleve.NewTextFieldMapping()
-	languageFieldMapping.Index = false
-	indexMapping.DefaultMapping.AddFieldMappingsAt("Language", languageFieldMapping)
-	yearFieldMapping := bleve.NewTextFieldMapping()
-	yearFieldMapping.Index = false
-	indexMapping.DefaultMapping.AddFieldMappingsAt("Year", yearFieldMapping)
-	slugFieldMapping := bleve.NewKeywordFieldMapping()
-	indexMapping.DefaultMapping.AddFieldMappingsAt("Slug", slugFieldMapping)
-	seriesEqFieldMapping := bleve.NewKeywordFieldMapping()
-	indexMapping.DefaultMapping.AddFieldMappingsAt("SeriesEq", seriesEqFieldMapping)
-	authorsEqFieldMapping := bleve.NewKeywordFieldMapping()
-	indexMapping.DefaultMapping.AddFieldMappingsAt("AuthorsEq", authorsEqFieldMapping)
-	subjectsEqFieldMapping := bleve.NewKeywordFieldMapping()
-	indexMapping.DefaultMapping.AddFieldMappingsAt("SubjectsEq", subjectsEqFieldMapping)
+	//indexMapping.DefaultMapping = esMapping
 
 	return indexMapping
 }
