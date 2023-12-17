@@ -16,6 +16,8 @@ import (
 	"github.com/svera/coreander/v3/internal/metadata"
 )
 
+var languages = []string{es.AnalyzerName, en.AnalyzerName}
+
 type BleveIndexer struct {
 	idx         bleve.Index
 	libraryPath string
@@ -31,32 +33,8 @@ func NewBleve(index bleve.Index, libraryPath string, read map[string]metadata.Re
 	}
 }
 
-func Mapping() *mapping.IndexMappingImpl {
+func Mapping() mapping.IndexMapping {
 	indexMapping := bleve.NewIndexMapping()
-
-	languages := []string{es.AnalyzerName, en.AnalyzerName}
-
-	keywordFieldMapping := bleve.NewKeywordFieldMapping()
-	keywordFieldMappingNotIndexable := bleve.NewKeywordFieldMapping()
-
-	for _, lang := range languages {
-		documentMapping := bleve.NewDocumentMapping()
-		documentMapping.DefaultAnalyzer = lang
-		textFieldMapping := bleve.NewTextFieldMapping()
-		textFieldMapping.Analyzer = lang
-
-		documentMapping.AddFieldMappingsAt("Title", textFieldMapping)
-		documentMapping.AddFieldMappingsAt("Description", textFieldMapping)
-		documentMapping.AddFieldMappingsAt("Subjects", textFieldMapping)
-		documentMapping.AddFieldMappingsAt("Slug", keywordFieldMapping)
-		documentMapping.AddFieldMappingsAt("SeriesEq", keywordFieldMapping)
-		documentMapping.AddFieldMappingsAt("AuthorsEq", keywordFieldMapping)
-		documentMapping.AddFieldMappingsAt("SubjectsEq", keywordFieldMapping)
-		documentMapping.AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
-		documentMapping.AddFieldMappingsAt("Year", keywordFieldMappingNotIndexable)
-
-		indexMapping.AddDocumentMapping(lang, documentMapping)
-	}
 
 	err := indexMapping.AddCustomAnalyzer("document",
 		map[string]interface{}{
@@ -73,8 +51,48 @@ func Mapping() *mapping.IndexMappingImpl {
 		log.Fatal(err)
 	}
 
-	indexMapping.DefaultAnalyzer = "document"
-	//indexMapping.DefaultMapping = esMapping
+	keywordFieldMapping := bleve.NewKeywordFieldMapping()
+	//keywordFieldMapping.Analyzer = "document"
+	keywordFieldMappingNotIndexable := bleve.NewKeywordFieldMapping()
+	//keywordFieldMappingNotIndexable.Analyzer = "document"
+
+	for _, lang := range languages {
+		textFieldMapping := bleve.NewTextFieldMapping()
+		textFieldMapping.Analyzer = lang
+
+		simpleTextFieldMapping := bleve.NewTextFieldMapping()
+		simpleTextFieldMapping.Analyzer = "document"
+
+		err := addNoStopWordsAnalyzer(lang, indexMapping)
+		if err != nil {
+			log.Fatal(err)
+		}
+		noStopWordsTextFieldMapping := bleve.NewTextFieldMapping()
+		noStopWordsTextFieldMapping.Analyzer = lang + "_no_stop_words"
+
+		indexMapping.AddDocumentMapping(lang, bleve.NewDocumentMapping())
+		indexMapping.TypeMapping[lang].DefaultAnalyzer = lang
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Title", noStopWordsTextFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Authors", simpleTextFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Description", textFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Subjects", textFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Series", noStopWordsTextFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Slug", keywordFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("SeriesEq", keywordFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AuthorsEq", keywordFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("SubjectsEq", keywordFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Year", keywordFieldMappingNotIndexable)
+	}
+
+	indexMapping.DefaultMapping.DefaultAnalyzer = "document"
+	//indexMapping.DefaultMapping.AddFieldMappingsAt("Authors", bleve.NewTextFieldMapping())
+	//indexMapping.DefaultMapping.AddFieldMappingsAt("Slug", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("SeriesEq", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("AuthorsEq", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("SubjectsEq", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Year", keywordFieldMappingNotIndexable)
 
 	return indexMapping
 }

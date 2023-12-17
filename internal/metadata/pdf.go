@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
+	"github.com/pemistahl/lingua-go"
 )
 
 type PdfReader struct{}
@@ -56,11 +58,29 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 		}
 	}
 
+	lang := pdf.GetLanguage()
+	if lang == "" {
+		languages := []lingua.Language{
+			lingua.English,
+			lingua.Spanish,
+		}
+
+		detector := lingua.NewLanguageDetectorBuilder().
+			FromLanguages(languages...).
+			Build()
+
+		if language, exists := detector.DetectLanguageOf(title); exists {
+			if slices.Contains(languages, language) {
+				lang = strings.ToLower(language.IsoCode639_1().String())
+			}
+		}
+	}
+
 	bk = Metadata{
 		Title:       title,
 		Authors:     authors,
 		Description: template.HTML(description),
-		Language:    pdf.GetLanguage(),
+		Language:    lang,
 		Year:        year,
 		Pages:       pdf.GetPagesCount(),
 		Type:        "PDF",

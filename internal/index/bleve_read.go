@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"html/template"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/gosimple/slug"
+	"github.com/pemistahl/lingua-go"
 	"github.com/svera/coreander/v3/internal/metadata"
 	"github.com/svera/coreander/v3/internal/result"
 )
@@ -43,6 +45,12 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 		return b.runPaginatedQuery(qb, page, resultsPerPage)
 	}
 
+	analyzer, noStopWordsAnalyzer := analyzers(keywords)
+	compound := composeQuery(keywords, noStopWordsAnalyzer, analyzer)
+	return b.runPaginatedQuery(compound, page, resultsPerPage)
+}
+
+func composeQuery(keywords string, noStopWordsAnalyzer string, analyzer string) *query.DisjunctionQuery {
 	splitted := strings.Split(strings.TrimSpace(keywords), " ")
 
 	var (
@@ -59,21 +67,26 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 		}
 		qa := bleve.NewMatchQuery(keyword)
 		qa.SetField("Authors")
+		qa.Analyzer = "document"
 		authorQueries = append(authorQueries, qa)
 
 		qt := bleve.NewMatchQuery(keyword)
+		qt.Analyzer = noStopWordsAnalyzer
 		qt.SetField("Title")
 		titleQueries = append(titleQueries, qt)
 
 		qs := bleve.NewMatchQuery(keyword)
+		qs.Analyzer = noStopWordsAnalyzer
 		qs.SetField("Series")
 		seriesQueries = append(seriesQueries, qs)
 
 		qu := bleve.NewMatchQuery(keyword)
+		qu.Analyzer = analyzer
 		qu.SetField("Subjects")
 		subjectQueries = append(subjectQueries, qt)
 
 		qd := bleve.NewMatchQuery(keyword)
+		qd.Analyzer = analyzer
 		qd.SetField("Description")
 		descriptionQueries = append(descriptionQueries, qd)
 	}
@@ -85,7 +98,28 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 	subjectCompoundQuery := bleve.NewConjunctionQuery(subjectQueries...)
 
 	compound := bleve.NewDisjunctionQuery(authorCompoundQuery, titleCompoundQuery, seriesCompoundQuery, descriptionCompoundQuery, subjectCompoundQuery)
-	return b.runPaginatedQuery(compound, page, resultsPerPage)
+	return compound
+}
+
+func analyzers(keywords string) (string, string) {
+	languages := []lingua.Language{
+		lingua.English,
+		lingua.Spanish,
+	}
+
+	detector := lingua.NewLanguageDetectorBuilder().
+		FromLanguages(languages...).
+		Build()
+
+	analyzer := "document"
+	noStopWordsAnalyzer := "document"
+	if language, exists := detector.DetectLanguageOf(keywords); exists {
+		if slices.Contains(languages, language) {
+			analyzer = strings.ToLower(language.IsoCode639_1().String())
+			noStopWordsAnalyzer = analyzer + "_no_stop_words"
+		}
+	}
+	return analyzer, noStopWordsAnalyzer
 }
 
 func (b *BleveIndexer) runQuery(query query.Query, results int) ([]Document, error) {
@@ -110,6 +144,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	if err != nil {
 		return result.Paginated[[]Document]{}, err
 	}
+
 	if searchResult.Total == 0 {
 		return res, nil
 	}
