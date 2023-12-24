@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"html/template"
 	"net/url"
-	"slices"
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/gosimple/slug"
-	"github.com/pemistahl/lingua-go"
+	"github.com/svera/coreander/v3/internal/language"
 	"github.com/svera/coreander/v3/internal/metadata"
 	"github.com/svera/coreander/v3/internal/result"
 )
@@ -67,7 +66,7 @@ func composeQuery(keywords string, noStopWordsAnalyzer string, analyzer string) 
 		}
 		qa := bleve.NewMatchQuery(keyword)
 		qa.SetField("Authors")
-		qa.Analyzer = "document"
+		qa.Analyzer = defaultAnalyzer
 		authorQueries = append(authorQueries, qa)
 
 		qt := bleve.NewMatchQuery(keyword)
@@ -102,24 +101,12 @@ func composeQuery(keywords string, noStopWordsAnalyzer string, analyzer string) 
 }
 
 func analyzers(keywords string) (string, string) {
-	languages := []lingua.Language{
-		lingua.English,
-		lingua.Spanish,
+	lang := language.Detect(keywords)
+	if lang != "" {
+		noStopWordsAnalyzer := lang + "_no_stop_words"
+		return lang, noStopWordsAnalyzer
 	}
-
-	detector := lingua.NewLanguageDetectorBuilder().
-		FromLanguages(languages...).
-		Build()
-
-	analyzer := "document"
-	noStopWordsAnalyzer := "document"
-	if language, exists := detector.DetectLanguageOf(keywords); exists {
-		if slices.Contains(languages, language) {
-			analyzer = strings.ToLower(language.IsoCode639_1().String())
-			noStopWordsAnalyzer = analyzer + "_no_stop_words"
-		}
-	}
-	return analyzer, noStopWordsAnalyzer
+	return defaultAnalyzer, defaultAnalyzer
 }
 
 func (b *BleveIndexer) runQuery(query query.Query, results int) ([]Document, error) {

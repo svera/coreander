@@ -12,6 +12,10 @@ import (
 var stemmers = map[string]string{
 	"es": "stemmer_es_light",
 	"en": "stemmer_porter",
+	"de": "stemmer_de_light",
+	"fr": "stemmer_fr_light",
+	"it": "stemmer_it_light",
+	"pt": "stemmer_pt_light",
 }
 
 func addNoStopWordsAnalyzer(lang string, indexMapping *mapping.IndexMappingImpl) error {

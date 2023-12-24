@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -18,7 +17,7 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
-	"github.com/pemistahl/lingua-go"
+	"github.com/svera/coreander/v3/internal/language"
 )
 
 type PdfReader struct{}
@@ -60,19 +59,11 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 
 	lang := pdf.GetLanguage()
 	if lang == "" {
-		languages := []lingua.Language{
-			lingua.English,
-			lingua.Spanish,
+		if description != "" {
+			lang = language.Detect(description)
 		}
-
-		detector := lingua.NewLanguageDetectorBuilder().
-			FromLanguages(languages...).
-			Build()
-
-		if language, exists := detector.DetectLanguageOf(title); exists {
-			if slices.Contains(languages, language) {
-				lang = strings.ToLower(language.IsoCode639_1().String())
-			}
+		if lang == "" {
+			lang = language.Detect(title)
 		}
 	}
 

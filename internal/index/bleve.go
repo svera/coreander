@@ -8,15 +8,28 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
 	"github.com/blevesearch/bleve/v2/analysis/char/asciifolding"
+	"github.com/blevesearch/bleve/v2/analysis/lang/de"
 	"github.com/blevesearch/bleve/v2/analysis/lang/en"
 	"github.com/blevesearch/bleve/v2/analysis/lang/es"
+	"github.com/blevesearch/bleve/v2/analysis/lang/fr"
+	"github.com/blevesearch/bleve/v2/analysis/lang/it"
+	"github.com/blevesearch/bleve/v2/analysis/lang/pt"
 	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
 	"github.com/svera/coreander/v3/internal/metadata"
 )
 
-var languages = []string{es.AnalyzerName, en.AnalyzerName}
+var languages = []string{
+	es.AnalyzerName,
+	en.AnalyzerName,
+	de.AnalyzerName,
+	fr.AnalyzerName,
+	it.AnalyzerName,
+	pt.AnalyzerName,
+}
+
+const defaultAnalyzer = "default_analyzer"
 
 type BleveIndexer struct {
 	idx         bleve.Index
@@ -36,7 +49,7 @@ func NewBleve(index bleve.Index, libraryPath string, read map[string]metadata.Re
 func Mapping() mapping.IndexMapping {
 	indexMapping := bleve.NewIndexMapping()
 
-	err := indexMapping.AddCustomAnalyzer("document",
+	err := indexMapping.AddCustomAnalyzer(defaultAnalyzer,
 		map[string]interface{}{
 			"type": custom.Name,
 			"char_filters": []string{
@@ -52,16 +65,15 @@ func Mapping() mapping.IndexMapping {
 	}
 
 	keywordFieldMapping := bleve.NewKeywordFieldMapping()
-	//keywordFieldMapping.Analyzer = "document"
 	keywordFieldMappingNotIndexable := bleve.NewKeywordFieldMapping()
-	//keywordFieldMappingNotIndexable.Analyzer = "document"
+	keywordFieldMappingNotIndexable.Index = false
+
+	simpleTextFieldMapping := bleve.NewTextFieldMapping()
+	simpleTextFieldMapping.Analyzer = defaultAnalyzer
 
 	for _, lang := range languages {
 		textFieldMapping := bleve.NewTextFieldMapping()
 		textFieldMapping.Analyzer = lang
-
-		simpleTextFieldMapping := bleve.NewTextFieldMapping()
-		simpleTextFieldMapping.Analyzer = "document"
 
 		err := addNoStopWordsAnalyzer(lang, indexMapping)
 		if err != nil {
@@ -85,9 +97,14 @@ func Mapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Year", keywordFieldMappingNotIndexable)
 	}
 
-	indexMapping.DefaultMapping.DefaultAnalyzer = "document"
-	//indexMapping.DefaultMapping.AddFieldMappingsAt("Authors", bleve.NewTextFieldMapping())
-	//indexMapping.DefaultMapping.AddFieldMappingsAt("Slug", keywordFieldMapping)
+	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Title", simpleTextFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Authors", simpleTextFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Description", simpleTextFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Subjects", simpleTextFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Series", simpleTextFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Slug", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Title", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("SeriesEq", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AuthorsEq", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("SubjectsEq", keywordFieldMapping)
