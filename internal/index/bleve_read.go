@@ -9,7 +9,6 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/gosimple/slug"
-	"github.com/svera/coreander/v3/internal/language"
 	"github.com/svera/coreander/v3/internal/metadata"
 	"github.com/svera/coreander/v3/internal/result"
 )
@@ -44,69 +43,44 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 		return b.runPaginatedQuery(qb, page, resultsPerPage)
 	}
 
-	analyzer, noStopWordsAnalyzer := analyzers(keywords)
-	compound := composeQuery(keywords, noStopWordsAnalyzer, analyzer)
+	compound := composeQuery(keywords)
 	return b.runPaginatedQuery(compound, page, resultsPerPage)
 }
 
-func composeQuery(keywords string, noStopWordsAnalyzer string, analyzer string) *query.DisjunctionQuery {
-	splitted := strings.Split(strings.TrimSpace(keywords), " ")
+func composeQuery(keywords string) *query.DisjunctionQuery {
+	langCompoundQuery := bleve.NewDisjunctionQuery()
 
-	var (
-		authorQueries      []query.Query
-		titleQueries       []query.Query
-		descriptionQueries []query.Query
-		seriesQueries      []query.Query
-		subjectQueries     []query.Query
-	)
-
-	for _, keyword := range splitted {
-		if keyword == "" {
-			continue
-		}
-		qa := bleve.NewMatchQuery(keyword)
-		qa.SetField("Authors")
-		qa.Analyzer = defaultAnalyzer
-		authorQueries = append(authorQueries, qa)
-
-		qt := bleve.NewMatchQuery(keyword)
-		qt.Analyzer = noStopWordsAnalyzer
+	for lang := range filters {
+		qt := bleve.NewMatchPhraseQuery(keywords)
+		qt.Analyzer = lang + "_no_stop_words"
 		qt.SetField("Title")
-		titleQueries = append(titleQueries, qt)
+		langCompoundQuery.AddQuery(qt)
 
-		qs := bleve.NewMatchQuery(keyword)
-		qs.Analyzer = noStopWordsAnalyzer
+		qs := bleve.NewMatchQuery(keywords)
+		qs.Analyzer = lang + "_no_stop_words"
 		qs.SetField("Series")
-		seriesQueries = append(seriesQueries, qs)
+		qs.Operator = query.MatchQueryOperatorAnd
+		langCompoundQuery.AddQuery(qs)
 
-		qu := bleve.NewMatchQuery(keyword)
-		qu.Analyzer = analyzer
+		qu := bleve.NewMatchQuery(keywords)
+		qu.Analyzer = lang
 		qu.SetField("Subjects")
-		subjectQueries = append(subjectQueries, qt)
+		qu.Operator = query.MatchQueryOperatorAnd
+		langCompoundQuery.AddQuery(qu)
 
-		qd := bleve.NewMatchQuery(keyword)
-		qd.Analyzer = analyzer
+		qd := bleve.NewMatchQuery(keywords)
+		qd.Analyzer = lang
 		qd.SetField("Description")
-		descriptionQueries = append(descriptionQueries, qd)
+		qd.Operator = query.MatchQueryOperatorAnd
+		langCompoundQuery.AddQuery(qd)
 	}
 
-	authorCompoundQuery := bleve.NewConjunctionQuery(authorQueries...)
-	titleCompoundQuery := bleve.NewConjunctionQuery(titleQueries...)
-	seriesCompoundQuery := bleve.NewConjunctionQuery(seriesQueries...)
-	descriptionCompoundQuery := bleve.NewConjunctionQuery(descriptionQueries...)
-	subjectCompoundQuery := bleve.NewConjunctionQuery(subjectQueries...)
+	qa := bleve.NewMatchQuery(keywords)
+	qa.SetField("Authors")
+	qa.Operator = query.MatchQueryOperatorAnd
+	qa.Analyzer = defaultAnalyzer
 
-	compound := bleve.NewDisjunctionQuery(authorCompoundQuery, titleCompoundQuery, seriesCompoundQuery, descriptionCompoundQuery, subjectCompoundQuery)
-	return compound
-}
-
-func analyzers(keywords string) (string, string) {
-	lang := language.Detect(keywords)
-	if lang != "" {
-		noStopWordsAnalyzer := lang + "_no_stop_words"
-		return lang, noStopWordsAnalyzer
-	}
-	return defaultAnalyzer, defaultAnalyzer
+	return bleve.NewDisjunctionQuery(qa, langCompoundQuery)
 }
 
 func (b *BleveIndexer) runQuery(query query.Query, results int) ([]Document, error) {

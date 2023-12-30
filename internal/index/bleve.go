@@ -15,18 +15,19 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/lang/it"
 	"github.com/blevesearch/bleve/v2/analysis/lang/pt"
 	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
+	"github.com/blevesearch/bleve/v2/analysis/token/porter"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
 	"github.com/svera/coreander/v3/internal/metadata"
 )
 
-var languages = []string{
-	es.AnalyzerName,
-	en.AnalyzerName,
-	de.AnalyzerName,
-	fr.AnalyzerName,
-	it.AnalyzerName,
-	pt.AnalyzerName,
+var filters = map[string][]string{
+	es.AnalyzerName: {lowercase.Name, es.LightStemmerName},
+	en.AnalyzerName: {en.PossessiveName, lowercase.Name, porter.Name},
+	de.AnalyzerName: {de.NormalizeName, lowercase.Name, de.LightStemmerName},
+	fr.AnalyzerName: {fr.ElisionName, lowercase.Name, fr.LightStemmerName},
+	it.AnalyzerName: {it.ElisionName, lowercase.Name, it.LightStemmerName},
+	pt.AnalyzerName: {lowercase.Name, pt.LightStemmerName},
 }
 
 const defaultAnalyzer = "default_analyzer"
@@ -71,7 +72,7 @@ func Mapping() mapping.IndexMapping {
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
 
-	for _, lang := range languages {
+	for lang := range filters {
 		textFieldMapping := bleve.NewTextFieldMapping()
 		textFieldMapping.Analyzer = lang
 
@@ -104,7 +105,6 @@ func Mapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Subjects", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Series", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Slug", keywordFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("Title", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("SeriesEq", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AuthorsEq", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("SubjectsEq", keywordFieldMapping)
