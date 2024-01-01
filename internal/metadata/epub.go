@@ -79,10 +79,11 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		}
 	}
 
-	language := ""
+	lang := ""
 	if len(opf.Metadata.Language) > 0 {
-		language = opf.Metadata.Language[0].Value
+		lang = opf.Metadata.Language[0].Value
 	}
+
 	year := ""
 	if len(opf.Metadata.Date) > 0 {
 		for _, date := range opf.Metadata.Date {
@@ -120,7 +121,7 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		Title:       title,
 		Authors:     authors,
 		Description: template.HTML(description),
-		Language:    language,
+		Language:    lang,
 		Year:        year,
 		Cover:       cover,
 		Series:      series,

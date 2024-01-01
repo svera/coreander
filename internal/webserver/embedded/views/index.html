@@ -8,37 +8,41 @@
                 <div class="col-9">
                         <h2>{{t .Lang "Your highlights" }}</h2>
                 </div>
-                <div class="col-3 text-end">
-                        <a  href="/{{.Lang}}/highlights/{{.Session.Uuid}}">
-                                {{t .Lang "See all" }}
-                        </a>
-                </div>
-    
-                <div class="row mt-3 pe-0">
-                    {{$lang := .Lang}}
-                    {{$emailSendingConfigured := .EmailSendingConfigured}}
-                    {{$session := .Session}}
-                    {{$emailFrom := .EmailFrom}}
-
-                    {{range $i, $doc := .Highlights}}
-                    <div class="col-6 col-md-3 col-lg-2 pe-0">
-                        {{template "partials/related" dict "Lang" $lang "Document" $doc}}
-                        <div class="mb-5 actions">
-                            <div class="dropdown">
-                                <button type="button" class="btn btn-primary dropdown-toggle w-100" data-bs-toggle="dropdown"
-                                    aria-expanded="false" data-bs-auto-close="outside">
-                                    {{t $lang "Actions"}}
-                                </button>
-                                {{ template "partials/actions" dict "Lang" $lang "Document" $doc "EmailSendingConfigured"
-                                $emailSendingConfigured "Index" $i "Session" $session "EmailFrom" $emailFrom}}
-                            </div>                        
-                        </div>
+                {{if gt (len .Highlights) 0}}
+                    <div class="col-3 text-end">
+                            <a  href="/{{.Lang}}/highlights/{{.Session.Uuid}}">
+                                    {{t .Lang "See all" }}
+                            </a>
                     </div>
-                    {{end}}
-                </div>
+        
+                    <div class="row mt-3 pe-0">
+                        {{$lang := .Lang}}
+                        {{$emailSendingConfigured := .EmailSendingConfigured}}
+                        {{$session := .Session}}
+                        {{$emailFrom := .EmailFrom}}
+
+                        {{range $i, $doc := .Highlights}}
+                        <div class="col-6 col-md-3 col-lg-2 pe-0">
+                            {{template "partials/related" dict "Lang" $lang "Document" $doc}}
+                            <div class="mb-5 actions">
+                                <div class="dropdown">
+                                    <button type="button" class="btn btn-primary dropdown-toggle w-100" data-bs-toggle="dropdown"
+                                        aria-expanded="false" data-bs-auto-close="outside">
+                                        {{t $lang "Actions"}}
+                                    </button>
+                                    {{ template "partials/actions" dict "Lang" $lang "Document" $doc "EmailSendingConfigured"
+                                    $emailSendingConfigured "Index" $i "Session" $session "EmailFrom" $emailFrom}}
+                                </div>                        
+                            </div>
+                        </div>
+                        {{end}}
+                    </div>
+                    {{template "actions.js" dict "Lang" $lang}}
+                    <script type="text/javascript" src="/js/cover-loader.js"></script>
+                {{else}}
+                    <p>{{t .Lang "You haven't highlighted any document yet."}}</p>
+                {{end}}
         </section>
-        {{template "actions.js" dict "Lang" $lang}}
-        <script type="text/javascript" src="/js/cover-loader.js"></script>
     {{else}}
         <section class="pt-5 text-center">
                 <h2 class="mb-3">{{t .Lang "Search tips"}}</h2>

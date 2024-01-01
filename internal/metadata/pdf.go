@@ -17,7 +17,6 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
-	"github.com/svera/coreander/v3/internal/language"
 )
 
 type PdfReader struct{}
@@ -58,14 +57,6 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 	}
 
 	lang := pdf.GetLanguage()
-	if lang == "" {
-		if description != "" {
-			lang = language.Detect(description)
-		}
-		if lang == "" {
-			lang = language.Detect(title)
-		}
-	}
 
 	bk = Metadata{
 		Title:       title,

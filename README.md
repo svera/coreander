@@ -8,6 +8,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Single binary with all dependencies included.
 * Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for documents in multiple languages.
 * Search by author, title and even document series ([Calibre's](https://calibre-ebook.com/) `series` meta supported)
+* Improved search for documents with metadata in english, spanish, french, italian, german and portuguese, including genre and singular/plural forms of words in the results among others.
 * Estimated reading time calculation. 
 * High-performance web server powered by [Fiber](https://github.com/gofiber/fiber).
 * Lightweight, responsive web interface based on [Bootstrap](https://getbootstrap.com/).
