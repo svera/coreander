@@ -9,7 +9,7 @@ import (
 )
 
 func addNoStopWordsAnalyzer(lang string, indexMapping *mapping.IndexMappingImpl) error {
-	if _, ok := filters[lang]; !ok {
+	if _, ok := noStopWordsFilters[lang]; !ok {
 		return fmt.Errorf("no stemmer defined for %s", lang)
 	}
 
@@ -17,7 +17,7 @@ func addNoStopWordsAnalyzer(lang string, indexMapping *mapping.IndexMappingImpl)
 		map[string]interface{}{
 			"type":          custom.Name,
 			"tokenizer":     unicode.Name,
-			"token_filters": filters[lang],
+			"token_filters": noStopWordsFilters[lang],
 		})
 
 	return err

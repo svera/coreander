@@ -50,7 +50,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 func composeQuery(keywords string) *query.DisjunctionQuery {
 	langCompoundQuery := bleve.NewDisjunctionQuery()
 
-	for lang := range filters {
+	for lang := range noStopWordsFilters {
 		qt := bleve.NewMatchPhraseQuery(keywords)
 		qt.Analyzer = lang + "_no_stop_words"
 		qt.SetField("Title")

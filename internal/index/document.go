@@ -9,18 +9,13 @@ type Document struct {
 	Highlighted bool
 }
 
-type Strict struct {
-	Value  string
-	Length float64
-}
-
 // DocumentWrite is an extension to Document that is used only when writing to the index,
 // as some of its fields are only used to perform searches and not returned
 type DocumentWrite struct {
 	Document
-	AuthorsEq  []Strict
-	SeriesEq   Strict
-	SubjectsEq []Strict
+	AuthorsEq  []string
+	SeriesEq   string
+	SubjectsEq []string
 }
 
 // BleveType is part of the bleve.Classifier interface and its purpose is to tell the indexer

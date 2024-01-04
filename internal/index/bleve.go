@@ -21,7 +21,7 @@ import (
 	"github.com/svera/coreander/v3/internal/metadata"
 )
 
-var filters = map[string][]string{
+var noStopWordsFilters = map[string][]string{
 	es.AnalyzerName: {lowercase.Name, es.LightStemmerName},
 	en.AnalyzerName: {en.PossessiveName, lowercase.Name, porter.Name},
 	de.AnalyzerName: {de.NormalizeName, lowercase.Name, de.LightStemmerName},
@@ -72,7 +72,7 @@ func Mapping() mapping.IndexMapping {
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
 
-	for lang := range filters {
+	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()
 		textFieldMapping.Analyzer = lang
 
