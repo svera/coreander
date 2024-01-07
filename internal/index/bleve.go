@@ -21,6 +21,10 @@ import (
 	"github.com/svera/coreander/v3/internal/metadata"
 )
 
+// Version identifies the mapping used for indexing. Any changes in the mapping requires an increase
+// of version, to signal that a new index needs to be created.
+const Version = "v1"
+
 var noStopWordsFilters = map[string][]string{
 	es.AnalyzerName: {lowercase.Name, es.LightStemmerName},
 	en.AnalyzerName: {en.PossessiveName, lowercase.Name, porter.Name},
