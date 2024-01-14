@@ -13,12 +13,10 @@ func addNoStopWordsAnalyzer(lang string, indexMapping *mapping.IndexMappingImpl)
 		return fmt.Errorf("no stemmer defined for %s", lang)
 	}
 
-	err := indexMapping.AddCustomAnalyzer(lang+"_no_stop_words",
+	return indexMapping.AddCustomAnalyzer(lang+"_no_stop_words",
 		map[string]interface{}{
 			"type":          custom.Name,
 			"tokenizer":     unicode.Name,
 			"token_filters": noStopWordsFilters[lang],
 		})
-
-	return err
 }

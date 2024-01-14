@@ -26,7 +26,7 @@ import (
 const Version = "v1"
 
 var noStopWordsFilters = map[string][]string{
-	es.AnalyzerName: {lowercase.Name, es.LightStemmerName},
+	es.AnalyzerName: {es.NormalizeName, lowercase.Name, es.LightStemmerName},
 	en.AnalyzerName: {en.PossessiveName, lowercase.Name, porter.Name},
 	de.AnalyzerName: {de.NormalizeName, lowercase.Name, de.LightStemmerName},
 	fr.AnalyzerName: {fr.ElisionName, lowercase.Name, fr.LightStemmerName},

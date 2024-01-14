@@ -116,6 +116,7 @@ func startIndex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath 
 func getIndexFile() bleve.Index {
 	indexFile, err := bleve.Open(homeDir + indexPath)
 	if err == bleve.ErrorIndexPathDoesNotExist {
+		log.Println("No index found, creating a new one.")
 		cfg.SkipIndexing = false
 		indexFile = createIndex(homeDir, cfg.LibPath, metadataReaders)
 	}
@@ -124,7 +125,7 @@ func getIndexFile() bleve.Index {
 		log.Fatal(err)
 	}
 	if string(version) == "" || string(version) < index.Version {
-		log.Println("Old version index found, recreating it")
+		log.Println("Old version index found, recreating it.")
 		if err = os.RemoveAll(homeDir + indexPath); err != nil {
 			log.Fatal(err)
 		}
@@ -135,17 +136,10 @@ func getIndexFile() bleve.Index {
 }
 
 func createIndex(homeDir, libPath string, metadataReaders map[string]metadata.Reader) bleve.Index {
-	log.Println("No index found, creating a new one")
-
 	indexFile, err := bleve.New(homeDir+indexPath, index.Mapping())
 	if err != nil {
 		log.Fatal(err)
 	}
 	indexFile.SetInternal([]byte("version"), []byte(index.Version))
-	indexFile.Close()
-	indexFile, err = bleve.Open(homeDir + indexPath)
-	if err != nil {
-		log.Fatal(err)
-	}
 	return indexFile
 }
