@@ -56,11 +56,13 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 		}
 	}
 
+	lang := pdf.GetLanguage()
+
 	bk = Metadata{
 		Title:       title,
 		Authors:     authors,
 		Description: template.HTML(description),
-		Language:    pdf.GetLanguage(),
+		Language:    lang,
 		Year:        year,
 		Pages:       pdf.GetPagesCount(),
 		Type:        "PDF",

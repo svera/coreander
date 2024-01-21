@@ -203,5 +203,63 @@ func testCases() []testCase {
 				},
 			),
 		},
+		{
+			"Test genre spanish stemmer",
+			"lib/book6.epub",
+			metadata.Metadata{
+				Title:       "La Guerrera",
+				Authors:     []string{"Anónimo"},
+				Description: "Just test metadata",
+				Language:    "es",
+				Subjects:    []string{"History", "Middle age"},
+			},
+			"guerrero",
+			result.NewPaginated[[]index.Document](
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book6.epub",
+						Slug: "anonimo-la-guerrera",
+						Metadata: metadata.Metadata{
+							Title:       "La Guerrera",
+							Authors:     []string{"Anónimo"},
+							Description: "Just test metadata",
+							Subjects:    []string{"History", "Middle age"},
+						},
+					},
+				},
+			),
+		},
+		{
+			"Test plural italian stemmer",
+			"lib/book7.epub",
+			metadata.Metadata{
+				Title:       "Fratelli",
+				Authors:     []string{"Anónimo"},
+				Description: "Just test metadata",
+				Language:    "it",
+				Subjects:    []string{"History", "Middle age"},
+			},
+			"fratello",
+			result.NewPaginated[[]index.Document](
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book7.epub",
+						Slug: "anonimo-fratelli",
+						Metadata: metadata.Metadata{
+							Title:       "Fratelli",
+							Authors:     []string{"Anónimo"},
+							Description: "Just test metadata",
+							Subjects:    []string{"History", "Middle age"},
+						},
+					},
+				},
+			),
+		},
 	}
 }

@@ -43,49 +43,44 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 		return b.runPaginatedQuery(qb, page, resultsPerPage)
 	}
 
-	splitted := strings.Split(strings.TrimSpace(keywords), " ")
+	compound := composeQuery(keywords)
+	return b.runPaginatedQuery(compound, page, resultsPerPage)
+}
 
-	var (
-		authorQueries      []query.Query
-		titleQueries       []query.Query
-		descriptionQueries []query.Query
-		seriesQueries      []query.Query
-		subjectQueries     []query.Query
-	)
+func composeQuery(keywords string) *query.DisjunctionQuery {
+	langCompoundQuery := bleve.NewDisjunctionQuery()
 
-	for _, keyword := range splitted {
-		if keyword == "" {
-			continue
-		}
-		qa := bleve.NewMatchQuery(keyword)
-		qa.SetField("Authors")
-		authorQueries = append(authorQueries, qa)
-
-		qt := bleve.NewMatchQuery(keyword)
+	for lang := range noStopWordsFilters {
+		qt := bleve.NewMatchPhraseQuery(keywords)
+		qt.Analyzer = lang + "_no_stop_words"
 		qt.SetField("Title")
-		titleQueries = append(titleQueries, qt)
+		langCompoundQuery.AddQuery(qt)
 
-		qs := bleve.NewMatchQuery(keyword)
+		qs := bleve.NewMatchQuery(keywords)
+		qs.Analyzer = lang + "_no_stop_words"
 		qs.SetField("Series")
-		seriesQueries = append(seriesQueries, qs)
+		qs.Operator = query.MatchQueryOperatorAnd
+		langCompoundQuery.AddQuery(qs)
 
-		qu := bleve.NewMatchQuery(keyword)
+		qu := bleve.NewMatchQuery(keywords)
+		qu.Analyzer = lang
 		qu.SetField("Subjects")
-		subjectQueries = append(subjectQueries, qt)
+		qu.Operator = query.MatchQueryOperatorAnd
+		langCompoundQuery.AddQuery(qu)
 
-		qd := bleve.NewMatchQuery(keyword)
+		qd := bleve.NewMatchQuery(keywords)
+		qd.Analyzer = lang
 		qd.SetField("Description")
-		descriptionQueries = append(descriptionQueries, qd)
+		qd.Operator = query.MatchQueryOperatorAnd
+		langCompoundQuery.AddQuery(qd)
 	}
 
-	authorCompoundQuery := bleve.NewConjunctionQuery(authorQueries...)
-	titleCompoundQuery := bleve.NewConjunctionQuery(titleQueries...)
-	seriesCompoundQuery := bleve.NewConjunctionQuery(seriesQueries...)
-	descriptionCompoundQuery := bleve.NewConjunctionQuery(descriptionQueries...)
-	subjectCompoundQuery := bleve.NewConjunctionQuery(subjectQueries...)
+	qa := bleve.NewMatchQuery(keywords)
+	qa.SetField("Authors")
+	qa.Operator = query.MatchQueryOperatorAnd
+	qa.Analyzer = defaultAnalyzer
 
-	compound := bleve.NewDisjunctionQuery(authorCompoundQuery, titleCompoundQuery, seriesCompoundQuery, descriptionCompoundQuery, subjectCompoundQuery)
-	return b.runPaginatedQuery(compound, page, resultsPerPage)
+	return bleve.NewDisjunctionQuery(qa, langCompoundQuery)
 }
 
 func (b *BleveIndexer) runQuery(query query.Query, results int) ([]Document, error) {
@@ -110,6 +105,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	if err != nil {
 		return result.Paginated[[]Document]{}, err
 	}
+
 	if searchResult.Total == 0 {
 		return res, nil
 	}
