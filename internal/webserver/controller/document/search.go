@@ -68,8 +68,10 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 
 	docsSortedByHighlightedDate := make([]index.Document, len(docs))
 	for i, path := range highlights.Hits() {
-		docsSortedByHighlightedDate[i] = docs[path]
-		docsSortedByHighlightedDate[i].Highlighted = true
+		if doc, ok := docs[path]; ok {
+			docsSortedByHighlightedDate[i] = doc
+			docsSortedByHighlightedDate[i].Highlighted = true
+		}
 	}
 
 	return c.Render("index", fiber.Map{
