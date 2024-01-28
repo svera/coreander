@@ -74,7 +74,6 @@ function highlightToggle(slug, el, method, onDehighlight = "") {
             }
             return;
         }
-        console.log(response.body)
     })
     .catch(function (error) {
         // Catch errors

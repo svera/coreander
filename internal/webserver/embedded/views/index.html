@@ -22,7 +22,7 @@
                         {{$emailFrom := .EmailFrom}}
 
                         {{range $i, $doc := .Highlights}}
-                        <div class="col-6 col-md-3 col-lg-2 pe-0 highlight-block">
+                        <div class="col-6 col-md-3 col-lg-2 pe-0">
                             {{template "partials/related" dict "Lang" $lang "Document" $doc}}
                             <div class="mb-5 actions">
                                 <div class="dropdown">
