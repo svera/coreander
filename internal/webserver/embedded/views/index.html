@@ -31,13 +31,16 @@
                                         {{t $lang "Actions"}}
                                     </button>
                                     {{ template "partials/actions" dict "Lang" $lang "Document" $doc "EmailSendingConfigured"
-                                    $emailSendingConfigured "Index" $i "Session" $session "EmailFrom" $emailFrom}}
+                                    $emailSendingConfigured "Index" $i "Session" $session "EmailFrom" $emailFrom "OnDehighlight" "remove"}}
                                 </div>                        
                             </div>
                         </div>
                         {{end}}
                     </div>
-                    {{template "actions.js" dict "Lang" $lang}}
+                    {{template "partials/delete-modal" .}}
+
+                    <script type="text/javascript" src="/js/delete.js"></script>
+                    <script type="text/javascript" src="/js/actions.js"></script>
                     <script type="text/javascript" src="/js/cover-loader.js"></script>
                 {{else}}
                     <p>{{t .Lang "You haven't highlighted any document yet."}}</p>
