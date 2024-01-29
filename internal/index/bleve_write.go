@@ -46,6 +46,7 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 	batch := b.idx.NewBatch()
 	batchSlugs := make(map[string]struct{}, batchSize)
+	languages := []string{}
 	e := afero.Walk(fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
 		ext := strings.ToLower(filepath.Ext(fullPath))
 		if _, ok := b.reader[ext]; !ok {
@@ -59,6 +60,7 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 
 		document := b.createDocument(meta, fullPath, batchSlugs)
 		batchSlugs[document.Slug] = struct{}{}
+		languages = addLanguage(meta.Language, languages)
 
 		err = batch.Index(document.ID, document)
 		if err != nil {
@@ -74,8 +76,25 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 		return nil
 	})
 
+	b.idx.SetInternal([]byte("languages"), []byte(strings.Join(languages, ",")))
 	b.idx.Batch(batch)
 	return e
+}
+
+func addLanguage(lang string, languages []string) []string {
+	if _, ok := noStopWordsFilters[lang]; lang != "" && ok {
+		found := false
+		for i := range languages {
+			if languages[i] == lang {
+				found = true
+				break
+			}
+		}
+		if !found {
+			languages = append(languages, lang)
+		}
+	}
+	return languages
 }
 
 func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, batchSlugs map[string]struct{}) DocumentWrite {

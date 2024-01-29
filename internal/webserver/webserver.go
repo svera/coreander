@@ -38,6 +38,7 @@ type Config struct {
 	LibraryPath       string
 	CoverMaxWidth     int
 	RequireAuth       bool
+	UploadMaxSize     int
 }
 
 type Sender interface {
@@ -93,6 +94,7 @@ func New(cfg Config, controllers Controllers) *fiber.App {
 		AppName:               cfg.Version,
 		PassLocalsToViews:     true,
 		ErrorHandler:          controllers.ErrorHandler,
+		BodyLimit:             cfg.UploadMaxSize * 1024 * 1024,
 	})
 
 	app.Use(favicon.New())

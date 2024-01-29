@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
@@ -15,7 +14,7 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	session := jwtclaimsreader.SessionData(c)
+	session := c.Locals("Session").(model.User)
 
 	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
 		return fiber.ErrForbidden
@@ -34,7 +33,6 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 		return c.Render("users/edit", fiber.Map{
 			"Title":             "Edit user",
 			"User":              user,
-			"Session":           session,
 			"MinPasswordLength": u.config.MinPasswordLength,
 			"Errors":            errs,
 		}, "layout")
@@ -47,7 +45,6 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 	return c.Render("users/edit", fiber.Map{
 		"Title":             "Edit user",
 		"User":              user,
-		"Session":           session,
 		"MinPasswordLength": u.config.MinPasswordLength,
 		"Errors":            errs,
 		"Message":           "Profile updated",
@@ -76,7 +73,6 @@ func (u *Controller) updatePassword(c *fiber.Ctx, session, user model.User) erro
 		return c.Render("users/edit", fiber.Map{
 			"Title":             "Edit user",
 			"User":              user,
-			"Session":           session,
 			"MinPasswordLength": u.config.MinPasswordLength,
 			"ActiveTab":         "password",
 			"Errors":            errs,
@@ -91,7 +87,6 @@ func (u *Controller) updatePassword(c *fiber.Ctx, session, user model.User) erro
 	return c.Render("users/edit", fiber.Map{
 		"Title":             "Edit user",
 		"User":              user,
-		"Session":           session,
 		"MinPasswordLength": u.config.MinPasswordLength,
 		"ActiveTab":         "password",
 		"Errors":            errs,

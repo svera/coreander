@@ -43,14 +43,18 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 		return b.runPaginatedQuery(qb, page, resultsPerPage)
 	}
 
-	compound := composeQuery(keywords)
+	languages, err := b.idx.GetInternal([]byte("languages"))
+	if err != nil {
+		return result.Paginated[[]Document]{}, err
+	}
+	compound := composeQuery(keywords, strings.Split(string(languages), ","))
 	return b.runPaginatedQuery(compound, page, resultsPerPage)
 }
 
-func composeQuery(keywords string) *query.DisjunctionQuery {
+func composeQuery(keywords string, languages []string) *query.DisjunctionQuery {
 	langCompoundQuery := bleve.NewDisjunctionQuery()
 
-	for lang := range noStopWordsFilters {
+	for _, lang := range languages {
 		qt := bleve.NewMatchPhraseQuery(keywords)
 		qt.Analyzer = lang + "_no_stop_words"
 		qt.SetField("Title")

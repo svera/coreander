@@ -1,0 +1,30 @@
+<div class="container">
+    {{if .Error}}
+    <div class="row mt-5 text-start">
+        <div class="alert alert-danger" role="alert">
+            {{t .Lang .Error}}
+        </div>
+    </div>
+    {{end}}
+
+    {{if .Message}}
+    <div class="row mt-5 text-start">
+        <div class="alert alert-success" role="alert">
+            {{t .Lang .Message}}
+        </div>
+    </div>
+    {{end}}
+
+    <section class="row pt-5">
+        <div class="col-12">
+            <h2>{{t .Lang "Upload document" }}</h2>
+        </div>
+
+        <div class="row mt-3 pe-0">
+            <form action="/{{.Lang}}/upload" method="post" enctype="multipart/form-data">
+                <input type="file" name="filename" accept=".epub,.pdf, application/epub+zip,application/pdf">
+                <input type="submit" value='{{t .Lang "Upload"}}'>
+            </form>
+        </div>
+    </section>
+</div>

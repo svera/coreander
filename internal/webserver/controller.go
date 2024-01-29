@@ -97,6 +97,10 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			SigningKey:    cfg.JwtSecret,
 			SigningMethod: "HS256",
 			TokenLookup:   "cookie:coreander",
+			SuccessHandler: func(c *fiber.Ctx) error {
+				c.Locals("Session", jwtclaimsreader.SessionData(c))
+				return c.Next()
+			},
 			ErrorHandler: func(c *fiber.Ctx, err error) error {
 				return forbidden(c)
 			},
@@ -105,6 +109,12 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			SigningKey:    cfg.JwtSecret,
 			SigningMethod: "HS256",
 			TokenLookup:   "cookie:coreander",
+			SuccessHandler: func(c *fiber.Ctx) error {
+				if cfg.RequireAuth {
+					c.Locals("Session", jwtclaimsreader.SessionData(c))
+				}
+				return c.Next()
+			},
 			ErrorHandler: func(c *fiber.Ctx, err error) error {
 				err = c.Next()
 				if cfg.RequireAuth {

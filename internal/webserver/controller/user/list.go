@@ -4,14 +4,13 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 	"github.com/svera/coreander/v3/internal/webserver/view"
 )
 
 // List list all users registered in the database
 func (u *Controller) List(c *fiber.Ctx) error {
-	session := jwtclaimsreader.SessionData(c)
+	session := c.Locals("Session").(model.User)
 
 	if session.Role != model.RoleAdmin {
 		return fiber.ErrForbidden
@@ -27,7 +26,6 @@ func (u *Controller) List(c *fiber.Ctx) error {
 		"Title":     "Users",
 		"Users":     users.Hits(),
 		"Paginator": view.Pagination(model.MaxPagesNavigator, users, map[string]string{}),
-		"Session":   session,
 		"Admins":    u.repository.Admins(),
 	}, "layout")
 }

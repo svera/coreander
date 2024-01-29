@@ -3,7 +3,6 @@ package user
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v3/internal/result"
-	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
@@ -38,7 +37,7 @@ func NewController(repository usersRepository, usersCfg Config) *Controller {
 
 // New renders the new user form
 func (u *Controller) New(c *fiber.Ctx) error {
-	session := jwtclaimsreader.SessionData(c)
+	session := c.Locals("Session").(model.User)
 
 	if session.Role != model.RoleAdmin {
 		return fiber.ErrForbidden
@@ -49,7 +48,6 @@ func (u *Controller) New(c *fiber.Ctx) error {
 	}
 	return c.Render("users/new", fiber.Map{
 		"Title":             "Add user",
-		"Session":           session,
 		"MinPasswordLength": u.config.MinPasswordLength,
 		"User":              user,
 		"Errors":            map[string]string{},
