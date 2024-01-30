@@ -5,8 +5,7 @@
     <p class="text-center">{{t .Lang "No matches found" }}</p>
     {{end}}
 
-    {{ template "partials/docs-list" dict "Lang" .Lang "EmailSendingConfigured"
-    .EmailSendingConfigured "Session" .Session "EmailFrom" .EmailFrom "Results" .Results "WordsPerMinute" .WordsPerMinute}}
+    {{ template "partials/docs-list" . }}
 
     {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
     {{template "partials/pagination" .}}

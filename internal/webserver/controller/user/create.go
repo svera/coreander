@@ -11,7 +11,10 @@ import (
 
 // Create gathers information coming from the new user form and creates a new user
 func (u *Controller) Create(c *fiber.Ctx) error {
-	session := c.Locals("Session").(model.User)
+	var session model.User
+	if val, ok := c.Locals("Session").(model.User); ok {
+		session = val
+	}
 
 	if session.Role != model.RoleAdmin {
 		return fiber.ErrForbidden

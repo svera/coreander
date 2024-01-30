@@ -37,7 +37,10 @@ func NewController(repository usersRepository, usersCfg Config) *Controller {
 
 // New renders the new user form
 func (u *Controller) New(c *fiber.Ctx) error {
-	session := c.Locals("Session").(model.User)
+	var session model.User
+	if val, ok := c.Locals("Session").(model.User); ok {
+		session = val
+	}
 
 	if session.Role != model.RoleAdmin {
 		return fiber.ErrForbidden

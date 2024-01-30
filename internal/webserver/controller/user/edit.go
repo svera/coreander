@@ -12,7 +12,10 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	session := c.Locals("Session").(model.User)
+	var session model.User
+	if val, ok := c.Locals("Session").(model.User); ok {
+		session = val
+	}
 
 	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
 		return fiber.ErrForbidden

@@ -17,7 +17,11 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		emailSendingConfigured = false
 	}
 
-	session := c.Locals("Session").(model.User)
+	var session model.User
+	if val, ok := c.Locals("Session").(model.User); ok {
+		session = val
+	}
+
 	if session.WordsPerMinute > 0 {
 		d.config.WordsPerMinute = session.WordsPerMinute
 	}

@@ -22,7 +22,11 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	session := c.Locals("Session").(model.User)
+	var session model.User
+	if val, ok := c.Locals("Session").(model.User); ok {
+		session = val
+	}
+
 	if session.WordsPerMinute > 0 {
 		d.config.WordsPerMinute = session.WordsPerMinute
 	}

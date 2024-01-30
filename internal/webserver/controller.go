@@ -110,9 +110,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			SigningMethod: "HS256",
 			TokenLookup:   "cookie:coreander",
 			SuccessHandler: func(c *fiber.Ctx) error {
-				if cfg.RequireAuth {
-					c.Locals("Session", jwtclaimsreader.SessionData(c))
-				}
+				c.Locals("Session", jwtclaimsreader.SessionData(c))
 				return c.Next()
 			},
 			ErrorHandler: func(c *fiber.Ctx, err error) error {
