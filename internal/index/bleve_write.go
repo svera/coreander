@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/gosimple/slug"
@@ -62,7 +63,6 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 		batchSlugs[document.Slug] = struct{}{}
 		languages = addLanguage(meta.Language, languages)
 
-		fmt.Printf("File: %s, Slug: %s\n", document.ID, document.Slug)
 		err = batch.Index(document.ID, document)
 		if err != nil {
 			log.Printf("Error indexing file %s: %s\n", fullPath, err)
@@ -83,7 +83,11 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 }
 
 func addLanguage(lang string, languages []string) []string {
-	if _, ok := noStopWordsFilters[lang]; lang != "" && ok {
+	if !slices.Contains(languages, defaultAnalyzer) && lang == "" {
+		return append(languages, defaultAnalyzer)
+	}
+
+	if _, ok := noStopWordsFilters[lang]; ok {
 		found := false
 		for i := range languages {
 			if languages[i] == lang {

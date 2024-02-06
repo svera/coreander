@@ -51,29 +51,34 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 	return b.runPaginatedQuery(compound, page, resultsPerPage)
 }
 
-func composeQuery(keywords string, languages []string) *query.DisjunctionQuery {
+func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	langCompoundQuery := bleve.NewDisjunctionQuery()
 
-	for _, lang := range languages {
+	for _, analyzer := range analyzers {
+		noStopWordsAnalyzer := analyzer
+		if analyzer != defaultAnalyzer {
+			noStopWordsAnalyzer = analyzer + "_no_stop_words"
+		}
+
 		qt := bleve.NewMatchPhraseQuery(keywords)
-		qt.Analyzer = lang + "_no_stop_words"
+		qt.Analyzer = noStopWordsAnalyzer
 		qt.SetField("Title")
 		langCompoundQuery.AddQuery(qt)
 
 		qs := bleve.NewMatchQuery(keywords)
-		qs.Analyzer = lang + "_no_stop_words"
+		qs.Analyzer = noStopWordsAnalyzer
 		qs.SetField("Series")
 		qs.Operator = query.MatchQueryOperatorAnd
 		langCompoundQuery.AddQuery(qs)
 
 		qu := bleve.NewMatchQuery(keywords)
-		qu.Analyzer = lang
+		qu.Analyzer = analyzer
 		qu.SetField("Subjects")
 		qu.Operator = query.MatchQueryOperatorAnd
 		langCompoundQuery.AddQuery(qu)
 
 		qd := bleve.NewMatchQuery(keywords)
-		qd.Analyzer = lang
+		qd.Analyzer = analyzer
 		qd.SetField("Description")
 		qd.Operator = query.MatchQueryOperatorAnd
 		langCompoundQuery.AddQuery(qd)
