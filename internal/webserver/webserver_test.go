@@ -3,6 +3,8 @@ package webserver_test
 import (
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -105,4 +107,25 @@ func (s *SMTPMock) SendDocument(address string, libraryPath string, fileName str
 
 func (s *SMTPMock) From() string {
 	return ""
+}
+
+func getRequest(cookie *http.Cookie, app *fiber.App, URL string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, URL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.AddCookie(cookie)
+
+	return app.Test(req)
+}
+
+func postRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodPost, URL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(cookie)
+
+	return app.Test(req)
 }
