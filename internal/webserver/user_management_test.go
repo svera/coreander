@@ -281,25 +281,6 @@ func mustRedirectToUsersList(response *http.Response, t *testing.T) {
 	}
 }
 
-func mustReturnForbiddenAndShowLogin(response *http.Response, t *testing.T) {
-	if response.StatusCode != http.StatusForbidden {
-		t.Errorf("Expected status %d, received %d", http.StatusForbidden, response.StatusCode)
-		return
-	}
-
-	doc, err := goquery.NewDocumentFromReader(response.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	selection, err := doc.Find("head title").First().Html()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if selection != "Login" {
-		t.Errorf("Expected login page, received %s", selection)
-	}
-}
-
 func mustReturnStatus(response *http.Response, expectedStatus int, t *testing.T) {
 	if response.StatusCode != expectedStatus {
 		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)

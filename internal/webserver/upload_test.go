@@ -1,7 +1,12 @@
 package webserver_test
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -26,7 +31,7 @@ func TestUpload(t *testing.T) {
 		mustReturnForbiddenAndShowLogin(response, t)
 	})
 
-	t.Run("Try to add a user with an admin active session", func(t *testing.T) {
+	t.Run("Try to access upload page with an admin active session", func(t *testing.T) {
 		response, err := getRequest(adminCookie, app, "/en/upload")
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -34,5 +39,22 @@ func TestUpload(t *testing.T) {
 		if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
 			t.Errorf("Expected status %d, got %d", expectedStatus, response.StatusCode)
 		}
+	})
+
+	t.Run("Returns 400 for file content-type not allowed", func(t *testing.T) {
+		jsonD, err := json.Marshal(struct{ TestField string }{TestField: "test"})
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		body := new(bytes.Buffer)
+		writer := multipart.NewWriter(body)
+		writer.WriteField("payload", string(jsonD))
+		// Create the file part with an unsupported content-type
+		h := make(textproto.MIMEHeader)
+		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, EscapeQuotes("filename"), EscapeQuotes("file.txt")))
+		h.Set("Content-Type", "application/octet-stream")
+		part, _ := writer.CreatePart(h)
+		part.Write([]byte(`sample`))
+		writer.Close()
 	})
 }

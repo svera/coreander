@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
@@ -128,4 +129,28 @@ func postRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL strin
 	req.AddCookie(cookie)
 
 	return app.Test(req)
+}
+
+func mustReturnForbiddenAndShowLogin(response *http.Response, t *testing.T) {
+	if response.StatusCode != http.StatusForbidden {
+		t.Errorf("Expected status %d, received %d", http.StatusForbidden, response.StatusCode)
+		return
+	}
+
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection, err := doc.Find("head title").First().Html()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selection != "Login" {
+		t.Errorf("Expected login page, received %s", selection)
+	}
+}
+
+func EscapeQuotes(s string) string {
+	var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+	return quoteEscaper.Replace(s)
 }
