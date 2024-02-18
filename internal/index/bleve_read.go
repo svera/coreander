@@ -43,11 +43,11 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 		return b.runPaginatedQuery(qb, page, resultsPerPage)
 	}
 
-	languages, err := b.idx.GetInternal([]byte("languages"))
+	analyzers, err := b.analyzers()
 	if err != nil {
 		return result.Paginated[[]Document]{}, err
 	}
-	compound := composeQuery(keywords, strings.Split(string(languages), ","))
+	compound := composeQuery(keywords, analyzers)
 	return b.runPaginatedQuery(compound, page, resultsPerPage)
 }
 
@@ -226,22 +226,44 @@ func (b *BleveIndexer) SameSubjects(slug string, quantity int) ([]Document, erro
 		return []Document{}, err
 	}
 
-	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
-	for _, subject := range doc.Subjects {
-		qu := bleve.NewMatchPhraseQuery(subject)
-		qu.SetField("Subjects")
-		subjectsCompoundQuery.AddQuery(qu)
+	analyzers, err := b.analyzers()
+	if err != nil {
+		return []Document{}, err
 	}
+
+	langCompoundQuery := bleve.NewDisjunctionQuery()
 	bq := bleve.NewBooleanQuery()
-	bq.AddMust(subjectsCompoundQuery)
+	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
+
+	for _, analyzer := range analyzers {
+		noStopWordsAnalyzer := analyzer
+		if analyzer != defaultAnalyzer {
+			noStopWordsAnalyzer = analyzer + "_no_stop_words"
+		}
+
+		for _, subject := range doc.Subjects {
+			qu := bleve.NewMatchPhraseQuery(subject)
+			qu.SetField("Subjects")
+			qu.Analyzer = noStopWordsAnalyzer
+			subjectsCompoundQuery.AddQuery(qu)
+		}
+
+		sq := bleve.NewMatchPhraseQuery(doc.Series)
+		sq.SetField("Series")
+		sq.Analyzer = noStopWordsAnalyzer
+		bq.AddMustNot(sq)
+	}
+
+	langCompoundQuery.AddQuery(subjectsCompoundQuery)
+
+	bq.AddMust(langCompoundQuery)
 	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
-	sq := bleve.NewMatchPhraseQuery(doc.Series)
-	sq.SetField("Series")
-	bq.AddMustNot(sq)
+
 	authorsCompoundQuery := bleve.NewDisjunctionQuery()
 	for _, author := range doc.Authors {
-		qa := bleve.NewMatchPhraseQuery(author)
+		qa := bleve.NewMatchQuery(author)
 		qa.SetField("Authors")
+		qa.Analyzer = defaultAnalyzer
 		authorsCompoundQuery.AddQuery(qa)
 	}
 	bq.AddMustNot(authorsCompoundQuery)
@@ -257,8 +279,9 @@ func (b *BleveIndexer) SameSubjects(slug string, quantity int) ([]Document, erro
 		}
 		res = append(res, doc[0])
 		for _, author := range doc[0].Authors {
-			qa := bleve.NewMatchPhraseQuery(author)
+			qa := bleve.NewMatchQuery(author)
 			qa.SetField("Authors")
+			qa.Analyzer = defaultAnalyzer
 			authorsCompoundQuery.AddQuery(qa)
 		}
 		bq.AddMustNot(authorsCompoundQuery)
@@ -277,16 +300,35 @@ func (b *BleveIndexer) SameAuthors(slug string, quantity int) ([]Document, error
 
 	authorsCompoundQuery := bleve.NewDisjunctionQuery()
 	for _, author := range doc.Authors {
-		qu := bleve.NewMatchPhraseQuery(author)
+		qu := bleve.NewMatchQuery(author)
 		qu.SetField("Authors")
+		qu.Analyzer = defaultAnalyzer
 		authorsCompoundQuery.AddQuery(qu)
 	}
 	bq := bleve.NewBooleanQuery()
 	bq.AddMust(authorsCompoundQuery)
 	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
-	sq := bleve.NewMatchPhraseQuery(doc.Series)
-	sq.SetField("Series")
-	bq.AddMustNot(sq)
+
+	langCompoundQuery := bleve.NewDisjunctionQuery()
+
+	analyzers, err := b.analyzers()
+	if err != nil {
+		return []Document{}, err
+	}
+
+	for _, analyzer := range analyzers {
+		noStopWordsAnalyzer := analyzer
+		if analyzer != defaultAnalyzer {
+			noStopWordsAnalyzer = analyzer + "_no_stop_words"
+		}
+
+		sq := bleve.NewMatchPhraseQuery(doc.Series)
+		sq.SetField("Series")
+		sq.Analyzer = noStopWordsAnalyzer
+		langCompoundQuery.AddQuery(sq)
+	}
+
+	bq.AddMustNot(langCompoundQuery)
 
 	return b.runQuery(bq, quantity)
 }
@@ -305,6 +347,14 @@ func (b *BleveIndexer) SameSeries(slug string, quantity int) ([]Document, error)
 	bq.AddMust(sq)
 
 	return b.runQuery(bq, quantity)
+}
+
+func (b *BleveIndexer) analyzers() ([]string, error) {
+	languages, err := b.idx.GetInternal([]byte("languages"))
+	if err != nil {
+		return []string{}, err
+	}
+	return strings.Split(string(languages), ","), nil
 }
 
 func slicer(val interface{}) []string {
