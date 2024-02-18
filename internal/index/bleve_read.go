@@ -220,50 +220,35 @@ func (b *BleveIndexer) Documents(IDs []string) (map[string]Document, error) {
 
 // SameSubjects returns an array of metadata of documents by other authors, different between each other,
 // which have similar subjects as the passed one and does not belong to the same collection
-func (b *BleveIndexer) SameSubjects(slug string, quantity int) ([]Document, error) {
-	doc, err := b.Document(slug)
+func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, error) {
+	doc, err := b.Document(slugID)
 	if err != nil {
 		return []Document{}, err
 	}
 
-	analyzers, err := b.analyzers()
-	if err != nil {
-		return []Document{}, err
-	}
-
-	langCompoundQuery := bleve.NewDisjunctionQuery()
 	bq := bleve.NewBooleanQuery()
 	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
 
-	for _, analyzer := range analyzers {
-		noStopWordsAnalyzer := analyzer
-		if analyzer != defaultAnalyzer {
-			noStopWordsAnalyzer = analyzer + "_no_stop_words"
-		}
-
-		for _, subject := range doc.Subjects {
-			qu := bleve.NewMatchPhraseQuery(subject)
-			qu.SetField("Subjects")
-			qu.Analyzer = noStopWordsAnalyzer
-			subjectsCompoundQuery.AddQuery(qu)
-		}
-
-		sq := bleve.NewMatchPhraseQuery(doc.Series)
-		sq.SetField("Series")
-		sq.Analyzer = noStopWordsAnalyzer
-		bq.AddMustNot(sq)
+	for _, subject := range doc.Subjects {
+		subject = strings.ReplaceAll(slug.Make(subject), "-", "")
+		qu := bleve.NewTermQuery(subject)
+		qu.SetField("SubjectsEq")
+		subjectsCompoundQuery.AddQuery(qu)
 	}
 
-	langCompoundQuery.AddQuery(subjectsCompoundQuery)
+	series := strings.ReplaceAll(slug.Make(doc.Series), "-", "")
+	sq := bleve.NewTermQuery(series)
+	sq.SetField("SeriesEq")
+	bq.AddMustNot(sq)
 
-	bq.AddMust(langCompoundQuery)
+	bq.AddMust(subjectsCompoundQuery)
 	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
 
 	authorsCompoundQuery := bleve.NewDisjunctionQuery()
 	for _, author := range doc.Authors {
-		qa := bleve.NewMatchQuery(author)
-		qa.SetField("Authors")
-		qa.Analyzer = defaultAnalyzer
+		author = strings.ReplaceAll(slug.Make(author), "-", "")
+		qa := bleve.NewTermQuery(author)
+		qa.SetField("AuthorsEq")
 		authorsCompoundQuery.AddQuery(qa)
 	}
 	bq.AddMustNot(authorsCompoundQuery)
@@ -279,9 +264,9 @@ func (b *BleveIndexer) SameSubjects(slug string, quantity int) ([]Document, erro
 		}
 		res = append(res, doc[0])
 		for _, author := range doc[0].Authors {
-			qa := bleve.NewMatchQuery(author)
-			qa.SetField("Authors")
-			qa.Analyzer = defaultAnalyzer
+			author = strings.ReplaceAll(slug.Make(author), "-", "")
+			qa := bleve.NewTermQuery(author)
+			qa.SetField("AuthorsEq")
 			authorsCompoundQuery.AddQuery(qa)
 		}
 		bq.AddMustNot(authorsCompoundQuery)
@@ -292,58 +277,45 @@ func (b *BleveIndexer) SameSubjects(slug string, quantity int) ([]Document, erro
 
 // SameAuthors returns an array of metadata of documents by the same authors which
 // does not belong to the same collection
-func (b *BleveIndexer) SameAuthors(slug string, quantity int) ([]Document, error) {
-	doc, err := b.Document(slug)
+func (b *BleveIndexer) SameAuthors(slugID string, quantity int) ([]Document, error) {
+	doc, err := b.Document(slugID)
 	if err != nil {
 		return []Document{}, err
 	}
 
 	authorsCompoundQuery := bleve.NewDisjunctionQuery()
 	for _, author := range doc.Authors {
-		qu := bleve.NewMatchQuery(author)
-		qu.SetField("Authors")
-		qu.Analyzer = defaultAnalyzer
+		author = strings.ReplaceAll(slug.Make(author), "-", "")
+		qu := bleve.NewTermQuery(author)
+		qu.SetField("AuthorsEq")
 		authorsCompoundQuery.AddQuery(qu)
 	}
 	bq := bleve.NewBooleanQuery()
 	bq.AddMust(authorsCompoundQuery)
 	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
 
-	langCompoundQuery := bleve.NewDisjunctionQuery()
+	series := strings.ReplaceAll(slug.Make(doc.Series), "-", "")
+	sq := bleve.NewTermQuery(series)
+	sq.SetField("SeriesEq")
 
-	analyzers, err := b.analyzers()
-	if err != nil {
-		return []Document{}, err
-	}
-
-	for _, analyzer := range analyzers {
-		noStopWordsAnalyzer := analyzer
-		if analyzer != defaultAnalyzer {
-			noStopWordsAnalyzer = analyzer + "_no_stop_words"
-		}
-
-		sq := bleve.NewMatchPhraseQuery(doc.Series)
-		sq.SetField("Series")
-		sq.Analyzer = noStopWordsAnalyzer
-		langCompoundQuery.AddQuery(sq)
-	}
-
-	bq.AddMustNot(langCompoundQuery)
+	bq.AddMustNot(sq)
 
 	return b.runQuery(bq, quantity)
 }
 
 // SameSeries returns an array of metadata of documents in the same series
-func (b *BleveIndexer) SameSeries(slug string, quantity int) ([]Document, error) {
-	doc, err := b.Document(slug)
+func (b *BleveIndexer) SameSeries(slugID string, quantity int) ([]Document, error) {
+	doc, err := b.Document(slugID)
 	if err != nil {
 		return []Document{}, err
 	}
 
 	bq := bleve.NewBooleanQuery()
 	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
-	sq := bleve.NewMatchPhraseQuery(doc.Series)
-	sq.SetField("Series")
+	series := strings.ReplaceAll(slug.Make(doc.Series), "-", "")
+
+	sq := bleve.NewMatchPhraseQuery(series)
+	sq.SetField("SeriesEq")
 	bq.AddMust(sq)
 
 	return b.runQuery(bq, quantity)
