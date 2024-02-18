@@ -23,7 +23,7 @@ import (
 
 // Version identifies the mapping used for indexing. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const Version = "v1"
+const Version = "v2"
 
 var noStopWordsFilters = map[string][]string{
 	es.AnalyzerName: {es.NormalizeName, lowercase.Name, es.LightStemmerName},
