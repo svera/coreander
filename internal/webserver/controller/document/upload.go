@@ -1,11 +1,15 @@
 package document
 
 import (
+	"errors"
+	"fmt"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/valyala/fasthttp"
 )
 
 func (d *Controller) UploadForm(c *fiber.Ctx) error {
@@ -18,8 +22,22 @@ func (d *Controller) UploadForm(c *fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
+	resetPassword := fmt.Sprintf(
+		"%s://%s%s/%s/upload",
+		c.Protocol(),
+		d.config.Hostname,
+		d.urlPort(c),
+		c.Params("lang"),
+	)
+
+	msg := ""
+	if ref := string(c.Request().Header.Referer()); strings.HasPrefix(ref, resetPassword) {
+		msg = "Document uploaded successfully."
+	}
+
 	return c.Render("upload", fiber.Map{
-		"Title": "Coreander",
+		"Title":   "Coreander",
+		"Message": msg,
 	}, "layout")
 }
 
@@ -32,7 +50,9 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 
 	file, err := c.FormFile("filename")
 	if err != nil {
-		// Handle error
+		if errors.Is(err, fasthttp.ErrMissingFile) {
+			return fiber.ErrBadRequest
+		}
 		return err
 	}
 
@@ -62,8 +82,5 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 
 	}
 
-	return c.Render("upload", fiber.Map{
-		"Title":   "Coreander",
-		"Message": "Document uploaded",
-	}, "layout")
+	return c.Redirect(fmt.Sprintf("/%s/upload", c.Params("lang")))
 }

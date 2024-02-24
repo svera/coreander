@@ -1,6 +1,9 @@
 package document
 
 import (
+	"fmt"
+
+	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/metadata"
@@ -39,6 +42,8 @@ type Config struct {
 	LibraryPath    string
 	HomeDir        string
 	CoverMaxWidth  int
+	Hostname       string
+	Port           int
 }
 
 type Controller struct {
@@ -50,6 +55,11 @@ type Controller struct {
 	appFs           afero.Fs
 }
 
+const (
+	defaultHttpPort  = 80
+	defaultHttpsPort = 443
+)
+
 func NewController(hlRepository highlightsRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config) *Controller {
 	return &Controller{
 		hlRepository:    hlRepository,
@@ -59,4 +69,13 @@ func NewController(hlRepository highlightsRepository, sender Sender, idx IdxRead
 		metadataReaders: metadataReaders,
 		appFs:           appFs,
 	}
+}
+
+func (a *Controller) urlPort(c *fiber.Ctx) string {
+	port := fmt.Sprintf(":%d", a.config.Port)
+	if (a.config.Port == defaultHttpPort && c.Protocol() == "http") ||
+		(a.config.Port == defaultHttpsPort && c.Protocol() == "https") {
+		port = ""
+	}
+	return port
 }

@@ -53,6 +53,8 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		LibraryPath:    cfg.LibraryPath,
 		HomeDir:        cfg.HomeDir,
 		CoverMaxWidth:  cfg.CoverMaxWidth,
+		Hostname:       cfg.Hostname,
+		Port:           cfg.Port,
 	}
 
 	authController := auth.NewController(usersRepository, sender, authCfg, printers)

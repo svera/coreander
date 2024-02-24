@@ -22,8 +22,10 @@
 
         <div class="row mt-3 pe-0">
             <form action="/{{.Lang}}/upload" method="post" enctype="multipart/form-data">
-                <input type="file" name="filename" accept=".epub,.pdf, application/epub+zip,application/pdf">
-                <input type="submit" value='{{t .Lang "Upload"}}'>
+                <div class="input-group">
+                    <input type="file" name="filename" accept=".epub,.pdf, application/epub+zip,application/pdf" class="form-control form-control-lg" required>
+                    <input type="submit" value='{{t .Lang "Upload"}}' class="btn btn-primary">
+                </div>
             </form>
         </div>
     </section>
