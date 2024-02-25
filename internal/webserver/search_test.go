@@ -1,10 +1,12 @@
 package webserver_test
 
 import (
+	"io/fs"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -19,7 +21,9 @@ import (
 func TestSearch(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	smtpMock := &SMTPMock{}
-	app := bootstrapApp(db, smtpMock, afero.NewOsFs())
+	appFS := loadDirInMemoryFs("fixtures")
+
+	app := bootstrapApp(db, smtpMock, appFS)
 
 	var cases = []struct {
 		name            string
@@ -113,7 +117,7 @@ func TestSendDocument(t *testing.T) {
 func TestRemoveDocument(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	smtpMock := &SMTPMock{}
-	appFS := loadFilesInMemoryFs([]string{"fixtures/metadata.epub"})
+	appFS := loadDirInMemoryFs("fixtures")
 	app := bootstrapApp(db, smtpMock, appFS)
 
 	assertSearchResults(app, t, "john+doe", 4)
@@ -239,6 +243,31 @@ func loadFilesInMemoryFs(files []string) afero.Fs {
 		}
 		afero.WriteFile(appFS, fileName, contents[fileName], 0644)
 	}
+	return appFS
+}
+
+func loadDirInMemoryFs(dir string) afero.Fs {
+	var (
+		contents map[string][]byte
+	)
+
+	appFS := afero.NewMemMapFs()
+
+	filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+		if entry.IsDir() {
+			return nil
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			log.Fatalf("Couldn't open %s", entry.Name())
+		}
+		_, err = file.Read(contents[path])
+		if err != nil {
+			log.Fatalf("Couldn't read contents of %s", entry.Name())
+		}
+		afero.WriteFile(appFS, path, contents[entry.Name()], 0644)
+		return nil
+	})
 	return appFS
 }
 

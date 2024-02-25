@@ -1,7 +1,6 @@
 package webserver_test
 
 import (
-	"bytes"
 	"log"
 	"net/http"
 	"net/url"
@@ -72,7 +71,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs) *fiber.A
 		idx = index.NewBleve(indexFile, webserverConfig.LibraryPath, metadataReaders)
 	}
 
-	err = idx.AddLibrary(afero.NewOsFs(), 100)
+	err = idx.AddLibrary(appFs, 100)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -127,17 +126,6 @@ func postRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL strin
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.AddCookie(cookie)
-
-	return app.Test(req)
-}
-
-func postRequestWithMultipart(body *bytes.Buffer, cookie *http.Cookie, app *fiber.App, URL string) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodPost, URL, body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("Content-Type", "multipart/form-data")
 	req.AddCookie(cookie)
 
 	return app.Test(req)
