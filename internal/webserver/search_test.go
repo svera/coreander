@@ -21,7 +21,7 @@ import (
 func TestSearch(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	smtpMock := &SMTPMock{}
-	appFS := loadDirInMemoryFs("fixtures")
+	appFS := loadDirInMemoryFs("fixtures/library")
 
 	app := bootstrapApp(db, smtpMock, appFS)
 
@@ -117,7 +117,7 @@ func TestSendDocument(t *testing.T) {
 func TestRemoveDocument(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	smtpMock := &SMTPMock{}
-	appFS := loadDirInMemoryFs("fixtures")
+	appFS := loadDirInMemoryFs("fixtures/library")
 	app := bootstrapApp(db, smtpMock, appFS)
 
 	assertSearchResults(app, t, "john+doe", 4)

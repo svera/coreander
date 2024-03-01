@@ -23,10 +23,14 @@
         <div class="row mt-3 pe-0">
             <form action="/{{.Lang}}/upload" method="post" enctype="multipart/form-data">
                 <div class="input-group">
-                    <input type="file" name="filename" accept=".epub,.pdf, application/epub+zip,application/pdf" class="form-control form-control-lg" required>
-                    <input type="submit" value='{{t .Lang "Upload"}}' class="btn btn-primary">
+                    <input type="file" name="filename" id="file-selector" accept=".epub,.pdf, application/epub+zip,application/pdf" class="form-control form-control-lg" required data-max_size="{{.MaxSize}}" data-error_too_large='{{t .Lang "Document too large, the maximum allowed size is %d megabytes" .MaxSize}}'>
+                    <input type="submit" id="file-submit" value='{{t .Lang "Upload"}}' class="btn btn-primary">
+                    <div class="invalid-feedback visually-hidden">
+                    </div>    
                 </div>
             </form>
         </div>
     </section>
 </div>
+
+<script src="/js/upload.js"></script>

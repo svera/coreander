@@ -107,5 +107,5 @@ On first run, Coreander creates an admin user with the following credentials:
 * `MIN_PASSWORD_LENGTH`: Minimum length acceptable for passwords. Defaults to 5.
 * `WORDS_PER_MINUTE`: Defines a default words per minute reading speed that will be used for not logged-in users. Defaults to 250.
 * `SESSION_TIMEOUT`: Specifies the maximum time a user session may last, in hours. Floating-point values are allowed. Defaults to 24 hours.
-* `UPLOAD_MAX_SIZE`: Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
+* `UPLOAD_DOCUMENT_MAX_SIZE`: Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
 

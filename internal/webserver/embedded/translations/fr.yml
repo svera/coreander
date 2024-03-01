@@ -111,3 +111,5 @@
 "Upload": "Télécharger"
 "Upload document": "Télécharger document"
 "Document uploaded successfully": "Document téléchargé avec succès."
+"Document too large, the maximum allowed size is %d megabytes": "Document trop volumineux, la taille maximale autorisée est de %d mégaoctets"
+"Request entity too large": "Entité de requête trop grande"

@@ -32,7 +32,7 @@ type Config struct {
 	WordsPerMinute float64 `env:"WORDS_PER_MINUTE" env-default:"250"`
 	// SessionTimeout specifies the maximum time a user session may last in hours
 	SessionTimeout float64 `env:"SESSION_TIMEOUT" env-default:"24"`
-	// UploadMaxSize is the maximum document size allowed to be uploaded to the library, in megabytes.
+	// UploadDocumentMaxSize is the maximum document size allowed to be uploaded to the library, in megabytes.
 	// Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
-	UploadMaxSize int `env:"UPLOAD_MAX_SIZE" env-default:"20"`
+	UploadDocumentMaxSize int `env:"UPLOAD_DOCUMENT_MAX_SIZE" env-default:"20"`
 }

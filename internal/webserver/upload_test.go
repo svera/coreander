@@ -3,10 +3,12 @@ package webserver_test
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -83,7 +85,7 @@ func TestUpload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
-		req.Header.Add("Content-Type", multipartWriter.FormDataContentType())
+		req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 		req.AddCookie(adminCookie)
 
 		response, err := app.Test(req)
@@ -96,7 +98,7 @@ func TestUpload(t *testing.T) {
 		}
 	})
 
-	t.Run("Returns 200 for file content-type allowed", func(t *testing.T) {
+	t.Run("Returns 302 for file content-type allowed", func(t *testing.T) {
 		var buf bytes.Buffer
 		multipartWriter := multipart.NewWriter(&buf)
 
@@ -111,7 +113,7 @@ func TestUpload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
-		req.Header.Add("Content-Type", multipartWriter.FormDataContentType())
+		req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 		req.AddCookie(adminCookie)
 
 		response, err := app.Test(req)
@@ -133,7 +135,7 @@ func TestUpload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
-		req.Header.Add("Content-Type", multipartWriter.FormDataContentType())
+		req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 		req.AddCookie(adminCookie)
 
 		response, err := app.Test(req)
@@ -142,6 +144,40 @@ func TestUpload(t *testing.T) {
 		}
 
 		if expectedStatus := http.StatusBadRequest; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, got %d", expectedStatus, response.StatusCode)
+		}
+	})
+
+	t.Run("Returns 413 for file too big", func(t *testing.T) {
+		var buf bytes.Buffer
+		multipartWriter := multipart.NewWriter(&buf)
+
+		file, err := os.ReadFile("fixtures/upload/haruko-html-jpeg.epub")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		h := make(textproto.MIMEHeader)
+		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, "filename", "haruko-html-jpeg.epub"))
+		h.Set("Content-Type", "application/epub+zip")
+		part, _ := multipartWriter.CreatePart(h)
+		part.Write(file)
+
+		multipartWriter.Close()
+
+		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
+		req.AddCookie(adminCookie)
+
+		response, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		if expectedStatus := http.StatusRequestEntityTooLarge; response.StatusCode != expectedStatus {
 			t.Errorf("Expected status %d, got %d", expectedStatus, response.StatusCode)
 		}
 	})

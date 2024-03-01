@@ -49,12 +49,13 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 	}
 
 	documentsCfg := document.Config{
-		WordsPerMinute: cfg.WordsPerMinute,
-		LibraryPath:    cfg.LibraryPath,
-		HomeDir:        cfg.HomeDir,
-		CoverMaxWidth:  cfg.CoverMaxWidth,
-		Hostname:       cfg.Hostname,
-		Port:           cfg.Port,
+		WordsPerMinute:        cfg.WordsPerMinute,
+		LibraryPath:           cfg.LibraryPath,
+		HomeDir:               cfg.HomeDir,
+		CoverMaxWidth:         cfg.CoverMaxWidth,
+		Hostname:              cfg.Hostname,
+		Port:                  cfg.Port,
+		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
 	}
 
 	authController := auth.NewController(usersRepository, sender, authCfg, printers)
@@ -126,7 +127,6 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			// Status code defaults to 500
 			code := fiber.StatusInternalServerError
-
 			// Retrieve the custom status code if it's a *fiber.Error
 			var e *fiber.Error
 			if errors.As(err, &e) {

@@ -27,18 +27,18 @@ var (
 )
 
 type Config struct {
-	Version           string
-	SessionTimeout    time.Duration
-	MinPasswordLength int
-	WordsPerMinute    float64
-	JwtSecret         []byte
-	Hostname          string
-	Port              int
-	HomeDir           string
-	LibraryPath       string
-	CoverMaxWidth     int
-	RequireAuth       bool
-	UploadMaxSize     int
+	Version               string
+	SessionTimeout        time.Duration
+	MinPasswordLength     int
+	WordsPerMinute        float64
+	JwtSecret             []byte
+	Hostname              string
+	Port                  int
+	HomeDir               string
+	LibraryPath           string
+	CoverMaxWidth         int
+	RequireAuth           bool
+	UploadDocumentMaxSize int
 }
 
 type Sender interface {
@@ -89,12 +89,14 @@ func New(cfg Config, controllers Controllers) *fiber.App {
 	}
 
 	app := fiber.New(fiber.Config{
-		Views:                 engine,
-		DisableStartupMessage: true,
-		AppName:               cfg.Version,
-		PassLocalsToViews:     true,
-		ErrorHandler:          controllers.ErrorHandler,
-		BodyLimit:             cfg.UploadMaxSize * 1024 * 1024,
+		Views:                        engine,
+		DisableStartupMessage:        true,
+		AppName:                      cfg.Version,
+		PassLocalsToViews:            true,
+		ErrorHandler:                 controllers.ErrorHandler,
+		BodyLimit:                    cfg.UploadDocumentMaxSize * 1024 * 1024,
+		DisablePreParseMultipartForm: true,
+		StreamRequestBody:            true,
 	})
 
 	app.Use(favicon.New())

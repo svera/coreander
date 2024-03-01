@@ -111,4 +111,5 @@
 "Upload": "Subir"
 "Upload document": "Subir documento"
 "Document uploaded successfully": "Documento subido con éxito."
- 
+"Document too large, the maximum allowed size is %d megabytes": "Documento demasiado grande, el tamaño máximo permitido es de %d megabytes"
+"Request entity too large": "Petición demasiado grande"

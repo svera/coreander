@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/svera/coreander/v3/internal/webserver/controller"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 )
 
@@ -33,7 +34,7 @@ func (a *Controller) Request(c *fiber.Ctx) error {
 			"%s://%s%s/%s/reset-password?id=%s",
 			c.Protocol(),
 			a.config.Hostname,
-			a.urlPort(c),
+			controller.UrlPort(c.Protocol(), a.config.Port),
 			c.Params("lang"),
 			user.RecoveryUUID,
 		)

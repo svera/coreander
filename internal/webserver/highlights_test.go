@@ -15,7 +15,7 @@ import (
 
 func TestHighlights(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
-	appFS := loadFilesInMemoryFs([]string{"fixtures/metadata.epub"})
+	appFS := loadFilesInMemoryFs([]string{"fixtures/library/metadata.epub"})
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS)
 	data := url.Values{
 		"slug": {"john-doe-test-epub"},

@@ -61,9 +61,10 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs) *fiber.A
 	}
 
 	webserverConfig := webserver.Config{
-		CoverMaxWidth:  600,
-		SessionTimeout: 24 * time.Hour,
-		LibraryPath:    "fixtures",
+		CoverMaxWidth:         600,
+		SessionTimeout:        24 * time.Hour,
+		LibraryPath:           "fixtures/library",
+		UploadDocumentMaxSize: 1,
 	}
 
 	indexFile, err := bleve.NewMemOnly(index.Mapping())

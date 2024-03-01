@@ -1,9 +1,6 @@
 package document
 
 import (
-	"fmt"
-
-	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/metadata"
@@ -38,12 +35,13 @@ type highlightsRepository interface {
 }
 
 type Config struct {
-	WordsPerMinute float64
-	LibraryPath    string
-	HomeDir        string
-	CoverMaxWidth  int
-	Hostname       string
-	Port           int
+	WordsPerMinute        float64
+	LibraryPath           string
+	HomeDir               string
+	CoverMaxWidth         int
+	Hostname              string
+	Port                  int
+	UploadDocumentMaxSize int
 }
 
 type Controller struct {
@@ -69,13 +67,4 @@ func NewController(hlRepository highlightsRepository, sender Sender, idx IdxRead
 		metadataReaders: metadataReaders,
 		appFs:           appFs,
 	}
-}
-
-func (a *Controller) urlPort(c *fiber.Ctx) string {
-	port := fmt.Sprintf(":%d", a.config.Port)
-	if (a.config.Port == defaultHttpPort && c.Protocol() == "http") ||
-		(a.config.Port == defaultHttpsPort && c.Protocol() == "https") {
-		port = ""
-	}
-	return port
 }

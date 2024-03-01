@@ -77,16 +77,17 @@ func main() {
 	}
 
 	webserverConfig := webserver.Config{
-		Version:           version,
-		MinPasswordLength: cfg.MinPasswordLength,
-		WordsPerMinute:    cfg.WordsPerMinute,
-		JwtSecret:         cfg.JwtSecret,
-		Hostname:          cfg.Hostname,
-		Port:              cfg.Port,
-		HomeDir:           homeDir,
-		LibraryPath:       cfg.LibPath,
-		CoverMaxWidth:     cfg.CoverMaxWidth,
-		RequireAuth:       cfg.RequireAuth,
+		Version:               version,
+		MinPasswordLength:     cfg.MinPasswordLength,
+		WordsPerMinute:        cfg.WordsPerMinute,
+		JwtSecret:             cfg.JwtSecret,
+		Hostname:              cfg.Hostname,
+		Port:                  cfg.Port,
+		HomeDir:               homeDir,
+		LibraryPath:           cfg.LibPath,
+		CoverMaxWidth:         cfg.CoverMaxWidth,
+		RequireAuth:           cfg.RequireAuth,
+		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
 	}
 
 	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", cfg.SessionTimeout))
