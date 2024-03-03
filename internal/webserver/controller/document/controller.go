@@ -53,11 +53,6 @@ type Controller struct {
 	appFs           afero.Fs
 }
 
-const (
-	defaultHttpPort  = 80
-	defaultHttpsPort = 443
-)
-
 func NewController(hlRepository highlightsRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config) *Controller {
 	return &Controller{
 		hlRepository:    hlRepository,

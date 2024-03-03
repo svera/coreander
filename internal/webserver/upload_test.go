@@ -11,7 +11,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
@@ -126,18 +125,6 @@ func TestUpload(t *testing.T) {
 		if expectedStatus := http.StatusInternalServerError; response.StatusCode != expectedStatus {
 			t.Errorf("Expected status %d, got %d", expectedStatus, response.StatusCode)
 		}
-
-		req, err = http.NewRequest(http.MethodGet, "/en?search=file", nil)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err.Error())
-		}
-		response, err = app.Test(req)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err.Error())
-		}
-		if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
-			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
-		}
 	})
 
 	t.Run("Returns 400 when trying to send no file", func(t *testing.T) {
@@ -232,26 +219,7 @@ func TestUpload(t *testing.T) {
 			t.Errorf("Expected status %d, got %d", expectedStatus, response.StatusCode)
 		}
 
-		req, err = http.NewRequest(http.MethodGet, "/en?search=children+literature", nil)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err.Error())
-		}
-		response, err = app.Test(req)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err.Error())
-		}
-		if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
-			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
-		}
-
-		doc, err := goquery.NewDocumentFromReader(response.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if actualResults := doc.Find(".list-group-item").Length(); actualResults != 1 {
-			t.Errorf("Expected %d results, got %d", 1, actualResults)
-		}
+		assertSearchResults(app, t, "children+literature", 1)
 
 		os.Remove("fixtures/library/childrens-literature.epub")
 	})

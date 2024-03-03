@@ -71,10 +71,9 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 	}
 
 	if file.Size > int64(d.config.UploadDocumentMaxSize*1024*1024) {
-		errorMessage := fmt.Sprintf("Document too large, the maximum allowed size is %d megabytes", d.config.UploadDocumentMaxSize)
 		return c.Status(fiber.StatusRequestEntityTooLarge).Render("upload", fiber.Map{
 			"Title": "Coreander",
-			"Error": errorMessage,
+			"Error": fmt.Sprintf("Document too large, the maximum allowed size is %d megabytes", d.config.UploadDocumentMaxSize),
 		}, "layout")
 	}
 
@@ -105,7 +104,7 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 		os.Remove(destination)
 		return c.Status(fiber.StatusInternalServerError).Render("upload", fiber.Map{
 			"Title": "Coreander",
-			"Error": "Error indexing document",
+			"Error": "Error uploading document",
 		}, "layout")
 	}
 

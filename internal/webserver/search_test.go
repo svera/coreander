@@ -1,12 +1,10 @@
 package webserver_test
 
 import (
-	"io/fs"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -243,31 +241,6 @@ func loadFilesInMemoryFs(files []string) afero.Fs {
 		}
 		afero.WriteFile(appFS, fileName, contents[fileName], 0644)
 	}
-	return appFS
-}
-
-func loadDirInMemoryFs(dir string) afero.Fs {
-	var (
-		contents map[string][]byte
-	)
-
-	appFS := afero.NewMemMapFs()
-
-	filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
-		if entry.IsDir() {
-			return nil
-		}
-		file, err := os.Open(path)
-		if err != nil {
-			log.Fatalf("Couldn't open %s", entry.Name())
-		}
-		_, err = file.Read(contents[path])
-		if err != nil {
-			log.Fatalf("Couldn't read contents of %s", entry.Name())
-		}
-		afero.WriteFile(appFS, path, contents[entry.Name()], 0644)
-		return nil
-	})
 	return appFS
 }
 
