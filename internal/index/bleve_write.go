@@ -17,7 +17,7 @@ import (
 func (b *BleveIndexer) AddFile(file string) error {
 	ext := strings.ToLower(filepath.Ext(file))
 	if _, ok := b.reader[ext]; !ok {
-		return nil
+		return fmt.Errorf("file extension %s not supported", ext)
 	}
 	meta, err := b.reader[ext].Metadata(file)
 	if err != nil {

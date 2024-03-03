@@ -49,10 +49,13 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 	}
 
 	documentsCfg := document.Config{
-		WordsPerMinute: cfg.WordsPerMinute,
-		LibraryPath:    cfg.LibraryPath,
-		HomeDir:        cfg.HomeDir,
-		CoverMaxWidth:  cfg.CoverMaxWidth,
+		WordsPerMinute:        cfg.WordsPerMinute,
+		LibraryPath:           cfg.LibraryPath,
+		HomeDir:               cfg.HomeDir,
+		CoverMaxWidth:         cfg.CoverMaxWidth,
+		Hostname:              cfg.Hostname,
+		Port:                  cfg.Port,
+		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
 	}
 
 	authController := auth.NewController(usersRepository, sender, authCfg, printers)
@@ -97,6 +100,10 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			SigningKey:    cfg.JwtSecret,
 			SigningMethod: "HS256",
 			TokenLookup:   "cookie:coreander",
+			SuccessHandler: func(c *fiber.Ctx) error {
+				c.Locals("Session", jwtclaimsreader.SessionData(c))
+				return c.Next()
+			},
 			ErrorHandler: func(c *fiber.Ctx, err error) error {
 				return forbidden(c)
 			},
@@ -105,6 +112,10 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 			SigningKey:    cfg.JwtSecret,
 			SigningMethod: "HS256",
 			TokenLookup:   "cookie:coreander",
+			SuccessHandler: func(c *fiber.Ctx) error {
+				c.Locals("Session", jwtclaimsreader.SessionData(c))
+				return c.Next()
+			},
 			ErrorHandler: func(c *fiber.Ctx, err error) error {
 				err = c.Next()
 				if cfg.RequireAuth {
@@ -116,7 +127,6 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			// Status code defaults to 500
 			code := fiber.StatusInternalServerError
-
 			// Retrieve the custom status code if it's a *fiber.Error
 			var e *fiber.Error
 			if errors.As(err, &e) {

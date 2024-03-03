@@ -2,7 +2,6 @@ package user
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
@@ -13,7 +12,10 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	session := jwtclaimsreader.SessionData(c)
+	var session model.User
+	if val, ok := c.Locals("Session").(model.User); ok {
+		session = val
+	}
 
 	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
 		return fiber.ErrForbidden
@@ -22,7 +24,6 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 	return c.Render("users/edit", fiber.Map{
 		"Title":             "Edit user",
 		"User":              user,
-		"Session":           session,
 		"MinPasswordLength": u.config.MinPasswordLength,
 		"Errors":            map[string]string{},
 	}, "layout")

@@ -6,13 +6,15 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
 // Create gathers information coming from the new user form and creates a new user
 func (u *Controller) Create(c *fiber.Ctx) error {
-	session := jwtclaimsreader.SessionData(c)
+	var session model.User
+	if val, ok := c.Locals("Session").(model.User); ok {
+		session = val
+	}
 
 	if session.Role != model.RoleAdmin {
 		return fiber.ErrForbidden
@@ -35,10 +37,9 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 
 	if errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.config.MinPasswordLength, errs); len(errs) > 0 {
 		return c.Render("users/new", fiber.Map{
-			"Title":   "Add user",
-			"Session": session,
-			"Errors":  errs,
-			"User":    user,
+			"Title":  "Add user",
+			"Errors": errs,
+			"User":   user,
 		}, "layout")
 	}
 

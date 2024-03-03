@@ -1,12 +1,18 @@
 package webserver_test
 
 import (
+	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
@@ -58,9 +64,10 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs) *fiber.A
 	}
 
 	webserverConfig := webserver.Config{
-		CoverMaxWidth:  600,
-		SessionTimeout: 24 * time.Hour,
-		LibraryPath:    "fixtures",
+		CoverMaxWidth:         600,
+		SessionTimeout:        24 * time.Hour,
+		LibraryPath:           "fixtures/library",
+		UploadDocumentMaxSize: 1,
 	}
 
 	indexFile, err := bleve.NewMemOnly(index.Mapping())
@@ -68,7 +75,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs) *fiber.A
 		idx = index.NewBleve(indexFile, webserverConfig.LibraryPath, metadataReaders)
 	}
 
-	err = idx.AddLibrary(afero.NewOsFs(), 100)
+	err = idx.AddLibrary(appFs, 100)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -105,4 +112,69 @@ func (s *SMTPMock) SendDocument(address string, libraryPath string, fileName str
 
 func (s *SMTPMock) From() string {
 	return ""
+}
+
+func getRequest(cookie *http.Cookie, app *fiber.App, URL string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, URL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.AddCookie(cookie)
+
+	return app.Test(req)
+}
+
+func postRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodPost, URL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(cookie)
+
+	return app.Test(req)
+}
+
+func mustReturnForbiddenAndShowLogin(response *http.Response, t *testing.T) {
+	if response.StatusCode != http.StatusForbidden {
+		t.Errorf("Expected status %d, received %d", http.StatusForbidden, response.StatusCode)
+		return
+	}
+
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection, err := doc.Find("head title").First().Html()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selection != "Login" {
+		t.Errorf("Expected login page, received %s", selection)
+	}
+}
+
+func loadDirInMemoryFs(dir string) afero.Fs {
+	var (
+		contents map[string][]byte
+	)
+
+	appFS := afero.NewMemMapFs()
+
+	filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+		if entry.IsDir() {
+			return nil
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			log.Fatalf("Couldn't open %s", entry.Name())
+		}
+		_, err = file.Read(contents[path])
+		if err != nil {
+			log.Fatalf("Couldn't read contents of %s", entry.Name())
+		}
+		afero.WriteFile(appFS, path, contents[entry.Name()], 0644)
+		return nil
+	})
+	return appFS
 }

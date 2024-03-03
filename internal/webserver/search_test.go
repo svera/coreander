@@ -19,7 +19,9 @@ import (
 func TestSearch(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	smtpMock := &SMTPMock{}
-	app := bootstrapApp(db, smtpMock, afero.NewOsFs())
+	appFS := loadDirInMemoryFs("fixtures/library")
+
+	app := bootstrapApp(db, smtpMock, appFS)
 
 	var cases = []struct {
 		name            string
@@ -113,7 +115,7 @@ func TestSendDocument(t *testing.T) {
 func TestRemoveDocument(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	smtpMock := &SMTPMock{}
-	appFS := loadFilesInMemoryFs([]string{"fixtures/metadata.epub"})
+	appFS := loadDirInMemoryFs("fixtures/library")
 	app := bootstrapApp(db, smtpMock, appFS)
 
 	assertSearchResults(app, t, "john+doe", 4)

@@ -50,7 +50,7 @@
                     </label>
                     <div class="input-group">
                         <input type="email" class="form-control" id="email" name="email"
-                            placeholder="email@example.com" value="{{.Session.SendToEmail}}" required="required">
+                            placeholder="email@example.com" value="{{if .Session}}{{.Session.SendToEmail}}{{end}}" required="required">
                         <input type="hidden" name="slug" value="{{.Document.Slug}}">
                         <button type="submit" class="btn btn-primary">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16">
@@ -67,7 +67,7 @@
             </form>
         </li>
     {{end}}
-    {{if eq .Session.Role 2}}
+    {{if and .Session (eq .Session.Role 2)}}
     <div class="dropdown-divider"></div>
     <li><a href="#" data-bs-toggle="modal" data-bs-target="#deleteModal" data-bs-slug="{{.Document.Slug}}" data-bs-index="{{.Index}}" class="dropdown-item">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash3-fill" viewBox="0 0 16 16">

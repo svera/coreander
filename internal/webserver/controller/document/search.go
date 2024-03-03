@@ -7,7 +7,6 @@ import (
 	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/result"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 	"github.com/svera/coreander/v3/internal/webserver/view"
 )
@@ -23,7 +22,11 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	session := jwtclaimsreader.SessionData(c)
+	var session model.User
+	if val, ok := c.Locals("Session").(model.User); ok {
+		session = val
+	}
+
 	if session.WordsPerMinute > 0 {
 		d.config.WordsPerMinute = session.WordsPerMinute
 	}
@@ -46,7 +49,6 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 			"Title":                  "Search results",
 			"EmailSendingConfigured": emailSendingConfigured,
 			"EmailFrom":              d.sender.From(),
-			"Session":                session,
 			"WordsPerMinute":         d.config.WordsPerMinute,
 		}, "layout")
 	}
@@ -77,7 +79,6 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	return c.Render("index", fiber.Map{
 		"Count":                  count,
 		"Title":                  "Coreander",
-		"Session":                session,
 		"Highlights":             docsSortedByHighlightedDate,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),

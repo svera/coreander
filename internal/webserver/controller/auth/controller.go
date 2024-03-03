@@ -1,10 +1,8 @@
 package auth
 
 import (
-	"fmt"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 	"golang.org/x/text/message"
 )
@@ -34,11 +32,6 @@ type Config struct {
 	SessionTimeout    time.Duration
 }
 
-const (
-	defaultHttpPort  = 80
-	defaultHttpsPort = 443
-)
-
 func NewController(repository authRepository, sender recoveryEmail, cfg Config, printers map[string]*message.Printer) *Controller {
 	return &Controller{
 		repository: repository,
@@ -46,13 +39,4 @@ func NewController(repository authRepository, sender recoveryEmail, cfg Config, 
 		printers:   printers,
 		config:     cfg,
 	}
-}
-
-func (a *Controller) urlPort(c *fiber.Ctx) string {
-	port := fmt.Sprintf(":%d", a.config.Port)
-	if (a.config.Port == defaultHttpPort && c.Protocol() == "http") ||
-		(a.config.Port == defaultHttpsPort && c.Protocol() == "https") {
-		port = ""
-	}
-	return port
 }

@@ -15,7 +15,7 @@ import (
 
 func TestHighlights(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
-	appFS := loadFilesInMemoryFs([]string{"fixtures/metadata.epub"})
+	appFS := loadFilesInMemoryFs([]string{"fixtures/library/metadata.epub"})
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS)
 	data := url.Values{
 		"slug": {"john-doe-test-epub"},
@@ -37,7 +37,7 @@ func TestHighlights(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
 
-	response, err := addUser(regularUserData, adminCookie, app)
+	response, err := postRequest(regularUserData, adminCookie, app, "/en/users/new")
 	if response == nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
@@ -98,7 +98,7 @@ func TestHighlights(t *testing.T) {
 			"uuid": {regularUser.Uuid},
 		}
 
-		_, err = deleteUser(data, adminCookie, app)
+		_, err = postRequest(data, adminCookie, app, "/en/users/delete")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}

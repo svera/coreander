@@ -17,6 +17,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * [Send to email supported](#send-to-email).
 * Read indexed epubs and PDFs from Coreander's interface thanks to [epub.js](http://futurepress.org/) and [pdf.js](https://mozilla.github.io/pdf.js/).
 * Restrictable access only to registered users.
+* Upload documents through the web interface.
 
 ## Installation
 
@@ -79,7 +80,7 @@ Coreander can send documents through email. This way, you can take advantage of 
 
 ### User management and access restriction
 
-Coreander distinguish between two kinds of users: regular users and administrator users, with the latter being the only ones with the ability to create new users and delete documents.
+Coreander distinguish between two kinds of users: regular users and administrator users, with the latter being the only ones with the ability to create new users and upload and delete documents.
 
 By default, Coreander allow unrestricted access to its contents, except management areas which require an administrator user. To allow access only to registered users in the whole application, pass the `REQUIRE_AUTH=true` environment variable.
 
@@ -106,3 +107,5 @@ On first run, Coreander creates an admin user with the following credentials:
 * `MIN_PASSWORD_LENGTH`: Minimum length acceptable for passwords. Defaults to 5.
 * `WORDS_PER_MINUTE`: Defines a default words per minute reading speed that will be used for not logged-in users. Defaults to 250.
 * `SESSION_TIMEOUT`: Specifies the maximum time a user session may last, in hours. Floating-point values are allowed. Defaults to 24 hours.
+* `UPLOAD_DOCUMENT_MAX_SIZE`: Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
+

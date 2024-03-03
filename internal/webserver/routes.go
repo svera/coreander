@@ -58,6 +58,9 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 
 	app.Post("/delete", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Documents.Delete)
 
+	langGroup.Get("/upload", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Documents.UploadForm)
+	langGroup.Post("/upload", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Documents.Upload)
+
 	// Authentication requirement is configurable for all routes below this middleware
 	app.Use(controllers.ConfigurableAuthenticationMiddleware)
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
+	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
 func (d *Controller) Detail(c *fiber.Ctx) error {
@@ -17,7 +17,11 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		emailSendingConfigured = false
 	}
 
-	session := jwtclaimsreader.SessionData(c)
+	var session model.User
+	if val, ok := c.Locals("Session").(model.User); ok {
+		session = val
+	}
+
 	if session.WordsPerMinute > 0 {
 		d.config.WordsPerMinute = session.WordsPerMinute
 	}
@@ -61,7 +65,6 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		"Document":               document,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),
-		"Session":                session,
 		"SameSeries":             sameSeries,
 		"SameAuthors":            sameAuthors,
 		"SameSubjects":           sameSubjects,

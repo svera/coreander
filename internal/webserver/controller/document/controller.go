@@ -23,6 +23,7 @@ type IdxReaderWriter interface {
 	SameSubjects(slug string, quantity int) ([]index.Document, error)
 	SameAuthors(slug string, quantity int) ([]index.Document, error)
 	SameSeries(slug string, quantity int) ([]index.Document, error)
+	AddFile(file string) error
 	RemoveFile(file string) error
 	Documents(IDs []string) (map[string]index.Document, error)
 }
@@ -34,10 +35,13 @@ type highlightsRepository interface {
 }
 
 type Config struct {
-	WordsPerMinute float64
-	LibraryPath    string
-	HomeDir        string
-	CoverMaxWidth  int
+	WordsPerMinute        float64
+	LibraryPath           string
+	HomeDir               string
+	CoverMaxWidth         int
+	Hostname              string
+	Port                  int
+	UploadDocumentMaxSize int
 }
 
 type Controller struct {
