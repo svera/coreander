@@ -27,4 +27,3 @@
     spinner.classList.remove('visually-hidden')
     fileSubmit.setAttribute('disabled', '');
   });
-  
