@@ -78,30 +78,35 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 		}, "layout")
 	}
 
-	errorMessage := ""
 	destination := filepath.Join(d.config.LibraryPath, file.Filename)
 
 	bytes, err := fileToBytes(file)
 	if err != nil {
-		errorMessage = "Error uploading document"
+		return c.Status(fiber.StatusInternalServerError).Render("upload", fiber.Map{
+			"Title": "Coreander",
+			"Error": "Error uploading document",
+		}, "layout")
 	}
 	destFile, err := d.appFs.Create(destination)
 	if err != nil {
-		errorMessage = "Error uploading document"
-	}
-	destFile.Write(bytes)
-
-	if err := d.idx.AddFile(destination); err != nil {
-		os.Remove(destination)
-		errorMessage = "Error indexing document"
-	}
-
-	if errorMessage != "" {
 		return c.Status(fiber.StatusInternalServerError).Render("upload", fiber.Map{
 			"Title": "Coreander",
-			"Error": errorMessage,
+			"Error": "Error uploading document",
 		}, "layout")
-
+	}
+	if _, err := destFile.Write(bytes); err != nil {
+		return c.Status(fiber.StatusInternalServerError).Render("upload", fiber.Map{
+			"Title": "Coreander",
+			"Error": "Error uploading document",
+		}, "layout")
+	}
+	destFile.Close()
+	if err := d.idx.AddFile(destination); err != nil {
+		os.Remove(destination)
+		return c.Status(fiber.StatusInternalServerError).Render("upload", fiber.Map{
+			"Title": "Coreander",
+			"Error": "Error indexing document",
+		}, "layout")
 	}
 
 	return c.Redirect(fmt.Sprintf("/%s/upload", c.Params("lang")))

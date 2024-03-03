@@ -11,6 +11,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
@@ -19,7 +20,8 @@ import (
 
 func TestUpload(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs())
+	appFS := loadDirInMemoryFs("fixtures/library")
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS)
 
 	data := url.Values{
 		"name":             {"Test user"},
@@ -98,7 +100,7 @@ func TestUpload(t *testing.T) {
 		}
 	})
 
-	t.Run("Returns 302 for file content-type allowed", func(t *testing.T) {
+	t.Run("Returns 500 if a document was uploaded correctly but couldn't be indexed", func(t *testing.T) {
 		var buf bytes.Buffer
 		multipartWriter := multipart.NewWriter(&buf)
 
@@ -121,8 +123,20 @@ func TestUpload(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
+		if expectedStatus := http.StatusInternalServerError; response.StatusCode != expectedStatus {
 			t.Errorf("Expected status %d, got %d", expectedStatus, response.StatusCode)
+		}
+
+		req, err = http.NewRequest(http.MethodGet, "/en?search=file", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		response, err = app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 		}
 	})
 
@@ -180,5 +194,65 @@ func TestUpload(t *testing.T) {
 		if expectedStatus := http.StatusRequestEntityTooLarge; response.StatusCode != expectedStatus {
 			t.Errorf("Expected status %d, got %d", expectedStatus, response.StatusCode)
 		}
+	})
+
+	// Due to a limitation in how pirmd/epub handles opening epub files, we need to use
+	// a real filesystem instead Afero's in-memory implementatio
+	t.Run("Returns 302 for correct document", func(t *testing.T) {
+		app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewOsFs())
+		var buf bytes.Buffer
+		multipartWriter := multipart.NewWriter(&buf)
+
+		file, err := os.ReadFile("fixtures/upload/childrens-literature.epub")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		h := make(textproto.MIMEHeader)
+		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, "filename", "childrens-literature.epub"))
+		h.Set("Content-Type", "application/epub+zip")
+		part, _ := multipartWriter.CreatePart(h)
+		part.Write(file)
+
+		multipartWriter.Close()
+
+		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
+		req.AddCookie(adminCookie)
+
+		response, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, got %d", expectedStatus, response.StatusCode)
+		}
+
+		req, err = http.NewRequest(http.MethodGet, "/en?search=children+literature", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		response, err = app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		}
+
+		doc, err := goquery.NewDocumentFromReader(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if actualResults := doc.Find(".list-group-item").Length(); actualResults != 1 {
+			t.Errorf("Expected %d results, got %d", 1, actualResults)
+		}
+
+		os.Remove("fixtures/library/childrens-literature.epub")
 	})
 }

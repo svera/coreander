@@ -170,7 +170,7 @@ func words(documentFullPath string) (int, error) {
 	defer r.Close()
 	count := 0
 	for _, f := range r.File {
-		isContent, err := doublestar.PathMatch("O*PS/**/*.*html", f.Name)
+		isContent, err := doublestar.PathMatch("O*PS/**/*.*htm*", f.Name)
 		if err != nil {
 			return 0, err
 		}
