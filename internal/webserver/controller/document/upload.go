@@ -57,9 +57,11 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 	file, err := c.FormFile("filename")
 	if err != nil {
 		if errors.Is(err, fasthttp.ErrMissingFile) {
-			return fiber.ErrBadRequest
+			return c.Status(fiber.StatusBadRequest).Render("upload", fiber.Map{
+				"Title": "Coreander",
+				"Error": "Invalid file type",
+			}, "layout")
 		}
-		return err
 	}
 
 	allowedTypes := []string{"application/epub+zip", "application/pdf"}

@@ -113,3 +113,4 @@
 "Document too large, the maximum allowed size is %d megabytes": "Document trop volumineux, la taille maximale autorisée est de %d mégaoctets"
 "Request entity too large": "Entité de requête trop grande"
 "Error uploading document": "Erreur lors du téléchargement du document"
+"Invalid file type": "Type de fichier invalide"
