@@ -10,7 +10,11 @@ import (
 	"github.com/svera/coreander/v3/internal/webserver/controller"
 )
 
-func routes(app *fiber.App, controllers Controllers, supportedLanguages []string) {
+func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, requireAuth bool) {
+	var allowIfNotLoggedInMiddleware = allowIfNotLoggedInMiddleware(jwtSecret)
+	var alwaysRequireAuthenticationMiddleware = alwaysRequireAuthenticationMiddleware(jwtSecret, sender)
+	var configurableAuthenticationMiddleware = configurableAuthenticationMiddleware(jwtSecret, sender, requireAuth)
+
 	app.Use("/css", filesystem.New(filesystem.Config{
 		Root: http.FS(cssFS),
 	}))
@@ -23,46 +27,46 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 		Root: http.FS(imagesFS),
 	}))
 
-	langGroup := app.Group(fmt.Sprintf("/:lang<regex(%s)>", strings.Join(supportedLanguages, "|")), func(c *fiber.Ctx) error {
+	langGroup := app.Group(fmt.Sprintf("/:lang<regex(%s)>", strings.Join(getSupportedLanguages(), "|")), func(c *fiber.Ctx) error {
 		pathMinusLang := c.Path()[3:]
 		query := string(c.Request().URI().QueryString())
 		if query != "" {
 			pathMinusLang = pathMinusLang + "?" + query
 		}
 		c.Locals("Lang", c.Params("lang"))
-		c.Locals("SupportedLanguages", supportedLanguages)
+		c.Locals("SupportedLanguages", getSupportedLanguages())
 		c.Locals("PathMinusLang", pathMinusLang)
 		c.Locals("Version", c.App().Config().AppName)
 		return c.Next()
 	})
 
-	langGroup.Get("/login", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.Login)
-	langGroup.Post("login", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.SignIn)
-	langGroup.Get("/recover", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.Recover)
-	langGroup.Post("/recover", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.Request)
-	langGroup.Get("/reset-password", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.EditPassword)
-	langGroup.Post("/reset-password", controllers.AllowIfNotLoggedInMiddleware, controllers.Auth.UpdatePassword)
+	langGroup.Get("/login", allowIfNotLoggedInMiddleware, controllers.Auth.Login)
+	langGroup.Post("login", allowIfNotLoggedInMiddleware, controllers.Auth.SignIn)
+	langGroup.Get("/recover", allowIfNotLoggedInMiddleware, controllers.Auth.Recover)
+	langGroup.Post("/recover", allowIfNotLoggedInMiddleware, controllers.Auth.Request)
+	langGroup.Get("/reset-password", allowIfNotLoggedInMiddleware, controllers.Auth.EditPassword)
+	langGroup.Post("/reset-password", allowIfNotLoggedInMiddleware, controllers.Auth.UpdatePassword)
 
-	usersGroup := langGroup.Group("/users", controllers.AlwaysRequireAuthenticationMiddleware)
+	usersGroup := langGroup.Group("/users", alwaysRequireAuthenticationMiddleware)
 
-	usersGroup.Get("/", controllers.Users.List)
-	usersGroup.Get("/new", controllers.Users.New)
-	usersGroup.Post("/new", controllers.Users.Create)
+	usersGroup.Get("/", requireAdminMiddleware, controllers.Users.List)
+	usersGroup.Get("/new", requireAdminMiddleware, controllers.Users.New)
+	usersGroup.Post("/new", requireAdminMiddleware, controllers.Users.Create)
 	usersGroup.Get("/:uuid<guid>/edit", controllers.Users.Edit)
 	usersGroup.Post("/:uuid<guid>/edit", controllers.Users.Update)
-	usersGroup.Post("/delete", controllers.Users.Delete)
+	usersGroup.Post("/delete", requireAdminMiddleware, controllers.Users.Delete)
 
-	langGroup.Get("/highlights/:uuid<guid>", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlights)
-	app.Post("/highlights", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlight)
-	app.Delete("/highlights", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Highlights.Remove)
+	langGroup.Get("/highlights/:uuid<guid>", alwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlights)
+	app.Post("/highlights", alwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlight)
+	app.Delete("/highlights", alwaysRequireAuthenticationMiddleware, controllers.Highlights.Remove)
 
-	app.Post("/delete", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Documents.Delete)
+	app.Post("/delete", alwaysRequireAuthenticationMiddleware, requireAdminMiddleware, controllers.Documents.Delete)
 
-	langGroup.Get("/upload", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Documents.UploadForm)
-	langGroup.Post("/upload", controllers.AlwaysRequireAuthenticationMiddleware, controllers.Documents.Upload)
+	langGroup.Get("/upload", alwaysRequireAuthenticationMiddleware, requireAdminMiddleware, controllers.Documents.UploadForm)
+	langGroup.Post("/upload", alwaysRequireAuthenticationMiddleware, requireAdminMiddleware, controllers.Documents.Upload)
 
 	// Authentication requirement is configurable for all routes below this middleware
-	app.Use(controllers.ConfigurableAuthenticationMiddleware)
+	app.Use(configurableAuthenticationMiddleware)
 
 	langGroup.Get("/logout", controllers.Auth.SignOut)
 
@@ -79,6 +83,6 @@ func routes(app *fiber.App, controllers Controllers, supportedLanguages []string
 	langGroup.Get("/read/:slug", controllers.Documents.Reader)
 
 	app.Get("/", func(c *fiber.Ctx) error {
-		return controller.Root(c, supportedLanguages)
+		return controller.Root(c, getSupportedLanguages())
 	})
 }

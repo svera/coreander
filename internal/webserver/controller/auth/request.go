@@ -7,7 +7,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/svera/coreander/v3/internal/webserver/controller"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 )
 
@@ -31,10 +30,8 @@ func (a *Controller) Request(c *fiber.Ctx) error {
 		}
 
 		recoveryLink := fmt.Sprintf(
-			"%s://%s%s/%s/reset-password?id=%s",
-			c.Protocol(),
-			a.config.Hostname,
-			controller.UrlPort(c.Protocol(), a.config.Port),
+			"%s/%s/reset-password?id=%s",
+			c.Locals("fqdn"),
 			c.Params("lang"),
 			user.RecoveryUUID,
 		)

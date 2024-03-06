@@ -12,26 +12,13 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/controller"
-	"github.com/svera/coreander/v3/internal/webserver/model"
 	"github.com/valyala/fasthttp"
 )
 
 func (d *Controller) UploadForm(c *fiber.Ctx) error {
-	var session model.User
-	if val, ok := c.Locals("Session").(model.User); ok {
-		session = val
-	}
-
-	if session.Role != model.RoleAdmin {
-		return fiber.ErrForbidden
-	}
-
 	upload := fmt.Sprintf(
-		"%s://%s%s/%s/upload",
-		c.Protocol(),
-		d.config.Hostname,
-		controller.UrlPort(c.Protocol(), d.config.Port),
+		"%s/%s/upload",
+		c.Locals("fqdn"),
 		c.Params("lang"),
 	)
 
@@ -48,12 +35,6 @@ func (d *Controller) UploadForm(c *fiber.Ctx) error {
 }
 
 func (d *Controller) Upload(c *fiber.Ctx) error {
-	session := c.Locals("Session").(model.User)
-
-	if session.Role != model.RoleAdmin {
-		return fiber.ErrForbidden
-	}
-
 	file, err := c.FormFile("filename")
 	if err != nil {
 		if errors.Is(err, fasthttp.ErrMissingFile) {

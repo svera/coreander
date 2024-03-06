@@ -71,6 +71,27 @@ func TestUserManagement(t *testing.T) {
 		}
 	})
 
+	t.Run("Try to add a user with a regular user active session", func(t *testing.T) {
+		cookie, err := login(app, "test@example.com", "test")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		response, err := getRequest(cookie, app, "/en/users/new")
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnStatus(response, fiber.StatusForbidden, t)
+
+		response, err = postRequest(data, cookie, app, "/en/users/new")
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnStatus(response, fiber.StatusForbidden, t)
+	})
+
 	t.Run("Try to add a user with errors in form using an admin active session", func(t *testing.T) {
 		response, err := postRequest(url.Values{}, adminCookie, app, "/en/users/new")
 		expectedErrorMessages := []string{
@@ -95,20 +116,6 @@ func TestUserManagement(t *testing.T) {
 		if !reflect.DeepEqual(expectedErrorMessages, errorMessages) {
 			t.Errorf("Expected %v error messages, got %v", expectedErrorMessages, errorMessages)
 		}
-	})
-
-	t.Run("Try to add a user with a regular user active session", func(t *testing.T) {
-		cookie, err := login(app, "test@example.com", "test")
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err.Error())
-		}
-
-		response, err := postRequest(data, cookie, app, "/en/users/new")
-		if response == nil {
-			t.Fatalf("Unexpected error: %v", err.Error())
-		}
-
-		mustReturnStatus(response, fiber.StatusForbidden, t)
 	})
 
 	testUser := model.User{}

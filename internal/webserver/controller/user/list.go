@@ -10,15 +10,6 @@ import (
 
 // List list all users registered in the database
 func (u *Controller) List(c *fiber.Ctx) error {
-	var session model.User
-	if val, ok := c.Locals("Session").(model.User); ok {
-		session = val
-	}
-
-	if session.Role != model.RoleAdmin {
-		return fiber.ErrForbidden
-	}
-
 	page, err := strconv.Atoi(c.Query("page"))
 	if err != nil {
 		page = 1

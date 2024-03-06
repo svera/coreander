@@ -6,17 +6,9 @@ import (
 	"path/filepath"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
-	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
 func (d *Controller) Delete(c *fiber.Ctx) error {
-	session := jwtclaimsreader.SessionData(c)
-
-	if session.Role != model.RoleAdmin {
-		return fiber.ErrForbidden
-	}
-
 	if c.FormValue("slug") == "" {
 		return fiber.ErrBadRequest
 	}

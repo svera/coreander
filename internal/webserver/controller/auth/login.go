@@ -5,16 +5,13 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/controller"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 )
 
 func (a *Controller) Login(c *fiber.Ctx) error {
 	resetPassword := fmt.Sprintf(
-		"%s://%s%s/%s/reset-password",
-		c.Protocol(),
-		a.config.Hostname,
-		controller.UrlPort(c.Protocol(), a.config.Port),
+		"%s/%s/reset-password",
+		c.Locals("fqdn").(string),
 		c.Params("lang"),
 	)
 

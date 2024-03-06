@@ -1,7 +1,6 @@
 package user
 
 import (
-	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v3/internal/result"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
@@ -33,26 +32,4 @@ func NewController(repository usersRepository, usersCfg Config) *Controller {
 		repository: repository,
 		config:     usersCfg,
 	}
-}
-
-// New renders the new user form
-func (u *Controller) New(c *fiber.Ctx) error {
-	var session model.User
-	if val, ok := c.Locals("Session").(model.User); ok {
-		session = val
-	}
-
-	if session.Role != model.RoleAdmin {
-		return fiber.ErrForbidden
-	}
-
-	user := model.User{
-		WordsPerMinute: u.config.WordsPerMinute,
-	}
-	return c.Render("users/new", fiber.Map{
-		"Title":             "Add user",
-		"MinPasswordLength": u.config.MinPasswordLength,
-		"User":              user,
-		"Errors":            map[string]string{},
-	}, "layout")
 }

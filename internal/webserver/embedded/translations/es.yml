@@ -76,6 +76,7 @@
 "A reset password request for Coreander has been received. You can proceed by clicking in the following link or pasting it in your browser": "Hemos recibido una petición para actualizar tu contraseña en Coreander. Si has sido tu, puedes continuar haciendo click en el siguiente enlace o pegándolo en tu navegador"
 "If you didn't request this, you can safely disregard this email.": "Si no has sido tu, puedes ignorar este correo."
 "We've received your password recovery request. If the address you introduced is registered in our system, you'll receive an email with further instructions in your inbox.": "Hemos recibido tu petición para recuperar tu contraseña. Si la dirección que has indicado está registrada en el sistema, recibiras un correo con indicaciones en tu bandeja de entrada."
+"Check your spam folder if you don't receive the recovery email after a while.": "Comprueba tu carpeta de correo no deseado si no recibes el correo de confirmación en unos momentos."
 "Password recovery request": "Petición de recuperación de contraseña"
 "Set new password": "Introduce tu nueva contraseña"
 "Password changed successfully. Please sign in.": "Contraseña modificada con éxito. Por favor, identifícate."
@@ -114,3 +115,4 @@
 "Request entity too large": "Petición demasiado grande"
 "Error uploading document": "Error al subir el documento"
 "Invalid file type": "Tipo de archivo no válido"
+"Upload": "Subir"
