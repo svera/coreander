@@ -144,7 +144,7 @@ func getSupportedLanguages() []string {
 }
 
 func chooseBestLanguage(c *fiber.Ctx, supportedLanguages []string) string {
-	lang := "en" //c.Params("lang")
+	lang := c.Params("lang")
 	if !slices.Contains(supportedLanguages, lang) {
 		lang = c.AcceptsLanguages(supportedLanguages...)
 		if lang == "" {

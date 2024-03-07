@@ -10,7 +10,7 @@ import (
 )
 
 func (a *Controller) UpdatePassword(c *fiber.Ctx) error {
-	user, err := a.validateRecoveryAccess(c, c.FormValue("id"))
+	user, err := a.validateRecoveryAccess(c.FormValue("id"))
 	if err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func (a *Controller) UpdatePassword(c *fiber.Ctx) error {
 	return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang")))
 }
 
-func (a *Controller) validateRecoveryAccess(c *fiber.Ctx, recoveryUuid string) (*model.User, error) {
+func (a *Controller) validateRecoveryAccess(recoveryUuid string) (*model.User, error) {
 	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
 		return &model.User{}, fiber.ErrNotFound
 	}

@@ -9,21 +9,14 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/valyala/fasthttp"
 )
 
 func (d *Controller) UploadForm(c *fiber.Ctx) error {
-	upload := fmt.Sprintf(
-		"%s/%s/upload",
-		c.Locals("fqdn"),
-		c.Params("lang"),
-	)
-
 	msg := ""
-	if ref := string(c.Request().Header.Referer()); strings.HasPrefix(ref, upload) {
+	if c.Params("success") != "" {
 		msg = "Document uploaded successfully."
 	}
 
@@ -86,7 +79,7 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 		return internalServerErrorStatus
 	}
 
-	return c.Redirect(fmt.Sprintf("/%s/upload", c.Params("lang")))
+	return c.Redirect(fmt.Sprintf("/%s/upload?success=1", c.Params("lang")))
 }
 
 func fileToBytes(fileHeader *multipart.FileHeader) ([]byte, error) {
