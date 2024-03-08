@@ -36,6 +36,16 @@ func TestUpload(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
 
+	response, err := postRequest(data, adminCookie, app, "/en/users/new")
+	if response == nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+
+	regularUserCookie, err := login(app, "test@example.com", "test")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+
 	t.Run("Try to access upload page without an active session", func(t *testing.T) {
 		response, err := getRequest(&http.Cookie{}, app, "/en/upload")
 		if response == nil {
@@ -46,17 +56,28 @@ func TestUpload(t *testing.T) {
 	})
 
 	t.Run("Try to access upload page with a regular user session", func(t *testing.T) {
-		response, err := postRequest(data, adminCookie, app, "/en/users/new")
+		response, err = getRequest(regularUserCookie, app, "/en/upload")
 		if response == nil {
-			t.Fatalf("Unexpected error: %v", err.Error())
-		}
-		cookie, err := login(app, "test@example.com", "test")
-		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		response, err = getRequest(cookie, app, "/en/upload")
-		if response == nil {
+		mustReturnStatus(response, fiber.StatusForbidden, t)
+	})
+
+	t.Run("Try to upload a document with a regular user session", func(t *testing.T) {
+		var buf bytes.Buffer
+		multipartWriter := multipart.NewWriter(&buf)
+		multipartWriter.Close()
+
+		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
+		req.AddCookie(regularUserCookie)
+
+		response, err := app.Test(req)
+		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
@@ -184,7 +205,7 @@ func TestUpload(t *testing.T) {
 	})
 
 	// Due to a limitation in how pirmd/epub handles opening epub files, we need to use
-	// a real filesystem instead Afero's in-memory implementatio
+	// a real filesystem instead Afero's in-memory implementation
 	t.Run("Returns 302 for correct document", func(t *testing.T) {
 		app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewOsFs())
 		var buf bytes.Buffer

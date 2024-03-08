@@ -1,12 +1,6 @@
 package webserver
 
 import (
-	"errors"
-	"fmt"
-	"log"
-
-	"github.com/gofiber/fiber/v2"
-	jwtware "github.com/gofiber/jwt/v3"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/metadata"
@@ -14,21 +8,15 @@ import (
 	"github.com/svera/coreander/v3/internal/webserver/controller/document"
 	"github.com/svera/coreander/v3/internal/webserver/controller/highlight"
 	"github.com/svera/coreander/v3/internal/webserver/controller/user"
-	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 	"gorm.io/gorm"
 )
 
 type Controllers struct {
-	Auth                                  *auth.Controller
-	Users                                 *user.Controller
-	Highlights                            *highlight.Controller
-	Documents                             *document.Controller
-	AllowIfNotLoggedInMiddleware          func(c *fiber.Ctx) error
-	AlwaysRequireAuthenticationMiddleware func(c *fiber.Ctx) error
-	ConfigurableAuthenticationMiddleware  func(c *fiber.Ctx) error
-	ErrorHandler                          func(c *fiber.Ctx, err error) error
+	Auth       *auth.Controller
+	Users      *user.Controller
+	Highlights *highlight.Controller
+	Documents  *document.Controller
 }
 
 func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs) Controllers {
@@ -58,99 +46,10 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
 	}
 
-	authController := auth.NewController(usersRepository, sender, authCfg, printers)
-	usersController := user.NewController(usersRepository, usersCfg)
-	highlightsController := highlight.NewController(highlightsRepository, usersRepository, sender, cfg.WordsPerMinute, idx)
-	documentsController := document.NewController(highlightsRepository, sender, idx, metadataReaders, appFs, documentsCfg)
-
-	emailSendingConfigured := true
-	if _, ok := sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
-	supportedLanguages := getSupportedLanguages()
-
-	forbidden := func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
-			"Lang":                   chooseBestLanguage(c, supportedLanguages),
-			"Title":                  "Login",
-			"Version":                c.App().Config().AppName,
-			"EmailSendingConfigured": emailSendingConfigured,
-			"SupportedLanguages":     supportedLanguages,
-		}, "layout")
-	}
-
 	return Controllers{
-		Auth:       authController,
-		Users:      usersController,
-		Highlights: highlightsController,
-		Documents:  documentsController,
-		AllowIfNotLoggedInMiddleware: jwtware.New(jwtware.Config{
-			SigningKey:    cfg.JwtSecret,
-			SigningMethod: "HS256",
-			TokenLookup:   "cookie:coreander",
-			SuccessHandler: func(c *fiber.Ctx) error {
-				return fiber.ErrForbidden
-			},
-			ErrorHandler: func(c *fiber.Ctx, err error) error {
-				return c.Next()
-			},
-		}),
-		AlwaysRequireAuthenticationMiddleware: jwtware.New(jwtware.Config{
-			SigningKey:    cfg.JwtSecret,
-			SigningMethod: "HS256",
-			TokenLookup:   "cookie:coreander",
-			SuccessHandler: func(c *fiber.Ctx) error {
-				c.Locals("Session", jwtclaimsreader.SessionData(c))
-				return c.Next()
-			},
-			ErrorHandler: func(c *fiber.Ctx, err error) error {
-				return forbidden(c)
-			},
-		}),
-		ConfigurableAuthenticationMiddleware: jwtware.New(jwtware.Config{
-			SigningKey:    cfg.JwtSecret,
-			SigningMethod: "HS256",
-			TokenLookup:   "cookie:coreander",
-			SuccessHandler: func(c *fiber.Ctx) error {
-				c.Locals("Session", jwtclaimsreader.SessionData(c))
-				return c.Next()
-			},
-			ErrorHandler: func(c *fiber.Ctx, err error) error {
-				err = c.Next()
-				if cfg.RequireAuth {
-					return forbidden(c)
-				}
-				return err
-			},
-		}),
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			// Status code defaults to 500
-			code := fiber.StatusInternalServerError
-			// Retrieve the custom status code if it's a *fiber.Error
-			var e *fiber.Error
-			if errors.As(err, &e) {
-				code = e.Code
-			}
-
-			// Send custom error page
-			err = c.Status(code).Render(
-				fmt.Sprintf("errors/%d", code),
-				fiber.Map{
-					"Lang":    chooseBestLanguage(c, supportedLanguages),
-					"Title":   "Coreander",
-					"Session": jwtclaimsreader.SessionData(c),
-					"Version": c.App().Config().AppName,
-				},
-				"layout")
-
-			if err != nil {
-				log.Println(err)
-				// In case the Render fails
-				return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
-			}
-
-			return nil
-		},
+		Auth:       auth.NewController(usersRepository, sender, authCfg, printers),
+		Users:      user.NewController(usersRepository, usersCfg),
+		Highlights: highlight.NewController(highlightsRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
+		Documents:  document.NewController(highlightsRepository, sender, idx, metadataReaders, appFs, documentsCfg),
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
@@ -96,7 +97,10 @@ func main() {
 	}
 
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
-	app := webserver.New(webserverConfig, controllers)
+	app := webserver.New(webserverConfig, controllers, sender)
+	if strings.ToLower(cfg.Hostname) == "localhost" {
+		fmt.Printf("Warning: using \"localhost\" as host name. Links using this host name won't be accesible outside this system.\n")
+	}
 	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))
 }
@@ -119,7 +123,7 @@ func getIndexFile() bleve.Index {
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No index found, creating a new one.")
 		cfg.SkipIndexing = false
-		indexFile = createIndex(homeDir, cfg.LibPath, metadataReaders)
+		indexFile = createIndex(homeDir)
 	}
 	version, err := indexFile.GetInternal([]byte("version"))
 	if err != nil {
@@ -131,12 +135,12 @@ func getIndexFile() bleve.Index {
 			log.Fatal(err)
 		}
 		cfg.SkipIndexing = false
-		indexFile = createIndex(homeDir, cfg.LibPath, metadataReaders)
+		indexFile = createIndex(homeDir)
 	}
 	return indexFile
 }
 
-func createIndex(homeDir, libPath string, metadataReaders map[string]metadata.Reader) bleve.Index {
+func createIndex(homeDir string) bleve.Index {
 	indexFile, err := bleve.New(homeDir+indexPath, index.Mapping())
 	if err != nil {
 		log.Fatal(err)

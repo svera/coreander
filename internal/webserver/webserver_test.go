@@ -81,7 +81,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs) *fiber.A
 	}
 
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
-	app := webserver.New(webserverConfig, controllers)
+	app := webserver.New(webserverConfig, controllers, sender)
 	return app
 }
 

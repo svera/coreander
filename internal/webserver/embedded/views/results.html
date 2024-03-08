@@ -1,9 +1,12 @@
 <div class="container">
-    {{template "partials/searchbox" .}} {{if gt .Results.TotalHits 0}}
-    <p class="text-center">{{t .Lang "%d matches found" .Results.TotalHits }}</p>
-    {{else}}
-    <p class="text-center">{{t .Lang "No matches found" }}</p>
-    {{end}}
+    {{template "partials/searchbox" .}}
+    <p class="text-center mb-5">
+        {{if gt .Results.TotalHits 0}}
+            {{t .Lang "%d matches found" .Results.TotalHits }}
+        {{else}}
+            {{t .Lang "No matches found" }}
+        {{end}}
+    </p>
 
     {{ template "partials/docs-list" . }}
 

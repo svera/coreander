@@ -2,6 +2,8 @@ package webserver
 
 import (
 	"embed"
+	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"sort"
@@ -13,6 +15,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/favicon"
 	"github.com/svera/coreander/v3/internal/i18n"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 	"golang.org/x/exp/slices"
 	"golang.org/x/text/message"
 )
@@ -24,6 +27,11 @@ var (
 	jsFS     fs.FS
 	imagesFS fs.FS
 	printers map[string]*message.Printer
+)
+
+const (
+	defaultHttpPort  = 80
+	defaultHttpsPort = 443
 )
 
 type Config struct {
@@ -77,7 +85,7 @@ func init() {
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(cfg Config, controllers Controllers) *fiber.App {
+func New(cfg Config, controllers Controllers, sender Sender) *fiber.App {
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {
 		log.Fatal(err)
@@ -93,10 +101,19 @@ func New(cfg Config, controllers Controllers) *fiber.App {
 		DisableStartupMessage:        true,
 		AppName:                      cfg.Version,
 		PassLocalsToViews:            true,
-		ErrorHandler:                 controllers.ErrorHandler,
+		ErrorHandler:                 errorHandler,
 		BodyLimit:                    cfg.UploadDocumentMaxSize * 1024 * 1024,
 		DisablePreParseMultipartForm: true,
 		StreamRequestBody:            true,
+	})
+
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("fqdn", fmt.Sprintf("%s://%s%s",
+			c.Protocol(),
+			cfg.Hostname,
+			urlPort(c.Protocol(), cfg.Port),
+		))
+		return c.Next()
 	})
 
 	app.Use(favicon.New())
@@ -109,7 +126,7 @@ func New(cfg Config, controllers Controllers) *fiber.App {
 	}),
 	)
 
-	routes(app, controllers, getSupportedLanguages())
+	routes(app, controllers, cfg.JwtSecret, sender, cfg.RequireAuth)
 	return app
 }
 
@@ -136,4 +153,42 @@ func chooseBestLanguage(c *fiber.Ctx, supportedLanguages []string) string {
 	}
 
 	return lang
+}
+
+func urlPort(protocol string, port int) string {
+	urlPort := fmt.Sprintf(":%d", port)
+	if (port == defaultHttpPort && protocol == "http") ||
+		(port == defaultHttpsPort && protocol == "https") {
+		urlPort = ""
+	}
+	return urlPort
+}
+
+func errorHandler(c *fiber.Ctx, err error) error {
+	// Status code defaults to 500
+	code := fiber.StatusInternalServerError
+	// Retrieve the custom status code if it's a *fiber.Error
+	var e *fiber.Error
+	if errors.As(err, &e) {
+		code = e.Code
+	}
+
+	// Send custom error page
+	err = c.Status(code).Render(
+		fmt.Sprintf("errors/%d", code),
+		fiber.Map{
+			"Lang":    chooseBestLanguage(c, getSupportedLanguages()),
+			"Title":   "Coreander",
+			"Session": jwtclaimsreader.SessionData(c),
+			"Version": c.App().Config().AppName,
+		},
+		"layout")
+
+	if err != nil {
+		log.Println(err)
+		// In case the Render fails
+		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+	}
+
+	return nil
 }
