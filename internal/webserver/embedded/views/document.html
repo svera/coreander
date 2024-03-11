@@ -4,205 +4,204 @@
 {{$emailFrom := .EmailFrom}}
 {{$document := .Document}}
 
-<div class="container">
-    <div class="row mt-5">
-        <div class="col-md-4 col-sm-12 pe-3">
-            <div class="card border border-0">
-                <img src="/images/generic.jpg" data-src="/cover/{{.Document.Slug}}" loading="lazy"
-                    class="border border-2 mb-3 cover img-fluid"
-                    alt='{{t $lang "\"%s\" cover" .Document.Title}}'>
+<div class="row mt-5">
+    <div class="col-md-4 col-sm-12 pe-3">
+        <div class="card border border-0">
+            <img src="/images/generic.jpg" data-src="/cover/{{.Document.Slug}}" loading="lazy"
+                class="border border-2 mb-3 cover img-fluid"
+                alt='{{t $lang "\"%s\" cover" .Document.Title}}'>
 
-                <div class="card-img-overlay">
-                    <h2 class="card-title text-center mx-1 mt-5">{{.Document.Title}}</h2>
-                    <h3 class="card-text text-center mx-1 mt-3">
-                        {{if .Document.Authors}}
-                            {{join .Document.Authors ", "}}
-                        {{else}}
-                            {{t $lang "Unknown author"}}
-                        {{end}}
-                    </h3>
-                </div>
+            <div class="card-img-overlay">
+                <h2 class="card-title text-center mx-1 mt-5">{{.Document.Title}}</h2>
+                <h3 class="card-text text-center mx-1 mt-3">
+                    {{if .Document.Authors}}
+                        {{join .Document.Authors ", "}}
+                    {{else}}
+                        {{t $lang "Unknown author"}}
+                    {{end}}
+                </h3>
             </div>
-            <div class="d-grid gap-2 mb-5 actions">
-                <a href="/{{$lang}}/read/{{.Document.Slug}}" class="btn btn-primary">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16">
-                        <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
-                        <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
-                    </svg>
-                    &nbsp;&nbsp;{{t .Lang "Read"}}
-                </a>
-        
-                <a href="/download/{{.Document.Slug}}" class="btn btn-outline-secondary" download>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cloud-download" viewBox="0 0 16 16">
-                        <path d="M4.406 1.342A5.53 5.53 0 0 1 8 0c2.69 0 4.923 2 5.166 4.579C14.758 4.804 16 6.137 16 7.773 16 9.569 14.502 11 12.687 11H10a.5.5 0 0 1 0-1h2.688C13.979 10 15 8.988 15 7.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 2.825 10.328 1 8 1a4.53 4.53 0 0 0-2.941 1.1c-.757.652-1.153 1.438-1.153 2.055v.448l-.445.049C2.064 4.805 1 5.952 1 7.318 1 8.785 2.23 10 3.781 10H6a.5.5 0 0 1 0 1H3.781C1.708 11 0 9.366 0 7.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383z"/>
-                        <path d="M7.646 15.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 14.293V5.5a.5.5 0 0 0-1 0v8.793l-2.146-2.147a.5.5 0 0 0-.708.708l3 3z"/>
-                    </svg>
-                    &nbsp;&nbsp;{{t .Lang "Download"}}
-                    <span class='badge text-bg-{{if eq .Document.Type "EPUB"}}primary{{else}}danger{{end}}'>{{.Document.Type}}</span>
-                </a>
-
-                {{if and (.Session) (ne .Session.Name "")}}
-                <a href="/highlights" class='btn btn-outline-secondary highlight {{if .Document.Highlighted}}visually-hidden{{end}}' onclick='highlightToggle("{{.Document.Slug}}", this, "POST")'>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star" viewBox="0 0 16 16">
-                        <path d="M2.866 14.85c-.078.444.36.791.746.593l4.39-2.256 4.389 2.256c.386.198.824-.149.746-.592l-.83-4.73 3.522-3.356c.33-.314.16-.888-.282-.95l-4.898-.696L8.465.792a.513.513 0 0 0-.927 0L5.354 5.12l-4.898.696c-.441.062-.612.636-.283.95l3.523 3.356-.83 4.73zm4.905-2.767-3.686 1.894.694-3.957a.565.565 0 0 0-.163-.505L1.71 6.745l4.052-.576a.525.525 0 0 0 .393-.288L8 2.223l1.847 3.658a.525.525 0 0 0 .393.288l4.052.575-2.906 2.77a.565.565 0 0 0-.163.506l.694 3.957-3.686-1.894a.503.503 0 0 0-.461 0z"/>
-                    </svg>
-                    &nbsp;&nbsp;{{t .Lang "Highlight"}}
-                </a>
-                <a href="/highlights" class='btn btn-outline-secondary dehighlight {{if not .Document.Highlighted}}visually-hidden{{end}}' onclick='highlightToggle("{{.Document.Slug}}", this, "DELETE")'>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16">
-                        <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
-                    </svg>
-                    &nbsp;&nbsp;{{t .Lang "Remove from highlights"}}
-                </a>
-                {{end}}     
-
-                {{if not .EmailSendingConfigured}}
-                    <p class="text-start">{{t .Lang "Send to email unavailable, no email service configured"}}</p>
-                {{else}}
-                    <div>
-                        <form method="post" action="send" onsubmit="send(this, {{t .Lang "Document sent succesfully"}}, {{t .Lang "There was an error sending the document, please try again later"}})" class="send-email mt-3">
-                            <label for="email" class="form-label text-start">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope-fill" viewBox="0 0 16 16">
-                                    <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414.05 3.555ZM0 4.697v7.104l5.803-3.558L0 4.697ZM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586l-1.239-.757Zm3.436-.586L16 11.801V4.697l-5.803 3.546Z"/>
-                                </svg>
-                                &nbsp;&nbsp;{{t .Lang "Send to email"}}
-                            </label>
+        </div>
+        <div class="d-grid gap-2 mb-5 actions">
+            <a href="/{{$lang}}/read/{{.Document.Slug}}" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16">
+                    <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
+                    <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+                </svg>
+                &nbsp;&nbsp;{{t .Lang "Read"}}
+            </a>
     
-                            <div class="input-group">
-                                <input type="email" class="form-control" id="email" name="email"
-                                    placeholder="email@example.com" value="{{.Session.SendToEmail}}" required="required">
-                                <input type="hidden" name="slug" value="{{.Document.Slug}}">
-                                <button type="submit" class="btn btn-primary">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16">
-                                        <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178Z"/>
-                                    </svg>
-                                    <span id="spinner" class="spinner-border spinner-border-sm visually-hidden" aria-hidden="true"></span>
-                                    &nbsp;&nbsp;{{t .Lang "Send"}}</button>
-                            </div>
-                            <p class="text-end">
-                                <small class="text-muted"><em>{{t .Lang "Sent from %s" .EmailFrom}}</em></small>
-                            </p>
-                            <div class="p-3 visually-hidden fs-6 send-email-message"></div>
-                        </form>
-                    </div>
+            <a href="/download/{{.Document.Slug}}" class="btn btn-outline-secondary" download>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cloud-download" viewBox="0 0 16 16">
+                    <path d="M4.406 1.342A5.53 5.53 0 0 1 8 0c2.69 0 4.923 2 5.166 4.579C14.758 4.804 16 6.137 16 7.773 16 9.569 14.502 11 12.687 11H10a.5.5 0 0 1 0-1h2.688C13.979 10 15 8.988 15 7.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 2.825 10.328 1 8 1a4.53 4.53 0 0 0-2.941 1.1c-.757.652-1.153 1.438-1.153 2.055v.448l-.445.049C2.064 4.805 1 5.952 1 7.318 1 8.785 2.23 10 3.781 10H6a.5.5 0 0 1 0 1H3.781C1.708 11 0 9.366 0 7.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383z"/>
+                    <path d="M7.646 15.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 14.293V5.5a.5.5 0 0 0-1 0v8.793l-2.146-2.147a.5.5 0 0 0-.708.708l3 3z"/>
+                </svg>
+                &nbsp;&nbsp;{{t .Lang "Download"}}
+                <span class='badge text-bg-{{if eq .Document.Type "EPUB"}}primary{{else}}danger{{end}}'>{{.Document.Type}}</span>
+            </a>
+
+            {{if and (.Session) (ne .Session.Name "")}}
+            <a href="/highlights" class='btn btn-outline-secondary highlight {{if .Document.Highlighted}}visually-hidden{{end}}' onclick='highlightToggle("{{.Document.Slug}}", this, "POST")'>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star" viewBox="0 0 16 16">
+                    <path d="M2.866 14.85c-.078.444.36.791.746.593l4.39-2.256 4.389 2.256c.386.198.824-.149.746-.592l-.83-4.73 3.522-3.356c.33-.314.16-.888-.282-.95l-4.898-.696L8.465.792a.513.513 0 0 0-.927 0L5.354 5.12l-4.898.696c-.441.062-.612.636-.283.95l3.523 3.356-.83 4.73zm4.905-2.767-3.686 1.894.694-3.957a.565.565 0 0 0-.163-.505L1.71 6.745l4.052-.576a.525.525 0 0 0 .393-.288L8 2.223l1.847 3.658a.525.525 0 0 0 .393.288l4.052.575-2.906 2.77a.565.565 0 0 0-.163.506l.694 3.957-3.686-1.894a.503.503 0 0 0-.461 0z"/>
+                </svg>
+                &nbsp;&nbsp;{{t .Lang "Highlight"}}
+            </a>
+            <a href="/highlights" class='btn btn-outline-secondary dehighlight {{if not .Document.Highlighted}}visually-hidden{{end}}' onclick='highlightToggle("{{.Document.Slug}}", this, "DELETE")'>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16">
+                    <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
+                </svg>
+                &nbsp;&nbsp;{{t .Lang "Remove from highlights"}}
+            </a>
+            {{end}}     
+
+            {{if not .EmailSendingConfigured}}
+                <p class="text-start">{{t .Lang "Send to email unavailable, no email service configured"}}</p>
+            {{else}}
+                <div>
+                    <form method="post" action="send" onsubmit="send(this, {{t .Lang "Document sent succesfully"}}, {{t .Lang "There was an error sending the document, please try again later"}})" class="send-email mt-3">
+                        <label for="email" class="form-label text-start">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope-fill" viewBox="0 0 16 16">
+                                <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414.05 3.555ZM0 4.697v7.104l5.803-3.558L0 4.697ZM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586l-1.239-.757Zm3.436-.586L16 11.801V4.697l-5.803 3.546Z"/>
+                            </svg>
+                            &nbsp;&nbsp;{{t .Lang "Send to email"}}
+                        </label>
+
+                        <div class="input-group">
+                            <input type="email" class="form-control" id="email" name="email"
+                                placeholder="email@example.com" value="{{.Session.SendToEmail}}" required="required">
+                            <input type="hidden" name="slug" value="{{.Document.Slug}}">
+                            <button type="submit" class="btn btn-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16">
+                                    <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178Z"/>
+                                </svg>
+                                <span id="spinner" class="spinner-border spinner-border-sm visually-hidden" aria-hidden="true"></span>
+                                &nbsp;&nbsp;{{t .Lang "Send"}}</button>
+                        </div>
+                        <p class="text-end">
+                            <small class="text-muted"><em>{{t .Lang "Sent from %s" .EmailFrom}}</em></small>
+                        </p>
+                        <div class="p-3 visually-hidden fs-6 send-email-message"></div>
+                    </form>
+                </div>
+            {{end}}
+        </div>
+    </div>
+    <div class="col-md-8 col-sm-12 ps-3">
+        <div class="row">
+            <div class="col-12">
+                {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
+                .Document.Series}}
+                <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</p>
+                {{ end }}
+                <h1 class="text-start">
+                    {{.Document.Title}} <small class="small text-muted">{{.Document.Year}}</small>
+                </h1>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12 text-start">
+                {{if .Document.Authors}}
+                <h2>
+                    {{join $document.Authors ", "}}
+                </h2>
+                {{else}}
+                <h2>{{t $lang "Unknown author"}}</h2>
+                {{end}}
+
+                {{ if gt .Document.Words 0.0 }}
+                <p class="text-muted"><em>{{t $lang "Estimated reading time"}}:
+                        {{.Document.ReadingTime .WordsPerMinute}}</em></p>
+                {{ end }}
+
+                {{ if .Document.Pages }}
+                <p class="text-muted"><em>{{t $lang "%d pages" .Document.Pages}}</em></p>
+                {{ end }}
+
+                {{ if .Document.Subjects }}
+                <div>
+                    {{range $i, $subject := .Document.Subjects}}
+                    {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
+                    <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/{{$lang}}?search=SubjectsEq&colon;&quot;{{$subject}}&quot;"
+                        title={{$subjectTitle}}>{{$subject}}</a>
+                    {{end}}
+                </div>
+                {{ end }}
+
+                {{if .Document.Description}}
+                <div class="mb-1 mt-3">{{.Document.Description}}</div>
+                {{else}}
+                <div class="mb-1"><em>{{t $lang "No description available"}}</em></div>
                 {{end}}
             </div>
         </div>
-        <div class="col-md-8 col-sm-12 ps-3">
-            <div class="row">
-                <div class="col-12">
-                    {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
-                    .Document.Series}}
-                    <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</p>
-                    {{ end }}
-                    <h1 class="text-start">
-                        {{.Document.Title}} <small class="small text-muted">{{.Document.Year}}</small>
-                    </h1>
-                </div>
+
+        {{ $length := len .SameSeries }} {{ if gt $length 0 }}
+        <section class="row mt-5">
+            <div class="col-9">
+                <h4>{{t $lang "Other documents in collection \"%s\"" .Document.Series}}</h4>
             </div>
-            <div class="row">
-                <div class="col-12 text-start">
-                    {{if .Document.Authors}}
-                    <h2>
-                        {{join $document.Authors ", "}}
-                    </h2>
-                    {{else}}
-                    <h2>{{t $lang "Unknown author"}}</h2>
-                    {{end}}
-
-                    {{ if gt .Document.Words 0.0 }}
-                    <p class="text-muted"><em>{{t $lang "Estimated reading time"}}:
-                            {{.Document.ReadingTime .WordsPerMinute}}</em></p>
-                    {{ end }}
-
-                    {{ if .Document.Pages }}
-                    <p class="text-muted"><em>{{t $lang "%d pages" .Document.Pages}}</em></p>
-                    {{ end }}
-
-                    {{ if .Document.Subjects }}
-                    <div>
-                        {{range $i, $subject := .Document.Subjects}}
-                        {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                        <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/{{$lang}}?search=SubjectsEq&colon;&quot;{{$subject}}&quot;"
-                            title={{$subjectTitle}}>{{$subject}}</a>
-                        {{end}}
-                    </div>
-                    {{ end }}
-
-                    {{if .Document.Description}}
-                    <div class="mb-1 mt-3">{{.Document.Description}}</div>
-                    {{else}}
-                    <div class="mb-1"><em>{{t $lang "No description available"}}</em></div>
-                    {{end}}
-                </div>
+            <div class="col-3 text-end">
+                <a  href="/{{$lang}}?search=SeriesEq&colon;&quot;{{.Document.Series}}&quot;">
+                        {{t $lang "See all" }}</a>
             </div>
 
-            {{ $length := len .SameSeries }} {{ if gt $length 0 }}
-            <section class="row mt-5">
-                <div class="col-9">
-                    <h4>{{t $lang "Other documents in collection \"%s\"" .Document.Series}}</h4>
-                </div>
-                <div class="col-3 text-end">
-                    <a  href="/{{$lang}}?search=SeriesEq&colon;&quot;{{.Document.Series}}&quot;">
-                            {{t $lang "See all" }}</a>
-                </div>
-
-                <div class="row mt-3 pe-0">
-                    {{range $i, $doc := .SameSeries}}
-                        <div class="col-6 col-lg-3 pe-0">
-                            {{template "partials/related" dict "Lang" $lang "Document" $doc}}
-                        </div>
-                    {{end}}
-                </div>
-            </section>
-            {{end}}         
-
-            {{ $length := len .SameAuthors }} {{ if gt $length 0 }}
-            <section class="row mt-5">
-                <div class="col-9">
-                    <h4>
-                        {{t $lang "Other documents by"}}
-                        {{join $document.Authors ", "}}
-                    </h4>
-                </div>
-                <div class="col-3 text-end">
-                    <a  href='/{{$lang}}?search=AuthorsEq&colon;&quot;{{join $document.Authors ","}}&quot;'>
-                            {{t $lang "See all" }}</a>
-                </div>
-
-                <div class="row mt-3 pe-0">
-                    {{range $i, $doc := .SameAuthors}}
+            <div class="row mt-3 pe-0">
+                {{range $i, $doc := .SameSeries}}
                     <div class="col-6 col-lg-3 pe-0">
                         {{template "partials/related" dict "Lang" $lang "Document" $doc}}
                     </div>
-                    {{end}}
-                </div>
-            </section>
-            {{end}}   
+                {{end}}
+            </div>
+        </section>
+        {{end}}         
 
-            {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
-            <section class="row mt-5">
-                <div class="col-9">
-                    <h4>{{t $lang "Other documents with similar subjects"}}</h4>
-                </div>
-                <div class="col-3 text-end">
-                    <a  href='/{{$lang}}?search=SubjectsEq&colon;&quot;{{join $document.Subjects ","}}&quot;'>
-                            {{t $lang "See all" }}</a>
-                </div>
+        {{ $length := len .SameAuthors }} {{ if gt $length 0 }}
+        <section class="row mt-5">
+            <div class="col-9">
+                <h4>
+                    {{t $lang "Other documents by"}}
+                    {{join $document.Authors ", "}}
+                </h4>
+            </div>
+            <div class="col-3 text-end">
+                <a  href='/{{$lang}}?search=AuthorsEq&colon;&quot;{{join $document.Authors ","}}&quot;'>
+                        {{t $lang "See all" }}</a>
+            </div>
 
-                <div class="row mt-3 pe-0">
-                    {{range $i, $doc := .SameSubjects}}
-                    <div class="col-6 col-lg-3 pe-0">
-                        {{template "partials/related" dict "Lang" $lang "Document" $doc}}
-                    </div>
-                    {{end}}
+            <div class="row mt-3 pe-0">
+                {{range $i, $doc := .SameAuthors}}
+                <div class="col-6 col-lg-3 pe-0">
+                    {{template "partials/related" dict "Lang" $lang "Document" $doc}}
                 </div>
-            </section>
-            {{end}}         
-        </div>
+                {{end}}
+            </div>
+        </section>
+        {{end}}   
+
+        {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
+        <section class="row mt-5">
+            <div class="col-9">
+                <h4>{{t $lang "Other documents with similar subjects"}}</h4>
+            </div>
+            <div class="col-3 text-end">
+                <a  href='/{{$lang}}?search=SubjectsEq&colon;&quot;{{join $document.Subjects ","}}&quot;'>
+                        {{t $lang "See all" }}</a>
+            </div>
+
+            <div class="row mt-3 pe-0">
+                {{range $i, $doc := .SameSubjects}}
+                <div class="col-6 col-lg-3 pe-0">
+                    {{template "partials/related" dict "Lang" $lang "Document" $doc}}
+                </div>
+                {{end}}
+            </div>
+        </section>
+        {{end}}         
     </div>
-
 </div>
+
+
 
 <script type="text/javascript" src="/js/actions.js"></script>
 <script type="text/javascript" src="/js/cover-loader.js"></script>

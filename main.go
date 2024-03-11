@@ -51,11 +51,11 @@ func init() {
 		".pdf":  metadata.PdfReader{},
 	}
 
-	indexFile := getIndexFile()
-	idx = index.NewBleve(indexFile, cfg.LibPath, metadataReaders)
-	db = infrastructure.Connect(homeDir+databasePath, cfg.WordsPerMinute)
-
 	appFs = afero.NewOsFs()
+
+	indexFile := getIndexFile()
+	idx = index.NewBleve(indexFile, appFs, cfg.LibPath, metadataReaders)
+	db = infrastructure.Connect(homeDir+databasePath, cfg.WordsPerMinute)
 }
 
 func main() {
@@ -97,7 +97,7 @@ func main() {
 	}
 
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
-	app := webserver.New(webserverConfig, controllers, sender)
+	app := webserver.New(webserverConfig, controllers, sender, idx)
 	if strings.ToLower(cfg.Hostname) == "localhost" {
 		fmt.Printf("Warning: using \"localhost\" as host name. Links using this host name won't be accesible outside this system.\n")
 	}
@@ -108,7 +108,7 @@ func main() {
 func startIndex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath string) {
 	start := time.Now().Unix()
 	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
-	err := idx.AddLibrary(appFs, batchSize)
+	err := idx.AddLibrary(batchSize)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -11,9 +11,9 @@ import (
 )
 
 func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, requireAuth bool) {
-	var allowIfNotLoggedInMiddleware = allowIfNotLoggedInMiddleware(jwtSecret)
-	var alwaysRequireAuthenticationMiddleware = alwaysRequireAuthenticationMiddleware(jwtSecret, sender)
-	var configurableAuthenticationMiddleware = configurableAuthenticationMiddleware(jwtSecret, sender, requireAuth)
+	var allowIfNotLoggedInMiddleware = AllowIfNotLoggedIn(jwtSecret)
+	var alwaysRequireAuthenticationMiddleware = AlwaysRequireAuthentication(jwtSecret, sender)
+	var configurableAuthenticationMiddleware = ConfigurableAuthentication(jwtSecret, sender, requireAuth)
 
 	app.Use("/css", filesystem.New(filesystem.Config{
 		Root: http.FS(cssFS),
@@ -49,21 +49,21 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	usersGroup := langGroup.Group("/users", alwaysRequireAuthenticationMiddleware)
 
-	usersGroup.Get("/", requireAdminMiddleware, controllers.Users.List)
-	usersGroup.Get("/new", requireAdminMiddleware, controllers.Users.New)
-	usersGroup.Post("/new", requireAdminMiddleware, controllers.Users.Create)
+	usersGroup.Get("/", RequireAdmin, controllers.Users.List)
+	usersGroup.Get("/new", RequireAdmin, controllers.Users.New)
+	usersGroup.Post("/new", RequireAdmin, controllers.Users.Create)
 	usersGroup.Get("/:uuid<guid>/edit", controllers.Users.Edit)
 	usersGroup.Post("/:uuid<guid>/edit", controllers.Users.Update)
-	usersGroup.Post("/delete", requireAdminMiddleware, controllers.Users.Delete)
+	usersGroup.Post("/delete", RequireAdmin, controllers.Users.Delete)
 
 	langGroup.Get("/highlights/:uuid<guid>", alwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlights)
 	app.Post("/highlights", alwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlight)
 	app.Delete("/highlights", alwaysRequireAuthenticationMiddleware, controllers.Highlights.Remove)
 
-	app.Post("/delete", alwaysRequireAuthenticationMiddleware, requireAdminMiddleware, controllers.Documents.Delete)
+	app.Post("/delete", alwaysRequireAuthenticationMiddleware, RequireAdmin, controllers.Documents.Delete)
 
-	langGroup.Get("/upload", alwaysRequireAuthenticationMiddleware, requireAdminMiddleware, controllers.Documents.UploadForm)
-	langGroup.Post("/upload", alwaysRequireAuthenticationMiddleware, requireAdminMiddleware, controllers.Documents.Upload)
+	langGroup.Get("/upload", alwaysRequireAuthenticationMiddleware, RequireAdmin, controllers.Documents.UploadForm)
+	langGroup.Post("/upload", alwaysRequireAuthenticationMiddleware, RequireAdmin, controllers.Documents.Upload)
 
 	// Authentication requirement is configurable for all routes below this middleware
 	app.Use(configurableAuthenticationMiddleware)

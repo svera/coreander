@@ -1,6 +1,9 @@
 package webserver
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 	jwtware "github.com/gofiber/jwt/v3"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
@@ -8,7 +11,9 @@ import (
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
-func requireAdminMiddleware(c *fiber.Ctx) error {
+// RequireAdmin returns HTTP forbidden if the user requesting access
+// is not an admin
+func RequireAdmin(c *fiber.Ctx) error {
 	session := c.Locals("Session").(model.User)
 
 	if session.Role != model.RoleAdmin {
@@ -18,7 +23,38 @@ func requireAdminMiddleware(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-func allowIfNotLoggedInMiddleware(jwtSecret []byte) func(*fiber.Ctx) error {
+// SetFQDN composes the Fully Qualified Domain Name of the host running the app and sets it
+// as a local variable of the request
+func SetFQDN(cfg Config) func(*fiber.Ctx) error {
+	return func(c *fiber.Ctx) error {
+		c.Locals("fqdn", fmt.Sprintf("%s://%s%s",
+			c.Protocol(),
+			cfg.Hostname,
+			urlPort(c.Protocol(), cfg.Port),
+		))
+		return c.Next()
+	}
+}
+
+// SetProgress retrieves indexing progress information from the index and sets it
+// as a local variable of the request
+func SetProgress(progress ProgressInfo) func(*fiber.Ctx) error {
+	return func(c *fiber.Ctx) error {
+		progress, err := progress.IndexingProgress()
+		if err != nil {
+			fmt.Println(err)
+		}
+		if progress.RemainingTime > 0 {
+			c.Locals("RemainingIndexingTime", fmt.Sprintf("%d", progress.RemainingTime.Round(time.Minute)/time.Minute))
+			c.Locals("IndexingProgressPercentage", progress.Percentage)
+		}
+		return c.Next()
+	}
+}
+
+// AllowIfNotLoggedIn only allows processing the request if there is not
+// session associated
+func AllowIfNotLoggedIn(jwtSecret []byte) func(*fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
 		SigningMethod: "HS256",
@@ -32,7 +68,7 @@ func allowIfNotLoggedInMiddleware(jwtSecret []byte) func(*fiber.Ctx) error {
 	})
 }
 
-func alwaysRequireAuthenticationMiddleware(jwtSecret []byte, sender Sender) func(*fiber.Ctx) error {
+func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender) func(*fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
 		SigningMethod: "HS256",
@@ -47,7 +83,7 @@ func alwaysRequireAuthenticationMiddleware(jwtSecret []byte, sender Sender) func
 	})
 }
 
-func configurableAuthenticationMiddleware(jwtSecret []byte, sender Sender, requireAuth bool) func(*fiber.Ctx) error {
+func ConfigurableAuthentication(jwtSecret []byte, sender Sender, requireAuth bool) func(*fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
 		SigningMethod: "HS256",

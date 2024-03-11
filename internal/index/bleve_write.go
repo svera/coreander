@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
@@ -44,11 +46,14 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 }
 
 // AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <bathSize>
-func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
+func (b *BleveIndexer) AddLibrary(batchSize int) error {
 	batch := b.idx.NewBatch()
 	batchSlugs := make(map[string]struct{}, batchSize)
 	languages := []string{}
-	e := afero.Walk(fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
+	var progress int64
+	batch.SetInternal([]byte(internalIndexStartTime), []byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
+	batch.SetInternal([]byte(internalIndexedDocuments), []byte(strconv.FormatInt(progress, 10)))
+	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
 		ext := strings.ToLower(filepath.Ext(fullPath))
 		if _, ok := b.reader[ext]; !ok {
 			return nil
@@ -70,14 +75,16 @@ func (b *BleveIndexer) AddLibrary(fs afero.Fs, batchSize int) error {
 		}
 
 		if batch.Size() == batchSize {
+			progress += int64(batchSize)
+			batch.SetInternal([]byte(internalIndexedDocuments), []byte(strconv.FormatInt(progress, 10)))
 			b.idx.Batch(batch)
 			batch.Reset()
 			batchSlugs = make(map[string]struct{}, batchSize)
 		}
 		return nil
 	})
-
-	b.idx.SetInternal([]byte("languages"), []byte(strings.Join(languages, ",")))
+	batch.SetInternal([]byte(internalIndexStartTime), nil)
+	batch.SetInternal([]byte(internalLanguages), []byte(strings.Join(languages, ",")))
 	b.idx.Batch(batch)
 	return e
 }

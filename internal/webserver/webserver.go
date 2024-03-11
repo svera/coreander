@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/favicon"
 	"github.com/svera/coreander/v3/internal/i18n"
+	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 	"golang.org/x/exp/slices"
@@ -55,6 +56,10 @@ type Sender interface {
 	From() string
 }
 
+type ProgressInfo interface {
+	IndexingProgress() (index.Progress, error)
+}
+
 func init() {
 	var err error
 
@@ -85,7 +90,7 @@ func init() {
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(cfg Config, controllers Controllers, sender Sender) *fiber.App {
+func New(cfg Config, controllers Controllers, sender Sender, progress ProgressInfo) *fiber.App {
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {
 		log.Fatal(err)
@@ -107,14 +112,9 @@ func New(cfg Config, controllers Controllers, sender Sender) *fiber.App {
 		StreamRequestBody:            true,
 	})
 
-	app.Use(func(c *fiber.Ctx) error {
-		c.Locals("fqdn", fmt.Sprintf("%s://%s%s",
-			c.Protocol(),
-			cfg.Hostname,
-			urlPort(c.Protocol(), cfg.Port),
-		))
-		return c.Next()
-	})
+	app.Use(SetFQDN(cfg))
+
+	app.Use(SetProgress(progress))
 
 	app.Use(favicon.New())
 

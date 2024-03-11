@@ -18,12 +18,19 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/token/porter"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
+	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/metadata"
 )
 
 // Version identifies the mapping used for indexing. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
 const Version = "v2"
+
+const (
+	internalIndexStartTime   = "index-start-time"
+	internalIndexedDocuments = "indexed-documents"
+	internalLanguages        = "languages"
+)
 
 var noStopWordsFilters = map[string][]string{
 	es.AnalyzerName: {es.NormalizeName, lowercase.Name, es.LightStemmerName},
@@ -37,14 +44,16 @@ var noStopWordsFilters = map[string][]string{
 const defaultAnalyzer = "default_analyzer"
 
 type BleveIndexer struct {
+	fs          afero.Fs
 	idx         bleve.Index
 	libraryPath string
 	reader      map[string]metadata.Reader
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
-func NewBleve(index bleve.Index, libraryPath string, read map[string]metadata.Reader) *BleveIndexer {
+func NewBleve(index bleve.Index, fs afero.Fs, libraryPath string, read map[string]metadata.Reader) *BleveIndexer {
 	return &BleveIndexer{
+		fs,
 		index,
 		strings.TrimSuffix(libraryPath, string(filepath.Separator)),
 		read,

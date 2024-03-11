@@ -1,17 +1,14 @@
-<div class="container">
-    {{template "partials/searchbox" .}}
-    <p class="text-center mb-5">
-        {{if gt .Results.TotalHits 0}}
-            {{t .Lang "%d matches found" .Results.TotalHits }}
-        {{else}}
-            {{t .Lang "No matches found" }}
-        {{end}}
-    </p>
-
-    {{ template "partials/docs-list" . }}
-
-    {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
-    {{template "partials/pagination" .}}
+{{template "partials/searchbox" .}}
+<p class="text-center mb-5">
+    {{if gt .Results.TotalHits 0}}
+        {{t .Lang "%d matches found" .Results.TotalHits }}
+    {{else}}
+        {{t .Lang "No matches found" }}
     {{end}}
+</p>
 
-</div>
+{{ template "partials/docs-list" . }}
+
+{{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
+{{template "partials/pagination" .}}
+{{end}}

@@ -3,15 +3,65 @@ package index
 import (
 	"fmt"
 	"html/template"
+	"math"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/gosimple/slug"
+	"github.com/spf13/afero"
 	"github.com/svera/coreander/v3/internal/metadata"
 	"github.com/svera/coreander/v3/internal/result"
 )
+
+func (b *BleveIndexer) IndexingProgress() (Progress, error) {
+	var progress Progress
+
+	indexStartTime, err := b.idx.GetInternal([]byte(internalIndexStartTime))
+	if err != nil {
+		return progress, err
+	}
+	if indexStartTime == nil {
+		return progress, nil
+	}
+	indexedDocuments, err := b.idx.GetInternal([]byte(internalIndexedDocuments))
+	if err != nil {
+		return progress, err
+	}
+	startTime, err := strconv.ParseInt(string(indexStartTime), 10, 64)
+	if err != nil {
+		return progress, err
+	}
+	amountInt, err := strconv.ParseInt(string(indexedDocuments), 10, 64)
+	if err != nil {
+		return progress, err
+	}
+	ellapsedTime := time.Now().UnixNano() - startTime
+	libraryFiles, err := countFiles(b.libraryPath, b.fs)
+	if err != nil {
+		return progress, err
+	}
+	progress.RemainingTime = time.Duration((ellapsedTime * (libraryFiles - amountInt)) / amountInt)
+	progress.Percentage = math.Round((100 / float64(libraryFiles)) * float64(amountInt))
+	return progress, nil
+}
+
+func countFiles(dir string, fs afero.Fs) (int64, error) {
+	f, err := fs.Open(dir)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+	list, err := f.Readdirnames(-1)
+	f.Close()
+	if err != nil {
+		return 0, err
+	}
+	return int64(len(list)), nil
+}
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> documents, offset by <page>
 func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result.Paginated[[]Document], error) {
