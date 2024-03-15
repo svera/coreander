@@ -52,8 +52,7 @@ func SetProgress(progress ProgressInfo) func(*fiber.Ctx) error {
 	}
 }
 
-// AllowIfNotLoggedIn only allows processing the request if there is not
-// session associated
+// AllowIfNotLoggedIn only allows processing the request if there is no session
 func AllowIfNotLoggedIn(jwtSecret []byte) func(*fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
@@ -109,10 +108,9 @@ func forbidden(c *fiber.Ctx, sender Sender) error {
 	}
 
 	return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
-		"Lang":                   chooseBestLanguage(c, getSupportedLanguages()),
+		"Lang":                   chooseBestLanguage(c),
 		"Title":                  "Login",
 		"Version":                c.App().Config().AppName,
 		"EmailSendingConfigured": emailSendingConfigured,
-		"SupportedLanguages":     getSupportedLanguages(),
 	}, "layout")
 }

@@ -26,10 +26,12 @@ import (
 // of version, to signal that a new index needs to be created.
 const Version = "v2"
 
-const (
-	internalIndexStartTime   = "index-start-time"
-	internalIndexedDocuments = "indexed-documents"
-	internalLanguages        = "languages"
+// Metadata fields
+var (
+	internalIndexStartTime   = []byte("index-start-time")
+	internalIndexedDocuments = []byte("indexed-documents")
+	internalLanguages        = []byte("languages")
+	internalVersion          = []byte("version")
 )
 
 var noStopWordsFilters = map[string][]string{
@@ -60,7 +62,16 @@ func NewBleve(index bleve.Index, fs afero.Fs, libraryPath string, read map[strin
 	}
 }
 
-func Mapping() mapping.IndexMapping {
+func Create(path string) bleve.Index {
+	indexFile, err := bleve.New(path, CreateMapping())
+	if err != nil {
+		log.Fatal(err)
+	}
+	indexFile.SetInternal(internalVersion, []byte(Version))
+	return indexFile
+}
+
+func CreateMapping() mapping.IndexMapping {
 	indexMapping := bleve.NewIndexMapping()
 
 	err := indexMapping.AddCustomAnalyzer(defaultAnalyzer,

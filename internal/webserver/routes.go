@@ -11,9 +11,9 @@ import (
 )
 
 func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, requireAuth bool) {
-	var allowIfNotLoggedInMiddleware = AllowIfNotLoggedIn(jwtSecret)
-	var alwaysRequireAuthenticationMiddleware = AlwaysRequireAuthentication(jwtSecret, sender)
-	var configurableAuthenticationMiddleware = ConfigurableAuthentication(jwtSecret, sender, requireAuth)
+	var allowIfNotLoggedIn = AllowIfNotLoggedIn(jwtSecret)
+	var alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender)
+	var configurableAuthentication = ConfigurableAuthentication(jwtSecret, sender, requireAuth)
 
 	app.Use("/css", filesystem.New(filesystem.Config{
 		Root: http.FS(cssFS),
@@ -27,27 +27,27 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		Root: http.FS(imagesFS),
 	}))
 
-	langGroup := app.Group(fmt.Sprintf("/:lang<regex(%s)>", strings.Join(getSupportedLanguages(), "|")), func(c *fiber.Ctx) error {
+	langGroup := app.Group(fmt.Sprintf("/:lang<regex(%s)>", strings.Join(supportedLanguages, "|")), func(c *fiber.Ctx) error {
 		pathMinusLang := c.Path()[3:]
 		query := string(c.Request().URI().QueryString())
 		if query != "" {
 			pathMinusLang = pathMinusLang + "?" + query
 		}
 		c.Locals("Lang", c.Params("lang"))
-		c.Locals("SupportedLanguages", getSupportedLanguages())
 		c.Locals("PathMinusLang", pathMinusLang)
 		c.Locals("Version", c.App().Config().AppName)
+		c.Locals("SupportedLanguages", supportedLanguages)
 		return c.Next()
 	})
 
-	langGroup.Get("/login", allowIfNotLoggedInMiddleware, controllers.Auth.Login)
-	langGroup.Post("login", allowIfNotLoggedInMiddleware, controllers.Auth.SignIn)
-	langGroup.Get("/recover", allowIfNotLoggedInMiddleware, controllers.Auth.Recover)
-	langGroup.Post("/recover", allowIfNotLoggedInMiddleware, controllers.Auth.Request)
-	langGroup.Get("/reset-password", allowIfNotLoggedInMiddleware, controllers.Auth.EditPassword)
-	langGroup.Post("/reset-password", allowIfNotLoggedInMiddleware, controllers.Auth.UpdatePassword)
+	langGroup.Get("/login", allowIfNotLoggedIn, controllers.Auth.Login)
+	langGroup.Post("login", allowIfNotLoggedIn, controllers.Auth.SignIn)
+	langGroup.Get("/recover", allowIfNotLoggedIn, controllers.Auth.Recover)
+	langGroup.Post("/recover", allowIfNotLoggedIn, controllers.Auth.Request)
+	langGroup.Get("/reset-password", allowIfNotLoggedIn, controllers.Auth.EditPassword)
+	langGroup.Post("/reset-password", allowIfNotLoggedIn, controllers.Auth.UpdatePassword)
 
-	usersGroup := langGroup.Group("/users", alwaysRequireAuthenticationMiddleware)
+	usersGroup := langGroup.Group("/users", alwaysRequireAuthentication)
 
 	usersGroup.Get("/", RequireAdmin, controllers.Users.List)
 	usersGroup.Get("/new", RequireAdmin, controllers.Users.New)
@@ -56,17 +56,17 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	usersGroup.Post("/:uuid<guid>/edit", controllers.Users.Update)
 	usersGroup.Post("/delete", RequireAdmin, controllers.Users.Delete)
 
-	langGroup.Get("/highlights/:uuid<guid>", alwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlights)
-	app.Post("/highlights", alwaysRequireAuthenticationMiddleware, controllers.Highlights.Highlight)
-	app.Delete("/highlights", alwaysRequireAuthenticationMiddleware, controllers.Highlights.Remove)
+	langGroup.Get("/highlights/:uuid<guid>", alwaysRequireAuthentication, controllers.Highlights.Highlights)
+	app.Post("/highlights", alwaysRequireAuthentication, controllers.Highlights.Highlight)
+	app.Delete("/highlights", alwaysRequireAuthentication, controllers.Highlights.Remove)
 
-	app.Post("/delete", alwaysRequireAuthenticationMiddleware, RequireAdmin, controllers.Documents.Delete)
+	app.Post("/delete", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
 
-	langGroup.Get("/upload", alwaysRequireAuthenticationMiddleware, RequireAdmin, controllers.Documents.UploadForm)
-	langGroup.Post("/upload", alwaysRequireAuthenticationMiddleware, RequireAdmin, controllers.Documents.Upload)
+	langGroup.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
+	langGroup.Post("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)
 
 	// Authentication requirement is configurable for all routes below this middleware
-	app.Use(configurableAuthenticationMiddleware)
+	app.Use(configurableAuthentication)
 
 	langGroup.Get("/logout", controllers.Auth.SignOut)
 
@@ -83,6 +83,6 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	langGroup.Get("/read/:slug", controllers.Documents.Reader)
 
 	app.Get("/", func(c *fiber.Ctx) error {
-		return controller.Root(c, getSupportedLanguages())
+		return controller.Root(c, supportedLanguages)
 	})
 }

@@ -23,11 +23,12 @@ import (
 
 var (
 	//go:embed embedded
-	embedded embed.FS
-	cssFS    fs.FS
-	jsFS     fs.FS
-	imagesFS fs.FS
-	printers map[string]*message.Printer
+	embedded           embed.FS
+	cssFS              fs.FS
+	jsFS               fs.FS
+	imagesFS           fs.FS
+	printers           map[string]*message.Printer
+	supportedLanguages []string
 )
 
 const (
@@ -87,6 +88,8 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	supportedLanguages = getSupportedLanguages()
 }
 
 // New builds a new Fiber application and set up the required routes
@@ -143,7 +146,7 @@ func getSupportedLanguages() []string {
 	return langs
 }
 
-func chooseBestLanguage(c *fiber.Ctx, supportedLanguages []string) string {
+func chooseBestLanguage(c *fiber.Ctx) string {
 	lang := c.Params("lang")
 	if !slices.Contains(supportedLanguages, lang) {
 		lang = c.AcceptsLanguages(supportedLanguages...)
@@ -177,7 +180,7 @@ func errorHandler(c *fiber.Ctx, err error) error {
 	err = c.Status(code).Render(
 		fmt.Sprintf("errors/%d", code),
 		fiber.Map{
-			"Lang":    chooseBestLanguage(c, getSupportedLanguages()),
+			"Lang":    chooseBestLanguage(c),
 			"Title":   "Coreander",
 			"Session": jwtclaimsreader.SessionData(c),
 			"Version": c.App().Config().AppName,
