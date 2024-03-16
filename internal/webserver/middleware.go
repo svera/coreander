@@ -67,6 +67,8 @@ func AllowIfNotLoggedIn(jwtSecret []byte) func(*fiber.Ctx) error {
 	})
 }
 
+// AlwaysRequireAuthentication returns forbidden and renders the login page
+// if the user trying to access has not logged in
 func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender) func(*fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
@@ -82,6 +84,7 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender) func(*fiber.Ct
 	})
 }
 
+// ConfigurableAuthentication allows to enable or disable authentication on routes which may or may not require it
 func ConfigurableAuthentication(jwtSecret []byte, sender Sender, requireAuth bool) func(*fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
