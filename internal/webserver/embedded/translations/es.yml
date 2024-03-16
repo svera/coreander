@@ -116,3 +116,5 @@
 "Error uploading document": "Error al subir el documento"
 "Invalid file type": "Tipo de archivo no válido"
 "Upload": "Subir"
+"Indexing in progress, search results may not be accurate.": "Indexando documentos, los resultados de búsqueda pueden no ser precisos."
+"Remaining time: %s minutes": "Tiempo restante: %s minutos"

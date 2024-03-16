@@ -70,18 +70,18 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs) *fiber.A
 		UploadDocumentMaxSize: 1,
 	}
 
-	indexFile, err := bleve.NewMemOnly(index.Mapping())
+	indexFile, err := bleve.NewMemOnly(index.CreateMapping())
 	if err == nil {
-		idx = index.NewBleve(indexFile, webserverConfig.LibraryPath, metadataReaders)
+		idx = index.NewBleve(indexFile, appFs, webserverConfig.LibraryPath, metadataReaders)
 	}
 
-	err = idx.AddLibrary(appFs, 100)
+	err = idx.AddLibrary(100)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
-	app := webserver.New(webserverConfig, controllers, sender)
+	app := webserver.New(webserverConfig, controllers, sender, idx)
 	return app
 }
 

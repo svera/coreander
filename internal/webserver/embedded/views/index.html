@@ -1,64 +1,62 @@
-<div class="container">
-    <section class="pb-5 text-center">
-        {{template "partials/searchbox" .}}
-        <p>{{t .Lang "%d documents available" .Count}}</p>
-    </section>
-    {{if and (.Session) (ne .Session.Name "")}}
-        <section class="row pt-5">
-                <div class="col-9">
-                        <h2>{{t .Lang "Your highlights" }}</h2>
+<section class="pb-5 text-center">
+    {{template "partials/searchbox" .}}
+    <p>{{t .Lang "%d documents available" .Count}}</p>
+</section>
+{{if and (.Session) (ne .Session.Name "")}}
+    <section class="row pt-5">
+            <div class="col-9">
+                    <h2>{{t .Lang "Your highlights" }}</h2>
+            </div>
+            {{if gt (len .Highlights) 0}}
+                <div class="col-3 text-end">
+                        <a  href="/{{.Lang}}/highlights/{{.Session.Uuid}}">
+                                {{t .Lang "See all" }}
+                        </a>
                 </div>
-                {{if gt (len .Highlights) 0}}
-                    <div class="col-3 text-end">
-                            <a  href="/{{.Lang}}/highlights/{{.Session.Uuid}}">
-                                    {{t .Lang "See all" }}
-                            </a>
-                    </div>
-        
-                    <div class="row mt-3 pe-0">
-                        {{$lang := .Lang}}
-                        {{$emailSendingConfigured := .EmailSendingConfigured}}
-                        {{$session := .Session}}
-                        {{$emailFrom := .EmailFrom}}
+    
+                <div class="row mt-3 pe-0">
+                    {{$lang := .Lang}}
+                    {{$emailSendingConfigured := .EmailSendingConfigured}}
+                    {{$session := .Session}}
+                    {{$emailFrom := .EmailFrom}}
 
-                        {{range $i, $doc := .Highlights}}
-                        <div class="col-6 col-md-3 col-lg-2 pe-0">
-                            {{template "partials/related" dict "Lang" $lang "Document" $doc}}
-                            <div class="mb-5 actions">
-                                <div class="dropdown">
-                                    <button type="button" class="btn btn-primary dropdown-toggle w-100" data-bs-toggle="dropdown"
-                                        aria-expanded="false" data-bs-auto-close="outside">
-                                        {{t $lang "Actions"}}
-                                    </button>
-                                    {{ template "partials/actions" dict "Lang" $lang "Document" $doc "EmailSendingConfigured"
-                                    $emailSendingConfigured "Index" $i "Session" $session "EmailFrom" $emailFrom "OnDehighlight" "remove"}}
-                                </div>                        
-                            </div>
+                    {{range $i, $doc := .Highlights}}
+                    <div class="col-6 col-md-3 col-lg-2 pe-0">
+                        {{template "partials/related" dict "Lang" $lang "Document" $doc}}
+                        <div class="mb-5 actions">
+                            <div class="dropdown">
+                                <button type="button" class="btn btn-primary dropdown-toggle w-100" data-bs-toggle="dropdown"
+                                    aria-expanded="false" data-bs-auto-close="outside">
+                                    {{t $lang "Actions"}}
+                                </button>
+                                {{ template "partials/actions" dict "Lang" $lang "Document" $doc "EmailSendingConfigured"
+                                $emailSendingConfigured "Index" $i "Session" $session "EmailFrom" $emailFrom "OnDehighlight" "remove"}}
+                            </div>                        
                         </div>
-                        {{end}}
                     </div>
-                    {{template "partials/delete-modal" .}}
+                    {{end}}
+                </div>
+                {{template "partials/delete-modal" .}}
 
-                    <script type="text/javascript" src="/js/delete.js"></script>
-                    <script type="text/javascript" src="/js/actions.js"></script>
-                    <script type="text/javascript" src="/js/cover-loader.js"></script>
-                {{else}}
-                    <p>{{t .Lang "You haven't highlighted any document yet."}}</p>
-                {{end}}
-        </section>
-    {{else}}
-        <section class="pt-5 text-center">
-                <h2 class="mb-3">{{t .Lang "Search tips"}}</h2>
-                <p>{{t .Lang "Use %s prefix in search box to search by authors only" `<span
-                        class="font-monospace">Authors:</span>`}}</p>
-                <p>{{t .Lang "Use %s prefix in search box to search by title only" `<span
-                        class="font-monospace">Title:</span>`}}</p>
-                <p>{{t .Lang "Use %s prefix in search box to search by series only" `<span
-                        class="font-monospace">Series:</span>`}}</p>
-                <p>{{t .Lang "Use %s prefix in search box to search by subjects only" `<span
-                        class="font-monospace">Subjects:</span>`}}</p>
-                <p>{{t .Lang "Enclose your search terms in double quotes to require all those terms and with the same order"}}
-                </p>
-        </section>
-    {{end}}
-</div>
+                <script type="text/javascript" src="/js/delete.js"></script>
+                <script type="text/javascript" src="/js/actions.js"></script>
+                <script type="text/javascript" src="/js/cover-loader.js"></script>
+            {{else}}
+                <p>{{t .Lang "You haven't highlighted any document yet."}}</p>
+            {{end}}
+    </section>
+{{else}}
+    <section class="pt-5 text-center">
+            <h2 class="mb-3">{{t .Lang "Search tips"}}</h2>
+            <p>{{t .Lang "Use %s prefix in search box to search by authors only" `<span
+                    class="font-monospace">Authors:</span>`}}</p>
+            <p>{{t .Lang "Use %s prefix in search box to search by title only" `<span
+                    class="font-monospace">Title:</span>`}}</p>
+            <p>{{t .Lang "Use %s prefix in search box to search by series only" `<span
+                    class="font-monospace">Series:</span>`}}</p>
+            <p>{{t .Lang "Use %s prefix in search box to search by subjects only" `<span
+                    class="font-monospace">Subjects:</span>`}}</p>
+            <p>{{t .Lang "Enclose your search terms in double quotes to require all those terms and with the same order"}}
+            </p>
+    </section>
+{{end}}

@@ -51,11 +51,11 @@ func init() {
 		".pdf":  metadata.PdfReader{},
 	}
 
-	indexFile := getIndexFile()
-	idx = index.NewBleve(indexFile, cfg.LibPath, metadataReaders)
-	db = infrastructure.Connect(homeDir+databasePath, cfg.WordsPerMinute)
-
 	appFs = afero.NewOsFs()
+
+	indexFile := getIndexFile(appFs)
+	idx = index.NewBleve(indexFile, appFs, cfg.LibPath, metadataReaders)
+	db = infrastructure.Connect(homeDir+databasePath, cfg.WordsPerMinute)
 }
 
 func main() {
@@ -97,7 +97,7 @@ func main() {
 	}
 
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
-	app := webserver.New(webserverConfig, controllers, sender)
+	app := webserver.New(webserverConfig, controllers, sender, idx)
 	if strings.ToLower(cfg.Hostname) == "localhost" {
 		fmt.Printf("Warning: using \"localhost\" as host name. Links using this host name won't be accesible outside this system.\n")
 	}
@@ -108,7 +108,7 @@ func main() {
 func startIndex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath string) {
 	start := time.Now().Unix()
 	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
-	err := idx.AddLibrary(appFs, batchSize)
+	err := idx.AddLibrary(batchSize)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -118,12 +118,12 @@ func startIndex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath 
 	fileWatcher(idx, libPath)
 }
 
-func getIndexFile() bleve.Index {
+func getIndexFile(fs afero.Fs) bleve.Index {
 	indexFile, err := bleve.Open(homeDir + indexPath)
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No index found, creating a new one.")
 		cfg.SkipIndexing = false
-		indexFile = createIndex(homeDir)
+		indexFile = index.Create(homeDir + indexPath)
 	}
 	version, err := indexFile.GetInternal([]byte("version"))
 	if err != nil {
@@ -131,20 +131,11 @@ func getIndexFile() bleve.Index {
 	}
 	if string(version) == "" || string(version) < index.Version {
 		log.Println("Old version index found, recreating it.")
-		if err = os.RemoveAll(homeDir + indexPath); err != nil {
+		if err = fs.RemoveAll(homeDir + indexPath); err != nil {
 			log.Fatal(err)
 		}
 		cfg.SkipIndexing = false
-		indexFile = createIndex(homeDir)
+		indexFile = index.Create(homeDir + indexPath)
 	}
-	return indexFile
-}
-
-func createIndex(homeDir string) bleve.Index {
-	indexFile, err := bleve.New(homeDir+indexPath, index.Mapping())
-	if err != nil {
-		log.Fatal(err)
-	}
-	indexFile.SetInternal([]byte("version"), []byte(index.Version))
 	return indexFile
 }

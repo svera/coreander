@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/favicon"
 	"github.com/svera/coreander/v3/internal/i18n"
+	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 	"golang.org/x/exp/slices"
@@ -22,11 +23,12 @@ import (
 
 var (
 	//go:embed embedded
-	embedded embed.FS
-	cssFS    fs.FS
-	jsFS     fs.FS
-	imagesFS fs.FS
-	printers map[string]*message.Printer
+	embedded           embed.FS
+	cssFS              fs.FS
+	jsFS               fs.FS
+	imagesFS           fs.FS
+	printers           map[string]*message.Printer
+	supportedLanguages []string
 )
 
 const (
@@ -53,6 +55,10 @@ type Sender interface {
 	Send(address, subject, body string) error
 	SendDocument(address string, libraryPath string, fileName string) error
 	From() string
+}
+
+type ProgressInfo interface {
+	IndexingProgress() (index.Progress, error)
 }
 
 func init() {
@@ -82,10 +88,12 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	supportedLanguages = getSupportedLanguages()
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(cfg Config, controllers Controllers, sender Sender) *fiber.App {
+func New(cfg Config, controllers Controllers, sender Sender, progress ProgressInfo) *fiber.App {
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {
 		log.Fatal(err)
@@ -107,14 +115,9 @@ func New(cfg Config, controllers Controllers, sender Sender) *fiber.App {
 		StreamRequestBody:            true,
 	})
 
-	app.Use(func(c *fiber.Ctx) error {
-		c.Locals("fqdn", fmt.Sprintf("%s://%s%s",
-			c.Protocol(),
-			cfg.Hostname,
-			urlPort(c.Protocol(), cfg.Port),
-		))
-		return c.Next()
-	})
+	app.Use(SetFQDN(cfg))
+
+	app.Use(SetProgress(progress))
 
 	app.Use(favicon.New())
 
@@ -143,7 +146,7 @@ func getSupportedLanguages() []string {
 	return langs
 }
 
-func chooseBestLanguage(c *fiber.Ctx, supportedLanguages []string) string {
+func chooseBestLanguage(c *fiber.Ctx) string {
 	lang := c.Params("lang")
 	if !slices.Contains(supportedLanguages, lang) {
 		lang = c.AcceptsLanguages(supportedLanguages...)
@@ -177,7 +180,7 @@ func errorHandler(c *fiber.Ctx, err error) error {
 	err = c.Status(code).Render(
 		fmt.Sprintf("errors/%d", code),
 		fiber.Map{
-			"Lang":    chooseBestLanguage(c, getSupportedLanguages()),
+			"Lang":    chooseBestLanguage(c),
 			"Title":   "Coreander",
 			"Session": jwtclaimsreader.SessionData(c),
 			"Version": c.App().Config().AppName,

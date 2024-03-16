@@ -15,7 +15,7 @@ import (
 func TestIndexAndSearch(t *testing.T) {
 	for _, tcase := range testCases() {
 		t.Run(tcase.name, func(t *testing.T) {
-			indexMem, err := bleve.NewMemOnly(index.Mapping())
+			indexMem, err := bleve.NewMemOnly(index.CreateMapping())
 			if err != nil {
 				t.Errorf("Error initialising index")
 			}
@@ -28,14 +28,14 @@ func TestIndexAndSearch(t *testing.T) {
 				},
 			}
 
-			idx := index.NewBleve(indexMem, "lib", mockMetadataReaders)
-
 			appFS := afero.NewMemMapFs()
+			idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+
 			// create test files and directories
 			appFS.MkdirAll("lib", 0755)
 			afero.WriteFile(appFS, tcase.filename, []byte(""), 0644)
 
-			err = idx.AddLibrary(appFS, 1)
+			err = idx.AddLibrary(1)
 			if err != nil {
 				t.Errorf("Error indexing: %s", err.Error())
 			}

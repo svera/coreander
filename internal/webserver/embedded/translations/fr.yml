@@ -116,3 +116,5 @@
 "Error uploading document": "Erreur lors du téléchargement du document"
 "Invalid file type": "Type de fichier invalide"
 "Upload": "Télécharger"
+"Indexing in progress, search results may not be accurate.": "Indexation en cours, les résultats de la recherche peuvent ne pas être précis."
+"Remaining time: %s minutes": "Temps restant: %s minutes"
