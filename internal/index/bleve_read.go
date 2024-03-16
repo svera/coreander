@@ -3,6 +3,7 @@ package index
 import (
 	"fmt"
 	"html/template"
+	"io/fs"
 	"math"
 	"net/url"
 	"strconv"
@@ -35,32 +36,34 @@ func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 	if err != nil {
 		return progress, err
 	}
-	amountInt, err := strconv.ParseInt(string(indexedDocuments), 10, 64)
+	indexedAmount, err := strconv.ParseFloat(string(indexedDocuments), 64)
 	if err != nil {
 		return progress, err
 	}
-	ellapsedTime := time.Now().UnixNano() - startTime
+	ellapsedTime := float64(time.Now().UnixNano() - startTime)
 	libraryFiles, err := countFiles(b.libraryPath, b.fs)
 	if err != nil {
 		return progress, err
 	}
-	progress.RemainingTime = time.Duration((ellapsedTime * (libraryFiles - amountInt)) / amountInt)
-	progress.Percentage = math.Round((100 / float64(libraryFiles)) * float64(amountInt))
+	progress.RemainingTime = time.Duration((ellapsedTime * (libraryFiles - indexedAmount)) / indexedAmount)
+	progress.Percentage = math.Round((100 / libraryFiles) * indexedAmount)
 	return progress, nil
 }
 
-func countFiles(dir string, fs afero.Fs) (int64, error) {
-	f, err := fs.Open(dir)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-	list, err := f.Readdirnames(-1)
-	f.Close()
-	if err != nil {
-		return 0, err
-	}
-	return int64(len(list)), nil
+func countFiles(dir string, fileSystem afero.Fs) (float64, error) {
+	var total float64
+
+	afero.Walk(fileSystem, dir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		total++
+		return nil
+	})
+	return total, nil
 }
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> documents, offset by <page>
