@@ -28,10 +28,8 @@ const Version = "v2"
 
 // Metadata fields
 var (
-	internalIndexStartTime   = []byte("index-start-time")
-	internalIndexedDocuments = []byte("indexed-documents")
-	internalLanguages        = []byte("languages")
-	internalVersion          = []byte("version")
+	internalLanguages = []byte("languages")
+	internalVersion   = []byte("version")
 )
 
 var noStopWordsFilters = map[string][]string{
@@ -46,10 +44,12 @@ var noStopWordsFilters = map[string][]string{
 const defaultAnalyzer = "default_analyzer"
 
 type BleveIndexer struct {
-	fs          afero.Fs
-	idx         bleve.Index
-	libraryPath string
-	reader      map[string]metadata.Reader
+	fs               afero.Fs
+	idx              bleve.Index
+	libraryPath      string
+	reader           map[string]metadata.Reader
+	indexStartTime   float64
+	indexedDocuments float64
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
@@ -59,6 +59,8 @@ func NewBleve(index bleve.Index, fs afero.Fs, libraryPath string, read map[strin
 		index,
 		strings.TrimSuffix(libraryPath, string(filepath.Separator)),
 		read,
+		0,
+		0,
 	}
 }
 

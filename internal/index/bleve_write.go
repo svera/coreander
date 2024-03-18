@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -50,9 +49,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int) error {
 	batch := b.idx.NewBatch()
 	batchSlugs := make(map[string]struct{}, batchSize)
 	languages := []string{}
-	var progress int64
-	batch.SetInternal(internalIndexStartTime, []byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
-	batch.SetInternal(internalIndexedDocuments, []byte(strconv.FormatInt(progress, 10)))
+	b.indexStartTime = float64(time.Now().UnixNano())
 	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
 		ext := strings.ToLower(filepath.Ext(fullPath))
 		if _, ok := b.reader[ext]; !ok {
@@ -74,16 +71,16 @@ func (b *BleveIndexer) AddLibrary(batchSize int) error {
 			return nil
 		}
 
+		b.indexedDocuments += 1
 		if batch.Size() == batchSize {
-			progress += int64(batchSize)
-			batch.SetInternal(internalIndexedDocuments, []byte(strconv.FormatInt(progress, 10)))
 			b.idx.Batch(batch)
 			batch.Reset()
 			batchSlugs = make(map[string]struct{}, batchSize)
 		}
 		return nil
 	})
-	batch.SetInternal(internalIndexStartTime, nil)
+	b.indexStartTime = 0
+	b.indexedDocuments = 0
 	batch.SetInternal(internalLanguages, []byte(strings.Join(languages, ",")))
 	b.idx.Batch(batch)
 	return e

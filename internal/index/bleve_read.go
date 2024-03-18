@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"math"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -21,32 +20,16 @@ import (
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 	var progress Progress
 
-	indexStartTime, err := b.idx.GetInternal([]byte(internalIndexStartTime))
-	if err != nil {
-		return progress, err
-	}
-	if indexStartTime == nil {
+	if b.indexStartTime == 0 {
 		return progress, nil
 	}
-	indexedDocuments, err := b.idx.GetInternal([]byte(internalIndexedDocuments))
-	if err != nil {
-		return progress, err
-	}
-	startTime, err := strconv.ParseInt(string(indexStartTime), 10, 64)
-	if err != nil {
-		return progress, err
-	}
-	indexedAmount, err := strconv.ParseFloat(string(indexedDocuments), 64)
-	if err != nil {
-		return progress, err
-	}
-	ellapsedTime := float64(time.Now().UnixNano() - startTime)
+	ellapsedTime := float64(time.Now().UnixNano()) - b.indexStartTime
 	libraryFiles, err := countFiles(b.libraryPath, b.fs)
 	if err != nil {
 		return progress, err
 	}
-	progress.RemainingTime = time.Duration((ellapsedTime * (libraryFiles - indexedAmount)) / indexedAmount)
-	progress.Percentage = math.Round((100 / libraryFiles) * indexedAmount)
+	progress.RemainingTime = time.Duration((ellapsedTime * (libraryFiles - b.indexedDocuments)) / b.indexedDocuments)
+	progress.Percentage = math.Round((100 / libraryFiles) * b.indexedDocuments)
 	return progress, nil
 }
 
