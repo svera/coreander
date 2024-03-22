@@ -109,11 +109,11 @@ func forbidden(c *fiber.Ctx, sender Sender) error {
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
 	}
-
 	return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
 		"Lang":                   chooseBestLanguage(c),
 		"Title":                  "Login",
 		"Version":                c.App().Config().AppName,
 		"EmailSendingConfigured": emailSendingConfigured,
+		"DisableLoginLink":       true,
 	}, "layout")
 }

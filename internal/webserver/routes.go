@@ -27,6 +27,12 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		Root: http.FS(imagesFS),
 	}))
 
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("Version", c.App().Config().AppName)
+		c.Locals("SupportedLanguages", supportedLanguages)
+		return c.Next()
+	})
+
 	langGroup := app.Group(fmt.Sprintf("/:lang<regex(%s)>", strings.Join(supportedLanguages, "|")), func(c *fiber.Ctx) error {
 		pathMinusLang := c.Path()[3:]
 		query := string(c.Request().URI().QueryString())
@@ -35,8 +41,6 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		}
 		c.Locals("Lang", c.Params("lang"))
 		c.Locals("PathMinusLang", pathMinusLang)
-		c.Locals("Version", c.App().Config().AppName)
-		c.Locals("SupportedLanguages", supportedLanguages)
 		return c.Next()
 	})
 

@@ -107,7 +107,7 @@
                                     </li>
                                 </ul>
                             </li>
-                            {{else}}
+                            {{else if not .DisableLoginLink}}
                             <li class="p-2">
                                 <a href="/{{.Lang}}/login">{{t .Lang "Login"}}</a>
                             </li>
