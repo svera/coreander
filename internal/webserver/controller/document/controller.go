@@ -32,6 +32,7 @@ type highlightsRepository interface {
 	Highlights(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
 	Highlighted(userID int, doc index.Document) index.Document
 	HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
+	RemoveDocument(documentPath string) error
 }
 
 type Config struct {

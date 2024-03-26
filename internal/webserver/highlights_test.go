@@ -110,6 +110,46 @@ func TestHighlights(t *testing.T) {
 		}
 		assertNoHighlights(app, t, adminCookie, regularUser.Uuid)
 	})
+
+	t.Run("Deleting a document also removes it from the highlights of all users", func(t *testing.T) {
+		regularUser := model.User{}
+		db.Where("email = ?", "test@example.com").First(&regularUser)
+
+		regularUserCookie, err := login(app, "test@example.com", "test")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		response, err := highlight(regularUserCookie, app, strings.NewReader(data.Encode()), fiber.MethodPost)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnStatus(response, fiber.StatusOK, t)
+
+		assertHighlights(app, t, regularUserCookie, regularUser.Uuid, 1)
+
+		adminCookie, err = login(app, "admin@example.com", "admin")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		data = url.Values{
+			"slug": {"john-doe-test-epub"},
+		}
+
+		_, err = postRequest(data, adminCookie, app, "/delete")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		var total int64
+		db.Table("highlights").Where("user_id = ?", regularUser.ID).Count(&total)
+		if total != 0 {
+			t.Errorf("Expected no highlights in DB for user, got %d", total)
+		}
+		assertHighlights(app, t, adminCookie, regularUser.Uuid, 0)
+	})
 }
 
 func highlight(cookie *http.Cookie, app *fiber.App, reader *strings.Reader, method string) (*http.Response, error) {

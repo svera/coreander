@@ -272,10 +272,12 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		subjectsCompoundQuery.AddQuery(qu)
 	}
 
-	series := strings.ReplaceAll(slug.Make(doc.Series), "-", "")
-	sq := bleve.NewTermQuery(series)
-	sq.SetField("SeriesEq")
-	bq.AddMustNot(sq)
+	if doc.Series != "" {
+		series := strings.ReplaceAll(slug.Make(doc.Series), "-", "")
+		sq := bleve.NewTermQuery(series)
+		sq.SetField("SeriesEq")
+		bq.AddMustNot(sq)
+	}
 
 	bq.AddMust(subjectsCompoundQuery)
 	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
@@ -330,11 +332,12 @@ func (b *BleveIndexer) SameAuthors(slugID string, quantity int) ([]Document, err
 	bq.AddMust(authorsCompoundQuery)
 	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
 
-	series := strings.ReplaceAll(slug.Make(doc.Series), "-", "")
-	sq := bleve.NewTermQuery(series)
-	sq.SetField("SeriesEq")
-
-	bq.AddMustNot(sq)
+	if doc.Series != "" {
+		series := strings.ReplaceAll(slug.Make(doc.Series), "-", "")
+		sq := bleve.NewTermQuery(series)
+		sq.SetField("SeriesEq")
+		bq.AddMustNot(sq)
+	}
 
 	return b.runQuery(bq, quantity)
 }
