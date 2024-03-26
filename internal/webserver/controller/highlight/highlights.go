@@ -12,8 +12,6 @@ import (
 )
 
 func (h *Controller) Highlights(c *fiber.Ctx) error {
-	var paginatedResults result.Paginated[[]index.Document]
-
 	emailSendingConfigured := true
 	if _, ok := h.sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -61,7 +59,7 @@ func (h *Controller) Highlights(c *fiber.Ctx) error {
 		i++
 	}
 
-	paginatedResults = result.NewPaginated[[]index.Document](
+	paginatedResults := result.NewPaginated[[]index.Document](
 		model.ResultsPerPage,
 		page,
 		highlights.TotalHits(),
