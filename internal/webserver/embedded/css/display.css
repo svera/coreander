@@ -88,6 +88,6 @@ a.collapse-control.collapsed:after {
     }
 }
 
-.card-img-overlay a, .card-img-overlay p, .card-img-overlay h2, .card-img-overlay h3 {
+.card-img-overlay a, .card-img-overlay p, .card-img-overlay h2, .card-img-overlay h3, .card-img-overlay h4, .card-img-overlay h5 {
     color: rgba(255,255,255,0.8);
 }

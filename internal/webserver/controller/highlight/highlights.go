@@ -51,9 +51,12 @@ func (h *Controller) Highlights(c *fiber.Ctx) error {
 	}
 
 	docsSortedByHighlightedDate := make([]index.Document, len(docs))
-	for i, path := range highlights.Hits() {
+
+	i := 0
+	for path := range docs {
 		docsSortedByHighlightedDate[i] = docs[path]
 		docsSortedByHighlightedDate[i].Highlighted = true
+		i++
 	}
 
 	paginatedResults := result.NewPaginated[[]index.Document](

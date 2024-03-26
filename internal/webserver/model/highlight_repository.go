@@ -89,3 +89,7 @@ func (u *HighlightRepository) Remove(userID int, documentPath string) error {
 	}
 	return u.DB.Delete(&highlight).Error
 }
+
+func (u *HighlightRepository) RemoveDocument(documentPath string) error {
+	return u.DB.Where("path = ?", documentPath).Delete(&Highlight{}).Error
+}

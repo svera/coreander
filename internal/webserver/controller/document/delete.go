@@ -32,5 +32,9 @@ func (d *Controller) Delete(c *fiber.Ctx) error {
 		log.Printf("error removing file %s", fullPath)
 	}
 
+	if err := d.hlRepository.RemoveDocument(document.ID); err != nil {
+		log.Printf("error removing file %s from highlights", document.ID)
+	}
+
 	return nil
 }
