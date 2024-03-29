@@ -14,6 +14,10 @@ import (
 // RequireAdmin returns HTTP forbidden if the user requesting access
 // is not an admin
 func RequireAdmin(c *fiber.Ctx) error {
+	if c.Locals("Session") == nil {
+		return fiber.ErrForbidden
+	}
+
 	session := c.Locals("Session").(model.User)
 
 	if session.Role != model.RoleAdmin {

@@ -16,8 +16,8 @@ deleteModal.addEventListener('hidden.bs.modal', event => {
 function remove(errorMessage) {
     event.preventDefault();
     form = document.getElementById("delete-form");
-    fetch('/delete', {
-        method: "POST",
+    fetch('/document', {
+        method: "DELETE",
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
         },

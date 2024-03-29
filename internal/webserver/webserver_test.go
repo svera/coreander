@@ -125,7 +125,16 @@ func getRequest(cookie *http.Cookie, app *fiber.App, URL string) (*http.Response
 }
 
 func postRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL string) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodPost, URL, strings.NewReader(data.Encode()))
+	return formRequest(http.MethodPost, data, cookie, app, URL)
+
+}
+
+func deleteRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL string) (*http.Response, error) {
+	return formRequest(http.MethodDelete, data, cookie, app, URL)
+}
+
+func formRequest(method string, data url.Values, cookie *http.Cookie, app *fiber.App, URL string) (*http.Response, error) {
+	req, err := http.NewRequest(method, URL, strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, err
 	}

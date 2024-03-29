@@ -163,7 +163,7 @@ func TestRemoveDocument(t *testing.T) {
 				t.Fatalf("Unexpected error: %v", err.Error())
 			}
 
-			req, err := http.NewRequest(http.MethodPost, "/delete", strings.NewReader(data.Encode()))
+			req, err := http.NewRequest(http.MethodDelete, "/document", strings.NewReader(data.Encode()))
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())
 			}

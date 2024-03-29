@@ -110,7 +110,7 @@
 "Your highlights": "Vos favoris"
 "You haven't highlighted any document yet.": "Vous n'avez encore ajouté aucun document à vos favoris."
 "Upload document": "Télécharger document"
-"Document uploaded successfully": "Document téléchargé avec succès."
+"Document uploaded successfully.": "Document téléchargé avec succès."
 "Document too large, the maximum allowed size is %d megabytes": "Document trop volumineux, la taille maximale autorisée est de %d mégaoctets"
 "Request entity too large": "Entité de requête trop grande"
 "Error uploading document": "Erreur lors du téléchargement du document"
@@ -118,3 +118,4 @@
 "Upload": "Télécharger"
 "Indexing in progress, search results may not be accurate.": "Indexation en cours, les résultats de la recherche peuvent ne pas être précis."
 "Remaining time: %s minutes": "Temps restant: %s minutes"
+"There was an error deleting the user, please try again later": "Une erreur s'est produite lors de supprimer l'utilisateur, veuillez réessayer ultérieurement"

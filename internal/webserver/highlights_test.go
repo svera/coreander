@@ -110,7 +110,7 @@ func TestHighlights(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		_, err = postRequest(data, adminCookie, app, "/delete")
+		_, err = deleteRequest(data, adminCookie, app, "/document")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -151,7 +151,7 @@ func TestHighlights(t *testing.T) {
 			"uuid": {regularUser.Uuid},
 		}
 
-		_, err = postRequest(data, adminCookie, app, "/en/users/delete")
+		_, err = deleteRequest(data, adminCookie, app, "/users")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
