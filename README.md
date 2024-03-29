@@ -1,4 +1,4 @@
-# Coreander
+# ![Coreander logo](readme-header.png)
 
 A personal documents server, Coreander indexes the documents (EPUBs and PDFs with no DRM) that it finds in the passed folder, and provides a web interface to search and access them.
 

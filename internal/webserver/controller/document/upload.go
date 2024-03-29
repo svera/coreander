@@ -16,7 +16,7 @@ import (
 
 func (d *Controller) UploadForm(c *fiber.Ctx) error {
 	msg := ""
-	if c.Params("success") != "" {
+	if c.Query("success") != "" {
 		msg = "Document uploaded successfully."
 	}
 

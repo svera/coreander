@@ -230,7 +230,7 @@ func TestUserManagement(t *testing.T) {
 	}
 
 	t.Run("Try to delete a user without an active session", func(t *testing.T) {
-		response, err := postRequest(data, &http.Cookie{}, app, "/en/users/delete")
+		response, err := deleteRequest(data, &http.Cookie{}, app, "/users")
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -241,7 +241,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to delete a user with a regular user's session", func(t *testing.T) {
 		data.Set("name", "Updated test user")
 
-		response, err := postRequest(data, testUserCookie, app, "/en/users/delete")
+		response, err := deleteRequest(data, testUserCookie, app, "/users")
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -250,7 +250,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to delete a user with an admin session", func(t *testing.T) {
-		response, err := postRequest(data, adminCookie, app, "/en/users/delete")
+		response, err := deleteRequest(data, adminCookie, app, "/users")
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -266,12 +266,24 @@ func TestUserManagement(t *testing.T) {
 		data = url.Values{
 			"uuid": {adminUser.Uuid},
 		}
-		response, err := postRequest(data, adminCookie, app, "/en/users/delete")
+		response, err := deleteRequest(data, adminCookie, app, "/users")
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
 		mustReturnStatus(response, fiber.StatusForbidden, t)
+	})
+
+	t.Run("Try to delete a non existing user with an admin session", func(t *testing.T) {
+		data = url.Values{
+			"uuid": {"abcde"},
+		}
+
+		response, err := deleteRequest(data, adminCookie, app, "/users")
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		mustReturnStatus(response, fiber.StatusNotFound, t)
 	})
 }
 

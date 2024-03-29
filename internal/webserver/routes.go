@@ -53,18 +53,18 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	usersGroup := langGroup.Group("/users", alwaysRequireAuthentication)
 
-	usersGroup.Get("/", RequireAdmin, controllers.Users.List)
-	usersGroup.Get("/new", RequireAdmin, controllers.Users.New)
-	usersGroup.Post("/new", RequireAdmin, controllers.Users.Create)
-	usersGroup.Get("/:uuid<guid>/edit", controllers.Users.Edit)
-	usersGroup.Post("/:uuid<guid>/edit", controllers.Users.Update)
-	usersGroup.Post("/delete", RequireAdmin, controllers.Users.Delete)
+	usersGroup.Get("/", alwaysRequireAuthentication, RequireAdmin, controllers.Users.List)
+	usersGroup.Get("/new", alwaysRequireAuthentication, RequireAdmin, controllers.Users.New)
+	usersGroup.Post("/new", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Create)
+	usersGroup.Get("/:uuid<guid>/edit", alwaysRequireAuthentication, controllers.Users.Edit)
+	usersGroup.Post("/:uuid<guid>/edit", alwaysRequireAuthentication, controllers.Users.Update)
+	app.Delete("/users", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Delete)
 
 	langGroup.Get("/highlights/:uuid<guid>", alwaysRequireAuthentication, controllers.Highlights.Highlights)
 	app.Post("/highlights", alwaysRequireAuthentication, controllers.Highlights.Highlight)
 	app.Delete("/highlights", alwaysRequireAuthentication, controllers.Highlights.Remove)
 
-	app.Post("/delete", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
+	app.Delete("/document", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
 
 	langGroup.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
 	langGroup.Post("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)
