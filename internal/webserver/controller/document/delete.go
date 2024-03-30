@@ -9,11 +9,11 @@ import (
 )
 
 func (d *Controller) Delete(c *fiber.Ctx) error {
-	if c.FormValue("slug") == "" {
+	if c.FormValue("id") == "" {
 		return fiber.ErrBadRequest
 	}
 
-	document, err := d.idx.Document(c.FormValue("slug"))
+	document, err := d.idx.Document(c.FormValue("id"))
 	if err != nil {
 		fmt.Println(err)
 		return fiber.ErrBadRequest

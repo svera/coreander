@@ -226,7 +226,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	data = url.Values{
-		"uuid": {testUser.Uuid},
+		"id": {testUser.Uuid},
 	}
 
 	t.Run("Try to delete a user without an active session", func(t *testing.T) {
@@ -264,7 +264,7 @@ func TestUserManagement(t *testing.T) {
 
 	t.Run("Try to delete the only existing admin user", func(t *testing.T) {
 		data = url.Values{
-			"uuid": {adminUser.Uuid},
+			"id": {adminUser.Uuid},
 		}
 		response, err := deleteRequest(data, adminCookie, app, "/users")
 		if response == nil {
@@ -276,7 +276,7 @@ func TestUserManagement(t *testing.T) {
 
 	t.Run("Try to delete a non existing user with an admin session", func(t *testing.T) {
 		data = url.Values{
-			"uuid": {"abcde"},
+			"id": {"abcde"},
 		}
 
 		response, err := deleteRequest(data, adminCookie, app, "/users")

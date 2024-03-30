@@ -110,6 +110,10 @@ func TestHighlights(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
+		data = url.Values{
+			"id": {"john-doe-test-epub"},
+		}
+
 		_, err = deleteRequest(data, adminCookie, app, "/document")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -148,7 +152,7 @@ func TestHighlights(t *testing.T) {
 		}
 
 		data := url.Values{
-			"uuid": {regularUser.Uuid},
+			"id": {regularUser.Uuid},
 		}
 
 		_, err = deleteRequest(data, adminCookie, app, "/users")
