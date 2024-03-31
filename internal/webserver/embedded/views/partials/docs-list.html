@@ -91,7 +91,7 @@
     {{end}} {{end}}
 </div>
 
-{{template "partials/delete-modal" .}}
+{{template "partials/delete-modal" dict "Lang" $lang "Action" "/document" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
 
 <script type="text/javascript" src="/js/delete.js"></script>
 <script type="text/javascript" src="/js/actions.js"></script>
