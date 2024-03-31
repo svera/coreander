@@ -1,15 +1,15 @@
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModal" aria-hidden="true">
+<div class="modal fade" id="delete-modal" tabindex="-1" aria-labelledby="delete-modal" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="post" action="/delete" onsubmit='remove({{t .Lang "There was an error deleting the document"}})' id="delete-form">
+            <form action="{{.Action}}" data-error-message='{{t .Lang .ModalErrorMessage}}' id="delete-form">
                 <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="deleteModalLabel">{{t .Lang "Delete document"}}</h1>
+                    <h1 class="modal-title fs-5" id="delete-modal-label">{{t .Lang .ModalHeader}}</h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-danger visually-hidden" role="alert" id="delete-document-message">
+                    <div class="alert alert-danger visually-hidden" role="alert" id="error-message-container">
                     </div>
-                    <p>{{ t .Lang "Are you sure you want to delete this document?"}}</p>
+                    <p>{{ t .Lang .ModalBody}}</p>
                     <p>{{ t .Lang "This action cannot be undone"}}</p>
                 </div>
                 <div class="modal-footer">
@@ -17,7 +17,7 @@
                         "Cancel"}}</button>
                     <button type="submit" class="btn btn-primary">{{t .Lang "Delete"}}</button>
                 </div>
-                <input type="hidden" name="slug" value="" class="slug">
+                <input type="hidden" name="id" value="" class="id">
             </form>
         </div>
     </div>

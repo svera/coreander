@@ -155,7 +155,7 @@ func TestRemoveDocument(t *testing.T) {
 			)
 
 			data := url.Values{
-				"slug": {tcase.slug},
+				"id": {tcase.slug},
 			}
 
 			cookie, err := login(app, tcase.email, tcase.password)
