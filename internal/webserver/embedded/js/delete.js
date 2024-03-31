@@ -1,5 +1,10 @@
 "use strict"
 
+// We use several conventions to be able to use the same code to delete different resources.
+// The link that initiates the action needs to have an attribute called data-id which must contain an unique identifier
+// for the resource to delete.
+// This code is designed to be used alongside partials/delete-modal.html
+
 const deleteModal = document.getElementById('delete-modal');
 const deleteForm = document.getElementById('delete-form');
 
