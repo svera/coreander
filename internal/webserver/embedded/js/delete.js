@@ -1,6 +1,6 @@
-"user strict"
+"use strict"
 
-const deleteModal = document.getElementById('deleteModal');
+const deleteModal = document.getElementById('delete-modal');
 const deleteForm = document.getElementById('delete-form');
 
 deleteModal.addEventListener('show.bs.modal', event => {
