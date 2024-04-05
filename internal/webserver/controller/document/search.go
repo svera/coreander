@@ -58,28 +58,30 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	highlights, err := d.hlRepository.Highlights(int(session.ID), page, 6)
+	docsSortedByHighlightedDate, err := d.hlRepository.Highlights(int(session.ID), page, 6)
 	if err != nil {
 		return fiber.ErrInternalServerError
 	}
 
-	docs, err := d.idx.Documents(highlights.Hits())
+	docs, err := d.idx.Documents(docsSortedByHighlightedDate.Hits())
 	if err != nil {
 		return fiber.ErrInternalServerError
 	}
 
-	docsSortedByHighlightedDate := make([]index.Document, len(docs))
-	i := 0
-	for path := range docs {
-		docsSortedByHighlightedDate[i] = docs[path]
-		docsSortedByHighlightedDate[i].Highlighted = true
-		i++
+	highlights := make([]index.Document, 0, len(docs))
+	for _, path := range docsSortedByHighlightedDate.Hits() {
+		if _, ok := docs[path]; !ok {
+			continue
+		}
+		doc := docs[path]
+		doc.Highlighted = true
+		highlights = append(highlights, doc)
 	}
 
 	return c.Render("index", fiber.Map{
 		"Count":                  count,
 		"Title":                  "Coreander",
-		"Highlights":             docsSortedByHighlightedDate,
+		"Highlights":             highlights,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),
 	}, "layout")
