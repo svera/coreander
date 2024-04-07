@@ -21,6 +21,7 @@ func TestUserManagement(t *testing.T) {
 
 	data := url.Values{
 		"name":             {"Test user"},
+		"username":         {"test"},
 		"email":            {"test@example.com"},
 		"password":         {"test"},
 		"confirm-password": {"test"},
@@ -96,6 +97,7 @@ func TestUserManagement(t *testing.T) {
 		response, err := postRequest(url.Values{}, adminCookie, app, "/en/users/new")
 		expectedErrorMessages := []string{
 			"Name cannot be empty",
+			"Username cannot be empty",
 			"Incorrect email address",
 			"Incorrect reading speed",
 			"Confirm password cannot be empty",
@@ -130,14 +132,14 @@ func TestUserManagement(t *testing.T) {
 	}
 
 	t.Run("Try to update a user without an active session", func(t *testing.T) {
-		response, err := getRequest(&http.Cookie{}, app, fmt.Sprintf("/en/users/%s/edit", testUser.Uuid))
+		response, err := getRequest(&http.Cookie{}, app, fmt.Sprintf("/en/users/%s/edit", testUser.Username))
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
 		mustReturnForbiddenAndShowLogin(response, t)
 
-		response, err = postRequest(data, &http.Cookie{}, app, fmt.Sprintf("/en/users/%s/edit", testUser.Uuid))
+		response, err = postRequest(data, &http.Cookie{}, app, fmt.Sprintf("/en/users/%s/edit", testUser.Username))
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -146,14 +148,14 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to update a user using another, non admin user session", func(t *testing.T) {
-		response, err := getRequest(testUserCookie, app, fmt.Sprintf("/en/users/%s/edit", adminUser.Uuid))
+		response, err := getRequest(testUserCookie, app, fmt.Sprintf("/en/users/%s/edit", adminUser.Username))
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
 		mustReturnStatus(response, fiber.StatusForbidden, t)
 
-		response, err = postRequest(data, testUserCookie, app, fmt.Sprintf("/en/users/%s/edit", adminUser.Uuid))
+		response, err = postRequest(data, testUserCookie, app, fmt.Sprintf("/en/users/%s/edit", adminUser.Username))
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -164,14 +166,14 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to update the user in session", func(t *testing.T) {
 		data.Set("name", "Updated test user")
 
-		response, err := getRequest(testUserCookie, app, fmt.Sprintf("/en/users/%s/edit", testUser.Uuid))
+		response, err := getRequest(testUserCookie, app, fmt.Sprintf("/en/users/%s/edit", testUser.Username))
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
 		mustReturnStatus(response, fiber.StatusOK, t)
 
-		response, err = postRequest(data, testUserCookie, app, fmt.Sprintf("/en/users/%s/edit", testUser.Uuid))
+		response, err = postRequest(data, testUserCookie, app, fmt.Sprintf("/en/users/%s/edit", testUser.Username))
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -185,14 +187,14 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to update a user with an admin session", func(t *testing.T) {
 		data.Set("name", "Updated test user by an admin")
 
-		response, err := postRequest(data, adminCookie, app, fmt.Sprintf("/en/users/%s/edit", testUser.Uuid))
+		response, err := postRequest(data, adminCookie, app, fmt.Sprintf("/en/users/%s/edit", testUser.Username))
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
 		mustReturnStatus(response, fiber.StatusOK, t)
 
-		response, err = postRequest(data, adminCookie, app, fmt.Sprintf("/en/users/%s/edit", testUser.Uuid))
+		response, err = postRequest(data, adminCookie, app, fmt.Sprintf("/en/users/%s/edit", testUser.Username))
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -210,10 +212,6 @@ func TestUserManagement(t *testing.T) {
 		}
 		mustReturnStatus(response, fiber.StatusNotFound, t)
 	})
-
-	data = url.Values{
-		"uuid": {testUser.Uuid},
-	}
 
 	t.Run("Try to update a non existing user with an admin session", func(t *testing.T) {
 		data.Set("name", "Updated test user by an admin")

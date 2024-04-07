@@ -1,14 +1,20 @@
 package user
 
 import (
+	"log"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
 // Edit renders the edit user form
 func (u *Controller) Edit(c *fiber.Ctx) error {
-	user, err := u.repository.FindByUuid(c.Params("uuid"))
+	user, err := u.repository.FindByUsername(c.Params("username"))
 	if err != nil {
+		log.Println(err.Error())
+		return fiber.ErrInternalServerError
+	}
+	if user == nil {
 		return fiber.ErrNotFound
 	}
 
@@ -17,7 +23,7 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		session = val
 	}
 
-	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
+	if session.Role != model.RoleAdmin && session.Username != c.Params("username") {
 		return fiber.ErrForbidden
 	}
 

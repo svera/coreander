@@ -21,7 +21,9 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 
 	// Use the following line to connect when the temporary code block below is removed
 	//db, err := gorm.Open(sqlite.Open(fmt.Sprintf("%s?_pragma=foreign_keys(1)", path)), &gorm.Config{})
-	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,11 +43,23 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 			log.Fatal(err)
 		}
 	}
+	addUsernames(db)
 	if res := db.Exec("PRAGMA foreign_keys(1)", nil); res.Error != nil {
 		log.Fatal(err)
 	}
 	addDefaultAdmin(db, wordsPerMinute)
 	return db
+}
+
+// addUsernames is a temporary function to fill the newly created username field
+// with the value from uuid
+func addUsernames(db *gorm.DB) {
+	var users []model.User
+	db.Find(&users, "username = ?", "")
+	for _, user := range users {
+		user.Username = user.Uuid
+		db.Save(&user)
+	}
 }
 
 func addDefaultAdmin(db *gorm.DB, wordsPerMinute float64) {
@@ -56,6 +70,7 @@ func addDefaultAdmin(db *gorm.DB, wordsPerMinute float64) {
 		user := &model.User{
 			Uuid:           uuid.NewString(),
 			Name:           "Admin",
+			Username:       "admin",
 			Email:          "admin@example.com",
 			Password:       model.Hash("admin"),
 			Role:           model.RoleAdmin,

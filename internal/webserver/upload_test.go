@@ -24,6 +24,7 @@ func TestUpload(t *testing.T) {
 
 	data := url.Values{
 		"name":             {"Test user"},
+		"username":         {"test"},
 		"email":            {"test@example.com"},
 		"password":         {"test"},
 		"confirm-password": {"test"},

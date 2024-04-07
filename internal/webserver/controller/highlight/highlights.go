@@ -1,6 +1,7 @@
 package highlight
 
 import (
+	"log"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -31,8 +32,9 @@ func (h *Controller) Highlights(c *fiber.Ctx) error {
 		h.wordsPerMinute = session.WordsPerMinute
 	}
 
-	user, err := h.usrRepository.FindByUuid(c.Params("uuid"))
+	user, err := h.usrRepository.FindByUsername(c.Params("username"))
 	if err != nil {
+		log.Println(err.Error())
 		return fiber.ErrInternalServerError
 	}
 

@@ -41,6 +41,7 @@ func setup(t *testing.T) {
 
 	regularUserData := url.Values{
 		"name":             {"Test user"},
+		"username":         {"test"},
 		"email":            {"test@example.com"},
 		"password":         {"test"},
 		"confirm-password": {"test"},
@@ -74,7 +75,7 @@ func TestHighlights(t *testing.T) {
 
 		mustReturnStatus(response, fiber.StatusOK, t)
 
-		assertHighlights(app, t, adminCookie, adminUser.Uuid, 1)
+		assertHighlights(app, t, adminCookie, adminUser.Username, 1)
 
 		response, err = highlight(adminCookie, app, strings.NewReader(data.Encode()), fiber.MethodDelete)
 		if err != nil {
@@ -83,7 +84,7 @@ func TestHighlights(t *testing.T) {
 
 		mustReturnStatus(response, fiber.StatusOK, t)
 
-		assertHighlights(app, t, adminCookie, adminUser.Uuid, 0)
+		assertHighlights(app, t, adminCookie, adminUser.Username, 0)
 	})
 
 	t.Run("Deleting a document also removes it from the highlights of all users", func(t *testing.T) {
@@ -103,7 +104,7 @@ func TestHighlights(t *testing.T) {
 
 		mustReturnStatus(response, fiber.StatusOK, t)
 
-		assertHighlights(app, t, regularUserCookie, regularUser.Uuid, 1)
+		assertHighlights(app, t, regularUserCookie, regularUser.Username, 1)
 
 		adminCookie, err = login(app, "admin@example.com", "admin")
 		if err != nil {
@@ -124,7 +125,7 @@ func TestHighlights(t *testing.T) {
 		if total != 0 {
 			t.Errorf("Expected no highlights in DB for user, got %d", total)
 		}
-		assertHighlights(app, t, adminCookie, regularUser.Uuid, 0)
+		assertHighlights(app, t, adminCookie, regularUser.Username, 0)
 	})
 
 	t.Run("Deleting a user also remove his/her highlights", func(t *testing.T) {
@@ -144,7 +145,7 @@ func TestHighlights(t *testing.T) {
 
 		mustReturnStatus(response, fiber.StatusOK, t)
 
-		assertHighlights(app, t, regularUserCookie, regularUser.Uuid, 1)
+		assertHighlights(app, t, regularUserCookie, regularUser.Username, 1)
 
 		adminCookie, err = login(app, "admin@example.com", "admin")
 		if err != nil {
@@ -165,7 +166,7 @@ func TestHighlights(t *testing.T) {
 		if total != 0 {
 			t.Errorf("Expected no highlights in DB for deleted user, got %d", total)
 		}
-		assertNoHighlights(app, t, adminCookie, regularUser.Uuid)
+		assertNoHighlights(app, t, adminCookie, regularUser.Username)
 	})
 }
 
@@ -180,8 +181,8 @@ func highlight(cookie *http.Cookie, app *fiber.App, reader *strings.Reader, meth
 	return app.Test(req)
 }
 
-func assertHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, uuid string, expectedResults int) {
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/en/highlights/%s", uuid), nil)
+func assertHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, username string, expectedResults int) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/en/highlights/%s", username), nil)
 	req.AddCookie(cookie)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
@@ -204,8 +205,8 @@ func assertHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, uuid st
 	}
 }
 
-func assertNoHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, uuid string) {
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/en/highlights/%s", uuid), nil)
+func assertNoHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, username string) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/en/highlights/%s", username), nil)
 	req.AddCookie(cookie)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())

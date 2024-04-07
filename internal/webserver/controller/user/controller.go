@@ -9,6 +9,7 @@ type usersRepository interface {
 	List(page int, resultsPerPage int) (result.Paginated[[]model.User], error)
 	Total() int64
 	FindByUuid(uuid string) (*model.User, error)
+	FindByUsername(username string) (*model.User, error)
 	Create(user *model.User) error
 	Update(user *model.User) error
 	FindByEmail(email string) (*model.User, error)

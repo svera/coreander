@@ -1,6 +1,7 @@
 package user
 
 import (
+	"log"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -9,8 +10,12 @@ import (
 
 // Update gathers information from the edit user form and updates user data
 func (u *Controller) Update(c *fiber.Ctx) error {
-	user, err := u.repository.FindByUuid(c.Params("uuid"))
+	user, err := u.repository.FindByUsername(c.Params("username"))
 	if err != nil {
+		log.Println(err.Error())
+		return fiber.ErrInternalServerError
+	}
+	if user == nil {
 		return fiber.ErrNotFound
 	}
 
@@ -19,7 +24,7 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 		session = val
 	}
 
-	if session.Role != model.RoleAdmin && session.Uuid != c.Params("uuid") {
+	if session.Role != model.RoleAdmin && session.Username != c.Params("username") {
 		return fiber.ErrForbidden
 	}
 
@@ -32,6 +37,7 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
 
 	errs := user.Validate(u.config.MinPasswordLength)
+
 	if len(errs) > 0 {
 		return c.Render("users/edit", fiber.Map{
 			"Title":             "Edit user",
@@ -61,7 +67,7 @@ func (u *Controller) updatePassword(c *fiber.Ctx, session, user model.User) erro
 	errs := user.Validate(u.config.MinPasswordLength)
 
 	// Allow admins to change password of other users without entering user's current password
-	if session.Uuid == c.Params("uuid") {
+	if session.Username == c.Params("username") {
 		user, err := u.repository.FindByEmail(user.Email)
 		if err != nil {
 			return fiber.ErrInternalServerError

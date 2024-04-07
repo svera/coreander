@@ -21,6 +21,7 @@ type IdxReaderWriter interface {
 
 type usersRepository interface {
 	FindByUuid(uuid string) (*model.User, error)
+	FindByUsername(username string) (*model.User, error)
 }
 
 type Sender interface {

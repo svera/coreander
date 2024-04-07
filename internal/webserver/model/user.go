@@ -16,6 +16,7 @@ type User struct {
 	UpdatedAt          time.Time
 	Uuid               string `gorm:"uniqueIndex"`
 	Name               string
+	Username           string `gorm:"type:text collate nocase; not null; default:''"`
 	Email              string `gorm:"uniqueIndex"`
 	SendToEmail        string
 	Password           string
@@ -36,6 +37,14 @@ func (u User) Validate(minPasswordLength int) map[string]string {
 
 	if len(u.Name) > 50 {
 		errs["name"] = "Name cannot be longer than 50 characters"
+	}
+
+	if u.Username == "" {
+		errs["username"] = "Username cannot be empty"
+	}
+
+	if len(u.Username) > 50 {
+		errs["username"] = "Username cannot be longer than 50 characters"
 	}
 
 	if u.WordsPerMinute < 1 || u.WordsPerMinute > 999 {

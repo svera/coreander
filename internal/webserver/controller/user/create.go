@@ -14,6 +14,7 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 	role, _ := strconv.Atoi(c.FormValue("role"))
 	user := model.User{
 		Name:     c.FormValue("name"),
+		Username: c.FormValue("username"),
 		Email:    c.FormValue("email"),
 		Password: c.FormValue("password"),
 		Role:     role,
@@ -24,6 +25,10 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 	errs := user.Validate(u.config.MinPasswordLength)
 	if exist, _ := u.repository.FindByEmail(c.FormValue("email")); exist != nil {
 		errs["email"] = "A user with this email address already exist"
+	}
+
+	if exist, _ := u.repository.FindByUsername(c.FormValue("username")); exist != nil {
+		errs["username"] = "A user with this username already exist"
 	}
 
 	if errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.config.MinPasswordLength, errs); len(errs) > 0 {
