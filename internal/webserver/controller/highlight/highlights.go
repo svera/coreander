@@ -40,30 +40,31 @@ func (h *Controller) Highlights(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	highlights, err := h.hlRepository.Highlights(int(user.ID), page, model.ResultsPerPage)
+	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, model.ResultsPerPage)
 	if err != nil {
 		return fiber.ErrInternalServerError
 	}
 
-	docs, err := h.idx.Documents(highlights.Hits())
+	docs, err := h.idx.Documents(docsSortedByHighlightedDate.Hits())
 	if err != nil {
 		return fiber.ErrInternalServerError
 	}
 
-	docsSortedByHighlightedDate := make([]index.Document, len(docs))
-
-	i := 0
-	for path := range docs {
-		docsSortedByHighlightedDate[i] = docs[path]
-		docsSortedByHighlightedDate[i].Highlighted = true
-		i++
+	highlights := make([]index.Document, 0, len(docs))
+	for _, path := range docsSortedByHighlightedDate.Hits() {
+		if _, ok := docs[path]; !ok {
+			continue
+		}
+		doc := docs[path]
+		doc.Highlighted = true
+		highlights = append(highlights, doc)
 	}
 
 	paginatedResults := result.NewPaginated[[]index.Document](
 		model.ResultsPerPage,
 		page,
-		highlights.TotalHits(),
-		docsSortedByHighlightedDate,
+		docsSortedByHighlightedDate.TotalHits(),
+		highlights,
 	)
 
 	return c.Render("highlights", fiber.Map{
