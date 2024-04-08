@@ -28,7 +28,7 @@ func setup(t *testing.T) {
 	db = infrastructure.Connect("file::memory:", 250)
 	appFS := loadFilesInMemoryFs([]string{"fixtures/library/metadata.epub"})
 	app = bootstrapApp(db, &infrastructure.NoEmail{}, appFS)
-	adminCookie, err = login(app, "admin@example.com", "admin")
+	adminCookie, err = login(app, "admin@example.com", "admin", t)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
@@ -49,7 +49,7 @@ func setup(t *testing.T) {
 		"words-per-minute": {"250"},
 	}
 
-	response, err := postRequest(regularUserData, adminCookie, app, "/en/users/new")
+	response, err := postRequest(regularUserData, adminCookie, app, "/en/users/new", t)
 	if response == nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
@@ -92,7 +92,7 @@ func TestHighlights(t *testing.T) {
 		regularUser := model.User{}
 		db.Where("email = ?", "test@example.com").First(&regularUser)
 
-		regularUserCookie, err := login(app, "test@example.com", "test")
+		regularUserCookie, err := login(app, "test@example.com", "test", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -106,7 +106,7 @@ func TestHighlights(t *testing.T) {
 
 		assertHighlights(app, t, regularUserCookie, regularUser.Username, 1)
 
-		adminCookie, err = login(app, "admin@example.com", "admin")
+		adminCookie, err = login(app, "admin@example.com", "admin", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -115,7 +115,7 @@ func TestHighlights(t *testing.T) {
 			"id": {"john-doe-test-epub"},
 		}
 
-		_, err = deleteRequest(data, adminCookie, app, "/document")
+		_, err = deleteRequest(data, adminCookie, app, "/document", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -133,7 +133,7 @@ func TestHighlights(t *testing.T) {
 		regularUser := model.User{}
 		db.Where("email = ?", "test@example.com").First(&regularUser)
 
-		regularUserCookie, err := login(app, "test@example.com", "test")
+		regularUserCookie, err := login(app, "test@example.com", "test", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -147,7 +147,7 @@ func TestHighlights(t *testing.T) {
 
 		assertHighlights(app, t, regularUserCookie, regularUser.Username, 1)
 
-		adminCookie, err = login(app, "admin@example.com", "admin")
+		adminCookie, err = login(app, "admin@example.com", "admin", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -156,7 +156,7 @@ func TestHighlights(t *testing.T) {
 			"id": {regularUser.Uuid},
 		}
 
-		_, err = deleteRequest(data, adminCookie, app, "/users")
+		_, err = deleteRequest(data, adminCookie, app, "/users", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}

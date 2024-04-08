@@ -114,7 +114,9 @@ func (s *SMTPMock) From() string {
 	return ""
 }
 
-func getRequest(cookie *http.Cookie, app *fiber.App, URL string) (*http.Response, error) {
+func getRequest(cookie *http.Cookie, app *fiber.App, URL string, t *testing.T) (*http.Response, error) {
+	t.Helper()
+
 	req, err := http.NewRequest(http.MethodGet, URL, nil)
 	if err != nil {
 		return nil, err
@@ -124,12 +126,15 @@ func getRequest(cookie *http.Cookie, app *fiber.App, URL string) (*http.Response
 	return app.Test(req)
 }
 
-func postRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL string) (*http.Response, error) {
-	return formRequest(http.MethodPost, data, cookie, app, URL)
+func postRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL string, t *testing.T) (*http.Response, error) {
+	t.Helper()
 
+	return formRequest(http.MethodPost, data, cookie, app, URL)
 }
 
-func deleteRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL string) (*http.Response, error) {
+func deleteRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL string, t *testing.T) (*http.Response, error) {
+	t.Helper()
+
 	return formRequest(http.MethodDelete, data, cookie, app, URL)
 }
 
@@ -145,6 +150,8 @@ func formRequest(method string, data url.Values, cookie *http.Cookie, app *fiber
 }
 
 func mustReturnForbiddenAndShowLogin(response *http.Response, t *testing.T) {
+	t.Helper()
+
 	if response.StatusCode != http.StatusForbidden {
 		t.Errorf("Expected status %d, received %d", http.StatusForbidden, response.StatusCode)
 		return

@@ -158,7 +158,7 @@ func TestRemoveDocument(t *testing.T) {
 				"id": {tcase.slug},
 			}
 
-			cookie, err := login(app, tcase.email, tcase.password)
+			cookie, err := login(app, tcase.email, tcase.password, t)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())
 			}
