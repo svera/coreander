@@ -14,51 +14,54 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	db          *gorm.DB
-	app         *fiber.App
-	adminCookie *http.Cookie
-	data        url.Values
-	adminUser   model.User
-)
-
-func setup(t *testing.T) {
-	var err error
-
-	db = infrastructure.Connect("file::memory:", 250)
-	appFS := loadFilesInMemoryFs([]string{"fixtures/library/metadata.epub"})
-	app = bootstrapApp(db, &infrastructure.NoEmail{}, appFS)
-	adminCookie, err = login(app, "admin@example.com", "admin", t)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-
-	data = url.Values{
-		"slug": {"john-doe-test-epub"},
-	}
-	adminUser = model.User{}
-	db.Where("email = ?", "admin@example.com").First(&adminUser)
-
-	regularUserData := url.Values{
-		"name":             {"Test user"},
-		"username":         {"test"},
-		"email":            {"test@example.com"},
-		"password":         {"test"},
-		"confirm-password": {"test"},
-		"role":             {fmt.Sprint(model.RoleRegular)},
-		"words-per-minute": {"250"},
-	}
-
-	response, err := postRequest(regularUserData, adminCookie, app, "/en/users/new", t)
-	if response == nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-}
-
 func TestHighlights(t *testing.T) {
+	var (
+		db          *gorm.DB
+		app         *fiber.App
+		adminCookie *http.Cookie
+		data        url.Values
+		adminUser   model.User
+	)
+
+	reset := func() {
+		var err error
+
+		db = infrastructure.Connect("file::memory:", 250)
+		appFS := loadFilesInMemoryFs([]string{"fixtures/library/metadata.epub"})
+		app = bootstrapApp(db, &infrastructure.NoEmail{}, appFS)
+		adminCookie, err = login(app, "admin@example.com", "admin", t)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		data = url.Values{
+			"slug": {"john-doe-test-epub"},
+		}
+		adminUser = model.User{}
+		db.Where("email = ?", "admin@example.com").First(&adminUser)
+
+		regularUserData := url.Values{
+			"name":             {"Test user"},
+			"username":         {"test"},
+			"email":            {"test@example.com"},
+			"password":         {"test"},
+			"confirm-password": {"test"},
+			"role":             {fmt.Sprint(model.RoleRegular)},
+			"words-per-minute": {"250"},
+		}
+
+		response, err := postRequest(regularUserData, adminCookie, app, "/en/users/new", t)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+	}
+
+	reset()
+
 	t.Run("Try to highlight a document without an active session", func(t *testing.T) {
-		setup(t)
-		response, err := highlight(&http.Cookie{}, app, strings.NewReader(data.Encode()), fiber.MethodPost)
+		t.Cleanup(reset)
+
+		response, err := highlight(&http.Cookie{}, app, strings.NewReader(data.Encode()), fiber.MethodPost, t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -67,8 +70,9 @@ func TestHighlights(t *testing.T) {
 	})
 
 	t.Run("Try to highlight and dehighlight a document with an active session", func(t *testing.T) {
-		setup(t)
-		response, err := highlight(adminCookie, app, strings.NewReader(data.Encode()), fiber.MethodPost)
+		t.Cleanup(reset)
+
+		response, err := highlight(adminCookie, app, strings.NewReader(data.Encode()), fiber.MethodPost, t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -77,7 +81,7 @@ func TestHighlights(t *testing.T) {
 
 		assertHighlights(app, t, adminCookie, adminUser.Username, 1)
 
-		response, err = highlight(adminCookie, app, strings.NewReader(data.Encode()), fiber.MethodDelete)
+		response, err = highlight(adminCookie, app, strings.NewReader(data.Encode()), fiber.MethodDelete, t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -88,7 +92,8 @@ func TestHighlights(t *testing.T) {
 	})
 
 	t.Run("Deleting a document also removes it from the highlights of all users", func(t *testing.T) {
-		setup(t)
+		t.Cleanup(reset)
+
 		regularUser := model.User{}
 		db.Where("email = ?", "test@example.com").First(&regularUser)
 
@@ -97,7 +102,7 @@ func TestHighlights(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		response, err := highlight(regularUserCookie, app, strings.NewReader(data.Encode()), fiber.MethodPost)
+		response, err := highlight(regularUserCookie, app, strings.NewReader(data.Encode()), fiber.MethodPost, t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -129,7 +134,8 @@ func TestHighlights(t *testing.T) {
 	})
 
 	t.Run("Deleting a user also remove his/her highlights", func(t *testing.T) {
-		setup(t)
+		t.Cleanup(reset)
+
 		regularUser := model.User{}
 		db.Where("email = ?", "test@example.com").First(&regularUser)
 
@@ -138,7 +144,7 @@ func TestHighlights(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		response, err := highlight(regularUserCookie, app, strings.NewReader(data.Encode()), fiber.MethodPost)
+		response, err := highlight(regularUserCookie, app, strings.NewReader(data.Encode()), fiber.MethodPost, t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -170,7 +176,8 @@ func TestHighlights(t *testing.T) {
 	})
 }
 
-func highlight(cookie *http.Cookie, app *fiber.App, reader *strings.Reader, method string) (*http.Response, error) {
+func highlight(cookie *http.Cookie, app *fiber.App, reader *strings.Reader, method string, t *testing.T) (*http.Response, error) {
+	t.Helper()
 	req, err := http.NewRequest(method, "/highlights", reader)
 	if err != nil {
 		return nil, err
@@ -182,6 +189,8 @@ func highlight(cookie *http.Cookie, app *fiber.App, reader *strings.Reader, meth
 }
 
 func assertHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, username string, expectedResults int) {
+	t.Helper()
+
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/en/highlights/%s", username), nil)
 	req.AddCookie(cookie)
 	if err != nil {
@@ -206,6 +215,8 @@ func assertHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, usernam
 }
 
 func assertNoHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, username string) {
+	t.Helper()
+
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/en/highlights/%s", username), nil)
 	req.AddCookie(cookie)
 	if err != nil {
