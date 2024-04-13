@@ -66,7 +66,11 @@ a.collapse-control.collapsed:after {
     }
     .navbar {
         --bs-bg-opacity: 1;
-        background-color: rgba(var(--bs-light-rgb), var(--bs-bg-opacity)) !important;
+        --bs-link-color: white;
+        --bs-link-hover-color: white;
+        --bs-link-color-rgb: 255, 255, 255;
+        --bs-link-hover-color-rgb: 255, 255, 255;    
+        background-color: rgba(var(--bs-dark-rgb), var(--bs-bg-opacity)) !important;
     }
 }
 

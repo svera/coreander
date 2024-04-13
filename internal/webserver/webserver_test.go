@@ -85,6 +85,27 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs) *fiber.A
 	return app
 }
 
+func loadFilesInMemoryFs(files []string) afero.Fs {
+	var (
+		contents map[string][]byte
+	)
+
+	appFS := afero.NewMemMapFs()
+
+	for _, fileName := range files {
+		file, err := os.Open(fileName)
+		if err != nil {
+			log.Fatalf("Couldn't open %s", fileName)
+		}
+		_, err = file.Read(contents[fileName])
+		if err != nil {
+			log.Fatalf("Couldn't read contents of %s", fileName)
+		}
+		afero.WriteFile(appFS, fileName, contents[fileName], 0644)
+	}
+	return appFS
+}
+
 type SMTPMock struct {
 	calledSend         bool
 	calledSendDocument bool

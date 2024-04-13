@@ -39,7 +39,7 @@
                 {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/document" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
 
                 <script type="text/javascript" src="/js/delete.js"></script>
-                <script type="text/javascript" src="/js/actions.js"></script>
+                <script type="text/javascript" src="/js/highlight.js"></script>
                 <script type="text/javascript" src="/js/cover-loader.js"></script>
             {{else}}
                 <p>{{t .Lang "You haven't highlighted any document yet."}}</p>
