@@ -43,11 +43,11 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 			log.Fatal(err)
 		}
 	}
+	addDefaultAdmin(db, wordsPerMinute)
 	addUsernames(db)
 	if res := db.Exec("PRAGMA foreign_keys(1)", nil); res.Error != nil {
 		log.Fatal(err)
 	}
-	addDefaultAdmin(db, wordsPerMinute)
 	return db
 }
 
