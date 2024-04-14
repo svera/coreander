@@ -57,7 +57,11 @@ func addUsernames(db *gorm.DB) {
 	var users []model.User
 	db.Find(&users, "username = ?", "")
 	for _, user := range users {
-		user.Username = user.Uuid
+		if user.ID == 1 {
+			user.Username = "admin"
+		} else {
+			user.Username = user.Uuid
+		}
 		db.Save(&user)
 	}
 }
