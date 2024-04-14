@@ -14,6 +14,7 @@ func (u *Controller) New(c *fiber.Ctx) error {
 		"Title":             "Add user",
 		"MinPasswordLength": u.config.MinPasswordLength,
 		"User":              user,
+		"UsernamePattern":   model.UsernamePattern,
 		"Errors":            map[string]string{},
 	}, "layout")
 }

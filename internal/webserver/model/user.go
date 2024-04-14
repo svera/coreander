@@ -2,6 +2,7 @@ package model
 
 import (
 	"net/mail"
+	"regexp"
 	"time"
 )
 
@@ -10,13 +11,15 @@ const (
 	RoleAdmin
 )
 
+const UsernamePattern = `^[A-z0-9_\-.]+$`
+
 type User struct {
 	ID                 uint `gorm:"primarykey"`
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 	Uuid               string `gorm:"uniqueIndex"`
 	Name               string
-	Username           string `gorm:"type:text collate nocase; not null; default:''"`
+	Username           string `gorm:"type:text collate nocase; not null; default:''; unique"`
 	Email              string `gorm:"uniqueIndex"`
 	SendToEmail        string
 	Password           string
@@ -43,8 +46,12 @@ func (u User) Validate(minPasswordLength int) map[string]string {
 		errs["username"] = "Username cannot be empty"
 	}
 
-	if len(u.Username) > 50 {
-		errs["username"] = "Username cannot be longer than 50 characters"
+	if len(u.Username) > 20 {
+		errs["username"] = "Username cannot be longer than 20 characters"
+	}
+
+	if match, _ := regexp.Match(UsernamePattern, []byte(u.Username)); !match {
+		errs["username"] = "Username can only have letters, numbers, _, - and ."
 	}
 
 	if u.WordsPerMinute < 1 || u.WordsPerMinute > 999 {
