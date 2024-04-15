@@ -50,7 +50,7 @@ func (u User) Validate(minPasswordLength int) map[string]string {
 		errs["username"] = "Username cannot be longer than 20 characters"
 	}
 
-	if match, _ := regexp.Match(UsernamePattern, []byte(u.Username)); !match {
+	if match, _ := regexp.Match(UsernamePattern, []byte(u.Username)); u.Username != "" && !match {
 		errs["username"] = "Username can only have letters, numbers, _, - and ."
 	}
 

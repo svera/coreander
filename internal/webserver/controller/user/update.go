@@ -24,7 +24,7 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 		session = val
 	}
 
-	if session.Role != model.RoleAdmin && session.Uuid != c.FormValue("id") {
+	if session.Role != model.RoleAdmin && user.Uuid != session.Uuid {
 		return fiber.ErrForbidden
 	}
 

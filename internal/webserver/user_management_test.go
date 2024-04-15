@@ -211,6 +211,9 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to update a user using another, non admin user session", func(t *testing.T) {
 		t.Cleanup(reset)
 
+		adminUserData := regularUserData
+		adminUserData.Set("id", adminUser.Uuid)
+
 		response, err := getRequest(regularUserCookie, app, fmt.Sprintf("/en/users/%s/edit", adminUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -218,7 +221,7 @@ func TestUserManagement(t *testing.T) {
 
 		mustReturnStatus(response, fiber.StatusForbidden, t)
 
-		response, err = postRequest(regularUserData, regularUserCookie, app, fmt.Sprintf("/en/users/%s/edit", adminUser.Username), t)
+		response, err = postRequest(adminUserData, regularUserCookie, app, fmt.Sprintf("/en/users/%s/edit", adminUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -230,6 +233,7 @@ func TestUserManagement(t *testing.T) {
 		t.Cleanup(reset)
 
 		regularUserData.Set("name", "Updated regular user")
+		regularUserData.Set("id", regularUser.Uuid)
 
 		response, err := getRequest(regularUserCookie, app, fmt.Sprintf("/en/users/%s/edit", regularUser.Username), t)
 		if response == nil {
@@ -253,6 +257,7 @@ func TestUserManagement(t *testing.T) {
 		t.Cleanup(reset)
 
 		regularUserData.Set("name", "Updated regular user by an admin")
+		regularUserData.Set("id", regularUser.Uuid)
 
 		response, err := postRequest(regularUserData, adminCookie, app, fmt.Sprintf("/en/users/%s/edit", regularUser.Username), t)
 		if response == nil {

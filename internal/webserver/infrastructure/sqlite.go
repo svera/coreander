@@ -1,14 +1,22 @@
 package infrastructure
 
 import (
+	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	"github.com/google/uuid"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 	"gorm.io/gorm"
+)
+
+var (
+	adjectives = []string{"red", "yellow", "white", "blue", "black", "brown", "green", "orange", "purple"}
+	animals    = []string{"panda", "tiger", "lion", "lynx", "bear", "cat", "dog", "koala", "parrot", "dolphin", "shark", "whale", "hawk", "monkey", "vulture", "eagle"}
 )
 
 func Connect(path string, wordsPerMinute float64) *gorm.DB {
@@ -52,15 +60,17 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 }
 
 // addUsernames is a temporary function to fill the newly created username field
-// with the value from uuid
+// with a random username
 func addUsernames(db *gorm.DB) {
 	var users []model.User
 	db.Find(&users, "username = ?", "")
+	s := rand.NewSource(time.Now().Unix())
+	r := rand.New(s)
 	for _, user := range users {
 		if user.ID == 1 {
 			user.Username = "admin"
 		} else {
-			user.Username = user.Uuid
+			user.Username = adjectives[r.Intn(len(adjectives))] + animals[r.Intn(len(animals))] + fmt.Sprintf("%d", rand.Intn(1000))
 		}
 		db.Save(&user)
 	}
