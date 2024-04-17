@@ -180,8 +180,8 @@ func TestUserManagement(t *testing.T) {
 
 		response, err := postRequest(newUserData, adminCookie, app, "/en/users/new", t)
 		expectedErrorMessages := []string{
-			"A user with this username already exist",
-			"A user with this email address already exist",
+			"A user with this username already exists",
+			"A user with this email address already exists",
 		}
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())

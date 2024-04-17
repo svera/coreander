@@ -3,6 +3,7 @@ package user
 import (
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v3/internal/webserver/model"
@@ -37,7 +38,7 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 
 func (u *Controller) updateUserData(user *model.User, c *fiber.Ctx, session model.User) error {
 	user.Name = c.FormValue("name")
-	user.Username = c.FormValue("username")
+	user.Username = strings.ToLower(c.FormValue("username"))
 	user.Email = c.FormValue("email")
 	user.SendToEmail = c.FormValue("send-to-email")
 	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
