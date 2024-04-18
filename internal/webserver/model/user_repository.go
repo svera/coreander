@@ -64,6 +64,10 @@ func (u *UserRepository) FindByEmail(email string) (*User, error) {
 	return u.find("email", email)
 }
 
+func (u *UserRepository) FindByUsername(username string) (*User, error) {
+	return u.find("username", username)
+}
+
 func (u *UserRepository) FindByRecoveryUuid(recoveryUuid string) (*User, error) {
 	return u.find("recovery_uuid", recoveryUuid)
 }

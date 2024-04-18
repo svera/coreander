@@ -1,11 +1,3 @@
-{{if .Message}}
-<div class="row mt-5">
-    <div class="alert alert-success" role="alert">
-        {{t .Lang .Message}}
-    </div>
-</div>
-{{end}}
-
 <ul class="nav nav-tabs" role="tablist">
     <li class="nav-item" role="presentation">
         <button class='nav-link {{if ne .ActiveTab "password"}}active{{end}}' id="home-tab" data-bs-toggle="tab" data-bs-target="#profile-tab-pane"
@@ -19,7 +11,7 @@
 <div class="tab-content ">
     <div class='tab-pane fade p-3 {{if ne .ActiveTab "password"}}show active{{end}}' id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab"
         tabindex="0">
-        <form method="post" action="/{{.Lang}}/users/{{.User.Uuid}}/edit">
+        <form method="post" action="/{{.Lang}}/users/{{.User.Username}}/edit">
             <div class="mb-3">
                 <label for="name" class="form-label">{{t .Lang "Name"}}</label>
                 <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="50">
@@ -29,6 +21,24 @@
                 </div>
                 {{end}}
             </div>
+            <div class="mb-3">
+                <label for="username" class="form-label">{{t .Lang "Username"}}</label>
+                <input type="text" name="username" class='form-control {{if ne (index .Errors "username") ""}}is-invalid{{end}}' id="username" required="required" value="{{.User.Username}}" maxlength="20" pattern="{{.UsernamePattern}}">
+                {{if ne (index .Errors "username") ""}}
+                <div class="invalid-feedback">
+                    {{t .Lang .Errors.username}}
+                </div>
+                {{end}}
+            </div>
+            <div class="mb-3">
+                <label for="email" class="form-label">{{t .Lang "Email"}}</label>
+                <input type="email" name="email" class='form-control {{if ne (index .Errors "email") ""}}is-invalid{{end}}' id="email" required="required" value="{{.User.Email}}" maxlength="100">
+                {{if ne (index .Errors "email") ""}}
+                <div class="invalid-feedback">
+                    {{t .Lang .Errors.email}}
+                </div>
+                {{end}}
+            </div>        
             <div class="mb-3">
                 <label for="send-to-email" class="form-label">{{t .Lang "Default send to email address"}}</label>
                 <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}" maxlength="100">
@@ -47,6 +57,7 @@
                 </div>
                 {{end}}
             </div>                
+            <input type="hidden" name="id" value="{{.User.Uuid}}">
             <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
         </form>
     </div>

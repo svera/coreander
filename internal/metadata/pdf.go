@@ -93,7 +93,7 @@ func (p PdfReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, er
 
 func decodePDF(r io.Reader) (io.Reader, error) {
 	conf := model.NewDefaultConfiguration()
-	conf.ValidationMode = model.ValidationNone
+	conf.ValidationMode = model.ValidationRelaxed
 
 	b, err := io.ReadAll(r)
 	if err != nil {

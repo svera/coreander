@@ -24,6 +24,7 @@ func TestUpload(t *testing.T) {
 
 	data := url.Values{
 		"name":             {"Test user"},
+		"username":         {"test"},
 		"email":            {"test@example.com"},
 		"password":         {"test"},
 		"confirm-password": {"test"},
@@ -31,23 +32,23 @@ func TestUpload(t *testing.T) {
 		"words-per-minute": {"250"},
 	}
 
-	adminCookie, err := login(app, "admin@example.com", "admin")
+	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
 
-	response, err := postRequest(data, adminCookie, app, "/en/users/new")
+	response, err := postRequest(data, adminCookie, app, "/en/users/new", t)
 	if response == nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
 
-	regularUserCookie, err := login(app, "test@example.com", "test")
+	regularUserCookie, err := login(app, "test@example.com", "test", t)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
 
 	t.Run("Try to access upload page without an active session", func(t *testing.T) {
-		response, err := getRequest(&http.Cookie{}, app, "/en/upload")
+		response, err := getRequest(&http.Cookie{}, app, "/en/upload", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -56,7 +57,7 @@ func TestUpload(t *testing.T) {
 	})
 
 	t.Run("Try to access upload page with a regular user session", func(t *testing.T) {
-		response, err = getRequest(regularUserCookie, app, "/en/upload")
+		response, err = getRequest(regularUserCookie, app, "/en/upload", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -85,7 +86,7 @@ func TestUpload(t *testing.T) {
 	})
 
 	t.Run("Try to access upload page with an admin active session", func(t *testing.T) {
-		response, err := getRequest(adminCookie, app, "/en/upload")
+		response, err := getRequest(adminCookie, app, "/en/upload", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}

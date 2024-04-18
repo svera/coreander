@@ -35,6 +35,7 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 		"userdata": model.User{
 			ID:             user.ID,
 			Name:           user.Name,
+			Username:       user.Username,
 			Email:          user.Email,
 			Role:           user.Role,
 			Uuid:           user.Uuid,

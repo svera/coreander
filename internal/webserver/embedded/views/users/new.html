@@ -9,6 +9,15 @@
         {{end}}
     </div>
     <div class="mb-3">
+        <label for="username" class="form-label">{{t .Lang "Username"}}</label>
+        <input type="text" name="username" class='form-control {{if ne (index .Errors "username") ""}}is-invalid{{end}}' id="username" required="required" value="{{.User.Username}}" maxlength="20" pattern="{{.UsernamePattern}}" placeholder={{t .Lang "Only letters, numbers, _, - and . allowed"}}>
+        {{if ne (index .Errors "username") ""}}
+        <div class="invalid-feedback">
+            {{t .Lang .Errors.username}}
+        </div>
+        {{end}}
+    </div>
+    <div class="mb-3">
         <label for="email" class="form-label">{{t .Lang "Email"}}</label>
         <input type="email" name="email" class='form-control {{if ne (index .Errors "email") ""}}is-invalid{{end}}' id="email" required="required" value="{{.User.Email}}" maxlength="100">
         {{if ne (index .Errors "email") ""}}

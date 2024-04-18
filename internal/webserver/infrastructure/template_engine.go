@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gofiber/template/html"
+	"github.com/gofiber/template/html/v2"
 	"golang.org/x/text/message"
 )
 

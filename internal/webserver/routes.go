@@ -56,11 +56,11 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	usersGroup.Get("/", alwaysRequireAuthentication, RequireAdmin, controllers.Users.List)
 	usersGroup.Get("/new", alwaysRequireAuthentication, RequireAdmin, controllers.Users.New)
 	usersGroup.Post("/new", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Create)
-	usersGroup.Get("/:uuid<guid>/edit", alwaysRequireAuthentication, controllers.Users.Edit)
-	usersGroup.Post("/:uuid<guid>/edit", alwaysRequireAuthentication, controllers.Users.Update)
+	usersGroup.Get("/:username/edit", alwaysRequireAuthentication, controllers.Users.Edit)
+	usersGroup.Post("/:username/edit", alwaysRequireAuthentication, controllers.Users.Update)
 	app.Delete("/users", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Delete)
 
-	langGroup.Get("/highlights/:uuid<guid>", alwaysRequireAuthentication, controllers.Highlights.Highlights)
+	langGroup.Get("/highlights/:username", alwaysRequireAuthentication, controllers.Highlights.Highlights)
 	app.Post("/highlights", alwaysRequireAuthentication, controllers.Highlights.Highlight)
 	app.Delete("/highlights", alwaysRequireAuthentication, controllers.Highlights.Remove)
 
