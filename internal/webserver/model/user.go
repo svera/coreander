@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// User roles identifiers
 const (
 	RoleRegular = iota + 1
 	RoleAdmin
@@ -17,13 +18,13 @@ type User struct {
 	ID                 uint `gorm:"primarykey"`
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
-	Uuid               string `gorm:"uniqueIndex"`
-	Name               string
+	Uuid               string `gorm:"uniqueIndex; not null"`
+	Name               string `gorm:"not null"`
 	Username           string `gorm:"type:text collate nocase; not null; default:''; unique"`
-	Email              string `gorm:"uniqueIndex"`
+	Email              string `gorm:"uniqueIndex; not null"`
 	SendToEmail        string
 	Password           string
-	Role               int
+	Role               int `gorm:"not null"`
 	WordsPerMinute     float64
 	RecoveryUUID       string
 	RecoveryValidUntil time.Time
