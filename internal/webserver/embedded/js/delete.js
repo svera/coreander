@@ -38,7 +38,7 @@ deleteForm.addEventListener('submit', event => {
         if (response.ok) {
             location.reload();
         } else {
-            let message = document.getElementById("error-message-container")
+            let message = document.getElementById("error-message-container");
             message.classList.remove("visually-hidden");
             message.innerHTML = deleteForm.getAttribute("data-error-message");
         }

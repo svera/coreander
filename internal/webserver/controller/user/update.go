@@ -52,7 +52,7 @@ func (u *Controller) updateUserData(user *model.User, c *fiber.Ctx, session mode
 	}
 
 	if exists {
-		errs["username"] = "Another user has already registered with that username"
+		errs["username"] = "A user with this username already exists"
 	}
 
 	exists, err = u.emailExists(c, session)
@@ -62,7 +62,7 @@ func (u *Controller) updateUserData(user *model.User, c *fiber.Ctx, session mode
 	}
 
 	if exists {
-		errs["email"] = "Another user has already registered with that email address"
+		errs["email"] = "A user with this email address already exists"
 	}
 
 	if len(errs) > 0 {
