@@ -1,4 +1,4 @@
-package jwtclaimsreader
+package webserver
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -6,7 +6,7 @@ import (
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
-func SessionData(c *fiber.Ctx) model.User {
+func sessionData(c *fiber.Ctx) model.User {
 	var user model.User
 	if t, ok := c.Locals("user").(*jwt.Token); ok {
 		claims := t.Claims.(jwt.MapClaims)

@@ -7,7 +7,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	jwtware "github.com/gofiber/jwt/v3"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
@@ -79,7 +78,7 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender) func(*fiber.Ct
 		SigningMethod: "HS256",
 		TokenLookup:   "cookie:coreander",
 		SuccessHandler: func(c *fiber.Ctx) error {
-			c.Locals("Session", jwtclaimsreader.SessionData(c))
+			c.Locals("Session", sessionData(c))
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -95,7 +94,7 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, requireAuth boo
 		SigningMethod: "HS256",
 		TokenLookup:   "cookie:coreander",
 		SuccessHandler: func(c *fiber.Ctx) error {
-			c.Locals("Session", jwtclaimsreader.SessionData(c))
+			c.Locals("Session", sessionData(c))
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {

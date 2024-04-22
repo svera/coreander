@@ -16,7 +16,6 @@ import (
 	"github.com/svera/coreander/v3/internal/i18n"
 	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
 	"golang.org/x/exp/slices"
 	"golang.org/x/text/message"
 )
@@ -182,7 +181,6 @@ func errorHandler(c *fiber.Ctx, err error) error {
 		fiber.Map{
 			"Lang":    chooseBestLanguage(c),
 			"Title":   "Coreander",
-			"Session": jwtclaimsreader.SessionData(c),
 			"Version": c.App().Config().AppName,
 		},
 		"layout")
