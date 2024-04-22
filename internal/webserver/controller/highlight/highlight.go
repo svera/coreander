@@ -2,16 +2,11 @@ package highlight
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/jwtclaimsreader"
+	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
 func (h *Controller) Highlight(c *fiber.Ctx) error {
-	session := jwtclaimsreader.SessionData(c)
-
-	user, err := h.usrRepository.FindByUuid(session.Uuid)
-	if err != nil {
-		return fiber.ErrBadRequest
-	}
+	user := c.Locals("Session").(model.User)
 
 	document, err := h.idx.Document(c.FormValue("slug"))
 	if err != nil {
