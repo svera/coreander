@@ -1,6 +1,8 @@
 package user
 
 import (
+	"time"
+
 	"github.com/svera/coreander/v3/internal/result"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
@@ -20,6 +22,8 @@ type usersRepository interface {
 type Config struct {
 	MinPasswordLength int
 	WordsPerMinute    float64
+	SessionTimeout    time.Duration
+	Secret            []byte
 }
 
 type Controller struct {
