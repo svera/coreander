@@ -4,6 +4,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v3/internal/webserver/controller/auth"
@@ -21,8 +22,8 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	var session model.User
-	if val, ok := c.Locals("Session").(model.User); ok {
+	var session model.Session
+	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
 	}
 
@@ -31,13 +32,13 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 	}
 
 	if c.FormValue("password-tab") == "true" {
-		return u.updateUserPassword(c, session, *user)
+		return u.updateUserPassword(c, *user, session)
 	}
 
 	return u.updateUserData(c, user, session)
 }
 
-func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session model.User) error {
+func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session model.Session) error {
 	user.Name = c.FormValue("name")
 	user.Username = strings.ToLower(c.FormValue("username"))
 	user.Email = c.FormValue("email")
@@ -64,10 +65,20 @@ func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session mode
 	}
 
 	if session.Uuid == user.Uuid {
-		err = auth.PersistAsCookie(c, user, u.config.SessionTimeout, u.config.Secret)
+		expiration := time.Unix(int64(session.Exp), 0)
+		signedToken, err := auth.GenerateToken(c, user, expiration, u.config.Secret)
 		if err != nil {
 			return fiber.ErrInternalServerError
 		}
+
+		c.Cookie(&fiber.Cookie{
+			Name:     "coreander",
+			Value:    signedToken,
+			Path:     "/",
+			Expires:  expiration,
+			Secure:   false,
+			HTTPOnly: true,
+		})
 		c.Locals("Session", user)
 	}
 
@@ -81,7 +92,7 @@ func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session mode
 	}, "layout")
 }
 
-func (u *Controller) validate(c *fiber.Ctx, user *model.User, session model.User) (map[string]string, error) {
+func (u *Controller) validate(c *fiber.Ctx, user *model.User, session model.Session) (map[string]string, error) {
 	errs := user.Validate(u.config.MinPasswordLength)
 
 	exists, err := u.usernameExists(c, session)
@@ -106,7 +117,7 @@ func (u *Controller) validate(c *fiber.Ctx, user *model.User, session model.User
 	return errs, nil
 }
 
-func (u *Controller) usernameExists(c *fiber.Ctx, session model.User) (bool, error) {
+func (u *Controller) usernameExists(c *fiber.Ctx, session model.Session) (bool, error) {
 	user, err := u.repository.FindByUsername(c.FormValue("username"))
 	if err != nil {
 		return true, fiber.ErrInternalServerError
@@ -120,7 +131,7 @@ func (u *Controller) usernameExists(c *fiber.Ctx, session model.User) (bool, err
 	return false, nil
 }
 
-func (u *Controller) emailExists(c *fiber.Ctx, session model.User) (bool, error) {
+func (u *Controller) emailExists(c *fiber.Ctx, session model.Session) (bool, error) {
 	user, err := u.repository.FindByEmail(c.FormValue("email"))
 	if err != nil {
 		return true, fiber.ErrInternalServerError
@@ -135,7 +146,7 @@ func (u *Controller) emailExists(c *fiber.Ctx, session model.User) (bool, error)
 }
 
 // updateUserPassword gathers information from the edit user form and updates user password
-func (u *Controller) updateUserPassword(c *fiber.Ctx, session, user model.User) error {
+func (u *Controller) updateUserPassword(c *fiber.Ctx, user model.User, session model.Session) error {
 	user.Password = c.FormValue("password")
 
 	errs := user.Validate(u.config.MinPasswordLength)

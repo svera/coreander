@@ -6,36 +6,39 @@ import (
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
-func sessionData(c *fiber.Ctx) model.User {
-	var user model.User
+func sessionData(c *fiber.Ctx) model.Session {
+	var session model.Session
+
 	if t, ok := c.Locals("user").(*jwt.Token); ok {
 		claims := t.Claims.(jwt.MapClaims)
 		userDataMap := claims["userdata"].(map[string]interface{})
 		if value, ok := userDataMap["ID"].(float64); ok {
-			user.ID = uint(value)
+			session.ID = uint(value)
 		}
 		if value, ok := userDataMap["Name"].(string); ok {
-			user.Name = value
+			session.Name = value
 		}
 		if value, ok := userDataMap["Username"].(string); ok {
-			user.Username = value
+			session.Username = value
 		}
 		if value, ok := userDataMap["Email"].(string); ok {
-			user.Email = value
+			session.Email = value
 		}
 		if value, ok := userDataMap["Role"].(float64); ok {
-			user.Role = int(value)
+			session.Role = int(value)
 		}
 		if value, ok := userDataMap["Uuid"].(string); ok {
-			user.Uuid = value
+			session.Uuid = value
 		}
 		if value, ok := userDataMap["SendToEmail"].(string); ok {
-			user.SendToEmail = value
+			session.SendToEmail = value
 		}
 		if value, ok := userDataMap["WordsPerMinute"].(float64); ok {
-			user.WordsPerMinute = value
+			session.WordsPerMinute = value
 		}
+
+		session.Exp = claims["exp"].(float64)
 	}
 
-	return user
+	return session
 }

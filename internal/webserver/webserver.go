@@ -176,6 +176,7 @@ func errorHandler(c *fiber.Ctx, err error) error {
 		code = e.Code
 	}
 
+	session, _ := c.Locals("Session").(model.Session)
 	// Send custom error page
 	err = c.Status(code).Render(
 		fmt.Sprintf("errors/%d", code),
@@ -183,7 +184,7 @@ func errorHandler(c *fiber.Ctx, err error) error {
 			"Lang":    chooseBestLanguage(c),
 			"Title":   "Coreander",
 			"Version": c.App().Config().AppName,
-			"Session": c.Locals("Session").(model.User),
+			"Session": session,
 		},
 		"layout")
 
