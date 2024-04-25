@@ -16,6 +16,7 @@ import (
 	"github.com/svera/coreander/v3/internal/i18n"
 	"github.com/svera/coreander/v3/internal/index"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v3/internal/webserver/model"
 	"golang.org/x/exp/slices"
 	"golang.org/x/text/message"
 )
@@ -175,6 +176,7 @@ func errorHandler(c *fiber.Ctx, err error) error {
 		code = e.Code
 	}
 
+	session, _ := c.Locals("Session").(model.Session)
 	// Send custom error page
 	err = c.Status(code).Render(
 		fmt.Sprintf("errors/%d", code),
@@ -182,6 +184,7 @@ func errorHandler(c *fiber.Ctx, err error) error {
 			"Lang":    chooseBestLanguage(c),
 			"Title":   "Coreander",
 			"Version": c.App().Config().AppName,
+			"Session": session,
 		},
 		"layout")
 

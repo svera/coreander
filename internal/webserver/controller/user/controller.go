@@ -20,6 +20,7 @@ type usersRepository interface {
 type Config struct {
 	MinPasswordLength int
 	WordsPerMinute    float64
+	Secret            []byte
 }
 
 type Controller struct {

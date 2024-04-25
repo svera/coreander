@@ -22,8 +22,8 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	var session model.User
-	if val, ok := c.Locals("Session").(model.User); ok {
+	var session model.Session
+	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
 	}
 

@@ -17,8 +17,8 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		emailSendingConfigured = false
 	}
 
-	var session model.User
-	if val, ok := c.Locals("Session").(model.User); ok {
+	var session model.Session
+	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
 	}
 

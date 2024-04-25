@@ -6,7 +6,7 @@ import (
 )
 
 func (h *Controller) Highlight(c *fiber.Ctx) error {
-	user := c.Locals("Session").(model.User)
+	user := c.Locals("Session").(model.Session)
 
 	document, err := h.idx.Document(c.FormValue("slug"))
 	if err != nil {

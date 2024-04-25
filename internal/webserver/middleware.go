@@ -17,7 +17,7 @@ func RequireAdmin(c *fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
-	session := c.Locals("Session").(model.User)
+	session := c.Locals("Session").(model.Session)
 
 	if session.Role != model.RoleAdmin {
 		return fiber.ErrForbidden

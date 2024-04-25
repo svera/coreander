@@ -31,6 +31,30 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 	}
 
 	// Send back JWT as a cookie.
+	expiration := time.Now().Add(a.config.SessionTimeout)
+	signedToken, err := GenerateToken(c, user, expiration, a.config.Secret)
+	if err != nil {
+		return fiber.ErrInternalServerError
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "coreander",
+		Value:    signedToken,
+		Path:     "/",
+		Expires:  expiration,
+		Secure:   false,
+		HTTPOnly: true,
+	})
+
+	referer := string(c.Context().Referer())
+	if referer != "" && !strings.HasSuffix(referer, "login") {
+		return c.Redirect(referer)
+	}
+
+	return c.Redirect(fmt.Sprintf("/%s", c.Params("lang")))
+}
+
+func GenerateToken(c *fiber.Ctx, user *model.User, expiration time.Time, secret []byte) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userdata": model.User{
 			ID:             user.ID,
@@ -42,27 +66,9 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 			SendToEmail:    user.SendToEmail,
 			WordsPerMinute: user.WordsPerMinute,
 		},
-		"exp": jwt.NewNumericDate(time.Now().Add(a.config.SessionTimeout)),
+		"exp": jwt.NewNumericDate(expiration),
 	},
 	)
 
-	signedToken, err := token.SignedString(a.config.Secret)
-	if err != nil {
-		return fiber.ErrInternalServerError
-	}
-	c.Cookie(&fiber.Cookie{
-		Name:     "coreander",
-		Value:    signedToken,
-		Path:     "/",
-		Expires:  time.Now().Add(a.config.SessionTimeout),
-		Secure:   false,
-		HTTPOnly: true,
-	})
-
-	referer := string(c.Context().Referer())
-	if referer != "" && !strings.HasSuffix(referer, "login") {
-		return c.Redirect(referer)
-	}
-
-	return c.Redirect(fmt.Sprintf("/%s", c.Params("lang")))
+	return token.SignedString(secret)
 }

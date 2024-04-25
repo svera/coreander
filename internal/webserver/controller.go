@@ -34,6 +34,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 	usersCfg := user.Config{
 		MinPasswordLength: cfg.MinPasswordLength,
 		WordsPerMinute:    cfg.WordsPerMinute,
+		Secret:            cfg.JwtSecret,
 	}
 
 	documentsCfg := document.Config{
