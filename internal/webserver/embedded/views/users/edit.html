@@ -63,7 +63,7 @@
     </div>
     <div class='tab-pane fade p-3 {{if eq .ActiveTab "password"}}show active{{end}}' id="password-tab-pane" role="tabpanel" aria-labelledby="password-tab"
         tabindex="0">
-        <form method="post" action="/{{.Lang}}/users/{{.User.Uuid}}/edit">
+        <form method="post" action="/{{.Lang}}/users/{{.User.Username}}/edit">
             {{if eq .Session.Uuid .User.Uuid}}
             <div class="mb-3">
                 <label for="old-password" class="form-label">{{t .Lang "Current password"}}</label>
@@ -98,6 +98,7 @@
             </div>
 
             <input type="hidden" name="password-tab" value="true">
+            <input type="hidden" name="id" value="{{.User.Uuid}}">
             <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
         </form>
     </div>
