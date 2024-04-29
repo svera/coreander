@@ -43,6 +43,7 @@ type Config struct {
 	WordsPerMinute        float64
 	JwtSecret             []byte
 	Hostname              string
+	FQDN                  string
 	Port                  int
 	HomeDir               string
 	LibraryPath           string
@@ -156,15 +157,6 @@ func chooseBestLanguage(c *fiber.Ctx) string {
 	}
 
 	return lang
-}
-
-func urlPort(protocol string, port int) string {
-	urlPort := fmt.Sprintf(":%d", port)
-	if (port == defaultHttpPort && protocol == "http") ||
-		(port == defaultHttpsPort && protocol == "https") {
-		urlPort = ""
-	}
-	return urlPort
 }
 
 func errorHandler(c *fiber.Ctx, err error) error {

@@ -83,12 +83,18 @@ func main() {
 		WordsPerMinute:        cfg.WordsPerMinute,
 		JwtSecret:             cfg.JwtSecret,
 		Hostname:              cfg.Hostname,
+		FQDN:                  cfg.FQDN,
 		Port:                  cfg.Port,
 		HomeDir:               homeDir,
 		LibraryPath:           cfg.LibPath,
 		CoverMaxWidth:         cfg.CoverMaxWidth,
 		RequireAuth:           cfg.RequireAuth,
 		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
+	}
+
+	// Hack for keeping backward compatibility, remove when complete
+	if webserverConfig.FQDN == "localhost" && webserverConfig.Hostname != "localhost" {
+		webserverConfig.FQDN = webserverConfig.Hostname
 	}
 
 	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", cfg.SessionTimeout))

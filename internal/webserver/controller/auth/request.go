@@ -22,7 +22,12 @@ func (a *Controller) Request(c *fiber.Ctx) error {
 		}, "layout")
 	}
 
-	if user, err := a.repository.FindByEmail(c.FormValue("email")); err == nil {
+	user, err := a.repository.FindByEmail(c.FormValue("email"))
+	if err != nil {
+		return fiber.ErrInternalServerError
+	}
+
+	if user != nil {
 		user.RecoveryUUID = uuid.NewString()
 		user.RecoveryValidUntil = time.Now().Add(a.config.SessionTimeout)
 		if err := a.repository.Update(user); err != nil {
