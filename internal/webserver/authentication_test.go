@@ -186,7 +186,7 @@ func TestRecover(t *testing.T) {
 		}
 
 		if smtpMock.calledSend {
-			t.Error("Email service 'send' method  called")
+			t.Error("Email service 'send' method called")
 		}
 	})
 
