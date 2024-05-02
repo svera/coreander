@@ -109,8 +109,8 @@ func main() {
 
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
 	app := webserver.New(webserverConfig, controllers, sender, idx)
-	if strings.ToLower(cfg.Hostname) == "localhost" {
-		fmt.Printf("Warning: using \"localhost\" as host name. Links using this host name won't be accesible outside this system.\n")
+	if strings.ToLower(cfg.FQDN) == "localhost" {
+		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accesible outside this system.\n")
 	}
 	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))
