@@ -20,7 +20,7 @@ import (
 func TestUpload(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	appFS := loadDirInMemoryFs("fixtures/library")
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS)
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS, nil)
 
 	data := url.Values{
 		"name":             {"Test user"},
@@ -208,7 +208,7 @@ func TestUpload(t *testing.T) {
 	// Due to a limitation in how pirmd/epub handles opening epub files, we need to use
 	// a real filesystem instead Afero's in-memory implementation
 	t.Run("Returns 302 for correct document", func(t *testing.T) {
-		app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewOsFs())
+		app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewOsFs(), nil)
 		var buf bytes.Buffer
 		multipartWriter := multipart.NewWriter(&buf)
 

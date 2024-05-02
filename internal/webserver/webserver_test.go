@@ -1,6 +1,7 @@
 package webserver_test
 
 import (
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -36,7 +37,7 @@ func TestGET(t *testing.T) {
 	}
 
 	db := infrastructure.Connect("file::memory:", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs())
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), nil)
 
 	for _, tcase := range cases {
 		t.Run(tcase.name, func(t *testing.T) {
@@ -53,7 +54,7 @@ func TestGET(t *testing.T) {
 	}
 }
 
-func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs) *fiber.App {
+func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig *webserver.Config) *fiber.App {
 	var (
 		idx *index.BleveIndexer
 	)
@@ -63,11 +64,13 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs) *fiber.A
 		".pdf":  metadata.PdfReader{},
 	}
 
-	webserverConfig := webserver.Config{
-		CoverMaxWidth:         600,
-		SessionTimeout:        24 * time.Hour,
-		LibraryPath:           "fixtures/library",
-		UploadDocumentMaxSize: 1,
+	if webserverConfig == nil {
+		webserverConfig = &webserver.Config{
+			SessionTimeout:        24 * time.Hour,
+			RecoveryTimeout:       2 * time.Hour,
+			LibraryPath:           "fixtures/library",
+			UploadDocumentMaxSize: 1,
+		}
 	}
 
 	indexFile, err := bleve.NewMemOnly(index.CreateMapping())
@@ -79,9 +82,9 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs) *fiber.A
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
-	app := webserver.New(webserverConfig, controllers, sender, idx)
+	fmt.Println(*&webserverConfig.RecoveryTimeout)
+	controllers := webserver.SetupControllers(*webserverConfig, db, metadataReaders, idx, sender, appFs)
+	app := webserver.New(*webserverConfig, controllers, sender, idx)
 	return app
 }
 

@@ -30,7 +30,7 @@ func TestUserManagement(t *testing.T) {
 	reset := func() {
 		var err error
 		db = infrastructure.Connect("file::memory:", 250)
-		app = bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs())
+		app = bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), nil)
 
 		adminUser = model.User{}
 		db.Where("email = ?", "admin@example.com").First(&adminUser)

@@ -14,7 +14,7 @@ func TestSearch(t *testing.T) {
 	smtpMock := &SMTPMock{}
 	appFS := loadDirInMemoryFs("fixtures/library")
 
-	app := bootstrapApp(db, smtpMock, appFS)
+	app := bootstrapApp(db, smtpMock, appFS, nil)
 
 	var cases = []struct {
 		name            string

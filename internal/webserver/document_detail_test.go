@@ -11,7 +11,7 @@ import (
 func TestDocumentAndRead(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	smtpMock := &SMTPMock{}
-	app := bootstrapApp(db, smtpMock, afero.NewOsFs())
+	app := bootstrapApp(db, smtpMock, afero.NewOsFs(), nil)
 
 	var cases = []struct {
 		url            string

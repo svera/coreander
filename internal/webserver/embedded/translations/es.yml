@@ -123,3 +123,4 @@
 "A user with this email address already exists": "Ya existe un usuario con esa dirección de correo electrónico"
 "Username can only have letters, numbers, _, - and .": "El nombre de usuario solo puede contener letras, números. _, - y ."
 "Only letters, numbers, _, - and . allowed": "Solo se permiten letras, números, _, - y ."
+"The recovery link will expire after %s hours.": "El enlace de recuperación caducará a las %s horas."

@@ -31,14 +31,10 @@ var (
 	supportedLanguages []string
 )
 
-const (
-	defaultHttpPort  = 80
-	defaultHttpsPort = 443
-)
-
 type Config struct {
 	Version               string
 	SessionTimeout        time.Duration
+	RecoveryTimeout       time.Duration
 	MinPasswordLength     int
 	WordsPerMinute        float64
 	JwtSecret             []byte

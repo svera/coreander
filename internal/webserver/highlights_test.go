@@ -28,7 +28,7 @@ func TestHighlights(t *testing.T) {
 
 		db = infrastructure.Connect("file::memory:", 250)
 		appFS := loadFilesInMemoryFs([]string{"fixtures/library/metadata.epub"})
-		app = bootstrapApp(db, &infrastructure.NoEmail{}, appFS)
+		app = bootstrapApp(db, &infrastructure.NoEmail{}, appFS, nil)
 		adminCookie, err = login(app, "admin@example.com", "admin", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())

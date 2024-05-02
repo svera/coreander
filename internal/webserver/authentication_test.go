@@ -1,15 +1,18 @@
 package webserver_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v3/internal/webserver"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 	"gorm.io/gorm"
@@ -17,7 +20,7 @@ import (
 
 func TestAuthentication(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
-	app := bootstrapApp(db, &infrastructure.SMTP{}, afero.NewMemMapFs())
+	app := bootstrapApp(db, &infrastructure.SMTP{}, afero.NewMemMapFs(), nil)
 
 	data := url.Values{
 		"email":    {"admin@example.com"},
@@ -80,7 +83,7 @@ func TestAuthentication(t *testing.T) {
 
 func TestRecoverNoEmailService(t *testing.T) {
 	db := infrastructure.Connect("file::memory:?cache=shared", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs())
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), nil)
 
 	req, err := http.NewRequest(http.MethodGet, "/en/recover", nil)
 	if err != nil {
@@ -103,20 +106,26 @@ func TestRecover(t *testing.T) {
 		smtpMock *SMTPMock
 	)
 
-	reset := func() {
+	reset := func(recoveryTimeout time.Duration) {
+		t.Helper()
+
+		webserverConfig := &webserver.Config{
+			SessionTimeout:        24 * time.Hour,
+			RecoveryTimeout:       recoveryTimeout,
+			LibraryPath:           "fixtures/library",
+			UploadDocumentMaxSize: 1,
+		}
 		db = infrastructure.Connect("file::memory:?cache=shared", 250)
 		smtpMock = &SMTPMock{}
-		app = bootstrapApp(db, smtpMock, afero.NewMemMapFs())
+		app = bootstrapApp(db, smtpMock, afero.NewMemMapFs(), webserverConfig)
 
 		data = url.Values{
 			"email": {"admin@example.com"},
 		}
 	}
 
-	reset()
-
 	t.Run("Check that recover page is accessible", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset(2 * time.Hour)
 
 		req, err := http.NewRequest(http.MethodGet, "/en/recover", nil)
 		if err != nil {
@@ -132,7 +141,7 @@ func TestRecover(t *testing.T) {
 	})
 
 	t.Run("Check that not posting an email returns an error", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset(2 * time.Hour)
 
 		req, err := http.NewRequest(http.MethodPost, "/en/recover", nil)
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -165,7 +174,7 @@ func TestRecover(t *testing.T) {
 	})
 
 	t.Run("Check that posting a non-existing email does not send an email", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset(2 * time.Hour)
 
 		data = url.Values{
 			"email": {"unknown@example.com"},
@@ -191,7 +200,7 @@ func TestRecover(t *testing.T) {
 	})
 
 	t.Run("Try to access the update password without the recovery ID", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset(2 * time.Hour)
 
 		req, err := http.NewRequest(http.MethodGet, "/en/reset-password", nil)
 		if err != nil {
@@ -207,7 +216,7 @@ func TestRecover(t *testing.T) {
 	})
 
 	t.Run("Check that posting an existing email sends a recovery email and resetting the password successfully redirects to the login page", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset(2 * time.Hour)
 
 		req, err := http.NewRequest(http.MethodPost, "/en/recover", strings.NewReader(data.Encode()))
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -278,6 +287,65 @@ func TestRecover(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
+		if expectedStatus := http.StatusBadRequest; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		}
+	})
+
+	t.Run("Check that using a timed out link returns an error", func(t *testing.T) {
+		reset(0 * time.Hour)
+
+		req, err := http.NewRequest(http.MethodPost, "/en/recover", strings.NewReader(data.Encode()))
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		smtpMock.wg.Add(1)
+		response, err := app.Test(req)
+		smtpMock.wg.Wait()
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		}
+
+		// trying to access the reset password page using a time out ID returns an error
+		adminUser := model.User{}
+		db.Where("email = ?", "admin@example.com").First(&adminUser)
+
+		req, err = http.NewRequest(http.MethodGet, fmt.Sprintf("/en/reset-password?id=%s", adminUser.RecoveryUUID), nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		response, err = app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		if expectedStatus := http.StatusBadRequest; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		}
+
+		// trying to reset the password using a time out ID returns an error
+		data = url.Values{
+			"password":         {"newPass"},
+			"confirm-password": {"newPass"},
+			"id":               {adminUser.RecoveryUUID},
+		}
+
+		req, err = http.NewRequest(http.MethodPost, "/en/reset-password", strings.NewReader(data.Encode()))
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		response, err = app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
 		if expectedStatus := http.StatusBadRequest; response.StatusCode != expectedStatus {
 			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 		}

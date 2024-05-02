@@ -17,7 +17,7 @@ func TestRemoveDocument(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	smtpMock := &SMTPMock{}
 	appFS := loadDirInMemoryFs("fixtures/library")
-	app := bootstrapApp(db, smtpMock, appFS)
+	app := bootstrapApp(db, smtpMock, appFS, nil)
 
 	assertSearchResults(app, t, "john+doe", 4)
 

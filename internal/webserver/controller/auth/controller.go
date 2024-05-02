@@ -30,6 +30,7 @@ type Config struct {
 	Hostname          string
 	Port              int
 	SessionTimeout    time.Duration
+	RecoveryTimeout   time.Duration
 }
 
 func NewController(repository authRepository, sender recoveryEmail, cfg Config, printers map[string]*message.Printer) *Controller {

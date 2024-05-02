@@ -102,6 +102,11 @@ func main() {
 		log.Fatal(fmt.Errorf("wrong value for session timeout"))
 	}
 
+	webserverConfig.RecoveryTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", cfg.RecoveryTimeout))
+	if err != nil {
+		log.Fatal(fmt.Errorf("wrong value for recovery timeout"))
+	}
+
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
 	app := webserver.New(webserverConfig, controllers, sender, idx)
 	if strings.ToLower(cfg.Hostname) == "localhost" {
