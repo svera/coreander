@@ -1,7 +1,6 @@
 package webserver_test
 
 import (
-	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -82,10 +81,8 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(*&webserverConfig.RecoveryTimeout)
 	controllers := webserver.SetupControllers(*webserverConfig, db, metadataReaders, idx, sender, appFs)
-	app := webserver.New(*webserverConfig, controllers, sender, idx)
-	return app
+	return webserver.New(*webserverConfig, controllers, sender, idx)
 }
 
 func loadFilesInMemoryFs(files []string) afero.Fs {
