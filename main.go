@@ -94,6 +94,7 @@ func main() {
 
 	// Hack for keeping backward compatibility, remove when complete
 	if webserverConfig.FQDN == "localhost" && webserverConfig.Hostname != "localhost" {
+		fmt.Println("Warning: using deprecated environment variable 'HOSTNAME`, use 'FQDN' instead.")
 		webserverConfig.FQDN = webserverConfig.Hostname
 	}
 
