@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -36,7 +36,7 @@ func TestGET(t *testing.T) {
 	}
 
 	db := infrastructure.Connect("file::memory:", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), nil)
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
 
 	for _, tcase := range cases {
 		t.Run(tcase.name, func(t *testing.T) {
@@ -53,7 +53,7 @@ func TestGET(t *testing.T) {
 	}
 }
 
-func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig *webserver.Config) *fiber.App {
+func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig webserver.Config) *fiber.App {
 	var (
 		idx *index.BleveIndexer
 	)
@@ -63,8 +63,8 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 		".pdf":  metadata.PdfReader{},
 	}
 
-	if webserverConfig == nil {
-		webserverConfig = &webserver.Config{
+	if reflect.ValueOf(webserverConfig).IsZero() {
+		webserverConfig = webserver.Config{
 			SessionTimeout:        24 * time.Hour,
 			RecoveryTimeout:       2 * time.Hour,
 			LibraryPath:           "fixtures/library",
@@ -81,8 +81,8 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 	if err != nil {
 		log.Fatal(err)
 	}
-	controllers := webserver.SetupControllers(*webserverConfig, db, metadataReaders, idx, sender, appFs)
-	return webserver.New(*webserverConfig, controllers, sender, idx)
+	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
+	return webserver.New(webserverConfig, controllers, sender, idx)
 }
 
 func loadFilesInMemoryFs(files []string) afero.Fs {
@@ -104,35 +104,6 @@ func loadFilesInMemoryFs(files []string) afero.Fs {
 		afero.WriteFile(appFS, fileName, contents[fileName], 0644)
 	}
 	return appFS
-}
-
-type SMTPMock struct {
-	calledSend         bool
-	calledSendDocument bool
-	mu                 sync.Mutex
-	wg                 sync.WaitGroup
-}
-
-func (s *SMTPMock) Send(address, subject, body string) error {
-	defer s.wg.Done()
-
-	s.mu.Lock()
-	s.calledSend = true
-	s.mu.Unlock()
-	return nil
-}
-
-func (s *SMTPMock) SendDocument(address string, libraryPath string, fileName string) error {
-	defer s.wg.Done()
-
-	s.mu.Lock()
-	s.calledSendDocument = true
-	s.mu.Unlock()
-	return nil
-}
-
-func (s *SMTPMock) From() string {
-	return ""
 }
 
 func getRequest(cookie *http.Cookie, app *fiber.App, URL string, t *testing.T) (*http.Response, error) {

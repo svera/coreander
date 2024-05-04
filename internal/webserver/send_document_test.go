@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v3/internal/webserver"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 )
 
 func TestSendDocument(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
-	smtpMock := &SMTPMock{}
-	app := bootstrapApp(db, smtpMock, afero.NewOsFs(), nil)
+	smtpMock := &infrastructure.SMTPMock{}
+	app := bootstrapApp(db, smtpMock, afero.NewOsFs(), webserver.Config{})
 
 	var cases = []struct {
 		name               string
@@ -46,9 +47,9 @@ func TestSendDocument(t *testing.T) {
 			}
 
 			if tcase.expectedHTTPStatus == http.StatusOK {
-				smtpMock.wg.Add(1)
+				smtpMock.Wg.Add(1)
 				response, err = app.Test(req)
-				smtpMock.wg.Wait()
+				smtpMock.Wg.Wait()
 			} else {
 				response, err = app.Test(req)
 			}

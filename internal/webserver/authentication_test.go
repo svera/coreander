@@ -20,7 +20,7 @@ import (
 
 func TestAuthentication(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
-	app := bootstrapApp(db, &infrastructure.SMTP{}, afero.NewMemMapFs(), nil)
+	app := bootstrapApp(db, &infrastructure.SMTP{}, afero.NewMemMapFs(), webserver.Config{})
 
 	data := url.Values{
 		"email":    {"admin@example.com"},
@@ -83,7 +83,7 @@ func TestAuthentication(t *testing.T) {
 
 func TestRecoverNoEmailService(t *testing.T) {
 	db := infrastructure.Connect("file::memory:?cache=shared", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), nil)
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
 
 	req, err := http.NewRequest(http.MethodGet, "/en/recover", nil)
 	if err != nil {
@@ -103,20 +103,20 @@ func TestRecover(t *testing.T) {
 		db       *gorm.DB
 		app      *fiber.App
 		data     url.Values
-		smtpMock *SMTPMock
+		smtpMock *infrastructure.SMTPMock
 	)
 
 	reset := func(recoveryTimeout time.Duration) {
 		t.Helper()
 
-		webserverConfig := &webserver.Config{
+		webserverConfig := webserver.Config{
 			SessionTimeout:        24 * time.Hour,
 			RecoveryTimeout:       recoveryTimeout,
 			LibraryPath:           "fixtures/library",
 			UploadDocumentMaxSize: 1,
 		}
 		db = infrastructure.Connect("file::memory:?cache=shared", 250)
-		smtpMock = &SMTPMock{}
+		smtpMock = &infrastructure.SMTPMock{}
 		app = bootstrapApp(db, smtpMock, afero.NewMemMapFs(), webserverConfig)
 
 		data = url.Values{
@@ -194,7 +194,7 @@ func TestRecover(t *testing.T) {
 			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 		}
 
-		if smtpMock.calledSend {
+		if smtpMock.CalledSend() {
 			t.Error("Email service 'send' method called")
 		}
 	})
@@ -223,9 +223,9 @@ func TestRecover(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
-		smtpMock.wg.Add(1)
+		smtpMock.Wg.Add(1)
 		response, err := app.Test(req)
-		smtpMock.wg.Wait()
+		smtpMock.Wg.Wait()
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -234,7 +234,7 @@ func TestRecover(t *testing.T) {
 			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 		}
 
-		if !smtpMock.calledSend {
+		if !smtpMock.CalledSend() {
 			t.Error("Email service 'send' method not called")
 		}
 
@@ -300,9 +300,9 @@ func TestRecover(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
-		smtpMock.wg.Add(1)
+		smtpMock.Wg.Add(1)
 		response, err := app.Test(req)
-		smtpMock.wg.Wait()
+		smtpMock.Wg.Wait()
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}

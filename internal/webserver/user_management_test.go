@@ -11,6 +11,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v3/internal/webserver"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 	"gorm.io/gorm"
@@ -30,7 +31,7 @@ func TestUserManagement(t *testing.T) {
 	reset := func() {
 		var err error
 		db = infrastructure.Connect("file::memory:", 250)
-		app = bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), nil)
+		app = bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
 
 		adminUser = model.User{}
 		db.Where("email = ?", "admin@example.com").First(&adminUser)
