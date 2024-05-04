@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v3/internal/webserver"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 )
 
 func TestDocumentAndRead(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
-	smtpMock := &SMTPMock{}
-	app := bootstrapApp(db, smtpMock, afero.NewOsFs())
+	smtpMock := &infrastructure.SMTPMock{}
+	app := bootstrapApp(db, smtpMock, afero.NewOsFs(), webserver.Config{})
 
 	var cases = []struct {
 		url            string

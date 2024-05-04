@@ -5,6 +5,7 @@
         {{t .Lang "A reset password request for Coreander has been received. You can proceed by clicking in the following link or pasting it in your browser"}}: 
         <a href="{{.RecoveryLink}}">{{.RecoveryLink}}</a>
     </p>
+    <p>{{t .Lang "The recovery link will expire after %s hours." .RecoveryTimeout}}</p>
     <p>{{t .Lang "If you didn't request this, you can safely disregard this email."}}</p>
 </body>
 

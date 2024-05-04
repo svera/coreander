@@ -13,6 +13,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v3/internal/webserver"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
@@ -20,7 +21,7 @@ import (
 func TestUpload(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
 	appFS := loadDirInMemoryFs("fixtures/library")
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS)
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS, webserver.Config{})
 
 	data := url.Values{
 		"name":             {"Test user"},
@@ -208,7 +209,13 @@ func TestUpload(t *testing.T) {
 	// Due to a limitation in how pirmd/epub handles opening epub files, we need to use
 	// a real filesystem instead Afero's in-memory implementation
 	t.Run("Returns 302 for correct document", func(t *testing.T) {
-		app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewOsFs())
+		fs := afero.NewOsFs()
+		app := bootstrapApp(db, &infrastructure.NoEmail{}, fs, webserver.Config{})
+
+		t.Cleanup(func() {
+			fs.Remove("fixtures/library/childrens-literature.epub")
+		})
+
 		var buf bytes.Buffer
 		multipartWriter := multipart.NewWriter(&buf)
 
@@ -242,7 +249,5 @@ func TestUpload(t *testing.T) {
 		}
 
 		assertSearchResults(app, t, "children+literature", 1)
-
-		os.Remove("fixtures/library/childrens-literature.epub")
 	})
 }

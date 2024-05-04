@@ -9,6 +9,18 @@ import (
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
+func (a *Controller) EditPassword(c *fiber.Ctx) error {
+	if _, err := a.validateRecoveryAccess(c.Query("id")); err != nil {
+		return err
+	}
+
+	return c.Render("auth/edit-password", fiber.Map{
+		"Title":  "Reset password",
+		"Uuid":   c.Query("id"),
+		"Errors": map[string]string{},
+	}, "layout")
+}
+
 func (a *Controller) UpdatePassword(c *fiber.Ctx) error {
 	user, err := a.validateRecoveryAccess(c.FormValue("id"))
 	if err != nil {
@@ -49,9 +61,10 @@ func (a *Controller) validateRecoveryAccess(recoveryUuid string) (*model.User, e
 		return user, fiber.ErrInternalServerError
 	}
 
-	if user.RecoveryValidUntil.Before(time.Now()) {
-		return user, fiber.ErrBadRequest
+	if user.RecoveryValidUntil.UTC().After(time.Now().UTC()) {
+		return user, nil
 	}
 
-	return user, nil
+	return user, fiber.ErrBadRequest
+
 }

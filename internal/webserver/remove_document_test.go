@@ -9,15 +9,16 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/svera/coreander/v3/internal/webserver"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v3/internal/webserver/model"
 )
 
 func TestRemoveDocument(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
-	smtpMock := &SMTPMock{}
+	smtpMock := &infrastructure.SMTPMock{}
 	appFS := loadDirInMemoryFs("fixtures/library")
-	app := bootstrapApp(db, smtpMock, appFS)
+	app := bootstrapApp(db, smtpMock, appFS, webserver.Config{})
 
 	assertSearchResults(app, t, "john+doe", 4)
 

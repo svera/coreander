@@ -6,15 +6,16 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
+	"github.com/svera/coreander/v3/internal/webserver"
 	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
 )
 
 func TestSearch(t *testing.T) {
 	db := infrastructure.Connect("file::memory:", 250)
-	smtpMock := &SMTPMock{}
+	smtpMock := &infrastructure.SMTPMock{}
 	appFS := loadDirInMemoryFs("fixtures/library")
 
-	app := bootstrapApp(db, smtpMock, appFS)
+	app := bootstrapApp(db, smtpMock, appFS, webserver.Config{})
 
 	var cases = []struct {
 		name            string

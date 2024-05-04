@@ -30,10 +30,9 @@ func RequireAdmin(c *fiber.Ctx) error {
 // as a local variable of the request
 func SetFQDN(cfg Config) func(*fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
-		c.Locals("fqdn", fmt.Sprintf("%s://%s%s",
+		c.Locals("fqdn", fmt.Sprintf("%s://%s",
 			c.Protocol(),
-			cfg.Hostname,
-			urlPort(c.Protocol(), cfg.Port),
+			cfg.FQDN,
 		))
 		return c.Next()
 	}

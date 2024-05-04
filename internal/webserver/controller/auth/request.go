@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/mail"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -22,9 +23,14 @@ func (a *Controller) Request(c *fiber.Ctx) error {
 		}, "layout")
 	}
 
-	if user, err := a.repository.FindByEmail(c.FormValue("email")); err == nil {
+	user, err := a.repository.FindByEmail(c.FormValue("email"))
+	if err != nil {
+		return fiber.ErrInternalServerError
+	}
+
+	if user != nil {
 		user.RecoveryUUID = uuid.NewString()
-		user.RecoveryValidUntil = time.Now().Add(a.config.SessionTimeout)
+		user.RecoveryValidUntil = time.Now().UTC().Add(a.config.RecoveryTimeout)
 		if err := a.repository.Update(user); err != nil {
 			return fiber.ErrInternalServerError
 		}
@@ -36,11 +42,12 @@ func (a *Controller) Request(c *fiber.Ctx) error {
 			user.RecoveryUUID,
 		)
 		c.Render("auth/email", fiber.Map{
-			"Lang":         c.Params("lang"),
-			"RecoveryLink": recoveryLink,
+			"Lang":            c.Params("lang"),
+			"RecoveryLink":    recoveryLink,
+			"RecoveryTimeout": strconv.FormatFloat(a.config.RecoveryTimeout.Hours(), 'f', -1, 64),
 		})
 
-		go a.sender.Send(
+		return a.sender.Send(
 			c.FormValue("email"),
 			a.printers[c.Params("lang")].Sprintf("Password recovery request"),
 			string(c.Response().Body()),

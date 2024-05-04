@@ -29,6 +29,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		Hostname:          cfg.Hostname,
 		Port:              cfg.Port,
 		SessionTimeout:    cfg.SessionTimeout,
+		RecoveryTimeout:   cfg.RecoveryTimeout,
 	}
 
 	usersCfg := user.Config{
