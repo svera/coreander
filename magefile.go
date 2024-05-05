@@ -51,7 +51,7 @@ func Release() error {
 		if err != nil {
 			return err
 		}
-		err = createZip("coreander", "coreander_"+version+"_"+platform+".zip")
+		err = createZip("coreander", "coreander_"+platform+".zip")
 		if err != nil {
 			return err
 		}

@@ -20,10 +20,7 @@ func (d *Controller) Reader(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	template := "epub-reader"
-	if strings.ToLower(filepath.Ext(document.ID)) == ".pdf" {
-		template = "pdf-reader"
-	}
+	template := "reader"
 
 	title := fmt.Sprintf("%s | Coreander", document.Title)
 	authors := strings.Join(document.Authors, ", ")
@@ -34,6 +31,7 @@ func (d *Controller) Reader(c *fiber.Ctx) error {
 		"Title":       title,
 		"Author":      strings.Join(document.Authors, ", "),
 		"Description": document.Description,
+		"Protocol":    c.Protocol(),
 		"Slug":        document.Slug,
 	})
 }
