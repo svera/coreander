@@ -31,7 +31,6 @@ func (d *Controller) Reader(c *fiber.Ctx) error {
 		"Title":       title,
 		"Author":      strings.Join(document.Authors, ", "),
 		"Description": document.Description,
-		"Protocol":    c.Protocol(),
 		"Slug":        document.Slug,
 	})
 }
