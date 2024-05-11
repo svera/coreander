@@ -15,7 +15,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Web interface available in english, spanish and french, more languages can be easily added.
 * New documents added or removed to/from the library folder are automatically indexed (Linux only).
 * [Send to email supported](#send-to-email).
-* Read indexed epubs and PDFs from Coreander's interface thanks to [epub.js](http://futurepress.org/) and [pdf.js](https://mozilla.github.io/pdf.js/).
+* Read indexed epubs and PDFs from Coreander's interface thanks to [foliate-js](https://github.com/johnfactotum/foliate-js).
 * Restrictable access only to registered users.
 * Upload documents through the web interface.
 

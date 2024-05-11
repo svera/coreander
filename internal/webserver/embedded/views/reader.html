@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light dark">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<meta name="description" content="{{.Description}}">
+<meta name="author" content="{{.Author}}">
+<link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+<link rel="manifest" href="/images/site.webmanifest">
+<link rel="mask-icon" href="/images/safari-pinned-tab.svg" color="#5bbad5">
+<meta name="msapplication-TileColor" content="#da532c">
+<link href="/css/reader.css" rel="stylesheet">
+
+<input type="hidden" id="url" value="{{.fqdn}}/download/{{.Slug}}">
+
+<div id="spinner-container" class="filter">
+    <div>
+        <svg width="96" height="96" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><style>.spinner_P7sC{transform-origin:center;animation:spinner_svv2 .75s infinite linear}@keyframes spinner_svv2{100%{transform:rotate(360deg)}}</style><path d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z" class="spinner_P7sC"/></svg>
+    </div>
+</div>
+
+<div id="dimming-overlay" aria-hidden="true"></div>
+<div id="side-bar">
+    <div id="side-bar-header">
+        <img id="side-bar-cover">
+        <div>
+            <a href="/{{.Lang}}/document/{{.Slug}}"><h1 id="side-bar-title"></h1></a>
+            <p id="side-bar-author"></p>
+        </div>
+    </div>
+    <div id="toc-view"></div>
+</div>
+<div id="header-bar" class="toolbar">
+    <button id="side-bar-button" aria-label='{{t .Lang "Show sidebar"}}'>
+        <svg class="icon" width="24" height="24" aria-hidden="true">
+            <path d="M 4 6 h 16 M 4 12 h 16 M 4 18 h 16"/>
+        </svg>
+    </button>
+    <div id="menu-button" class="menu-container">
+        <button aria-label='{{t .Lang "Show settings"}}' aria-haspopup="true">
+            <svg class="icon" width="24" height="24" aria-hidden="true">
+                <path d="M5 12.7a7 7 0 0 1 0-1.4l-1.8-2 2-3.5 2.7.5a7 7 0 0 1 1.2-.7L10 3h4l.9 2.6 1.2.7 2.7-.5 2 3.4-1.8 2a7 7 0 0 1 0 1.5l1.8 2-2 3.5-2.7-.5a7 7 0 0 1-1.2.7L14 21h-4l-.9-2.6a7 7 0 0 1-1.2-.7l-2.7.5-2-3.4 1.8-2Z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+        </button>
+    </div>
+</div>
+<div id="nav-bar" class="toolbar">
+    <button id="left-button" aria-label='{{t .Lang "Go left"}}'>
+        <svg class="icon" width="24" height="24" aria-hidden="true">
+            <path d="M 15 6 L 9 12 L 15 18"/>
+        </svg>
+    </button>
+    <input id="progress-slider" type="range" min="0" max="1" step="any" list="tick-marks">
+    <datalist id="tick-marks"></datalist>
+    <button id="right-button" aria-label='{{t .Lang "Go right"}}'>
+        <svg class="icon" width="24" height="24" aria-hidden="true">
+            <path d="M 9 6 L 15 12 L 9 18"/>
+        </svg>
+    </button>
+</div>
+
+<script id="i18n" type="application/json">{"i18n":{
+    "paginated": {{t .Lang "Paginated"}},
+    "scrolled": {{t .Lang "Scrolled"}},
+    "untitled_document": {{t .Lang "Untitled document"}}
+}}</script>
+
+<script src="/js/foliate-js/vendor/pdfjs/pdf.js"></script>
+<script src="/js/foliate-js/reader.js" type="module"></script>
