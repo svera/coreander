@@ -198,7 +198,7 @@ func words(documentFullPath string) (int, error) {
 
 func extractCover(r *zip.ReadCloser, coverFile string, coverMaxWidth int) ([]byte, error) {
 	for _, f := range r.File {
-		if f.Name != fmt.Sprintf("OEBPS/%s", coverFile) && f.Name != fmt.Sprintf("OPS/%s", coverFile) {
+		if f.Name != fmt.Sprintf("OEBPS/%s", coverFile) && f.Name != fmt.Sprintf("OPS/%s", coverFile) && f.Name != coverFile {
 			continue
 		}
 		rc, err := f.Open()

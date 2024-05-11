@@ -60,7 +60,7 @@
                 <p class="text-start">{{t .Lang "Send to email unavailable, no email service configured"}}</p>
             {{else}}
                 <div>
-                    <form method="post" action="send" onsubmit="send(this, {{t .Lang "Document sent succesfully"}}, {{t .Lang "There was an error sending the document, please try again later"}})" class="send-email mt-3">
+                    <form method="post" action="send" data-success-message='{{t .Lang "Document sent succesfully"}}' data-error-message='{{t .Lang "There was an error sending the document, please try again later"}}' class="send-email mt-3">
                         <label for="email" class="form-label text-start">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope-fill" viewBox="0 0 16 16">
                                 <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414.05 3.555ZM0 4.697v7.104l5.803-3.558L0 4.697ZM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586l-1.239-.757Zm3.436-.586L16 11.801V4.697l-5.803 3.546Z"/>
@@ -204,5 +204,6 @@
 
 
 
+<script type="text/javascript" src="/js/send-email.js"></script>
 <script type="text/javascript" src="/js/highlight.js"></script>
 <script type="text/javascript" src="/js/cover-loader.js"></script>

@@ -80,12 +80,6 @@ const getCSS = ({ spacing, justify, hyphenate }) => `
     pre {
         white-space: pre-wrap !important;
     }
-    aside[epub|type~="endnote"],
-    aside[epub|type~="footnote"],
-    aside[epub|type~="note"],
-    aside[epub|type~="rearnote"] {
-        display: none;
-    }
 `
 
 const $ = document.querySelector.bind(document)
@@ -113,14 +107,16 @@ class Reader {
         })
         $('#dimming-overlay').addEventListener('click', () => this.closeSideBar())
 
-        const menu = createMenu([
+       const t = JSON.parse(document.getElementById('i18n').textContent).i18n;
+
+       const menu = createMenu([
             {
                 name: 'layout',
                 label: 'Layout',
                 type: 'radio',
                 items: [
-                    ['Paginated', 'paginated'],
-                    ['Scrolled', 'scrolled'],
+                    [t.paginated, 'paginated'],
+                    [t.scrolled, 'scrolled'],
                 ],
                 onclick: value => {
                     this.view?.renderer.setAttribute('flow', value)
@@ -138,6 +134,8 @@ class Reader {
         this.view = await getView(file)
         this.view.addEventListener('load', this.#onLoad.bind(this))
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
+
+        document.body.removeChild($('#spinner-container'))
 
         const { book } = this.view
         this.view.renderer.setStyles?.(getCSS(this.style))
@@ -160,7 +158,7 @@ class Reader {
 
         document.addEventListener('keydown', this.#handleKeydown.bind(this))
 
-        const title = book.metadata?.title ?? 'Untitled Book'
+        const title = book.metadata?.title ?? t.untitled_document
         document.title = title
         $('#side-bar-title').innerText = title
         const author = book.metadata?.author
