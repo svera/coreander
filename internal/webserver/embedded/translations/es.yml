@@ -46,6 +46,7 @@
 "Edit user": "Editar usuario"
 "Name cannot be empty": "Debes introducir un nombre"
 "Incorrect email address": "Dirección de correo electrónico incorrecta"
+"Incorrect send to email address": "Dirección de correo electrónico de envío incorrecta"
 "Incorrect reading speed": "Velocidad de lectura incorrecta"
 "A user with this email address already exist": "Ya existe un usuario con esta dirección de correo electrónico"
 "Incorrect role": "Rol incorrecto"
