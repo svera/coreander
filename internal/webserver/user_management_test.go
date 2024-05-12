@@ -29,6 +29,8 @@ func TestUserManagement(t *testing.T) {
 	)
 
 	reset := func() {
+		t.Helper()
+
 		var err error
 		db = infrastructure.Connect("file::memory:", 250)
 		app = bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
@@ -65,10 +67,8 @@ func TestUserManagement(t *testing.T) {
 		}
 	}
 
-	reset()
-
 	t.Run("Try to add a user without an active session", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		response, err := getRequest(&http.Cookie{}, app, "/en/users/new", t)
 		if response == nil {
@@ -96,7 +96,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to add a user with an admin active session", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		response, err := getRequest(adminCookie, app, "/en/users/new", t)
 		if response == nil {
@@ -109,6 +109,7 @@ func TestUserManagement(t *testing.T) {
 			"name":             {"New user"},
 			"username":         {"new"},
 			"email":            {"new@example.com"},
+			"send-to-email":    {"send@example.com"},
 			"password":         {"new"},
 			"confirm-password": {"new"},
 			"role":             {fmt.Sprint(model.RoleRegular)},
@@ -130,7 +131,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to add a user with a regular user active session", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		response, err := getRequest(regularUserCookie, app, "/en/users/new", t)
 		if response == nil {
@@ -148,7 +149,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to add a user with errors in form", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		response, err := postRequest(url.Values{}, adminCookie, app, "/en/users/new", t)
 		expectedErrorMessages := []string{
@@ -167,7 +168,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to add a user with already registered email and username", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		newUserData := url.Values{
 			"name":             {"Test user"},
@@ -192,7 +193,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to update a user without an active session", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		response, err := getRequest(&http.Cookie{}, app, fmt.Sprintf("/en/users/%s/edit", regularUser.Username), t)
 		if response == nil {
@@ -210,7 +211,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to update a user using another, non admin user session", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		adminUserData := regularUserData
 		adminUserData.Set("id", adminUser.Uuid)
@@ -231,7 +232,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to update the user in session", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		regularUserData.Set("name", "Updated regular user")
 		regularUserData.Set("id", regularUser.Uuid)
@@ -255,7 +256,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to update a user with an admin session", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		regularUserData.Set("name", "Updated regular user by an admin")
 		regularUserData.Set("id", regularUser.Uuid)
@@ -279,7 +280,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to edit a non existing user with an admin session", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		response, err := getRequest(adminCookie, app, fmt.Sprintf("/en/users/%s/edit", "abcde"), t)
 		if response == nil {
@@ -289,7 +290,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to update a non existing user with an admin session", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		regularUserData.Set("name", "Updated test user by an admin")
 
@@ -301,7 +302,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to delete a user without an active session", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		regularUserData = url.Values{
 			"id": {regularUser.Uuid},
@@ -316,7 +317,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to delete a user with a regular user's session", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		regularUserData = url.Values{
 			"id": {regularUser.Uuid},
@@ -333,7 +334,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to delete a user with an admin session", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		regularUserData = url.Values{
 			"id": {regularUser.Uuid},
@@ -352,7 +353,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to delete the only existing admin user", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		regularUserData = url.Values{
 			"id": {adminUser.Uuid},
@@ -366,7 +367,7 @@ func TestUserManagement(t *testing.T) {
 	})
 
 	t.Run("Try to delete a non existing user with an admin session", func(t *testing.T) {
-		t.Cleanup(reset)
+		reset()
 
 		regularUserData = url.Values{
 			"id": {"abcde"},
