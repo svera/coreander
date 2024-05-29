@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -20,8 +21,8 @@ import (
 
 var version string = "unknown"
 
-const indexPath = "/coreander/index"
-const databasePath = "/coreander/database.db"
+const indexPath = "/.coreander/index"
+const databasePath = "/.coreander/database.db"
 
 var (
 	cfg             Config
@@ -53,9 +54,27 @@ func init() {
 
 	appFs = afero.NewOsFs()
 
+	migrateDir()
+
 	indexFile := getIndexFile(appFs)
 	idx = index.NewBleve(indexFile, appFs, cfg.LibPath, metadataReaders)
 	db = infrastructure.Connect(homeDir+databasePath, cfg.WordsPerMinute)
+}
+
+func migrateDir() {
+	dirInfo, err := appFs.Stat(homeDir + "/coreander")
+	if errors.Is(err, afero.ErrFileNotFound) {
+		return
+	}
+	if err != nil && !errors.Is(err, afero.ErrFileExists) {
+		log.Fatal(err)
+	}
+	if dirInfo.IsDir() {
+		err := appFs.Rename(homeDir+"/coreander", homeDir+"/.coreander")
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 
 func main() {
