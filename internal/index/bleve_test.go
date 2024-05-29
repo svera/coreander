@@ -261,5 +261,34 @@ func testCases() []testCase {
 				},
 			),
 		},
+		{
+			"Test genre spanish stemmer",
+			"lib/book8.epub",
+			metadata.Metadata{
+				Title:       "El Infinito en un Junco",
+				Authors:     []string{"Irene Vallejo"},
+				Description: "Just test metadata",
+				Language:    "es",
+				Subjects:    []string{"History", "Middle age"},
+			},
+			"infinito junco",
+			result.NewPaginated[[]index.Document](
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book8.epub",
+						Slug: "irene-vallejo-el-infinito-en-un-junco",
+						Metadata: metadata.Metadata{
+							Title:       "El Infinito en un Junco",
+							Authors:     []string{"Irene Vallejo"},
+							Description: "Just test metadata",
+							Subjects:    []string{"History", "Middle age"},
+						},
+					},
+				},
+			),
+		},
 	}
 }

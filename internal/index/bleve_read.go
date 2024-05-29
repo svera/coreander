@@ -23,12 +23,12 @@ func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 	if b.indexStartTime == 0 {
 		return progress, nil
 	}
-	ellapsedTime := float64(time.Now().UnixNano()) - b.indexStartTime
+	elapsedTime := float64(time.Now().UnixNano()) - b.indexStartTime
 	libraryFiles, err := countFiles(b.libraryPath, b.fs)
 	if err != nil {
 		return progress, err
 	}
-	progress.RemainingTime = time.Duration((ellapsedTime * (libraryFiles - b.indexedDocuments)) / b.indexedDocuments)
+	progress.RemainingTime = time.Duration((elapsedTime * (libraryFiles - b.indexedDocuments)) / b.indexedDocuments)
 	progress.Percentage = math.Round((100 / libraryFiles) * b.indexedDocuments)
 	return progress, nil
 }
@@ -96,9 +96,10 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 			noStopWordsAnalyzer = analyzer + "_no_stop_words"
 		}
 
-		qt := bleve.NewMatchPhraseQuery(keywords)
+		qt := bleve.NewMatchQuery(keywords)
 		qt.Analyzer = noStopWordsAnalyzer
 		qt.SetField("Title")
+		qt.Operator = query.MatchQueryOperatorAnd
 		langCompoundQuery.AddQuery(qt)
 
 		qs := bleve.NewMatchQuery(keywords)
