@@ -81,10 +81,7 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender) func(*fiber.Ct
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			if err.Error() == "missing or malformed JWT" {
-				return forbidden(c, sender, "")
-			}
-			return forbidden(c, sender, "Session expired, please log in again.")
+			return forbidden(c, sender, err)
 		},
 	})
 }
@@ -101,21 +98,23 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, requireAuth boo
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			if requireAuth {
-				if err.Error() == "missing or malformed JWT" {
-					return forbidden(c, sender, "")
-				}
-				return forbidden(c, sender, "Session expired, please log in again.")
+				return forbidden(c, sender, err)
 			}
 			return c.Next()
 		},
 	})
 }
 
-func forbidden(c *fiber.Ctx, sender Sender, message string) error {
+func forbidden(c *fiber.Ctx, sender Sender, err error) error {
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
 	}
+	message := ""
+	if err.Error() != "missing or malformed JWT" {
+		message = "Session expired, please log in again."
+	}
+
 	return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
 		"Lang":                   chooseBestLanguage(c),
 		"Title":                  "Login",
