@@ -21,7 +21,7 @@
 "Send": Envoyer
 "Actions": Actions
 "Send to email unavailable, no email service configured": "Envoyer par e-mail indisponible, aucun service de messagerie configuré"
-"Document sent succesfully": "Document envoyé avec succès"
+"Document sent successfully": "Document envoyé avec succès"
 "There was an error sending the document, please try again later": "Une erreur s'est produite lors de l'envoi du document, veuillez réessayer ultérieurement"
 "Read": "Lire"
 "Users": "Utilisateurs"
@@ -132,3 +132,4 @@
 "Show settings": "Afficher les paramètres"
 "Go left": "Aller à gauche"
 "Go right": "Aller à droite"
+"Session expired, please log in again.": "Session expirée, veuillez vous reconnecter."

@@ -81,7 +81,10 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender) func(*fiber.Ct
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return forbidden(c, sender)
+			if err.Error() == "missing or malformed JWT" {
+				return forbidden(c, sender, "")
+			}
+			return forbidden(c, sender, "Session expired, please log in again.")
 		},
 	})
 }
@@ -97,16 +100,18 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, requireAuth boo
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			err = c.Next()
 			if requireAuth {
-				return forbidden(c, sender)
+				if err.Error() == "missing or malformed JWT" {
+					return forbidden(c, sender, "")
+				}
+				return forbidden(c, sender, "Session expired, please log in again.")
 			}
-			return err
+			return c.Next()
 		},
 	})
 }
 
-func forbidden(c *fiber.Ctx, sender Sender) error {
+func forbidden(c *fiber.Ctx, sender Sender, message string) error {
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -117,5 +122,6 @@ func forbidden(c *fiber.Ctx, sender Sender) error {
 		"Version":                c.App().Config().AppName,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"DisableLoginLink":       true,
+		"Warning":                message,
 	}, "layout")
 }

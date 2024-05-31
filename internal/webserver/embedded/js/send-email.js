@@ -9,7 +9,7 @@ Array.from(forms).forEach(form => {
         const submit = form.querySelector('button');
         let sendIcon = form.querySelector('.bi-send-fill');
         let spinner = form.querySelector('.spinner-border');
-    
+
         submit.setAttribute("disabled", true);
         spinner.classList.remove("visually-hidden");
         sendIcon.classList.add("visually-hidden");
@@ -20,16 +20,21 @@ Array.from(forms).forEach(form => {
             },
             body: new URLSearchParams({
                 'email': form.elements[0].value,
-                'slug': form.elements[1].value,        
+                'slug': form.elements[1].value,
             })
         })
         .then((response) => {
             let message = form.querySelector(".send-email-message")
+            const lang = form.getAttribute("data-lang")
             message.classList.remove("visually-hidden");
             if (!response.ok) {
-                message.innerHTML = form.getAttribute("data-error-message");
-                message.classList.remove("text-success");
-                message.classList.add("text-danger");
+                if (response.status == "403") {
+                    location.reload()
+                } else {
+                    message.innerHTML = form.getAttribute("data-error-message");
+                    message.classList.remove("text-success");
+                    message.classList.add("text-danger");
+                }
             } else {
                 message.innerHTML = form.getAttribute("data-success-message");
                 message.classList.remove("text-danger");
