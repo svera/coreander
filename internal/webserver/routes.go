@@ -69,10 +69,10 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	langGroup.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
 	langGroup.Post("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)
 
+	langGroup.Get("/logout", alwaysRequireAuthentication, controllers.Auth.SignOut)
+
 	// Authentication requirement is configurable for all routes below this middleware
 	app.Use(configurableAuthentication)
-
-	langGroup.Get("/logout", controllers.Auth.SignOut)
 
 	app.Get("/cover/:slug", controllers.Documents.Cover)
 

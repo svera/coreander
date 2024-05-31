@@ -30,7 +30,7 @@
                 </svg>
                 &nbsp;&nbsp;{{t .Lang "Read"}}
             </a>
-    
+
             <a href="/download/{{.Document.Slug}}" class="btn btn-outline-secondary" download>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cloud-download" viewBox="0 0 16 16">
                     <path d="M4.406 1.342A5.53 5.53 0 0 1 8 0c2.69 0 4.923 2 5.166 4.579C14.758 4.804 16 6.137 16 7.773 16 9.569 14.502 11 12.687 11H10a.5.5 0 0 1 0-1h2.688C13.979 10 15 8.988 15 7.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 2.825 10.328 1 8 1a4.53 4.53 0 0 0-2.941 1.1c-.757.652-1.153 1.438-1.153 2.055v.448l-.445.049C2.064 4.805 1 5.952 1 7.318 1 8.785 2.23 10 3.781 10H6a.5.5 0 0 1 0 1H3.781C1.708 11 0 9.366 0 7.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383z"/>
@@ -47,20 +47,20 @@
                 </svg>
                 &nbsp;&nbsp;{{t .Lang "Highlight"}}
             </a>
-            
+
             <a href="/highlights" class="btn btn-outline-secondary dehighlight {{if not .Document.Highlighted}}visually-hidden{{end}}" data-slug="{{.Document.Slug}}" data-dehighlight="{{.OnDehighlight}}" data-method="DELETE">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16">
                     <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
                 </svg>
                 &nbsp;&nbsp;{{t .Lang "Remove from highlights"}}
             </a>
-            {{end}}     
+            {{end}}
 
             {{if not .EmailSendingConfigured}}
                 <p class="text-start">{{t .Lang "Send to email unavailable, no email service configured"}}</p>
             {{else}}
                 <div>
-                    <form method="post" action="send" data-success-message='{{t .Lang "Document sent succesfully"}}' data-error-message='{{t .Lang "There was an error sending the document, please try again later"}}' class="send-email mt-3">
+                    <form method="post" action="send" data-success-message='{{t .Lang "Document sent successfully"}}' data-error-message='{{t .Lang "There was an error sending the document, please try again later"}}' class="send-email mt-3">
                         <label for="email" class="form-label text-start">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope-fill" viewBox="0 0 16 16">
                                 <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414.05 3.555ZM0 4.697v7.104l5.803-3.558L0 4.697ZM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586l-1.239-.757Zm3.436-.586L16 11.801V4.697l-5.803 3.546Z"/>
@@ -155,7 +155,7 @@
                 {{end}}
             </div>
         </section>
-        {{end}}         
+        {{end}}
 
         {{ $length := len .SameAuthors }} {{ if gt $length 0 }}
         <section class="row mt-5">
@@ -178,7 +178,7 @@
                 {{end}}
             </div>
         </section>
-        {{end}}   
+        {{end}}
 
         {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
         <section class="row mt-5">
@@ -198,7 +198,7 @@
                 {{end}}
             </div>
         </section>
-        {{end}}         
+        {{end}}
     </div>
 </div>
 
