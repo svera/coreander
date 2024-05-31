@@ -37,6 +37,9 @@ Array.from(links).forEach((link) => {
                 }
                 return;
             }
+            if (response.status == "403") {
+                location.reload()
+            }
         })
         .catch(function (error) {
             // Catch errors

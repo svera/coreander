@@ -31,11 +31,11 @@ deleteForm.addEventListener('submit', event => {
             'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: new URLSearchParams({
-            'id': deleteForm.elements['id'].value,        
+            'id': deleteForm.elements['id'].value,
         })
     })
     .then((response) => {
-        if (response.ok) {
+        if (response.ok || response.status == "403") {
             location.reload();
         } else {
             let message = document.getElementById("error-message-container");
