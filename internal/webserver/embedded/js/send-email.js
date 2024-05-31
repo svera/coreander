@@ -25,7 +25,6 @@ Array.from(forms).forEach(form => {
         })
         .then((response) => {
             let message = form.querySelector(".send-email-message")
-            const lang = form.getAttribute("data-lang")
             message.classList.remove("visually-hidden");
             if (!response.ok) {
                 if (response.status == "403") {
