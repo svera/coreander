@@ -75,7 +75,7 @@ func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session mode
 			Name:     "coreander",
 			Value:    signedToken,
 			Path:     "/",
-			Expires:  expiration,
+			MaxAge:   int(session.Exp),
 			Secure:   false,
 			HTTPOnly: true,
 		})
