@@ -19,7 +19,7 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/metadata"
+	"github.com/svera/coreander/v4/internal/metadata"
 )
 
 // Version identifies the mapping used for indexing. Any changes in the mapping requires an increase

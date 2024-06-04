@@ -11,7 +11,7 @@ import (
 
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/metadata"
+	"github.com/svera/coreander/v4/internal/metadata"
 )
 
 // AddFile adds a file to the index

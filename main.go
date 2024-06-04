@@ -13,10 +13,10 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/index"
-	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/webserver"
-	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/webserver"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 )
 
 var version string = "unknown"
@@ -101,7 +101,6 @@ func main() {
 		MinPasswordLength:     cfg.MinPasswordLength,
 		WordsPerMinute:        cfg.WordsPerMinute,
 		JwtSecret:             cfg.JwtSecret,
-		Hostname:              cfg.Hostname,
 		FQDN:                  cfg.FQDN,
 		Port:                  cfg.Port,
 		HomeDir:               homeDir,
@@ -109,12 +108,6 @@ func main() {
 		CoverMaxWidth:         cfg.CoverMaxWidth,
 		RequireAuth:           cfg.RequireAuth,
 		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
-	}
-
-	// Hack for keeping backward compatibility, remove when complete
-	if webserverConfig.FQDN == "localhost" && webserverConfig.Hostname != "localhost" {
-		fmt.Println("Warning: using deprecated environment variable 'HOSTNAME`, use 'FQDN' instead.")
-		webserverConfig.FQDN = webserverConfig.Hostname
 	}
 
 	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", cfg.SessionTimeout))
@@ -130,7 +123,7 @@ func main() {
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
 	app := webserver.New(webserverConfig, controllers, sender, idx)
 	if strings.ToLower(cfg.FQDN) == "localhost" {
-		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accesible outside this system.\n")
+		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accessible outside this system.\n")
 	}
 	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))

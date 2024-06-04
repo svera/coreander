@@ -2,9 +2,9 @@ package document
 
 import (
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/index"
-	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/result"
+	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/result"
 )
 
 const relatedDocuments = 4

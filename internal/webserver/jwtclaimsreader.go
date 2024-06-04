@@ -3,7 +3,7 @@ package webserver
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 func sessionData(c *fiber.Ctx) model.Session {

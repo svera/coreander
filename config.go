@@ -4,8 +4,6 @@ package main
 type Config struct {
 	// LibPath holds the absolute path to the folder containing the documents
 	LibPath string `env:"LIB_PATH" env-required:"true"`
-	// Deprecated. Use FQDN instead
-	Hostname string `env:"HOSTNAME" env-default:"localhost"`
 	// FQDN stores the domain name of the server. If the server is listening on a non-standard HTTP / HTTPS port, include it using a colon (e. g. :3000)
 	FQDN string `env:"FQDN" env-default:"localhost"`
 	// Port defines the port number in which the webserver listens for requests

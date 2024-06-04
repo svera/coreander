@@ -4,8 +4,8 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/model"
-	"github.com/svera/coreander/v3/internal/webserver/view"
+	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
 // List list all users registered in the database
