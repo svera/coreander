@@ -2,7 +2,6 @@ package auth
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -11,9 +10,9 @@ import (
 func (a *Controller) SignOut(c *fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
 		Name:     "coreander",
-		Value:    "",
+		Value:    "void",
 		Path:     "/",
-		Expires:  time.Now().Add(-time.Second * 10),
+		MaxAge:   -1,
 		Secure:   false,
 		HTTPOnly: true,
 	})
