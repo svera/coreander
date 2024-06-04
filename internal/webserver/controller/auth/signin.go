@@ -41,7 +41,7 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 		Name:     "coreander",
 		Value:    signedToken,
 		Path:     "/",
-		Expires:  expiration,
+		MaxAge:   int(a.config.SessionTimeout.Seconds()),
 		Secure:   false,
 		HTTPOnly: true,
 	})
