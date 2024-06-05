@@ -20,7 +20,7 @@ type User struct {
 	UpdatedAt          time.Time
 	Uuid               string `gorm:"uniqueIndex; not null"`
 	Name               string `gorm:"not null"`
-	Username           string `gorm:"type:text collate nocase; not null; default:''; unique"`
+	Username           string `gorm:"type:text collate nocase; not null; unique"`
 	Email              string `gorm:"uniqueIndex; not null"`
 	SendToEmail        string
 	Password           string
