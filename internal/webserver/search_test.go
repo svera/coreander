@@ -11,7 +11,7 @@ import (
 )
 
 func TestSearch(t *testing.T) {
-	db := infrastructure.Connect("file::memory:", 250)
+	db := infrastructure.Connect(":memory:", 250)
 	smtpMock := &infrastructure.SMTPMock{}
 	appFS := loadDirInMemoryFs("fixtures/library")
 

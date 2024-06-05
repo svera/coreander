@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -12,21 +13,15 @@ import (
 )
 
 func Connect(path string, wordsPerMinute float64) *gorm.DB {
-	if _, err := os.Stat(path); os.IsNotExist(err) && !strings.Contains(path, "file::memory") {
+	if _, err := os.Stat(path); os.IsNotExist(err) && !strings.Contains(path, ":memory:") {
 		if _, err = os.Create(path); err != nil {
 			log.Fatal(err)
 		}
 		log.Printf("Created database at %s\n", path)
 	}
 
-	// Use the following line to connect when the temporary code block below is removed
-	//db, err := gorm.Open(sqlite.Open(fmt.Sprintf("%s?_pragma=foreign_keys(1)", path)), &gorm.Config{})
-	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("%s?_pragma=foreign_keys(1)", path)), &gorm.Config{})
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	if res := db.Exec("PRAGMA foreign_keys(1)", nil); res.Error != nil {
 		log.Fatal(err)
 	}
 

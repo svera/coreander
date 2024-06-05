@@ -27,7 +27,7 @@ func TestHighlights(t *testing.T) {
 	reset := func() {
 		var err error
 
-		db = infrastructure.Connect("file::memory:", 250)
+		db = infrastructure.Connect(":memory:", 250)
 		appFS := loadFilesInMemoryFs([]string{"fixtures/library/metadata.epub"})
 		app = bootstrapApp(db, &infrastructure.NoEmail{}, appFS, webserver.Config{})
 		adminCookie, err = login(app, "admin@example.com", "admin", t)
