@@ -1,7 +1,6 @@
 package infrastructure
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -21,8 +20,13 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 	}
 
 	// Use the following line to connect when the temporary code block below is removed
-	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("%s?_pragma=foreign_keys(1)", path)), &gorm.Config{})
+	//db, err := gorm.Open(sqlite.Open(fmt.Sprintf("%s?_pragma=foreign_keys(1)", path)), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	if res := db.Exec("PRAGMA foreign_keys(1)", nil); res.Error != nil {
 		log.Fatal(err)
 	}
 
@@ -30,9 +34,6 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 		log.Fatal(err)
 	}
 	addDefaultAdmin(db, wordsPerMinute)
-	if res := db.Exec("PRAGMA foreign_keys(1)", nil); res.Error != nil {
-		log.Fatal(err)
-	}
 	return db
 }
 
