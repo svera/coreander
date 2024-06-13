@@ -36,7 +36,7 @@ var (
 )
 
 func init() {
-	fmt.Printf("Coreander version %s\n\n", version)
+	log.Printf("Coreander version %s starting\n", version)
 	homeDir, err = os.UserHomeDir()
 	if err != nil {
 		log.Fatal("Error retrieving user home dir")
@@ -126,7 +126,7 @@ func main() {
 	if strings.ToLower(cfg.FQDN) == "localhost" {
 		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accessible outside this system.\n")
 	}
-	fmt.Printf("Started listening on port %d\n\n", cfg.Port)
+	log.Printf("Started listening on port %d\n", cfg.Port)
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))
 }
 

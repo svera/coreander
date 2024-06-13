@@ -121,7 +121,7 @@ func TestHighlights(t *testing.T) {
 			"id": {"john-doe-test-epub"},
 		}
 
-		_, err = deleteRequest(data, adminCookie, app, "/document", t)
+		_, err = deleteRequest(data, adminCookie, app, "/documents", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}

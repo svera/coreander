@@ -123,7 +123,7 @@
                 <div>
                     {{range $i, $subject := .Document.Subjects}}
                     {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                    <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/{{$lang}}?search=SubjectsEq&colon;&quot;{{$subject}}&quot;"
+                    <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/{{$lang}}/documents?search=SubjectsEq&colon;&quot;{{$subject}}&quot;"
                         title={{$subjectTitle}}>{{$subject}}</a>
                     {{end}}
                 </div>
@@ -143,7 +143,7 @@
                 <h4>{{t $lang "Other documents in collection \"%s\"" .Document.Series}}</h4>
             </div>
             <div class="col-3 text-end">
-                <a  href="/{{$lang}}?search=SeriesEq&colon;&quot;{{.Document.Series}}&quot;">
+                <a  href="/{{$lang}}/documents?search=SeriesEq&colon;&quot;{{.Document.Series}}&quot;">
                         {{t $lang "See all" }}</a>
             </div>
 
@@ -166,7 +166,7 @@
                 </h4>
             </div>
             <div class="col-3 text-end">
-                <a  href='/{{$lang}}?search=AuthorsEq&colon;&quot;{{join $document.Authors ","}}&quot;'>
+                <a  href='/{{$lang}}/documents?search=AuthorsEq&colon;&quot;{{join $document.Authors ","}}&quot;'>
                         {{t $lang "See all" }}</a>
             </div>
 
@@ -186,7 +186,7 @@
                 <h4>{{t $lang "Other documents with similar subjects"}}</h4>
             </div>
             <div class="col-3 text-end">
-                <a  href='/{{$lang}}?search=SubjectsEq&colon;&quot;{{join $document.Subjects ","}}&quot;'>
+                <a  href='/{{$lang}}/documents?search=SubjectsEq&colon;&quot;{{join $document.Subjects ","}}&quot;'>
                         {{t $lang "See all" }}</a>
             </div>
 

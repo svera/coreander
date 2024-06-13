@@ -20,7 +20,7 @@ func TestDocumentAndRead(t *testing.T) {
 	}{
 		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
 		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha-2", http.StatusOK},
-		{"/en/document/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
+		{"/en/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
 	}
 
 	for _, tcase := range cases {

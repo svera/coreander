@@ -64,7 +64,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	app.Post("/highlights", alwaysRequireAuthentication, controllers.Highlights.Highlight)
 	app.Delete("/highlights", alwaysRequireAuthentication, controllers.Highlights.Remove)
 
-	app.Delete("/document", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
+	app.Delete("/documents", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
 
 	langGroup.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
 	langGroup.Post("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)
@@ -77,12 +77,13 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	app.Get("/cover/:slug", controllers.Documents.Cover)
 
-	langGroup.Get("/document/:slug", controllers.Documents.Detail)
+	langGroup.Get("/documents/:slug", controllers.Documents.Detail)
 
 	app.Post("/send", controllers.Documents.Send)
 
 	app.Get("/download/:slug", controllers.Documents.Download)
 
+	langGroup.Get("/documents", controllers.Documents.Search)
 	langGroup.Get("/", controllers.Documents.Search)
 
 	langGroup.Get("/read/:slug", controllers.Documents.Reader)

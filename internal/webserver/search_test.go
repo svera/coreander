@@ -22,7 +22,7 @@ func TestSearch(t *testing.T) {
 		url             string
 		expectedResults int
 	}{
-		{"Search for documents with no metadata", "/en?search=empty", 2},
+		{"Search for documents with no metadata", "/en/documents?search=empty", 2},
 		{"Search for documents with metadata", "/en?search=john+doe", 4},
 	}
 
@@ -55,7 +55,7 @@ func TestSearch(t *testing.T) {
 func assertSearchResults(app *fiber.App, t *testing.T, search string, expectedResults int) {
 	t.Helper()
 
-	req, err := http.NewRequest(http.MethodGet, "/en?search="+search, nil)
+	req, err := http.NewRequest(http.MethodGet, "/en/documents?search="+search, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
