@@ -71,7 +71,7 @@ func TestUpload(t *testing.T) {
 		multipartWriter := multipart.NewWriter(&buf)
 		multipartWriter.Close()
 
-		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		req, err := http.NewRequest(http.MethodPost, "/en/documents", &buf)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -105,7 +105,7 @@ func TestUpload(t *testing.T) {
 		filePart.Write([]byte("Hello, World!"))
 
 		multipartWriter.Close()
-		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		req, err := http.NewRequest(http.MethodPost, "/en/documents", &buf)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -133,7 +133,7 @@ func TestUpload(t *testing.T) {
 		part.Write([]byte(`sample`))
 		multipartWriter.Close()
 
-		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		req, err := http.NewRequest(http.MethodPost, "/en/documents", &buf)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -155,7 +155,7 @@ func TestUpload(t *testing.T) {
 		multipartWriter := multipart.NewWriter(&buf)
 		multipartWriter.Close()
 
-		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		req, err := http.NewRequest(http.MethodPost, "/en/documents", &buf)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -189,7 +189,7 @@ func TestUpload(t *testing.T) {
 
 		multipartWriter.Close()
 
-		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		req, err := http.NewRequest(http.MethodPost, "/en/documents", &buf)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -232,7 +232,7 @@ func TestUpload(t *testing.T) {
 
 		multipartWriter.Close()
 
-		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		req, err := http.NewRequest(http.MethodPost, "/en/documents", &buf)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
