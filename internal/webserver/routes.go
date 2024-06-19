@@ -81,7 +81,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	app.Post("/send", controllers.Documents.Send)
 
-	app.Get("/download/:slug", controllers.Documents.Download)
+	app.Get("/documents/:slug/download", controllers.Documents.Download)
 
 	langGroup.Get("/documents", controllers.Documents.Search)
 	langGroup.Get("/", controllers.Documents.Search)
