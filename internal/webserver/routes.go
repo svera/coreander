@@ -75,18 +75,16 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	langGroup.Use(configurableAuthentication)
 	app.Use(configurableAuthentication)
 
-	app.Get("/cover/:slug", controllers.Documents.Cover)
+	app.Get("/documents/:slug/cover", controllers.Documents.Cover)
+	langGroup.Get("/documents/:slug/read", controllers.Documents.Reader)
+	app.Get("/documents/:slug/download", controllers.Documents.Download)
 
 	langGroup.Get("/documents/:slug", controllers.Documents.Detail)
 
 	app.Post("/send", controllers.Documents.Send)
 
-	app.Get("/documents/:slug/download", controllers.Documents.Download)
-
 	langGroup.Get("/documents", controllers.Documents.Search)
 	langGroup.Get("/", controllers.Documents.Search)
-
-	langGroup.Get("/documents/:slug/read", controllers.Documents.Reader)
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return controller.Root(c, supportedLanguages)
