@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -134,6 +135,10 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 // processed in the current batch in memory to also compare the current doc slug against them.
 func (b *BleveIndexer) Slug(document DocumentWrite, batchSlugs map[string]struct{}) string {
 	docSlug := makeSlug(document)
+	exp, err := regexp.Compile(`^[a-zA-Z0-9\-]+(--)\d$`)
+	if err != nil {
+		log.Fatal(err)
+	}
 	i := 1
 	existsInBatch := false
 	for {
@@ -147,8 +152,12 @@ func (b *BleveIndexer) Slug(document DocumentWrite, batchSlugs map[string]struct
 		if doc.Slug == "" && !existsInBatch {
 			return docSlug
 		}
+		if exp.MatchString(docSlug) {
+			pos := strings.LastIndex(docSlug, "--")
+			docSlug = docSlug[:pos]
+		}
 		i++
-		docSlug = fmt.Sprintf("%s-%d", docSlug, i)
+		docSlug = fmt.Sprintf("%s--%d", docSlug, i)
 	}
 }
 
