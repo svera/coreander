@@ -18,9 +18,9 @@ func TestDocumentAndRead(t *testing.T) {
 		url            string
 		expectedStatus int
 	}{
-		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
-		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha--2", http.StatusOK},
-		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha--3", http.StatusOK},
+		{"/en/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/read", http.StatusOK},
+		{"/en/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha--2/read", http.StatusOK},
+		{"/en/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha--3/read", http.StatusOK},
 		{"/en/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
 	}
 

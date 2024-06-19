@@ -86,7 +86,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	langGroup.Get("/documents", controllers.Documents.Search)
 	langGroup.Get("/", controllers.Documents.Search)
 
-	langGroup.Get("/read/:slug", controllers.Documents.Reader)
+	langGroup.Get("/documents/:slug/read", controllers.Documents.Reader)
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return controller.Root(c, supportedLanguages)
