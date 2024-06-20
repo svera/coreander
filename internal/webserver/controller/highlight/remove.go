@@ -8,7 +8,7 @@ import (
 func (h *Controller) Remove(c *fiber.Ctx) error {
 	user := c.Locals("Session").(model.Session)
 
-	document, err := h.idx.Document(c.FormValue("slug"))
+	document, err := h.idx.Document(c.Params("slug"))
 	if err != nil {
 		return fiber.ErrBadRequest
 	}

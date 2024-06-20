@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
@@ -62,7 +61,7 @@ func TestHighlights(t *testing.T) {
 	t.Run("Try to highlight a document without an active session", func(t *testing.T) {
 		t.Cleanup(reset)
 
-		response, err := highlight(&http.Cookie{}, app, strings.NewReader(data.Encode()), fiber.MethodPost, t)
+		response, err := highlight(&http.Cookie{}, app, "john-doe-test-epub", fiber.MethodPost, t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -73,7 +72,7 @@ func TestHighlights(t *testing.T) {
 	t.Run("Try to highlight and dehighlight a document with an active session", func(t *testing.T) {
 		t.Cleanup(reset)
 
-		response, err := highlight(adminCookie, app, strings.NewReader(data.Encode()), fiber.MethodPost, t)
+		response, err := highlight(adminCookie, app, "john-doe-test-epub", fiber.MethodPost, t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -82,7 +81,7 @@ func TestHighlights(t *testing.T) {
 
 		assertHighlights(app, t, adminCookie, adminUser.Username, 1)
 
-		response, err = highlight(adminCookie, app, strings.NewReader(data.Encode()), fiber.MethodDelete, t)
+		response, err = highlight(adminCookie, app, "john-doe-test-epub", fiber.MethodDelete, t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -103,7 +102,7 @@ func TestHighlights(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		response, err := highlight(regularUserCookie, app, strings.NewReader(data.Encode()), fiber.MethodPost, t)
+		response, err := highlight(regularUserCookie, app, "john-doe-test-epub", fiber.MethodPost, t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -145,7 +144,7 @@ func TestHighlights(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		response, err := highlight(regularUserCookie, app, strings.NewReader(data.Encode()), fiber.MethodPost, t)
+		response, err := highlight(regularUserCookie, app, "john-doe-test-epub", fiber.MethodPost, t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -177,9 +176,9 @@ func TestHighlights(t *testing.T) {
 	})
 }
 
-func highlight(cookie *http.Cookie, app *fiber.App, reader *strings.Reader, method string, t *testing.T) (*http.Response, error) {
+func highlight(cookie *http.Cookie, app *fiber.App, slug string, method string, t *testing.T) (*http.Response, error) {
 	t.Helper()
-	req, err := http.NewRequest(method, "/highlights", reader)
+	req, err := http.NewRequest(method, fmt.Sprintf("/documents/%s/highlight", slug), nil)
 	if err != nil {
 		return nil, err
 	}
