@@ -136,6 +136,7 @@ class Reader {
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
 
         document.body.removeChild($('#spinner-container'))
+        document.body.removeChild($('#error-icon-container'))
 
         const { book } = this.view
         this.view.renderer.setStyles?.(getCSS(this.style))
@@ -242,7 +243,16 @@ const open = async file => {
 
 const url = document.getElementById('url').value
 if (url) fetch(url)
-    .then(res => res.blob())
+    .then(res => {
+        if (res.status == 403) {
+            location.reload()
+        }
+        return res.blob()
+    })
     .then(blob => open(new File([blob], new URL(url).pathname)))
-    .catch(e => console.error(e))
+    .catch(e => {
+        document.body.removeChild($('#spinner-container'));
+        $('#error-icon-container').classList.remove('d-none');
+        console.error(e);
+    })
 else dropTarget.style.visibility = 'visible'

@@ -17,7 +17,7 @@ body {
     font: menu;
     font-family: system-ui, sans-serif;
 }
-#spinner-container {
+#spinner-container, #error-icon-container {
     height: 100vh;
     display: flex;
     align-items: center;
