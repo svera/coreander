@@ -50,7 +50,7 @@ func TestHighlights(t *testing.T) {
 			"words-per-minute": {"250"},
 		}
 
-		response, err := postRequest(regularUserData, adminCookie, app, "/en/users/new", t)
+		response, err := postRequest(regularUserData, adminCookie, app, "/en/users", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}

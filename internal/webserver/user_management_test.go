@@ -53,7 +53,7 @@ func TestUserManagement(t *testing.T) {
 			"words-per-minute": {"250"},
 		}
 
-		response, err := postRequest(regularUserData, adminCookie, app, "/en/users/new", t)
+		response, err := postRequest(regularUserData, adminCookie, app, "/en/users", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -87,7 +87,7 @@ func TestUserManagement(t *testing.T) {
 			"words-per-minute": {"250"},
 		}
 
-		response, err = postRequest(newUserData, &http.Cookie{}, app, "/en/users/new", t)
+		response, err = postRequest(newUserData, &http.Cookie{}, app, "/en/users", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -116,7 +116,7 @@ func TestUserManagement(t *testing.T) {
 			"words-per-minute": {"250"},
 		}
 
-		response, err = postRequest(newUserData, adminCookie, app, "/en/users/new", t)
+		response, err = postRequest(newUserData, adminCookie, app, "/en/users", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -140,7 +140,7 @@ func TestUserManagement(t *testing.T) {
 
 		mustReturnStatus(response, fiber.StatusForbidden, t)
 
-		response, err = postRequest(url.Values{}, regularUserCookie, app, "/en/users/new", t)
+		response, err = postRequest(url.Values{}, regularUserCookie, app, "/en/users", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -151,7 +151,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to add a user with errors in form", func(t *testing.T) {
 		reset()
 
-		response, err := postRequest(url.Values{}, adminCookie, app, "/en/users/new", t)
+		response, err := postRequest(url.Values{}, adminCookie, app, "/en/users", t)
 		expectedErrorMessages := []string{
 			"Name cannot be empty",
 			"Username cannot be empty",
@@ -180,7 +180,7 @@ func TestUserManagement(t *testing.T) {
 			"words-per-minute": {"250"},
 		}
 
-		response, err := postRequest(newUserData, adminCookie, app, "/en/users/new", t)
+		response, err := postRequest(newUserData, adminCookie, app, "/en/users", t)
 		expectedErrorMessages := []string{
 			"A user with this username already exists",
 			"A user with this email address already exists",
@@ -195,14 +195,14 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to update a user without an active session", func(t *testing.T) {
 		reset()
 
-		response, err := getRequest(&http.Cookie{}, app, fmt.Sprintf("/en/users/%s/edit", regularUser.Username), t)
+		response, err := getRequest(&http.Cookie{}, app, fmt.Sprintf("/en/users/%s", regularUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
 		mustReturnForbiddenAndShowLogin(response, t)
 
-		response, err = postRequest(regularUserData, &http.Cookie{}, app, fmt.Sprintf("/en/users/%s/edit", regularUser.Username), t)
+		response, err = putRequest(regularUserData, &http.Cookie{}, app, fmt.Sprintf("/en/users/%s", regularUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -216,14 +216,14 @@ func TestUserManagement(t *testing.T) {
 		adminUserData := regularUserData
 		adminUserData.Set("id", adminUser.Uuid)
 
-		response, err := getRequest(regularUserCookie, app, fmt.Sprintf("/en/users/%s/edit", adminUser.Username), t)
+		response, err := getRequest(regularUserCookie, app, fmt.Sprintf("/en/users/%s", adminUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
 		mustReturnStatus(response, fiber.StatusForbidden, t)
 
-		response, err = postRequest(adminUserData, regularUserCookie, app, fmt.Sprintf("/en/users/%s/edit", adminUser.Username), t)
+		response, err = putRequest(adminUserData, regularUserCookie, app, fmt.Sprintf("/en/users/%s", adminUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -237,14 +237,14 @@ func TestUserManagement(t *testing.T) {
 		regularUserData.Set("name", "Updated regular user")
 		regularUserData.Set("id", regularUser.Uuid)
 
-		response, err := getRequest(regularUserCookie, app, fmt.Sprintf("/en/users/%s/edit", regularUser.Username), t)
+		response, err := getRequest(regularUserCookie, app, fmt.Sprintf("/en/users/%s", regularUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
 		mustReturnStatus(response, fiber.StatusOK, t)
 
-		response, err = postRequest(regularUserData, regularUserCookie, app, fmt.Sprintf("/en/users/%s/edit", regularUser.Username), t)
+		response, err = putRequest(regularUserData, regularUserCookie, app, fmt.Sprintf("/en/users/%s", regularUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -261,14 +261,14 @@ func TestUserManagement(t *testing.T) {
 		regularUserData.Set("name", "Updated regular user by an admin")
 		regularUserData.Set("id", regularUser.Uuid)
 
-		response, err := postRequest(regularUserData, adminCookie, app, fmt.Sprintf("/en/users/%s/edit", regularUser.Username), t)
+		response, err := putRequest(regularUserData, adminCookie, app, fmt.Sprintf("/en/users/%s", regularUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
 		mustReturnStatus(response, fiber.StatusOK, t)
 
-		response, err = postRequest(regularUserData, adminCookie, app, fmt.Sprintf("/en/users/%s/edit", regularUser.Username), t)
+		response, err = putRequest(regularUserData, adminCookie, app, fmt.Sprintf("/en/users/%s", regularUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -282,7 +282,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to edit a non existing user with an admin session", func(t *testing.T) {
 		reset()
 
-		response, err := getRequest(adminCookie, app, fmt.Sprintf("/en/users/%s/edit", "abcde"), t)
+		response, err := getRequest(adminCookie, app, fmt.Sprintf("/en/users/%s", "abcde"), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -294,7 +294,7 @@ func TestUserManagement(t *testing.T) {
 
 		regularUserData.Set("name", "Updated test user by an admin")
 
-		response, err := postRequest(regularUserData, adminCookie, app, fmt.Sprintf("/en/users/%s/edit", "abcde"), t)
+		response, err := putRequest(regularUserData, adminCookie, app, fmt.Sprintf("/en/users/%s", "abcde"), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}

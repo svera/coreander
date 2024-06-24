@@ -120,7 +120,7 @@
 "Indexing in progress, search results may not be accurate.": "Indexando documentos, los resultados de búsqueda pueden no ser precisos."
 "Remaining time: %s minutes": "Tiempo restante: %s minutos"
 "There was an error deleting the user, please try again later": "Hubo un error al borrar el usuario, por favor, vuelva a intentarlo más tarde"
-"A user with this username already exists": "Ya exista un usuario con ese nombre de usuario"
+"A user with this username already exists": "Ya existe un usuario con ese nombre de usuario"
 "A user with this email address already exists": "Ya existe un usuario con esa dirección de correo electrónico"
 "Username can only have letters, numbers, _, - and .": "El nombre de usuario solo puede contener letras, números. _, - y ."
 "Only letters, numbers, _, - and . allowed": "Solo se permiten letras, números, _, - y ."

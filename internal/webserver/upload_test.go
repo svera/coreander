@@ -38,7 +38,7 @@ func TestUpload(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
 
-	response, err := postRequest(data, adminCookie, app, "/en/users/new", t)
+	response, err := postRequest(data, adminCookie, app, "/en/users", t)
 	if response == nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
