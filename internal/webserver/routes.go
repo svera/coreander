@@ -50,14 +50,15 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	langGroup.Post("/recover", allowIfNotLoggedIn, controllers.Auth.Request)
 	langGroup.Get("/reset-password", allowIfNotLoggedIn, controllers.Auth.EditPassword)
 	langGroup.Post("/reset-password", allowIfNotLoggedIn, controllers.Auth.UpdatePassword)
+	langGroup.Get("/logout", alwaysRequireAuthentication, controllers.Auth.SignOut)
 
 	usersGroup := langGroup.Group("/users", alwaysRequireAuthentication)
 
 	usersGroup.Get("/", alwaysRequireAuthentication, RequireAdmin, controllers.Users.List)
 	usersGroup.Get("/new", alwaysRequireAuthentication, RequireAdmin, controllers.Users.New)
-	usersGroup.Post("/new", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Create)
-	usersGroup.Get("/:username/edit", alwaysRequireAuthentication, controllers.Users.Edit)
-	usersGroup.Post("/:username/edit", alwaysRequireAuthentication, controllers.Users.Update)
+	usersGroup.Post("/", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Create)
+	usersGroup.Get("/:username", alwaysRequireAuthentication, controllers.Users.Edit)
+	usersGroup.Put("/:username", alwaysRequireAuthentication, controllers.Users.Update)
 	app.Delete("/users", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Delete)
 
 	langGroup.Get("/highlights/:username", alwaysRequireAuthentication, controllers.Highlights.Highlights)
@@ -68,8 +69,6 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	langGroup.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
 	langGroup.Post("/documents", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)
-
-	langGroup.Get("/logout", alwaysRequireAuthentication, controllers.Auth.SignOut)
 
 	// Authentication requirement is configurable for all routes below this middleware
 	langGroup.Use(configurableAuthentication)

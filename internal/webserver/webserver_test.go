@@ -124,6 +124,12 @@ func postRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL strin
 	return formRequest(http.MethodPost, data, cookie, app, URL)
 }
 
+func putRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL string, t *testing.T) (*http.Response, error) {
+	t.Helper()
+
+	return formRequest(http.MethodPut, data, cookie, app, URL)
+}
+
 func deleteRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL string, t *testing.T) (*http.Response, error) {
 	t.Helper()
 
