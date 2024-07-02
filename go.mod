@@ -7,7 +7,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.1
 	github.com/disintegration/imaging v1.6.2
 	github.com/glebarez/sqlite v1.11.0
-	github.com/gofiber/fiber/v2 v2.52.4
+	github.com/gofiber/fiber/v2 v2.52.5
 	github.com/gofiber/jwt/v3 v3.3.10
 	github.com/gofiber/template/html/v2 v2.1.1
 	github.com/golang-jwt/jwt/v4 v4.5.0
