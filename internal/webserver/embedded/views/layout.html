@@ -62,7 +62,7 @@
                                             {{t .Lang "Users"}}
                                         </a>
                                         {{else}}
-                                        <a class="dropdown-item" href="/{{.Lang}}/users/{{.Session.Username}}/edit">
+                                        <a class="dropdown-item" href="/{{.Lang}}/users/{{.Session.Username}}">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                                                 fill="currentColor" class="bi bi-person-fill" viewBox="0 0 16 16">
                                                 <path
@@ -144,6 +144,11 @@
                 </div>
             </div>
             {{end}}
+
+            <div class="row text-start">
+                <div class="alert alert-danger" role="alert" hidden id="box-error">
+                </div>
+            </div>
 
             {{if .Error}}
                 <div class="row text-start">
