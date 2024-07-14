@@ -8,8 +8,12 @@ document.body.addEventListener('htmx:afterRequest', function (evt) {
         // Server error with response contents, equivalent to htmx:responseError
         const xhr = evt.detail.xhr;
         if (xhr.status == "403") {
-            location.reload();
+            location.reload()
         }
+        if (xhr.status == "400") {
+            return
+        }
+
         console.warn("Server error", evt.detail)
         errorTarget.innerText = `Unexpected server error: ${xhr.status} - ${xhr.statusText}`;
         errorTarget.removeAttribute("hidden");

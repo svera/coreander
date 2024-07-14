@@ -57,7 +57,7 @@ func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session mode
 			"MinPasswordLength": u.config.MinPasswordLength,
 			"UsernamePattern":   model.UsernamePattern,
 			"Errors":            validationErrs,
-		}, "layout")
+		}, "partials/main")
 	}
 
 	if err := u.repository.Update(user); err != nil {
@@ -89,7 +89,7 @@ func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session mode
 		"UsernamePattern":   model.UsernamePattern,
 		"Errors":            validationErrs,
 		"Message":           "Profile updated",
-	}, "layout")
+	}, "partials/main")
 }
 
 func (u *Controller) validate(c *fiber.Ctx, user *model.User, session model.Session) (map[string]string, error) {
