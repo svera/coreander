@@ -8,10 +8,7 @@ document.body.addEventListener('htmx:afterRequest', function (evt) {
         // Server error with response contents, equivalent to htmx:responseError
         const xhr = evt.detail.xhr;
         if (xhr.status == "403") {
-            location.reload()
-        }
-        if (xhr.status == "400") {
-            return
+            return location.reload()
         }
 
         console.warn("Server error", evt.detail)
