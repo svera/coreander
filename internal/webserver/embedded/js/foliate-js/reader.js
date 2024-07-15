@@ -245,7 +245,7 @@ const url = document.getElementById('url').value
 if (url) fetch(url)
     .then(res => {
         if (res.status == 403) {
-            location.reload()
+            return location.reload()
         }
         return res.blob()
     })

@@ -1,0 +1,44 @@
+<div class="container mt-5">
+    {{if .RemainingIndexingTime}}
+    <div class="row text-start">
+        <div class="alert alert-warning" role="alert">
+            <p>{{t .Lang "Indexing in progress, search results may not be accurate."}}</p>
+            <div class="progress" role="progressbar" aria-label='{{t .Lang "Indexing progress"}}' aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar" style="width: {{.IndexingProgressPercentage}}%">{{.IndexingProgressPercentage}}%</div>
+            </div>
+            <p class="text-end"><small>{{t .Lang "Remaining time: %s minutes" .RemainingIndexingTime}}</small></p>
+        </div>
+    </div>
+    {{end}}
+
+    <div class="row text-start">
+        <div class="alert alert-danger" role="alert" hidden id="box-error" data-unexpected-error='{{t .Lang "Unexpected error, check your connection and try to refresh the page."}}' data-unexpected-server-error='{{t .Lang "Unexpected server error"}}'>
+        </div>
+    </div>
+
+    {{if .Error}}
+        <div class="row text-start">
+            <div class="alert alert-danger" role="alert">
+                {{t .Lang .Error}}
+            </div>
+        </div>
+    {{end}}
+
+    {{if .Warning}}
+    <div class="row text-start">
+        <div class="alert alert-warning" role="alert">
+            {{t .Lang .Warning}}
+        </div>
+    </div>
+    {{end}}
+
+    {{if .Message}}
+        <div class="row text-start">
+            <div class="alert alert-success" role="alert">
+                {{t .Lang .Message}}
+            </div>
+        </div>
+    {{end}}
+
+    {{embed}}
+</div>
