@@ -1,5 +1,7 @@
 document.body.addEventListener('htmx:afterRequest', function (evt) {
     const errorTarget = document.getElementById("box-error")
+    const unexpectedServerError = errorTarget.getAttribute("data-unexpected-server-error")
+    const unexpectedError = errorTarget.getAttribute("data-unexpected-error")
     if (evt.detail.successful) {
         // Successful request, clear out alert
         errorTarget.setAttribute("hidden", "true")
@@ -12,12 +14,12 @@ document.body.addEventListener('htmx:afterRequest', function (evt) {
         }
 
         console.warn("Server error", evt.detail)
-        errorTarget.innerText = `Unexpected server error: ${xhr.status} - ${xhr.statusText}`;
-        errorTarget.removeAttribute("hidden");
+        errorTarget.innerText = unexpectedServerError + `${xhr.status} - ${xhr.statusText}`
+        errorTarget.removeAttribute("hidden")
     } else {
         // Unspecified failure, usually caused by network error
         console.error("Unexpected htmx error", evt.detail)
-        errorTarget.innerText = "Unexpected error, check your connection and try to refresh the page.";
-        errorTarget.removeAttribute("hidden");
+        errorTarget.innerText = unexpectedError
+        errorTarget.removeAttribute("hidden")
     }
 });
