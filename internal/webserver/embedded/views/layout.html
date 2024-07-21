@@ -94,7 +94,7 @@
                                         <hr class="dropdown-divider">
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="/{{.Lang}}/logout">
+                                        <a class="dropdown-item" href="/{{.Lang}}/sessions" hx-delete="/{{.Lang}}/sessions">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                                                 fill="currentColor" class="bi bi-box-arrow-right" viewBox="0 0 16 16">
                                                 <path fill-rule="evenodd"
@@ -109,7 +109,7 @@
                             </li>
                             {{else if not .DisableLoginLink}}
                             <li class="p-2">
-                                <a href="/{{.Lang}}/login">{{t .Lang "Login"}}</a>
+                                <a href="/{{.Lang}}/sessions/new">{{t .Lang "Login"}}</a>
                             </li>
                             {{end}}
                             <hr class="d-lg-none">

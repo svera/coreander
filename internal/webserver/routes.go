@@ -44,13 +44,13 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		return c.Next()
 	})
 
-	langGroup.Get("/login", allowIfNotLoggedIn, controllers.Auth.Login)
-	langGroup.Post("login", allowIfNotLoggedIn, controllers.Auth.SignIn)
+	langGroup.Get("/sessions/new", allowIfNotLoggedIn, controllers.Auth.Login)
+	langGroup.Post("/sessions", allowIfNotLoggedIn, controllers.Auth.SignIn)
 	langGroup.Get("/recover", allowIfNotLoggedIn, controllers.Auth.Recover)
 	langGroup.Post("/recover", allowIfNotLoggedIn, controllers.Auth.Request)
 	langGroup.Get("/reset-password", allowIfNotLoggedIn, controllers.Auth.EditPassword)
 	langGroup.Post("/reset-password", allowIfNotLoggedIn, controllers.Auth.UpdatePassword)
-	langGroup.Get("/logout", alwaysRequireAuthentication, controllers.Auth.SignOut)
+	langGroup.Delete("/sessions", alwaysRequireAuthentication, controllers.Auth.SignOut)
 
 	usersGroup := langGroup.Group("/users", alwaysRequireAuthentication)
 
