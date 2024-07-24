@@ -1,11 +1,11 @@
 package webserver_test
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -43,8 +43,7 @@ func TestRemoveDocument(t *testing.T) {
 		slug               string
 		expectedHTTPStatus int
 	}{
-		{"Remove no document slug", "admin@example.com", "admin", "", "", http.StatusBadRequest},
-		{"Remove non existing document slug", "admin@example.com", "admin", "wrong.epub", "", http.StatusBadRequest},
+		{"Remove non existing document slug", "admin@example.com", "admin", "wrong.epub", "wrong-epub", http.StatusBadRequest},
 		{"Remove document with a regular user", "regular@example.com", "regular", "metadata.epub", "john-doe-test-epub", http.StatusForbidden},
 		{"Remove document with an admin user", "admin@example.com", "admin", "metadata.epub", "john-doe-test-epub", http.StatusOK},
 	}
@@ -56,23 +55,15 @@ func TestRemoveDocument(t *testing.T) {
 				err      error
 			)
 
-			data := url.Values{
-				"id": {tcase.slug},
-			}
-
 			cookie, err := login(app, tcase.email, tcase.password, t)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())
 			}
 
-			req, err := http.NewRequest(http.MethodDelete, "/documents", strings.NewReader(data.Encode()))
+			response, err = deleteRequest(url.Values{}, cookie, app, fmt.Sprintf("/documents/%s", tcase.slug), t)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())
 			}
-			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-			req.AddCookie(cookie)
-
-			response, err = app.Test(req)
 
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())

@@ -59,13 +59,13 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	usersGroup.Post("/", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Create)
 	usersGroup.Get("/:username", alwaysRequireAuthentication, controllers.Users.Edit)
 	usersGroup.Put("/:username", alwaysRequireAuthentication, controllers.Users.Update)
-	app.Delete("/users", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Delete)
+	app.Delete("/users/:username", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Delete)
 
-	langGroup.Get("/highlights/:username", alwaysRequireAuthentication, controllers.Highlights.Highlights)
-	app.Post("/documents/:slug/highlight", alwaysRequireAuthentication, controllers.Highlights.Highlight)
-	app.Delete("/documents/:slug/highlight", alwaysRequireAuthentication, controllers.Highlights.Remove)
+	langGroup.Get("/highlights/:username", alwaysRequireAuthentication, controllers.Highlights.List)
+	app.Post("/documents/:slug/highlight", alwaysRequireAuthentication, controllers.Highlights.Create)
+	app.Delete("/documents/:slug/highlight", alwaysRequireAuthentication, controllers.Highlights.Delete)
 
-	app.Delete("/documents", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
+	app.Delete("/documents/:slug", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
 
 	langGroup.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
 	langGroup.Post("/documents", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)

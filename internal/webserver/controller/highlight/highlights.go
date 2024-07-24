@@ -12,7 +12,7 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
-func (h *Controller) Highlights(c *fiber.Ctx) error {
+func (h *Controller) List(c *fiber.Ctx) error {
 	emailSendingConfigured := true
 	if _, ok := h.sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false

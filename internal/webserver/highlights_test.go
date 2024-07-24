@@ -19,7 +19,6 @@ func TestHighlights(t *testing.T) {
 		db          *gorm.DB
 		app         *fiber.App
 		adminCookie *http.Cookie
-		data        url.Values
 		adminUser   model.User
 	)
 
@@ -34,9 +33,6 @@ func TestHighlights(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		data = url.Values{
-			"slug": {"john-doe-test-epub"},
-		}
 		adminUser = model.User{}
 		db.Where("email = ?", "admin@example.com").First(&adminUser)
 
@@ -116,11 +112,7 @@ func TestHighlights(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		data = url.Values{
-			"id": {"john-doe-test-epub"},
-		}
-
-		_, err = deleteRequest(data, adminCookie, app, "/documents", t)
+		_, err = deleteRequest(url.Values{}, adminCookie, app, "/documents/john-doe-test-epub", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -158,11 +150,7 @@ func TestHighlights(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		data := url.Values{
-			"id": {regularUser.Uuid},
-		}
-
-		_, err = deleteRequest(data, adminCookie, app, "/users", t)
+		_, err = deleteRequest(url.Values{}, adminCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
