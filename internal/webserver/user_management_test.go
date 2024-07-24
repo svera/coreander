@@ -428,7 +428,7 @@ func login(app *fiber.App, email, password string, t *testing.T) (*http.Cookie, 
 		"password": {password},
 	}
 
-	req, err := http.NewRequest(http.MethodPost, "/en/login", strings.NewReader(data.Encode()))
+	req, err := http.NewRequest(http.MethodPost, "/en/sessions", strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, err
 	}

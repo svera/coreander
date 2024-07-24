@@ -29,5 +29,6 @@ func (a *Controller) Login(c *fiber.Ctx) error {
 		"Title":                  "Login",
 		"Message":                msg,
 		"EmailSendingConfigured": emailSendingConfigured,
+		"DisableLoginLink":       true,
 	}, "layout")
 }

@@ -29,7 +29,7 @@ func TestAuthentication(t *testing.T) {
 
 	t.Run("Try to log in with good and bad credentials", func(t *testing.T) {
 		// Check that login page is accessible
-		req, err := http.NewRequest(http.MethodGet, "/en/login", nil)
+		req, err := http.NewRequest(http.MethodGet, "/en/sessions/new", nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -42,7 +42,7 @@ func TestAuthentication(t *testing.T) {
 		}
 
 		// Use no credentials to log in
-		req, err = http.NewRequest(http.MethodPost, "/en/login", nil)
+		req, err = http.NewRequest(http.MethodPost, "/en/sessions", nil)
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -56,7 +56,7 @@ func TestAuthentication(t *testing.T) {
 		}
 
 		// Use good credentials to log in
-		req, err = http.NewRequest(http.MethodPost, "/en/login", strings.NewReader(data.Encode()))
+		req, err = http.NewRequest(http.MethodPost, "/en/sessions", strings.NewReader(data.Encode()))
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -267,7 +267,7 @@ func TestRecover(t *testing.T) {
 			t.Error("No location header present")
 			return
 		}
-		if expectedURL := "/en/login"; url.Path != expectedURL {
+		if expectedURL := "/en/sessions"; url.Path != expectedURL {
 			t.Errorf("Expected location %s, received %s", expectedURL, url.Path)
 		}
 

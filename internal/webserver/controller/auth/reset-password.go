@@ -45,7 +45,7 @@ func (a *Controller) UpdatePassword(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	return c.Redirect(fmt.Sprintf("/%s/login", c.Params("lang")))
+	return c.Redirect(fmt.Sprintf("/%s/sessions", c.Params("lang")))
 }
 
 func (a *Controller) validateRecoveryAccess(recoveryUuid string) (*model.User, error) {
