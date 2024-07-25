@@ -304,11 +304,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to delete a user without an active session", func(t *testing.T) {
 		reset()
 
-		regularUserData = url.Values{
-			"id": {regularUser.Uuid},
-		}
-
-		response, err := deleteRequest(regularUserData, &http.Cookie{}, app, "/users", t)
+		response, err := deleteRequest(url.Values{}, &http.Cookie{}, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -319,13 +315,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to delete a user with a regular user's session", func(t *testing.T) {
 		reset()
 
-		regularUserData = url.Values{
-			"id": {regularUser.Uuid},
-		}
-
-		regularUserData.Set("name", "Updated test user")
-
-		response, err := deleteRequest(regularUserData, regularUserCookie, app, "/users", t)
+		response, err := deleteRequest(url.Values{}, regularUserCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -336,11 +326,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to delete a user with an admin session", func(t *testing.T) {
 		reset()
 
-		regularUserData = url.Values{
-			"id": {regularUser.Uuid},
-		}
-
-		response, err := deleteRequest(regularUserData, adminCookie, app, "/users", t)
+		response, err := deleteRequest(url.Values{}, adminCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -355,10 +341,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to delete the only existing admin user", func(t *testing.T) {
 		reset()
 
-		regularUserData = url.Values{
-			"id": {adminUser.Uuid},
-		}
-		response, err := deleteRequest(regularUserData, adminCookie, app, "/users", t)
+		response, err := deleteRequest(url.Values{}, adminCookie, app, fmt.Sprintf("/users/%s", adminUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -369,11 +352,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to delete a non existing user with an admin session", func(t *testing.T) {
 		reset()
 
-		regularUserData = url.Values{
-			"id": {"abcde"},
-		}
-
-		response, err := deleteRequest(regularUserData, adminCookie, app, "/users", t)
+		response, err := deleteRequest(url.Values{}, adminCookie, app, "/users/wrong", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}

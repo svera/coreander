@@ -5,7 +5,7 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
-func (h *Controller) Remove(c *fiber.Ctx) error {
+func (h *Controller) Delete(c *fiber.Ctx) error {
 	user := c.Locals("Session").(model.Session)
 
 	document, err := h.idx.Document(c.Params("slug"))
