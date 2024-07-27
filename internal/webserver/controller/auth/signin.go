@@ -41,7 +41,7 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 		Name:     "coreander",
 		Value:    signedToken,
 		Path:     "/",
-		MaxAge:   int(a.config.SessionTimeout.Seconds()),
+		MaxAge:   34560000, // 400 days which is the life limit imposed by Chrome
 		Secure:   false,
 		HTTPOnly: true,
 	})

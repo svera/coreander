@@ -8,7 +8,7 @@ import (
 func (a *Controller) SignOut(c *fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
 		Name:     "coreander",
-		Value:    "void",
+		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
 		Secure:   false,

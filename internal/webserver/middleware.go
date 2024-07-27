@@ -111,7 +111,7 @@ func forbidden(c *fiber.Ctx, sender Sender, err error) error {
 		emailSendingConfigured = false
 	}
 	message := ""
-	if err.Error() != "missing or malformed JWT" && c.Cookies("coreander") != "void" {
+	if err.Error() != "missing or malformed JWT" && c.Cookies("coreander") != "" {
 		message = "Session expired, please log in again."
 	}
 	return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
