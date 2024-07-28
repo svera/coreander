@@ -32,7 +32,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		h.wordsPerMinute = session.WordsPerMinute
 	}
 
-	user, err := h.usrRepository.FindByUsername(c.Params("username"))
+	user, err := h.usrRepository.FindByUsername(session.Username)
 	if err != nil {
 		log.Println(err.Error())
 		return fiber.ErrInternalServerError
