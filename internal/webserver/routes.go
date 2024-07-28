@@ -61,9 +61,9 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	usersGroup.Put("/:username", alwaysRequireAuthentication, controllers.Users.Update)
 	app.Delete("/users/:username", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Delete)
 
-	langGroup.Get("/stars", alwaysRequireAuthentication, controllers.Highlights.List)
-	app.Post("/stars/:slug", alwaysRequireAuthentication, controllers.Highlights.Create)
-	app.Delete("/stars/:slug", alwaysRequireAuthentication, controllers.Highlights.Delete)
+	langGroup.Get("/highlights", alwaysRequireAuthentication, controllers.Highlights.List)
+	app.Post("/highlights/:slug", alwaysRequireAuthentication, controllers.Highlights.Create)
+	app.Delete("/highlights/:slug", alwaysRequireAuthentication, controllers.Highlights.Delete)
 
 	app.Delete("/documents/:slug", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
 

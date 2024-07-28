@@ -38,10 +38,6 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	if user == nil {
-		return fiber.ErrNotFound
-	}
-
 	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, model.ResultsPerPage)
 	if err != nil {
 		return fiber.ErrInternalServerError
