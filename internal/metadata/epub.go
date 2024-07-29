@@ -22,21 +22,21 @@ type EpubReader struct{}
 
 func (e EpubReader) Metadata(file string) (Metadata, error) {
 	bk := Metadata{}
-	opf, err := epub.GetPackageFromFile(file)
+	meta, err := epub.GetMetadataFromFile(file)
 	if err != nil {
 		return bk, err
 	}
 	title := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
-	if len(opf.Metadata.Title) > 0 && len(opf.Metadata.Title[0].Value) > 0 {
-		title = opf.Metadata.Title[0].Value
+	if len(meta.Title) > 0 && len(meta.Title[0]) > 0 {
+		title = meta.Title[0]
 	}
 	var authors []string
-	if len(opf.Metadata.Creator) > 0 {
-		for _, creator := range opf.Metadata.Creator {
+	if len(meta.Creator) > 0 {
+		for _, creator := range meta.Creator {
 			if creator.Role == "aut" || creator.Role == "" {
 				// Some epub files mistakenly put all authors in a single field instead of using a field for each one.
 				// We want to identify those cases looking for specific separators and then indexing each author properly.
-				names := strings.Split(creator.Value, "&")
+				names := strings.Split(creator.FullName, "&")
 				for i := range names {
 					names[i] = strings.TrimSpace(names[i])
 				}
@@ -50,15 +50,15 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	}
 
 	var subjects []string
-	if len(opf.Metadata.Subject) > 0 {
-		for _, subject := range opf.Metadata.Subject {
-			subject.Value = strings.TrimSpace(subject.Value)
-			if subject.Value == "" {
+	if len(meta.Subject) > 0 {
+		for _, subject := range meta.Subject {
+			subject = strings.TrimSpace(subject)
+			if subject == "" {
 				continue
 			}
 			// Some epub files mistakenly put all subjects in a single field instead of using a field for each one.
 			// We want to identify those cases looking for specific separators and then indexing each subject properly.
-			names := strings.Split(subject.Value, ",")
+			names := strings.Split(subject, ",")
 			for i := range names {
 				names[i] = strings.TrimSpace(names[i])
 			}
@@ -67,28 +67,28 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	}
 
 	description := ""
-	if len(opf.Metadata.Description) > 0 {
+	if len(meta.Description) > 0 {
 		strict := bluemonday.StrictPolicy()
-		noHTMLDescription := strict.Sanitize(opf.Metadata.Description[0].Value)
-		if noHTMLDescription == opf.Metadata.Description[0].Value {
-			paragraphs := strings.Split(opf.Metadata.Description[0].Value, "\n")
+		noHTMLDescription := strict.Sanitize(meta.Description[0])
+		if noHTMLDescription == meta.Description[0] {
+			paragraphs := strings.Split(meta.Description[0], "\n")
 			description = "<p>" + strings.Join(paragraphs, "</p><p>") + "</p>"
 		} else {
 			p := bluemonday.UGCPolicy()
-			description = p.Sanitize(opf.Metadata.Description[0].Value)
+			description = p.Sanitize(meta.Description[0])
 		}
 	}
 
 	lang := ""
-	if len(opf.Metadata.Language) > 0 {
-		lang = opf.Metadata.Language[0].Value
+	if len(meta.Language) > 0 {
+		lang = meta.Language[0]
 	}
 
 	year := ""
-	if len(opf.Metadata.Date) > 0 {
-		for _, date := range opf.Metadata.Date {
+	if len(meta.Date) > 0 {
+		for _, date := range meta.Date {
 			if date.Event == "publication" || date.Event == "" {
-				t, err := time.Parse("2006-01-02", date.Value)
+				t, err := time.Parse("2006-01-02", date.Stamp)
 				if err == nil {
 					year = strings.TrimLeft(t.Format("2006"), "0")
 					break
@@ -96,26 +96,9 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 			}
 		}
 	}
-	cover := ""
-	series := ""
 	var seriesIndex float64 = 0
-	for _, val := range opf.Metadata.Meta {
-		if val.Name == "cover" {
-			id := val.Content
-			for _, item := range opf.Manifest.Items {
-				if item.ID == id {
-					cover = item.Href
-					break
-				}
-			}
-		}
-		if val.Name == "calibre:series" {
-			series = val.Content
-		}
-		if val.Name == "calibre:series_index" {
-			seriesIndex, _ = strconv.ParseFloat(val.Content, 64)
-		}
-	}
+
+	seriesIndex, _ = strconv.ParseFloat(meta.SeriesIndex, 64)
 
 	bk = Metadata{
 		Title:       title,
@@ -123,8 +106,7 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		Description: template.HTML(description),
 		Language:    lang,
 		Year:        year,
-		Cover:       cover,
-		Series:      series,
+		Series:      meta.Series,
 		SeriesIndex: seriesIndex,
 		Type:        "EPUB",
 		Subjects:    subjects,
@@ -141,12 +123,26 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
 	var cover []byte
 
-	reader := EpubReader{}
-	meta, err := reader.Metadata(documentFullPath)
+	coverFileName := ""
+
+	opf, err := epub.GetPackageFromFile(documentFullPath)
 	if err != nil {
 		return nil, err
 	}
-	if meta.Cover == "" {
+
+	for _, val := range opf.Metadata.Meta {
+		if val.Name == "cover" {
+			id := val.Content
+			for _, item := range opf.Manifest.Items {
+				if item.ID == id {
+					coverFileName = item.Href
+					break
+				}
+			}
+		}
+	}
+
+	if coverFileName == "" {
 		return nil, fmt.Errorf("no cover image set in %s", documentFullPath)
 	}
 
@@ -155,7 +151,7 @@ func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, e
 		return nil, err
 	}
 	defer r.Close()
-	cover, err = extractCover(r, meta.Cover, coverMaxWidth)
+	cover, err = extractCover(r, coverFileName, coverMaxWidth)
 	if err != nil {
 		return nil, err
 	}
