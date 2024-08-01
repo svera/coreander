@@ -45,9 +45,11 @@ const getView = async file => {
     if (!book) throw new Error('File type not supported')
     const view = document.createElement('foliate-view')
     const storage = window.localStorage
+    const slug = document.getElementById('slug').value
+
     document.body.append(view)
     await view.open(book)
-    await view.init({lastLocation: storage.getItem("loc")})
+    await view.init({lastLocation: storage.getItem(slug)})
     return view
 }
 
@@ -225,7 +227,9 @@ class Reader {
     }
     #onRelocate({ detail }) {
         const storage = window.localStorage
-        storage.setItem("loc", detail.cfi)
+        const slug = document.getElementById('slug').value
+
+        storage.setItem(slug, detail.cfi)
         const { fraction, location, tocItem, pageItem } = detail
         const percent = percentFormat.format(fraction)
         const loc = pageItem
