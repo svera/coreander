@@ -14,6 +14,7 @@
 <link href="/css/reader.css" rel="stylesheet">
 
 <input type="hidden" id="url" value="{{.fqdn}}/documents/{{.Slug}}/download">
+<input type="hidden" id="slug" value="{{.Slug}}">
 
 <div id="spinner-container" class="filter">
     <div>
@@ -79,4 +80,4 @@
 }}</script>
 
 <script src="/js/foliate-js/vendor/pdfjs/pdf.js"></script>
-<script src="/js/foliate-js/reader.js" type="module"></script>
+<script src="/js/reader.js" type="module"></script>
