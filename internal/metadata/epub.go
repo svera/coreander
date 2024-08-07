@@ -131,13 +131,13 @@ func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, e
 	}
 
 	for _, val := range opf.Metadata.Meta {
-		if val.Name == "cover" {
-			id := val.Content
-			for _, item := range opf.Manifest.Items {
-				if item.ID == id {
-					coverFileName = item.Href
-					break
-				}
+		if val.Name != "cover" {
+			continue
+		}
+		for _, item := range opf.Manifest.Items {
+			if item.ID == val.Content {
+				coverFileName = item.Href
+				break
 			}
 		}
 	}
