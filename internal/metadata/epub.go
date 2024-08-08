@@ -31,17 +31,15 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		title = meta.Title[0]
 	}
 	var authors []string
-	if len(meta.Creator) > 0 {
-		for _, creator := range meta.Creator {
-			if creator.Role == "aut" || creator.Role == "" {
-				// Some epub files mistakenly put all authors in a single field instead of using a field for each one.
-				// We want to identify those cases looking for specific separators and then indexing each author properly.
-				names := strings.Split(creator.FullName, "&")
-				for i := range names {
-					names[i] = strings.TrimSpace(names[i])
-				}
-				authors = append(authors, names...)
+	for _, creator := range meta.Creator {
+		if creator.Role == "aut" || creator.Role == "" {
+			// Some epub files mistakenly put all authors in a single field instead of using a field for each one.
+			// We want to identify those cases looking for specific separators and then indexing each author properly.
+			names := strings.Split(creator.FullName, "&")
+			for i := range names {
+				names[i] = strings.TrimSpace(names[i])
 			}
+			authors = append(authors, names...)
 		}
 	}
 
@@ -50,20 +48,18 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	}
 
 	var subjects []string
-	if len(meta.Subject) > 0 {
-		for _, subject := range meta.Subject {
-			subject = strings.TrimSpace(subject)
-			if subject == "" {
-				continue
-			}
-			// Some epub files mistakenly put all subjects in a single field instead of using a field for each one.
-			// We want to identify those cases looking for specific separators and then indexing each subject properly.
-			names := strings.Split(subject, ",")
-			for i := range names {
-				names[i] = strings.TrimSpace(names[i])
-			}
-			subjects = append(subjects, names...)
+	for _, subject := range meta.Subject {
+		subject = strings.TrimSpace(subject)
+		if subject == "" {
+			continue
 		}
+		// Some epub files mistakenly put all subjects in a single field instead of using a field for each one.
+		// We want to identify those cases looking for specific separators and then indexing each subject properly.
+		names := strings.Split(subject, ",")
+		for i := range names {
+			names[i] = strings.TrimSpace(names[i])
+		}
+		subjects = append(subjects, names...)
 	}
 
 	description := ""
@@ -85,14 +81,12 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	}
 
 	year := ""
-	if len(meta.Date) > 0 {
-		for _, date := range meta.Date {
-			if date.Event == "publication" || date.Event == "" {
-				t, err := time.Parse("2006-01-02", date.Stamp)
-				if err == nil {
-					year = strings.TrimLeft(t.Format("2006"), "0")
-					break
-				}
+	for _, date := range meta.Date {
+		if date.Event == "publication" || date.Event == "" {
+			t, err := time.Parse("2006-01-02", date.Stamp)
+			if err == nil {
+				year = strings.TrimLeft(t.Format("2006"), "0")
+				break
 			}
 		}
 	}
