@@ -135,7 +135,7 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 // processed in the current batch in memory to also compare the current doc slug against them.
 func (b *BleveIndexer) Slug(document DocumentWrite, batchSlugs map[string]struct{}) string {
 	docSlug := makeSlug(document)
-	exp, err := regexp.Compile(`^[a-zA-Z0-9\-]+(--)\d$`)
+	exp, err := regexp.Compile(`^[a-zA-Z0-9\-]+(--)[0-9]+$`)
 	if err != nil {
 		log.Fatal(err)
 	}
