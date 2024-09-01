@@ -12,19 +12,21 @@ window.onload = function () {
         });
 
         img.setAttribute('src', img.getAttribute('data-src'));
-        
+
         img.addEventListener('load', (event) => {
             if (img.getAttribute('src') == '/images/generic.jpg') {
                 return;
             }
-            let cardTitle = img.nextElementSibling.getElementsByClassName('card-title')[0];
+            let cardTitle = img.parentNode.getElementsByClassName('card-img-overlay')[0].getElementsByClassName('card-title')[0]
+            //let cardTitle = img.nextElementSibling.getElementsByClassName('card-title')[0];
             let cardTitleLink = cardTitle.getElementsByTagName('a')[0]
             if (cardTitleLink) {
                 cardTitleLink.text = '';
             } else {
                 cardTitle.innerHTML = ''
             }
-            img.nextElementSibling.getElementsByClassName('card-text')[0].innerHTML = '';
+            //img.nextElementSibling.getElementsByClassName('card-text')[0].innerHTML = '';
+            img.parentNode.getElementsByClassName('card-img-overlay')[0].getElementsByClassName('card-text')[0].innerHTML = '';
         });
     }
 }

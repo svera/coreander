@@ -5,7 +5,7 @@ let links = document.querySelectorAll("a.highlight, a.dehighlight");
 Array.from(links).forEach((link) => {
     link.addEventListener("click", (event) => {
         event.preventDefault();
-        const parent = link.closest(".actions");
+        const parent = link.parentNode;
         const method = link.getAttribute("data-method");
 
         let highlightLinkParent = parent.querySelector(".highlight");
