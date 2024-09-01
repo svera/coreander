@@ -52,6 +52,9 @@ func (b *BleveIndexer) AddLibrary(batchSize int) error {
 	languages := []string{}
 	b.indexStartTime = float64(time.Now().UnixNano())
 	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
+		if b.isAlreadyIndexed(fullPath) {
+			return nil
+		}
 		ext := strings.ToLower(filepath.Ext(fullPath))
 		if _, ok := b.reader[ext]; !ok {
 			return nil
@@ -80,11 +83,24 @@ func (b *BleveIndexer) AddLibrary(batchSize int) error {
 		}
 		return nil
 	})
+	if b.indexedDocuments > 0 {
+		batch.SetInternal(internalLanguages, []byte(strings.Join(languages, ",")))
+		b.idx.Batch(batch)
+	}
 	b.indexStartTime = 0
 	b.indexedDocuments = 0
-	batch.SetInternal(internalLanguages, []byte(strings.Join(languages, ",")))
-	b.idx.Batch(batch)
 	return e
+}
+
+func (b *BleveIndexer) isAlreadyIndexed(fullPath string) bool {
+	doc, err := b.idx.Document(b.id(fullPath))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	if doc == nil {
+		return false
+	}
+	return true
 }
 
 func addLanguage(lang string, languages []string) []string {
@@ -117,7 +133,7 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 		SubjectsEq: make([]string, len(meta.Subjects)),
 	}
 
-	document.ID = b.ID(document, fullPath)
+	document.ID = b.id(fullPath)
 	document.Slug = b.Slug(document, batchSlugs)
 	copy(document.AuthorsEq, meta.Authors)
 	for i := range document.AuthorsEq {
@@ -161,7 +177,7 @@ func (b *BleveIndexer) Slug(document DocumentWrite, batchSlugs map[string]struct
 	}
 }
 
-func (b *BleveIndexer) ID(meta DocumentWrite, file string) string {
+func (b *BleveIndexer) id(file string) string {
 	ID := strings.ReplaceAll(file, b.libraryPath, "")
 	return strings.TrimPrefix(ID, string(filepath.Separator))
 }
