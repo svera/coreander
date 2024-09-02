@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	index "github.com/blevesearch/bleve_index_api"
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/metadata"
@@ -45,14 +46,17 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 	return nil
 }
 
-// AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <bathSize>
+// AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <bathSize> if they
+// haven't been previously indexed
 func (b *BleveIndexer) AddLibrary(batchSize int) error {
 	batch := b.idx.NewBatch()
 	batchSlugs := make(map[string]struct{}, batchSize)
 	languages := []string{}
 	b.indexStartTime = float64(time.Now().UnixNano())
 	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
-		if b.isAlreadyIndexed(fullPath) {
+		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed {
+			b.indexedDocuments += 1
+			languages = addLanguage(lang, languages)
 			return nil
 		}
 		ext := strings.ToLower(filepath.Ext(fullPath))
@@ -83,24 +87,31 @@ func (b *BleveIndexer) AddLibrary(batchSize int) error {
 		}
 		return nil
 	})
-	if b.indexedDocuments > 0 {
+	if len(languages) > 0 {
 		batch.SetInternal(internalLanguages, []byte(strings.Join(languages, ",")))
-		b.idx.Batch(batch)
 	}
+	b.idx.Batch(batch)
 	b.indexStartTime = 0
 	b.indexedDocuments = 0
 	return e
 }
 
-func (b *BleveIndexer) isAlreadyIndexed(fullPath string) bool {
+func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {
 	doc, err := b.idx.Document(b.id(fullPath))
 	if err != nil {
 		log.Fatalln(err)
 	}
 	if doc == nil {
-		return false
+		return false, ""
 	}
-	return true
+	lang := ""
+	doc.VisitFields(func(f index.Field) {
+		if f.Name() == "Language" {
+			lang = string(f.Value())
+			return
+		}
+	})
+	return true, lang
 }
 
 func addLanguage(lang string, languages []string) []string {
