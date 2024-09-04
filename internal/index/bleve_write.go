@@ -48,13 +48,13 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 
 // AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <bathSize> if they
 // haven't been previously indexed
-func (b *BleveIndexer) AddLibrary(batchSize int) error {
+func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	batch := b.idx.NewBatch()
 	batchSlugs := make(map[string]struct{}, batchSize)
 	languages := []string{}
 	b.indexStartTime = float64(time.Now().UnixNano())
 	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
-		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed {
+		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed && !forceIndexing {
 			b.indexedDocuments += 1
 			languages = addLanguage(lang, languages)
 			return nil

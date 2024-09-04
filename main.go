@@ -81,11 +81,7 @@ func migrateDir() {
 func main() {
 	defer idx.Close()
 
-	if !cfg.SkipIndexing {
-		go startIndex(idx, appFs, cfg.BatchSize, cfg.LibPath)
-	} else {
-		go fileWatcher(idx, cfg.LibPath)
-	}
+	go startIndex(idx, appFs, cfg.BatchSize, cfg.LibPath)
 
 	sender = &infrastructure.NoEmail{}
 	if cfg.SmtpServer != "" && cfg.SmtpUser != "" && cfg.SmtpPassword != "" {
@@ -133,7 +129,7 @@ func main() {
 func startIndex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath string) {
 	start := time.Now().Unix()
 	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
-	err := idx.AddLibrary(batchSize)
+	err := idx.AddLibrary(batchSize, cfg.ForceIndexing)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -147,7 +143,7 @@ func getIndexFile(fs afero.Fs) bleve.Index {
 	indexFile, err := bleve.Open(homeDir + indexPath)
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No index found, creating a new one.")
-		cfg.SkipIndexing = false
+		cfg.ForceIndexing = false
 		indexFile = index.Create(homeDir + indexPath)
 	}
 	version, err := indexFile.GetInternal([]byte("version"))
@@ -159,7 +155,7 @@ func getIndexFile(fs afero.Fs) bleve.Index {
 		if err = fs.RemoveAll(homeDir + indexPath); err != nil {
 			log.Fatal(err)
 		}
-		cfg.SkipIndexing = false
+		cfg.ForceIndexing = false
 		indexFile = index.Create(homeDir + indexPath)
 	}
 	return indexFile
