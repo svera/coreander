@@ -11,9 +11,12 @@ import (
 )
 
 func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, requireAuth bool) {
-	var allowIfNotLoggedIn = AllowIfNotLoggedIn(jwtSecret)
-	var alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender)
-	var configurableAuthentication = ConfigurableAuthentication(jwtSecret, sender, requireAuth)
+	// Middlewares
+	var (
+		allowIfNotLoggedIn          = AllowIfNotLoggedIn(jwtSecret)
+		alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender)
+		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, requireAuth)
+	)
 
 	app.Use("/css", filesystem.New(filesystem.Config{
 		Root: http.FS(cssFS),
@@ -54,35 +57,34 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	usersGroup := langGroup.Group("/users", alwaysRequireAuthentication)
 
-	usersGroup.Get("/", alwaysRequireAuthentication, RequireAdmin, controllers.Users.List)
-	usersGroup.Get("/new", alwaysRequireAuthentication, RequireAdmin, controllers.Users.New)
-	usersGroup.Post("/", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Create)
-	usersGroup.Get("/:username", alwaysRequireAuthentication, controllers.Users.Edit)
-	usersGroup.Put("/:username", alwaysRequireAuthentication, controllers.Users.Update)
-	app.Delete("/users/:username", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Delete)
+	usersGroup.Get("/", RequireAdmin, controllers.Users.List)
+	usersGroup.Get("/new", RequireAdmin, controllers.Users.New)
+	usersGroup.Post("/", RequireAdmin, controllers.Users.Create)
+	usersGroup.Get("/:username", controllers.Users.Edit)
+	usersGroup.Put("/:username", controllers.Users.Update)
+	usersGroup.Delete("/:username", RequireAdmin, controllers.Users.Delete)
 
-	langGroup.Get("/highlights", alwaysRequireAuthentication, controllers.Highlights.List)
-	app.Post("/highlights/:slug", alwaysRequireAuthentication, controllers.Highlights.Create)
-	app.Delete("/highlights/:slug", alwaysRequireAuthentication, controllers.Highlights.Delete)
+	highlightsGroup := langGroup.Group("/highlights", alwaysRequireAuthentication)
+	highlightsGroup.Get("/", controllers.Highlights.List)
+	highlightsGroup.Post("/:slug", controllers.Highlights.Create)
+	highlightsGroup.Delete("/:slug", controllers.Highlights.Delete)
 
-	app.Delete("/documents/:slug", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
-
+	docsGroup := langGroup.Group("/documents")
 	langGroup.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
-	langGroup.Post("/documents", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)
+	docsGroup.Post("/", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)
+	docsGroup.Delete("/:slug", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
 
 	// Authentication requirement is configurable for all routes below this middleware
 	langGroup.Use(configurableAuthentication)
 	app.Use(configurableAuthentication)
 
-	app.Get("/documents/:slug/cover", controllers.Documents.Cover)
-	langGroup.Get("/documents/:slug/read", controllers.Documents.Reader)
-	app.Get("/documents/:slug/download", controllers.Documents.Download)
+	docsGroup.Get("/:slug/cover", controllers.Documents.Cover)
+	docsGroup.Get("/:slug/read", controllers.Documents.Reader)
+	docsGroup.Get("/:slug/download", controllers.Documents.Download)
+	docsGroup.Post("/:slug/send", controllers.Documents.Send)
+	docsGroup.Get("/:slug", controllers.Documents.Detail)
+	docsGroup.Get("/", controllers.Documents.Search)
 
-	langGroup.Get("/documents/:slug", controllers.Documents.Detail)
-
-	app.Post("/send", controllers.Documents.Send)
-
-	langGroup.Get("/documents", controllers.Documents.Search)
 	langGroup.Get("/", controllers.Documents.Search)
 
 	app.Get("/", func(c *fiber.Ctx) error {
