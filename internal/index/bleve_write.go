@@ -46,8 +46,8 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 	return nil
 }
 
-// AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <bathSize> if they
-// haven't been previously indexed
+// AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <batchSize> if they
+// haven't been previously indexed or if <forceIndexing> is true
 func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	batch := b.idx.NewBatch()
 	batchSlugs := make(map[string]struct{}, batchSize)
