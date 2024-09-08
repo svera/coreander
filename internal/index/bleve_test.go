@@ -290,5 +290,34 @@ func testCases() []testCase {
 				},
 			),
 		},
+		{
+			"Test spanish stemmer returning accented word while using unaccented word in search",
+			"lib/book9.epub",
+			metadata.Metadata{
+				Title:       "Últimos días en Colditz",
+				Authors:     []string{"Patrick R. Reid"},
+				Description: "Just test metadata",
+				Language:    "es",
+				Subjects:    []string{"History", "WWII"},
+			},
+			"ultimos",
+			result.NewPaginated[[]index.Document](
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book9.epub",
+						Slug: "patrick-r-reid-ultimos-dias-en-colditz",
+						Metadata: metadata.Metadata{
+							Title:       "Últimos días en Colditz",
+							Authors:     []string{"Patrick R. Reid"},
+							Description: "Just test metadata",
+							Subjects:    []string{"History", "WWII"},
+						},
+					},
+				},
+			),
+		},
 	}
 }
