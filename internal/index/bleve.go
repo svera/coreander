@@ -24,7 +24,7 @@ import (
 
 // Version identifies the mapping used for indexing. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const Version = "v2"
+const Version = "v3"
 
 // Metadata fields
 var (
@@ -33,11 +33,11 @@ var (
 )
 
 var noStopWordsFilters = map[string][]string{
-	es.AnalyzerName: {es.NormalizeName, lowercase.Name, es.LightStemmerName},
-	en.AnalyzerName: {en.PossessiveName, lowercase.Name, porter.Name},
-	de.AnalyzerName: {de.NormalizeName, lowercase.Name, de.LightStemmerName},
-	fr.AnalyzerName: {fr.ElisionName, lowercase.Name, fr.LightStemmerName},
-	it.AnalyzerName: {it.ElisionName, lowercase.Name, it.LightStemmerName},
+	es.AnalyzerName: {lowercase.Name, es.NormalizeName, es.LightStemmerName},
+	en.AnalyzerName: {lowercase.Name, en.PossessiveName, porter.Name},
+	de.AnalyzerName: {lowercase.Name, de.NormalizeName, de.LightStemmerName},
+	fr.AnalyzerName: {lowercase.Name, fr.ElisionName, fr.LightStemmerName},
+	it.AnalyzerName: {lowercase.Name, it.ElisionName, it.LightStemmerName},
 	pt.AnalyzerName: {lowercase.Name, pt.LightStemmerName},
 }
 
