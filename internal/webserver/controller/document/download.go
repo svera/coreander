@@ -74,8 +74,7 @@ func kepubify(fullPath string) ([]byte, error) {
 	}
 	defer r.Close()
 
-	err = kepub.NewConverter().Convert(context.Background(), output, r)
-	if err != nil {
+	if err = kepub.NewConverter().Convert(context.Background(), output, r); err != nil {
 		return nil, fiber.ErrInternalServerError
 	}
 
