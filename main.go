@@ -143,7 +143,6 @@ func getIndexFile(fs afero.Fs) bleve.Index {
 	indexFile, err := bleve.Open(homeDir + indexPath)
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No index found, creating a new one.")
-		cfg.ForceIndexing = false
 		indexFile = index.Create(homeDir + indexPath)
 	}
 	version, err := indexFile.GetInternal([]byte("version"))
