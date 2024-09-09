@@ -154,7 +154,6 @@ func getIndexFile(fs afero.Fs) bleve.Index {
 		if err = fs.RemoveAll(homeDir + indexPath); err != nil {
 			log.Fatal(err)
 		}
-		cfg.ForceIndexing = false
 		indexFile = index.Create(homeDir + indexPath)
 	}
 	return indexFile
