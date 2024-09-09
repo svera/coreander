@@ -43,6 +43,7 @@ func (d *Controller) Download(c *fiber.Ctx) error {
 	} else {
 		file, err := os.Open(fullPath)
 		if err != nil {
+                        log.Println(err)
 			return fiber.ErrInternalServerError
 		}
 		output, err = io.ReadAll(file)
