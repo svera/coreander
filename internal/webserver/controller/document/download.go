@@ -46,8 +46,8 @@ func (d *Controller) Download(c *fiber.Ctx) error {
                         log.Println(err)
 			return fiber.ErrInternalServerError
 		}
-		output, err = io.ReadAll(file)
-		if err != nil {
+		if output, err = io.ReadAll(file); err != nil {
+                         log.Println(err)		
 			return fiber.ErrInternalServerError
 		}
 		fileName = filepath.Base(document.ID)
