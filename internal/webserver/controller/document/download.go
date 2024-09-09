@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,7 +36,7 @@ func (d *Controller) Download(c *fiber.Ctx) error {
 	if c.Query("format") == "kepub" {
 		output, err = kepubify(fullPath)
 		if err != nil {
-                        log.Println(err)
+			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
 		fileName = strings.TrimSuffix(filepath.Base(fullPath), filepath.Ext(fullPath))
@@ -43,11 +44,11 @@ func (d *Controller) Download(c *fiber.Ctx) error {
 	} else {
 		file, err := os.Open(fullPath)
 		if err != nil {
-                        log.Println(err)
+			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
 		if output, err = io.ReadAll(file); err != nil {
-                         log.Println(err)		
+			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
 		fileName = filepath.Base(document.ID)
