@@ -1,6 +1,7 @@
 package document
 
 import (
+	"log"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -35,6 +36,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 
 	if keywords := c.Query("search"); keywords != "" {
 		if searchResults, err = d.idx.Search(keywords, page, model.ResultsPerPage); err != nil {
+			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
 

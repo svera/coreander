@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	index "github.com/blevesearch/bleve_index_api"
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/metadata"
@@ -45,13 +46,19 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 	return nil
 }
 
-// AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <bathSize>
-func (b *BleveIndexer) AddLibrary(batchSize int) error {
+// AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <batchSize> if they
+// haven't been previously indexed or if <forceIndexing> is true
+func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	batch := b.idx.NewBatch()
 	batchSlugs := make(map[string]struct{}, batchSize)
 	languages := []string{}
 	b.indexStartTime = float64(time.Now().UnixNano())
 	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
+		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed && !forceIndexing {
+			b.indexedDocuments += 1
+			languages = addLanguage(lang, languages)
+			return nil
+		}
 		ext := strings.ToLower(filepath.Ext(fullPath))
 		if _, ok := b.reader[ext]; !ok {
 			return nil
@@ -80,11 +87,31 @@ func (b *BleveIndexer) AddLibrary(batchSize int) error {
 		}
 		return nil
 	})
+	if len(languages) > 0 {
+		batch.SetInternal(internalLanguages, []byte(strings.Join(languages, ",")))
+	}
+	b.idx.Batch(batch)
 	b.indexStartTime = 0
 	b.indexedDocuments = 0
-	batch.SetInternal(internalLanguages, []byte(strings.Join(languages, ",")))
-	b.idx.Batch(batch)
 	return e
+}
+
+func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {
+	doc, err := b.idx.Document(b.id(fullPath))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	if doc == nil {
+		return false, ""
+	}
+	lang := ""
+	doc.VisitFields(func(f index.Field) {
+		if f.Name() == "Language" {
+			lang = string(f.Value())
+			return
+		}
+	})
+	return true, lang
 }
 
 func addLanguage(lang string, languages []string) []string {
@@ -117,7 +144,7 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 		SubjectsEq: make([]string, len(meta.Subjects)),
 	}
 
-	document.ID = b.ID(document, fullPath)
+	document.ID = b.id(fullPath)
 	document.Slug = b.Slug(document, batchSlugs)
 	copy(document.AuthorsEq, meta.Authors)
 	for i := range document.AuthorsEq {
@@ -161,7 +188,7 @@ func (b *BleveIndexer) Slug(document DocumentWrite, batchSlugs map[string]struct
 	}
 }
 
-func (b *BleveIndexer) ID(meta DocumentWrite, file string) string {
+func (b *BleveIndexer) id(file string) string {
 	ID := strings.ReplaceAll(file, b.libraryPath, "")
 	return strings.TrimPrefix(ID, string(filepath.Separator))
 }

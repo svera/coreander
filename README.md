@@ -18,6 +18,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Read indexed epubs and PDFs from Coreander's interface thanks to [foliate-js](https://github.com/johnfactotum/foliate-js).
 * Restrictable access only to registered users.
 * Upload documents through the web interface.
+* Download as kepub (epub for Kobo devices) converted on the fly thanks to [Kepubify](https://github.com/pgaskin/kepubify).
 
 ## Installation
 
@@ -97,7 +98,7 @@ On first run, Coreander creates an admin user with the following credentials:
 * `PORT`: Port number in which the webserver listens for requests. Defaults to 3000.
 * `BATCH_SIZE`: Number of documents persisted by the indexer in one write operation. Defaults to 100.
 * `COVER_MAX_WIDTH`: Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 600.
-* `SKIP_INDEXING`: Whether to bypass the indexing process or not.
+* `FORCE_INDEXING`: Whether to force indexing already indexed documents or not. Defaults to false.
 * `SMTP_SERVER`: Address of the send mail server.
 * `SMTP_PORT`: Port number of the send mail server. Defaults to 587.
 * `SMTP_USER`: User to authenticate against the SMTP server.

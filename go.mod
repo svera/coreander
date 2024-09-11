@@ -1,6 +1,8 @@
 module github.com/svera/coreander/v4
 
-go 1.21
+go 1.21.0
+
+toolchain go1.21.1
 
 require (
 	github.com/blevesearch/bleve/v2 v2.4.0
@@ -27,9 +29,11 @@ require (
 
 require (
 	github.com/andybalholm/cascadia v1.3.2 // indirect
+	github.com/beevik/etree v1.4.1 // indirect
 	github.com/blevesearch/go-faiss v1.0.13 // indirect
 	github.com/blevesearch/zapx/v16 v16.0.12 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/geek1011/kepubify v2.3.2+incompatible // indirect
 	github.com/glebarez/go-sqlite v1.22.0 // indirect
 	github.com/gofiber/template v1.8.3 // indirect
 	github.com/gofiber/utils v1.1.0 // indirect
@@ -37,14 +41,21 @@ require (
 	github.com/hhrutter/lzw v1.0.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/kr/smartypants v0.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
+	github.com/mattn/go-zglob v0.0.5 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
+	github.com/pgaskin/kepubify v2.3.2+incompatible // indirect
+	github.com/pgaskin/kepubify/_/go116-zip.go117 v0.0.0-20210611152744-2d89b3182523 // indirect
+	github.com/pgaskin/kepubify/_/html v0.0.0-20211223234002-6ee2cc632cdc // indirect
 	github.com/philhofer/fwd v1.1.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tinylib/msgp v1.1.9 // indirect
+	golang.org/x/sync v0.7.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b // indirect
 	modernc.org/libc v1.49.3 // indirect
@@ -90,6 +101,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
+	github.com/pgaskin/kepubify/v4 v4.0.4
 	github.com/pirmd/epub v0.3.0
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect

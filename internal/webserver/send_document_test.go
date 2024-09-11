@@ -22,7 +22,6 @@ func TestSendDocument(t *testing.T) {
 		slug               string
 		expectedHTTPStatus int
 	}{
-		{"Send no document slug", "admin@example.com", "", http.StatusBadRequest},
 		{"Send no email address", "", "empty", http.StatusBadRequest},
 		{"Send non existing document slug", "admin@example.com", "wrong", http.StatusBadRequest},
 		{"Send document slug and email address", "admin@example.com", "john-doe-test-epub", http.StatusOK},
@@ -37,10 +36,9 @@ func TestSendDocument(t *testing.T) {
 
 			data := url.Values{
 				"email": {tcase.email},
-				"slug":  {tcase.slug},
 			}
 
-			req, err := http.NewRequest(http.MethodPost, "/send", strings.NewReader(data.Encode()))
+			req, err := http.NewRequest(http.MethodPost, "/en/documents/"+tcase.slug+"/send", strings.NewReader(data.Encode()))
 			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())

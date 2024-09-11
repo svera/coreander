@@ -35,7 +35,7 @@ func TestIndexAndSearch(t *testing.T) {
 			appFS.MkdirAll("lib", 0755)
 			afero.WriteFile(appFS, tcase.filename, []byte(""), 0644)
 
-			err = idx.AddLibrary(1)
+			err = idx.AddLibrary(1, true)
 			if err != nil {
 				t.Errorf("Error indexing: %s", err.Error())
 			}

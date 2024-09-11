@@ -304,7 +304,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to delete a user without an active session", func(t *testing.T) {
 		reset()
 
-		response, err := deleteRequest(url.Values{}, &http.Cookie{}, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
+		response, err := deleteRequest(url.Values{}, &http.Cookie{}, app, fmt.Sprintf("/en/users/%s", regularUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -315,7 +315,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to delete a user with a regular user's session", func(t *testing.T) {
 		reset()
 
-		response, err := deleteRequest(url.Values{}, regularUserCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
+		response, err := deleteRequest(url.Values{}, regularUserCookie, app, fmt.Sprintf("/en/users/%s", regularUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -326,7 +326,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to delete a user with an admin session", func(t *testing.T) {
 		reset()
 
-		response, err := deleteRequest(url.Values{}, adminCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
+		response, err := deleteRequest(url.Values{}, adminCookie, app, fmt.Sprintf("/en/users/%s", regularUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -341,7 +341,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to delete the only existing admin user", func(t *testing.T) {
 		reset()
 
-		response, err := deleteRequest(url.Values{}, adminCookie, app, fmt.Sprintf("/users/%s", adminUser.Username), t)
+		response, err := deleteRequest(url.Values{}, adminCookie, app, fmt.Sprintf("/en/users/%s", adminUser.Username), t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -352,7 +352,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to delete a non existing user with an admin session", func(t *testing.T) {
 		reset()
 
-		response, err := deleteRequest(url.Values{}, adminCookie, app, "/users/wrong", t)
+		response, err := deleteRequest(url.Values{}, adminCookie, app, "/en/users/wrong", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}

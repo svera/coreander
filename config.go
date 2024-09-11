@@ -12,8 +12,8 @@ type Config struct {
 	BatchSize int `env:"BATCH_SIZE" env-default:"100"`
 	// CoverMaxWidth sets the maximum horizontal size for documents cover thumbnails in pixels
 	CoverMaxWidth int `env:"COVER_MAX_WIDTH" env-default:"600"`
-	// SkipIndexing signals whether to bypass the indexing process or not
-	SkipIndexing bool `env:"SKIP_INDEXING" env-default:"false"`
+	// ForceIndexing signals whether to force indexing already indexed documents or not
+	ForceIndexing bool `env:"FORCE_INDEXING" env-default:"false"`
 	// SmtpServer points to the address of the send mail server
 	SmtpServer string `env:"SMTP_SERVER"`
 	// SmtpPort defines the port in which the mail server listens for requests
