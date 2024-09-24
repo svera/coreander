@@ -17,23 +17,23 @@ import (
 )
 
 // AddFile adds a file to the index
-func (b *BleveIndexer) AddFile(file string) error {
+func (b *BleveIndexer) AddFile(file string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(file))
 	if _, ok := b.reader[ext]; !ok {
-		return fmt.Errorf("file extension %s not supported", ext)
+		return "", fmt.Errorf("file extension %s not supported", ext)
 	}
 	meta, err := b.reader[ext].Metadata(file)
 	if err != nil {
-		return fmt.Errorf("error extracting metadata from file %s: %s", file, err)
+		return "", fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
 
 	document := b.createDocument(meta, file, nil)
 
 	err = b.idx.Index(document.ID, document)
 	if err != nil {
-		return fmt.Errorf("error indexing file %s: %s", file, err)
+		return "", fmt.Errorf("error indexing file %s: %s", file, err)
 	}
-	return nil
+	return document.Slug, nil
 }
 
 // RemoveFile removes a file from the index

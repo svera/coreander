@@ -20,7 +20,7 @@ func fileWatcher(idx *index.BleveIndexer, libPath string) {
 		select {
 		case ei := <-c:
 			if ei.Event() == notify.InCloseWrite || ei.Event() == notify.InMovedFrom {
-				if err := idx.AddFile(ei.Path()); err != nil {
+				if _, err := idx.AddFile(ei.Path()); err != nil {
 					log.Printf("Error indexing new file: %s\n", ei.Path())
 				}
 			}
