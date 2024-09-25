@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -51,7 +50,7 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 		return c.Redirect(referer)
 	}
 
-	return c.Redirect(fmt.Sprintf("/%s", c.Params("lang")))
+	return c.Redirect("/")
 }
 
 func GenerateToken(c *fiber.Ctx, user *model.User, expiration time.Time, secret []byte) (string, error) {

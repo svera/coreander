@@ -38,7 +38,7 @@ func TestSendDocument(t *testing.T) {
 				"email": {tcase.email},
 			}
 
-			req, err := http.NewRequest(http.MethodPost, "/en/documents/"+tcase.slug+"/send", strings.NewReader(data.Encode()))
+			req, err := http.NewRequest(http.MethodPost, "/documents/"+tcase.slug+"/send", strings.NewReader(data.Encode()))
 			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())

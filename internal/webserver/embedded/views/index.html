@@ -9,12 +9,12 @@
             </div>
             {{if gt (len .Highlights) 0}}
                 <div class="col-3 text-end">
-                        <a  href="/{{.Lang}}/highlights">
+                        <a  href="/highlights">
                                 {{t .Lang "See all" }}
                         </a>
                 </div>
 
-                <div class="row mt-3 pe-0">
+                <div class="row mt-3 pe-0 align-items-end">
                     {{$lang := .Lang}}
                     {{$emailSendingConfigured := .EmailSendingConfigured}}
                     {{$session := .Session}}

@@ -36,20 +36,18 @@ func (a *Controller) Request(c *fiber.Ctx) error {
 		}
 
 		recoveryLink := fmt.Sprintf(
-			"%s/%s/reset-password?id=%s",
+			"%s/reset-password?id=%s",
 			c.Locals("fqdn"),
-			c.Params("lang"),
 			user.RecoveryUUID,
 		)
 		c.Render("auth/email", fiber.Map{
-			"Lang":            c.Params("lang"),
 			"RecoveryLink":    recoveryLink,
 			"RecoveryTimeout": strconv.FormatFloat(a.config.RecoveryTimeout.Hours(), 'f', -1, 64),
 		})
 
 		return a.sender.Send(
 			c.FormValue("email"),
-			a.printers[c.Params("lang")].Sprintf("Password recovery request"),
+			a.printers[c.Locals("Lang").(string)].Sprintf("Password recovery request"),
 			string(c.Response().Body()),
 		)
 	}

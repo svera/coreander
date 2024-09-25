@@ -78,7 +78,7 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 		return internalServerErrorStatus
 	}
 
-	return c.Redirect(fmt.Sprintf("/%s/documents/%s?success=1", c.Params("lang"), slug))
+	return c.Redirect(fmt.Sprintf("/documents/%s?success=1", slug))
 }
 
 func fileToBytes(fileHeader *multipart.FileHeader) ([]byte, error) {

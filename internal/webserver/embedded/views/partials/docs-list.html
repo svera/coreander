@@ -9,7 +9,7 @@
     <div class="list-group-item">
         <div class="row">
             <div class="card col-lg-2 col-md-3 col-sm-12 border border-0">
-                <img src="/images/generic.jpg" data-src="/{{$lang}}/documents/{{$document.Slug}}/cover" loading="lazy" class="border border-2 text-center mb-3 cover img-fluid card-img" alt='{{t $lang "\"%s\" cover" $document.Title}}'>
+                <img src="/images/generic.jpg" data-src="/documents/{{$document.Slug}}/cover" loading="lazy" class="border border-2 text-center mb-3 cover img-fluid card-img" alt='{{t $lang "\"%s\" cover" $document.Title}}'>
                 <div class="card-img-overlay">
                     <h5 class="card-title text-center mx-1">{{$document.Title}}</h5>
                     <p class="card-text text-center mx-1">
@@ -27,11 +27,11 @@
                         {{ if ne $document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
                         $document.Series}}
                         <p class="text-start text-muted text-uppercase mb-0"><a
-                                href="/{{$lang}}/documents?search=SeriesEq&colon;&quot;{{$document.Series}}&quot;"
+                                href="/documents?search=SeriesEq&colon;&quot;{{$document.Series}}&quot;"
                                 title={{$seriesTitle}}>{{$document.Series}}{{ if ne $document.SeriesIndex 0.0 }} {{$document.SeriesIndex}}{{end}}</a></p>
                         {{ end }}
                         <h4 class="text-start">
-                            <a href="/{{$lang}}/documents/{{$document.Slug}}">{{$document.Title}}</a> <small class="small text-muted">{{$document.Year}}</small>
+                            <a href="/documents/{{$document.Slug}}">{{$document.Title}}</a> <small class="small text-muted">{{$document.Year}}</small>
                         </h4>
                     </div>
                     <div class="col-5 text-end">
@@ -51,7 +51,7 @@
                         <h5>
                             {{range $i, $author := $document.Authors}}
                             {{$authorTitle := t $lang "Search for more titles by %s" $author}}
-                            <a href="/{{$lang}}/documents?search=AuthorsEq&colon;&quot;{{$author}}&quot;" title={{$authorTitle}}>{{$author}}</a>{{if notLast $document.Authors $i}}, {{end}}
+                            <a href="/documents?search=AuthorsEq&colon;&quot;{{$author}}&quot;" title={{$authorTitle}}>{{$author}}</a>{{if notLast $document.Authors $i}}, {{end}}
                             {{end}}
                         </h5>
                         {{else}}
@@ -71,7 +71,7 @@
                         <div>
                             {{range $i, $subject := $document.Subjects}}
                                 {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                                <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/{{$lang}}/documents?search=SubjectsEq&colon;&quot;{{$subject}}&quot;" title={{$subjectTitle}}>{{$subject}}</a>
+                                <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?search=SubjectsEq&colon;&quot;{{$subject}}&quot;" title={{$subjectTitle}}>{{$subject}}</a>
                             {{end}}
                         </div>
                         {{ end }}

@@ -45,15 +45,15 @@ func Pagination[T any](size int, results result.Paginated[T], params map[string]
 	}
 	for i := start; i <= end; i++ {
 		p := Page{
-			Link: fmt.Sprintf("?%spage=%d", toQueryString(params), i),
+			Link: fmt.Sprintf("?%s&page=%d", toQueryString(params), i),
 		}
 		if i == results.Page() {
 			p.IsCurrent = true
 			if i > 1 {
-				nav.PreviousLink = fmt.Sprintf("?%spage=%d", toQueryString(params), i-1)
+				nav.PreviousLink = fmt.Sprintf("?%s&page=%d", toQueryString(params), i-1)
 			}
 			if i < results.TotalPages() {
-				nav.NextLink = fmt.Sprintf("?%spage=%d", toQueryString(params), i+1)
+				nav.NextLink = fmt.Sprintf("?%s&page=%d", toQueryString(params), i+1)
 			}
 		}
 		nav.Pages[i] = p
@@ -69,5 +69,5 @@ func toQueryString(m map[string]string) string {
 	for k, v := range m {
 		parts = append(parts, fmt.Sprintf("%s=%s", k, url.QueryEscape(v)))
 	}
-	return strings.Join(parts, "&") + "&"
+	return strings.Join(parts, "&")
 }

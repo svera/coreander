@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -45,7 +44,7 @@ func (a *Controller) UpdatePassword(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	return c.Redirect(fmt.Sprintf("/%s/sessions", c.Params("lang")))
+	return c.Redirect("/sessions")
 }
 
 func (a *Controller) validateRecoveryAccess(recoveryUuid string) (*model.User, error) {

@@ -1,4 +1,4 @@
-<form method="post" action="/{{.Lang}}/users" autocomplete="off">
+<form method="post" action="/users" autocomplete="off">
     <div class="mb-3">
         <label for="name" class="form-label">{{t .Lang "Name"}}</label>
         <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="50">
