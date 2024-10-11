@@ -72,7 +72,7 @@ func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session mode
 		}
 
 		c.Cookie(&fiber.Cookie{
-			Name:     "coreander",
+			Name:     "session",
 			Value:    signedToken,
 			Path:     "/",
 			MaxAge:   int(session.Exp),

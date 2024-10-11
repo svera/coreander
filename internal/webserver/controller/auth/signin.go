@@ -37,7 +37,7 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 	}
 
 	c.Cookie(&fiber.Cookie{
-		Name:     "coreander",
+		Name:     "session",
 		Value:    signedToken,
 		Path:     "/",
 		MaxAge:   34560000, // 400 days which is the life limit imposed by Chrome
