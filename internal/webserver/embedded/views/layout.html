@@ -114,15 +114,15 @@
                             {{end}}
                             <hr class="d-lg-none">
                             {{$lang := .Lang}}
-                            {{$pathMinusLang := .PathMinusLang}}
+                            {{$URLPath := .URLPath}}
                             {{$queryString := .QueryString}}
                             {{range $i, $currentLang := .SupportedLanguages}}
                                 {{if eq $lang $currentLang}}
                                     <li class="p-2">{{uppercase $currentLang}}</li>
                                 {{else if eq $queryString ""}}
-                                    <li class="p-2"><a href="{{$pathMinusLang}}?l={{$currentLang}}">{{uppercase $currentLang}}</a></li>
+                                    <li class="p-2"><a href="{{$URLPath}}?l={{$currentLang}}">{{uppercase $currentLang}}</a></li>
                                 {{else}}
-                                    <li class="p-2"><a href="{{$pathMinusLang}}?{{$queryString}}&l={{$currentLang}}">{{uppercase $currentLang}}</a></li>
+                                    <li class="p-2"><a href="{{$URLPath}}?{{$queryString}}&l={{$currentLang}}">{{uppercase $currentLang}}</a></li>
                                 {{end}}
                             {{end}}
                             <hr class="d-lg-none">

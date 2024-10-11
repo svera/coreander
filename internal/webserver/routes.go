@@ -1,12 +1,11 @@
 package webserver
 
 import (
-	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
 func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, requireAuth bool) {
@@ -35,13 +34,8 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		c.Locals("Lang", chooseBestLanguage(c))
 		q := c.Queries()
 		delete(q, "l")
-		//queries := slices.Collect(maps.Values(q))
-		c.Locals("PathMinusLang", c.Path())
-		var queries []string
-		for key, val := range q {
-			queries = append(queries, fmt.Sprintf("%s=%s", key, val))
-		}
-		c.Locals("QueryString", strings.Join(queries, "&"))
+		c.Locals("URLPath", c.Path())
+		c.Locals("QueryString", view.ToQueryString(q))
 		return c.Next()
 	})
 
