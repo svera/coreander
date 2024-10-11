@@ -6,10 +6,10 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/index"
-	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/result"
-	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 func TestIndexAndSearch(t *testing.T) {
@@ -35,7 +35,7 @@ func TestIndexAndSearch(t *testing.T) {
 			appFS.MkdirAll("lib", 0755)
 			afero.WriteFile(appFS, tcase.filename, []byte(""), 0644)
 
-			err = idx.AddLibrary(1)
+			err = idx.AddLibrary(1, true)
 			if err != nil {
 				t.Errorf("Error indexing: %s", err.Error())
 			}
@@ -285,6 +285,35 @@ func testCases() []testCase {
 							Authors:     []string{"Irene Vallejo"},
 							Description: "Just test metadata",
 							Subjects:    []string{"History", "Middle age"},
+						},
+					},
+				},
+			),
+		},
+		{
+			"Test spanish stemmer returning accented word while using unaccented word in search",
+			"lib/book9.epub",
+			metadata.Metadata{
+				Title:       "Últimos días en Colditz",
+				Authors:     []string{"Patrick R. Reid"},
+				Description: "Just test metadata",
+				Language:    "es",
+				Subjects:    []string{"History", "WWII"},
+			},
+			"ultimos",
+			result.NewPaginated[[]index.Document](
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book9.epub",
+						Slug: "patrick-r-reid-ultimos-dias-en-colditz",
+						Metadata: metadata.Metadata{
+							Title:       "Últimos días en Colditz",
+							Authors:     []string{"Patrick R. Reid"},
+							Description: "Just test metadata",
+							Subjects:    []string{"History", "WWII"},
 						},
 					},
 				},

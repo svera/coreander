@@ -1,13 +1,12 @@
 package user
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // Create gathers information coming from the new user form and creates a new user
@@ -47,5 +46,5 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	return c.Redirect(fmt.Sprintf("/%s/users", c.Params("lang")))
+	return c.Redirect("/users")
 }

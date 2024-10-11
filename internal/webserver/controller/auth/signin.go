@@ -1,13 +1,12 @@
 package auth
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // Signs in a user and gives them a JWT.
@@ -41,7 +40,7 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 		Name:     "session",
 		Value:    signedToken,
 		Path:     "/",
-		MaxAge:   int(a.config.SessionTimeout.Seconds()),
+		MaxAge:   34560000, // 400 days which is the life limit imposed by Chrome
 		Secure:   false,
 		HTTPOnly: true,
 	})
@@ -51,7 +50,7 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 		return c.Redirect(referer)
 	}
 
-	return c.Redirect(fmt.Sprintf("/%s", c.Params("lang")))
+	return c.Redirect("/")
 }
 
 func GenerateToken(c *fiber.Ctx, user *model.User, expiration time.Time, secret []byte) (string, error) {

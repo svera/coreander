@@ -1,7 +1,6 @@
 package document
 
 import (
-	"fmt"
 	"log"
 	"path/filepath"
 
@@ -9,13 +8,8 @@ import (
 )
 
 func (d *Controller) Delete(c *fiber.Ctx) error {
-	if c.FormValue("id") == "" {
-		return fiber.ErrBadRequest
-	}
-
-	document, err := d.idx.Document(c.FormValue("id"))
+	document, err := d.idx.Document(c.Params("slug"))
 	if err != nil {
-		fmt.Println(err)
 		return fiber.ErrBadRequest
 	}
 

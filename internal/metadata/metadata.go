@@ -13,7 +13,6 @@ type Metadata struct {
 	Language    string
 	Year        string
 	Words       float64
-	Cover       string
 	Series      string
 	SeriesIndex float64
 	Pages       int

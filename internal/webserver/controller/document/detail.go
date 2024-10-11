@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 func (d *Controller) Detail(c *fiber.Ctx) error {
@@ -60,6 +60,11 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		document = d.hlRepository.Highlighted(int(session.ID), document)
 	}
 
+	msg := ""
+	if c.Query("success") != "" {
+		msg = "Document uploaded successfully."
+	}
+
 	return c.Render("document", fiber.Map{
 		"Title":                  title,
 		"Document":               document,
@@ -69,5 +74,6 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		"SameAuthors":            sameAuthors,
 		"SameSubjects":           sameSubjects,
 		"WordsPerMinute":         d.config.WordsPerMinute,
+		"Message":                msg,
 	}, "layout")
 }

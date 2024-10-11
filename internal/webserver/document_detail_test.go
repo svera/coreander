@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/webserver"
-	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/webserver"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 )
 
 func TestDocumentAndRead(t *testing.T) {
-	db := infrastructure.Connect("file::memory:", 250)
+	db := infrastructure.Connect(":memory:", 250)
 	smtpMock := &infrastructure.SMTPMock{}
 	app := bootstrapApp(db, smtpMock, afero.NewOsFs(), webserver.Config{})
 
@@ -18,9 +18,10 @@ func TestDocumentAndRead(t *testing.T) {
 		url            string
 		expectedStatus int
 	}{
-		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
-		{"/en/read/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha-2", http.StatusOK},
-		{"/en/document/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
+		{"/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/read", http.StatusOK},
+		{"/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha--2/read", http.StatusOK},
+		{"/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha--3/read", http.StatusOK},
+		{"/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
 	}
 
 	for _, tcase := range cases {

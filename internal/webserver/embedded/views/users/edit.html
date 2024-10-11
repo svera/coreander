@@ -8,10 +8,10 @@
             type="button" role="tab" aria-controls="profile-tab-pane" aria-selected="false">{{t .Lang "Change password"}}</button>
     </li>
 </ul>
-<div class="tab-content ">
+<div class="tab-content">
     <div class='tab-pane fade p-3 {{if ne .ActiveTab "password"}}show active{{end}}' id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab"
         tabindex="0">
-        <form method="post" action="/{{.Lang}}/users/{{.User.Username}}/edit">
+        <form hx-put="/users/{{.User.Username}}" hx-target="main" hx-target-400="main">
             <div class="mb-3">
                 <label for="name" class="form-label">{{t .Lang "Name"}}</label>
                 <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="50">
@@ -38,7 +38,7 @@
                     {{t .Lang .Errors.email}}
                 </div>
                 {{end}}
-            </div>        
+            </div>
             <div class="mb-3">
                 <label for="send-to-email" class="form-label">{{t .Lang "Default send to email address"}}</label>
                 <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}" maxlength="100">
@@ -56,14 +56,14 @@
                     {{t .Lang .Errors.wordsperminute}}
                 </div>
                 {{end}}
-            </div>                
+            </div>
             <input type="hidden" name="id" value="{{.User.Uuid}}">
             <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
         </form>
     </div>
     <div class='tab-pane fade p-3 {{if eq .ActiveTab "password"}}show active{{end}}' id="password-tab-pane" role="tabpanel" aria-labelledby="password-tab"
         tabindex="0">
-        <form method="post" action="/{{.Lang}}/users/{{.User.Username}}/edit">
+        <form hx-put="/users/{{.User.Username}}" hx-target="main" hx-target-400="main">
             {{if eq .Session.Uuid .User.Uuid}}
             <div class="mb-3">
                 <label for="old-password" class="form-label">{{t .Lang "Current password"}}</label>
@@ -73,7 +73,7 @@
                 <div class="invalid-feedback">
                     {{t .Lang .Errors.oldpassword}}
                 </div>
-                {{end}}    
+                {{end}}
             </div>
             {{end}}
             <div class="mb-3">
@@ -84,7 +84,7 @@
                 <div class="invalid-feedback">
                     {{t .Lang .Errors.password .MinPasswordLength}}
                 </div>
-                {{end}}    
+                {{end}}
             </div>
             <div class="mb-3">
                 <label for="confirm-password" class="form-label">{{t .Lang "Confirm password"}}</label>
@@ -94,12 +94,13 @@
                 <div class="invalid-feedback">
                     {{t .Lang .Errors.confirmpassword}}
                 </div>
-                {{end}}    
+                {{end}}
             </div>
 
             <input type="hidden" name="password-tab" value="true">
-            <input type="hidden" name="id" value="{{.User.Uuid}}">
             <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
         </form>
     </div>
 </div>
+
+<script type="text/javascript" src="/js/xh-error-check.js"></script>

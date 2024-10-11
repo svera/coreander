@@ -1,8 +1,8 @@
 package user
 
 import (
-	"github.com/svera/coreander/v3/internal/result"
-	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 type usersRepository interface {

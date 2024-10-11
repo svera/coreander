@@ -133,3 +133,5 @@
 "Go left": "Aller à gauche"
 "Go right": "Aller à droite"
 "Session expired, please log in again.": "Session expirée, veuillez vous reconnecter."
+"Unexpected error, check your connection and try to refresh the page.": "Erreur inattendue, vérifiez votre connexion et essayez d'actualiser la page."
+"Unexpected server error": "Erreur de serveur inattendue"

@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/controller/auth"
-	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver/controller/auth"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // Update gathers information from the edit user form and updates user data
 func (u *Controller) Update(c *fiber.Ctx) error {
-	user, err := u.repository.FindByUuid(c.FormValue("id"))
+	user, err := u.repository.FindByUsername(c.Params("username"))
 	if err != nil {
 		log.Println(err.Error())
 		return fiber.ErrInternalServerError
@@ -27,7 +27,7 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 		session = val
 	}
 
-	if session.Role != model.RoleAdmin && user.Uuid != session.Uuid {
+	if session.Role != model.RoleAdmin && user.Username != session.Username {
 		return fiber.ErrForbidden
 	}
 
@@ -51,13 +51,13 @@ func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session mode
 	}
 
 	if len(validationErrs) > 0 {
-		return c.Render("users/edit", fiber.Map{
+		return c.Status(fiber.StatusBadRequest).Render("users/edit", fiber.Map{
 			"Title":             "Edit user",
 			"User":              user,
 			"MinPasswordLength": u.config.MinPasswordLength,
 			"UsernamePattern":   model.UsernamePattern,
 			"Errors":            validationErrs,
-		}, "layout")
+		}, "partials/main")
 	}
 
 	if err := u.repository.Update(user); err != nil {
@@ -89,7 +89,7 @@ func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session mode
 		"UsernamePattern":   model.UsernamePattern,
 		"Errors":            validationErrs,
 		"Message":           "Profile updated",
-	}, "layout")
+	}, "partials/main")
 }
 
 func (u *Controller) validate(c *fiber.Ctx, user *model.User, session model.Session) (map[string]string, error) {

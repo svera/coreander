@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/svera/coreander/v3/internal/result"
+	"github.com/svera/coreander/v4/internal/result"
 	"gorm.io/gorm"
 )
 

@@ -11,18 +11,13 @@ import (
 	"slices"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/log"
 	"github.com/valyala/fasthttp"
 )
 
 func (d *Controller) UploadForm(c *fiber.Ctx) error {
-	msg := ""
-	if c.Query("success") != "" {
-		msg = "Document uploaded successfully."
-	}
-
 	return c.Render("upload", fiber.Map{
 		"Title":   "Coreander",
-		"Message": msg,
 		"MaxSize": d.config.UploadDocumentMaxSize,
 	}, "layout")
 }
@@ -61,11 +56,13 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 
 	bytes, err := fileToBytes(file)
 	if err != nil {
+		log.Error()
 		return internalServerErrorStatus
 	}
 
 	destFile, err := d.appFs.Create(destination)
 	if err != nil {
+		log.Error(err)
 		return internalServerErrorStatus
 	}
 
@@ -74,12 +71,14 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 	}
 
 	destFile.Close()
-	if err := d.idx.AddFile(destination); err != nil {
+	slug, err := d.idx.AddFile(destination)
+	if err != nil {
+		log.Error(err)
 		os.Remove(destination)
 		return internalServerErrorStatus
 	}
 
-	return c.Redirect(fmt.Sprintf("/%s/upload?success=1", c.Params("lang")))
+	return c.Redirect(fmt.Sprintf("/documents/%s?success=1", slug))
 }
 
 func fileToBytes(fileHeader *multipart.FileHeader) ([]byte, error) {

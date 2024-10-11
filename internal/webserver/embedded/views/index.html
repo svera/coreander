@@ -9,12 +9,12 @@
             </div>
             {{if gt (len .Highlights) 0}}
                 <div class="col-3 text-end">
-                        <a  href="/{{.Lang}}/highlights/{{.Session.Username}}">
+                        <a  href="/highlights">
                                 {{t .Lang "See all" }}
                         </a>
                 </div>
-    
-                <div class="row mt-3 pe-0">
+
+                <div class="row mt-3 pe-0 align-items-end">
                     {{$lang := .Lang}}
                     {{$emailSendingConfigured := .EmailSendingConfigured}}
                     {{$session := .Session}}
@@ -31,12 +31,12 @@
                                 </button>
                                 {{ template "partials/actions" dict "Lang" $lang "Document" $doc "EmailSendingConfigured"
                                 $emailSendingConfigured "Session" $session "EmailFrom" $emailFrom "OnDehighlight" "remove"}}
-                            </div>                        
+                            </div>
                         </div>
                     </div>
                     {{end}}
                 </div>
-                {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/document" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
+                {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
 
                 <script type="text/javascript" src="/js/delete.js"></script>
                 <script type="text/javascript" src="/js/highlight.js"></script>

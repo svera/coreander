@@ -6,12 +6,12 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver"
-	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/webserver"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 )
 
 func TestSearch(t *testing.T) {
-	db := infrastructure.Connect("file::memory:", 250)
+	db := infrastructure.Connect(":memory:", 250)
 	smtpMock := &infrastructure.SMTPMock{}
 	appFS := loadDirInMemoryFs("fixtures/library")
 
@@ -22,8 +22,8 @@ func TestSearch(t *testing.T) {
 		url             string
 		expectedResults int
 	}{
-		{"Search for documents with no metadata", "/en?search=empty", 2},
-		{"Search for documents with metadata", "/en?search=john+doe", 4},
+		{"Search for documents with no metadata", "/documents?search=empty", 2},
+		{"Search for documents with metadata", "/documents?search=john+doe", 4},
 	}
 
 	for _, tcase := range cases {
@@ -55,7 +55,7 @@ func TestSearch(t *testing.T) {
 func assertSearchResults(app *fiber.App, t *testing.T, search string, expectedResults int) {
 	t.Helper()
 
-	req, err := http.NewRequest(http.MethodGet, "/en?search="+search, nil)
+	req, err := http.NewRequest(http.MethodGet, "/documents?search="+search, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}

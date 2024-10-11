@@ -2,13 +2,13 @@ package highlight
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
-func (h *Controller) Remove(c *fiber.Ctx) error {
+func (h *Controller) Delete(c *fiber.Ctx) error {
 	user := c.Locals("Session").(model.Session)
 
-	document, err := h.idx.Document(c.FormValue("slug"))
+	document, err := h.idx.Document(c.Params("slug"))
 	if err != nil {
 		return fiber.ErrBadRequest
 	}

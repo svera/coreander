@@ -9,7 +9,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for documents in multiple languages.
 * Search by author, title and even document series ([Calibre's](https://calibre-ebook.com/) `series` meta supported)
 * Improved search for documents with metadata in english, spanish, french, italian, german and portuguese, including genre and singular/plural forms of words in the results among others.
-* Estimated reading time calculation. 
+* Estimated reading time calculation.
 * High-performance web server powered by [Fiber](https://github.com/gofiber/fiber).
 * Lightweight, responsive web interface based on [Bootstrap](https://getbootstrap.com/).
 * Web interface available in english, spanish and french, more languages can be easily added.
@@ -18,6 +18,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Read indexed epubs and PDFs from Coreander's interface thanks to [foliate-js](https://github.com/johnfactotum/foliate-js).
 * Restrictable access only to registered users.
 * Upload documents through the web interface.
+* Download as kepub (epub for Kobo devices) converted on the fly thanks to [Kepubify](https://github.com/pgaskin/kepubify).
 
 ## Installation
 
@@ -56,7 +57,7 @@ Coreander requires a `LIB_PATH` environment variable to be set, which tells the 
 On first run, Coreander will index the documents in your library, creating a database with those entries located at `$home/coreander/index`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.
 
 Every time is run, the application check for new entries, reindexing the whole library. You can
-avoid this behaviour by setting the environment variable `SKIP_INDEXING` to `true`. 
+avoid this behavior by setting the environment variable `SKIP_INDEXING` to `true`.
 
 Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` with the hostname / IP address of the machine where the server is running if you want to access it from another system). It is possible to change the listening port just executing the application with the `PORT` environment variable (e. g. `PORT=4000 coreander`)
 
@@ -97,7 +98,7 @@ On first run, Coreander creates an admin user with the following credentials:
 * `PORT`: Port number in which the webserver listens for requests. Defaults to 3000.
 * `BATCH_SIZE`: Number of documents persisted by the indexer in one write operation. Defaults to 100.
 * `COVER_MAX_WIDTH`: Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 600.
-* `SKIP_INDEXING`: Whether to bypass the indexing process or not.
+* `FORCE_INDEXING`: Whether to force indexing already indexed documents or not. Defaults to false.
 * `SMTP_SERVER`: Address of the send mail server.
 * `SMTP_PORT`: Port number of the send mail server. Defaults to 587.
 * `SMTP_USER`: User to authenticate against the SMTP server.
@@ -109,5 +110,4 @@ On first run, Coreander creates an admin user with the following credentials:
 * `SESSION_TIMEOUT`: Specifies the maximum time a user session may last, in hours. Floating-point values are allowed. Defaults to 24 hours.
 * `RECOVERY_TIMEOUT`: Specifies the maximum time a user recovery link may last, in hours. Floating-point values are allowed. Defaults to 2 hours.
 * `UPLOAD_DOCUMENT_MAX_SIZE`: Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
-* `HOSTNAME`: **Deprecated, use FQDN instead**.
 * `FQDN`: Domain name of the server. If Coreander is listening to a non-standard HTTP / HTTPS port, include it using a colon (e. g. example.com:3000). Defaults to `localhost`.

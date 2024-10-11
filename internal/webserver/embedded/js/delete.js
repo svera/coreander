@@ -9,13 +9,11 @@
 
 const deleteModal = document.getElementById('delete-modal');
 const deleteForm = document.getElementById('delete-form');
+let id
 
 deleteModal.addEventListener('show.bs.modal', event => {
     const link = event.relatedTarget
-    const id = link.getAttribute('data-id')
-    const modalInput = deleteModal.querySelector('.id')
-
-    modalInput.value = id;
+    id = link.getAttribute('data-id')
 })
 
 deleteModal.addEventListener('hidden.bs.modal', event => {
@@ -25,14 +23,8 @@ deleteModal.addEventListener('hidden.bs.modal', event => {
 
 deleteForm.addEventListener('submit', event => {
     event.preventDefault();
-    fetch(deleteForm.getAttribute("action"), {
-        method: "DELETE",
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: new URLSearchParams({
-            'id': deleteForm.elements['id'].value,
-        })
+    fetch(deleteForm.getAttribute("action") + '/' + id, {
+        method: "DELETE"
     })
     .then((response) => {
         if (response.ok || response.status == "403") {

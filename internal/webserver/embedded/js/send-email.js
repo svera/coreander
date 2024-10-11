@@ -13,14 +13,13 @@ Array.from(forms).forEach(form => {
         submit.setAttribute("disabled", true);
         spinner.classList.remove("visually-hidden");
         sendIcon.classList.add("visually-hidden");
-        fetch('/send', {
+        fetch(form.getAttribute("action"), {
             method: "POST",
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
             body: new URLSearchParams({
-                'email': form.elements[0].value,
-                'slug': form.elements[1].value,
+                'email': form.elements[0].value
             })
         })
         .then((response) => {

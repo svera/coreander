@@ -13,13 +13,13 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/webserver"
-	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 func TestUpload(t *testing.T) {
-	db := infrastructure.Connect("file::memory:", 250)
+	db := infrastructure.Connect(":memory:", 250)
 	appFS := loadDirInMemoryFs("fixtures/library")
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS, webserver.Config{})
 
@@ -38,7 +38,7 @@ func TestUpload(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
 
-	response, err := postRequest(data, adminCookie, app, "/en/users/new", t)
+	response, err := postRequest(data, adminCookie, app, "/users", t)
 	if response == nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
@@ -49,7 +49,7 @@ func TestUpload(t *testing.T) {
 	}
 
 	t.Run("Try to access upload page without an active session", func(t *testing.T) {
-		response, err := getRequest(&http.Cookie{}, app, "/en/upload", t)
+		response, err := getRequest(&http.Cookie{}, app, "/upload", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -58,7 +58,7 @@ func TestUpload(t *testing.T) {
 	})
 
 	t.Run("Try to access upload page with a regular user session", func(t *testing.T) {
-		response, err = getRequest(regularUserCookie, app, "/en/upload", t)
+		response, err = getRequest(regularUserCookie, app, "/upload", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -71,7 +71,7 @@ func TestUpload(t *testing.T) {
 		multipartWriter := multipart.NewWriter(&buf)
 		multipartWriter.Close()
 
-		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		req, err := http.NewRequest(http.MethodPost, "/documents", &buf)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -87,7 +87,7 @@ func TestUpload(t *testing.T) {
 	})
 
 	t.Run("Try to access upload page with an admin active session", func(t *testing.T) {
-		response, err := getRequest(adminCookie, app, "/en/upload", t)
+		response, err := getRequest(adminCookie, app, "/upload", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -105,7 +105,7 @@ func TestUpload(t *testing.T) {
 		filePart.Write([]byte("Hello, World!"))
 
 		multipartWriter.Close()
-		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		req, err := http.NewRequest(http.MethodPost, "/documents", &buf)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -133,7 +133,7 @@ func TestUpload(t *testing.T) {
 		part.Write([]byte(`sample`))
 		multipartWriter.Close()
 
-		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		req, err := http.NewRequest(http.MethodPost, "/documents", &buf)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -155,7 +155,7 @@ func TestUpload(t *testing.T) {
 		multipartWriter := multipart.NewWriter(&buf)
 		multipartWriter.Close()
 
-		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		req, err := http.NewRequest(http.MethodPost, "/documents", &buf)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -189,7 +189,7 @@ func TestUpload(t *testing.T) {
 
 		multipartWriter.Close()
 
-		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		req, err := http.NewRequest(http.MethodPost, "/documents", &buf)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -232,7 +232,7 @@ func TestUpload(t *testing.T) {
 
 		multipartWriter.Close()
 
-		req, err := http.NewRequest(http.MethodPost, "/en/upload", &buf)
+		req, err := http.NewRequest(http.MethodPost, "/documents", &buf)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}

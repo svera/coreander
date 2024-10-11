@@ -2,7 +2,7 @@ package user
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // New renders the new user form

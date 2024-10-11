@@ -1,8 +1,6 @@
 package auth
 
 import (
-	"fmt"
-
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -16,6 +14,6 @@ func (a *Controller) SignOut(c *fiber.Ctx) error {
 		Secure:   false,
 		HTTPOnly: true,
 	})
-
-	return c.Redirect(fmt.Sprintf("/%s", c.Params("lang")))
+	c.Set("HX-Refresh", "true")
+	return c.SendStatus(fiber.StatusNoContent)
 }

@@ -13,10 +13,10 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/index"
-	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/webserver"
-	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/webserver"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 )
 
 var version string = "unknown"
@@ -36,6 +36,7 @@ var (
 )
 
 func init() {
+	log.Printf("Coreander version %s starting\n", version)
 	homeDir, err = os.UserHomeDir()
 	if err != nil {
 		log.Fatal("Error retrieving user home dir")
@@ -80,11 +81,7 @@ func migrateDir() {
 func main() {
 	defer idx.Close()
 
-	if !cfg.SkipIndexing {
-		go startIndex(idx, appFs, cfg.BatchSize, cfg.LibPath)
-	} else {
-		go fileWatcher(idx, cfg.LibPath)
-	}
+	go startIndex(idx, appFs, cfg.BatchSize, cfg.LibPath)
 
 	sender = &infrastructure.NoEmail{}
 	if cfg.SmtpServer != "" && cfg.SmtpUser != "" && cfg.SmtpPassword != "" {
@@ -101,7 +98,6 @@ func main() {
 		MinPasswordLength:     cfg.MinPasswordLength,
 		WordsPerMinute:        cfg.WordsPerMinute,
 		JwtSecret:             cfg.JwtSecret,
-		Hostname:              cfg.Hostname,
 		FQDN:                  cfg.FQDN,
 		Port:                  cfg.Port,
 		HomeDir:               homeDir,
@@ -109,12 +105,6 @@ func main() {
 		CoverMaxWidth:         cfg.CoverMaxWidth,
 		RequireAuth:           cfg.RequireAuth,
 		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
-	}
-
-	// Hack for keeping backward compatibility, remove when complete
-	if webserverConfig.FQDN == "localhost" && webserverConfig.Hostname != "localhost" {
-		fmt.Println("Warning: using deprecated environment variable 'HOSTNAME`, use 'FQDN' instead.")
-		webserverConfig.FQDN = webserverConfig.Hostname
 	}
 
 	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", cfg.SessionTimeout))
@@ -130,16 +120,16 @@ func main() {
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
 	app := webserver.New(webserverConfig, controllers, sender, idx)
 	if strings.ToLower(cfg.FQDN) == "localhost" {
-		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accesible outside this system.\n")
+		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accessible outside this system.\n")
 	}
-	fmt.Printf("Coreander version %s started listening on port %d\n\n", version, cfg.Port)
+	log.Printf("Started listening on port %d\n", cfg.Port)
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))
 }
 
 func startIndex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath string) {
 	start := time.Now().Unix()
 	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
-	err := idx.AddLibrary(batchSize)
+	err := idx.AddLibrary(batchSize, cfg.ForceIndexing)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -153,7 +143,6 @@ func getIndexFile(fs afero.Fs) bleve.Index {
 	indexFile, err := bleve.Open(homeDir + indexPath)
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No index found, creating a new one.")
-		cfg.SkipIndexing = false
 		indexFile = index.Create(homeDir + indexPath)
 	}
 	version, err := indexFile.GetInternal([]byte("version"))
@@ -165,7 +154,6 @@ func getIndexFile(fs afero.Fs) bleve.Index {
 		if err = fs.RemoveAll(homeDir + indexPath); err != nil {
 			log.Fatal(err)
 		}
-		cfg.SkipIndexing = false
 		indexFile = index.Create(homeDir + indexPath)
 	}
 	return indexFile
