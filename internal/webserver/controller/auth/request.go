@@ -45,7 +45,7 @@ func (a *Controller) Request(c *fiber.Ctx) error {
 			"RecoveryTimeout": strconv.FormatFloat(a.config.RecoveryTimeout.Hours(), 'f', -1, 64),
 		})
 
-		return a.sender.Send(
+		a.sender.Send(
 			c.FormValue("email"),
 			a.printers[c.Locals("Lang").(string)].Sprintf("Password recovery request"),
 			string(c.Response().Body()),
