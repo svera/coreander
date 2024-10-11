@@ -10,9 +10,8 @@ import (
 
 func (a *Controller) Login(c *fiber.Ctx) error {
 	resetPassword := fmt.Sprintf(
-		"%s/%s/reset-password",
+		"%s/reset-password",
 		c.Locals("fqdn").(string),
-		c.Params("lang"),
 	)
 
 	msg := ""

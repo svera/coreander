@@ -1,7 +1,6 @@
 package user
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -47,5 +46,5 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	return c.Redirect(fmt.Sprintf("/%s/users", c.Params("lang")))
+	return c.Redirect("/users")
 }

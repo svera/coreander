@@ -144,7 +144,19 @@ func getSupportedLanguages() []string {
 }
 
 func chooseBestLanguage(c *fiber.Ctx) string {
-	lang := c.Params("lang")
+	lang := c.Query("l")
+	if lang != "" {
+		c.Cookie(&fiber.Cookie{
+			Name:     "locale",
+			Value:    lang,
+			Path:     "/",
+			MaxAge:   34560000, // 400 days which is the life limit imposed by Chrome
+			Secure:   false,
+			HTTPOnly: true,
+		})
+		return lang
+	}
+	lang = c.Cookies("locale")
 	if !slices.Contains(supportedLanguages, lang) {
 		lang = c.AcceptsLanguages(supportedLanguages...)
 		if lang == "" {

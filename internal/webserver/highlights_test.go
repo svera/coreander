@@ -46,7 +46,7 @@ func TestHighlights(t *testing.T) {
 			"words-per-minute": {"250"},
 		}
 
-		response, err := postRequest(regularUserData, adminCookie, app, "/en/users", t)
+		response, err := postRequest(regularUserData, adminCookie, app, "/users", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -112,7 +112,7 @@ func TestHighlights(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		_, err = deleteRequest(url.Values{}, adminCookie, app, "/en/documents/john-doe-test-epub", t)
+		_, err = deleteRequest(url.Values{}, adminCookie, app, "/documents/john-doe-test-epub", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -150,7 +150,7 @@ func TestHighlights(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		_, err = deleteRequest(url.Values{}, adminCookie, app, fmt.Sprintf("/en/users/%s", regularUser.Username), t)
+		_, err = deleteRequest(url.Values{}, adminCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -165,7 +165,7 @@ func TestHighlights(t *testing.T) {
 
 func highlight(cookie *http.Cookie, app *fiber.App, slug string, method string, t *testing.T) (*http.Response, error) {
 	t.Helper()
-	req, err := http.NewRequest(method, fmt.Sprintf("/en/highlights/%s", slug), nil)
+	req, err := http.NewRequest(method, fmt.Sprintf("/highlights/%s", slug), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func highlight(cookie *http.Cookie, app *fiber.App, slug string, method string, 
 func assertHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, expectedResults int) {
 	t.Helper()
 
-	req, err := http.NewRequest(http.MethodGet, "/en/highlights", nil)
+	req, err := http.NewRequest(http.MethodGet, "/highlights", nil)
 	req.AddCookie(cookie)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
@@ -204,7 +204,7 @@ func assertHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, expecte
 func assertNoHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie) {
 	t.Helper()
 
-	req, err := http.NewRequest(http.MethodGet, "/en/highlights", nil)
+	req, err := http.NewRequest(http.MethodGet, "/highlights", nil)
 	req.AddCookie(cookie)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())

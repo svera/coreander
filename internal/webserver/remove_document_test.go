@@ -60,7 +60,7 @@ func TestRemoveDocument(t *testing.T) {
 				t.Fatalf("Unexpected error: %v", err.Error())
 			}
 
-			response, err = deleteRequest(url.Values{}, cookie, app, fmt.Sprintf("/en/documents/%s", tcase.slug), t)
+			response, err = deleteRequest(url.Values{}, cookie, app, fmt.Sprintf("/documents/%s", tcase.slug), t)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())
 			}

@@ -29,9 +29,9 @@ func TestGET(t *testing.T) {
 		url            string
 		expectedStatus int
 	}{
-		{"Redirect if the user tries to access to the root URL", "/", http.StatusFound},
-		{"Page loads successfully if the user tries to access the spanish version", "/es", http.StatusOK},
-		{"Page loads successfully if the user tries to access the english version", "/en", http.StatusOK},
+		{"Redirect if the user tries to access to the root URL", "/", http.StatusOK},
+		{"Page loads successfully if the user tries to access the spanish version", "/?l=es", http.StatusOK},
+		{"Page loads successfully if the user tries to access the english version", "/?l=en", http.StatusOK},
 		{"Server returns not found if the user tries to access a non-existent URL", "/xx", http.StatusNotFound},
 	}
 

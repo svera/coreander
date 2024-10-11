@@ -1,13 +1,11 @@
 package webserver
 
 import (
-	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
-	"github.com/svera/coreander/v4/internal/webserver/controller"
+	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
 func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, requireAuth bool) {
@@ -33,29 +31,23 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	app.Use(func(c *fiber.Ctx) error {
 		c.Locals("Version", c.App().Config().AppName)
 		c.Locals("SupportedLanguages", supportedLanguages)
+		c.Locals("Lang", chooseBestLanguage(c))
+		q := c.Queries()
+		delete(q, "l")
+		c.Locals("URLPath", c.Path())
+		c.Locals("QueryString", view.ToQueryString(q))
 		return c.Next()
 	})
 
-	langGroup := app.Group(fmt.Sprintf("/:lang<regex(%s)>", strings.Join(supportedLanguages, "|")), func(c *fiber.Ctx) error {
-		pathMinusLang := c.Path()[3:]
-		query := string(c.Request().URI().QueryString())
-		if query != "" {
-			pathMinusLang = pathMinusLang + "?" + query
-		}
-		c.Locals("Lang", c.Params("lang"))
-		c.Locals("PathMinusLang", pathMinusLang)
-		return c.Next()
-	})
+	app.Get("/sessions/new", allowIfNotLoggedIn, controllers.Auth.Login)
+	app.Post("/sessions", allowIfNotLoggedIn, controllers.Auth.SignIn)
+	app.Get("/recover", allowIfNotLoggedIn, controllers.Auth.Recover)
+	app.Post("/recover", allowIfNotLoggedIn, controllers.Auth.Request)
+	app.Get("/reset-password", allowIfNotLoggedIn, controllers.Auth.EditPassword)
+	app.Post("/reset-password", allowIfNotLoggedIn, controllers.Auth.UpdatePassword)
+	app.Delete("/sessions", alwaysRequireAuthentication, controllers.Auth.SignOut)
 
-	langGroup.Get("/sessions/new", allowIfNotLoggedIn, controllers.Auth.Login)
-	langGroup.Post("/sessions", allowIfNotLoggedIn, controllers.Auth.SignIn)
-	langGroup.Get("/recover", allowIfNotLoggedIn, controllers.Auth.Recover)
-	langGroup.Post("/recover", allowIfNotLoggedIn, controllers.Auth.Request)
-	langGroup.Get("/reset-password", allowIfNotLoggedIn, controllers.Auth.EditPassword)
-	langGroup.Post("/reset-password", allowIfNotLoggedIn, controllers.Auth.UpdatePassword)
-	langGroup.Delete("/sessions", alwaysRequireAuthentication, controllers.Auth.SignOut)
-
-	usersGroup := langGroup.Group("/users", alwaysRequireAuthentication)
+	usersGroup := app.Group("/users", alwaysRequireAuthentication)
 
 	usersGroup.Get("/", RequireAdmin, controllers.Users.List)
 	usersGroup.Get("/new", RequireAdmin, controllers.Users.New)
@@ -64,18 +56,18 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	usersGroup.Put("/:username", controllers.Users.Update)
 	usersGroup.Delete("/:username", RequireAdmin, controllers.Users.Delete)
 
-	highlightsGroup := langGroup.Group("/highlights", alwaysRequireAuthentication)
+	highlightsGroup := app.Group("/highlights", alwaysRequireAuthentication)
 	highlightsGroup.Get("/", controllers.Highlights.List)
 	highlightsGroup.Post("/:slug", controllers.Highlights.Create)
 	highlightsGroup.Delete("/:slug", controllers.Highlights.Delete)
 
-	docsGroup := langGroup.Group("/documents")
-	langGroup.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
+	docsGroup := app.Group("/documents")
+	app.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
 	docsGroup.Post("/", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)
 	docsGroup.Delete("/:slug", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
 
 	// Authentication requirement is configurable for all routes below this middleware
-	langGroup.Use(configurableAuthentication)
+	app.Use(configurableAuthentication)
 	app.Use(configurableAuthentication)
 
 	docsGroup.Get("/:slug/cover", controllers.Documents.Cover)
@@ -85,9 +77,5 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	docsGroup.Get("/:slug", controllers.Documents.Detail)
 	docsGroup.Get("/", controllers.Documents.Search)
 
-	langGroup.Get("/", controllers.Documents.Search)
-
-	app.Get("/", func(c *fiber.Ctx) error {
-		return controller.Root(c, supportedLanguages)
-	})
+	app.Get("/", controllers.Documents.Search)
 }

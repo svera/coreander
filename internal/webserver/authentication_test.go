@@ -29,7 +29,7 @@ func TestAuthentication(t *testing.T) {
 
 	t.Run("Try to log in with good and bad credentials", func(t *testing.T) {
 		// Check that login page is accessible
-		req, err := http.NewRequest(http.MethodGet, "/en/sessions/new", nil)
+		req, err := http.NewRequest(http.MethodGet, "/sessions/new", nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -42,7 +42,7 @@ func TestAuthentication(t *testing.T) {
 		}
 
 		// Use no credentials to log in
-		req, err = http.NewRequest(http.MethodPost, "/en/sessions", nil)
+		req, err = http.NewRequest(http.MethodPost, "/sessions", nil)
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -56,7 +56,7 @@ func TestAuthentication(t *testing.T) {
 		}
 
 		// Use good credentials to log in
-		req, err = http.NewRequest(http.MethodPost, "/en/sessions", strings.NewReader(data.Encode()))
+		req, err = http.NewRequest(http.MethodPost, "/sessions", strings.NewReader(data.Encode()))
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -75,8 +75,8 @@ func TestAuthentication(t *testing.T) {
 			t.Error("No location header present")
 			return
 		}
-		if url.Path != "/en" {
-			t.Errorf("Expected location %s, received %s", "/en", url.Path)
+		if url.Path != "/" {
+			t.Errorf("Expected location %s, received %s", "/", url.Path)
 		}
 	})
 }
@@ -85,7 +85,7 @@ func TestRecoverNoEmailService(t *testing.T) {
 	db := infrastructure.Connect(":memory:?cache=shared", 250)
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
 
-	req, err := http.NewRequest(http.MethodGet, "/en/recover", nil)
+	req, err := http.NewRequest(http.MethodGet, "/recover", nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
@@ -127,7 +127,7 @@ func TestRecover(t *testing.T) {
 	t.Run("Check that recover page is accessible", func(t *testing.T) {
 		reset(2 * time.Hour)
 
-		req, err := http.NewRequest(http.MethodGet, "/en/recover", nil)
+		req, err := http.NewRequest(http.MethodGet, "/recover", nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -143,7 +143,7 @@ func TestRecover(t *testing.T) {
 	t.Run("Check that not posting an email returns an error", func(t *testing.T) {
 		reset(2 * time.Hour)
 
-		req, err := http.NewRequest(http.MethodPost, "/en/recover", nil)
+		req, err := http.NewRequest(http.MethodPost, "/recover", nil)
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -180,7 +180,7 @@ func TestRecover(t *testing.T) {
 			"email": {"unknown@example.com"},
 		}
 
-		req, err := http.NewRequest(http.MethodPost, "/en/recover", strings.NewReader(data.Encode()))
+		req, err := http.NewRequest(http.MethodPost, "/recover", strings.NewReader(data.Encode()))
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -202,7 +202,7 @@ func TestRecover(t *testing.T) {
 	t.Run("Try to access the update password without the recovery ID", func(t *testing.T) {
 		reset(2 * time.Hour)
 
-		req, err := http.NewRequest(http.MethodGet, "/en/reset-password", nil)
+		req, err := http.NewRequest(http.MethodGet, "/reset-password", nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -218,7 +218,7 @@ func TestRecover(t *testing.T) {
 	t.Run("Check that posting an existing email sends a recovery email and resetting the password successfully redirects to the login page", func(t *testing.T) {
 		reset(2 * time.Hour)
 
-		req, err := http.NewRequest(http.MethodPost, "/en/recover", strings.NewReader(data.Encode()))
+		req, err := http.NewRequest(http.MethodPost, "/recover", strings.NewReader(data.Encode()))
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -248,7 +248,7 @@ func TestRecover(t *testing.T) {
 			"id":               {adminUser.RecoveryUUID},
 		}
 
-		req, err = http.NewRequest(http.MethodPost, "/en/reset-password", strings.NewReader(data.Encode()))
+		req, err = http.NewRequest(http.MethodPost, "/reset-password", strings.NewReader(data.Encode()))
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -267,14 +267,14 @@ func TestRecover(t *testing.T) {
 			t.Error("No location header present")
 			return
 		}
-		if expectedURL := "/en/sessions"; url.Path != expectedURL {
+		if expectedURL := "/sessions"; url.Path != expectedURL {
 			t.Errorf("Expected location %s, received %s", expectedURL, url.Path)
 		}
 
 		// Try to access again to the reset password page with the same recovery ID leads to an error
 		db.Where("email = ?", "admin@example.com").First(&adminUser)
 
-		req, err = http.NewRequest(http.MethodGet, "/en/reset-password", nil)
+		req, err = http.NewRequest(http.MethodGet, "/reset-password", nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -295,7 +295,7 @@ func TestRecover(t *testing.T) {
 	t.Run("Check that using a timed out link returns an error", func(t *testing.T) {
 		reset(0 * time.Hour)
 
-		req, err := http.NewRequest(http.MethodPost, "/en/recover", strings.NewReader(data.Encode()))
+		req, err := http.NewRequest(http.MethodPost, "/recover", strings.NewReader(data.Encode()))
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -315,7 +315,7 @@ func TestRecover(t *testing.T) {
 		adminUser := model.User{}
 		db.Where("email = ?", "admin@example.com").First(&adminUser)
 
-		req, err = http.NewRequest(http.MethodGet, fmt.Sprintf("/en/reset-password?id=%s", adminUser.RecoveryUUID), nil)
+		req, err = http.NewRequest(http.MethodGet, fmt.Sprintf("/reset-password?id=%s", adminUser.RecoveryUUID), nil)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -336,7 +336,7 @@ func TestRecover(t *testing.T) {
 			"id":               {adminUser.RecoveryUUID},
 		}
 
-		req, err = http.NewRequest(http.MethodPost, "/en/reset-password", strings.NewReader(data.Encode()))
+		req, err = http.NewRequest(http.MethodPost, "/reset-password", strings.NewReader(data.Encode()))
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())

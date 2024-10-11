@@ -4,7 +4,7 @@
     </div>
 
     <div class="row mt-3 pe-0">
-        <form action="/{{.Lang}}/documents" method="post" enctype="multipart/form-data" id="upload-form">
+        <form action="/documents" method="post" enctype="multipart/form-data" id="upload-form">
             <div class="input-group">
                 <input type="file" name="filename" id="file-selector" accept=".epub,.pdf, application/epub+zip,application/pdf" class="form-control form-control-lg" required data-max_size="{{.MaxSize}}" data-error_too_large='{{t .Lang "Document too large, the maximum allowed size is %d megabytes" .MaxSize}}'>
                 <button type="submit" id="file-submit" value='{{t .Lang "Upload"}}' class="btn btn-primary">
