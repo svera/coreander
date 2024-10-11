@@ -38,7 +38,7 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 	}
 
 	c.Cookie(&fiber.Cookie{
-		Name:     "coreander",
+		Name:     "session",
 		Value:    signedToken,
 		Path:     "/",
 		MaxAge:   int(a.config.SessionTimeout.Seconds()),
