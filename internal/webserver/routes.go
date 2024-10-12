@@ -1,19 +1,20 @@
 package webserver
 
 import (
-	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
-	"github.com/svera/coreander/v3/internal/webserver/controller"
+	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
 func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, requireAuth bool) {
-	var allowIfNotLoggedIn = AllowIfNotLoggedIn(jwtSecret)
-	var alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender)
-	var configurableAuthentication = ConfigurableAuthentication(jwtSecret, sender, requireAuth)
+	// Middlewares
+	var (
+		allowIfNotLoggedIn          = AllowIfNotLoggedIn(jwtSecret)
+		alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender)
+		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, requireAuth)
+	)
 
 	app.Use("/css", filesystem.New(filesystem.Config{
 		Root: http.FS(cssFS),
@@ -30,64 +31,51 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	app.Use(func(c *fiber.Ctx) error {
 		c.Locals("Version", c.App().Config().AppName)
 		c.Locals("SupportedLanguages", supportedLanguages)
+		c.Locals("Lang", chooseBestLanguage(c))
+		q := c.Queries()
+		delete(q, "l")
+		c.Locals("URLPath", c.Path())
+		c.Locals("QueryString", view.ToQueryString(q))
 		return c.Next()
 	})
 
-	langGroup := app.Group(fmt.Sprintf("/:lang<regex(%s)>", strings.Join(supportedLanguages, "|")), func(c *fiber.Ctx) error {
-		pathMinusLang := c.Path()[3:]
-		query := string(c.Request().URI().QueryString())
-		if query != "" {
-			pathMinusLang = pathMinusLang + "?" + query
-		}
-		c.Locals("Lang", c.Params("lang"))
-		c.Locals("PathMinusLang", pathMinusLang)
-		return c.Next()
-	})
+	app.Get("/sessions/new", allowIfNotLoggedIn, controllers.Auth.Login)
+	app.Post("/sessions", allowIfNotLoggedIn, controllers.Auth.SignIn)
+	app.Get("/recover", allowIfNotLoggedIn, controllers.Auth.Recover)
+	app.Post("/recover", allowIfNotLoggedIn, controllers.Auth.Request)
+	app.Get("/reset-password", allowIfNotLoggedIn, controllers.Auth.EditPassword)
+	app.Post("/reset-password", allowIfNotLoggedIn, controllers.Auth.UpdatePassword)
+	app.Delete("/sessions", alwaysRequireAuthentication, controllers.Auth.SignOut)
 
-	langGroup.Get("/login", allowIfNotLoggedIn, controllers.Auth.Login)
-	langGroup.Post("login", allowIfNotLoggedIn, controllers.Auth.SignIn)
-	langGroup.Get("/recover", allowIfNotLoggedIn, controllers.Auth.Recover)
-	langGroup.Post("/recover", allowIfNotLoggedIn, controllers.Auth.Request)
-	langGroup.Get("/reset-password", allowIfNotLoggedIn, controllers.Auth.EditPassword)
-	langGroup.Post("/reset-password", allowIfNotLoggedIn, controllers.Auth.UpdatePassword)
+	usersGroup := app.Group("/users", alwaysRequireAuthentication)
 
-	usersGroup := langGroup.Group("/users", alwaysRequireAuthentication)
+	usersGroup.Get("/", RequireAdmin, controllers.Users.List)
+	usersGroup.Get("/new", RequireAdmin, controllers.Users.New)
+	usersGroup.Post("/", RequireAdmin, controllers.Users.Create)
+	usersGroup.Get("/:username", controllers.Users.Edit)
+	usersGroup.Put("/:username", controllers.Users.Update)
+	usersGroup.Delete("/:username", RequireAdmin, controllers.Users.Delete)
 
-	usersGroup.Get("/", alwaysRequireAuthentication, RequireAdmin, controllers.Users.List)
-	usersGroup.Get("/new", alwaysRequireAuthentication, RequireAdmin, controllers.Users.New)
-	usersGroup.Post("/new", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Create)
-	usersGroup.Get("/:username/edit", alwaysRequireAuthentication, controllers.Users.Edit)
-	usersGroup.Post("/:username/edit", alwaysRequireAuthentication, controllers.Users.Update)
-	app.Delete("/users", alwaysRequireAuthentication, RequireAdmin, controllers.Users.Delete)
+	highlightsGroup := app.Group("/highlights", alwaysRequireAuthentication)
+	highlightsGroup.Get("/", controllers.Highlights.List)
+	highlightsGroup.Post("/:slug", controllers.Highlights.Create)
+	highlightsGroup.Delete("/:slug", controllers.Highlights.Delete)
 
-	langGroup.Get("/highlights/:username", alwaysRequireAuthentication, controllers.Highlights.Highlights)
-	app.Post("/highlights", alwaysRequireAuthentication, controllers.Highlights.Highlight)
-	app.Delete("/highlights", alwaysRequireAuthentication, controllers.Highlights.Remove)
-
-	app.Delete("/document", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
-
-	langGroup.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
-	langGroup.Post("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)
-
-	langGroup.Get("/logout", alwaysRequireAuthentication, controllers.Auth.SignOut)
+	docsGroup := app.Group("/documents")
+	app.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
+	docsGroup.Post("/", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)
+	docsGroup.Delete("/:slug", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
 
 	// Authentication requirement is configurable for all routes below this middleware
-	langGroup.Use(configurableAuthentication)
+	app.Use(configurableAuthentication)
 	app.Use(configurableAuthentication)
 
-	app.Get("/cover/:slug", controllers.Documents.Cover)
+	docsGroup.Get("/:slug/cover", controllers.Documents.Cover)
+	docsGroup.Get("/:slug/read", controllers.Documents.Reader)
+	docsGroup.Get("/:slug/download", controllers.Documents.Download)
+	docsGroup.Post("/:slug/send", controllers.Documents.Send)
+	docsGroup.Get("/:slug", controllers.Documents.Detail)
+	docsGroup.Get("/", controllers.Documents.Search)
 
-	langGroup.Get("/document/:slug", controllers.Documents.Detail)
-
-	app.Post("/send", controllers.Documents.Send)
-
-	app.Get("/download/:slug", controllers.Documents.Download)
-
-	langGroup.Get("/", controllers.Documents.Search)
-
-	langGroup.Get("/read/:slug", controllers.Documents.Reader)
-
-	app.Get("/", func(c *fiber.Ctx) error {
-		return controller.Root(c, supportedLanguages)
-	})
+	app.Get("/", controllers.Documents.Search)
 }

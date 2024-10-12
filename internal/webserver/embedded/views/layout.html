@@ -22,12 +22,12 @@
     <script src="/js/color-mode-toggler.js"></script>
 </head>
 
-<body class="d-flex flex-column h-100">
+<body class="d-flex flex-column h-100" hx-ext="response-targets">
     <header>
         <nav class="navbar navbar-expand-md fixed-top">
             <div class="container">
                 <span class="navbar-brand mb-0 h1">
-                    <a class="text-decoration-none" href="/{{.Lang}}">
+                    <a class="text-decoration-none" href="/">
                         <img src="/images/coreander-logo-small.png" alt="Logo" width="32" height="32" class="d-inline-block align-text-middle">
                         Coreander
                     </a>
@@ -53,7 +53,7 @@
                                 <ul class="dropdown-menu">
                                     <li>
                                         {{if eq .Session.Role 2}}
-                                        <a class="dropdown-item" href="/{{.Lang}}/users">
+                                        <a class="dropdown-item" href="/users">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                                                 fill="currentColor" class="bi bi-people-fill" viewBox="0 0 16 16">
                                                 <path
@@ -62,7 +62,7 @@
                                             {{t .Lang "Users"}}
                                         </a>
                                         {{else}}
-                                        <a class="dropdown-item" href="/{{.Lang}}/users/{{.Session.Username}}/edit">
+                                        <a class="dropdown-item" href="/users/{{.Session.Username}}">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                                                 fill="currentColor" class="bi bi-person-fill" viewBox="0 0 16 16">
                                                 <path
@@ -73,7 +73,7 @@
                                         {{end}}
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="/{{.Lang}}/highlights/{{.Session.Username}}">
+                                        <a class="dropdown-item" href="/highlights">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16">
                                                 <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
                                             </svg>
@@ -82,7 +82,7 @@
                                     </li>
                                     {{if eq .Session.Role 2}}
                                     <li>
-                                        <a class="dropdown-item" href="/{{.Lang}}/upload">
+                                        <a class="dropdown-item" href="/upload">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cloud-upload-fill" viewBox="0 0 16 16">
                                                 <path fill-rule="evenodd" d="M8 0a5.53 5.53 0 0 0-3.594 1.342c-.766.66-1.321 1.52-1.464 2.383C1.266 4.095 0 5.555 0 7.318 0 9.366 1.708 11 3.781 11H7.5V5.707L5.354 7.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 5.707V11h4.188C14.502 11 16 9.57 16 7.773c0-1.636-1.242-2.969-2.834-3.194C12.923 1.999 10.69 0 8 0m-.5 14.5V11h1v3.5a.5.5 0 0 1-1 0"/>
                                             </svg>
@@ -94,7 +94,7 @@
                                         <hr class="dropdown-divider">
                                     </li>
                                     <li>
-                                        <a class="dropdown-item" href="/{{.Lang}}/logout">
+                                        <a class="dropdown-item" href="/sessions" hx-delete="/sessions">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                                                 fill="currentColor" class="bi bi-box-arrow-right" viewBox="0 0 16 16">
                                                 <path fill-rule="evenodd"
@@ -109,17 +109,20 @@
                             </li>
                             {{else if not .DisableLoginLink}}
                             <li class="p-2">
-                                <a href="/{{.Lang}}/login">{{t .Lang "Login"}}</a>
+                                <a href="/sessions/new">{{t .Lang "Login"}}</a>
                             </li>
                             {{end}}
                             <hr class="d-lg-none">
                             {{$lang := .Lang}}
-                            {{$pathMinusLang := .PathMinusLang}}
+                            {{$URLPath := .URLPath}}
+                            {{$queryString := .QueryString}}
                             {{range $i, $currentLang := .SupportedLanguages}}
                                 {{if eq $lang $currentLang}}
                                     <li class="p-2">{{uppercase $currentLang}}</li>
+                                {{else if eq $queryString ""}}
+                                    <li class="p-2"><a href="{{$URLPath}}?l={{$currentLang}}">{{uppercase $currentLang}}</a></li>
                                 {{else}}
-                                    <li class="p-2"><a href="/{{$currentLang}}{{$pathMinusLang}}">{{uppercase $currentLang}}</a></li>
+                                    <li class="p-2"><a href="{{$URLPath}}?{{$queryString}}&l={{$currentLang}}">{{uppercase $currentLang}}</a></li>
                                 {{end}}
                             {{end}}
                             <hr class="d-lg-none">
@@ -130,49 +133,16 @@
             </div>
         </nav>
     </header>
-
     <main class="mt-5">
-        <div class="container mt-5">
-            {{if .RemainingIndexingTime}}
-            <div class="row text-start">
-                <div class="alert alert-warning" role="alert">
-                    <p>{{t .Lang "Indexing in progress, search results may not be accurate."}}</p>
-                    <div class="progress" role="progressbar" aria-label='{{t .Lang "Indexing progress"}}' aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                        <div class="progress-bar" style="width: {{.IndexingProgressPercentage}}%">{{.IndexingProgressPercentage}}%</div>
-                    </div>
-                    <p class="text-end"><small>{{t .Lang "Remaining time: %s minutes" .RemainingIndexingTime}}</small></p>
-                </div>
-            </div>
-            {{end}}
-
-            {{if .Error}}
-                <div class="row text-start">
-                    <div class="alert alert-danger" role="alert">
-                        {{t .Lang .Error}}
-                    </div>
-                </div>
-            {{end}}
-
-            {{if .Warning}}
-            <div class="row text-start">
-                <div class="alert alert-warning" role="alert">
-                    {{t .Lang .Warning}}
-                </div>
-            </div>
-            {{end}}
-
-            {{if .Message}}
-                <div class="row text-start">
-                    <div class="alert alert-success" role="alert">
-                        {{t .Lang .Message}}
-                    </div>
-                </div>
-            {{end}}
-
-            {{embed}}
-        </div>
+        {{template "partials/main"
+            dict "Lang" .Lang
+            "RemainingIndexingTime" .RemainingIndexingTime
+            "IndexingProgressPercentage" .IndexingProgressPercentage
+            "Error" .Error
+            "Warning" .Warning
+            "Message" .Message
+            "Embed" .Embed}}
     </main>
-
     <footer class="footer mt-auto py-5">
         <div class="container">
             <span class="text-muted"><small>{{t .Lang "Made with words by Sergio Vera"}} - <a
@@ -181,6 +151,8 @@
         </div>
     </footer>
     <script src="/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/htmx.min.js"></script>
+    <script src="/js/response-targets.js"></script>
 </body>
 
 </html>

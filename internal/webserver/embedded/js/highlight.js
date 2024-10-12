@@ -16,9 +16,6 @@ Array.from(links).forEach((link) => {
                 "Content-Type": "application/x-www-form-urlencoded",
             },
             credentials: "same-origin",
-            body: new URLSearchParams({
-                slug: link.getAttribute("data-slug"),
-            }),
         })
         .then((response) => {
             if (response.ok) {

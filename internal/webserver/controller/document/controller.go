@@ -2,9 +2,9 @@ package document
 
 import (
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/index"
-	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/result"
+	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/result"
 )
 
 const relatedDocuments = 4
@@ -23,7 +23,7 @@ type IdxReaderWriter interface {
 	SameSubjects(slug string, quantity int) ([]index.Document, error)
 	SameAuthors(slug string, quantity int) ([]index.Document, error)
 	SameSeries(slug string, quantity int) ([]index.Document, error)
-	AddFile(file string) error
+	AddFile(file string) (string, error)
 	RemoveFile(file string) error
 	Documents(IDs []string) (map[string]index.Document, error)
 }

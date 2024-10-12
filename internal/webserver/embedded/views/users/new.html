@@ -1,4 +1,4 @@
-<form method="post" action="/{{.Lang}}/users/new" autocomplete="off">
+<form method="post" action="/users" autocomplete="off">
     <div class="mb-3">
         <label for="name" class="form-label">{{t .Lang "Name"}}</label>
         <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="50">
@@ -25,7 +25,7 @@
             {{t .Lang .Errors.email}}
         </div>
         {{end}}
-    </div>        
+    </div>
     <div class="mb-3">
         <label for="send-to-email" class="form-label">{{t .Lang "Default send to email address"}}</label>
         <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}" maxlength="100">
@@ -52,7 +52,7 @@
         <div class="invalid-feedback">
             {{t .Lang .Errors.password .MinPasswordLength}}
         </div>
-        {{end}}    
+        {{end}}
     </div>
     <div class="mb-3">
         <label for="confirm-password" class="form-label">{{t .Lang "Confirm password"}}</label>
@@ -62,7 +62,7 @@
         <div class="invalid-feedback">
             {{t .Lang .Errors.confirmpassword}}
         </div>
-        {{end}}    
+        {{end}}
     </div>
     <div class="mb-3">
         <label for="role" class="form-label">{{t .Lang "Role"}}</label>
@@ -74,7 +74,7 @@
         <div class="invalid-feedback">
             {{t .Lang .Errors.role}}
         </div>
-        {{end}}    
+        {{end}}
     </div>
 
     <button type="submit" class="btn btn-primary">{{t .Lang "Create"}}</button>

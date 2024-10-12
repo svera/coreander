@@ -5,14 +5,14 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/index"
-	"github.com/svera/coreander/v3/internal/result"
-	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v3/internal/webserver/model"
-	"github.com/svera/coreander/v3/internal/webserver/view"
+	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
-func (h *Controller) Highlights(c *fiber.Ctx) error {
+func (h *Controller) List(c *fiber.Ctx) error {
 	emailSendingConfigured := true
 	if _, ok := h.sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -32,7 +32,7 @@ func (h *Controller) Highlights(c *fiber.Ctx) error {
 		h.wordsPerMinute = session.WordsPerMinute
 	}
 
-	user, err := h.usrRepository.FindByUsername(c.Params("username"))
+	user, err := h.usrRepository.FindByUsername(session.Username)
 	if err != nil {
 		log.Println(err.Error())
 		return fiber.ErrInternalServerError

@@ -1,7 +1,7 @@
-import './view.js'
-import { createTOCView } from './ui/tree.js'
-import { createMenu } from './ui/menu.js'
-import { Overlayer } from './overlayer.js'
+import './foliate-js/view.js'
+import { createTOCView } from './foliate-js/ui/tree.js'
+import { createMenu } from './foliate-js/ui/menu.js'
+import { Overlayer } from './foliate-js/overlayer.js'
 
 const isZip = async file => {
     const arr = new Uint8Array(await file.slice(0, 4).arrayBuffer())
@@ -17,7 +17,7 @@ const isPDF = async file => {
 
 const makeZipLoader = async file => {
     const { configure, ZipReader, BlobReader, TextWriter, BlobWriter } =
-        await import('./vendor/zip.js')
+        await import('./foliate-js/vendor/zip.js')
     configure({ useWebWorkers: false })
     const reader = new ZipReader(new BlobReader(file))
     const entries = await reader.getEntries()
@@ -35,17 +35,21 @@ const getView = async file => {
     if (!file.size) throw new Error('File not found')
     else if (await isZip(file)) {
         const loader = await makeZipLoader(file)
-        const { EPUB } = await import('./epub.js')
+        const { EPUB } = await import('./foliate-js/epub.js')
         book = await new EPUB(loader).init()
     }
     else if (await isPDF(file)) {
-        const { makePDF } = await import('./pdf.js')
+        const { makePDF } = await import('./foliate-js/pdf.js')
         book = await makePDF(file)
     }
     if (!book) throw new Error('File type not supported')
     const view = document.createElement('foliate-view')
+    const storage = window.localStorage
+    const slug = document.getElementById('slug').value
+
     document.body.append(view)
     await view.open(book)
+    await view.init({lastLocation: storage.getItem(slug)})
     return view
 }
 
@@ -136,6 +140,7 @@ class Reader {
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
 
         document.body.removeChild($('#spinner-container'))
+        document.body.removeChild($('#error-icon-container'))
 
         const { book } = this.view
         this.view.renderer.setStyles?.(getCSS(this.style))
@@ -182,7 +187,7 @@ class Reader {
         // load and show highlights embedded in the file by Calibre
         const bookmarks = await book.getCalibreBookmarks?.()
         if (bookmarks) {
-            const { fromCalibreHighlight } = await import('./epubcfi.js')
+            const { fromCalibreHighlight } = await import('./foliate-js/epubcfi.js')
             for (const obj of bookmarks) {
                 if (obj.type === 'highlight') {
                     const value = fromCalibreHighlight(obj)
@@ -221,6 +226,10 @@ class Reader {
         doc.addEventListener('keydown', this.#handleKeydown.bind(this))
     }
     #onRelocate({ detail }) {
+        const storage = window.localStorage
+        const slug = document.getElementById('slug').value
+
+        storage.setItem(slug, detail.cfi)
         const { fraction, location, tocItem, pageItem } = detail
         const percent = percentFormat.format(fraction)
         const loc = pageItem
@@ -242,7 +251,16 @@ const open = async file => {
 
 const url = document.getElementById('url').value
 if (url) fetch(url)
-    .then(res => res.blob())
+    .then(res => {
+        if (res.status == 403) {
+            return location.reload()
+        }
+        return res.blob()
+    })
     .then(blob => open(new File([blob], new URL(url).pathname)))
-    .catch(e => console.error(e))
+    .catch(e => {
+        document.body.removeChild($('#spinner-container'));
+        $('#error-icon-container').classList.remove('d-none');
+        console.error(e);
+    })
 else dropTarget.style.visibility = 'visible'

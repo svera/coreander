@@ -6,8 +6,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	jwtware "github.com/gofiber/jwt/v3"
-	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v3/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // RequireAdmin returns HTTP forbidden if the user requesting access
@@ -59,7 +59,7 @@ func AllowIfNotLoggedIn(jwtSecret []byte) func(*fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
 		SigningMethod: "HS256",
-		TokenLookup:   "cookie:coreander",
+		TokenLookup:   "cookie:session",
 		SuccessHandler: func(c *fiber.Ctx) error {
 			return fiber.ErrForbidden
 		},
@@ -75,7 +75,7 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender) func(*fiber.Ct
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
 		SigningMethod: "HS256",
-		TokenLookup:   "cookie:coreander",
+		TokenLookup:   "cookie:session",
 		SuccessHandler: func(c *fiber.Ctx) error {
 			c.Locals("Session", sessionData(c))
 			return c.Next()
@@ -91,7 +91,7 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, requireAuth boo
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
 		SigningMethod: "HS256",
-		TokenLookup:   "cookie:coreander",
+		TokenLookup:   "cookie:session",
 		SuccessHandler: func(c *fiber.Ctx) error {
 			c.Locals("Session", sessionData(c))
 			return c.Next()
@@ -111,7 +111,7 @@ func forbidden(c *fiber.Ctx, sender Sender, err error) error {
 		emailSendingConfigured = false
 	}
 	message := ""
-	if err.Error() != "missing or malformed JWT" && c.Cookies("coreander") != "void" {
+	if err.Error() != "missing or malformed JWT" && c.Cookies("session") != "" {
 		message = "Session expired, please log in again."
 	}
 	return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{

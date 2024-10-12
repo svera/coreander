@@ -5,14 +5,13 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 )
 
 func (a *Controller) Login(c *fiber.Ctx) error {
 	resetPassword := fmt.Sprintf(
-		"%s/%s/reset-password",
+		"%s/reset-password",
 		c.Locals("fqdn").(string),
-		c.Params("lang"),
 	)
 
 	msg := ""
@@ -29,5 +28,6 @@ func (a *Controller) Login(c *fiber.Ctx) error {
 		"Title":                  "Login",
 		"Message":                msg,
 		"EmailSendingConfigured": emailSendingConfigured,
+		"DisableLoginLink":       true,
 	}, "layout")
 }

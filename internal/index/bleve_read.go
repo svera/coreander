@@ -13,8 +13,8 @@ import (
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/result"
+	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/result"
 )
 
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {

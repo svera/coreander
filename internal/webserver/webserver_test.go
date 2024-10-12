@@ -16,10 +16,10 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v3/internal/index"
-	"github.com/svera/coreander/v3/internal/metadata"
-	"github.com/svera/coreander/v3/internal/webserver"
-	"github.com/svera/coreander/v3/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/webserver"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"gorm.io/gorm"
 )
 
@@ -29,13 +29,13 @@ func TestGET(t *testing.T) {
 		url            string
 		expectedStatus int
 	}{
-		{"Redirect if the user tries to access to the root URL", "/", http.StatusFound},
-		{"Page loads successfully if the user tries to access the spanish version", "/es", http.StatusOK},
-		{"Page loads successfully if the user tries to access the english version", "/en", http.StatusOK},
+		{"Redirect if the user tries to access to the root URL", "/", http.StatusOK},
+		{"Page loads successfully if the user tries to access the spanish version", "/?l=es", http.StatusOK},
+		{"Page loads successfully if the user tries to access the english version", "/?l=en", http.StatusOK},
 		{"Server returns not found if the user tries to access a non-existent URL", "/xx", http.StatusNotFound},
 	}
 
-	db := infrastructure.Connect("file::memory:", 250)
+	db := infrastructure.Connect(":memory:", 250)
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
 
 	for _, tcase := range cases {
@@ -77,7 +77,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 		idx = index.NewBleve(indexFile, appFs, webserverConfig.LibraryPath, metadataReaders)
 	}
 
-	err = idx.AddLibrary(100)
+	err = idx.AddLibrary(100, true)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -122,6 +122,12 @@ func postRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL strin
 	t.Helper()
 
 	return formRequest(http.MethodPost, data, cookie, app, URL)
+}
+
+func putRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL string, t *testing.T) (*http.Response, error) {
+	t.Helper()
+
+	return formRequest(http.MethodPut, data, cookie, app, URL)
 }
 
 func deleteRequest(data url.Values, cookie *http.Cookie, app *fiber.App, URL string, t *testing.T) (*http.Response, error) {
