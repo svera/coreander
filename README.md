@@ -56,8 +56,7 @@ Coreander requires a `LIB_PATH` environment variable to be set, which tells the 
 
 On first run, Coreander will index the documents in your library, creating a database with those entries located at `$home/coreander/index`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.
 
-Every time is run, the application check for new entries, reindexing the whole library. You can
-avoid this behavior by setting the environment variable `SKIP_INDEXING` to `true`.
+Every time is run, the application scans the library folder only for documents not yet indexed and adds them to the index. You can force to index all documents wether they were previously indexed or not by setting the environment variable `FORCE_INDEXING` to `true`.
 
 Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` with the hostname / IP address of the machine where the server is running if you want to access it from another system). It is possible to change the listening port just executing the application with the `PORT` environment variable (e. g. `PORT=4000 coreander`)
 
