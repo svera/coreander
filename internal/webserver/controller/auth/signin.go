@@ -46,7 +46,7 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 	})
 
 	referer := string(c.Context().Referer())
-	if referer != "" && !strings.HasSuffix(referer, "login") {
+	if referer != "" && !strings.HasSuffix(referer, "sessions/new") {
 		return c.Redirect(referer)
 	}
 
