@@ -29,10 +29,18 @@
                 <span class="navbar-brand mb-0 h1">
                     <a class="text-decoration-none" href="/">
                         <img src="/images/coreander-logo-small.png" alt="Logo" width="32" height="32" class="d-inline-block align-text-middle">
-                        Coreander
                     </a>
                 </span>
-
+                <form action="/documents" class="container-fluid" roles="search" roles="search">
+                    <!--<form action="/documents" class="d-flex justify-content-center" roles="search">-->
+                        <div class="input-group input-group-sm">
+                            <label for="search" class="visually-hidden">{{t .Lang "search"}}</label>
+                            <input type="search" name="search" id="searchbox" class="form-control" placeholder={{t .Lang "Title, authors, subjects, etc."}} maxlength="255" required autofocus value="{{.Keywords}}">
+                            <button class="btn btn-outline-secondary" type="submit"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+                            </svg></button>
+                        </div>
+                    </form>
                 <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas"
                     data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar">
                     <span class="navbar-toggler-icon"></span>

@@ -1,5 +1,5 @@
 <section class="pb-5 text-center">
-    {{template "partials/searchbox" .}}
+    <img src="images/anagram.png"  />
     <p>{{t .Lang "%d documents available" .Count}}</p>
 </section>
 {{if and (.Session) (ne .Session.Name "")}}
@@ -22,7 +22,7 @@
 
                     {{range $i, $doc := .Highlights}}
                     <div class="col-6 col-md-3 col-lg-2 pe-0">
-                        {{template "partials/related" dict "Lang" $lang "Document" $doc}}
+                        {{template "partials/related" dict "Lang" $lang "Document" $doc "Session" $session}}
                         <div class="mb-5 actions">
                             <div class="dropdown">
                                 <button type="button" class="btn btn-primary dropdown-toggle w-100" data-bs-toggle="dropdown"
