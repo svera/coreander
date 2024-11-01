@@ -30,20 +30,22 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	var searchResults result.Paginated[[]index.Document]
 	keywords := c.Query("search")
 
-	if keywords != "" {
-		page, err := strconv.Atoi(c.Query("page"))
-		if err != nil {
-			page = 1
-		}
+	if keywords == "" {
+		return fiber.ErrBadRequest
+	}
 
-		if searchResults, err = d.idx.Search(keywords, page, model.ResultsPerPage); err != nil {
-			log.Println(err)
-			return fiber.ErrInternalServerError
-		}
+	page, err := strconv.Atoi(c.Query("page"))
+	if err != nil {
+		page = 1
+	}
 
-		if session.ID > 0 {
-			searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
-		}
+	if searchResults, err = d.idx.Search(keywords, page, model.ResultsPerPage); err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
+	if session.ID > 0 {
+		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
 	return c.Render("results", fiber.Map{

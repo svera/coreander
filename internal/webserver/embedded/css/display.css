@@ -68,6 +68,9 @@ a.collapse-control.collapsed:after {
         --bs-bg-opacity: 1;
         background-color: rgba(var(--bs-light-rgb), var(--bs-bg-opacity)) !important;
     }
+    .navbar-home {
+        background-color: white !important;
+    }
 }
 
 [data-bs-theme=dark] {

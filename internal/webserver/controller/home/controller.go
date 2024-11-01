@@ -1,9 +1,7 @@
 package home
 
 import (
-	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/result"
 )
 
@@ -38,15 +36,13 @@ type Controller struct {
 	idx          IdxReaderWriter
 	sender       Sender
 	config       Config
-	appFs        afero.Fs
 }
 
-func NewController(hlRepository highlightsRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config) *Controller {
+func NewController(hlRepository highlightsRepository, sender Sender, idx IdxReaderWriter, cfg Config) *Controller {
 	return &Controller{
 		hlRepository: hlRepository,
 		idx:          idx,
 		sender:       sender,
 		config:       cfg,
-		appFs:        appFs,
 	}
 }

@@ -24,7 +24,7 @@
 
 <body class="d-flex flex-column h-100" hx-ext="response-targets">
     <header>
-        <nav class="navbar navbar-expand-md fixed-top">
+        <nav class="navbar navbar-expand-md fixed-top {{if .HomeNavbar}}navbar-home{{end}}">
             <div class="container d-flex justify-content-end">
                 {{if not .HomeNavbar}}
                 <span class="navbar-brand mb-0 h1">
