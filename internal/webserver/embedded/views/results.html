@@ -1,8 +1,6 @@
 <p class="text-center mb-5">
-    {{if gt .Results.TotalHits 0}}
+    {{if eq .Results.TotalHits 0}}
         {{t .Lang "No matches found" }}
-    {{else}}
-        {{t .Lang "%d matches found" .Results.TotalHits }}
         <section class="pt-5 text-center">
             <h2 class="mb-3">{{t .Lang "Search tips"}}</h2>
             <p>{{t .Lang "Use %s prefix in search box to search by authors only" `<span
@@ -16,6 +14,8 @@
             <p>{{t .Lang "Enclose your search terms in double quotes to require all those terms and with the same order"}}
             </p>
         </section>
+    {{else}}
+        {{t .Lang "%d matches found" .Results.TotalHits }}
     {{end}}
 </p>
 
