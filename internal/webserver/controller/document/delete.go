@@ -22,7 +22,7 @@ func (d *Controller) Delete(c *fiber.Ctx) error {
 	}
 
 	if err := d.idx.RemoveFile(fullPath); err != nil {
-		log.Println(err)
+		log.Printf("error removing file %s from index: %s\n", fullPath, err.Error())
 		return fiber.ErrInternalServerError
 	}
 
