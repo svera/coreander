@@ -1,6 +1,8 @@
 package home
 
 import (
+	"log"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
@@ -20,16 +22,19 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 
 	count, err := d.idx.Count()
 	if err != nil {
+		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	docsSortedByHighlightedDate, err := d.hlRepository.Highlights(int(session.ID), 0, 6)
+	docsSortedByHighlightedDate, err := d.hlRepository.Highlights(int(session.ID), 0, highlightsAmount)
 	if err != nil {
+		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
 	docs, err := d.idx.Documents(docsSortedByHighlightedDate.Hits())
 	if err != nil {
+		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 

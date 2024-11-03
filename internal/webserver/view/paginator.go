@@ -42,16 +42,22 @@ func Pagination[T any](size int, results result.Paginated[T], params map[string]
 		end = results.TotalPages()
 	}
 	for i := start; i <= end; i++ {
+		if params == nil {
+			params = make(map[string]string, 1)
+		}
+		params["page"] = fmt.Sprintf("%d", i)
 		p := Page{
-			Link: fmt.Sprintf("?%s&page=%d", ToQueryString(params), i),
+			Link: fmt.Sprintf("?%s", ToQueryString(params)),
 		}
 		if i == results.Page() {
 			p.IsCurrent = true
 			if i > 1 {
-				nav.PreviousLink = fmt.Sprintf("?%s&page=%d", ToQueryString(params), i-1)
+				params["page"] = fmt.Sprintf("%d", i-1)
+				nav.PreviousLink = fmt.Sprintf("?%s", ToQueryString(params))
 			}
 			if i < results.TotalPages() {
-				nav.NextLink = fmt.Sprintf("?%s&page=%d", ToQueryString(params), i+1)
+				params["page"] = fmt.Sprintf("%d", i+1)
+				nav.NextLink = fmt.Sprintf("?%s", ToQueryString(params))
 			}
 		}
 		nav.Pages[i] = p

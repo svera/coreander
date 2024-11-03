@@ -5,7 +5,7 @@ import (
 	"github.com/svera/coreander/v4/internal/result"
 )
 
-const relatedDocuments = 4
+const highlightsAmount = 6
 
 type Sender interface {
 	SendDocument(address string, libraryPath string, fileName string) error
@@ -23,12 +23,8 @@ type highlightsRepository interface {
 }
 
 type Config struct {
-	LibraryPath           string
-	HomeDir               string
-	CoverMaxWidth         int
-	Hostname              string
-	Port                  int
-	UploadDocumentMaxSize int
+	LibraryPath   string
+	CoverMaxWidth int
 }
 
 type Controller struct {

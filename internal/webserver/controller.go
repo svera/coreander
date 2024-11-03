@@ -52,10 +52,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 
 	homeCfg := home.Config{
 		LibraryPath:   cfg.LibraryPath,
-		HomeDir:       cfg.HomeDir,
 		CoverMaxWidth: cfg.CoverMaxWidth,
-		Hostname:      cfg.Hostname,
-		Port:          cfg.Port,
 	}
 
 	return Controllers{
