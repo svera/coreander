@@ -54,7 +54,7 @@ a.collapse-control.collapsed:after {
 .nav-item .bi {
     width: 1em;
     height: 1em;
-}      
+}
 
 :root, [data-bs-theme=light] {
     --bs-link-color-rgb: 0, 0, 0;
@@ -67,6 +67,9 @@ a.collapse-control.collapsed:after {
     .navbar {
         --bs-bg-opacity: 1;
         background-color: rgba(var(--bs-light-rgb), var(--bs-bg-opacity)) !important;
+    }
+    .navbar-home {
+        background-color: white !important;
     }
 }
 
@@ -91,3 +94,9 @@ a.collapse-control.collapsed:after {
 .card-img-overlay a, .card-img-overlay p, .card-img-overlay h2, .card-img-overlay h3, .card-img-overlay h4, .card-img-overlay h5 {
     color: rgba(255,255,255,0.8);
 }
+
+[data-bs-theme=dark] {
+    .color-invertible {
+      filter: invert(100%);
+    }
+  }

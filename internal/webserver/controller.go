@@ -7,6 +7,7 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/controller/auth"
 	"github.com/svera/coreander/v4/internal/webserver/controller/document"
 	"github.com/svera/coreander/v4/internal/webserver/controller/highlight"
+	"github.com/svera/coreander/v4/internal/webserver/controller/home"
 	"github.com/svera/coreander/v4/internal/webserver/controller/user"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"gorm.io/gorm"
@@ -17,6 +18,7 @@ type Controllers struct {
 	Users      *user.Controller
 	Highlights *highlight.Controller
 	Documents  *document.Controller
+	Home       *home.Controller
 }
 
 func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs) Controllers {
@@ -48,10 +50,16 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
 	}
 
+	homeCfg := home.Config{
+		LibraryPath:   cfg.LibraryPath,
+		CoverMaxWidth: cfg.CoverMaxWidth,
+	}
+
 	return Controllers{
 		Auth:       auth.NewController(usersRepository, sender, authCfg, printers),
 		Users:      user.NewController(usersRepository, usersCfg),
 		Highlights: highlight.NewController(highlightsRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
 		Documents:  document.NewController(highlightsRepository, sender, idx, metadataReaders, appFs, documentsCfg),
+		Home:       home.NewController(highlightsRepository, sender, idx, homeCfg),
 	}
 }

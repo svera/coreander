@@ -2,6 +2,7 @@ package document
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,6 +29,11 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 
 	document, err := d.idx.Document(c.Params("slug"))
 	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
+	if document.Slug == "" {
 		return fiber.ErrNotFound
 	}
 
