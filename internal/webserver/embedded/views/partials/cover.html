@@ -1,21 +1,29 @@
-<div class="position-relative actions">
-    <a href="/documents/{{.Document.Slug}}" class="text-decoration-none">
-        <picture>
-            <source srcset="/documents/{{.Document.Slug}}/cover" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' />
-            <img src="/images/generic.jpg" data-src="" loading="lazy" class="border border-2 text-center mb-3 cover img-fluid card-img" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' onerror="this.onerror = null; this.parentNode.children[0].srcset = this.src; this.parentNode.parentNode.children[1].classList.remove('d-none')">
-        </picture>
-        <div class="card-img-overlay card-body d-none">
-            <h5 class="card-title text-center">{{.Document.Title}}</h5>
-            {{if .Document.Authors}}
-                <p class="card-text text-center">
-                    {{join .Document.Authors ", "}}
-                </p>
-            {{else}}
-                <p class="card-text text-center">{{t .Lang "Unknown author"}}</p>
-            {{end}}
-        </div>
-    </a>
-    {{if and (.Session) (ne .Session.Name "")}}
-        {{template "partials/highlight-toggle" dict "Lang" .Lang "Document" .Document}}
-    {{end}}
+<div class="position-relative mb-3">
+    <div class="position-relative actions" style="background-color: #eee">
+        <a href="/documents/{{.Document.Slug}}" class="text-decoration-none">
+            <picture>
+                <source srcset="/documents/{{.Document.Slug}}/cover" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' />
+                <img src="/images/generic.jpg" data-src="" loading="lazy" class="border border-2 text-center cover img-fluid card-img" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' onerror="this.onerror = null; this.parentNode.children[0].srcset = this.src; this.parentNode.parentNode.children[1].classList.remove('d-none')" style="clip-path: polygon(100% 0, 100% calc(100% - 64px), calc(100% - 64px) 100%, 0 100%, 0 0)">
+            </picture>
+            <div class="card-img-overlay card-body d-none">
+                <h5 class="card-title text-center">{{.Document.Title}}</h5>
+                {{if .Document.Authors}}
+                    <p class="card-text text-center">
+                        {{join .Document.Authors ", "}}
+                    </p>
+                {{else}}
+                    <p class="card-text text-center">{{t .Lang "Unknown author"}}</p>
+                {{end}}
+            </div>
+        </a>
+        {{if and (.Session) (ne .Session.Name "")}}
+            {{template "partials/highlight-toggle" dict "Lang" .Lang "Document" .Document}}
+        {{end}}
+    </div>
+
+    <div class="position-absolute bottom-0 end-0 me-2 mb-2" style="cursor: pointer">
+        <a href="/documents/{{.Document.Slug}}/read" class="icon-link" title='{{t .Lang "Read"}}'>
+            <img src="/images/eye-solid.svg" class="img-fluid" />
+        </a>
+    </div>
 </div>
