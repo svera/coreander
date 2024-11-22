@@ -6,6 +6,8 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
+const latestHighlightsAmount = 6
+
 type highlightsRepository interface {
 	Highlights(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
 	Highlight(userID int, documentPath string) error

@@ -2,11 +2,11 @@
     <h2 class="h3 mb-3 fw-normal">{{t .Lang "Please sign in"}}</h2>
 
     <div class="form-floating">
-        <input type="email" class="form-control" id="floatingInput" placeholder="user@example.com" name="email">
+        <input type="email" class="form-control" id="floatingInput" placeholder="user@example.com" name="email" required>
         <label for="floatingInput" class="form-label">{{t .Lang "Email"}}</label>
     </div>
     <div class="form-floating mt-3">
-        <input type="password" class="form-control" id="floatingPassword" placeholder="Password" name="password">
+        <input type="password" class="form-control" id="floatingPassword" placeholder="Password" name="password" required>
         <label for="floatingPassword">{{t .Lang "Password"}}</label>
         {{if .EmailSendingConfigured}}
         <div id="passwordHelp" class="form-text text-end pb-5"><a href="/recover">{{t .Lang "I don't remember my password"}}</a></div>

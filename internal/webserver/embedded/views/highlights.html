@@ -1,14 +1,14 @@
-<div class="py-5">
-    <h1 class="text-center">{{t .Lang "%s highlights" .Session.Name}}</h1>
-    {{if gt .Results.TotalHits 0}}
-    <p class="text-center">{{t .Lang "%d highlighted documents" .Results.TotalHits }}</p>
-    {{else}}
-    <p class="text-center">{{t .Lang "No highlighted documents" }}</p>
-    {{end}}
+<div hx-get="{{.Url}}" hx-swap="outerHTML" hx-trigger="dehighlight from:body">
+    <div class="py-5">
+        <h1 class="text-center">{{t .Lang "%s highlights" .Session.Name}}</h1>
+        {{if gt .Results.TotalHits 0}}
+        <p class="text-center">{{t .Lang "%d highlighted documents" .Results.TotalHits }}</p>
+        {{else}}
+        <p class="text-center">{{t .Lang "No highlighted documents" }}</p>
+        {{end}}
+    </div>
+
+    <div class="list-group list-group-flush">
+    {{ template "partials/docs-list" .}}
+    </div>
 </div>
-
-{{ template "partials/docs-list" .}}
-
-{{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
-{{template "partials/pagination" .}}
-{{end}}

@@ -48,7 +48,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
-	return c.Render("results", fiber.Map{
+	err = c.Render("results", fiber.Map{
 		"Keywords":               keywords,
 		"Results":                searchResults,
 		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, map[string]string{"search": keywords}),
@@ -58,4 +58,9 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		"WordsPerMinute":         d.config.WordsPerMinute,
 	}, "layout")
 
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+	return nil
 }
