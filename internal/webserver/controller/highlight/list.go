@@ -14,11 +14,6 @@ import (
 )
 
 func (h *Controller) List(c *fiber.Ctx) error {
-	emailSendingConfigured := true
-	if _, ok := h.sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
 	page, err := strconv.Atoi(c.Query("page"))
 	if err != nil {
 		page = 1
@@ -43,9 +38,55 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
+	emailSendingConfigured := true
+	if _, ok := h.sender.(*infrastructure.NoEmail); ok {
+		emailSendingConfigured = false
+	}
+
+	highlights, totalHits, err := h.sortedHighlights(c, page, user)
+	if err != nil {
+		return err
+	}
+
+	if c.Query("view") == "latest" {
+		return h.latest(c, highlights, emailSendingConfigured)
+	}
+
+	paginatedResults := result.NewPaginated[[]index.Document](
+		model.ResultsPerPage,
+		page,
+		totalHits,
+		highlights,
+	)
+
+	url := fmt.Sprintf("/highlights?view=list&page=%d", page)
+
+	layout := "layout"
+	if c.Query("view") == "list" {
+		layout = ""
+	}
+
+	err = c.Render("highlights", fiber.Map{
+		"Results":                paginatedResults,
+		"Paginator":              view.Pagination(model.MaxPagesNavigator, paginatedResults, nil),
+		"Title":                  "Highlights",
+		"EmailSendingConfigured": emailSendingConfigured,
+		"EmailFrom":              h.sender.From(),
+		"WordsPerMinute":         h.wordsPerMinute,
+		"Url":                    url,
+	}, layout)
+
+	if err != nil {
+		log.Println(err)
+	}
+
+	return nil
+}
+
+func (h *Controller) sortedHighlights(c *fiber.Ctx, page int, user *model.User) ([]index.Document, int, error) {
 	highlightsAmount, err := strconv.Atoi(c.Query("amount", strconv.Itoa(model.ResultsPerPage)))
 	if err != nil {
-		return fiber.ErrBadRequest
+		return nil, 0, fiber.ErrBadRequest
 	}
 	if highlightsAmount < 1 {
 		highlightsAmount = model.ResultsPerPage
@@ -54,7 +95,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount)
 	if err != nil {
 		log.Println(err)
-		return fiber.ErrInternalServerError
+		return nil, 0, fiber.ErrInternalServerError
 	}
 
 	if docsSortedByHighlightedDate.TotalPages() < page {
@@ -62,14 +103,14 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		docsSortedByHighlightedDate, err = h.hlRepository.Highlights(int(user.ID), page, highlightsAmount)
 		if err != nil {
 			log.Println(err)
-			return fiber.ErrInternalServerError
+			return nil, 0, fiber.ErrInternalServerError
 		}
 	}
 
 	docs, err := h.idx.Documents(docsSortedByHighlightedDate.Hits())
 	if err != nil {
 		log.Println(err)
-		return fiber.ErrInternalServerError
+		return nil, 0, fiber.ErrInternalServerError
 	}
 
 	highlights := make([]index.Document, 0, len(docs))
@@ -82,57 +123,19 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		highlights = append(highlights, doc)
 	}
 
-	if c.Query("view") == "latest" {
-		err := c.Render("partials/latest-highlights", fiber.Map{
-			"Highlights":             highlights,
-			"EmailSendingConfigured": emailSendingConfigured,
-			"EmailFrom":              h.sender.From(),
-			"WordsPerMinute":         h.wordsPerMinute,
-		})
-		if err != nil {
-			log.Println(err)
-		}
+	return highlights, docsSortedByHighlightedDate.TotalHits(), nil
+}
 
-		return nil
-	}
-
-	paginatedResults := result.NewPaginated[[]index.Document](
-		model.ResultsPerPage,
-		page,
-		docsSortedByHighlightedDate.TotalHits(),
-		highlights,
-	)
-
-	url := "/highlights?view=list"
-	if c.Query("page") != "" {
-		url = url + fmt.Sprintf("&page=%d", page)
-	}
-
-	if c.Query("view") == "list" {
-
-		err := c.Render("highlights", fiber.Map{
-			"Results":                paginatedResults,
-			"Paginator":              view.Pagination(model.MaxPagesNavigator, paginatedResults, nil),
-			"Title":                  "Highlights",
-			"EmailSendingConfigured": emailSendingConfigured,
-			"EmailFrom":              h.sender.From(),
-			"WordsPerMinute":         h.wordsPerMinute,
-			"Url":                    url,
-		})
-		if err != nil {
-			log.Println(err)
-		}
-
-		return nil
-	}
-
-	return c.Render("highlights", fiber.Map{
-		"Results":                paginatedResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, paginatedResults, nil),
-		"Title":                  "Highlights",
+func (h *Controller) latest(c *fiber.Ctx, highlights []index.Document, emailSendingConfigured bool) error {
+	err := c.Render("partials/latest-highlights", fiber.Map{
+		"Highlights":             highlights,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              h.sender.From(),
 		"WordsPerMinute":         h.wordsPerMinute,
-		"Url":                    url,
-	}, "layout")
+	})
+	if err != nil {
+		log.Println(err)
+	}
+
+	return nil
 }
