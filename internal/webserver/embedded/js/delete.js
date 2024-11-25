@@ -23,7 +23,6 @@ deleteModal.addEventListener('hidden.bs.modal', event => {
 
 deleteForm.addEventListener('submit', event => {
     event.preventDefault();
-    console.log(deleteForm.getAttribute("action") + '/' + id, 'ruta')
     fetch(deleteForm.getAttribute("action") + '/' + id, {
         method: "DELETE"
     })

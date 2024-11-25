@@ -43,13 +43,17 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		emailSendingConfigured = false
 	}
 
-	highlights, totalHits, err := h.sortedHighlights(c, page, user)
-	if err != nil {
-		return err
+	if c.Query("view") == "latest" {
+		highlights, _, err := h.sortedHighlights(c, page, user, latestHighlightsAmount)
+		if err != nil {
+			return err
+		}
+		return h.latest(c, highlights, emailSendingConfigured)
 	}
 
-	if c.Query("view") == "latest" {
-		return h.latest(c, highlights, emailSendingConfigured)
+	highlights, totalHits, err := h.sortedHighlights(c, page, user, model.ResultsPerPage)
+	if err != nil {
+		return err
 	}
 
 	paginatedResults := result.NewPaginated[[]index.Document](
@@ -83,15 +87,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	return nil
 }
 
-func (h *Controller) sortedHighlights(c *fiber.Ctx, page int, user *model.User) ([]index.Document, int, error) {
-	highlightsAmount, err := strconv.Atoi(c.Query("amount", strconv.Itoa(model.ResultsPerPage)))
-	if err != nil {
-		return nil, 0, fiber.ErrBadRequest
-	}
-	if highlightsAmount < 1 {
-		highlightsAmount = model.ResultsPerPage
-	}
-
+func (h *Controller) sortedHighlights(c *fiber.Ctx, page int, user *model.User, highlightsAmount int) ([]index.Document, int, error) {
 	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount)
 	if err != nil {
 		log.Println(err)

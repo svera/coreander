@@ -5,8 +5,6 @@ import (
 	"github.com/svera/coreander/v4/internal/result"
 )
 
-const highlightsAmount = 6
-
 type Sender interface {
 	SendDocument(address string, libraryPath string, fileName string) error
 	From() string

@@ -25,6 +25,5 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),
 		"HomeNavbar":             true,
-		"HighlightsAmount":       highlightsAmount,
 	}, "layout")
 }
