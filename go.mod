@@ -33,7 +33,6 @@ require (
 	github.com/blevesearch/go-faiss v1.0.23 // indirect
 	github.com/blevesearch/zapx/v16 v16.1.7 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/geek1011/kepubify v2.3.2+incompatible // indirect
 	github.com/glebarez/go-sqlite v1.22.0 // indirect
 	github.com/gofiber/template v1.8.3 // indirect
 	github.com/gofiber/utils v1.1.0 // indirect
@@ -43,10 +42,8 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/kr/smartypants v0.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/mattn/go-zglob v0.0.5 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
-	github.com/pgaskin/kepubify v2.3.2+incompatible // indirect
 	github.com/pgaskin/kepubify/_/go116-zip.go117 v0.0.0-20210611152744-2d89b3182523 // indirect
 	github.com/pgaskin/kepubify/_/html v0.0.0-20211223234002-6ee2cc632cdc // indirect
 	github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c // indirect
