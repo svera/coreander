@@ -100,3 +100,15 @@ a.collapse-control.collapsed:after {
       filter: invert(100%);
     }
   }
+
+.cover-corner {
+    clip-path: polygon(100% 0, 100% calc(100% - 3em), calc(100% - 3em) 100%, 0 100%, 0 0);
+}
+
+.cover-background {
+    background-color: #eee;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}

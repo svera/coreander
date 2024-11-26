@@ -1,8 +1,6 @@
 "use strict"
 
-let forms = document.getElementsByClassName("send-email");
-
-Array.from(forms).forEach(form => {
+Array.from(document.getElementsByClassName("send-email")).forEach(form => {
     form.addEventListener("submit", event => {
         event.preventDefault();
 

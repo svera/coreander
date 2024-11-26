@@ -1,50 +1,11 @@
 <section class="pb-5 text-center">
-    <img src="/images/coreander-header.png" class="w-50 color-invertible"/>
+    <img src="/images/coreander-header.png" class="w-50 mt-5 color-invertible"/>
     {{template "partials/searchbox" .}}
     <p>{{t .Lang "%d documents available" .Count}}</p>
 </section>
 {{if and (.Session) (ne .Session.Name "")}}
-    <section class="row pt-5">
-            <div class="col-9">
-                    <h2>{{t .Lang "Your highlights" }}</h2>
-            </div>
-            {{if gt (len .Highlights) 0}}
-                <div class="col-3 text-end">
-                        <a  href="/highlights">
-                                {{t .Lang "See all" }}
-                        </a>
-                </div>
+    <section class="row pt-5" id="latest-highlights" hx-get="/highlights?view=latest&amount={{.HighlightsAmount}}" hx-trigger="load, dehighlight from:body">
 
-                <div class="row mt-3 pe-0 align-items-end">
-                    {{$lang := .Lang}}
-                    {{$emailSendingConfigured := .EmailSendingConfigured}}
-                    {{$session := .Session}}
-                    {{$emailFrom := .EmailFrom}}
-
-                    {{range $i, $doc := .Highlights}}
-                    <div class="col-6 col-md-3 col-lg-2 pe-0">
-                        {{template "partials/related" dict "Lang" $lang "Document" $doc}}
-                        <div class="mb-5 actions">
-                            <div class="dropdown">
-                                <button type="button" class="btn btn-primary dropdown-toggle w-100" data-bs-toggle="dropdown"
-                                    aria-expanded="false" data-bs-auto-close="outside">
-                                    {{t $lang "Actions"}}
-                                </button>
-                                {{ template "partials/actions" dict "Lang" $lang "Document" $doc "EmailSendingConfigured"
-                                $emailSendingConfigured "Session" $session "EmailFrom" $emailFrom "OnDehighlight" "remove"}}
-                            </div>
-                        </div>
-                    </div>
-                    {{end}}
-                </div>
-                {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
-
-                <script type="text/javascript" src="/js/delete.js"></script>
-                <script type="text/javascript" src="/js/highlight.js"></script>
-                <script type="text/javascript" src="/js/cover-loader.js"></script>
-            {{else}}
-                <p>{{t .Lang "You haven't highlighted any document yet."}}</p>
-            {{end}}
     </section>
-{{else}}
+    {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
 {{end}}

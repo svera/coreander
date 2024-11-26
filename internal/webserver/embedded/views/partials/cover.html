@@ -1,0 +1,28 @@
+<div class="position-relative mb-3 border border-2 cover-background">
+    {{if not .DisableCoverMainLink}}<a href="/documents/{{.Document.Slug}}" class="text-decoration-none">{{end}}
+        <picture>
+            <source srcset="/documents/{{.Document.Slug}}/cover" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' />
+            <img src="/images/generic.jpg" loading="lazy" class="cover img-fluid cover-corner" alt='{{t .Lang "\"%s\" cover" .Document.Title}}'>
+        </picture>
+        <div class="card-img-overlay card-body d-none">
+            <h5 class="card-title text-center">{{.Document.Title}}</h5>
+            {{if .Document.Authors}}
+                <p class="card-text text-center">
+                    {{join .Document.Authors ", "}}
+                </p>
+            {{else}}
+                <p class="card-text text-center">{{t .Lang "Unknown author"}}</p>
+            {{end}}
+        </div>
+    {{if not .DisableCoverMainLink}}</a>{{end}}
+
+    {{if and (.Session) (ne .Session.Name "")}}
+        {{template "partials/highlight-toggle" dict "Lang" .Lang "Document" .Document}}
+    {{end}}
+
+    <div class="position-absolute bottom-0 end-0 me-1 mb-1 cursor-pointer">
+        <a href="/documents/{{.Document.Slug}}/read" class="icon-link" title='{{t .Lang "Read"}}'>
+            <img src="/images/eye-solid.svg" class="img-fluid" />
+        </a>
+    </div>
+</div>

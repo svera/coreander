@@ -13,7 +13,6 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/disintegration/imaging"
-	"github.com/gofiber/fiber/v2"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/pirmd/epub"
 )
@@ -197,7 +196,7 @@ func extractCover(r *zip.ReadCloser, coverFile string, coverMaxWidth int) ([]byt
 		}
 		src, err := imaging.Decode(rc)
 		if err != nil {
-			return nil, fiber.ErrInternalServerError
+			return nil, err
 		}
 		return resize(src, coverMaxWidth, err)
 	}
