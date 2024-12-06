@@ -24,7 +24,7 @@ import (
 
 // Version identifies the mapping used for indexing. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const Version = "v3"
+const Version = "v4"
 
 // Metadata fields
 var (
@@ -111,29 +111,29 @@ func CreateMapping() mapping.IndexMapping {
 
 		indexMapping.AddDocumentMapping(lang, bleve.NewDocumentMapping())
 		indexMapping.TypeMapping[lang].DefaultAnalyzer = lang
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Slug", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Title", noStopWordsTextFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Authors", simpleTextFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AuthorsSlugs", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Description", textFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Subjects", textFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("SubjectsSlugs", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Series", noStopWordsTextFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Slug", keywordFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("SeriesEq", keywordFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AuthorsEq", keywordFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("SubjectsEq", keywordFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("SeriesSlug", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Year", keywordFieldMappingNotIndexable)
 	}
 
 	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Slug", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Title", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Authors", simpleTextFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("AuthorsSlugs", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Description", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Subjects", simpleTextFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("SubjectsSlugs", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Series", simpleTextFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("Slug", keywordFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("SeriesEq", keywordFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("AuthorsEq", keywordFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("SubjectsEq", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("SeriesSlug", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Year", keywordFieldMappingNotIndexable)
 

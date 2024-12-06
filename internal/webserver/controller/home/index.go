@@ -13,7 +13,7 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 		emailSendingConfigured = false
 	}
 
-	count, err := d.idx.Count()
+	count, err := d.idx.Count("document")
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError

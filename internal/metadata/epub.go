@@ -83,6 +83,10 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 	for _, date := range meta.Date {
 		if date.Event == "publication" || date.Event == "" {
 			t, err := time.Parse("2006-01-02", date.Stamp)
+			if err != nil {
+				t, err = time.Parse("2006", date.Stamp)
+			}
+
 			if err == nil {
 				year = strings.TrimLeft(t.Format("2006"), "0")
 				break
@@ -101,7 +105,7 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		Year:        year,
 		Series:      meta.Series,
 		SeriesIndex: seriesIndex,
-		Type:        "EPUB",
+		Format:      "EPUB",
 		Subjects:    subjects,
 	}
 	w, err := words(file)

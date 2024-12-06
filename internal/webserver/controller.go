@@ -5,6 +5,7 @@ import (
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/webserver/controller/auth"
+	"github.com/svera/coreander/v4/internal/webserver/controller/author"
 	"github.com/svera/coreander/v4/internal/webserver/controller/document"
 	"github.com/svera/coreander/v4/internal/webserver/controller/highlight"
 	"github.com/svera/coreander/v4/internal/webserver/controller/home"
@@ -19,6 +20,7 @@ type Controllers struct {
 	Highlights *highlight.Controller
 	Documents  *document.Controller
 	Home       *home.Controller
+	Authors    *author.Controller
 }
 
 func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs) Controllers {
@@ -50,6 +52,15 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
 	}
 
+	authorsCfg := author.Config{
+		WordsPerMinute: cfg.WordsPerMinute,
+		LibraryPath:    cfg.LibraryPath,
+		HomeDir:        cfg.HomeDir,
+		CoverMaxWidth:  cfg.CoverMaxWidth,
+		Hostname:       cfg.Hostname,
+		Port:           cfg.Port,
+	}
+
 	homeCfg := home.Config{
 		LibraryPath:   cfg.LibraryPath,
 		CoverMaxWidth: cfg.CoverMaxWidth,
@@ -61,5 +72,6 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		Highlights: highlight.NewController(highlightsRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
 		Documents:  document.NewController(highlightsRepository, sender, idx, metadataReaders, appFs, documentsCfg),
 		Home:       home.NewController(highlightsRepository, sender, idx, homeCfg),
+		Authors:    author.NewController(highlightsRepository, sender, idx, metadataReaders, appFs, authorsCfg),
 	}
 }
