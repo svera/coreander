@@ -27,7 +27,7 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
-	return c.Render("users/edit", fiber.Map{
+	return c.Render("user/edit", fiber.Map{
 		"Title":             "Edit user",
 		"User":              user,
 		"MinPasswordLength": u.config.MinPasswordLength,

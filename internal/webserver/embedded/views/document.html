@@ -95,7 +95,7 @@
                 <div>
                     {{range $i, $subject := .Document.Subjects}}
                     {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                    <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?search=Subjects&colon;&quot;{{$subject}}&quot;"
+                    <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?search=SubjectsSlugs&colon;{{index $document.SubjectsSlugs $i}}"
                         title={{$subjectTitle}}>{{$subject}}</a>
                     {{end}}
                 </div>

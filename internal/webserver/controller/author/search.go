@@ -50,7 +50,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
-	err = c.Render("authors/results", fiber.Map{
+	err = c.Render("author/results", fiber.Map{
 		"Author":                 author,
 		"Results":                searchResults,
 		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, map[string]string{}),
