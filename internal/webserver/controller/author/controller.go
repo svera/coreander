@@ -15,9 +15,6 @@ type Sender interface {
 type IdxReaderWriter interface {
 	SearchByAuthor(authorSlug string, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
 	Author(slug string) (index.Author, error)
-	Count(t string) (uint64, error)
-	Close() error
-	Documents(IDs []string) (map[string]index.Document, error)
 }
 
 type highlightsRepository interface {
@@ -26,11 +23,6 @@ type highlightsRepository interface {
 
 type Config struct {
 	WordsPerMinute float64
-	LibraryPath    string
-	HomeDir        string
-	CoverMaxWidth  int
-	Hostname       string
-	Port           int
 }
 
 type Controller struct {

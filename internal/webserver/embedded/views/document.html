@@ -138,8 +138,13 @@
                 </h4>
             </div>
             <div class="col-3 text-end">
+                {{if gt (len $document.Authors) 1}}
                 <a  href='/documents?search=AuthorsSlugs&colon;{{join $document.AuthorsSlugs ","}}'>
                         {{t $lang "See all" }}</a>
+                {{else}}
+                <a  href='/authors/{{index $document.AuthorsSlugs 0}}'>
+                    {{t $lang "See all" }}</a>
+                {{end}}
             </div>
 
             <div class="row mt-3 pe-0 align-items-end">

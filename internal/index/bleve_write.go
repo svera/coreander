@@ -107,8 +107,8 @@ func indexAuthors(document Document, index func(id string, data interface{}) err
 			Slug: document.AuthorsSlugs[i],
 			Type: "author",
 		}
-		err := index(author.Slug, author)
-		if err != nil {
+
+		if err := index(author.Slug, author); err != nil {
 			log.Printf("Error indexing author %s: %s\n", name, err)
 			return err
 		}
