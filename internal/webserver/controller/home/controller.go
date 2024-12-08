@@ -13,7 +13,7 @@ type Sender interface {
 // IdxReaderWriter defines a set of reading and writing operations over an index
 type IdxReaderWriter interface {
 	Documents(IDs []string) (map[string]index.Document, error)
-	Count() (uint64, error)
+	Count(t string) (uint64, error)
 }
 
 type highlightsRepository interface {

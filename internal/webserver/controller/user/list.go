@@ -16,7 +16,7 @@ func (u *Controller) List(c *fiber.Ctx) error {
 	}
 
 	users, _ := u.repository.List(page, model.ResultsPerPage)
-	return c.Render("users/index", fiber.Map{
+	return c.Render("user/index", fiber.Map{
 		"Title":     "Users",
 		"Users":     users.Hits(),
 		"Paginator": view.Pagination(model.MaxPagesNavigator, users, map[string]string{}),

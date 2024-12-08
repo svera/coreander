@@ -51,7 +51,7 @@ func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session mode
 	}
 
 	if len(validationErrs) > 0 {
-		return c.Status(fiber.StatusBadRequest).Render("users/edit", fiber.Map{
+		return c.Status(fiber.StatusBadRequest).Render("user/edit", fiber.Map{
 			"Title":             "Edit user",
 			"User":              user,
 			"MinPasswordLength": u.config.MinPasswordLength,
@@ -82,7 +82,7 @@ func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session mode
 		c.Locals("Session", user)
 	}
 
-	return c.Render("users/edit", fiber.Map{
+	return c.Render("user/edit", fiber.Map{
 		"Title":             "Edit user",
 		"User":              user,
 		"MinPasswordLength": u.config.MinPasswordLength,
@@ -164,7 +164,7 @@ func (u *Controller) updateUserPassword(c *fiber.Ctx, user model.User, session m
 	}
 
 	if errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.config.MinPasswordLength, errs); len(errs) > 0 {
-		return c.Render("users/edit", fiber.Map{
+		return c.Render("user/edit", fiber.Map{
 			"Title":             "Edit user",
 			"User":              user,
 			"MinPasswordLength": u.config.MinPasswordLength,
@@ -179,7 +179,7 @@ func (u *Controller) updateUserPassword(c *fiber.Ctx, user model.User, session m
 		return fiber.ErrInternalServerError
 	}
 
-	return c.Render("users/edit", fiber.Map{
+	return c.Render("user/edit", fiber.Map{
 		"Title":             "Edit user",
 		"User":              user,
 		"MinPasswordLength": u.config.MinPasswordLength,

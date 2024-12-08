@@ -5,7 +5,7 @@
             <path d="M7.646 15.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 14.293V5.5a.5.5 0 0 0-1 0v8.793l-2.146-2.147a.5.5 0 0 0-.708.708l3 3z"/>
         </svg>
         &nbsp;&nbsp;{{t .Lang "Download"}}
-        <span class='badge text-bg-{{if eq .Document.Type "EPUB"}}primary{{else}}danger{{end}}'>{{.Document.Type}}</span>
+        <span class='badge text-bg-{{if eq .Document.Format "EPUB"}}primary{{else}}danger{{end}}'>{{.Document.Format}}</span>
         </a>
     </li>
     <li><a href="/documents/{{.Document.Slug}}/download?format=kepub" class="dropdown-item" download>
@@ -14,7 +14,7 @@
             <path d="M7.646 15.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 14.293V5.5a.5.5 0 0 0-1 0v8.793l-2.146-2.147a.5.5 0 0 0-.708.708l3 3z"/>
         </svg>
         &nbsp;&nbsp;{{t .Lang "Download"}}
-        <span class='badge text-bg-{{if eq .Document.Type "EPUB"}}primary{{else}}danger{{end}}'>KEPUB</span>
+        <span class='badge text-bg-{{if eq .Document.Format "EPUB"}}primary{{else}}danger{{end}}'>KEPUB</span>
         </a>
     </li>
     <div class="dropdown-divider"></div>

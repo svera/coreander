@@ -16,7 +16,7 @@
                     {{ if ne $document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
                     $document.Series}}
                     <p class="text-start text-muted text-uppercase mb-0"><a
-                            href="/documents?search=SeriesEq&colon;&quot;{{$document.Series}}&quot;"
+                            href="/documents?search=SeriesSlug&colon;{{$document.SeriesSlug}}"
                             title={{$seriesTitle}}>{{$document.Series}}{{ if ne $document.SeriesIndex 0.0 }} {{$document.SeriesIndex}}{{end}}</a></p>
                     {{ end }}
                     <h4 class="text-start">
@@ -40,7 +40,7 @@
                     <h5>
                         {{range $i, $author := $document.Authors}}
                         {{$authorTitle := t $lang "Search for more titles by %s" $author}}
-                        <a href="/documents?search=AuthorsEq&colon;&quot;{{$author}}&quot;" title={{$authorTitle}}>{{$author}}</a>{{if notLast $document.Authors $i}}, {{end}}
+                        <a href="/authors/{{index $document.AuthorsSlugs $i}}" title={{$authorTitle}}>{{$author}}</a>{{if notLast $document.Authors $i}}, {{end}}
                         {{end}}
                     </h5>
                     {{else}}
@@ -60,7 +60,7 @@
                     <div>
                         {{range $i, $subject := $document.Subjects}}
                             {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                            <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?search=SubjectsEq&colon;&quot;{{$subject}}&quot;" title={{$subjectTitle}}>{{$subject}}</a>
+                            <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?search=SubjectsSlugs&colon;{{index $document.SubjectsSlugs $i}}" title={{$subjectTitle}}>{{$subject}}</a>
                         {{end}}
                     </div>
                     {{ end }}

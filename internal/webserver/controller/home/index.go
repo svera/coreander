@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 )
 
@@ -13,7 +14,7 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 		emailSendingConfigured = false
 	}
 
-	count, err := d.idx.Count()
+	count, err := d.idx.Count(index.TypeDocument)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
