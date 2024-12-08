@@ -105,7 +105,7 @@ func indexAuthors(document Document, index func(id string, data interface{}) err
 		author := Author{
 			Name: name,
 			Slug: document.AuthorsSlugs[i],
-			Type: "author",
+			Type: TypeAuthor,
 		}
 
 		if err := index(author.Slug, author); err != nil {
@@ -162,7 +162,7 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 		AuthorsSlugs:  make([]string, len(meta.Authors)),
 		SeriesSlug:    slug.Make(meta.Series),
 		SubjectsSlugs: make([]string, len(meta.Subjects)),
-		Type:          "document",
+		Type:          TypeDocument,
 	}
 
 	document.Slug = b.Slug(document, batchSlugs)
@@ -216,7 +216,7 @@ func (b *BleveIndexer) id(file string) string {
 func makeDocumentSlug(doc Document) string {
 	docSlug := doc.Title
 	if len(doc.Authors) > 0 {
-		docSlug = strings.Join(doc.Authors, ", ") + "-" + docSlug
+		docSlug = strings.Join(append(doc.Authors, docSlug), "-")
 	}
 
 	return slug.MakeLang(docSlug, doc.Language)

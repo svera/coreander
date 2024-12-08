@@ -17,7 +17,7 @@ import (
 	"github.com/svera/coreander/v4/internal/result"
 )
 
-var searchFields = []string{"ID", "Title", "Slug", "Authors", "AuthorsSlugs", "Description", "Year", "Words", "Series", "SeriesSlug", "SeriesIndex", "Pages", "Format", "Subjects", "SubjectsSlugs"}
+var docSearchFields = []string{"ID", "Title", "Slug", "Authors", "AuthorsSlugs", "Description", "Year", "Words", "Series", "SeriesSlug", "SeriesIndex", "Pages", "Format", "Subjects", "SubjectsSlugs"}
 
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 	var progress Progress
@@ -147,7 +147,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
-	searchOptions.Fields = searchFields
+	searchOptions.Fields = docSearchFields
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return result.Paginated[[]Document]{}, err
@@ -160,7 +160,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	docs := make([]Document, 0, len(searchResult.Hits))
 
 	for _, val := range searchResult.Hits {
-		docs = append(docs, assembleDocument(val))
+		docs = append(docs, hydrateDocument(val))
 	}
 
 	return result.NewPaginated[[]Document](
@@ -185,10 +185,15 @@ func (b *BleveIndexer) Count(t string) (uint64, error) {
 }
 
 func (b *BleveIndexer) Document(slug string) (Document, error) {
+	compoundQuery := bleve.NewConjunctionQuery()
 	query := bleve.NewTermQuery(slug)
 	query.SetField("Slug")
-	searchOptions := bleve.NewSearchRequest(query)
-	searchOptions.Fields = searchFields
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	compoundQuery.AddQuery(query, typeQuery)
+
+	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions.Fields = docSearchFields
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return Document{}, err
@@ -197,21 +202,26 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 		return Document{}, fmt.Errorf("Document with slug %s not found", slug)
 	}
 
-	return assembleDocument(searchResult.Hits[0]), nil
+	return hydrateDocument(searchResult.Hits[0]), nil
 }
 
 func (b *BleveIndexer) Documents(IDs []string) (map[string]Document, error) {
+	compoundQuery := bleve.NewConjunctionQuery()
 	docs := make(map[string]Document, len(IDs))
 	query := bleve.NewDocIDQuery(IDs)
-	searchOptions := bleve.NewSearchRequest(query)
-	searchOptions.Fields = searchFields
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	compoundQuery.AddQuery(query, typeQuery)
+
+	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions.Fields = docSearchFields
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return docs, err
 	}
 
 	for _, hit := range searchResult.Hits {
-		docs[hit.ID] = assembleDocument(hit)
+		docs[hit.ID] = hydrateDocument(hit)
 	}
 
 	return docs, nil
@@ -250,6 +260,10 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		authorsCompoundQuery.AddQuery(qa)
 	}
 	bq.AddMustNot(authorsCompoundQuery)
+
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	bq.AddMust(typeQuery)
 
 	res := make([]Document, 0, quantity)
 	for i := 0; i < quantity; i++ {
@@ -296,6 +310,10 @@ func (b *BleveIndexer) SameAuthors(slugID string, quantity int) ([]Document, err
 		bq.AddMustNot(sq)
 	}
 
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	bq.AddMust(typeQuery)
+
 	return b.runQuery(bq, quantity)
 }
 
@@ -316,6 +334,10 @@ func (b *BleveIndexer) SameSeries(slugID string, quantity int) ([]Document, erro
 	sq := bleve.NewTermQuery(doc.SeriesSlug)
 	sq.SetField("SeriesSlug")
 	bq.AddMust(sq)
+
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	bq.AddMust(typeQuery)
 
 	return b.runQuery(bq, quantity)
 }
@@ -367,7 +389,7 @@ func (b *BleveIndexer) Author(slug string) (Author, error) {
 	aq.SetField("Slug")
 	authorsCompoundQuery.AddQuery(aq)
 
-	tq := bleve.NewTermQuery("author")
+	tq := bleve.NewTermQuery(TypeAuthor)
 	tq.SetField("Type")
 	authorsCompoundQuery.AddQuery(tq)
 
@@ -386,7 +408,7 @@ func (b *BleveIndexer) Author(slug string) (Author, error) {
 	}, nil
 }
 
-func assembleDocument(match *search.DocumentMatch) Document {
+func hydrateDocument(match *search.DocumentMatch) Document {
 	doc := Document{
 		ID: match.ID,
 		Metadata: metadata.Metadata{

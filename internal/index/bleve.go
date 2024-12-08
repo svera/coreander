@@ -26,6 +26,11 @@ import (
 // of version, to signal that a new index needs to be created.
 const Version = "v4"
 
+const (
+	TypeDocument = "document"
+	TypeAuthor   = "author"
+)
+
 // Metadata fields
 var (
 	internalLanguages = []byte("languages")
