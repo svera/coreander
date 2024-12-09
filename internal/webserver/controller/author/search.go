@@ -11,6 +11,7 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
+	gowiki "github.com/trietmn/go-wiki"
 )
 
 func (d *Controller) Search(c *fiber.Ctx) error {
@@ -46,6 +47,8 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
+	fmt.Printf("This is the page content: %v\n", d.info(c, author.Name))
+
 	if session.ID > 0 {
 		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
@@ -65,4 +68,20 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	return nil
+}
+
+func (d *Controller) info(c *fiber.Ctx, author string) string {
+	gowiki.SetLanguage(c.Locals("Lang").(string))
+	wikiPage, err := gowiki.GetPage(author, -1, false, true)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Get the content of the page
+	content, err := wikiPage.GetContent()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return content
 }
