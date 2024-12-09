@@ -13,9 +13,9 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
-func (d *Controller) Search(c *fiber.Ctx) error {
+func (a *Controller) Search(c *fiber.Ctx) error {
 	emailSendingConfigured := true
-	if _, ok := d.sender.(*infrastructure.NoEmail); ok {
+	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
 	}
 
@@ -25,7 +25,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	}
 
 	if session.WordsPerMinute > 0 {
-		d.config.WordsPerMinute = session.WordsPerMinute
+		a.config.WordsPerMinute = session.WordsPerMinute
 	}
 
 	var searchResults result.Paginated[[]index.Document]
@@ -40,14 +40,14 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	author, _ := d.idx.Author(authorSlug)
-	if searchResults, err = d.idx.SearchByAuthor(authorSlug, page, model.ResultsPerPage); err != nil {
+	author, _ := a.idx.Author(authorSlug)
+	if searchResults, err = a.idx.SearchByAuthor(authorSlug, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
 	if session.ID > 0 {
-		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
+		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
 	err = c.Render("author/results", fiber.Map{
@@ -56,8 +56,8 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, map[string]string{}),
 		"Title":                  fmt.Sprintf("Coreander - %s", author.Name),
 		"EmailSendingConfigured": emailSendingConfigured,
-		"EmailFrom":              d.sender.From(),
-		"WordsPerMinute":         d.config.WordsPerMinute,
+		"EmailFrom":              a.sender.From(),
+		"WordsPerMinute":         a.config.WordsPerMinute,
 	}, "layout")
 
 	if err != nil {

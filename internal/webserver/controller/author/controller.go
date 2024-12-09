@@ -9,7 +9,7 @@ type Sender interface {
 	From() string
 }
 
-// IdxReader defines a set of reading and writing operations over an index
+// IdxReader defines a set of author reading operations over an index
 type IdxReader interface {
 	SearchByAuthor(authorSlug string, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
 	Author(slug string) (index.Author, error)
