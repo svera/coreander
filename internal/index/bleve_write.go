@@ -100,11 +100,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	return e
 }
 
-<<<<<<< HEAD
-func indexAuthors(document Document, index func(id string, data interface{}) error) error {
-=======
 func indexAuthors(document Document, index func(id string, data interface{}) error) {
->>>>>>> 987191f9b0860844555ae3756c63a12fbdaa3fa9
 	for i, name := range document.Authors {
 		author := Author{
 			Name: name,
@@ -114,15 +110,8 @@ func indexAuthors(document Document, index func(id string, data interface{}) err
 
 		if err := index(author.Slug, author); err != nil {
 			log.Printf("Error indexing author %s: %s\n", name, err)
-<<<<<<< HEAD
-			return err
 		}
 	}
-	return nil
-=======
-		}
-	}
->>>>>>> 987191f9b0860844555ae3756c63a12fbdaa3fa9
 }
 
 func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {

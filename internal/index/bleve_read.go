@@ -159,13 +159,8 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 
 	docs := make([]Document, len(searchResult.Hits))
 
-<<<<<<< HEAD
-	for _, val := range searchResult.Hits {
-		docs = append(docs, hydrateDocument(val))
-=======
 	for i, val := range searchResult.Hits {
 		docs[i] = hydrateDocument(val)
->>>>>>> 987191f9b0860844555ae3756c63a12fbdaa3fa9
 	}
 
 	return result.NewPaginated[[]Document](
@@ -270,11 +265,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	typeQuery.SetField("Type")
 	bq.AddMust(typeQuery)
 
-<<<<<<< HEAD
-	res := make([]Document, 0, quantity)
-=======
 	res := make([]Document, quantity)
->>>>>>> 987191f9b0860844555ae3756c63a12fbdaa3fa9
 	for i := 0; i < quantity; i++ {
 		doc, err := b.runQuery(bq, 1)
 		if err != nil {
@@ -283,11 +274,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		if len(doc) == 0 {
 			return res, nil
 		}
-<<<<<<< HEAD
-		res = append(res, doc[0])
-=======
 		res[i] = doc[0]
->>>>>>> 987191f9b0860844555ae3756c63a12fbdaa3fa9
 		for _, slug := range doc[0].AuthorsSlugs {
 			qa := bleve.NewTermQuery(slug)
 			qa.SetField("AuthorsSlugs")

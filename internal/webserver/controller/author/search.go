@@ -47,10 +47,10 @@ func (a *Controller) Search(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	fmt.Printf("This is the page content: %v\n", d.info(c, author.Name))
+	fmt.Printf("This is the page content: %v\n", a.info(c, author.Name))
 
 	if session.ID > 0 {
-		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
+		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
 	err = c.Render("author/results", fiber.Map{
