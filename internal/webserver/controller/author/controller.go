@@ -1,9 +1,7 @@
 package author
 
 import (
-	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/result"
 )
 
@@ -11,8 +9,8 @@ type Sender interface {
 	From() string
 }
 
-// IdxReaderWriter defines a set of reading and writing operations over an index
-type IdxReaderWriter interface {
+// IdxReader defines a set of reading and writing operations over an index
+type IdxReader interface {
 	SearchByAuthor(authorSlug string, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
 	Author(slug string) (index.Author, error)
 }
@@ -26,21 +24,17 @@ type Config struct {
 }
 
 type Controller struct {
-	hlRepository    highlightsRepository
-	idx             IdxReaderWriter
-	sender          Sender
-	config          Config
-	metadataReaders map[string]metadata.Reader
-	appFs           afero.Fs
+	hlRepository highlightsRepository
+	idx          IdxReader
+	sender       Sender
+	config       Config
 }
 
-func NewController(hlRepository highlightsRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config) *Controller {
+func NewController(hlRepository highlightsRepository, sender Sender, idx IdxReader, cfg Config) *Controller {
 	return &Controller{
-		hlRepository:    hlRepository,
-		idx:             idx,
-		sender:          sender,
-		config:          cfg,
-		metadataReaders: metadataReaders,
-		appFs:           appFs,
+		hlRepository: hlRepository,
+		idx:          idx,
+		sender:       sender,
+		config:       cfg,
 	}
 }
