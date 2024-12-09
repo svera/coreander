@@ -1,0 +1,17 @@
+<h2 class="text-center mt-3">{{t .Lang "Titles by %s" .Author.Name }}</h2>
+<p class="text-center mb-5">
+    {{if eq .Results.TotalHits 0}}
+        {{t .Lang "No matches found" }}
+    {{else}}
+        {{t .Lang "%d matches found" .Results.TotalHits }}
+    {{end}}
+</p>
+
+<div class="list-group list-group-flush">
+    {{ template "partials/docs-list" . }}
+<div class="list-group list-group-flush">
+
+<script type="text/javascript" src="/js/send-email.js"></script>
+<script type="text/javascript" src="/js/delete.js"></script>
+<script type="text/javascript" src="/js/highlight.js"></script>
+<script type="text/javascript" src="/js/cover.js"></script>

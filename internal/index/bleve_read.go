@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
-	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/result"
 )
+
+var docSearchFields = []string{"ID", "Title", "Slug", "Authors", "AuthorsSlugs", "Description", "Year", "Words", "Series", "SeriesSlug", "SeriesIndex", "Pages", "Format", "Subjects", "SubjectsSlugs"}
 
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 	var progress Progress
@@ -59,7 +61,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 		}
 	}
 
-	for _, prefix := range []string{"AuthorsEq:", "SeriesEq:", "SubjectsEq:"} {
+	for _, prefix := range []string{"AuthorsSlugs:", "SeriesSlug:", "SubjectsSlugs:"} {
 		unescaped, err := url.QueryUnescape(strings.TrimSpace(keywords))
 		if err != nil {
 			break
@@ -71,7 +73,6 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 		terms := strings.Split(unescaped, ",")
 		qb := bleve.NewDisjunctionQuery()
 		for _, term := range terms {
-			term = strings.ReplaceAll(slug.Make(term), "-", "")
 			qs := bleve.NewTermQuery(term)
 			qs.SetField(strings.TrimSuffix(prefix, ":"))
 			qb.AddQuery(qs)
@@ -146,7 +147,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
-	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type", "Subjects"}
+	searchOptions.Fields = docSearchFields
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return result.Paginated[[]Document]{}, err
@@ -156,26 +157,10 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 		return res, nil
 	}
 
-	docs := make([]Document, 0, len(searchResult.Hits))
+	docs := make([]Document, len(searchResult.Hits))
 
-	for _, val := range searchResult.Hits {
-		doc := Document{
-			ID:   val.ID,
-			Slug: val.Fields["Slug"].(string),
-			Metadata: metadata.Metadata{
-				Title:       val.Fields["Title"].(string),
-				Authors:     slicer(val.Fields["Authors"]),
-				Description: template.HTML(val.Fields["Description"].(string)),
-				Year:        val.Fields["Year"].(string),
-				Words:       val.Fields["Words"].(float64),
-				Series:      val.Fields["Series"].(string),
-				SeriesIndex: val.Fields["SeriesIndex"].(float64),
-				Pages:       int(val.Fields["Pages"].(float64)),
-				Type:        val.Fields["Type"].(string),
-				Subjects:    slicer(val.Fields["Subjects"]),
-			},
-		}
-		docs = append(docs, doc)
+	for i, val := range searchResult.Hits {
+		docs[i] = hydrateDocument(val)
 	}
 
 	return result.NewPaginated[[]Document](
@@ -187,15 +172,28 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 }
 
 // Count returns the number of indexed documents
-func (b *BleveIndexer) Count() (uint64, error) {
-	return b.idx.DocCount()
+func (b *BleveIndexer) Count(t string) (uint64, error) {
+	tq := bleve.NewTermQuery(t)
+	tq.SetField("Type")
+
+	searchRequest := bleve.NewSearchRequest(tq)
+	searchResult, err := b.idx.Search(searchRequest)
+	if err != nil {
+		return 0, err
+	}
+	return searchResult.Total, nil
 }
 
 func (b *BleveIndexer) Document(slug string) (Document, error) {
+	compoundQuery := bleve.NewConjunctionQuery()
 	query := bleve.NewTermQuery(slug)
 	query.SetField("Slug")
-	searchOptions := bleve.NewSearchRequest(query)
-	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type", "Subjects"}
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	compoundQuery.AddQuery(query, typeQuery)
+
+	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions.Fields = docSearchFields
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return Document{}, err
@@ -204,52 +202,26 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 		return Document{}, fmt.Errorf("Document with slug %s not found", slug)
 	}
 
-	return Document{
-		ID:   searchResult.Hits[0].ID,
-		Slug: searchResult.Hits[0].Fields["Slug"].(string),
-		Metadata: metadata.Metadata{
-			Title:       searchResult.Hits[0].Fields["Title"].(string),
-			Authors:     slicer(searchResult.Hits[0].Fields["Authors"]),
-			Description: template.HTML(searchResult.Hits[0].Fields["Description"].(string)),
-			Year:        searchResult.Hits[0].Fields["Year"].(string),
-			Words:       searchResult.Hits[0].Fields["Words"].(float64),
-			Series:      searchResult.Hits[0].Fields["Series"].(string),
-			SeriesIndex: searchResult.Hits[0].Fields["SeriesIndex"].(float64),
-			Pages:       int(searchResult.Hits[0].Fields["Pages"].(float64)),
-			Type:        searchResult.Hits[0].Fields["Type"].(string),
-			Subjects:    slicer(searchResult.Hits[0].Fields["Subjects"]),
-		},
-	}, nil
+	return hydrateDocument(searchResult.Hits[0]), nil
 }
 
 func (b *BleveIndexer) Documents(IDs []string) (map[string]Document, error) {
+	compoundQuery := bleve.NewConjunctionQuery()
 	docs := make(map[string]Document, len(IDs))
 	query := bleve.NewDocIDQuery(IDs)
-	searchOptions := bleve.NewSearchRequest(query)
-	searchOptions.Fields = []string{"ID", "Slug", "Title", "Authors", "Description", "Year", "Words", "Series", "SeriesIndex", "Pages", "Type", "Subjects"}
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	compoundQuery.AddQuery(query, typeQuery)
+
+	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions.Fields = docSearchFields
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return docs, err
 	}
 
 	for _, hit := range searchResult.Hits {
-		docs[hit.ID] =
-			Document{
-				ID:   hit.ID,
-				Slug: hit.Fields["Slug"].(string),
-				Metadata: metadata.Metadata{
-					Title:       hit.Fields["Title"].(string),
-					Authors:     slicer(hit.Fields["Authors"]),
-					Description: template.HTML(hit.Fields["Description"].(string)),
-					Year:        hit.Fields["Year"].(string),
-					Words:       hit.Fields["Words"].(float64),
-					Series:      hit.Fields["Series"].(string),
-					SeriesIndex: hit.Fields["SeriesIndex"].(float64),
-					Pages:       int(hit.Fields["Pages"].(float64)),
-					Type:        hit.Fields["Type"].(string),
-					Subjects:    slicer(hit.Fields["Subjects"]),
-				},
-			}
+		docs[hit.ID] = hydrateDocument(hit)
 	}
 
 	return docs, nil
@@ -266,17 +238,15 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	bq := bleve.NewBooleanQuery()
 	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
 
-	for _, subject := range doc.Subjects {
-		subject = strings.ReplaceAll(slug.Make(subject), "-", "")
-		qu := bleve.NewTermQuery(subject)
-		qu.SetField("SubjectsEq")
+	for _, slug := range doc.SubjectsSlugs {
+		qu := bleve.NewTermQuery(slug)
+		qu.SetField("SubjectsSlugs")
 		subjectsCompoundQuery.AddQuery(qu)
 	}
 
-	if doc.Series != "" {
-		series := strings.ReplaceAll(slug.Make(doc.Series), "-", "")
-		sq := bleve.NewTermQuery(series)
-		sq.SetField("SeriesEq")
+	if doc.SeriesSlug != "" {
+		sq := bleve.NewTermQuery(doc.SeriesSlug)
+		sq.SetField("SeriesSlug")
 		bq.AddMustNot(sq)
 	}
 
@@ -284,15 +254,18 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
 
 	authorsCompoundQuery := bleve.NewDisjunctionQuery()
-	for _, author := range doc.Authors {
-		author = strings.ReplaceAll(slug.Make(author), "-", "")
-		qa := bleve.NewTermQuery(author)
-		qa.SetField("AuthorsEq")
+	for _, slug := range doc.AuthorsSlugs {
+		qa := bleve.NewTermQuery(slug)
+		qa.SetField("AuthorsSlugs")
 		authorsCompoundQuery.AddQuery(qa)
 	}
 	bq.AddMustNot(authorsCompoundQuery)
 
-	res := make([]Document, 0, quantity)
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	bq.AddMust(typeQuery)
+
+	res := make([]Document, quantity)
 	for i := 0; i < quantity; i++ {
 		doc, err := b.runQuery(bq, 1)
 		if err != nil {
@@ -301,11 +274,10 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		if len(doc) == 0 {
 			return res, nil
 		}
-		res = append(res, doc[0])
-		for _, author := range doc[0].Authors {
-			author = strings.ReplaceAll(slug.Make(author), "-", "")
-			qa := bleve.NewTermQuery(author)
-			qa.SetField("AuthorsEq")
+		res[i] = doc[0]
+		for _, slug := range doc[0].AuthorsSlugs {
+			qa := bleve.NewTermQuery(slug)
+			qa.SetField("AuthorsSlugs")
 			authorsCompoundQuery.AddQuery(qa)
 		}
 		bq.AddMustNot(authorsCompoundQuery)
@@ -323,10 +295,9 @@ func (b *BleveIndexer) SameAuthors(slugID string, quantity int) ([]Document, err
 	}
 
 	authorsCompoundQuery := bleve.NewDisjunctionQuery()
-	for _, author := range doc.Authors {
-		author = strings.ReplaceAll(slug.Make(author), "-", "")
-		qu := bleve.NewTermQuery(author)
-		qu.SetField("AuthorsEq")
+	for _, slug := range doc.AuthorsSlugs {
+		qu := bleve.NewTermQuery(slug)
+		qu.SetField("AuthorsSlugs")
 		authorsCompoundQuery.AddQuery(qu)
 	}
 	bq := bleve.NewBooleanQuery()
@@ -334,11 +305,14 @@ func (b *BleveIndexer) SameAuthors(slugID string, quantity int) ([]Document, err
 	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
 
 	if doc.Series != "" {
-		series := strings.ReplaceAll(slug.Make(doc.Series), "-", "")
-		sq := bleve.NewTermQuery(series)
-		sq.SetField("SeriesEq")
+		sq := bleve.NewTermQuery(doc.SeriesSlug)
+		sq.SetField("SeriesSlug")
 		bq.AddMustNot(sq)
 	}
+
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	bq.AddMust(typeQuery)
 
 	return b.runQuery(bq, quantity)
 }
@@ -350,13 +324,20 @@ func (b *BleveIndexer) SameSeries(slugID string, quantity int) ([]Document, erro
 		return []Document{}, err
 	}
 
+	if doc.Series == "" {
+		return []Document{}, err
+	}
+
 	bq := bleve.NewBooleanQuery()
 	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
-	series := strings.ReplaceAll(slug.Make(doc.Series), "-", "")
 
-	sq := bleve.NewMatchPhraseQuery(series)
-	sq.SetField("SeriesEq")
+	sq := bleve.NewTermQuery(doc.SeriesSlug)
+	sq.SetField("SeriesSlug")
 	bq.AddMust(sq)
+
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	bq.AddMust(typeQuery)
 
 	return b.runQuery(bq, quantity)
 }
@@ -392,4 +373,61 @@ func slicer(val interface{}) []string {
 	}
 
 	return termsStrings
+}
+
+func (b *BleveIndexer) SearchByAuthor(authorSlug string, page, resultsPerPage int) (result.Paginated[[]Document], error) {
+	aq := bleve.NewTermQuery(authorSlug)
+	aq.SetField("AuthorsSlugs")
+
+	return b.runPaginatedQuery(aq, page, resultsPerPage)
+}
+
+func (b *BleveIndexer) Author(slug string) (Author, error) {
+	authorsCompoundQuery := bleve.NewConjunctionQuery()
+
+	aq := bleve.NewTermQuery(slug)
+	aq.SetField("Slug")
+	authorsCompoundQuery.AddQuery(aq)
+
+	tq := bleve.NewTermQuery(TypeAuthor)
+	tq.SetField("Type")
+	authorsCompoundQuery.AddQuery(tq)
+
+	searchOptions := bleve.NewSearchRequest(authorsCompoundQuery)
+	searchOptions.Fields = []string{"Name"}
+	searchResult, err := b.idx.Search(searchOptions)
+	if err != nil {
+		return Author{}, err
+	}
+	if searchResult.Total == 0 {
+		return Author{}, fmt.Errorf("Author with slug %s not found", slug)
+	}
+
+	return Author{
+		Name: searchResult.Hits[0].Fields["Name"].(string),
+	}, nil
+}
+
+func hydrateDocument(match *search.DocumentMatch) Document {
+	doc := Document{
+		ID: match.ID,
+		Metadata: metadata.Metadata{
+			Title:       match.Fields["Title"].(string),
+			Authors:     slicer(match.Fields["Authors"]),
+			Description: template.HTML(match.Fields["Description"].(string)),
+			Year:        match.Fields["Year"].(string),
+			Words:       match.Fields["Words"].(float64),
+			Series:      match.Fields["Series"].(string),
+			SeriesIndex: match.Fields["SeriesIndex"].(float64),
+			Pages:       int(match.Fields["Pages"].(float64)),
+			Subjects:    slicer(match.Fields["Subjects"]),
+			Format:      match.Fields["Format"].(string),
+		},
+		Slug:          match.Fields["Slug"].(string),
+		AuthorsSlugs:  slicer(match.Fields["AuthorsSlugs"]),
+		SeriesSlug:    match.Fields["SeriesSlug"].(string),
+		SubjectsSlugs: slicer(match.Fields["SubjectsSlugs"]),
+	}
+
+	return doc
 }

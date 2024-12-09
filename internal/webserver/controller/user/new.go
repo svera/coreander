@@ -10,7 +10,7 @@ func (u *Controller) New(c *fiber.Ctx) error {
 	user := model.User{
 		WordsPerMinute: u.config.WordsPerMinute,
 	}
-	return c.Render("users/new", fiber.Map{
+	return c.Render("user/new", fiber.Map{
 		"Title":             "Add user",
 		"MinPasswordLength": u.config.MinPasswordLength,
 		"User":              user,

@@ -42,9 +42,8 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 	}
 
 	title := fmt.Sprintf("%s | Coreander", document.Title)
-	authors := strings.Join(document.Authors, ", ")
-	if authors != "" {
-		title = fmt.Sprintf("%s - %s | Coreander", authors, document.Title)
+	if len(document.Authors) > 0 {
+		title = fmt.Sprintf("%s - %s | Coreander", strings.Join(document.Authors, ", "), document.Title)
 	}
 
 	sameSubjects, err := d.idx.SameSubjects(document.Slug, relatedDocuments)
