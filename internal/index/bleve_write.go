@@ -29,12 +29,13 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 
 	document := b.createDocument(meta, file, nil)
 
-	indexAuthors(document, b.idx.Index)
-
 	err = b.idx.Index(document.ID, document)
 	if err != nil {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
 	}
+
+	indexAuthors(document, b.idx.Index)
+
 	return document.Slug, nil
 }
 
@@ -85,9 +86,8 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 
 		b.indexedDocuments += 1
 		if batch.Size() == batchSize {
-			err = b.idx.Batch(batch)
-			if err != nil {
-				log.Fatalf("Error indexing batch: %s\n", err)
+			if err = b.idx.Batch(batch); err != nil {
+				return err
 			}
 			batch.Reset()
 			batchSlugs = make(map[string]struct{}, batchSize)
@@ -99,7 +99,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	}
 
 	if err := b.idx.Batch(batch); err != nil {
-		log.Fatalf("Error indexing batch: %s\n", err)
+		return err
 	}
 	b.indexStartTime = 0
 	b.indexedDocuments = 0
