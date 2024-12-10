@@ -75,17 +75,20 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 		batchSlugs[document.Slug] = struct{}{}
 		languages = addLanguage(meta.Language, languages)
 
-		indexAuthors(document, batch.Index)
-
 		err = batch.Index(document.ID, document)
 		if err != nil {
 			log.Printf("Error indexing file %s: %s\n", fullPath, err)
 			return nil
 		}
 
+		indexAuthors(document, batch.Index)
+
 		b.indexedDocuments += 1
 		if batch.Size() == batchSize {
-			b.idx.Batch(batch)
+			err = b.idx.Batch(batch)
+			if err != nil {
+				log.Fatalf("Error indexing batch: %s\n", err)
+			}
 			batch.Reset()
 			batchSlugs = make(map[string]struct{}, batchSize)
 		}
@@ -94,7 +97,10 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	if len(languages) > 0 {
 		batch.SetInternal(internalLanguages, []byte(strings.Join(languages, ",")))
 	}
-	b.idx.Batch(batch)
+
+	if err := b.idx.Batch(batch); err != nil {
+		log.Fatalf("Error indexing batch: %s\n", err)
+	}
 	b.indexStartTime = 0
 	b.indexedDocuments = 0
 	return e
