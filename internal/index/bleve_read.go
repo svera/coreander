@@ -30,8 +30,8 @@ func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 	if err != nil {
 		return progress, err
 	}
-	progress.RemainingTime = time.Duration((elapsedTime * (libraryFiles - b.indexedDocuments)) / b.indexedDocuments)
-	progress.Percentage = math.Round((100 / libraryFiles) * b.indexedDocuments)
+	progress.RemainingTime = time.Duration((elapsedTime * (libraryFiles - b.indexedEntries)) / b.indexedEntries)
+	progress.Percentage = math.Round((100 / libraryFiles) * b.indexedEntries)
 	return progress, nil
 }
 

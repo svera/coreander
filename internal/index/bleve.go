@@ -49,12 +49,12 @@ var noStopWordsFilters = map[string][]string{
 const defaultAnalyzer = "default_analyzer"
 
 type BleveIndexer struct {
-	fs               afero.Fs
-	idx              bleve.Index
-	libraryPath      string
-	reader           map[string]metadata.Reader
-	indexStartTime   float64
-	indexedDocuments float64
+	fs             afero.Fs
+	idx            bleve.Index
+	libraryPath    string
+	reader         map[string]metadata.Reader
+	indexStartTime float64
+	indexedEntries float64
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
