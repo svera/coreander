@@ -21,7 +21,7 @@ func Install() error {
 	return sh.Run("go", "install", "-ldflags", "-X main.version="+version)
 }
 
-// Creates an executable for the given platform. Possible platforms are "rpi32" and "osxintel".
+// Creates an executable for the given platform.
 func Build(platform string) error {
 	envMap, err := env(platform)
 	if err != nil {

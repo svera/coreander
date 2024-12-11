@@ -58,7 +58,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	b.indexStartTime = float64(time.Now().UnixNano())
 	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
 		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed && !forceIndexing {
-			b.indexedDocuments += 1
+			b.indexedEntries += 1
 			languages = addLanguage(lang, languages)
 			return nil
 		}
@@ -76,16 +76,15 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 		batchSlugs[document.Slug] = struct{}{}
 		languages = addLanguage(meta.Language, languages)
 
-		err = batch.Index(document.ID, document)
-		if err != nil {
+		if err = batch.Index(document.ID, document); err != nil {
 			log.Printf("Error indexing file %s: %s\n", fullPath, err)
 			return nil
 		}
 
-		indexAuthors(document, batch.Index)
+		b.indexedEntries += indexAuthors(document, batch.Index)
+		b.indexedEntries += 1
 
-		b.indexedDocuments += 1
-		if batch.Size() == batchSize {
+		if batch.Size() >= batchSize {
 			if err = b.idx.Batch(batch); err != nil {
 				return err
 			}
@@ -102,11 +101,12 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 		return err
 	}
 	b.indexStartTime = 0
-	b.indexedDocuments = 0
+	b.indexedEntries = 0
 	return e
 }
 
-func indexAuthors(document Document, index func(id string, data interface{}) error) {
+func indexAuthors(document Document, index func(id string, data interface{}) error) float64 {
+	indexedEntries := 0.0
 	for i, name := range document.Authors {
 		author := Author{
 			Name: name,
@@ -116,8 +116,11 @@ func indexAuthors(document Document, index func(id string, data interface{}) err
 
 		if err := index(author.Slug, author); err != nil {
 			log.Printf("Error indexing author %s: %s\n", name, err)
+			continue
 		}
+		indexedEntries++
 	}
+	return indexedEntries
 }
 
 func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {
