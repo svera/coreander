@@ -1,60 +1,83 @@
-<ul class="dropdown-menu shadow">
-    <li><a href="/documents/{{.Document.Slug}}/download" class="dropdown-item" download>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cloud-download" viewBox="0 0 16 16">
-            <path d="M4.406 1.342A5.53 5.53 0 0 1 8 0c2.69 0 4.923 2 5.166 4.579C14.758 4.804 16 6.137 16 7.773 16 9.569 14.502 11 12.687 11H10a.5.5 0 0 1 0-1h2.688C13.979 10 15 8.988 15 7.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 2.825 10.328 1 8 1a4.53 4.53 0 0 0-2.941 1.1c-.757.652-1.153 1.438-1.153 2.055v.448l-.445.049C2.064 4.805 1 5.952 1 7.318 1 8.785 2.23 10 3.781 10H6a.5.5 0 0 1 0 1H3.781C1.708 11 0 9.366 0 7.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383z"/>
-            <path d="M7.646 15.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 14.293V5.5a.5.5 0 0 0-1 0v8.793l-2.146-2.147a.5.5 0 0 0-.708.708l3 3z"/>
-        </svg>
-        &nbsp;&nbsp;{{t .Lang "Download"}}
-        <span class='badge text-bg-{{if eq .Document.Format "EPUB"}}primary{{else}}danger{{end}}'>{{.Document.Format}}</span>
-        </a>
-    </li>
-    <li><a href="/documents/{{.Document.Slug}}/download?format=kepub" class="dropdown-item" download>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cloud-download" viewBox="0 0 16 16">
-            <path d="M4.406 1.342A5.53 5.53 0 0 1 8 0c2.69 0 4.923 2 5.166 4.579C14.758 4.804 16 6.137 16 7.773 16 9.569 14.502 11 12.687 11H10a.5.5 0 0 1 0-1h2.688C13.979 10 15 8.988 15 7.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 2.825 10.328 1 8 1a4.53 4.53 0 0 0-2.941 1.1c-.757.652-1.153 1.438-1.153 2.055v.448l-.445.049C2.064 4.805 1 5.952 1 7.318 1 8.785 2.23 10 3.781 10H6a.5.5 0 0 1 0 1H3.781C1.708 11 0 9.366 0 7.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383z"/>
-            <path d="M7.646 15.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 14.293V5.5a.5.5 0 0 0-1 0v8.793l-2.146-2.147a.5.5 0 0 0-.708.708l3 3z"/>
-        </svg>
-        &nbsp;&nbsp;{{t .Lang "Download"}}
-        <span class='badge text-bg-{{if eq .Document.Format "EPUB"}}primary{{else}}danger{{end}}'>KEPUB</span>
-        </a>
-    </li>
-    <div class="dropdown-divider"></div>
-    {{if not .EmailSendingConfigured}}
-        <li class="dropdown-item disabled">{{t .Lang "Send to email unavailable, no email service configured"}}</li>
+<div class="row actions mb-3">
+    <div class="col-12 {{if .EmailSendingConfigured}}col-sm-6{{end}} mb-3 d-grid">
+    {{if eq .Document.Format "EPUB"}}
+    <div class="btn-group" role="group" aria-label="Button group with nested dropdown">
+        <button href="/documents/{{.Document.Slug}}/download" class="btn btn-sm btn-outline-secondary w-100" download>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cloud-download" viewBox="0 0 16 16">
+                <path d="M4.406 1.342A5.53 5.53 0 0 1 8 0c2.69 0 4.923 2 5.166 4.579C14.758 4.804 16 6.137 16 7.773 16 9.569 14.502 11 12.687 11H10a.5.5 0 0 1 0-1h2.688C13.979 10 15 8.988 15 7.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 2.825 10.328 1 8 1a4.53 4.53 0 0 0-2.941 1.1c-.757.652-1.153 1.438-1.153 2.055v.448l-.445.049C2.064 4.805 1 5.952 1 7.318 1 8.785 2.23 10 3.781 10H6a.5.5 0 0 1 0 1H3.781C1.708 11 0 9.366 0 7.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383z"/>
+                <path d="M7.646 15.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 14.293V5.5a.5.5 0 0 0-1 0v8.793l-2.146-2.147a.5.5 0 0 0-.708.708l3 3z"/>
+            </svg>
+            &nbsp;
+            <span class='badge text-bg-{{if eq .Document.Format "EPUB"}}primary{{else}}danger{{end}}'>{{.Document.Format}}</span>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"></button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+                <a href="/documents/{{.Document.Slug}}/download?format=kepub" class="dropdown-item" download>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cloud-download" viewBox="0 0 16 16">
+                        <path d="M4.406 1.342A5.53 5.53 0 0 1 8 0c2.69 0 4.923 2 5.166 4.579C14.758 4.804 16 6.137 16 7.773 16 9.569 14.502 11 12.687 11H10a.5.5 0 0 1 0-1h2.688C13.979 10 15 8.988 15 7.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 2.825 10.328 1 8 1a4.53 4.53 0 0 0-2.941 1.1c-.757.652-1.153 1.438-1.153 2.055v.448l-.445.049C2.064 4.805 1 5.952 1 7.318 1 8.785 2.23 10 3.781 10H6a.5.5 0 0 1 0 1H3.781C1.708 11 0 9.366 0 7.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383z"/>
+                        <path d="M7.646 15.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 14.293V5.5a.5.5 0 0 0-1 0v8.793l-2.146-2.147a.5.5 0 0 0-.708.708l3 3z"/>
+                    </svg>
+                    &nbsp;
+                    <span class='badge text-bg-primary'>KEPUB</span>
+                </a>
+            </li>
+        </ul>
+    </div>
     {{else}}
-        <li>
-            <form method="post" action="/documents/{{.Document.Slug}}/send" data-success-message='{{t .Lang "Document sent successfully"}}' data-error-message='{{t .Lang "There was an error sending the document, please try again later"}}' class="send-email">
-                <div class="px-3 py-1">
-                    <label for="email" class="form-label">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope-fill" viewBox="0 0 16 16">
-                            <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414.05 3.555ZM0 4.697v7.104l5.803-3.558L0 4.697ZM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586l-1.239-.757Zm3.436-.586L16 11.801V4.697l-5.803 3.546Z"/>
-                        </svg>
-                        &nbsp;&nbsp;{{t .Lang "Send to email"}}
-                    </label>
-                    <div class="input-group">
-                        <input type="email" class="form-control" id="email" name="email"
-                            placeholder="email@example.com" value="{{if .Session}}{{.Session.SendToEmail}}{{end}}" required="required">
-                        <button type="submit" class="btn btn-primary">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16">
-                                <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178Z"/>
+        <a href="/documents/{{.Document.Slug}}/download" class="btn btn-outline-secondary" download>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cloud-download" viewBox="0 0 16 16">
+                <path d="M4.406 1.342A5.53 5.53 0 0 1 8 0c2.69 0 4.923 2 5.166 4.579C14.758 4.804 16 6.137 16 7.773 16 9.569 14.502 11 12.687 11H10a.5.5 0 0 1 0-1h2.688C13.979 10 15 8.988 15 7.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 2.825 10.328 1 8 1a4.53 4.53 0 0 0-2.941 1.1c-.757.652-1.153 1.438-1.153 2.055v.448l-.445.049C2.064 4.805 1 5.952 1 7.318 1 8.785 2.23 10 3.781 10H6a.5.5 0 0 1 0 1H3.781C1.708 11 0 9.366 0 7.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383z"/>
+                <path d="M7.646 15.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 14.293V5.5a.5.5 0 0 0-1 0v8.793l-2.146-2.147a.5.5 0 0 0-.708.708l3 3z"/>
+            </svg>
+            &nbsp;
+            <span class='badge text-bg-danger'>{{.Document.Format}}</span>
+        </a>
+    {{end}}
+    </div>
+
+    {{if .EmailSendingConfigured}}
+    <div class="col-12 col-sm-6 mb-3 d-grid">
+        {{$disabled := false}}
+        {{if not .Session.SendToEmail}}{{$disabled = true}}{{end}}
+        <div class="btn-group" role="group" aria-label="Button group with nested dropdown">
+            <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[name='email'], [name='slug']" hx-indicator="#hx-spinner" class="btn btn-sm btn-outline-secondary w-100" {{if $disabled}}disabled{{end}}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope-fill" viewBox="0 0 16 16">
+                    <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414.05 3.555ZM0 4.697v7.104l5.803-3.558L0 4.697ZM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586l-1.239-.757Zm3.436-.586L16 11.801V4.697l-5.803 3.546Z"/>
+                </svg>
+                <span id="hx-spinner" class="spinner-border spinner-border-sm htmx-indicator" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end p-3">
+                <li>
+                    <form method="post" action="/documents/{{.Document.Slug}}/send" data-success-message='{{t .Lang "Document sent successfully"}}' data-error-message='{{t .Lang "There was an error sending the document, please try again later"}}' class="send-email mt-3">
+                        <label for="email" class="form-label text-start">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-envelope-fill" viewBox="0 0 16 16">
+                                <path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414.05 3.555ZM0 4.697v7.104l5.803-3.558L0 4.697ZM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586l-1.239-.757Zm3.436-.586L16 11.801V4.697l-5.803 3.546Z"/>
                             </svg>
-                            <span class="spinner-border spinner-border-sm visually-hidden" aria-hidden="true"></span>
-                        </button>
-                    </div>
-                    <p class="text-end">
-                        <small class="text-muted"><em>{{t .Lang "Sent from %s" .EmailFrom}}</em></small>
-                    </p>
-                </div>
-                <div class="p-3 visually-hidden fs-6 send-email-message"></div>
-            </form>
-        </li>
+                            &nbsp;&nbsp;{{t .Lang "Send to email"}}
+                        </label>
+
+                        <div class="input-group">
+                            <input type="email" class="form-control" id="email" name="email"
+                                placeholder="email@example.com" value="{{.Session.SendToEmail}}" required="required">
+                            <input type="hidden" name="slug" value="{{.Document.Slug}}">
+                            <button type="submit" class="btn btn-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16">
+                                    <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178Z"/>
+                                </svg>
+                                <span id="spinner" class="spinner-border spinner-border-sm visually-hidden" aria-hidden="true"></span>
+                                &nbsp;&nbsp;{{t .Lang "Send"}}</button>
+                        </div>
+                        <p class="text-end">
+                            <small class="text-muted"><em>{{t .Lang "Sent from %s" .EmailFrom}}</em></small>
+                        </p>
+                        <div class="p-3 visually-hidden fs-6 send-email-message"></div>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
     {{end}}
-    {{if and .Session (eq .Session.Role 2)}}
-    <div class="dropdown-divider"></div>
-    <li><a href="#" data-bs-toggle="modal" data-bs-target="#delete-modal" data-id="{{.Document.Slug}}" class="dropdown-item">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash3-fill" viewBox="0 0 16 16">
-            <path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5Zm-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5ZM4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06Zm6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.528ZM8 4.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0V5a.5.5 0 0 0-.5-.5Z"/>
-        </svg>
-        &nbsp;&nbsp;{{t .Lang "Delete"}} <span class="text-secondary text-wrap">{{basename .Document.ID}}</span></a>
-    </li>
-    {{end}}
-</ul>
+</div>

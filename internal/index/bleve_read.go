@@ -235,6 +235,10 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		return []Document{}, err
 	}
 
+	if len(doc.Subjects) == 0 {
+		return []Document{}, err
+	}
+
 	bq := bleve.NewBooleanQuery()
 	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
 
@@ -291,6 +295,10 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 func (b *BleveIndexer) SameAuthors(slugID string, quantity int) ([]Document, error) {
 	doc, err := b.Document(slugID)
 	if err != nil {
+		return []Document{}, err
+	}
+
+	if len(doc.Authors) == 0 {
 		return []Document{}, err
 	}
 

@@ -81,7 +81,7 @@ func migrateDir() {
 func main() {
 	defer idx.Close()
 
-	go startIndex(idx, appFs, cfg.BatchSize, cfg.LibPath)
+	go startIndex(idx, cfg.BatchSize, cfg.LibPath)
 
 	sender = &infrastructure.NoEmail{}
 	if cfg.SmtpServer != "" && cfg.SmtpUser != "" && cfg.SmtpPassword != "" {
@@ -126,7 +126,7 @@ func main() {
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))
 }
 
-func startIndex(idx *index.BleveIndexer, appFs afero.Fs, batchSize int, libPath string) {
+func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
 	start := time.Now().Unix()
 	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
 	err := idx.AddLibrary(batchSize, cfg.ForceIndexing)
