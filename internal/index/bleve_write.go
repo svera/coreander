@@ -29,8 +29,7 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 
 	document := b.createDocument(meta, file, nil)
 
-	err = b.idx.Index(document.ID, document)
-	if err != nil {
+	if err = b.idx.Index(document.ID, document); err != nil {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
 	}
 

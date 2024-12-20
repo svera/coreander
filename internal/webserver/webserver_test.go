@@ -59,7 +59,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 	)
 
 	metadataReaders := map[string]metadata.Reader{
-		".epub": metadata.EpubReader{},
+		".epub": metadata.NewEpubReader(),
 		".pdf":  metadata.PdfReader{},
 	}
 

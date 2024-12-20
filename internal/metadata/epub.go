@@ -17,15 +17,25 @@ import (
 	"github.com/pirmd/epub"
 )
 
-type EpubReader struct{}
+type EpubReader struct {
+	GetMetadataFromFile func(path string) (*epub.Information, error)
+	GetPackageFromFile  func(path string) (*epub.PackageDocument, error)
+}
 
-func (e EpubReader) Metadata(file string) (Metadata, error) {
+func NewEpubReader() EpubReader {
+	return EpubReader{
+		GetMetadataFromFile: epub.GetMetadataFromFile,
+		GetPackageFromFile:  epub.GetPackageFromFile,
+	}
+}
+
+func (e EpubReader) Metadata(filename string) (Metadata, error) {
 	bk := Metadata{}
-	meta, err := epub.GetMetadataFromFile(file)
+	meta, err := e.GetMetadataFromFile(filename)
 	if err != nil {
 		return bk, err
 	}
-	title := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	title := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
 	if len(meta.Title) > 0 && len(meta.Title[0]) > 0 {
 		title = meta.Title[0]
 	}
@@ -35,10 +45,11 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 			// Some epub files mistakenly put all authors in a single field instead of using a field for each one.
 			// We want to identify those cases looking for specific separators and then indexing each author properly.
 			names := strings.Split(creator.FullName, "&")
-			for i := range names {
-				names[i] = strings.TrimSpace(names[i])
+			for _, name := range names {
+				if name = strings.TrimSpace(name); name != "" {
+					authors = append(authors, name)
+				}
 			}
-			authors = append(authors, names...)
 		}
 	}
 
@@ -55,10 +66,11 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		// Some epub files mistakenly put all subjects in a single field instead of using a field for each one.
 		// We want to identify those cases looking for specific separators and then indexing each subject properly.
 		names := strings.Split(subject, ",")
-		for i := range names {
-			names[i] = strings.TrimSpace(names[i])
+		for _, name := range names {
+			if name = strings.TrimSpace(name); name != "" {
+				subjects = append(subjects, name)
+			}
 		}
-		subjects = append(subjects, names...)
 	}
 
 	description := ""
@@ -108,9 +120,9 @@ func (e EpubReader) Metadata(file string) (Metadata, error) {
 		Format:      "EPUB",
 		Subjects:    subjects,
 	}
-	w, err := words(file)
+	w, err := words(filename)
 	if err != nil {
-		log.Println(err)
+		log.Printf("Cannot count words in %s: $%s\n", filename, err)
 	}
 	bk.Words = float64(w)
 	return bk, nil
@@ -122,7 +134,7 @@ func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, e
 
 	coverFileName := ""
 
-	opf, err := epub.GetPackageFromFile(documentFullPath)
+	opf, err := e.GetPackageFromFile(documentFullPath)
 	if err != nil {
 		return nil, err
 	}

@@ -1,12 +1,12 @@
 <div class="position-absolute top-0 start-0 ms-2 mt-2 cursor-pointer">
     <div class="{{if not .Document.Highlighted}}visually-hidden{{end}} dehighlight">
         <a class="icon-link dehighlight" hx-delete="/highlights/{{.Document.Slug}}" hx-swap="none" title='{{t .Lang "Remove from highlights"}}'>
-            <img src="/images/star-solid.svg" class="img-fluid" />
+            <img src="/images/star-solid.svg" class="img-fluid w-10" />
         </a>
     </div>
     <div class="{{if .Document.Highlighted}}visually-hidden{{end}} highlight">
         <a class="icon-link highlight" hx-post="/highlights/{{.Document.Slug}}" hx-swap="none" title='{{t .Lang "Highlight"}}'>
-            <img src="/images/star-hollow.svg" class="img-fluid" />
+            <img src="/images/star-hollow.svg" class="img-fluid w-10" />
         </a>
     </div>
 </div>

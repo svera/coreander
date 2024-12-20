@@ -3,6 +3,9 @@
 // Control which star icon to show when highlighting / dehighlighting an item
 // To use only when we want to avoid refreshing the documents list
 document.body.addEventListener('htmx:afterRequest', function(evt) {
+    if (!evt.detail.elt.className.includes("highlight")) {
+        return
+    }
     if (!evt.detail.successful) {
         return
     }

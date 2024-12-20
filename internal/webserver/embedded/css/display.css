@@ -101,14 +101,19 @@ a.collapse-control.collapsed:after {
     }
   }
 
-.cover-corner {
-    clip-path: polygon(100% 0, 100% calc(100% - 3em), calc(100% - 3em) 100%, 0 100%, 0 0);
-}
-
 .cover-background {
-    background-color: #eee;
+    background-image: url("../images/generic.jpg");
+    background-size: cover;
 }
 
 .cursor-pointer {
     cursor: pointer;
+}
+
+.w-10 {
+    width: 10%;
+}
+
+.actions .dropdown-menu {
+    white-space: nowrap;
 }
