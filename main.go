@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/pirmd/epub"
 	"gorm.io/gorm"
 
 	"github.com/spf13/afero"
@@ -49,33 +49,18 @@ func init() {
 	}
 
 	metadataReaders = map[string]metadata.Reader{
-		".epub": metadata.EpubReader{},
-		".pdf":  metadata.PdfReader{},
+		".epub": metadata.EpubReader{
+			GetMetadataFromFile: epub.GetMetadataFromFile,
+			GetPackageFromFile:  epub.GetPackageFromFile,
+		},
+		".pdf": metadata.PdfReader{},
 	}
 
 	appFs = afero.NewOsFs()
 
-	migrateDir()
-
 	indexFile := getIndexFile(appFs)
 	idx = index.NewBleve(indexFile, appFs, cfg.LibPath, metadataReaders)
 	db = infrastructure.Connect(homeDir+databasePath, cfg.WordsPerMinute)
-}
-
-func migrateDir() {
-	dirInfo, err := appFs.Stat(homeDir + "/coreander")
-	if errors.Is(err, afero.ErrFileNotFound) {
-		return
-	}
-	if err != nil && !errors.Is(err, afero.ErrFileExists) {
-		log.Fatal(err)
-	}
-	if dirInfo.IsDir() {
-		err := appFs.Rename(homeDir+"/coreander", homeDir+"/.coreander")
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 }
 
 func main() {

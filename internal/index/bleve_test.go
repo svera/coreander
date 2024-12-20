@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/pirmd/epub"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
@@ -21,22 +22,24 @@ func TestIndexAndSearch(t *testing.T) {
 			}
 
 			mockMetadataReaders := map[string]metadata.Reader{
-				".epub": metadata.ReaderMock{
-					MetadataFake: func(file string) (metadata.Metadata, error) {
+				".epub": metadata.EpubReader{
+					GetMetadataFromFile: func(file string) (*epub.Information, error) {
 						return tcase.mockedMeta, nil
 					},
+					GetPackageFromFile: epub.GetPackageFromFile,
 				},
 			}
 
 			appFS := afero.NewMemMapFs()
-			idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
-
 			// create test files and directories
 			appFS.MkdirAll("lib", 0755)
-			afero.WriteFile(appFS, tcase.filename, []byte(""), 0644)
+			if err = afero.WriteFile(appFS, tcase.filename, []byte(""), 0644); err != nil {
+				t.Errorf("Couldn't write file %s", tcase.filename)
+			}
 
-			err = idx.AddLibrary(1, true)
-			if err != nil {
+			idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+
+			if err = idx.AddLibrary(1, true); err != nil {
 				t.Errorf("Error indexing: %s", err.Error())
 			}
 			res, err := idx.Search(tcase.search, 1, 10)
@@ -44,7 +47,7 @@ func TestIndexAndSearch(t *testing.T) {
 				t.Errorf("Error searching: %s", err.Error())
 			}
 			if !reflect.DeepEqual(res, tcase.expectedResult) {
-				t.Errorf("Wrong result returned, expected %#v, got %#v", tcase.expectedResult, res)
+				t.Errorf("Wrong result returned, expected\n %#v,\n got\n %#v\n", tcase.expectedResult, res)
 			}
 		})
 	}
@@ -53,7 +56,7 @@ func TestIndexAndSearch(t *testing.T) {
 type testCase struct {
 	name           string
 	filename       string
-	mockedMeta     metadata.Metadata
+	mockedMeta     *epub.Information
 	search         string
 	expectedResult result.Paginated[[]index.Document]
 }
@@ -63,12 +66,17 @@ func testCases() []testCase {
 		{
 			"Look for a term without accent must return accented results",
 			"lib/book1.epub",
-			metadata.Metadata{
-				Title:       "Test A",
-				Authors:     []string{"Pérez"},
-				Description: "Just test metadata",
-				Language:    "es",
-				Subjects:    []string{"History", "Middle age"},
+			&epub.Information{
+				Title: []string{"Test A"},
+				Creator: []epub.Author{
+					{
+						FullName: "Pérez",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"Just test metadata"},
+				Language:    []string{"es"},
+				Subject:     []string{"History", "Middle age"},
 			},
 			"perez",
 			result.NewPaginated[[]index.Document](
@@ -82,8 +90,9 @@ func testCases() []testCase {
 						Metadata: metadata.Metadata{
 							Title:       "Test A",
 							Authors:     []string{"Pérez"},
-							Description: "Just test metadata",
+							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "Middle age"},
+							Format:      "EPUB",
 						},
 						AuthorsSlugs:  []string{"perez"},
 						SeriesSlug:    "",
@@ -95,12 +104,17 @@ func testCases() []testCase {
 		{
 			"Look for a term without circumflex accent must return circumflexed results",
 			"lib/book2.epub",
-			metadata.Metadata{
-				Title:       "Test B",
-				Authors:     []string{"Benoît"},
-				Description: "Just test metadata",
-				Language:    "fr",
-				Subjects:    []string{""},
+			&epub.Information{
+				Title: []string{"Test B"},
+				Creator: []epub.Author{
+					{
+						FullName: "Benoît",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"Just test metadata"},
+				Language:    []string{"fr"},
+				Subject:     []string{},
 			},
 			"benoit",
 			result.NewPaginated[[]index.Document](
@@ -114,12 +128,13 @@ func testCases() []testCase {
 						Metadata: metadata.Metadata{
 							Title:       "Test B",
 							Authors:     []string{"Benoît"},
-							Description: "Just test metadata",
-							Subjects:    []string{""},
+							Description: "<p>Just test metadata</p>",
+							Subjects:    []string{},
+							Format:      "EPUB",
 						},
 						AuthorsSlugs:  []string{"benoit"},
 						SeriesSlug:    "",
-						SubjectsSlugs: []string{""},
+						SubjectsSlugs: []string{},
 					},
 				},
 			),
@@ -127,12 +142,17 @@ func testCases() []testCase {
 		{
 			"Look for several, not exact terms must return a result with all those terms, even if there is something in between",
 			"lib/book3.epub",
-			metadata.Metadata{
-				Title:       "Test C",
-				Authors:     []string{"Clifford D. Simak"},
-				Description: "Just test metadata",
-				Language:    "en",
-				Subjects:    []string{""},
+			&epub.Information{
+				Title: []string{"Test C"},
+				Creator: []epub.Author{
+					{
+						FullName: "Clifford D. Simak",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"Just test metadata"},
+				Language:    []string{"en"},
+				Subject:     []string{},
 			},
 			"clifford simak",
 			result.NewPaginated[[]index.Document](
@@ -146,12 +166,13 @@ func testCases() []testCase {
 						Metadata: metadata.Metadata{
 							Title:       "Test C",
 							Authors:     []string{"Clifford D. Simak"},
-							Description: "Just test metadata",
-							Subjects:    []string{""},
+							Description: "<p>Just test metadata</p>",
+							Subjects:    []string{},
+							Format:      "EPUB",
 						},
 						AuthorsSlugs:  []string{"clifford-d-simak"},
 						SeriesSlug:    "",
-						SubjectsSlugs: []string{""},
+						SubjectsSlugs: []string{},
 					},
 				},
 			),
@@ -159,12 +180,17 @@ func testCases() []testCase {
 		{
 			"Look for several, not exact terms must return a result with all those terms, even if there is something in between",
 			"lib/book4.epub",
-			metadata.Metadata{
-				Title:       "Test D",
-				Authors:     []string{"James Ellroy"},
-				Description: "Just test metadata",
-				Language:    "en",
-				Subjects:    []string{""},
+			&epub.Information{
+				Title: []string{"Test D"},
+				Creator: []epub.Author{
+					{
+						FullName: "James Ellroy",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"Just test metadata"},
+				Language:    []string{"en"},
+				Subject:     []string{},
 			},
 			"james ellroy",
 			result.NewPaginated[[]index.Document](
@@ -177,12 +203,13 @@ func testCases() []testCase {
 						Slug: "james-ellroy-test-d",
 						Metadata: metadata.Metadata{Title: "Test D",
 							Authors:     []string{"James Ellroy"},
-							Description: "Just test metadata",
-							Subjects:    []string{""},
+							Description: "<p>Just test metadata</p>",
+							Subjects:    []string{},
+							Format:      "EPUB",
 						},
 						AuthorsSlugs:  []string{"james-ellroy"},
 						SeriesSlug:    "",
-						SubjectsSlugs: []string{""},
+						SubjectsSlugs: []string{},
 					},
 				},
 			),
@@ -190,12 +217,17 @@ func testCases() []testCase {
 		{
 			"Look for several, not exact terms with multiple leading, trailing and in-between spaces must return a result with all those terms, even if there is something in between",
 			"lib/book5.epub",
-			metadata.Metadata{
-				Title:       "Test E",
-				Authors:     []string{"James Ellroy"},
-				Description: "Just test metadata",
-				Language:    "en",
-				Subjects:    []string{""},
+			&epub.Information{
+				Title: []string{"Test E"},
+				Creator: []epub.Author{
+					{
+						FullName: "James Ellroy",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"Just test metadata"},
+				Language:    []string{"en"},
+				Subject:     []string{},
 			},
 			" james       ellroy ",
 			result.NewPaginated[[]index.Document](
@@ -208,12 +240,13 @@ func testCases() []testCase {
 						Slug: "james-ellroy-test-e",
 						Metadata: metadata.Metadata{Title: "Test E",
 							Authors:     []string{"James Ellroy"},
-							Description: "Just test metadata",
-							Subjects:    []string{""},
+							Description: "<p>Just test metadata</p>",
+							Subjects:    []string{},
+							Format:      "EPUB",
 						},
 						AuthorsSlugs:  []string{"james-ellroy"},
 						SeriesSlug:    "",
-						SubjectsSlugs: []string{""},
+						SubjectsSlugs: []string{},
 					},
 				},
 			),
@@ -221,12 +254,17 @@ func testCases() []testCase {
 		{
 			"Test genre spanish stemmer",
 			"lib/book6.epub",
-			metadata.Metadata{
-				Title:       "La Guerrera",
-				Authors:     []string{"Anónimo"},
-				Description: "Just test metadata",
-				Language:    "es",
-				Subjects:    []string{"History", "Middle age"},
+			&epub.Information{
+				Title: []string{"La Guerrera"},
+				Creator: []epub.Author{
+					{
+						FullName: "Anónimo",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"Just test metadata"},
+				Language:    []string{"es"},
+				Subject:     []string{"History", "Middle age"},
 			},
 			"guerrero",
 			result.NewPaginated[[]index.Document](
@@ -240,8 +278,9 @@ func testCases() []testCase {
 						Metadata: metadata.Metadata{
 							Title:       "La Guerrera",
 							Authors:     []string{"Anónimo"},
-							Description: "Just test metadata",
+							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "Middle age"},
+							Format:      "EPUB",
 						},
 						AuthorsSlugs:  []string{"anonimo"},
 						SeriesSlug:    "",
@@ -253,12 +292,17 @@ func testCases() []testCase {
 		{
 			"Test plural italian stemmer",
 			"lib/book7.epub",
-			metadata.Metadata{
-				Title:       "Fratelli",
-				Authors:     []string{"Anónimo"},
-				Description: "Just test metadata",
-				Language:    "it",
-				Subjects:    []string{"History", "Middle age"},
+			&epub.Information{
+				Title: []string{"Fratelli"},
+				Creator: []epub.Author{
+					{
+						FullName: "Anónimo",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"Just test metadata"},
+				Language:    []string{"it"},
+				Subject:     []string{"History", "Middle age"},
 			},
 			"fratello",
 			result.NewPaginated[[]index.Document](
@@ -272,8 +316,9 @@ func testCases() []testCase {
 						Metadata: metadata.Metadata{
 							Title:       "Fratelli",
 							Authors:     []string{"Anónimo"},
-							Description: "Just test metadata",
+							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "Middle age"},
+							Format:      "EPUB",
 						},
 						AuthorsSlugs:  []string{"anonimo"},
 						SeriesSlug:    "",
@@ -285,12 +330,17 @@ func testCases() []testCase {
 		{
 			"Test genre spanish stemmer",
 			"lib/book8.epub",
-			metadata.Metadata{
-				Title:       "El Infinito en un Junco",
-				Authors:     []string{"Irene Vallejo"},
-				Description: "Just test metadata",
-				Language:    "es",
-				Subjects:    []string{"History", "Middle age"},
+			&epub.Information{
+				Title: []string{"El Infinito en un Junco"},
+				Creator: []epub.Author{
+					{
+						FullName: "Irene Vallejo",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"Just test metadata"},
+				Language:    []string{"es"},
+				Subject:     []string{"History", "Middle age"},
 			},
 			"infinito junco",
 			result.NewPaginated[[]index.Document](
@@ -304,8 +354,9 @@ func testCases() []testCase {
 						Metadata: metadata.Metadata{
 							Title:       "El Infinito en un Junco",
 							Authors:     []string{"Irene Vallejo"},
-							Description: "Just test metadata",
+							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "Middle age"},
+							Format:      "EPUB",
 						},
 						AuthorsSlugs:  []string{"irene-vallejo"},
 						SeriesSlug:    "",
@@ -317,12 +368,17 @@ func testCases() []testCase {
 		{
 			"Test spanish stemmer returning accented word while using unaccented word in search",
 			"lib/book9.epub",
-			metadata.Metadata{
-				Title:       "Últimos días en Colditz",
-				Authors:     []string{"Patrick R. Reid"},
-				Description: "Just test metadata",
-				Language:    "es",
-				Subjects:    []string{"History", "WWII"},
+			&epub.Information{
+				Title: []string{"Últimos días en Colditz"},
+				Creator: []epub.Author{
+					{
+						FullName: "Patrick R. Reid",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"Just test metadata"},
+				Language:    []string{"es"},
+				Subject:     []string{"History", "WWII"},
 			},
 			"ultimos",
 			result.NewPaginated[[]index.Document](
@@ -336,12 +392,51 @@ func testCases() []testCase {
 						Metadata: metadata.Metadata{
 							Title:       "Últimos días en Colditz",
 							Authors:     []string{"Patrick R. Reid"},
-							Description: "Just test metadata",
+							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "WWII"},
+							Format:      "EPUB",
 						},
 						AuthorsSlugs:  []string{"patrick-r-reid"},
 						SeriesSlug:    "",
 						SubjectsSlugs: []string{"history", "wwii"},
+					},
+				},
+			),
+		},
+		{
+			"Weird case with ',' as subject or '&' as author",
+			"lib/book10.epub",
+			&epub.Information{
+				Title: []string{"Sin nombre"},
+				Creator: []epub.Author{
+					{
+						FullName: "&",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"Just test metadata"},
+				Language:    []string{"es"},
+				Subject:     []string{","},
+			},
+			"sin nombre",
+			result.NewPaginated[[]index.Document](
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book10.epub",
+						Slug: "sin-nombre",
+						Metadata: metadata.Metadata{
+							Title:       "Sin nombre",
+							Authors:     []string{""},
+							Description: "<p>Just test metadata</p>",
+							Subjects:    []string{},
+							Format:      "EPUB",
+						},
+						AuthorsSlugs:  []string{""},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{},
 					},
 				},
 			),

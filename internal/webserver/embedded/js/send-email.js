@@ -46,3 +46,18 @@ Array.from(document.getElementsByClassName("send-email")).forEach(form => {
         });
     });
 });
+
+document.body.addEventListener('htmx:responseError', function (evt) {
+    const parent = evt.detail.elt.closest(".actions").parentNode;
+    parent.querySelector(".quick-email-error").classList.remove("d-none");
+    parent.querySelector(".quick-email-success").classList.add("d-none");
+});
+
+document.body.addEventListener('htmx:afterRequest', function (evt) {
+    const post = evt.detail.elt.getAttribute("hx-post")
+    if (!evt.detail.failed && post && post.includes("/send")) {
+        const parent = evt.detail.elt.closest(".actions").parentNode;
+        parent.querySelector(".quick-email-error").classList.add("d-none");
+        parent.querySelector(".quick-email-success").classList.remove("d-none");
+    }
+});
