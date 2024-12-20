@@ -22,7 +22,7 @@ type EpubReader struct {
 	GetPackageFromFile  func(path string) (*epub.PackageDocument, error)
 }
 
-func NewEpub() EpubReader {
+func NewEpubReader() EpubReader {
 	return EpubReader{
 		GetMetadataFromFile: epub.GetMetadataFromFile,
 		GetPackageFromFile:  epub.GetPackageFromFile,
