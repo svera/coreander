@@ -42,9 +42,9 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	title := fmt.Sprintf("%s | Coreander", document.Title)
+	title := fmt.Sprintf("%s", document.Title)
 	if len(document.Authors) > 0 {
-		title = fmt.Sprintf("%s - %s | Coreander", strings.Join(document.Authors, ", "), document.Title)
+		title = fmt.Sprintf("%s - %s", strings.Join(document.Authors, ", "), document.Title)
 	}
 
 	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, (int(session.ID)))
@@ -73,24 +73,21 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 
 func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuthors, sameSeries []index.Document) {
 	var err error
-	sameSubjects, err = d.idx.SameSubjects(slug, relatedDocuments)
-	if err != nil {
+	if sameSubjects, err = d.idx.SameSubjects(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
 	for i := range sameSubjects {
 		sameSubjects[i] = d.hlRepository.Highlighted(sessionID, sameSubjects[i])
 	}
 
-	sameAuthors, err = d.idx.SameAuthors(slug, relatedDocuments)
-	if err != nil {
+	if sameAuthors, err = d.idx.SameAuthors(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
 	for i := range sameAuthors {
 		sameAuthors[i] = d.hlRepository.Highlighted(sessionID, sameAuthors[i])
 	}
 
-	sameSeries, err = d.idx.SameSeries(slug, relatedDocuments)
-	if err != nil {
+	if sameSeries, err = d.idx.SameSeries(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
 	for i := range sameSeries {

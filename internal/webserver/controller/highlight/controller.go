@@ -27,7 +27,7 @@ type usersRepository interface {
 }
 
 type Sender interface {
-	SendDocument(address string, libraryPath string, fileName string) error
+	SendDocument(address, subject, libraryPath, fileName string) error
 	From() string
 }
 
