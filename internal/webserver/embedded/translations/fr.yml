@@ -21,8 +21,8 @@
 "Send": Envoyer
 "Actions": Actions
 "Send to email unavailable, no email service configured": "Envoyer par e-mail indisponible, aucun service de messagerie configuré"
-"Document sent successfully": "%s envoyé à %s"
-"There was an error sending %s to %s, please try again later": "Une erreur s'est produite lors de l'envoi du %s à %s, veuillez réessayer ultérieurement"
+"%s sent to ${email}": "%s envoyé à ${email}"
+"There was an error sending %s to ${email}, please try again later": "Une erreur s'est produite lors de l'envoi du %s à ${email}, veuillez réessayer ultérieurement"
 "Read": "Lire"
 "Users": "Utilisateurs"
 "Username": "Nom d'utilisateur"

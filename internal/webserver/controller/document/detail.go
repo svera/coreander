@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
@@ -46,20 +47,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		title = fmt.Sprintf("%s - %s | Coreander", strings.Join(document.Authors, ", "), document.Title)
 	}
 
-	sameSubjects, err := d.idx.SameSubjects(document.Slug, relatedDocuments)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	sameAuthors, err := d.idx.SameAuthors(document.Slug, relatedDocuments)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	sameSeries, err := d.idx.SameSeries(document.Slug, relatedDocuments)
-	if err != nil {
-		fmt.Println(err)
-	}
+	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, (int(session.ID)))
 
 	if session.ID > 0 {
 		document = d.hlRepository.Highlighted(int(session.ID), document)
@@ -81,4 +69,32 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		"WordsPerMinute":         d.config.WordsPerMinute,
 		"Message":                msg,
 	}, "layout")
+}
+
+func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuthors, sameSeries []index.Document) {
+	var err error
+	sameSubjects, err = d.idx.SameSubjects(slug, relatedDocuments)
+	if err != nil {
+		fmt.Println(err)
+	}
+	for i := range sameSubjects {
+		sameSubjects[i] = d.hlRepository.Highlighted(sessionID, sameSubjects[i])
+	}
+
+	sameAuthors, err = d.idx.SameAuthors(slug, relatedDocuments)
+	if err != nil {
+		fmt.Println(err)
+	}
+	for i := range sameAuthors {
+		sameAuthors[i] = d.hlRepository.Highlighted(sessionID, sameAuthors[i])
+	}
+
+	sameSeries, err = d.idx.SameSeries(slug, relatedDocuments)
+	if err != nil {
+		fmt.Println(err)
+	}
+	for i := range sameSeries {
+		sameSeries[i] = d.hlRepository.Highlighted(sessionID, sameSeries[i])
+	}
+	return sameSubjects, sameAuthors, sameSeries
 }
