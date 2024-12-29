@@ -30,5 +30,5 @@ func (d *Controller) Send(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	return d.sender.SendDocument(c.FormValue("email"), d.config.LibraryPath, document.ID)
+	return d.sender.SendDocument(c.FormValue("email"), document.Title, d.config.LibraryPath, document.ID)
 }

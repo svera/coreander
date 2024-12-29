@@ -50,7 +50,7 @@ type Config struct {
 
 type Sender interface {
 	Send(address, subject, body string) error
-	SendDocument(address string, libraryPath string, fileName string) error
+	SendDocument(address, subject, libraryPath, fileName string) error
 	From() string
 }
 
@@ -182,7 +182,7 @@ func errorHandler(c *fiber.Ctx, err error) error {
 		fmt.Sprintf("errors/%d", code),
 		fiber.Map{
 			"Lang":    chooseBestLanguage(c),
-			"Title":   "Coreander",
+			"Title":   "Error",
 			"Version": c.App().Config().AppName,
 			"Session": session,
 		},

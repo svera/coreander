@@ -27,10 +27,10 @@ func (d *Controller) Reader(c *fiber.Ctx) error {
 
 	template := "reader"
 
-	title := fmt.Sprintf("%s | Coreander", document.Title)
+	title := fmt.Sprintf("%s", document.Title)
 	authors := strings.Join(document.Authors, ", ")
 	if authors != "" {
-		title = fmt.Sprintf("%s - %s | Coreander", authors, document.Title)
+		title = fmt.Sprintf("%s - %s", authors, document.Title)
 	}
 	return c.Render(template, fiber.Map{
 		"Title":       title,

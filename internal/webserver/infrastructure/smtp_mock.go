@@ -18,7 +18,7 @@ func (s *SMTPMock) Send(address, subject, body string) error {
 	return nil
 }
 
-func (s *SMTPMock) SendDocument(address string, libraryPath string, fileName string) error {
+func (s *SMTPMock) SendDocument(address, subject, libraryPath, fileName string) error {
 	defer s.Wg.Done()
 
 	s.mu.Lock()

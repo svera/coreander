@@ -22,8 +22,8 @@ func (s *SMTP) Send(address, subject, body string) error {
 }
 
 // SendDocument sends an email with the designated file attached to it to the chosen address
-func (s *SMTP) SendDocument(address string, libraryPath string, fileName string) error {
-	m := s.compose(address, "", "")
+func (s *SMTP) SendDocument(address, subject, libraryPath, fileName string) error {
+	m := s.compose(address, subject, "")
 	m.Attach(fmt.Sprintf("%s/%s", libraryPath, fileName))
 
 	return s.send(m)

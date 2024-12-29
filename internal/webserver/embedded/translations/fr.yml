@@ -21,8 +21,8 @@
 "Send": Envoyer
 "Actions": Actions
 "Send to email unavailable, no email service configured": "Envoyer par e-mail indisponible, aucun service de messagerie configuré"
-"Document sent successfully": "Document envoyé avec succès"
-"There was an error sending the document, please try again later": "Une erreur s'est produite lors de l'envoi du document, veuillez réessayer ultérieurement"
+"%s sent to ${email}": "%s envoyé à ${email}"
+"There was an error sending %s to ${email}, please try again later": "Une erreur s'est produite lors de l'envoi du %s à ${email}, veuillez réessayer ultérieurement"
 "Read": "Lire"
 "Users": "Utilisateurs"
 "Username": "Nom d'utilisateur"
@@ -136,3 +136,5 @@
 "Unexpected error, check your connection and try to refresh the page.": "Erreur inattendue, vérifiez votre connexion et essayez d'actualiser la page."
 "Unexpected server error": "Erreur de serveur inattendue"
 "Titles by %s": "Titres par %s"
+"Send to %s": "Envoyer à %s"
+"Home": "Accueil"
