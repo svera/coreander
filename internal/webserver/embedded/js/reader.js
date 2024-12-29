@@ -3,56 +3,6 @@ import { createTOCView } from './foliate-js/ui/tree.js'
 import { createMenu } from './foliate-js/ui/menu.js'
 import { Overlayer } from './foliate-js/overlayer.js'
 
-const isZip = async file => {
-    const arr = new Uint8Array(await file.slice(0, 4).arrayBuffer())
-    return arr[0] === 0x50 && arr[1] === 0x4b && arr[2] === 0x03 && arr[3] === 0x04
-}
-
-const isPDF = async file => {
-    const arr = new Uint8Array(await file.slice(0, 5).arrayBuffer())
-    return arr[0] === 0x25
-        && arr[1] === 0x50 && arr[2] === 0x44 && arr[3] === 0x46
-        && arr[4] === 0x2d
-}
-
-const makeZipLoader = async file => {
-    const { configure, ZipReader, BlobReader, TextWriter, BlobWriter } =
-        await import('./foliate-js/vendor/zip.js')
-    configure({ useWebWorkers: false })
-    const reader = new ZipReader(new BlobReader(file))
-    const entries = await reader.getEntries()
-    const map = new Map(entries.map(entry => [entry.filename, entry]))
-    const load = f => (name, ...args) =>
-        map.has(name) ? f(map.get(name), ...args) : null
-    const loadText = load(entry => entry.getData(new TextWriter()))
-    const loadBlob = load((entry, type) => entry.getData(new BlobWriter(type)))
-    const getSize = name => map.get(name)?.uncompressedSize ?? 0
-    return { entries, loadText, loadBlob, getSize }
-}
-
-const getView = async file => {
-    let book
-    if (!file.size) throw new Error('File not found')
-    else if (await isZip(file)) {
-        const loader = await makeZipLoader(file)
-        const { EPUB } = await import('./foliate-js/epub.js')
-        book = await new EPUB(loader).init()
-    }
-    else if (await isPDF(file)) {
-        const { makePDF } = await import('./foliate-js/pdf.js')
-        book = await makePDF(file)
-    }
-    if (!book) throw new Error('File type not supported')
-    const view = document.createElement('foliate-view')
-    const storage = window.localStorage
-    const slug = document.getElementById('slug').value
-
-    document.body.append(view)
-    await view.open(book)
-    await view.init({lastLocation: storage.getItem(slug)})
-    return view
-}
-
 const getCSS = ({ spacing, justify, hyphenate }) => `
     @namespace epub "http://www.idpf.org/2007/ops";
     html {
@@ -84,12 +34,33 @@ const getCSS = ({ spacing, justify, hyphenate }) => `
     pre {
         white-space: pre-wrap !important;
     }
+    aside[epub|type~="endnote"],
+    aside[epub|type~="footnote"],
+    aside[epub|type~="note"],
+    aside[epub|type~="rearnote"] {
+        display: none;
+    }
 `
 
 const $ = document.querySelector.bind(document)
 
 const locales = 'en'
 const percentFormat = new Intl.NumberFormat(locales, { style: 'percent' })
+const listFormat = new Intl.ListFormat(locales, { style: 'short', type: 'conjunction' })
+
+const formatLanguageMap = x => {
+    if (!x) return ''
+    if (typeof x === 'string') return x
+    const keys = Object.keys(x)
+    return x[keys[0]]
+}
+
+const formatOneContributor = contributor => typeof contributor === 'string'
+    ? contributor : formatLanguageMap(contributor?.name)
+
+const formatContributor = contributor => Array.isArray(contributor)
+    ? listFormat.format(contributor.map(formatOneContributor))
+    : formatOneContributor(contributor)
 
 class Reader {
     #tocView
@@ -135,7 +106,9 @@ class Reader {
         menu.groups.layout.select('paginated')
     }
     async open(file) {
-        this.view = await getView(file)
+        this.view = document.createElement('foliate-view')
+        document.body.append(this.view)
+        await this.view.open(file)
         this.view.addEventListener('load', this.#onLoad.bind(this))
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
 
@@ -163,15 +136,10 @@ class Reader {
 
         document.addEventListener('keydown', this.#handleKeydown.bind(this))
 
-        const title = book.metadata?.title ?? t.untitled_document
+        const title = formatLanguageMap(book.metadata?.title) || t.untitled_document
         document.title = title
         $('#side-bar-title').innerText = title
-        const author = book.metadata?.author
-        $('#side-bar-author').innerText = typeof author === 'string' ? author
-            : author
-                ?.map(author => typeof author === 'string' ? author : author.name)
-                ?.join(', ')
-                ?? ''
+        $('#side-bar-author').innerText = formatContributor(book.metadata?.author)
         Promise.resolve(book.getCover?.())?.then(blob =>
             blob ? $('#side-bar-cover').src = URL.createObjectURL(blob) : null)
 
