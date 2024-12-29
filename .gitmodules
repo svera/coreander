@@ -1,0 +1,3 @@
+[submodule "internal/webserver/embedded/js/foliate-js"]
+	path = internal/webserver/embedded/js/foliate-js
+	url = git@github.com:johnfactotum/foliate-js.git
