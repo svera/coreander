@@ -27,6 +27,12 @@ Binaries for Windows 64 bit, Linux 32 and 64 bits for both X86 and ARM (Raspberr
 ### Building from source
 Coreander's only requirement is Go 1.21.
 
+When cloning Coreander's repository, use Git's `--recurse-submodules` flag to also retrieve `foliate-js` contents as well, which is required for the reader component:
+
+```
+git clone git@github.com:svera/coreander.git --recurse-submodules
+```
+
 There are two possibilities for building Coreander from source:
 * If you have [Mage](https://magefile.org) installed in your system, just type `mage install` from the source code folder.
 * Otherwise, a simple `go build` or `go install` will do, although no version information will be added to the executable.
