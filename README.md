@@ -66,6 +66,20 @@ Every time is run, the application scans the library folder only for documents n
 
 Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` with the hostname / IP address of the machine where the server is running if you want to access it from another system). It is possible to change the listening port just executing the application with the `PORT` environment variable (e. g. `PORT=4000 coreander`)
 
+### Setting up an Internet-facing server
+
+If you plan to set up Coreander in a public Internet server such as a VPS, using [Caddy](https://caddyserver.com/) as a reverse proxy is strongly recommended, as it is dead simple to set up and comes with several niceties such as HTTPS out of the box through [Let's Encrypt](https://letsencrypt.org/).
+
+For example, if you have Coreander listening to port 3000 in your server and a domain called `coreander.example.com` that points to the IP address of your server, you can just tell Caddy to enroute requests to `coreander.example.com` to Coreander by putting this in Caddy's `Caddyfile`:
+
+```
+coreander.example.com {
+    reverse_proxy :3000
+}
+```
+
+Refer to [Caddy documentation](https://caddyserver.com/docs) for more information.
+
 ### Email
 
 Some features rely on having an SMTP email service set up, and won't be available otherwise:
