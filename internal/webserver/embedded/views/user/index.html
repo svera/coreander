@@ -39,7 +39,7 @@
                     {{$user.LastLogin.Format "2006-01-02 15:04"}}
                 {{end}}
             </td>
-            <td>
+            <td class="text-end">
                 {{ if not (and (eq $admins 1) (eq $user.Role 2)) }}
                 <a href="#" data-bs-toggle="modal" data-bs-target="#delete-modal" data-id="{{$user.Username}}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash3-fill" viewBox="0 0 16 16">
