@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"log"
 	"strings"
 	"time"
 
@@ -35,6 +36,12 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 			"EmailSendingConfigured": emailSendingConfigured,
 			"DisableLoginLink":       true,
 		}, "layout")
+	}
+
+	user.LastLogin = time.Now()
+	if err := a.repository.Update(user); err != nil {
+		log.Printf("error updating user last login time: %v\n", err)
+		return fiber.ErrInternalServerError
 	}
 
 	// Send back JWT as a cookie.

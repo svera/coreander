@@ -29,6 +29,7 @@ type User struct {
 	RecoveryUUID       string
 	RecoveryValidUntil time.Time
 	Highlights         []Highlight `gorm:"constraint:OnDelete:CASCADE"`
+	LastLogin          time.Time
 }
 
 // Validate checks all user's fields to ensure they are in the required format
