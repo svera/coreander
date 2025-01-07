@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
-	"github.com/disintegration/imaging"
+	"github.com/kovidgoyal/imaging"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/pirmd/epub"
 )
