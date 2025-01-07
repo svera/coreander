@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"image"
 
-	"github.com/disintegration/imaging"
 	"github.com/gofiber/fiber/v2"
+	"github.com/kovidgoyal/imaging"
 )
 
 func resize(src image.Image, coverMaxWidth int, err error) ([]byte, error) {
