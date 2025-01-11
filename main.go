@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/pirmd/epub"
 	"gorm.io/gorm"
 
+	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
@@ -41,8 +41,10 @@ func init() {
 	if err != nil {
 		log.Fatal("Error retrieving user home dir")
 	}
-	if err = cleanenv.ReadEnv(&cfg); err != nil {
-		log.Fatalf("Error parsing configuration from environment variables: %s", err)
+
+	ctx := kong.Parse(&cfg, kong.Name("coreander"), kong.Description("Coreander is a document management system"))
+	if ctx.Error != nil {
+		log.Fatalf("Error parsing configuration from environment variables: %s", ctx.Error)
 	}
 	if _, err := os.Stat(cfg.LibPath); os.IsNotExist(err) {
 		log.Fatalf("Directory '%s' does not exist, exiting", cfg.LibPath)

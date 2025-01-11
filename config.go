@@ -3,38 +3,38 @@ package main
 // Config stores the application configuration
 type Config struct {
 	// LibPath holds the absolute path to the folder containing the documents
-	LibPath string `env:"LIB_PATH" env-required:"true"`
+	LibPath string `arg:"" env:"LIB_PATH" help:"Absolute path to the folder containing the documents." type:"path"`
 	// FQDN stores the domain name of the server. If the server is listening on a non-standard HTTP / HTTPS port, include it using a colon (e. g. :3000)
-	FQDN string `env:"FQDN" env-default:"localhost"`
+	FQDN string `env:"FQDN" default:"localhost" name:"fqdn" help:"Domain name of the server. If the server is listening on a non-standard HTTP / HTTPS port, include it using a colon (e. g. :3000)"`
 	// Port defines the port number in which the webserver listens for requests
-	Port int `env:"PORT" env-default:"3000"`
+	Port int `env:"PORT" default:"3000" help:"Port number in which the webserver listens for requests"`
 	// BatchSize indicates the number of documents persisted by the indexer in one operation
-	BatchSize int `env:"BATCH_SIZE" env-default:"100"`
+	BatchSize int `env:"BATCH_SIZE" default:"100" name:"batch-size" help:"Number of documents persisted by the indexer in one operation"`
 	// CoverMaxWidth sets the maximum horizontal size for documents cover thumbnails in pixels
-	CoverMaxWidth int `env:"COVER_MAX_WIDTH" env-default:"600"`
+	CoverMaxWidth int `env:"COVER_MAX_WIDTH" default:"600" name:"cover-max-width" help:"Maximum horizontal size for documents cover thumbnails in pixels"`
 	// ForceIndexing signals whether to force indexing already indexed documents or not
-	ForceIndexing bool `env:"FORCE_INDEXING" env-default:"false"`
+	ForceIndexing bool `env:"FORCE_INDEXING" default:"false" name:"force-indexing" help:"Force indexing already indexed documents"`
 	// SmtpServer points to the address of the send mail server
-	SmtpServer string `env:"SMTP_SERVER"`
+	SmtpServer string `env:"SMTP_SERVER" name:"smtp-server" help:"Address of the send mail server"`
 	// SmtpPort defines the port in which the mail server listens for requests
-	SmtpPort int `env:"SMTP_PORT" env-default:"587"`
+	SmtpPort int `env:"SMTP_PORT" default:"587" name:"smtp-port" help:"Port in which the mail server listens for requests"`
 	// SmtpUser holds the user to authenticate against the SMTP server
-	SmtpUser string `env:"SMTP_USER"`
+	SmtpUser string `env:"SMTP_USER" name:"smtp-user" help:"User to authenticate against the SMTP server"`
 	// SmtpUser holds the password to authenticate against the SMTP server
-	SmtpPassword string `env:"SMTP_PASSWORD"`
+	SmtpPassword string `env:"SMTP_PASSWORD" name:"smtp-password" help:"Password to authenticate against the SMTP server"`
 	// JwtSecret stores the string to use to sign JWTs
-	JwtSecret []byte `env:"JWT_SECRET"`
+	JwtSecret []byte `env:"JWT_SECRET" name:"jwt-secret" help:"String to use to sign JWTs"`
 	// RequireAuth is a switch to enable the application to require authentication to access any route if true
-	RequireAuth bool `env:"REQUIRE_AUTH" env-default:"false"`
+	RequireAuth bool `env:"REQUIRE_AUTH" default:"false" name:"require-auth" help:"Require authentication to access any route"`
 	// MinPasswordLength is the minimum length acceptable for passwords
-	MinPasswordLength int `env:"MIN_PASSWORD_LENGTH" env-default:"5"`
+	MinPasswordLength int `env:"MIN_PASSWORD_LENGTH" default:"5" name:"min-password-length" help:"Minimum length acceptable for passwords"`
 	// WordsPerMinute defines a default words per minute reading speed that will be used for not logged-in users
-	WordsPerMinute float64 `env:"WORDS_PER_MINUTE" env-default:"250"`
+	WordsPerMinute float64 `env:"WORDS_PER_MINUTE" default:"250" name:"words-per-minute" help:"Default words per minute reading speed that will be used for not logged-in users"`
 	// SessionTimeout specifies the maximum time a user session may last in hours
-	SessionTimeout float64 `env:"SESSION_TIMEOUT" env-default:"24"`
+	SessionTimeout float64 `env:"SESSION_TIMEOUT" default:"24" name:"session-timeout" help:"Maximum time a user session may last in hours"`
 	// RecoveryTimeout specifies the maximum time a user recovery link may last in hours
-	RecoveryTimeout float64 `env:"RECOVERY_TIMEOUT" env-default:"2"`
+	RecoveryTimeout float64 `env:"RECOVERY_TIMEOUT" default:"2" name:"recovery-timeout" help:"Maximum time a user recovery link may last in hours"`
 	// UploadDocumentMaxSize is the maximum document size allowed to be uploaded to the library, in megabytes.
 	// Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
-	UploadDocumentMaxSize int `env:"UPLOAD_DOCUMENT_MAX_SIZE" env-default:"20"`
+	UploadDocumentMaxSize int `env:"UPLOAD_DOCUMENT_MAX_SIZE" default:"20" name:"upload-document-max-size" help:"Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size."`
 }
