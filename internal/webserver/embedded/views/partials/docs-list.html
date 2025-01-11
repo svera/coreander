@@ -28,7 +28,9 @@
                 </div>
                 {{if and $session (eq $session.Role 2)}}
                 <div class="col-5 text-end">
-                    {{ template "partials/delete-button" dict "Lang" $lang "Document" $document }}
+                    <button href="#" data-bs-toggle="modal" data-bs-target="#delete-modal" data-id="{{$document.Slug}}" class="btn btn-sm btn-danger" title="{{$document.ID}}">
+                        <i class="bi-trash3-fill"></i>
+                    </button>
                 </div>
                 {{end}}
             </div>

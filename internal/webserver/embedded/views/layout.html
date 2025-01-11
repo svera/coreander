@@ -11,6 +11,7 @@
     <!-- Bootstrap core CSS -->
     <link href="/css/bootstrap.min.css" rel="stylesheet">
     <link href="/css/display.css" rel="stylesheet">
+    <link href="/css/bootstrap-icons.min.css" rel="stylesheet">
     <!-- Favicons -->
     <meta name="theme-color" content="#000">
     <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
@@ -36,9 +37,7 @@
                     <div class="input-group input-group-sm">
                         <label for="search" class="visually-hidden">{{t .Lang "search"}}</label>
                         <input type="search" name="search" id="searchbox" class="form-control" placeholder={{t .Lang "Title, authors, subjects, etc."}} maxlength="255" required autofocus value="{{.Keywords}}">
-                        <button class="btn btn-outline-secondary" type="submit"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
-                            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
-                        </svg></button>
+                        <button class="btn btn-outline-secondary" type="submit"><i class="bi-search"></i></button>
                     </div>
                 </form>
                 {{end}}
@@ -63,38 +62,30 @@
                                     <li>
                                         {{if eq .Session.Role 2}}
                                         <a class="dropdown-item" href="/users">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                fill="currentColor" class="bi bi-people-fill" viewBox="0 0 16 16">
-                                                <path
-                                                    d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7Zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-5.784 6A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216ZM4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-                                            </svg>
+                                            <i class="bi-person-fill"></i>
+
                                             {{t .Lang "Users"}}
                                         </a>
                                         {{else}}
                                         <a class="dropdown-item" href="/users/{{.Session.Username}}">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                fill="currentColor" class="bi bi-person-fill" viewBox="0 0 16 16">
-                                                <path
-                                                    d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3Zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-                                            </svg>
+                                            <i class="bi-person-fill"></i>
+
                                             {{t .Lang "Update your profile"}}
                                         </a>
                                         {{end}}
                                     </li>
                                     <li>
                                         <a class="dropdown-item" href="/highlights">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16">
-                                                <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
-                                            </svg>
+                                            <i class="bi-star-fill"></i>
+
                                             {{t .Lang "Highlights"}}
                                         </a>
                                     </li>
                                     {{if eq .Session.Role 2}}
                                     <li>
                                         <a class="dropdown-item" href="/upload">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cloud-upload-fill" viewBox="0 0 16 16">
-                                                <path fill-rule="evenodd" d="M8 0a5.53 5.53 0 0 0-3.594 1.342c-.766.66-1.321 1.52-1.464 2.383C1.266 4.095 0 5.555 0 7.318 0 9.366 1.708 11 3.781 11H7.5V5.707L5.354 7.854a.5.5 0 1 1-.708-.708l3-3a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 5.707V11h4.188C14.502 11 16 9.57 16 7.773c0-1.636-1.242-2.969-2.834-3.194C12.923 1.999 10.69 0 8 0m-.5 14.5V11h1v3.5a.5.5 0 0 1-1 0"/>
-                                            </svg>
+                                            <i class="bi-cloud-upload-fill"></i>
+
                                             {{t .Lang "Upload document"}}
                                         </a>
                                     </li>
@@ -104,13 +95,8 @@
                                     </li>
                                     <li>
                                         <a class="dropdown-item" href="/sessions" hx-delete="/sessions">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                fill="currentColor" class="bi bi-box-arrow-right" viewBox="0 0 16 16">
-                                                <path fill-rule="evenodd"
-                                                    d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z" />
-                                                <path fill-rule="evenodd"
-                                                    d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z" />
-                                            </svg>
+                                            <i class="bi-box-arrow-right"></i>
+
                                             {{t .Lang "Logout"}}
                                         </a>
                                     </li>
