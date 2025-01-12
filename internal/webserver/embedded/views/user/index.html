@@ -55,14 +55,4 @@
 {{template "partials/delete-modal" dict "Lang" $lang "Action" "users" "ModalHeader" "Delete user" "ModalBody" "Are you sure you want to delete this user?" "ModalErrorMessage" "There was an error deleting the user, try again later"}}
 
 <script type="text/javascript" src="/js/delete.js"></script>
-<script type="text/javascript" src="/js/luxon.min.js"></script>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const datetime = document.querySelectorAll('.datetime span');
-        datetime.forEach(function(element) {
-            const dt = luxon.DateTime.fromISO(element.textContent);
-            element.textContent = dt.toRelative({ locale: '{{$lang}}' });
-        });
-    });
-</script>
+<script type="module" src="/js/datetime.js"></script>
