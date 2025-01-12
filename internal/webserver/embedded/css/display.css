@@ -117,3 +117,7 @@ a.collapse-control.collapsed:after {
 .actions .dropdown-menu {
     white-space: nowrap;
 }
+
+.datetime::first-letter {
+    text-transform: capitalize;
+}
