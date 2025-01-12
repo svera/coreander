@@ -29,11 +29,11 @@
                 <span class="badge rounded-pill text-bg-secondary">Admin</span>
                 {{end}}
             </td>
-            <td>
+            <td class="datetime">
                 {{if $user.LastLogin.IsZero }}
                     {{t $lang "Never"}}
                 {{else}}
-                    {{$user.LastLogin.Format "2006-01-02 15:04"}}
+                    <span>{{$user.LastLogin.Format "2006-01-02T15:04:05Z"}}</span>
                 {{end}}
             </td>
             <td class="text-end">
@@ -55,3 +55,4 @@
 {{template "partials/delete-modal" dict "Lang" $lang "Action" "users" "ModalHeader" "Delete user" "ModalBody" "Are you sure you want to delete this user?" "ModalErrorMessage" "There was an error deleting the user, try again later"}}
 
 <script type="text/javascript" src="/js/delete.js"></script>
+<script type="module" src="/js/datetime.js"></script>
