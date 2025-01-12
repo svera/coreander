@@ -33,7 +33,7 @@
                 {{if $user.LastLogin.IsZero }}
                     {{t $lang "Never"}}
                 {{else}}
-                    <span class="datetime">{{$user.LastLogin.Format "2006-01-02T15:04:05Z"}}</span>
+                    <span>{{$user.LastLogin.Format "2006-01-02T15:04:05Z"}}</span>
                 {{end}}
             </td>
             <td class="text-end">
@@ -59,7 +59,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const datetime = document.querySelectorAll('span.datetime');
+        const datetime = document.querySelectorAll('.datetime span');
         datetime.forEach(function(element) {
             const dt = luxon.DateTime.fromISO(element.textContent);
             element.textContent = dt.toRelative({ locale: '{{$lang}}' });
