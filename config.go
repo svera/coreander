@@ -4,8 +4,8 @@ package main
 type Config struct {
 	// LibPath holds the absolute path to the folder containing the documents
 	LibPath string `arg:"" env:"LIB_PATH" help:"Absolute path to the folder containing the documents." type:"path"`
-	// FQDN stores the domain name of the server. If the server is listening on a non-standard HTTP / HTTPS port, include it using a colon (e. g. :3000)
-	FQDN string `env:"FQDN" default:"localhost" name:"fqdn" help:"Domain name of the server. If the server is listening on a non-standard HTTP / HTTPS port, include it using a colon (e. g. :3000)"`
+	// FQDN stores the domain name of the server. If the server is listening on a non-standard HTTP / HTTPS port, include it using a colon (e. g. example.com:3000)
+	FQDN string `env:"FQDN" default:"localhost" name:"fqdn" help:"Domain name of the server. If the server is listening on a non-standard HTTP / HTTPS port, include it using a colon (e. g. example:3000)"`
 	// Port defines the port number in which the webserver listens for requests
 	Port int `env:"PORT" default:"3000" help:"Port number in which the webserver listens for requests"`
 	// BatchSize indicates the number of documents persisted by the indexer in one operation
@@ -23,7 +23,7 @@ type Config struct {
 	// SmtpUser holds the password to authenticate against the SMTP server
 	SmtpPassword string `env:"SMTP_PASSWORD" name:"smtp-password" help:"Password to authenticate against the SMTP server"`
 	// JwtSecret stores the string to use to sign JWTs
-	JwtSecret []byte `env:"JWT_SECRET" name:"jwt-secret" help:"String to use to sign JWTs"`
+	JwtSecret string `env:"JWT_SECRET" name:"jwt-secret" help:"String to use to sign JWTs"`
 	// RequireAuth is a switch to enable the application to require authentication to access any route if true
 	RequireAuth bool `env:"REQUIRE_AUTH" default:"false" name:"require-auth" help:"Require authentication to access any route"`
 	// MinPasswordLength is the minimum length acceptable for passwords

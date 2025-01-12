@@ -84,7 +84,7 @@ func main() {
 		Version:               version,
 		MinPasswordLength:     cfg.MinPasswordLength,
 		WordsPerMinute:        cfg.WordsPerMinute,
-		JwtSecret:             cfg.JwtSecret,
+		JwtSecret:             []byte(cfg.JwtSecret),
 		FQDN:                  cfg.FQDN,
 		Port:                  cfg.Port,
 		HomeDir:               homeDir,

@@ -58,13 +58,13 @@ Environment="LIB_PATH=<absolute path to the library>"
 
 then, start the service with `service coreander start`. You can manage it with the usual commands `start`, `stop` and `status`. Refer to your service manager documentation for more information.
 
-Coreander requires a `LIB_PATH` environment variable to be set, which tells the application where your documents are located.
+Coreander requires the absolute path where your documents are located as an argument. You can also pass it through the `LIB_PATH` environment variable.
 
 On first run, Coreander will index the documents in your library, creating a database with those entries located at `$home/coreander/index`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.
 
-Every time is run, the application scans the library folder only for documents not yet indexed and adds them to the index. You can force to index all documents wether they were previously indexed or not by setting the environment variable `FORCE_INDEXING` to `true`.
+Every time is run, the application scans the library folder only for documents not yet indexed and adds them to the index. You can force to index all documents wether they were previously indexed or not by passing the `--force-indexing` flag or setting the environment variable `FORCE_INDEXING` to `true`.
 
-Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` with the hostname / IP address of the machine where the server is running if you want to access it from another system). It is possible to change the listening port just executing the application with the `PORT` environment variable (e. g. `PORT=4000 coreander`)
+Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` with the hostname / IP address of the machine where the server is running if you want to access it from another system). It is possible to change the listening port just executing the application with the `--port` flag or the `PORT` environment variable (e. g. `coreandexr --port 4000` or `PORT=4000 coreander`)
 
 ### Setting up an Internet-facing server
 
@@ -87,12 +87,14 @@ Some features rely on having an SMTP email service set up, and won't be availabl
 * Send document to email.
 * Recover user password.
 
-You can use any email service that allow sending emails using the SMTP protocol, like [GMX](https://gmx.com/mail). The following environment variables need to be defined:
+You can use any email service that allow sending emails using the SMTP protocol, like [GMX](https://gmx.com/mail). The following flags or environment variables need to be defined:
 
-* `SMTP_SERVER`: The URL of the SMTP server to be used, for example `mail.gmx.com`.
-* `SMTP_PORT`: The port number used by the email service, defaults to `587`.
-* `SMTP_USER`: The user name.
-* `SMTP_PASSWORD`: User's password.
+|Flag|Environment variable|Description|
+|----|--------------------|-----------|
+|`--smtp-server`  | `SMTP_SERVER`  | The URL of the SMTP server to be used, for example `mail.gmx.com`.|
+|`--smtp-port`    | `SMTP_PORT`    | The port number used by the email service, defaults to `587`. |
+|`--smtp-user`    | `SMTP_USER`    | The user name. |
+|`--smtp-password`| `SMTP_PASSWORD`| User's password. |
 
 #### Send to email
 
@@ -102,7 +104,7 @@ Coreander can send documents through email. This way, you can take advantage of 
 
 Coreander distinguish between two kinds of users: regular users and administrator users, with the latter being the only ones with the ability to create new users and upload and delete documents.
 
-By default, Coreander allow unrestricted access to its contents, except management areas which require an administrator user. To allow access only to registered users in the whole application, pass the `REQUIRE_AUTH=true` environment variable.
+By default, Coreander allow unrestricted access to its contents, except management areas which require an administrator user. To allow access only to registered users in the whole application, pass the `--require-auth` flag or the `REQUIRE_AUTH=true` environment variable.
 
 On first run, Coreander creates an admin user with the following credentials:
 
@@ -113,20 +115,26 @@ On first run, Coreander creates an admin user with the following credentials:
 
 ### Settings
 
-* `LIB_PATH`: Absolute path to the folder containing the documents.
-* `PORT`: Port number in which the webserver listens for requests. Defaults to 3000.
-* `BATCH_SIZE`: Number of documents persisted by the indexer in one write operation. Defaults to 100.
-* `COVER_MAX_WIDTH`: Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 600.
-* `FORCE_INDEXING`: Whether to force indexing already indexed documents or not. Defaults to false.
-* `SMTP_SERVER`: Address of the send mail server.
-* `SMTP_PORT`: Port number of the send mail server. Defaults to 587.
-* `SMTP_USER`: User to authenticate against the SMTP server.
-* `SMTP_PASSWORD`: User's password to authenticate against the SMTP server.
-* `JWT_SECRET`: String to use to sign JWTs.
-* `REQUIRE_AUTH`: Require authentication to access the application if true. Defaults to false.
-* `MIN_PASSWORD_LENGTH`: Minimum length acceptable for passwords. Defaults to 5.
-* `WORDS_PER_MINUTE`: Defines a default words per minute reading speed that will be used for not logged-in users. Defaults to 250.
-* `SESSION_TIMEOUT`: Specifies the maximum time a user session may last, in hours. Floating-point values are allowed. Defaults to 24 hours.
-* `RECOVERY_TIMEOUT`: Specifies the maximum time a user recovery link may last, in hours. Floating-point values are allowed. Defaults to 2 hours.
-* `UPLOAD_DOCUMENT_MAX_SIZE`: Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
-* `FQDN`: Domain name of the server. If Coreander is listening to a non-standard HTTP / HTTPS port, include it using a colon (e. g. example.com:3000). Defaults to `localhost`.
+Run `coreander -h` or `coreander --help` to see help.
+
+In case both a flag and its equivalent environment variable are passed, flag takes precendence.
+
+|Flag|Environment variable|Description|
+|----|--------------------|-----------|
+|`--lib-path`                 |`LIB_PATH`                | Absolute path to the folder containing the documents.
+|`--port`                     |`PORT`                    | Port number in which the webserver listens for requests. Defaults to 3000.
+|`--batch-size`               |`BATCH_SIZE`              | Number of documents persisted by the indexer in one write operation. Defaults to 100.
+|`--cover-max-width`          |`COVER_MAX_WIDTH`         | Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 600.
+|`--force-indexing`           |`FORCE_INDEXING`          | Whether to force indexing already indexed documents or not. Defaults to false.
+|`--smtp-server`              |`SMTP_SERVER`             | Address of the send mail server.
+|`--smtp-port`                |`SMTP_PORT`               | Port number of the send mail server. Defaults to 587.
+|`--smtp-user`                |`SMTP_USER`               | User to authenticate against the SMTP server.
+|`--smtp-password`            |`SMTP_PASSWORD`           | User's password to authenticate against the SMTP server.
+|`--jwt-secret`               |`JWT_SECRET`              | String to use to sign JWTs.
+|`--require-auth`             |`REQUIRE_AUTH`            | Require authentication to access the application if true. Defaults to false.
+|`--min-password-length`      |`MIN_PASSWORD_LENGTH`     | Minimum length acceptable for passwords. Defaults to 5.
+|`--words-per-minute`         |`WORDS_PER_MINUTE`        | Defines a default words per minute reading speed that will be used for not logged-in users. Defaults to 250.
+|`--session-timeout`          |`SESSION_TIMEOUT`         | Specifies the maximum time a user session may last, in hours. Floating-point values are allowed. Defaults to 24 hours.
+|`--recovery-timeout`         |`RECOVERY_TIMEOUT`        | Specifies the maximum time a user recovery link may last, in hours. Floating-point values are allowed. Defaults to 2 hours.
+|`--upload-document-max-size` |`UPLOAD_DOCUMENT_MAX_SIZE`| Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
+|`--fqdn`                     |`FQDN`                    | Domain name of the server. If Coreander is listening to a non-standard HTTP / HTTPS port, include it using a colon (e. g. example.com:3000). Defaults to `localhost`.
