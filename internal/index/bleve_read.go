@@ -269,7 +269,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	typeQuery.SetField("Type")
 	bq.AddMust(typeQuery)
 
-	res := make([]Document, quantity)
+	res := make([]Document, 0, quantity)
 	for i := 0; i < quantity; i++ {
 		doc, err := b.runQuery(bq, 1)
 		if err != nil {
@@ -278,7 +278,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		if len(doc) == 0 {
 			return res, nil
 		}
-		res[i] = doc[0]
+		res = append(res, doc[0])
 		for _, slug := range doc[0].AuthorsSlugs {
 			qa := bleve.NewTermQuery(slug)
 			qa.SetField("AuthorsSlugs")
