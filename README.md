@@ -132,7 +132,7 @@ On first run, Coreander creates an admin user with the following credentials:
 * `UPLOAD_DOCUMENT_MAX_SIZE`: Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
 * `FQDN`: Domain name of the server. If Coreander is listening to a non-standard HTTP / HTTPS port, include it using a colon (e. g. example.com:3000). Defaults to `localhost`.
 
-### Screenshots
+## Screenshots
 
 ![Search results](search-results.png)
 *Search results*
