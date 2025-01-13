@@ -2,10 +2,8 @@
 
 A personal documents server, Coreander indexes the documents (EPUBs and PDFs with no DRM) that it finds in the passed folder, and provides a web interface to search and access them.
 
-<figure>
-    <img src="home.png" alt="Coreander home" style="border: solid 1px">
-    <figcaption style="text-align: center"><i>Coreander home</i></figcaption>
-</figure>
+![Coreander home](home.png)
+*Coreander home*
 
 ## Features
 * Single binary with all dependencies included.
@@ -136,17 +134,9 @@ On first run, Coreander creates an admin user with the following credentials:
 
 ## Screenshots
 
-<figure style="margin-bottom: 2em">
-    <img src="search-results.png" alt="Coreander home" style="border: solid 1px;">
-    <figcaption style="text-align: center"><i>Coreander home</i></figcaption>
-</figure>
-
-<figure style="margin-bottom: 2em">
-    <img src="doc-detail.png" alt="Document detail in dark mode" style="border: solid 1px">
-    <figcaption style="text-align: center"><i>Document detail in dark mode</i></figcaption>
-</figure>
-
-<figure>
-    <img src="reading.png" alt="Reading interface" style="border: solid 1px">
-    <figcaption style="text-align: center"><i>Reading interfac</i></figcaption>
-</figure>
+![Search results](search-results.png)
+*Search results*
+![Document detail in dark mode](doc-detail.png)
+*Document detail in dark mode*
+![Reading interface](reading.png)
+*Reading interface*
