@@ -13,7 +13,7 @@ import (
 func (u *Controller) Create(c *fiber.Ctx) error {
 	role, _ := strconv.Atoi(c.FormValue("role"))
 	user := model.User{
-		Name:        c.FormValue("name"),
+		Name:        strings.TrimSpace(c.FormValue("name")),
 		Username:    strings.ToLower(c.FormValue("username")),
 		Email:       c.FormValue("email"),
 		SendToEmail: c.FormValue("send-to-email"),
