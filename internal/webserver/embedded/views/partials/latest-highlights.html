@@ -1,15 +1,19 @@
-<div class="col-9">
-    <h2>{{t .Lang "Your highlights" }}</h2>
+<div class="row border-bottom mb-3">
+    <div class="col-9">
+        <h2>{{t .Lang "Your highlights" }}</h2>
+    </div>
+
+    {{if gt (len .Highlights) 0}}
+        <div class="col-3 text-end">
+                <a  href="/highlights">
+                        {{t .Lang "See all" }}
+                </a>
+        </div>
+    {{end}}
 </div>
 
 {{if gt (len .Highlights) 0}}
-    <div class="col-3 text-end">
-            <a  href="/highlights">
-                    {{t .Lang "See all" }}
-            </a>
-    </div>
-
-    <div class="row mt-3 pe-0 align-items-end">
+    <div class="row pe-0 align-items-end">
         {{$lang := .Lang}}
         {{$emailSendingConfigured := .EmailSendingConfigured}}
         {{$session := .Session}}

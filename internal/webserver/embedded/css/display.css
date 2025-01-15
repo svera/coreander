@@ -117,3 +117,19 @@ a.collapse-control.collapsed:after {
 .actions .dropdown-menu {
     white-space: nowrap;
 }
+
+.datetime::first-letter {
+    text-transform: capitalize;
+}
+
+.zoomable {
+    overflow: hidden;
+}
+
+.zoomable img {
+    transition: all .3s ease;
+}
+
+.zoomable img:hover {
+    transform: scale(1.1);
+}
