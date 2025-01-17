@@ -39,7 +39,7 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 }
 
 func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session model.Session) error {
-	user.Name = c.FormValue("name")
+	user.Name = strings.TrimSpace(c.FormValue("name"))
 	user.Username = strings.ToLower(c.FormValue("username"))
 	user.Email = c.FormValue("email")
 	user.SendToEmail = c.FormValue("send-to-email")
@@ -120,7 +120,7 @@ func (u *Controller) validate(c *fiber.Ctx, user *model.User, session model.Sess
 func (u *Controller) usernameExists(c *fiber.Ctx, session model.Session) (bool, error) {
 	user, err := u.repository.FindByUsername(c.FormValue("username"))
 	if err != nil {
-		return true, fiber.ErrInternalServerError
+		return true, err
 	}
 	if user != nil && (session.Role == model.RoleAdmin && user.Uuid == c.FormValue("id")) {
 		return false, nil

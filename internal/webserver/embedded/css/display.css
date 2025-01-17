@@ -133,3 +133,7 @@ a.collapse-control.collapsed:after {
 .zoomable img:hover {
     transform: scale(1.1);
 }
+
+.zoomable + .card-img-overlay {
+    bottom: auto !important;
+}
