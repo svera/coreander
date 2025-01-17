@@ -107,8 +107,11 @@ class Reader {
     }
     async open(file) {
         this.view = document.createElement('foliate-view')
+        const storage = window.localStorage
+        const slug = document.getElementById('slug').value
         document.body.append(this.view)
         await this.view.open(file)
+        await this.view.init({lastLocation: storage.getItem(slug)})
         this.view.addEventListener('load', this.#onLoad.bind(this))
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
 

@@ -2,7 +2,8 @@
 
 A personal documents server, Coreander indexes the documents (EPUBs and PDFs with no DRM) that it finds in the passed folder, and provides a web interface to search and access them.
 
-![Coreander screenshot](screenshot.png)
+![Coreander home](home.png)
+*Coreander home*
 
 ## Features
 * Single binary with all dependencies included.
@@ -138,3 +139,12 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`--recovery-timeout`         |`RECOVERY_TIMEOUT`        | Specifies the maximum time a user recovery link may last, in hours. Floating-point values are allowed. Defaults to 2 hours.
 |`--upload-document-max-size` |`UPLOAD_DOCUMENT_MAX_SIZE`| Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
 |`--fqdn`                     |`FQDN`                    | Domain name of the server. If Coreander is listening to a non-standard HTTP / HTTPS port, include it using a colon (e. g. example.com:3000). Defaults to `localhost`.
+
+## Screenshots
+
+![Search results](search-results.png)
+*Search results*
+![Document detail in dark mode](doc-detail.png)
+*Document detail in dark mode*
+![Reading interface](reading.png)
+*Reading interface*
