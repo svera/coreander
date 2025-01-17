@@ -106,7 +106,7 @@ func TestUserManagement(t *testing.T) {
 		mustReturnStatus(response, fiber.StatusOK, t)
 
 		newUserData := url.Values{
-			"name":             {"New user"},
+			"name":             {"New user   "}, // Extra spaces to test trimming
 			"username":         {"new"},
 			"email":            {"new@example.com"},
 			"send-to-email":    {"send@example.com"},
@@ -123,7 +123,12 @@ func TestUserManagement(t *testing.T) {
 		mustRedirectToUsersList(response, t)
 
 		var totalUsers int64
-		db.Take(&[]model.User{}).Count(&totalUsers)
+		var user model.User
+		db.Last(&user).Count(&totalUsers)
+
+		if user.Name != "New user" {
+			t.Errorf("Expected name to be 'New user', got %s", user.Name)
+		}
 
 		if totalUsers != 3 {
 			t.Errorf("Expected 3 users in the users list, got %d", totalUsers)
@@ -234,7 +239,7 @@ func TestUserManagement(t *testing.T) {
 	t.Run("Try to update the user in session", func(t *testing.T) {
 		reset()
 
-		regularUserData.Set("name", "Updated regular user")
+		regularUserData.Set("name", "Updated regular user   ") // Extra spaces to test trimming
 		regularUserData.Set("id", regularUser.Uuid)
 
 		response, err := getRequest(regularUserCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
