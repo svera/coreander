@@ -63,7 +63,7 @@
         {{ $length := len .SameSeries }} {{ if gt $length 0 }}
         <section class="row mt-5">
             <div class="col-9">
-                <h4>{{t $lang "Other documents in collection \"%s\"" .Document.Series}}</h4>
+                <h4>{{t $lang "Also in collection \"%s\"" .Document.Series}}</h4>
             </div>
             <div class="col-3 text-end">
                 <a  href="/documents?search=SeriesSlug&colon;{{.Document.SeriesSlug}}">
@@ -84,7 +84,7 @@
         <section class="row mt-5">
             <div class="col-9">
                 <h4>
-                    {{t $lang "Other documents by"}}
+                    {{t $lang "Also by"}}
                     {{join $document.Authors ", "}}
                 </h4>
             </div>
@@ -111,7 +111,7 @@
         {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
         <section class="row mt-5">
             <div class="col-9">
-                <h4>{{t $lang "Other documents with similar subjects"}}</h4>
+                <h4>{{t $lang "With similar subjects"}}</h4>
             </div>
             <div class="col-3 text-end">
                 <a  href='/documents?search=SubjectsSlugs&colon;{{join $document.SubjectsSlugs ","}}'>

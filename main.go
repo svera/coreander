@@ -25,7 +25,10 @@ const indexPath = "/.coreander/index"
 const databasePath = "/.coreander/database.db"
 
 var (
-	cfg             Config
+	CLIInput struct {
+		Config
+		Version kong.VersionFlag `short:"v" name:"version" help:"Get version number."`
+	}
 	appFs           afero.Fs
 	idx             *index.BleveIndexer
 	db              *gorm.DB
@@ -36,18 +39,27 @@ var (
 )
 
 func init() {
+	ctx := kong.Parse(&CLIInput, kong.Description(`
+		Coreander is a document management system which indexes metadata from documents
+		in a library and allows users to search and read them through a web interface.
+	`),
+		kong.Vars{
+			"version": version,
+		},
+	)
+
+	if ctx.Error != nil {
+		log.Fatalf("Error parsing configuration: %s", ctx.Error)
+	}
+
 	log.Printf("Coreander version %s starting\n", version)
 	homeDir, err = os.UserHomeDir()
 	if err != nil {
 		log.Fatal("Error retrieving user home dir")
 	}
 
-	ctx := kong.Parse(&cfg, kong.Name("coreander"), kong.Description("Coreander is a document management system"))
-	if ctx.Error != nil {
-		log.Fatalf("Error parsing configuration: %s", ctx.Error)
-	}
-	if _, err := os.Stat(cfg.LibPath); os.IsNotExist(err) {
-		log.Fatalf("Directory '%s' does not exist, exiting", cfg.LibPath)
+	if _, err := os.Stat(CLIInput.LibPath); os.IsNotExist(err) {
+		log.Fatalf("Directory '%s' does not exist, exiting", CLIInput.LibPath)
 	}
 
 	metadataReaders = map[string]metadata.Reader{
@@ -61,62 +73,62 @@ func init() {
 	appFs = afero.NewOsFs()
 
 	indexFile := getIndexFile(appFs)
-	idx = index.NewBleve(indexFile, appFs, cfg.LibPath, metadataReaders)
-	db = infrastructure.Connect(homeDir+databasePath, cfg.WordsPerMinute)
+	idx = index.NewBleve(indexFile, appFs, CLIInput.LibPath, metadataReaders)
+	db = infrastructure.Connect(homeDir+databasePath, CLIInput.WordsPerMinute)
 }
 
 func main() {
 	defer idx.Close()
 
-	go startIndex(idx, cfg.BatchSize, cfg.LibPath)
+	go startIndex(idx, CLIInput.BatchSize, CLIInput.LibPath)
 
 	sender = &infrastructure.NoEmail{}
-	if cfg.SmtpServer != "" && cfg.SmtpUser != "" && cfg.SmtpPassword != "" {
+	if CLIInput.SmtpServer != "" && CLIInput.SmtpUser != "" && CLIInput.SmtpPassword != "" {
 		sender = &infrastructure.SMTP{
-			Server:   cfg.SmtpServer,
-			Port:     cfg.SmtpPort,
-			User:     cfg.SmtpUser,
-			Password: cfg.SmtpPassword,
+			Server:   CLIInput.SmtpServer,
+			Port:     CLIInput.SmtpPort,
+			User:     CLIInput.SmtpUser,
+			Password: CLIInput.SmtpPassword,
 		}
 	}
 
 	webserverConfig := webserver.Config{
 		Version:               version,
-		MinPasswordLength:     cfg.MinPasswordLength,
-		WordsPerMinute:        cfg.WordsPerMinute,
-		JwtSecret:             []byte(cfg.JwtSecret),
-		FQDN:                  cfg.FQDN,
-		Port:                  cfg.Port,
+		MinPasswordLength:     CLIInput.MinPasswordLength,
+		WordsPerMinute:        CLIInput.WordsPerMinute,
+		JwtSecret:             []byte(CLIInput.JwtSecret),
+		FQDN:                  CLIInput.FQDN,
+		Port:                  CLIInput.Port,
 		HomeDir:               homeDir,
-		LibraryPath:           cfg.LibPath,
-		CoverMaxWidth:         cfg.CoverMaxWidth,
-		RequireAuth:           cfg.RequireAuth,
-		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
+		LibraryPath:           CLIInput.LibPath,
+		CoverMaxWidth:         CLIInput.CoverMaxWidth,
+		RequireAuth:           CLIInput.RequireAuth,
+		UploadDocumentMaxSize: CLIInput.UploadDocumentMaxSize,
 	}
 
-	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", cfg.SessionTimeout))
+	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", CLIInput.SessionTimeout))
 	if err != nil {
 		log.Fatal(fmt.Errorf("wrong value for session timeout"))
 	}
 
-	webserverConfig.RecoveryTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", cfg.RecoveryTimeout))
+	webserverConfig.RecoveryTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", CLIInput.RecoveryTimeout))
 	if err != nil {
 		log.Fatal(fmt.Errorf("wrong value for recovery timeout"))
 	}
 
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
 	app := webserver.New(webserverConfig, controllers, sender, idx)
-	if strings.ToLower(cfg.FQDN) == "localhost" {
+	if strings.ToLower(CLIInput.FQDN) == "localhost" {
 		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accessible outside this system.\n")
 	}
-	log.Printf("Started listening on port %d\n", cfg.Port)
-	log.Fatal(app.Listen(fmt.Sprintf(":%d", cfg.Port)))
+	log.Printf("Started listening on port %d\n", CLIInput.Port)
+	log.Fatal(app.Listen(fmt.Sprintf(":%d", CLIInput.Port)))
 }
 
 func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
 	start := time.Now().Unix()
 	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
-	err := idx.AddLibrary(batchSize, cfg.ForceIndexing)
+	err := idx.AddLibrary(batchSize, CLIInput.ForceIndexing)
 	if err != nil {
 		log.Fatal(err)
 	}
