@@ -2,7 +2,7 @@ package main
 
 import "github.com/alecthomas/kong"
 
-// CLIInput stores the application configuration
+// CLIInput stores all configuration flags and arguments thant can be passed to the application
 type CLIInput struct {
 	Version kong.VersionFlag `short:"v" name:"version" help:"Get version number."`
 	// LibPath holds the absolute path to the folder containing the documents
