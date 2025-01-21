@@ -25,10 +25,7 @@ const indexPath = "/.coreander/index"
 const databasePath = "/.coreander/database.db"
 
 var (
-	CLIInput struct {
-		Config
-		Version kong.VersionFlag `short:"v" name:"version" help:"Get version number."`
-	}
+	input           CLIInput
 	appFs           afero.Fs
 	idx             *index.BleveIndexer
 	db              *gorm.DB
@@ -39,9 +36,8 @@ var (
 )
 
 func init() {
-	ctx := kong.Parse(&CLIInput, kong.Description(`
-		Coreander is a document management system which indexes metadata from documents
-		in a library and allows users to search and read them through a web interface.
+	ctx := kong.Parse(&input, kong.Description(`
+		Coreander is a document management system which indexes metadata from documents in a library and allows users to search and read them through a web interface.
 	`),
 		kong.Vars{
 			"version": version,
@@ -58,8 +54,8 @@ func init() {
 		log.Fatal("Error retrieving user home dir")
 	}
 
-	if _, err := os.Stat(CLIInput.LibPath); os.IsNotExist(err) {
-		log.Fatalf("Directory '%s' does not exist, exiting", CLIInput.LibPath)
+	if _, err := os.Stat(input.LibPath); os.IsNotExist(err) {
+		log.Fatalf("Directory '%s' does not exist, exiting", input.LibPath)
 	}
 
 	metadataReaders = map[string]metadata.Reader{
@@ -73,62 +69,62 @@ func init() {
 	appFs = afero.NewOsFs()
 
 	indexFile := getIndexFile(appFs)
-	idx = index.NewBleve(indexFile, appFs, CLIInput.LibPath, metadataReaders)
-	db = infrastructure.Connect(homeDir+databasePath, CLIInput.WordsPerMinute)
+	idx = index.NewBleve(indexFile, appFs, input.LibPath, metadataReaders)
+	db = infrastructure.Connect(homeDir+databasePath, input.WordsPerMinute)
 }
 
 func main() {
 	defer idx.Close()
 
-	go startIndex(idx, CLIInput.BatchSize, CLIInput.LibPath)
+	go startIndex(idx, input.BatchSize, input.LibPath)
 
 	sender = &infrastructure.NoEmail{}
-	if CLIInput.SmtpServer != "" && CLIInput.SmtpUser != "" && CLIInput.SmtpPassword != "" {
+	if input.SmtpServer != "" && input.SmtpUser != "" && input.SmtpPassword != "" {
 		sender = &infrastructure.SMTP{
-			Server:   CLIInput.SmtpServer,
-			Port:     CLIInput.SmtpPort,
-			User:     CLIInput.SmtpUser,
-			Password: CLIInput.SmtpPassword,
+			Server:   input.SmtpServer,
+			Port:     input.SmtpPort,
+			User:     input.SmtpUser,
+			Password: input.SmtpPassword,
 		}
 	}
 
 	webserverConfig := webserver.Config{
 		Version:               version,
-		MinPasswordLength:     CLIInput.MinPasswordLength,
-		WordsPerMinute:        CLIInput.WordsPerMinute,
-		JwtSecret:             []byte(CLIInput.JwtSecret),
-		FQDN:                  CLIInput.FQDN,
-		Port:                  CLIInput.Port,
+		MinPasswordLength:     input.MinPasswordLength,
+		WordsPerMinute:        input.WordsPerMinute,
+		JwtSecret:             []byte(input.JwtSecret),
+		FQDN:                  input.FQDN,
+		Port:                  input.Port,
 		HomeDir:               homeDir,
-		LibraryPath:           CLIInput.LibPath,
-		CoverMaxWidth:         CLIInput.CoverMaxWidth,
-		RequireAuth:           CLIInput.RequireAuth,
-		UploadDocumentMaxSize: CLIInput.UploadDocumentMaxSize,
+		LibraryPath:           input.LibPath,
+		CoverMaxWidth:         input.CoverMaxWidth,
+		RequireAuth:           input.RequireAuth,
+		UploadDocumentMaxSize: input.UploadDocumentMaxSize,
 	}
 
-	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", CLIInput.SessionTimeout))
+	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", input.SessionTimeout))
 	if err != nil {
 		log.Fatal(fmt.Errorf("wrong value for session timeout"))
 	}
 
-	webserverConfig.RecoveryTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", CLIInput.RecoveryTimeout))
+	webserverConfig.RecoveryTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", input.RecoveryTimeout))
 	if err != nil {
 		log.Fatal(fmt.Errorf("wrong value for recovery timeout"))
 	}
 
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
 	app := webserver.New(webserverConfig, controllers, sender, idx)
-	if strings.ToLower(CLIInput.FQDN) == "localhost" {
+	if strings.ToLower(input.FQDN) == "localhost" {
 		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accessible outside this system.\n")
 	}
-	log.Printf("Started listening on port %d\n", CLIInput.Port)
-	log.Fatal(app.Listen(fmt.Sprintf(":%d", CLIInput.Port)))
+	log.Printf("Started listening on port %d\n", input.Port)
+	log.Fatal(app.Listen(fmt.Sprintf(":%d", input.Port)))
 }
 
 func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
 	start := time.Now().Unix()
 	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
-	err := idx.AddLibrary(batchSize, CLIInput.ForceIndexing)
+	err := idx.AddLibrary(batchSize, input.ForceIndexing)
 	if err != nil {
 		log.Fatal(err)
 	}

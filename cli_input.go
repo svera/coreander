@@ -1,7 +1,10 @@
 package main
 
-// Config stores the application configuration
-type Config struct {
+import "github.com/alecthomas/kong"
+
+// CLIInput stores the application configuration
+type CLIInput struct {
+	Version kong.VersionFlag `short:"v" name:"version" help:"Get version number."`
 	// LibPath holds the absolute path to the folder containing the documents
 	LibPath string `arg:"" env:"LIB_PATH" help:"Absolute path to the folder containing the documents." type:"path"`
 	// FQDN stores the domain name of the server. If the server is listening on a non-standard HTTP / HTTPS port, include it using a colon (e. g. example.com:3000)
