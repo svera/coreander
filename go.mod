@@ -5,6 +5,7 @@ go 1.23
 toolchain go1.23.0
 
 require (
+	github.com/alecthomas/kong v1.6.1
 	github.com/blevesearch/bleve/v2 v2.4.4
 	github.com/bmatcuk/doublestar/v4 v4.7.1
 	github.com/glebarez/sqlite v1.11.0
@@ -14,7 +15,6 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/google/uuid v1.6.0
 	github.com/hhrutter/tiff v1.0.1
-	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/kovidgoyal/imaging v1.6.3
 	github.com/magefile/mage v1.15.0
 	github.com/microcosm-cc/bluemonday v1.0.27
@@ -60,7 +60,6 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/PuerkitoBio/goquery v1.10.1
 	github.com/RoaringBitmap/roaring v1.9.4 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
@@ -87,7 +86,6 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/gosimple/slug v1.15.0
-	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
@@ -108,6 +106,4 @@ require (
 	golang.org/x/sys v0.29.0 // indirect
 	google.golang.org/protobuf v1.36.2 // indirect
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
-	gopkg.in/yaml.v3 v3.0.1 // indirect
-	olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3 // indirect
 )
