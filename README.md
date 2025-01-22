@@ -5,6 +5,9 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 ![Coreander home](home.png)
 *Coreander home*
 
+> [!IMPORTANT]
+> Command-line flags are only available in v4.6, currently in beta.
+
 ## Features
 * Single binary with all dependencies included.
 * Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for documents in multiple languages.
