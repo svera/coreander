@@ -153,3 +153,19 @@ a.collapse-control.collapsed:after {
 .htmx-request.spinner-border ~ .bi-envelope-fill {
     display: none;
 }
+
+.place {
+    display: none;
+}
+
+.htmx-request .place {
+    display: inline-block;
+}
+
+.htmx-request.place {
+    display: inline-block;
+}
+
+.htmx-request.place ~ div {
+    display: none;
+}

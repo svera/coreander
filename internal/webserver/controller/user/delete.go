@@ -7,6 +7,7 @@ import (
 
 // Delete removes a user from the database
 func (u *Controller) Delete(c *fiber.Ctx) error {
+	return nil
 	user, err := u.repository.FindByUsername(c.Params("username"))
 	if err != nil {
 		return fiber.ErrInternalServerError
