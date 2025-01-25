@@ -1,17 +1,14 @@
-<div hx-get="{{.Url}}" hx-swap="outerHTML" hx-trigger="dehighlight from:body">
-    <div class="py-5">
-        <h1 class="text-center">{{t .Lang "%s highlights" .Session.Name}}</h1>
-        {{if gt .Results.TotalHits 0}}
-        <p class="text-center">{{t .Lang "%d highlighted documents" .Results.TotalHits }}</p>
-        {{else}}
-        <p class="text-center">{{t .Lang "No highlighted documents" }}</p>
-        {{end}}
-    </div>
-
-    <div class="list-group list-group-flush">
-    {{ template "partials/docs-list" .}}
-    </div>
+<div class="py-5">
+    <h1 class="text-center">{{t .Lang "%s highlights" .Session.Name}}</h1>
 </div>
+
+{{template "partials/docs-list-placeholder" .}}
+
+<div id="list" hx-get="{{.URL}}" hx-trigger="dehighlight, update from:body" hx-indicator="#placeholder" class="list-group list-group-flush">
+    {{ template "partials/docs-list" .}}
+</div>
+
+{{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document, please try again later"}}
 
 <script type="text/javascript" src="/js/cover.js"></script>
 <script type="text/javascript" src="/js/send-email.js"></script>

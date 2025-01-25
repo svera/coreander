@@ -1,0 +1,43 @@
+<div id="placeholder" class="place htmx-indicator w-100 list-group list-group-flush" aria-hidden="true">
+    {{if .Results}} {{range $i, $document := .Results.Hits}}
+    <div class="list-group-item placeholder-glow mt-5">
+        <div class="row mb-5">
+            <div class="col-12 col-md-4 col-lg-3">
+                <div class="card border border-0">
+                    <img src="/images/generic.jpg" class="cover img-fluid" />
+                </div>
+            </div>
+            <div class="col-12 col-md-8 col-lg-9">
+                <div class="row">
+                    <div class="col-7">
+                        <span class="mb-0 placeholder col-12"></span>
+                        <h4>
+                            <span class="placeholder col-12"></span>
+                        </h4>
+                        <span class="small placeholder col-2"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <h5><span class="placeholder col-4"></span></h5>
+                        <p><span class="placeholder col-6"></span></p>
+
+                        <div>
+                            <span class="placeholder col-2"></span>
+                            <span class="placeholder col-2"></span>
+                            <span class="placeholder col-2"></span>
+                        </div>
+
+                        <div class="mb-1 mt-3">
+                            <span class="placeholder col-12"></span>
+                            <span class="placeholder col-12"></span>
+                            <span class="placeholder col-12"></span>
+                            <span class="placeholder col-12"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {{end}} {{end}}
+</div>

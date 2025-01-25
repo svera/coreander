@@ -17,22 +17,17 @@ func (u *Controller) List(c *fiber.Ctx) error {
 
 	users, _ := u.repository.List(page, model.ResultsPerPage)
 
-	url := c.Path()
-	qs := string(c.Request().URI().QueryString())
-	if qs != "" {
-		url += "?" + qs
-	}
-	templateMap := fiber.Map{
+	templateVars := fiber.Map{
 		"Title":     "Users",
 		"Users":     users.Hits(),
 		"Paginator": view.Pagination(model.MaxPagesNavigator, users, map[string]string{}),
 		"Admins":    u.repository.Admins(),
-		"URL":       url,
+		"URL":       view.URL(c),
 	}
 
 	if c.Get("hx-request") == "true" {
-		return c.Render("partials/users-list", templateMap)
+		return c.Render("partials/users-list", templateVars)
 	}
 
-	return c.Render("user/index", templateMap, "layout")
+	return c.Render("user/index", templateVars, "layout")
 }

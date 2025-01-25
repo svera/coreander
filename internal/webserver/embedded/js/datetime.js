@@ -19,5 +19,5 @@ document.addEventListener('DOMContentLoaded', datetimeFormatter());
 const observer = new MutationObserver(datetimeFormatter);
 
 // Start observing the target node for configured mutations
-const node = document.getElementById("test");
+const node = document.getElementById("list");
 observer.observe(node, { attributes: true, childList: false, subtree: true });

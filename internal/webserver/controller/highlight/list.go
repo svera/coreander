@@ -1,7 +1,6 @@
 package highlight
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 
@@ -17,6 +16,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	page, err := strconv.Atoi(c.Query("page"))
 	if err != nil {
 		page = 1
+		c.Query("page", "1")
 	}
 
 	var session model.Session
@@ -63,25 +63,31 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		highlights,
 	)
 
-	url := fmt.Sprintf("/highlights?view=list&page=%d", page)
-
 	layout := "layout"
 	if c.Query("view") == "list" {
 		layout = ""
 	}
 
-	err = c.Render("highlights", fiber.Map{
+	templateVars := fiber.Map{
 		"Results":                paginatedResults,
 		"Paginator":              view.Pagination(model.MaxPagesNavigator, paginatedResults, nil),
 		"Title":                  "Highlights",
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              h.sender.From(),
 		"WordsPerMinute":         h.wordsPerMinute,
-		"Url":                    url,
-	}, layout)
+		"URL":                    view.URL(c),
+	}
 
-	if err != nil {
+	if c.Get("hx-request") == "true" {
+		if err = c.Render("partials/docs-list", templateVars); err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
+		return nil
+	}
+	if err = c.Render("highlights", templateVars, layout); err != nil {
 		log.Println(err)
+		return fiber.ErrInternalServerError
 	}
 
 	return nil

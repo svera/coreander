@@ -1,27 +1,10 @@
-<p class="text-center mb-5">
-    {{if eq .Results.TotalHits 0}}
-        {{t .Lang "No matches found" }}
-        <section class="pt-5 text-center">
-            <h2 class="mb-3">{{t .Lang "Search tips"}}</h2>
-            <p>{{t .Lang "Use %s prefix in search box to search by authors only" `<span
-                    class="font-monospace">Authors:</span>`}}</p>
-            <p>{{t .Lang "Use %s prefix in search box to search by title only" `<span
-                    class="font-monospace">Title:</span>`}}</p>
-            <p>{{t .Lang "Use %s prefix in search box to search by series only" `<span
-                    class="font-monospace">Series:</span>`}}</p>
-            <p>{{t .Lang "Use %s prefix in search box to search by subjects only" `<span
-                    class="font-monospace">Subjects:</span>`}}</p>
-            <p>{{t .Lang "Enclose your search terms in double quotes to require all those terms and with the same order"}}
-            </p>
-        </section>
-    {{else}}
-        {{t .Lang "%d matches found" .Results.TotalHits }}
-    {{end}}
-</p>
+{{template "partials/docs-list-placeholder" .}}
 
-<div class="list-group list-group-flush">
+<div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder" class="list-group list-group-flush">
     {{ template "partials/docs-list" . }}
-<div class="list-group list-group-flush">
+</div>
+
+{{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
 
 <script type="text/javascript" src="/js/send-email.js"></script>
 <script type="text/javascript" src="/js/delete.js"></script>

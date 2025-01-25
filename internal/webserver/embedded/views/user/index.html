@@ -10,8 +10,34 @@
     </div>
 </div>
 
-<div id="test">
-{{template "partials/users-list" dict "Lang" .Lang "URL" .URL "Users" .Users "Admins" .Admins "Paginator" .Paginator}}
+<div id="placeholder" class="place htmx-indicator w-100" aria-hidden="true">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>{{t .Lang "Name"}}</th>
+                <th colspan="2">{{t .Lang "Last login"}}</th>
+            </tr>
+        </thead>
+        <tbody>
+        {{range .Users}}
+            <tr class="placeholder-glow">
+                <td>
+                    <span class="placeholder col-12"></span>
+                </td>
+                <td>
+                    <span class="placeholder col-7"></span>
+                </td>
+                <td class="text-end">
+                    <span class="placeholder col-1"></span>
+                </td>
+            </tr>
+        {{end}}
+        </tbody>
+    </table>
+</div>
+
+<div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder">
+    {{template "partials/users-list" dict "Lang" .Lang "URL" .URL "Users" .Users "Admins" .Admins "Paginator" .Paginator}}
 </div>
 
 {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/users" "ModalHeader" "Delete user" "ModalBody" "Are you sure you want to delete this user?" "ModalErrorMessage" "There was an error deleting the user, please try again later"}}
