@@ -137,3 +137,19 @@ a.collapse-control.collapsed:after {
 .zoomable + .card-img-overlay {
     bottom: auto !important;
 }
+
+.spinner-border {
+    display: none;
+}
+
+.htmx-request .spinner-border {
+    display: inline-block;
+}
+
+.htmx-request.spinner-border {
+    display: inline-block;
+}
+
+.htmx-request.spinner-border ~ .bi-envelope-fill {
+    display: none;
+}

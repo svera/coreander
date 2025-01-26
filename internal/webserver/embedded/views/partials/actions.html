@@ -29,8 +29,8 @@
         {{if not $sendToEmail}}{{$disabled = true}}{{end}}
         <div class="btn-group mb-1 flex-sm-fill" role="group" aria-label="Button group with nested dropdown">
             <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="btn btn-sm btn-outline-secondary w-100" {{if $disabled}}disabled{{end}} {{if $sendToEmail}}title='{{t .Lang "Send to %s" $sendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
+                <div id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator" aria-hidden="true"></div>
                 <i class="bi-envelope-fill"></i>
-                <span id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator" aria-hidden="true"></span>
             </button>
             <input type="hidden" name="email" id="quick-email-{{.Document.Slug}}" value="{{$sendToEmail}}" />
             <input type="hidden" name="slug" id="slug-{{.Document.Slug}}" value="{{.Document.Slug}}" />
