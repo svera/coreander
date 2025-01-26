@@ -1,6 +1,6 @@
 {{template "partials/docs-list-placeholder" .}}
 
-<div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder" class="list-group list-group-flush">
+<div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
     {{ template "partials/docs-list" . }}
 </div>
 

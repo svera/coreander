@@ -10,7 +10,7 @@
     </div>
 </div>
 
-<div id="placeholder" class="place htmx-indicator w-100" aria-hidden="true">
+<div id="placeholder-indicator" class="place htmx-indicator w-100" aria-hidden="true">
     <table class="table table-striped">
         <thead>
             <tr>
@@ -36,7 +36,7 @@
     </table>
 </div>
 
-<div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder">
+<div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator">
     {{template "partials/users-list" dict "Lang" .Lang "URL" .URL "Users" .Users "Admins" .Admins "Paginator" .Paginator}}
 </div>
 

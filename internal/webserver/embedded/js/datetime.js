@@ -14,8 +14,6 @@ const datetimeFormatter = () => {
 
 document.addEventListener('DOMContentLoaded', datetimeFormatter());
 
-//const callback = (mutationList, observer) => datetimeFormatter();
-
 const observer = new MutationObserver(datetimeFormatter);
 
 // Start observing the target node for configured mutations

@@ -10,7 +10,6 @@ import (
 )
 
 func (d *Controller) Delete(c *fiber.Ctx) error {
-	return nil
 	document, err := d.idx.Document(c.Params("slug"))
 	if err != nil {
 		return fiber.ErrBadRequest
