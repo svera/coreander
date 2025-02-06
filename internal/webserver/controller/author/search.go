@@ -1,7 +1,6 @@
 package author
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 
@@ -50,16 +49,26 @@ func (a *Controller) Search(c *fiber.Ctx) error {
 		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
-	err = c.Render("author/results", fiber.Map{
+	templateVars := fiber.Map{
 		"Author":                 author,
 		"Results":                searchResults,
 		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, map[string]string{}),
-		"Title":                  fmt.Sprintf("Coreander - %s", author.Name),
+		"Title":                  author.Name,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              a.sender.From(),
 		"WordsPerMinute":         a.config.WordsPerMinute,
-	}, "layout")
+		"URL":                    view.URL(c),
+	}
 
+	if c.Get("hx-request") == "true" {
+		if err = c.Render("partials/docs-list", templateVars); err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
+		return nil
+	}
+
+	err = c.Render("author/results", templateVars, "layout")
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError

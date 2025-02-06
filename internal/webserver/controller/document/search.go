@@ -48,7 +48,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
-	err = c.Render("results", fiber.Map{
+	templateVars := fiber.Map{
 		"Keywords":               keywords,
 		"Results":                searchResults,
 		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, map[string]string{"search": keywords}),
@@ -56,11 +56,21 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),
 		"WordsPerMinute":         d.config.WordsPerMinute,
-	}, "layout")
+		"URL":                    view.URL(c),
+	}
 
-	if err != nil {
+	if c.Get("hx-request") == "true" {
+		if err = c.Render("partials/docs-list", templateVars); err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
+		return nil
+	}
+
+	if err = c.Render("document/results", templateVars, "layout"); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
+
 	return nil
 }

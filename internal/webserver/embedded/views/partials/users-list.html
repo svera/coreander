@@ -1,0 +1,44 @@
+{{$lang := .Lang}}
+{{$admins := .Admins}}
+<div>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>{{t $lang "Name"}}</th>
+                <th colspan="2">{{t $lang "Last login"}}</th>
+            </tr>
+        </thead>
+        <tbody>
+        {{range $i, $user := .Users}}
+            <tr>
+                <td>
+                    <a href="/users/{{$user.Username}}">{{$user.Name}}</a>
+                    ({{$user.Email}})
+
+                    {{if eq $user.Role 2}}
+                    <span class="badge rounded-pill text-bg-secondary">Admin</span>
+                    {{end}}
+                </td>
+                <td class="datetime">
+                    {{if $user.LastLogin.IsZero }}
+                        {{t $lang "Never"}}
+                    {{else}}
+                        <span>{{$user.LastLogin.Format "2006-01-02T15:04:05Z"}}</span>
+                    {{end}}
+                </td>
+                <td class="text-end">
+                    {{ if not (and (eq $admins 1) (eq $user.Role 2)) }}
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#delete-modal" data-url="/users/{{$user.Username}}">
+                        <i class="bi-trash3-fill"></i>
+                    </a>
+                    {{end}}
+                </td>
+            </tr>
+        {{end}}
+        </tbody>
+    </table>
+
+    {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
+    {{template "partials/pagination" .}}
+    {{end}}
+</div>

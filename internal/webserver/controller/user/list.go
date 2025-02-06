@@ -16,10 +16,18 @@ func (u *Controller) List(c *fiber.Ctx) error {
 	}
 
 	users, _ := u.repository.List(page, model.ResultsPerPage)
-	return c.Render("user/index", fiber.Map{
+
+	templateVars := fiber.Map{
 		"Title":     "Users",
 		"Users":     users.Hits(),
 		"Paginator": view.Pagination(model.MaxPagesNavigator, users, map[string]string{}),
 		"Admins":    u.repository.Admins(),
-	}, "layout")
+		"URL":       view.URL(c),
+	}
+
+	if c.Get("hx-request") == "true" {
+		return c.Render("partials/users-list", templateVars)
+	}
+
+	return c.Render("user/index", templateVars, "layout")
 }

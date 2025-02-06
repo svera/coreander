@@ -25,14 +25,12 @@ func (d *Controller) Reader(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	template := "reader"
-
-	title := fmt.Sprintf("%s", document.Title)
+	title := document.Title
 	authors := strings.Join(document.Authors, ", ")
 	if authors != "" {
 		title = fmt.Sprintf("%s - %s", authors, document.Title)
 	}
-	return c.Render(template, fiber.Map{
+	return c.Render("document/reader", fiber.Map{
 		"Title":       title,
 		"Author":      strings.Join(document.Authors, ", "),
 		"Description": document.Description,

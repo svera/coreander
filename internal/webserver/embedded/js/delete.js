@@ -1,5 +1,7 @@
 "use strict"
 
+import { handleResponseError } from './handle-response-error.js'
+
 // We use several conventions to be able to use the same code to delete different resources.
 // The link that initiates the action needs to have an attribute called data-id which must contain an unique identifier
 // for the resource to delete.
@@ -9,34 +11,25 @@
 
 const deleteModal = document.getElementById('delete-modal');
 const deleteForm = document.getElementById('delete-form');
-let id
 
 deleteModal.addEventListener('show.bs.modal', event => {
     const link = event.relatedTarget
-    id = link.getAttribute('data-id')
+    deleteForm.setAttribute('hx-delete', link.getAttribute('data-url'))
+    htmx.process(deleteForm)
 })
 
-deleteModal.addEventListener('hidden.bs.modal', event => {
-    let message = document.getElementById('error-message-container');
-    message.classList.add("visually-hidden");
+document.body.addEventListener('htmx:responseError', function (evt) {
+    const del = evt.detail.elt.getAttribute("hx-delete")
+    if (!del) {
+        return
+    }
+
+    return handleResponseError(evt)
 })
 
-deleteForm.addEventListener('submit', event => {
-    event.preventDefault();
-    fetch(deleteForm.getAttribute("action") + '/' + id, {
-        method: "DELETE"
-    })
-    .then((response) => {
-        if (response.ok || response.status == "403") {
-            location.reload();
-        } else {
-            let message = document.getElementById("error-message-container");
-            message.classList.remove("visually-hidden");
-            message.innerHTML = deleteForm.getAttribute("data-error-message");
-        }
-    })
-    .catch(function (error) {
-        // Catch errors
-        console.log(error);
-    });
+document.body.addEventListener('htmx:afterRequest', function (evt) {
+    const del = evt.detail.elt.getAttribute("hx-delete")
+    if (!evt.detail.failed && del && !del.includes("/highlights")) {
+        htmx.trigger("#list", "update")
+    }
 })

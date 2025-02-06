@@ -16,7 +16,7 @@ import (
 )
 
 func (d *Controller) UploadForm(c *fiber.Ctx) error {
-	return c.Render("upload", fiber.Map{
+	return c.Render("document/upload", fiber.Map{
 		"Title":   "Upload document",
 		"MaxSize": d.config.UploadDocumentMaxSize,
 	}, "layout")
@@ -26,7 +26,7 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 	file, err := c.FormFile("filename")
 	if err != nil {
 		if errors.Is(err, fasthttp.ErrMissingFile) {
-			return c.Status(fiber.StatusBadRequest).Render("upload", fiber.Map{
+			return c.Status(fiber.StatusBadRequest).Render("document/upload", fiber.Map{
 				"Title": "Upload document",
 				"Error": "Invalid file type",
 			}, "layout")
@@ -35,21 +35,21 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 
 	allowedTypes := []string{"application/epub+zip", "application/pdf"}
 	if !slices.Contains(allowedTypes, file.Header.Get("Content-Type")) {
-		return c.Status(fiber.StatusBadRequest).Render("upload", fiber.Map{
+		return c.Status(fiber.StatusBadRequest).Render("document/upload", fiber.Map{
 			"Title": "Upload document",
 			"Error": "Invalid file type",
 		}, "layout")
 	}
 
 	if file.Size > int64(d.config.UploadDocumentMaxSize*1024*1024) {
-		return c.Status(fiber.StatusRequestEntityTooLarge).Render("upload", fiber.Map{
+		return c.Status(fiber.StatusRequestEntityTooLarge).Render("document/upload", fiber.Map{
 			"Title": "Upload Document",
 			"Error": fmt.Sprintf("Document too large, the maximum allowed size is %d megabytes", d.config.UploadDocumentMaxSize),
 		}, "layout")
 	}
 
 	destination := filepath.Join(d.config.LibraryPath, file.Filename)
-	internalServerErrorStatus := c.Status(fiber.StatusInternalServerError).Render("upload", fiber.Map{
+	internalServerErrorStatus := c.Status(fiber.StatusInternalServerError).Render("document/upload", fiber.Map{
 		"Title": "Upload Document",
 		"Error": "Error uploading document",
 	}, "layout")

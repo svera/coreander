@@ -34,7 +34,7 @@
             </button>
             <input type="hidden" name="email" id="quick-email-{{.Document.Slug}}" value="{{$sendToEmail}}" />
             <input type="hidden" name="slug" id="slug-{{.Document.Slug}}" value="{{.Document.Slug}}" />
-            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"></button>
             <ul class="dropdown-menu dropdown-menu-end p-3">
                 <li>
                     <form hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-indicator="#hx-spinner-{{.Document.Slug}}" data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title }}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title }}' class="send-email mt-3">

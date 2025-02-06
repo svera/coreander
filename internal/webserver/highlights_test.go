@@ -150,8 +150,7 @@ func TestHighlights(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		_, err = deleteRequest(url.Values{}, adminCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
-		if err != nil {
+		if _, err = deleteRequest(url.Values{}, adminCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t); err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
@@ -179,10 +178,10 @@ func assertHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, expecte
 	t.Helper()
 
 	req, err := http.NewRequest(http.MethodGet, "/highlights", nil)
-	req.AddCookie(cookie)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
+	req.AddCookie(cookie)
 	response, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
@@ -196,7 +195,7 @@ func assertHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, expecte
 		t.Fatal(err)
 	}
 
-	if actualResults := doc.Find(".list-group-item").Length(); actualResults != expectedResults {
+	if actualResults := doc.Find("#list .list-group-item").Length(); actualResults != expectedResults {
 		t.Errorf("Expected %d results, got %d", expectedResults, actualResults)
 	}
 }
