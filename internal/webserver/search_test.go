@@ -46,7 +46,7 @@ func TestSearch(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if actualResults := doc.Find(".list-group-item").Length(); actualResults != tcase.expectedResults {
+			if actualResults := doc.Find("#list .list-group-item").Length(); actualResults != tcase.expectedResults {
 				t.Errorf("Expected %d results, got %d", tcase.expectedResults, actualResults)
 			}
 		})
@@ -73,7 +73,7 @@ func assertSearchResults(app *fiber.App, t *testing.T, search string, expectedRe
 		t.Fatal(err)
 	}
 
-	if actualResults := doc.Find(".list-group-item").Length(); actualResults != expectedResults {
+	if actualResults := doc.Find("#list .list-group-item").Length(); actualResults != expectedResults {
 		t.Errorf("Expected %d results, got %d", expectedResults, actualResults)
 	}
 }

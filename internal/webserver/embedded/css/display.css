@@ -154,18 +154,18 @@ a.collapse-control.collapsed:after {
     display: none;
 }
 
-.place {
+.list-group-placeholder {
     display: none;
 }
 
-.htmx-request .place {
+.htmx-request .list-group-placeholder {
     display: inline-block;
 }
 
-.htmx-request.place {
+.htmx-request.list-group-placeholder {
     display: inline-block;
 }
 
-.htmx-request.place ~ div {
+.htmx-request.list-group-placeholder ~ div {
     display: none;
 }

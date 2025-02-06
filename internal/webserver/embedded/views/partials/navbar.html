@@ -1,0 +1,106 @@
+<nav class="navbar navbar-expand-lg fixed-top {{if .HomeNavbar}}navbar-home{{end}}">
+    <div class="container d-flex justify-content-end">
+        {{if not .HomeNavbar}}
+        <span class="navbar-brand mb-0 h1">
+            <a class="text-decoration-none" href="/">
+                <img src="/images/coreander-logo-small.png" alt="Logo" width="32" height="32" class="d-inline-block align-text-middle">
+            </a>
+        </span>
+        <form action="/documents" class="d-flex justify-content-center flex-grow-1 pe-3" roles="search">
+            <div class="input-group input-group-sm">
+                <label for="search" class="visually-hidden">{{t .Lang "search"}}</label>
+                <input type="search" name="search" id="searchbox" class="form-control" placeholder={{t .Lang "Title, authors, subjects, etc."}} maxlength="255" required autofocus value="{{.Keywords}}">
+                <button class="btn btn-outline-secondary" type="submit"><i class="bi-search"></i></button>
+            </div>
+        </form>
+        {{end}}
+        <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas"
+            data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="offcanvas-lg offcanvas-end" tabindex="-1" id="offcanvasNavbar"
+            aria-labelledby="offcanvasNavbarLabel">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="offcanvasNavbarLabel">
+                    <img src="/images/coreander-logo-small.png" alt="Logo" width="32" height="32" class="d-inline-block align-text-middle">
+                    {{.Session.Name}}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#offcanvasNavbar" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                <ul class="navbar-nav justify-content-end flex-grow-1 pe-3 text-start">
+                    {{if and (.Session) (ne .Session.Name "")}}
+                    <li class="p-2">
+                        {{if eq .Session.Role 2}}
+                        <a href="/users" class="link-underline link-underline-opacity-0">
+                            <i class="bi-person-fill"></i>
+
+                            {{t .Lang "Users"}}
+                        </a>
+                        {{else}}
+                        <a href="/users/{{.Session.Username}}" class="link-underline link-underline-opacity-0">
+                            <i class="bi-person-fill"></i>
+
+                            {{t .Lang "Update your profile"}}
+                        </a>
+                        {{end}}
+                    </li>
+                    <li class="p-2">
+                        <a href="/highlights" class="link-underline link-underline-opacity-0">
+                            <i class="bi-star-fill"></i>
+
+                            {{t .Lang "Highlights"}}
+                        </a>
+                    </li>
+                    {{if eq .Session.Role 2}}
+                    <li class="p-2">
+                        <a href="/upload" class="link-underline link-underline-opacity-0">
+                            <i class="bi-cloud-upload-fill"></i>
+
+                            {{t .Lang "Upload document"}}
+                        </a>
+                    </li>
+                    {{end}}
+                    {{else if not .DisableLoginLink}}
+                    <li class="p-2">
+                        <a href="/sessions/new">{{t .Lang "Login"}}</a>
+                    </li>
+                    {{end}}
+                    <hr class="d-lg-none">
+                    {{$lang := .Lang}}
+                    {{$URLPath := .URLPath}}
+                    {{$queryString := .QueryString}}
+                    <li class="nav-item dropdown">
+                        <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi-globe"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                        {{range $i, $currentLang := .SupportedLanguages}}
+                            {{if eq $lang $currentLang}}
+                                <li class="dropdown-item">{{uppercase $currentLang}}</li>
+                            {{else if eq $queryString ""}}
+                                <li class="dropdown-item"><a href="{{$URLPath}}?l={{$currentLang}}">{{uppercase $currentLang}}</a></li>
+                            {{else}}
+                                <li class="dropdown-item"><a href="{{$URLPath}}?{{$queryString}}&l={{$currentLang}}">{{uppercase $currentLang}}</a></li>
+                            {{end}}
+                        {{end}}
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        {{template "partials/color-mode-toggle" dict "Lang" $lang}}
+                    </li>
+                    {{if and (.Session) (ne .Session.Name "")}}
+                    <hr class="d-lg-none">
+                    <li class="p-2">
+                        <a href="/sessions" hx-delete="/sessions" class="link-underline link-underline-opacity-0">
+                            <i class="bi-box-arrow-right"></i>
+
+                            {{t .Lang "Logout"}}
+                        </a>
+                    </li>
+                    {{end}}
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>

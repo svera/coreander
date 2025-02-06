@@ -5,7 +5,5 @@
 </section>
 {{if and (.Session) (ne .Session.Name "")}}
     <section class="row pt-5" id="latest-highlights" hx-get="/highlights?view=latest&amount={{.HighlightsAmount}}" hx-trigger="load, dehighlight from:body">
-
     </section>
-    {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
 {{end}}

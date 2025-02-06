@@ -10,7 +10,7 @@
     </div>
 </div>
 
-<div id="placeholder-indicator" class="place htmx-indicator w-100" aria-hidden="true">
+<div id="placeholder-indicator" class="list-group-placeholder htmx-indicator w-100" aria-hidden="true">
     <table class="table table-striped">
         <thead>
             <tr>
@@ -42,5 +42,5 @@
 
 {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/users" "ModalHeader" "Delete user" "ModalBody" "Are you sure you want to delete this user?" "ModalErrorMessage" "There was an error deleting the user, please try again later"}}
 
-<script type="text/javascript" src="/js/delete.js"></script>
+<script type="module" src="/js/delete.js"></script>
 <script type="module" src="/js/datetime.js"></script>

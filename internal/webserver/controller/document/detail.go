@@ -42,7 +42,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	title := fmt.Sprintf("%s", document.Title)
+	title := document.Title
 	if len(document.Authors) > 0 {
 		title = fmt.Sprintf("%s - %s", strings.Join(document.Authors, ", "), document.Title)
 	}
@@ -58,7 +58,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		msg = "Document uploaded successfully."
 	}
 
-	return c.Render("document", fiber.Map{
+	return c.Render("document/detail", fiber.Map{
 		"Title":                  title,
 		"Document":               document,
 		"EmailSendingConfigured": emailSendingConfigured,
