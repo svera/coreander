@@ -3,11 +3,15 @@
 import { DateTime } from "./luxon.min.js";
 
 const datetimeFormatter = () => {
-    const datetime = document.querySelectorAll('.datetime span');
+    const datetime = document.querySelectorAll('time');
     datetime.forEach(function(element) {
         const dt = DateTime.fromISO(element.textContent);
         if (dt.isValid) {
-            element.textContent = dt.toRelative({ locale: document.documentElement.lang });
+            if (element.classList.contains('relative')) {
+                element.textContent = dt.toRelative({ locale: document.documentElement.lang });
+            } else {
+                element.textContent = dt.toLocaleString(DateTime.DATE_FULL, { locale: document.documentElement.lang });
+            }
         }
     });
 }

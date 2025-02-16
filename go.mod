@@ -28,6 +28,9 @@ require (
 )
 
 require (
+	github.com/Navid2zp/easyreq v1.1.0 // indirect
+	github.com/Navid2zp/go-wikidata v1.0.1 // indirect
+	github.com/anaskhan96/soup v1.2.5 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/beevik/etree v1.4.1 // indirect
 	github.com/blevesearch/go-faiss v1.0.24 // indirect
@@ -97,6 +100,7 @@ require (
 	github.com/pgaskin/kepubify/v4 v4.0.4
 	github.com/pirmd/epub v0.3.1
 	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/trietmn/go-wiki v1.0.3
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.58.0
 	github.com/valyala/tcplisten v1.0.0 // indirect

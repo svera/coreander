@@ -9,6 +9,7 @@ import (
 	"github.com/svera/coreander/v4/internal/result"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v4/internal/webserver/model/wikidata"
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
@@ -49,6 +50,11 @@ func (a *Controller) Search(c *fiber.Ctx) error {
 		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
+	authorData, err := wikidata.Author(author.Name, "es")
+	if err != nil {
+		log.Println(err)
+	}
+
 	templateVars := fiber.Map{
 		"Author":                 author,
 		"Results":                searchResults,
@@ -58,6 +64,7 @@ func (a *Controller) Search(c *fiber.Ctx) error {
 		"EmailFrom":              a.sender.From(),
 		"WordsPerMinute":         a.config.WordsPerMinute,
 		"URL":                    view.URL(c),
+		"AuthorData":             authorData,
 	}
 
 	if c.Get("hx-request") == "true" {
