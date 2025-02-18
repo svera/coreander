@@ -1,0 +1,50 @@
+<div class="card text-bg-secondary mb-3">
+    <div class="row">
+        <div class="card-body col-sm-6 col-md-9">
+            <h2 class="card-title ms-3">{{.Author.Name}}</h2>
+            {{if .AuthorData.Description .Lang}}
+                <p class="card-text ms-3 capitalize">{{.AuthorData.Description .Lang}}</p>
+            {{end}}
+
+            <dl class="ms-3">
+                {{if not .AuthorData.DateOfBirth.IsZero}}
+                    <dt>{{t .Lang "Date of birth"}}</dt>
+                    <dd>
+                        <time datetime='{{.AuthorData.DateOfBirth.Format "2006-01-02"}}'>{{.AuthorData.DateOfBirth.Format "2006-01-02"}}</time>
+                        {{if and (gt .AuthorData.Age 0) .AuthorData.DateOfDeath.IsZero}}
+                            ({{t .Lang "%d years old" .AuthorData.Age}})
+                        {{end}}
+                    </dd>
+
+                {{end}}
+                {{if not .AuthorData.DateOfDeath.IsZero}}
+                    <dt>{{t .Lang "Date of death"}}</dt>
+                    <dd>
+                        <time datetime='{{.AuthorData.DateOfDeath.Format "2006-01-02"}}'>{{.AuthorData.DateOfDeath.Format "2006-01-02"}}</time>
+                        {{if gt .AuthorData.Age 0}}
+                            ({{t .Lang "%d years old" .AuthorData.Age}})
+                        {{end}}
+                    </dd>
+                {{end}}
+            </dl>
+            <ul class="list-unstyled ms-3">
+                {{if .AuthorData.Website}}
+                    <li><a href="{{.AuthorData.Website}}" class="link-light">{{t .Lang "Official website"}}</a></li>
+                {{end}}
+
+                {{if .AuthorData.WikipediaLink .Lang}}
+                    <li><a href="{{.AuthorData.WikipediaLink .Lang}}" class="link-light">{{t .Lang "Go to Wikipedia entry"}}</a></li>
+                {{end}}
+
+            </ul>
+        </div>
+        {{if .AuthorData.Image}}
+        <div class="col-md-3 col-sm-6 text-end d-flex align-items-center">
+            <img src="{{.AuthorData.Image}}" class="img-fluid rounded-end" alt="{{.Author.Name}}">
+        </div>
+        {{end}}
+    </div>
+</div>
+
+<script type="module" src="/js/datetime.js"></script>
+

@@ -3,7 +3,10 @@ package wikidata
 import (
 	"fmt"
 	"net/url"
+	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
@@ -11,41 +14,11 @@ import (
 
 const imgUrl = "https://commons.wikimedia.org/w/index.php?title=Special:Redirect/file/%s"
 
-const (
-	claimInstanceOf  = "P31"
-	claimImage       = "P18"
-	claimSexOrGender = "P21"
-	claimDateOfBirth = "P569"
-	claimDateOfDeath = "P570"
-	claimWebsite     = "P856"
-)
-
-const (
-	instanceOfHuman               = "Q5"
-	instanceOfPseudonym           = "Q61002"
-	instanceOfPenName             = "Q127843"
-	instanceOfCollectivePseudonym = "Q16017119"
-)
-
-const (
-	isHuman = iota
-	isPseudonym
-	isPenName
-	isCollectivePseudonym
-)
-
-const (
-	male             = "Q6581097"
-	female           = "Q6581072"
-	intersex         = "Q1097630"
-	trasgenderFemale = "Q1052281"
-	trasgenderMale   = "Q2449503"
-)
-
 type Authordata struct {
 	wikidataEntityId string
+	wikipediaLink    map[string]string
 	instanceOf       int
-	description      string
+	description      map[string]string
 	dateOfBirth      time.Time
 	dateOfDeath      time.Time
 	website          string
@@ -53,8 +26,8 @@ type Authordata struct {
 	retrievedOn      time.Time
 }
 
-func (a Authordata) Description() string {
-	return a.description
+func (a Authordata) Description(language string) string {
+	return a.description[language]
 }
 
 func (a Authordata) DateOfBirth() time.Time {
@@ -99,8 +72,15 @@ func (a Authordata) Age() int {
 	return a.dateOfDeath.Year() - a.dateOfBirth.Year()
 }
 
+func (a Authordata) WikipediaLink(language string) string {
+	return a.wikipediaLink[language]
+}
+
 func Author(name, language string) (Authordata, error) {
-	var author Authordata
+	author := Authordata{
+		wikipediaLink: make(map[string]string),
+		description:   make(map[string]string),
+	}
 	id, err := getEntityId(name)
 	if err != nil {
 		return author, err
@@ -110,7 +90,7 @@ func Author(name, language string) (Authordata, error) {
 	if err != nil {
 		return author, err
 	}
-	entitiesReq.SetProps([]string{"descriptions", "claims"})
+	entitiesReq.SetProps([]string{"descriptions", "claims", "sitelinks/urls"})
 	entitiesReq.SetLanguages([]string{"en", language})
 	// Call get to make the request based on the configurations
 	entities, err := entitiesReq.Get()
@@ -135,18 +115,25 @@ func Author(name, language string) (Authordata, error) {
 
 	author.wikidataEntityId = id
 	author.retrievedOn = time.Now()
+	author.wikipediaLink[language] = (*entities)[id].SiteLinks[fmt.Sprintf("%swiki", language)].URL
 
-	author.description = (*entities)[id].Descriptions[language].Value
+	author.description[language] = (*entities)[id].Descriptions[language].Value
 	if value, exists := (*entities)[id].Claims[claimDateOfBirth]; exists {
 		author.dateOfBirth, err = time.Parse("2006-01-02T00:00:00Z", value[0].MainSnak.DataValue.Value.ValueFields.Time[1:])
 		if err != nil {
-			return author, err
+			author.dateOfBirth, err = time.Parse("2006-00-00T00:00:00Z", value[0].MainSnak.DataValue.Value.ValueFields.Time[1:])
+			if err != nil {
+				author.dateOfBirth = time.Time{}
+			}
 		}
 	}
 	if value, exists := (*entities)[id].Claims[claimDateOfDeath]; exists {
 		author.dateOfDeath, err = time.Parse("2006-01-02T00:00:00Z", value[0].MainSnak.DataValue.Value.ValueFields.Time[1:])
 		if err != nil {
-			return author, err
+			author.dateOfDeath, err = time.Parse("2006-00-00T00:00:00Z", value[0].MainSnak.DataValue.Value.ValueFields.Time[1:])
+			if err != nil {
+				author.dateOfDeath = time.Time{}
+			}
 		}
 	}
 	if value, exists := (*entities)[id].Claims[claimWebsite]; exists {
@@ -157,7 +144,10 @@ func Author(name, language string) (Authordata, error) {
 		if err != nil {
 			return author, err
 		}
-		author.image = fmt.Sprintf(imgUrl, img)
+
+		if slices.Contains([]string{".png", ".jpg", ".jpeg"}, strings.ToLower(filepath.Ext(img))) {
+			author.image = fmt.Sprintf(imgUrl, img)
+		}
 	}
 
 	return author, nil
@@ -172,5 +162,11 @@ func getEntityId(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	if len(result.SearchResult) == 0 {
+		return "", fmt.Errorf("no author found")
+	}
+
+	//result.SearchResult[0].Match.Type == "alias"
 	return result.SearchResult[0].ID, nil
 }

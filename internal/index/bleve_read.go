@@ -413,6 +413,7 @@ func (b *BleveIndexer) Author(slug string) (Author, error) {
 
 	return Author{
 		Name: searchResult.Hits[0].Fields["Name"].(string),
+		Slug: slug,
 	}, nil
 }
 

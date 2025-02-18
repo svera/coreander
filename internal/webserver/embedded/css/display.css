@@ -118,7 +118,7 @@ a.collapse-control.collapsed:after {
     white-space: nowrap;
 }
 
-.datetime::first-letter {
+.capitalize::first-letter {
     text-transform: capitalize;
 }
 

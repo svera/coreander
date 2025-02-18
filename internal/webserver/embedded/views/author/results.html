@@ -1,44 +1,14 @@
-<div class="card mb-3">
-    <div class="row">
-        <div class="card-body col-9">
-            <h2 class="card-title ms-3">{{.Author.Name}}</h2>
-            {{if .AuthorData.Description}}
-                <p class="card-text ms-3">{{.AuthorData.Description}}</p>
-            {{end}}
-
-            <dl class="ms-3">
-                {{if not .AuthorData.DateOfBirth.IsZero}}
-                    <dt>Date of birth</dt>
-                    <dd>
-                        <time datetime='{{.AuthorData.DateOfBirth.Format "2006-01-02"}}'>{{.AuthorData.DateOfBirth.Format "2006-01-02"}}</time>
-                        {{if and (gt .AuthorData.Age 0) .AuthorData.DateOfDeath.IsZero}}
-                            (Age {{.AuthorData.Age}})
-                        {{end}}
-                    </dd>
-
-                {{end}}
-                {{if not .AuthorData.DateOfDeath.IsZero}}
-                    <dt>Date of death</dt>
-                    <dd>
-                        <time datetime='{{.AuthorData.DateOfDeath.Format "2006-01-02"}}'>{{.AuthorData.DateOfDeath.Format "2006-01-02"}}</time>
-                        {{if gt .AuthorData.Age 0}}
-                            (Age {{.AuthorData.Age}})
-                        {{end}}
-                    </dd>
-                {{end}}
-                {{if .AuthorData.Website}}
-                    <dt>Website</dt>
-                    <dd><a href="{{.AuthorData.Website}}">{{.AuthorData.Website}}</a></dd>
-                {{end}}
-            </dl>
+<div hx-get="/authors/{{.Author.Slug}}/summary" hx-trigger="load">
+    <div class="card text-bg-secondary mb-3">
+        <div class="row">
+            <div class="card-body col-sm-6 col-md-9">
+                <h2 class="card-title ms-3">{{.Author.Name}}</h2>
+                <div class="col-md-3 col-sm-6 text-end d-flex align-items-center"></div>
+            </div>
         </div>
-        {{if .AuthorData.Image}}
-        <div class="col-3">
-            <img src="{{.AuthorData.Image}}" class="img-fluid rounded-end" alt="{{.Author.Name}}">
-        </div>
-        {{end}}
     </div>
 </div>
+
 {{template "partials/docs-list-placeholder" .}}
 
 <div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
@@ -51,4 +21,3 @@
 <script type="module" src="/js/delete.js"></script>
 <script type="module" src="/js/highlight.js"></script>
 <script type="module" src="/js/cover.js"></script>
-<script type="module" src="/js/datetime.js"></script>

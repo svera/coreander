@@ -78,5 +78,6 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	docsGroup.Get("/", controllers.Documents.Search)
 
 	app.Get("/authors/:slug", controllers.Authors.Search)
+	app.Get("/authors/:slug/summary", controllers.Authors.Summary)
 	app.Get("/", controllers.Home.Index)
 }
