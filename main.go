@@ -17,6 +17,7 @@ import (
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/webserver"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/webserver/model/wikidata"
 )
 
 var version string = "unknown"
@@ -112,7 +113,9 @@ func main() {
 		log.Fatal(fmt.Errorf("wrong value for recovery timeout"))
 	}
 
-	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
+	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
+
+	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs, dataSource)
 	app := webserver.New(webserverConfig, controllers, sender, idx)
 	if strings.ToLower(input.FQDN) == "localhost" {
 		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accessible outside this system.\n")

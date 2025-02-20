@@ -4,7 +4,6 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/webserver/model/wikidata"
 )
 
 func (a *Controller) Summary(c *fiber.Ctx) error {
@@ -15,7 +14,7 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 	}
 
 	author, _ := a.idx.Author(authorSlug)
-	authorData, err := wikidata.Author(author.Name, c.Locals("Lang").(string))
+	authorData, err := a.dataSource.Author(author.Name, c.Locals("Lang").(string))
 	if err != nil {
 		log.Println(err)
 	}

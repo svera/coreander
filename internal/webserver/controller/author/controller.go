@@ -28,13 +28,15 @@ type Controller struct {
 	idx          IdxReader
 	sender       Sender
 	config       Config
+	dataSource   DataSource
 }
 
-func NewController(hlRepository highlightsRepository, sender Sender, idx IdxReader, cfg Config) *Controller {
+func NewController(hlRepository highlightsRepository, sender Sender, idx IdxReader, cfg Config, dataSource DataSource) *Controller {
 	return &Controller{
 		hlRepository: hlRepository,
 		idx:          idx,
 		sender:       sender,
 		config:       cfg,
+		dataSource:   dataSource,
 	}
 }

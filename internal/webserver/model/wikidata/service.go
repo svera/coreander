@@ -9,7 +9,8 @@ import (
 	"strings"
 	"time"
 
-	gowikidata "github.com/Navid2zp/go-wikidata"
+	"github.com/rickb777/date/v2"
+	"github.com/svera/coreander/v4/internal/webserver/controller/author"
 )
 
 const imgUrl = "https://commons.wikimedia.org/w/index.php?title=Special:Redirect/file/%s"
@@ -19,8 +20,10 @@ type Authordata struct {
 	wikipediaLink    map[string]string
 	instanceOf       int
 	description      map[string]string
-	dateOfBirth      time.Time
-	dateOfDeath      time.Time
+	dateOfBirth      date.Date
+	yearOfBirth      int // Used when dateOfBirth is not available
+	dateOfDeath      date.Date
+	yearOfDeath      int // Used when dateOfDeath is not available
 	website          string
 	image            string
 	retrievedOn      time.Time
@@ -30,11 +33,11 @@ func (a Authordata) Description(language string) string {
 	return a.description[language]
 }
 
-func (a Authordata) DateOfBirth() time.Time {
+func (a Authordata) DateOfBirth() date.Date {
 	return a.dateOfBirth
 }
 
-func (a Authordata) DateOfDeath() time.Time {
+func (a Authordata) DateOfDeath() date.Date {
 	return a.dateOfDeath
 }
 
@@ -62,31 +65,61 @@ func (a Authordata) InstanceOfCollectivePseudonym() bool {
 	return a.instanceOf == isCollectivePseudonym
 }
 
+func (a Authordata) YearOfBirth() int {
+	return a.yearOfBirth
+}
+
+func (a Authordata) YearOfBirthAbs() int {
+	if a.yearOfBirth < 0 {
+		return -a.yearOfBirth
+	}
+	return a.yearOfBirth
+}
+
+func (a Authordata) YearOfDeathAbs() int {
+	if a.yearOfDeath < 0 {
+		return -a.yearOfDeath
+	}
+	return a.yearOfDeath
+}
+
+func (a Authordata) YearOfDeath() int {
+	return a.yearOfDeath
+}
+
 func (a Authordata) Age() int {
-	if a.dateOfBirth.IsZero() {
+	if a.dateOfBirth == 0 {
 		return 0
 	}
-	if a.dateOfDeath.IsZero() {
+	if a.dateOfDeath == 0 {
 		return time.Now().Year() - a.dateOfBirth.Year()
 	}
-	return a.dateOfDeath.Year() - a.dateOfBirth.Year()
+	return (a.dateOfDeath - a.dateOfBirth).Year()
 }
 
 func (a Authordata) WikipediaLink(language string) string {
 	return a.wikipediaLink[language]
 }
 
-func Author(name, language string) (Authordata, error) {
+type WikidataSource struct {
+	wikidata
+}
+
+func NewWikidataSource(w wikidata) WikidataSource {
+	return WikidataSource{w}
+}
+
+func (a WikidataSource) Author(name, language string) (author.Author, error) {
 	author := Authordata{
 		wikipediaLink: make(map[string]string),
 		description:   make(map[string]string),
 	}
-	id, err := getEntityId(name)
+	id, err := a.getEntityId(name)
 	if err != nil {
 		return author, err
 	}
 
-	entitiesReq, err := gowikidata.NewGetEntities([]string{id})
+	entitiesReq, err := a.NewGetEntities([]string{id})
 	if err != nil {
 		return author, err
 	}
@@ -119,20 +152,30 @@ func Author(name, language string) (Authordata, error) {
 
 	author.description[language] = (*entities)[id].Descriptions[language].Value
 	if value, exists := (*entities)[id].Claims[claimDateOfBirth]; exists {
-		author.dateOfBirth, err = time.Parse("2006-01-02T00:00:00Z", value[0].MainSnak.DataValue.Value.ValueFields.Time[1:])
-		if err != nil {
-			author.dateOfBirth, err = time.Parse("2006-00-00T00:00:00Z", value[0].MainSnak.DataValue.Value.ValueFields.Time[1:])
+		if strings.Contains(value[0].MainSnak.DataValue.Value.ValueFields.Time, "00T") {
+			author.yearOfBirth, err = strconv.Atoi(value[0].MainSnak.DataValue.Value.ValueFields.Time[:5])
 			if err != nil {
-				author.dateOfBirth = time.Time{}
+				author.yearOfBirth = 0
+				author.dateOfBirth = date.Zero
+			}
+		} else {
+			author.dateOfBirth, err = date.ParseISO(value[0].MainSnak.DataValue.Value.ValueFields.Time)
+			if err != nil {
+				author.dateOfBirth = date.Zero
 			}
 		}
 	}
 	if value, exists := (*entities)[id].Claims[claimDateOfDeath]; exists {
-		author.dateOfDeath, err = time.Parse("2006-01-02T00:00:00Z", value[0].MainSnak.DataValue.Value.ValueFields.Time[1:])
-		if err != nil {
-			author.dateOfDeath, err = time.Parse("2006-00-00T00:00:00Z", value[0].MainSnak.DataValue.Value.ValueFields.Time[1:])
+		if strings.Contains(value[0].MainSnak.DataValue.Value.ValueFields.Time, "00T") {
+			author.yearOfDeath, err = strconv.Atoi(value[0].MainSnak.DataValue.Value.ValueFields.Time[:5])
 			if err != nil {
-				author.dateOfDeath = time.Time{}
+				author.yearOfDeath = 0
+				author.dateOfDeath = date.Zero
+			}
+		} else {
+			author.dateOfDeath, err = date.ParseISO(value[0].MainSnak.DataValue.Value.ValueFields.Time)
+			if err != nil {
+				author.dateOfBirth = date.Zero
 			}
 		}
 	}
@@ -153,8 +196,8 @@ func Author(name, language string) (Authordata, error) {
 	return author, nil
 }
 
-func getEntityId(name string) (string, error) {
-	query, err := gowikidata.NewSearch(url.QueryEscape(name), "en")
+func (a WikidataSource) getEntityId(name string) (string, error) {
+	query, err := a.NewSearch(url.QueryEscape(name), "en")
 	if err != nil {
 		return "", err
 	}

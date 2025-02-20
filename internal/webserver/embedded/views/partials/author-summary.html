@@ -7,35 +7,61 @@
             {{end}}
 
             <dl class="ms-3">
-                {{if not .AuthorData.DateOfBirth.IsZero}}
+                {{if or (ne .AuthorData.DateOfBirth 0) (ne .AuthorData.YearOfBirth 0)}}
                     <dt>{{t .Lang "Date of birth"}}</dt>
                     <dd>
-                        <time datetime='{{.AuthorData.DateOfBirth.Format "2006-01-02"}}'>{{.AuthorData.DateOfBirth.Format "2006-01-02"}}</time>
-                        {{if and (gt .AuthorData.Age 0) .AuthorData.DateOfDeath.IsZero}}
-                            ({{t .Lang "%d years old" .AuthorData.Age}})
+                        {{if ne .AuthorData.YearOfBirth 0}}
+                            {{.AuthorData.YearOfBirthAbs}}
+                            {{if lt .AuthorData.YearOfBirth 0}}
+                                <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
+                            {{end}}
+
+                        {{else}}
+                            <time datetime='{{.AuthorData.DateOfBirth.FormatISO 6}}'>{{.AuthorData.DateOfBirth.FormatISO 6}}</time>
+                            {{if lt .AuthorData.DateOfBirth.Year 0}}
+                                <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
+                            {{end}}
+                            {{if and (gt .AuthorData.Age 0) (eq .AuthorData.DateOfDeath 0) (eq .AuthorData.YearOfDeath 0)}}
+                                ({{t .Lang "%d years old" .AuthorData.Age}})
+                            {{end}}
                         {{end}}
                     </dd>
-
                 {{end}}
-                {{if not .AuthorData.DateOfDeath.IsZero}}
+
+                {{if or (ne .AuthorData.DateOfDeath 0) (ne .AuthorData.YearOfDeath 0)}}
                     <dt>{{t .Lang "Date of death"}}</dt>
                     <dd>
-                        <time datetime='{{.AuthorData.DateOfDeath.Format "2006-01-02"}}'>{{.AuthorData.DateOfDeath.Format "2006-01-02"}}</time>
-                        {{if gt .AuthorData.Age 0}}
-                            ({{t .Lang "%d years old" .AuthorData.Age}})
+                        {{if ne .AuthorData.YearOfDeath 0}}
+                            {{.AuthorData.YearOfDeathAbs}}
+                            {{if lt .AuthorData.YearOfDeath 0}}
+                                <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
+                            {{end}}
+                        {{else}}
+                            <time datetime='{{.AuthorData.DateOfDeath.FormatISO 6}}'>{{.AuthorData.DateOfDeath.FormatISO 6}}</time>
+                            {{if lt .AuthorData.DateOfDeath.Year 0}}
+                            <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
+                            {{end}}
+                            {{if gt .AuthorData.Age 0}}
+                                ({{t .Lang "%d years old" .AuthorData.Age}})
+                            {{end}}
                         {{end}}
                     </dd>
                 {{end}}
             </dl>
             <ul class="list-unstyled ms-3">
                 {{if .AuthorData.Website}}
-                    <li><a href="{{.AuthorData.Website}}" class="link-light">{{t .Lang "Official website"}}</a></li>
+                    <li>
+                        <i class="bi-globe-europe-africa me-2"></i>
+                        <a href="{{.AuthorData.Website}}" class="link-light">{{t .Lang "Official website"}}</a>
+                    </li>
                 {{end}}
 
                 {{if .AuthorData.WikipediaLink .Lang}}
-                    <li><a href="{{.AuthorData.WikipediaLink .Lang}}" class="link-light">{{t .Lang "Go to Wikipedia entry"}}</a></li>
+                    <li>
+                        <i class="bi-wikipedia me-2"></i>
+                        <a href="{{.AuthorData.WikipediaLink .Lang}}" class="link-light">{{t .Lang "Go to Wikipedia entry"}}</a>
+                    </li>
                 {{end}}
-
             </ul>
         </div>
         {{if .AuthorData.Image}}

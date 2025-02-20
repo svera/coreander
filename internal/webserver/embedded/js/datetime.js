@@ -12,6 +12,8 @@ const datetimeFormatter = () => {
             } else {
                 element.textContent = dt.toLocaleString(DateTime.DATE_FULL, { locale: document.documentElement.lang });
             }
+        } else {
+            //element.textContent = dt.year
         }
     });
 }
