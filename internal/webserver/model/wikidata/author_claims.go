@@ -18,16 +18,9 @@ const (
 )
 
 const (
-	isHuman = iota
-	isPseudonym
-	isPenName
-	isCollectivePseudonym
-)
-
-const (
-	male             = "Q6581097"
-	female           = "Q6581072"
-	intersex         = "Q1097630"
-	trasgenderFemale = "Q1052281"
-	trasgenderMale   = "Q2449503"
+	genderMale             = "Q6581097"
+	genderFemale           = "Q6581072"
+	genderIntersex         = "Q1097630"
+	genderTrasgenderFemale = "Q1052281"
+	genderTrasgenderMale   = "Q2449503"
 )

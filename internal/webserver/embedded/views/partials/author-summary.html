@@ -1,6 +1,6 @@
 <div class="card text-bg-secondary mb-3">
     <div class="row">
-        <div class="card-body col-sm-6 col-md-9">
+        <div class="card-body col-sm-6 col-md-6 col-lg-9">
             <h2 class="card-title ms-3">{{.Author.Name}}</h2>
             {{if .AuthorData.Description .Lang}}
                 <p class="card-text ms-3 capitalize">{{.AuthorData.Description .Lang}}</p>
@@ -63,9 +63,34 @@
                     </li>
                 {{end}}
             </ul>
+
+            {{if eq .Session.Role 2}}
+                {{if ne .AuthorData.SourceID "" }}
+                <p class="ms-3"><small>
+                    <i class="bi-person-fill-exclamation me-2"></i>
+                    <a class="link-light" data-bs-toggle="collapse" href="#update-author-form" aria-expanded="false">
+                        {{ t .Lang "Is not the right author? Click here to update the Wikidata ID" }}
+                    </a>
+                </small>
+                </p>
+                <div class="collapse" id="update-author-form">
+                    <p class="ms-3"><small>{{ t .Lang "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here." }}</small></p>
+                    <div class="row">
+                        <div class="col-12 col-lg-6">
+                            <form hx-put="/authors/{{.Author.Slug}}" class="ms-3">
+                                <div class="input-group input-group-sm">
+                                    <input class="form-control" type="text" name="sourceID" value="{{.AuthorData.SourceID}}">
+                                    <button type="submit" class="btn btn-dark">{{t .Lang "Update"}}</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {{end}}
+            {{end}}
         </div>
         {{if .AuthorData.Image}}
-        <div class="col-md-3 col-sm-6 text-end d-flex align-items-center">
+        <div class="col-lg-3 col-md-6 col-sm-6 text-end d-flex align-items-center">
             <img src="{{.AuthorData.Image}}" class="img-fluid rounded-end" alt="{{.Author.Name}}">
         </div>
         {{end}}

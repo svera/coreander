@@ -141,5 +141,7 @@
 "%d years old": "%d años"
 "BC": "a. C."
 "Before Christ": "Antes de Cristo"
-"Go to Wikipedia entry": "Ir a la entrada de Wikipedia"
+"Go to Wikipedia entry": "Ir al artículo en Wikipedia"
 "Official website": "Sitio web oficial"
+"Is not the right author? Click here to update the Wikidata ID": ¿No es la persona correcta? Haz clic aquí para actualizar el ID de Wikidata
+"The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here.": "El ID de Wikidata es un identificador único para el autor en la base de datos de Wikidata. Si conoces el ID correcto, puedes actualizarlo aquí."

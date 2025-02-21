@@ -13,6 +13,7 @@ type Sender interface {
 type IdxReader interface {
 	SearchByAuthor(authorSlug string, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
 	Author(slug string) (index.Author, error)
+	IndexAuthor(author index.Author) error
 }
 
 type highlightsRepository interface {

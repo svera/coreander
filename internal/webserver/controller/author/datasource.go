@@ -1,25 +1,31 @@
 package author
 
-import "github.com/rickb777/date/v2"
+import (
+	"time"
+
+	"github.com/rickb777/date/v2"
+	"github.com/svera/coreander/v4/internal/index"
+)
 
 type Author interface {
 	Description(language string) string
+	InstanceOf() int
+	Gender() int
 	DateOfBirth() date.Date
-	DateOfDeath() date.Date
-	Website() string
-	Image() string
-	InstanceOfHuman() bool
-	InstanceOfPseudonym() bool
-	InstanceOfPenName() bool
-	InstanceOfCollectivePseudonym() bool
 	YearOfBirth() int
 	YearOfBirthAbs() int
-	YearOfDeathAbs() int
+	DateOfDeath() date.Date
 	YearOfDeath() int
+	YearOfDeathAbs() int
+	Image() string
 	Age() int
+	Website() string
 	WikipediaLink(language string) string
+	SourceID() string
+	RetrievedOn() time.Time
 }
 
 type DataSource interface {
-	Author(name, language string) (Author, error)
+	Author(author index.Author, language string) (Author, error)
+	Retrieve(ID, language string) (Author, error)
 }

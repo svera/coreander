@@ -402,7 +402,7 @@ func (b *BleveIndexer) Author(slug string) (Author, error) {
 	authorsCompoundQuery.AddQuery(tq)
 
 	searchOptions := bleve.NewSearchRequest(authorsCompoundQuery)
-	searchOptions.Fields = []string{"Name"}
+	searchOptions.Fields = []string{"Name", "WikidataID"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return Author{}, err
@@ -412,8 +412,9 @@ func (b *BleveIndexer) Author(slug string) (Author, error) {
 	}
 
 	return Author{
-		Name: searchResult.Hits[0].Fields["Name"].(string),
-		Slug: slug,
+		Name:       searchResult.Hits[0].Fields["Name"].(string),
+		Slug:       slug,
+		WikidataID: searchResult.Hits[0].Fields["WikidataID"].(string),
 	}, nil
 }
 

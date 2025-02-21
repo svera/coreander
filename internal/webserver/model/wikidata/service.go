@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/rickb777/date/v2"
+	"github.com/rickb777/date/v2/timespan"
+	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/webserver/controller/author"
 )
 
@@ -27,6 +29,7 @@ type Authordata struct {
 	website          string
 	image            string
 	retrievedOn      time.Time
+	gender           int
 }
 
 func (a Authordata) Description(language string) string {
@@ -49,20 +52,8 @@ func (a Authordata) Image() string {
 	return a.image
 }
 
-func (a Authordata) InstanceOfHuman() bool {
-	return a.instanceOf == isHuman
-}
-
-func (a Authordata) InstanceOfPseudonym() bool {
-	return a.instanceOf == isPseudonym
-}
-
-func (a Authordata) InstanceOfPenName() bool {
-	return a.instanceOf == isPenName
-}
-
-func (a Authordata) InstanceOfCollectivePseudonym() bool {
-	return a.instanceOf == isCollectivePseudonym
+func (a Authordata) InstanceOf() int {
+	return a.instanceOf
 }
 
 func (a Authordata) YearOfBirth() int {
@@ -92,13 +83,27 @@ func (a Authordata) Age() int {
 		return 0
 	}
 	if a.dateOfDeath == 0 {
-		return time.Now().Year() - a.dateOfBirth.Year()
+		period := timespan.BetweenDates(a.dateOfBirth, date.Today())
+		return int(period.Days() / 365)
 	}
-	return (a.dateOfDeath - a.dateOfBirth).Year()
+	period := timespan.BetweenDates(a.dateOfBirth, a.dateOfDeath)
+	return int(period.Days() / 365)
 }
 
 func (a Authordata) WikipediaLink(language string) string {
 	return a.wikipediaLink[language]
+}
+
+func (a Authordata) Gender() int {
+	return a.gender
+}
+
+func (a Authordata) SourceID() string {
+	return a.wikidataEntityId
+}
+
+func (a Authordata) RetrievedOn() time.Time {
+	return a.retrievedOn
 }
 
 type WikidataSource struct {
@@ -109,14 +114,23 @@ func NewWikidataSource(w wikidata) WikidataSource {
 	return WikidataSource{w}
 }
 
-func (a WikidataSource) Author(name, language string) (author.Author, error) {
+func (a WikidataSource) Author(author index.Author, language string) (author.Author, error) {
+	if author.WikidataID != "" {
+		return a.Retrieve(author.WikidataID, language)
+	}
+
+	id, err := a.getEntityId(author.Name)
+	if err != nil {
+		return Authordata{}, err
+	}
+
+	return a.Retrieve(id, language)
+}
+
+func (a WikidataSource) Retrieve(id string, language string) (author.Author, error) {
 	author := Authordata{
 		wikipediaLink: make(map[string]string),
 		description:   make(map[string]string),
-	}
-	id, err := a.getEntityId(name)
-	if err != nil {
-		return author, err
 	}
 
 	entitiesReq, err := a.NewGetEntities([]string{id})
@@ -134,15 +148,32 @@ func (a WikidataSource) Author(name, language string) (author.Author, error) {
 	if value, exists := (*entities)[id].Claims[claimInstanceOf]; exists {
 		switch value[0].MainSnak.DataValue.Value.ValueFields.ID {
 		case instanceOfHuman:
-			author.instanceOf = isHuman
+			author.instanceOf = index.InstanceHuman
 		case instanceOfPseudonym:
-			author.instanceOf = isPseudonym
+			author.instanceOf = index.InstancePseudonym
 		case instanceOfPenName:
-			author.instanceOf = isPenName
+			author.instanceOf = index.InstancePenName
 		case instanceOfCollectivePseudonym:
-			author.instanceOf = isCollectivePseudonym
+			author.instanceOf = index.InstanceCollectivePseudonym
 		default:
 			return author, fmt.Errorf("instance of %s not supported", value[0].MainSnak.DataValue.Value.ValueFields.ID)
+		}
+	}
+
+	if value, exists := (*entities)[id].Claims[claimSexOrGender]; exists {
+		switch value[0].MainSnak.DataValue.Value.ValueFields.ID {
+		case genderMale:
+			author.gender = index.GenderMale
+		case genderFemale:
+			author.gender = index.GenderFemale
+		case genderIntersex:
+			author.gender = index.GenderIntersex
+		case genderTrasgenderMale:
+			author.gender = index.GenderTrasgenderMale
+		case genderTrasgenderFemale:
+			author.gender = index.GenderTrasgenderFemale
+		default:
+			return author, fmt.Errorf("gender %s not supported", value[0].MainSnak.DataValue.Value.ValueFields.ID)
 		}
 	}
 

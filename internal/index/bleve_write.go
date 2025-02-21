@@ -122,6 +122,14 @@ func indexAuthors(document Document, index func(id string, data interface{}) err
 	return indexedEntries
 }
 
+func (b *BleveIndexer) IndexAuthor(author Author) error {
+	author.Type = TypeAuthor
+	if err := b.idx.Index(author.Slug, author); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {
 	doc, err := b.idx.Document(b.id(fullPath))
 	if err != nil {

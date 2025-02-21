@@ -74,7 +74,7 @@
                     {{ end }}
 
                     {{if $document.Description}}
-                    <div class="mb-1 mt-3 collapse" id="collapse-desc{{$i}}">{{$document.Description}}</div>
+                    <div class="mb-1 mt-3 collapse partial" id="collapse-desc{{$i}}">{{$document.Description}}</div>
                     {{else}}
                     <div class="mb-1 mt-3"><em>{{t $lang "No description available"}}</em></div>
                     {{end}}
