@@ -220,7 +220,7 @@ func (a WikidataSource) Retrieve(id string, language string) (author.Author, err
 		}
 
 		if slices.Contains([]string{".png", ".jpg", ".jpeg"}, strings.ToLower(filepath.Ext(img))) {
-			author.image = fmt.Sprintf(imgUrl, img)
+			author.image = fmt.Sprintf(imgUrl, url.QueryEscape(img))
 		}
 	}
 
