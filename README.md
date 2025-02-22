@@ -5,9 +5,6 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 ![Coreander home](home.png)
 *Coreander home*
 
-> [!IMPORTANT]
-> Command-line flags are only available in v4.6, currently in beta.
-
 ## Features
 * Single binary with all dependencies included.
 * Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for documents in multiple languages.
@@ -115,7 +112,8 @@ On first run, Coreander creates an admin user with the following credentials:
 * Email: `admin@example.com`
 * Password: `admin`
 
-**For security reasons, it is strongly encouraged to add a new admin and remove the default one as soon as possible.**
+> [!CAUTION]
+> For security reasons, it is strongly encouraged to add a new admin and remove the default one as soon as possible.
 
 ### Settings
 
