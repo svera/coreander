@@ -12,20 +12,3 @@ type Author struct {
 func (a Author) BleveType() string {
 	return "author"
 }
-
-const (
-	InstanceUnknown = iota
-	InstanceHuman
-	InstancePseudonym
-	InstancePenName
-	InstanceCollectivePseudonym
-)
-
-const (
-	GenderUnknown = iota
-	GenderMale
-	GenderFemale
-	GenderIntersex
-	GenderTrasgenderFemale
-	GenderTrasgenderMale
-)

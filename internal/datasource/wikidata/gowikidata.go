@@ -5,11 +5,11 @@ import gowikidata "github.com/Navid2zp/go-wikidata"
 type Gowikidata struct {
 }
 
-func (w Gowikidata) NewSearch(search string, language string) (searchEntitiesRequest, error) {
+func (w Gowikidata) NewSearch(search string, language string) (SearchEntitiesRequest, error) {
 	return gowikidata.NewSearch(search, language)
 }
 
-func (w Gowikidata) NewGetEntities(ids []string) (getEntitiesRequest, error) {
+func (w Gowikidata) NewGetEntities(ids []string) (GetEntitiesRequest, error) {
 	request, err := gowikidata.NewGetEntities(ids)
 
 	return EntitiesRequest{request}, err
