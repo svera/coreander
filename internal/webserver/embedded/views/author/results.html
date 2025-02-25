@@ -4,6 +4,30 @@
             <div class="card-body col-sm-6 col-md-9">
                 <h2 class="card-title ms-3">{{.Author.Name}}</h2>
                 <div class="col-md-3 col-sm-6 text-end d-flex align-items-center"></div>
+                {{if eq .Session.Role 2}}
+                    {{if ne .AuthorData.SourceID "" }}
+                        <p class="ms-3"><small>
+                            <i class="bi-person-fill-exclamation me-2"></i>
+                            <a class="link-light" data-bs-toggle="collapse" href="#update-author-form" aria-expanded="false">
+                                {{ t .Lang "Is not the right author? Click here to update the Wikidata ID" }}
+                            </a>
+                        </small>
+                        </p>
+                        <div class="collapse" id="update-author-form">
+                            <p class="ms-3"><small>{{ t .Lang "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here." }}</small></p>
+                            <div class="row">
+                                <div class="col-12 col-lg-6">
+                                    <form hx-put="/authors/{{.Author.Slug}}" class="ms-3">
+                                        <div class="input-group input-group-sm">
+                                            <input class="form-control" type="text" name="sourceID" value="{{.AuthorData.SourceID}}">
+                                            <button type="submit" class="btn btn-dark">{{t .Lang "Update"}}</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    {{end}}
+                {{end}}
             </div>
         </div>
     </div>

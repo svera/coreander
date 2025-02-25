@@ -11,11 +11,18 @@ import (
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
 	"github.com/rickb777/date/v2"
-	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/webserver/controller/author"
 )
 
 const imgUrl = "https://commons.wikimedia.org/w/index.php?title=Special:Redirect/file/%s"
+
+const (
+	precisionCentury = 7
+	precisionDecade  = 8
+	precisionYear    = 9
+	precisionMonth   = 10
+	precisionDay     = 11
+)
 
 type wikidata interface {
 	NewSearch(string, string) (SearchEntitiesRequest, error)
@@ -40,46 +47,42 @@ func NewWikidataSource(w wikidata) WikidataSource {
 	return WikidataSource{w}
 }
 
-func (a WikidataSource) Author(author index.Author, language string) (author.Author, error) {
-	if author.WikidataID != "" {
-		return a.Retrieve(author.WikidataID, language)
-	}
-
-	id, err := a.getEntityId(author.Name)
+func (a WikidataSource) SearchAuthor(name string, language string) (author.Author, error) {
+	id, err := a.getEntityId(name)
 	if err != nil {
-		return Authordata{}, err
+		return nil, err
 	}
 
-	return a.Retrieve(id, language)
+	return a.RetrieveAuthor(id, language)
 }
 
-func (a WikidataSource) Retrieve(id string, language string) (author.Author, error) {
-	author := Authordata{
+func (a WikidataSource) RetrieveAuthor(id string, language string) (author.Author, error) {
+	author := Author{
 		wikipediaLink: make(map[string]string),
 		description:   make(map[string]string),
 	}
 
 	entitiesReq, err := a.wikidata.NewGetEntities([]string{id})
 	if err != nil {
-		return author, err
+		return nil, err
 	}
 	entitiesReq.SetProps([]string{"descriptions", "claims", "sitelinks/urls"})
 	entitiesReq.SetLanguages([]string{"en", language})
 	// Call get to make the request based on the configurations
 	entities, err := entitiesReq.Get()
 	if err != nil {
-		return author, err
+		return nil, err
 	}
 
 	if value, exists := (*entities)[id].Claims[propertyInstanceOf]; exists {
 		switch value[0].MainSnak.DataValue.Value.ValueFields.ID {
-		case instanceOfHuman:
+		case qidInstanceOfHuman:
 			author.instanceOf = InstanceHuman
-		case instanceOfPseudonym:
+		case qidInstanceOfPseudonym:
 			author.instanceOf = InstancePseudonym
-		case instanceOfPenName:
+		case qidInstanceOfPenName:
 			author.instanceOf = InstancePenName
-		case instanceOfCollectivePseudonym:
+		case qidInstanceOfCollectivePseudonym:
 			author.instanceOf = InstanceCollectivePseudonym
 		default:
 			return author, fmt.Errorf("instance of %s not supported", value[0].MainSnak.DataValue.Value.ValueFields.ID)
@@ -88,15 +91,15 @@ func (a WikidataSource) Retrieve(id string, language string) (author.Author, err
 
 	if value, exists := (*entities)[id].Claims[propertySexOrGender]; exists {
 		switch value[0].MainSnak.DataValue.Value.ValueFields.ID {
-		case genderMale:
+		case qidGenderMale:
 			author.gender = GenderMale
-		case genderFemale:
+		case qidGenderFemale:
 			author.gender = GenderFemale
-		case genderIntersex:
+		case qidGenderIntersex:
 			author.gender = GenderIntersex
-		case genderTrasgenderMale:
+		case qidGenderTrasgenderMale:
 			author.gender = GenderTrasgenderMale
-		case genderTrasgenderFemale:
+		case qidGenderTrasgenderFemale:
 			author.gender = GenderTrasgenderFemale
 		default:
 			return author, fmt.Errorf("gender %s not supported", value[0].MainSnak.DataValue.Value.ValueFields.ID)
@@ -104,12 +107,12 @@ func (a WikidataSource) Retrieve(id string, language string) (author.Author, err
 	}
 
 	author.wikidataEntityId = id
-	author.retrievedOn = time.Now()
+	author.retrievedOn = time.Now().UTC()
 	author.wikipediaLink[language] = (*entities)[id].SiteLinks[fmt.Sprintf("%swiki", language)].URL
 
 	author.description[language] = (*entities)[id].Descriptions[language].Value
 	if value, exists := (*entities)[id].Claims[propertyDateOfBirth]; exists {
-		if strings.Contains(value[0].MainSnak.DataValue.Value.ValueFields.Time, "00T") {
+		if value[0].MainSnak.DataValue.Value.ValueFields.Precision == precisionYear {
 			author.yearOfBirth, err = strconv.Atoi(value[0].MainSnak.DataValue.Value.ValueFields.Time[:5])
 			if err != nil {
 				author.yearOfBirth = 0
@@ -123,7 +126,7 @@ func (a WikidataSource) Retrieve(id string, language string) (author.Author, err
 		}
 	}
 	if value, exists := (*entities)[id].Claims[propertyDateOfDeath]; exists {
-		if strings.Contains(value[0].MainSnak.DataValue.Value.ValueFields.Time, "00T") {
+		if value[0].MainSnak.DataValue.Value.ValueFields.Precision == precisionYear {
 			author.yearOfDeath, err = strconv.Atoi(value[0].MainSnak.DataValue.Value.ValueFields.Time[:5])
 			if err != nil {
 				author.yearOfDeath = 0
@@ -142,7 +145,7 @@ func (a WikidataSource) Retrieve(id string, language string) (author.Author, err
 	if value, exists := (*entities)[id].Claims[propertyImage]; exists {
 		img, err := strconv.Unquote("\"" + value[0].MainSnak.DataValue.Value.S + "\"")
 		if err != nil {
-			return author, err
+			return nil, err
 		}
 
 		if slices.Contains([]string{".png", ".jpg", ".jpeg"}, strings.ToLower(filepath.Ext(img))) {
@@ -164,7 +167,7 @@ func (a WikidataSource) getEntityId(name string) (string, error) {
 	}
 
 	if len(result.SearchResult) == 0 {
-		return "", fmt.Errorf("no author found")
+		return "", fmt.Errorf("no author found for %s", name)
 	}
 
 	//result.SearchResult[0].Match.Type == "alias"

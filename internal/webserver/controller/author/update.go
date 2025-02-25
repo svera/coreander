@@ -14,12 +14,13 @@ func (a *Controller) Update(c *fiber.Ctx) error {
 	}
 
 	author, _ := a.idx.Author(authorSlug)
-	authorData, err := a.dataSource.Retrieve(c.FormValue("sourceID"), c.Locals("Lang").(string))
+	authorData, err := a.dataSource.RetrieveAuthor(c.FormValue("sourceID"), c.Locals("Lang").(string))
 	if err != nil {
 		log.Println(err)
 	}
 
 	author.WikidataID = authorData.SourceID()
+	author.RetrievedOn = authorData.RetrievedOn()
 	if err := a.idx.IndexAuthor(author); err != nil {
 		log.Println(err)
 	}

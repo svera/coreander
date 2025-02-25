@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/rickb777/date/v2"
-	"github.com/svera/coreander/v4/internal/index"
 )
 
 type Author interface {
@@ -26,6 +25,6 @@ type Author interface {
 }
 
 type DataSource interface {
-	Author(author index.Author, language string) (Author, error)
-	Retrieve(ID, language string) (Author, error)
+	SearchAuthor(name string, language string) (Author, error)
+	RetrieveAuthor(ID, language string) (Author, error)
 }

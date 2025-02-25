@@ -20,19 +20,19 @@ const (
 
 // Wikidata "instance of" values
 const (
-	instanceOfHuman               = "Q5"
-	instanceOfPseudonym           = "Q61002"
-	instanceOfPenName             = "Q127843"
-	instanceOfCollectivePseudonym = "Q16017119"
+	qidInstanceOfHuman               = "Q5"
+	qidInstanceOfPseudonym           = "Q61002"
+	qidInstanceOfPenName             = "Q127843"
+	qidInstanceOfCollectivePseudonym = "Q16017119"
 )
 
 // Wikidata gender values
 const (
-	genderMale             = "Q6581097"
-	genderFemale           = "Q6581072"
-	genderIntersex         = "Q1097630"
-	genderTrasgenderFemale = "Q1052281"
-	genderTrasgenderMale   = "Q2449503"
+	qidGenderMale             = "Q6581097"
+	qidGenderFemale           = "Q6581072"
+	qidGenderIntersex         = "Q1097630"
+	qidGenderTrasgenderFemale = "Q1052281"
+	qidGenderTrasgenderMale   = "Q2449503"
 )
 
 const (
@@ -52,7 +52,7 @@ const (
 	GenderTrasgenderMale
 )
 
-type Authordata struct {
+type Author struct {
 	wikidataEntityId string
 	wikipediaLink    map[string]string
 	instanceOf       int
@@ -67,53 +67,53 @@ type Authordata struct {
 	gender           int
 }
 
-func (a Authordata) Description(language string) string {
+func (a Author) Description(language string) string {
 	return a.description[language]
 }
 
-func (a Authordata) DateOfBirth() date.Date {
+func (a Author) DateOfBirth() date.Date {
 	return a.dateOfBirth
 }
 
-func (a Authordata) DateOfDeath() date.Date {
+func (a Author) DateOfDeath() date.Date {
 	return a.dateOfDeath
 }
 
-func (a Authordata) Website() string {
+func (a Author) Website() string {
 	return a.website
 }
 
-func (a Authordata) Image() string {
+func (a Author) Image() string {
 	return a.image
 }
 
-func (a Authordata) InstanceOf() int {
+func (a Author) InstanceOf() int {
 	return a.instanceOf
 }
 
-func (a Authordata) YearOfBirth() int {
+func (a Author) YearOfBirth() int {
 	return a.yearOfBirth
 }
 
-func (a Authordata) YearOfBirthAbs() int {
+func (a Author) YearOfBirthAbs() int {
 	if a.yearOfBirth < 0 {
 		return -a.yearOfBirth
 	}
 	return a.yearOfBirth
 }
 
-func (a Authordata) YearOfDeathAbs() int {
+func (a Author) YearOfDeathAbs() int {
 	if a.yearOfDeath < 0 {
 		return -a.yearOfDeath
 	}
 	return a.yearOfDeath
 }
 
-func (a Authordata) YearOfDeath() int {
+func (a Author) YearOfDeath() int {
 	return a.yearOfDeath
 }
 
-func (a Authordata) Age() int {
+func (a Author) Age() int {
 	if a.dateOfBirth == 0 {
 		return 0
 	}
@@ -126,18 +126,18 @@ func (a Authordata) Age() int {
 	return int(period.Days() / 365)
 }
 
-func (a Authordata) WikipediaLink(language string) string {
+func (a Author) WikipediaLink(language string) string {
 	return a.wikipediaLink[language]
 }
 
-func (a Authordata) Gender() int {
+func (a Author) Gender() int {
 	return a.gender
 }
 
-func (a Authordata) SourceID() string {
+func (a Author) SourceID() string {
 	return a.wikidataEntityId
 }
 
-func (a Authordata) RetrievedOn() time.Time {
+func (a Author) RetrievedOn() time.Time {
 	return a.retrievedOn
 }
