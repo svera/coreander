@@ -9,13 +9,16 @@ import (
 
 // Wikidata properties IDs
 const (
-	propertyInstanceOf  = "P31"
-	propertyImage       = "P18"
-	propertySexOrGender = "P21"
-	propertyDateOfBirth = "P569"
-	propertyDateOfDeath = "P570"
-	propertyWebsite     = "P856"
-	propertyPseudonym   = "P742"
+	propertyInstanceOf           = "P31"
+	propertyImage                = "P18"
+	propertySexOrGender          = "P21"
+	propertyDateOfBirth          = "P569"
+	propertyDateOfDeath          = "P570"
+	propertyWebsite              = "P856"
+	propertyPseudonym            = "P742"
+	propertyBirthName            = "P1477"
+	propertyNameInNativeLanguage = "P1559"
+	propertyOfficialName         = "P1448"
 )
 
 // Wikidata "instance of" values
@@ -53,6 +56,8 @@ const (
 )
 
 type Author struct {
+	name             string
+	birthName        string
 	wikidataEntityId string
 	wikipediaLink    map[string]string
 	instanceOf       int
@@ -65,6 +70,15 @@ type Author struct {
 	image            string
 	retrievedOn      time.Time
 	gender           int
+	pseudonyms       []string
+}
+
+func (a Author) Name() string {
+	return a.name
+}
+
+func (a Author) BirthName() string {
+	return a.birthName
 }
 
 func (a Author) Description(language string) string {
@@ -119,7 +133,7 @@ func (a Author) Age() int {
 	}
 
 	period := timespan.BetweenDates(a.dateOfBirth, date.Today())
-	if a.dateOfDeath > 0 {
+	if a.dateOfDeath != 0 {
 		period = timespan.BetweenDates(a.dateOfBirth, a.dateOfDeath)
 	}
 
@@ -140,4 +154,8 @@ func (a Author) SourceID() string {
 
 func (a Author) RetrievedOn() time.Time {
 	return a.retrievedOn
+}
+
+func (a Author) Pseudonyms() []string {
+	return a.pseudonyms
 }

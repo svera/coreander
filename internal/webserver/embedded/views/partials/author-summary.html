@@ -1,9 +1,15 @@
 <div class="card text-bg-secondary mb-3">
     <div class="row">
         <div class="card-body col-sm-6 col-md-6 col-lg-9">
-            <h2 class="card-title ms-3">{{.Author.Name}}</h2>
+            <h2 class="card-title ms-3">{{.AuthorData.Name}}</h2>
             {{if .AuthorData.Description .Lang}}
-                <p class="card-text ms-3 capitalize">{{.AuthorData.Description .Lang}}</p>
+                <p class="card-text ms-3 capitalize lead">{{.AuthorData.Description .Lang}}</p>
+            {{end}}
+            {{if and (ne .AuthorData.BirthName "") (ne .AuthorData.BirthName .AuthorData.Name)}}
+                <p class="opacity-50 ms-3">{{t .Lang "Born"}} {{.AuthorData.BirthName}}</p>
+            {{end}}
+            {{if .AuthorData.Pseudonyms}}
+                <p class="opacity-50 ms-3">{{t .Lang "Alias"}} {{join .AuthorData.Pseudonyms ", "}}</p>
             {{end}}
 
             <dl class="ms-3">
@@ -66,7 +72,7 @@
 
             {{if eq .Session.Role 2}}
                 {{if ne .AuthorData.SourceID "" }}
-                <p class="ms-3"><small>
+                <p class="ms-3 opacity-75"><small>
                     <i class="bi-person-fill-exclamation me-2"></i>
                     <a class="link-light" data-bs-toggle="collapse" href="#update-author-form" aria-expanded="false">
                         {{ t .Lang "Is not the right author? Click here to update the Wikidata ID" }}
@@ -74,7 +80,7 @@
                 </small>
                 </p>
                 <div class="collapse" id="update-author-form">
-                    <p class="ms-3"><small>{{ t .Lang "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here." }}</small></p>
+                    <p class="ms-3 opacity-75"><small>{{ t .Lang "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here." }}</small></p>
                     <div class="row">
                         <div class="col-12 col-lg-6">
                             <form hx-put="/authors/{{.Author.Slug}}" class="ms-3">

@@ -66,7 +66,7 @@ func (a WikidataSource) RetrieveAuthor(id string, language string) (author.Autho
 	if err != nil {
 		return nil, err
 	}
-	entitiesReq.SetProps([]string{"descriptions", "claims", "sitelinks/urls"})
+	entitiesReq.SetProps([]string{"descriptions", "claims", "sitelinks/urls", "labels"})
 	entitiesReq.SetLanguages([]string{"en", language})
 	// Call get to make the request based on the configurations
 	entities, err := entitiesReq.Get()
@@ -74,74 +74,55 @@ func (a WikidataSource) RetrieveAuthor(id string, language string) (author.Autho
 		return nil, err
 	}
 
+	author.name = (*entities)[id].Labels[language].Value
+
+	if value, exists := (*entities)[id].Claims[propertyBirthName]; exists {
+		author.birthName = value[0].MainSnak.DataValue.Value.ValueFields.Text
+	}
+
+	if value, exists := (*entities)[id].Claims[propertyNameInNativeLanguage]; exists {
+		author.birthName = value[0].MainSnak.DataValue.Value.ValueFields.Text
+	}
+
+	if value, exists := (*entities)[id].Claims[propertyOfficialName]; exists {
+		author.birthName = value[0].MainSnak.DataValue.Value.ValueFields.Text
+	}
+
 	if value, exists := (*entities)[id].Claims[propertyInstanceOf]; exists {
-		switch value[0].MainSnak.DataValue.Value.ValueFields.ID {
-		case qidInstanceOfHuman:
-			author.instanceOf = InstanceHuman
-		case qidInstanceOfPseudonym:
-			author.instanceOf = InstancePseudonym
-		case qidInstanceOfPenName:
-			author.instanceOf = InstancePenName
-		case qidInstanceOfCollectivePseudonym:
-			author.instanceOf = InstanceCollectivePseudonym
-		default:
-			return author, fmt.Errorf("instance of %s not supported", value[0].MainSnak.DataValue.Value.ValueFields.ID)
-		}
+		author.instanceOf = parseInstanceOf(value[0])
 	}
 
 	if value, exists := (*entities)[id].Claims[propertySexOrGender]; exists {
-		switch value[0].MainSnak.DataValue.Value.ValueFields.ID {
-		case qidGenderMale:
-			author.gender = GenderMale
-		case qidGenderFemale:
-			author.gender = GenderFemale
-		case qidGenderIntersex:
-			author.gender = GenderIntersex
-		case qidGenderTrasgenderMale:
-			author.gender = GenderTrasgenderMale
-		case qidGenderTrasgenderFemale:
-			author.gender = GenderTrasgenderFemale
-		default:
-			return author, fmt.Errorf("gender %s not supported", value[0].MainSnak.DataValue.Value.ValueFields.ID)
-		}
+		author.gender = parseGender(value[0])
 	}
 
 	author.wikidataEntityId = id
 	author.retrievedOn = time.Now().UTC()
 	author.wikipediaLink[language] = (*entities)[id].SiteLinks[fmt.Sprintf("%swiki", language)].URL
-
 	author.description[language] = (*entities)[id].Descriptions[language].Value
+
 	if value, exists := (*entities)[id].Claims[propertyDateOfBirth]; exists {
-		if value[0].MainSnak.DataValue.Value.ValueFields.Precision == precisionYear {
-			author.yearOfBirth, err = strconv.Atoi(value[0].MainSnak.DataValue.Value.ValueFields.Time[:5])
-			if err != nil {
-				author.yearOfBirth = 0
-				author.dateOfBirth = date.Zero
-			}
-		} else {
-			author.dateOfBirth, err = date.ParseISO(value[0].MainSnak.DataValue.Value.ValueFields.Time)
-			if err != nil {
-				author.dateOfBirth = date.Zero
-			}
-		}
+		author.yearOfBirth, author.dateOfBirth = parseDateProperty(value[0])
 	}
 	if value, exists := (*entities)[id].Claims[propertyDateOfDeath]; exists {
-		if value[0].MainSnak.DataValue.Value.ValueFields.Precision == precisionYear {
-			author.yearOfDeath, err = strconv.Atoi(value[0].MainSnak.DataValue.Value.ValueFields.Time[:5])
-			if err != nil {
-				author.yearOfDeath = 0
-				author.dateOfDeath = date.Zero
-			}
-		} else {
-			author.dateOfDeath, err = date.ParseISO(value[0].MainSnak.DataValue.Value.ValueFields.Time)
-			if err != nil {
-				author.dateOfBirth = date.Zero
-			}
-		}
+		author.yearOfDeath, author.dateOfDeath = parseDateProperty(value[0])
 	}
 	if value, exists := (*entities)[id].Claims[propertyWebsite]; exists {
 		author.website = value[0].MainSnak.DataValue.Value.S
 	}
+	if value, exists := (*entities)[id].Claims[propertyPseudonym]; exists {
+		author.pseudonyms = make([]string, 0, len(value))
+		for _, claim := range value {
+			pseudonym, err := strconv.Unquote("\"" + claim.MainSnak.DataValue.Value.S + "\"")
+			if err != nil {
+				continue
+			}
+			if pseudonym != author.name {
+				author.pseudonyms = append(author.pseudonyms, pseudonym)
+			}
+		}
+	}
+
 	if value, exists := (*entities)[id].Claims[propertyImage]; exists {
 		img, err := strconv.Unquote("\"" + value[0].MainSnak.DataValue.Value.S + "\"")
 		if err != nil {
@@ -170,6 +151,50 @@ func (a WikidataSource) getEntityId(name string) (string, error) {
 		return "", fmt.Errorf("no author found for %s", name)
 	}
 
-	//result.SearchResult[0].Match.Type == "alias"
 	return result.SearchResult[0].ID, nil
+}
+
+func parseDateProperty(claim gowikidata.Claim) (int, date.Date) {
+	if claim.MainSnak.DataValue.Value.ValueFields.Precision == precisionYear {
+		year, err := strconv.Atoi(claim.MainSnak.DataValue.Value.ValueFields.Time[:5])
+		if err != nil {
+			return 0, date.Zero
+		}
+		return year, date.Zero
+	}
+	parsedDate, err := date.ParseISO(claim.MainSnak.DataValue.Value.ValueFields.Time)
+	if err != nil {
+		return 0, date.Zero
+	}
+	return 0, parsedDate
+}
+
+func parseGender(claim gowikidata.Claim) int {
+	switch claim.MainSnak.DataValue.Value.ValueFields.ID {
+	case qidGenderMale:
+		return GenderMale
+	case qidGenderFemale:
+		return GenderFemale
+	case qidGenderIntersex:
+		return GenderIntersex
+	case qidGenderTrasgenderMale:
+		return GenderTrasgenderMale
+	case qidGenderTrasgenderFemale:
+		return GenderTrasgenderFemale
+	}
+	return GenderUnknown
+}
+
+func parseInstanceOf(claim gowikidata.Claim) int {
+	switch claim.MainSnak.DataValue.Value.ValueFields.ID {
+	case qidInstanceOfHuman:
+		return InstanceHuman
+	case qidInstanceOfPseudonym:
+		return InstancePseudonym
+	case qidInstanceOfPenName:
+		return InstancePenName
+	case qidInstanceOfCollectivePseudonym:
+		return InstanceCollectivePseudonym
+	}
+	return InstanceUnknown
 }
