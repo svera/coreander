@@ -47,44 +47,53 @@ func NewWikidataSource(w wikidata) WikidataSource {
 	return WikidataSource{w}
 }
 
-func (a WikidataSource) SearchAuthor(name string, language string) (author.Author, error) {
-	id, err := a.getEntityId(name)
+func (a WikidataSource) SearchAuthor(name string, languages []string) (author.Author, error) {
+	ids, err := a.getEntityIds(name)
 	if err != nil {
 		return nil, err
 	}
 
-	return a.RetrieveAuthor(id, language)
+	return a.RetrieveAuthor(ids, languages)
 }
 
-func (a WikidataSource) RetrieveAuthor(id string, language string) (author.Author, error) {
+// RetrieveAuthor returns the first match from the list of passed Wikidata entity IDs that represents a human
+func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (author.Author, error) {
 	author := Author{
+		name:          make(map[string]string),
 		wikipediaLink: make(map[string]string),
 		description:   make(map[string]string),
 	}
 
-	entitiesReq, err := a.wikidata.NewGetEntities([]string{id})
+	entitiesReq, err := a.wikidata.NewGetEntities(ids)
 	if err != nil {
 		return nil, err
 	}
 	entitiesReq.SetProps([]string{"descriptions", "claims", "sitelinks/urls", "labels"})
-	entitiesReq.SetLanguages([]string{"en", language})
+	entitiesReq.SetLanguages(languages)
 	// Call get to make the request based on the configurations
 	entities, err := entitiesReq.Get()
 	if err != nil {
 		return nil, err
 	}
 
-	author.name = (*entities)[id].Labels[language].Value
+	id := ""
+	for _, id = range ids {
+		if instanceOf, exists := (*entities)[id].Claims[propertyInstanceOf]; exists {
+			if parseInstanceOf(instanceOf[0]) != InstanceUnknown {
+				break
+			}
+		}
+	}
+
+	if id == "" {
+		return author, nil
+	}
 
 	if value, exists := (*entities)[id].Claims[propertyBirthName]; exists {
 		author.birthName = value[0].MainSnak.DataValue.Value.ValueFields.Text
-	}
-
-	if value, exists := (*entities)[id].Claims[propertyNameInNativeLanguage]; exists {
+	} else if value, exists := (*entities)[id].Claims[propertyNameInNativeLanguage]; exists {
 		author.birthName = value[0].MainSnak.DataValue.Value.ValueFields.Text
-	}
-
-	if value, exists := (*entities)[id].Claims[propertyOfficialName]; exists {
+	} else if value, exists := (*entities)[id].Claims[propertyOfficialName]; exists {
 		author.birthName = value[0].MainSnak.DataValue.Value.ValueFields.Text
 	}
 
@@ -98,9 +107,11 @@ func (a WikidataSource) RetrieveAuthor(id string, language string) (author.Autho
 
 	author.wikidataEntityId = id
 	author.retrievedOn = time.Now().UTC()
-	author.wikipediaLink[language] = (*entities)[id].SiteLinks[fmt.Sprintf("%swiki", language)].URL
-	author.description[language] = (*entities)[id].Descriptions[language].Value
-
+	for _, lang := range languages {
+		author.name[lang] = (*entities)[id].Labels[lang].Value
+		author.wikipediaLink[lang] = (*entities)[id].SiteLinks[fmt.Sprintf("%swiki", lang)].URL
+		author.description[lang] = (*entities)[id].Descriptions[lang].Value
+	}
 	if value, exists := (*entities)[id].Claims[propertyDateOfBirth]; exists {
 		author.yearOfBirth, author.dateOfBirth = parseDateProperty(value[0])
 	}
@@ -117,9 +128,7 @@ func (a WikidataSource) RetrieveAuthor(id string, language string) (author.Autho
 			if err != nil {
 				continue
 			}
-			if pseudonym != author.name {
-				author.pseudonyms = append(author.pseudonyms, pseudonym)
-			}
+			author.pseudonyms = append(author.pseudonyms, pseudonym)
 		}
 	}
 
@@ -137,21 +146,27 @@ func (a WikidataSource) RetrieveAuthor(id string, language string) (author.Autho
 	return author, nil
 }
 
-func (a WikidataSource) getEntityId(name string) (string, error) {
+// getEntityIds return all entity IDs from Wikidata which matches the passed name
+func (a WikidataSource) getEntityIds(name string) ([]string, error) {
 	query, err := a.wikidata.NewSearch(url.QueryEscape(name), "en")
 	if err != nil {
-		return "", err
+		return []string{}, err
 	}
 	result, err := query.Get()
 	if err != nil {
-		return "", err
+		return []string{}, err
 	}
 
 	if len(result.SearchResult) == 0 {
-		return "", fmt.Errorf("no author found for %s", name)
+		return []string{}, fmt.Errorf("no entity found for %s", name)
 	}
 
-	return result.SearchResult[0].ID, nil
+	res := make([]string, 0, len(result.SearchResult))
+	for _, entity := range result.SearchResult {
+		res = append(res, entity.ID)
+	}
+
+	return res, nil
 }
 
 func parseDateProperty(claim gowikidata.Claim) (int, date.Date) {

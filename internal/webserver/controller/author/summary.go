@@ -8,43 +8,66 @@ import (
 
 func (a *Controller) Summary(c *fiber.Ctx) error {
 	var (
-		authorData Author
-		err        error
+		authorDataSource Author
+		err              error
 	)
 
 	authorSlug := c.Params("slug")
+	lang := c.Locals("Lang").(string)
 
 	if authorSlug == "" {
 		return fiber.ErrBadRequest
 	}
 
-	author, _ := a.idx.Author(authorSlug)
+	author, _ := a.idx.Author(authorSlug, lang)
 
-	if author.WikidataID != "" {
-		authorData, err = a.dataSource.RetrieveAuthor(author.WikidataID, c.Locals("Lang").(string))
-	} else {
-		if !author.RetrievedOn.IsZero() {
-			return fiber.ErrNotFound
+	if author.DataSourceID != "" {
+		templateVars := fiber.Map{
+			"Author": author,
 		}
-		authorData, err = a.dataSource.SearchAuthor(author.Name, c.Locals("Lang").(string))
+
+		if err = c.Render("partials/author-summary", templateVars); err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
+		return nil
 	}
+
+	if !author.RetrievedOn.IsZero() {
+		return fiber.ErrNotFound
+	}
+	authorDataSource, err = a.dataSource.SearchAuthor(author.Name, c.Locals("SupportedLanguages").([]string))
+
 	if err != nil {
 		log.Println(err)
 	}
 
-	if authorData == nil {
+	if authorDataSource == nil {
 		return fiber.ErrNotFound
 	}
 
-	author.WikidataID = authorData.SourceID()
-	author.RetrievedOn = authorData.RetrievedOn()
+	author.DataSourceID = authorDataSource.SourceID()
+	author.Name = authorDataSource.Name(lang)
+	author.BirthName = authorDataSource.BirthName()
+	author.RetrievedOn = authorDataSource.RetrievedOn()
+	author.WikipediaLink[lang] = authorDataSource.WikipediaLink(lang)
+	author.InstanceOf = authorDataSource.InstanceOf()
+	author.Description[lang] = authorDataSource.Description(lang)
+	author.DateOfBirth = authorDataSource.DateOfBirth()
+	author.YearOfBirth = authorDataSource.YearOfBirth()
+	author.DateOfDeath = authorDataSource.DateOfDeath()
+	author.YearOfDeath = authorDataSource.YearOfDeath()
+	author.Website = authorDataSource.Website()
+	author.Image = authorDataSource.Image()
+	author.Gender = authorDataSource.Gender()
+	author.Pseudonyms = authorDataSource.Pseudonyms()
+
 	if err := a.idx.IndexAuthor(author); err != nil {
 		log.Println(err)
 	}
 
 	templateVars := fiber.Map{
-		"Author":     author,
-		"AuthorData": authorData,
+		"Author": author,
 	}
 
 	if err = c.Render("partials/author-summary", templateVars); err != nil {

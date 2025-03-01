@@ -7,24 +7,24 @@ import (
 )
 
 type Author interface {
+	Name(language string) string
+	BirthName() string
 	Description(language string) string
 	InstanceOf() int
 	Gender() int
 	DateOfBirth() date.Date
 	YearOfBirth() int
-	YearOfBirthAbs() int
 	DateOfDeath() date.Date
 	YearOfDeath() int
-	YearOfDeathAbs() int
 	Image() string
-	Age() int
 	Website() string
 	WikipediaLink(language string) string
 	SourceID() string
 	RetrievedOn() time.Time
+	Pseudonyms() []string
 }
 
 type DataSource interface {
-	SearchAuthor(name string, language string) (Author, error)
-	RetrieveAuthor(ID, language string) (Author, error)
+	SearchAuthor(name string, languages []string) (Author, error)
+	RetrieveAuthor(IDs []string, languages []string) (Author, error)
 }

@@ -37,7 +37,7 @@ func TestAuthor(t *testing.T) {
 
 			wikidataSource := NewWikidataSource(mock)
 
-			author, err := wikidataSource.SearchAuthor("Miguel", "en")
+			author, err := wikidataSource.SearchAuthor("Miguel", []string{"en"})
 			if err != nil {
 				t.Errorf("Error retrieving author: %v", err)
 			}

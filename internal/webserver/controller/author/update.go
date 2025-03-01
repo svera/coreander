@@ -8,18 +8,21 @@ import (
 
 func (a *Controller) Update(c *fiber.Ctx) error {
 	authorSlug := c.Params("slug")
+	lang := c.Locals("Lang").(string)
+	supportedLanguages := c.Locals("SupportedLanguages").([]string)
 
 	if authorSlug == "" {
 		return fiber.ErrBadRequest
 	}
 
-	author, _ := a.idx.Author(authorSlug)
-	authorData, err := a.dataSource.RetrieveAuthor(c.FormValue("sourceID"), c.Locals("Lang").(string))
+	author, _ := a.idx.Author(authorSlug, lang)
+	authorData, err := a.dataSource.RetrieveAuthor([]string{c.FormValue("sourceID")}, supportedLanguages)
 	if err != nil {
 		log.Println(err)
+		return fiber.ErrNotFound
 	}
 
-	author.WikidataID = authorData.SourceID()
+	author.DataSourceID = authorData.SourceID()
 	author.RetrievedOn = authorData.RetrievedOn()
 	if err := a.idx.IndexAuthor(author); err != nil {
 		log.Println(err)

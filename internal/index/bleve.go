@@ -82,7 +82,7 @@ func CreateMapping() mapping.IndexMapping {
 	indexMapping := bleve.NewIndexMapping()
 
 	err := indexMapping.AddCustomAnalyzer(defaultAnalyzer,
-		map[string]interface{}{
+		map[string]any{
 			"type": custom.Name,
 			"char_filters": []string{
 				asciifolding.Name,

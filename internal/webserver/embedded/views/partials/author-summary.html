@@ -1,77 +1,77 @@
 <div class="card text-bg-secondary mb-3">
     <div class="row">
         <div class="card-body col-sm-6 col-md-6 col-lg-9">
-            <h2 class="card-title ms-3">{{.AuthorData.Name}}</h2>
-            {{if .AuthorData.Description .Lang}}
-                <p class="card-text ms-3 capitalize lead">{{.AuthorData.Description .Lang}}</p>
+            <h2 class="card-title ms-3">{{.Author.Name}}</h2>
+            {{if index .Author.Description .Lang}}
+                <p class="card-text ms-3 capitalize lead">{{index .Author.Description .Lang}}</p>
             {{end}}
-            {{if and (ne .AuthorData.BirthName "") (ne .AuthorData.BirthName .AuthorData.Name)}}
-                <p class="opacity-50 ms-3">{{t .Lang "Born"}} {{.AuthorData.BirthName}}</p>
+            {{if and (ne .Author.BirthName "") (not .Author.BirthNameIncludesName)}}
+                <p class="opacity-50 ms-3">{{t .Lang "Born"}} {{.Author.BirthName}}</p>
             {{end}}
-            {{if .AuthorData.Pseudonyms}}
-                <p class="opacity-50 ms-3">{{t .Lang "Alias"}} {{join .AuthorData.Pseudonyms ", "}}</p>
+            {{if .Author.Pseudonyms}}
+                <p class="opacity-50 ms-3">{{t .Lang "Alias"}} {{join .Author.Pseudonyms ", "}}</p>
             {{end}}
 
             <dl class="ms-3">
-                {{if or (ne .AuthorData.DateOfBirth 0) (ne .AuthorData.YearOfBirth 0)}}
+                {{if or (ne .Author.DateOfBirth 0) (ne .Author.YearOfBirth 0)}}
                     <dt>{{t .Lang "Date of birth"}}</dt>
                     <dd>
-                        {{if ne .AuthorData.YearOfBirth 0}}
-                            {{.AuthorData.YearOfBirthAbs}}
-                            {{if lt .AuthorData.YearOfBirth 0}}
+                        {{if ne .Author.YearOfBirth 0}}
+                            {{.Author.YearOfBirthAbs}}
+                            {{if lt .Author.YearOfBirth 0}}
                                 <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
                             {{end}}
 
                         {{else}}
-                            <time datetime='{{.AuthorData.DateOfBirth.FormatISO 6}}'>{{.AuthorData.DateOfBirth.FormatISO 6}}</time>
-                            {{if lt .AuthorData.DateOfBirth.Year 0}}
+                            <time datetime='{{.Author.DateOfBirth.FormatISO 6}}'>{{.Author.DateOfBirth.FormatISO 6}}</time>
+                            {{if lt .Author.DateOfBirth.Year 0}}
                                 <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
                             {{end}}
-                            {{if and (gt .AuthorData.Age 0) (eq .AuthorData.DateOfDeath 0) (eq .AuthorData.YearOfDeath 0)}}
-                                ({{t .Lang "%d years old" .AuthorData.Age}})
+                            {{if and (gt .Author.Age 0) (eq .Author.DateOfDeath 0) (eq .Author.YearOfDeath 0)}}
+                                ({{t .Lang "%d years old" .Author.Age}})
                             {{end}}
                         {{end}}
                     </dd>
                 {{end}}
 
-                {{if or (ne .AuthorData.DateOfDeath 0) (ne .AuthorData.YearOfDeath 0)}}
+                {{if or (ne .Author.DateOfDeath 0) (ne .Author.YearOfDeath 0)}}
                     <dt>{{t .Lang "Date of death"}}</dt>
                     <dd>
-                        {{if ne .AuthorData.YearOfDeath 0}}
-                            {{.AuthorData.YearOfDeathAbs}}
-                            {{if lt .AuthorData.YearOfDeath 0}}
+                        {{if ne .Author.YearOfDeath 0}}
+                            {{.Author.YearOfDeathAbs}}
+                            {{if lt .Author.YearOfDeath 0}}
                                 <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
                             {{end}}
                         {{else}}
-                            <time datetime='{{.AuthorData.DateOfDeath.FormatISO 6}}'>{{.AuthorData.DateOfDeath.FormatISO 6}}</time>
-                            {{if lt .AuthorData.DateOfDeath.Year 0}}
+                            <time datetime='{{.Author.DateOfDeath.FormatISO 6}}'>{{.Author.DateOfDeath.FormatISO 6}}</time>
+                            {{if lt .Author.DateOfDeath.Year 0}}
                             <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
                             {{end}}
-                            {{if gt .AuthorData.Age 0}}
-                                ({{t .Lang "%d years old" .AuthorData.Age}})
+                            {{if gt .Author.Age 0}}
+                                ({{t .Lang "%d years old" .Author.Age}})
                             {{end}}
                         {{end}}
                     </dd>
                 {{end}}
             </dl>
             <ul class="list-unstyled ms-3">
-                {{if .AuthorData.Website}}
+                {{if .Author.Website}}
                     <li>
                         <i class="bi-globe-europe-africa me-2"></i>
-                        <a href="{{.AuthorData.Website}}" class="link-light">{{t .Lang "Official website"}}</a>
+                        <a href="{{.Author.Website}}" class="link-light">{{t .Lang "Official website"}}</a>
                     </li>
                 {{end}}
 
-                {{if .AuthorData.WikipediaLink .Lang}}
+                {{if index .Author.WikipediaLink .Lang}}
                     <li>
                         <i class="bi-wikipedia me-2"></i>
-                        <a href="{{.AuthorData.WikipediaLink .Lang}}" class="link-light">{{t .Lang "Go to Wikipedia entry"}}</a>
+                        <a href="{{index .Author.WikipediaLink .Lang}}" class="link-light">{{t .Lang "Go to Wikipedia entry"}}</a>
                     </li>
                 {{end}}
             </ul>
 
             {{if eq .Session.Role 2}}
-                {{if ne .AuthorData.SourceID "" }}
+                {{if ne .Author.DataSourceID "" }}
                 <p class="ms-3 opacity-75"><small>
                     <i class="bi-person-fill-exclamation me-2"></i>
                     <a class="link-light" data-bs-toggle="collapse" href="#update-author-form" aria-expanded="false">
@@ -85,7 +85,7 @@
                         <div class="col-12 col-lg-6">
                             <form hx-put="/authors/{{.Author.Slug}}" class="ms-3">
                                 <div class="input-group input-group-sm">
-                                    <input class="form-control" type="text" name="sourceID" value="{{.AuthorData.SourceID}}">
+                                    <input class="form-control" type="text" name="sourceID" value="{{.Author.DataSourceID}}">
                                     <button type="submit" class="btn btn-dark">{{t .Lang "Update"}}</button>
                                 </div>
                             </form>
@@ -95,9 +95,9 @@
                 {{end}}
             {{end}}
         </div>
-        {{if .AuthorData.Image}}
+        {{if .Author.Image}}
         <div class="col-lg-3 col-md-6 col-sm-6 d-flex">
-            <img src="{{.AuthorData.Image}}" class="img-fluid rounded-end object-fit-cover" alt="{{.Author.Name}}">
+            <img src="{{.Author.Image}}" class="img-fluid rounded-end object-fit-cover" alt="{{.Author.Name}}">
         </div>
         {{end}}
     </div>

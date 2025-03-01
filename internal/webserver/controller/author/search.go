@@ -39,7 +39,7 @@ func (a *Controller) Search(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	author, err := a.idx.Author(authorSlug)
+	author, err := a.idx.Author(authorSlug, c.Locals("Lang").(string))
 	if err != nil {
 		log.Println(err)
 	}

@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/rickb777/date/v2"
-	"github.com/rickb777/date/v2/timespan"
 )
 
 // Wikidata properties IDs
@@ -56,7 +55,7 @@ const (
 )
 
 type Author struct {
-	name             string
+	name             map[string]string
 	birthName        string
 	wikidataEntityId string
 	wikipediaLink    map[string]string
@@ -73,8 +72,11 @@ type Author struct {
 	pseudonyms       []string
 }
 
-func (a Author) Name() string {
-	return a.name
+func (a Author) Name(lang string) string {
+	if name, ok := a.name[lang]; ok {
+		return name
+	}
+	return ""
 }
 
 func (a Author) BirthName() string {
@@ -109,35 +111,8 @@ func (a Author) YearOfBirth() int {
 	return a.yearOfBirth
 }
 
-func (a Author) YearOfBirthAbs() int {
-	if a.yearOfBirth < 0 {
-		return -a.yearOfBirth
-	}
-	return a.yearOfBirth
-}
-
-func (a Author) YearOfDeathAbs() int {
-	if a.yearOfDeath < 0 {
-		return -a.yearOfDeath
-	}
-	return a.yearOfDeath
-}
-
 func (a Author) YearOfDeath() int {
 	return a.yearOfDeath
-}
-
-func (a Author) Age() int {
-	if a.dateOfBirth == 0 {
-		return 0
-	}
-
-	period := timespan.BetweenDates(a.dateOfBirth, date.Today())
-	if a.dateOfDeath != 0 {
-		period = timespan.BetweenDates(a.dateOfBirth, a.dateOfDeath)
-	}
-
-	return int(period.Days() / 365)
 }
 
 func (a Author) WikipediaLink(language string) string {
