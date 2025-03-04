@@ -10,19 +10,11 @@ import (
 	"time"
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
-	"github.com/rickb777/date/v2"
+	"github.com/svera/coreander/v4/internal/precisiondate"
 	"github.com/svera/coreander/v4/internal/webserver/controller/author"
 )
 
 const imgUrl = "https://commons.wikimedia.org/w/index.php?title=Special:Redirect/file/%s"
-
-const (
-	precisionCentury = 7
-	precisionDecade  = 8
-	precisionYear    = 9
-	precisionMonth   = 10
-	precisionDay     = 11
-)
 
 type wikidata interface {
 	NewSearch(string, string) (SearchEntitiesRequest, error)
@@ -59,7 +51,6 @@ func (a WikidataSource) SearchAuthor(name string, languages []string) (author.Au
 // RetrieveAuthor returns the first match from the list of passed Wikidata entity IDs that represents a human
 func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (author.Author, error) {
 	author := Author{
-		name:          make(map[string]string),
 		wikipediaLink: make(map[string]string),
 		description:   make(map[string]string),
 	}
@@ -108,15 +99,20 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (author
 	author.wikidataEntityId = id
 	author.retrievedOn = time.Now().UTC()
 	for _, lang := range languages {
-		author.name[lang] = (*entities)[id].Labels[lang].Value
 		author.wikipediaLink[lang] = (*entities)[id].SiteLinks[fmt.Sprintf("%swiki", lang)].URL
 		author.description[lang] = (*entities)[id].Descriptions[lang].Value
 	}
 	if value, exists := (*entities)[id].Claims[propertyDateOfBirth]; exists {
-		author.yearOfBirth, author.dateOfBirth = parseDateProperty(value[0])
+		author.dateOfBirth = precisiondate.NewPrecisionDate(
+			value[0].MainSnak.DataValue.Value.ValueFields.Time,
+			value[0].MainSnak.DataValue.Value.ValueFields.Precision,
+		)
 	}
 	if value, exists := (*entities)[id].Claims[propertyDateOfDeath]; exists {
-		author.yearOfDeath, author.dateOfDeath = parseDateProperty(value[0])
+		author.dateOfDeath = precisiondate.NewPrecisionDate(
+			value[0].MainSnak.DataValue.Value.ValueFields.Time,
+			value[0].MainSnak.DataValue.Value.ValueFields.Precision,
+		)
 	}
 	if value, exists := (*entities)[id].Claims[propertyWebsite]; exists {
 		author.website = value[0].MainSnak.DataValue.Value.S
@@ -167,21 +163,6 @@ func (a WikidataSource) getEntityIds(name string) ([]string, error) {
 	}
 
 	return res, nil
-}
-
-func parseDateProperty(claim gowikidata.Claim) (int, date.Date) {
-	if claim.MainSnak.DataValue.Value.ValueFields.Precision == precisionYear {
-		year, err := strconv.Atoi(claim.MainSnak.DataValue.Value.ValueFields.Time[:5])
-		if err != nil {
-			return 0, date.Zero
-		}
-		return year, date.Zero
-	}
-	parsedDate, err := date.ParseISO(claim.MainSnak.DataValue.Value.ValueFields.Time)
-	if err != nil {
-		return 0, date.Zero
-	}
-	return 0, parsedDate
 }
 
 func parseGender(claim gowikidata.Claim) int {

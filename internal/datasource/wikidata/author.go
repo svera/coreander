@@ -3,7 +3,7 @@ package wikidata
 import (
 	"time"
 
-	"github.com/rickb777/date/v2"
+	"github.com/svera/coreander/v4/internal/precisiondate"
 )
 
 // Wikidata properties IDs
@@ -55,28 +55,18 @@ const (
 )
 
 type Author struct {
-	name             map[string]string
 	birthName        string
 	wikidataEntityId string
 	wikipediaLink    map[string]string
 	instanceOf       int
 	description      map[string]string
-	dateOfBirth      date.Date
-	yearOfBirth      int // Used when dateOfBirth is not available
-	dateOfDeath      date.Date
-	yearOfDeath      int // Used when dateOfDeath is not available
+	dateOfBirth      precisiondate.PrecisionDate
+	dateOfDeath      precisiondate.PrecisionDate
 	website          string
 	image            string
 	retrievedOn      time.Time
 	gender           int
 	pseudonyms       []string
-}
-
-func (a Author) Name(lang string) string {
-	if name, ok := a.name[lang]; ok {
-		return name
-	}
-	return ""
 }
 
 func (a Author) BirthName() string {
@@ -87,11 +77,11 @@ func (a Author) Description(language string) string {
 	return a.description[language]
 }
 
-func (a Author) DateOfBirth() date.Date {
+func (a Author) DateOfBirth() precisiondate.PrecisionDate {
 	return a.dateOfBirth
 }
 
-func (a Author) DateOfDeath() date.Date {
+func (a Author) DateOfDeath() precisiondate.PrecisionDate {
 	return a.dateOfDeath
 }
 
@@ -105,14 +95,6 @@ func (a Author) Image() string {
 
 func (a Author) InstanceOf() int {
 	return a.instanceOf
-}
-
-func (a Author) YearOfBirth() int {
-	return a.yearOfBirth
-}
-
-func (a Author) YearOfDeath() int {
-	return a.yearOfDeath
 }
 
 func (a Author) WikipediaLink(language string) string {

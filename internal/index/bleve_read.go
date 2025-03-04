@@ -15,6 +15,7 @@ import (
 	"github.com/rickb777/date/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/precisiondate"
 	"github.com/svera/coreander/v4/internal/result"
 )
 
@@ -378,7 +379,7 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 	authorsCompoundQuery.AddQuery(tq)
 
 	searchOptions := bleve.NewSearchRequest(authorsCompoundQuery)
-	searchOptions.Fields = []string{"Name", "BirthName", "Slug", "DataSourceID", "RetrievedOn", "WikipediaLink." + lang, "InstanceOf", "Description." + lang, "DateOfBirth", "YearOfBirth", "DateOfDeath", "YearOfDeath", "Website", "Image", "Gender", "Pseudonyms"}
+	searchOptions.Fields = []string{"Name", "BirthName", "Slug", "DataSourceID", "RetrievedOn", "WikipediaLink." + lang, "InstanceOf", "Description." + lang, "DateOfBirth.Date", "DateOfBirth.Precision", "DateOfDeath.Date", "DateOfDeath.Precision", "Website", "Image", "Gender", "Pseudonyms"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return Author{}, err
@@ -394,19 +395,15 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 			return Author{}, err
 		}
 	}
-	dateOfBirth := date.Zero
-	if searchResult.Hits[0].Fields["DateOfBirth"] != nil {
-		dateOfBirth = date.Date(searchResult.Hits[0].Fields["DateOfBirth"].(float64))
-		if err != nil {
-			return Author{}, err
-		}
+	dateOfBirth := precisiondate.PrecisionDate{Date: date.Zero}
+	if searchResult.Hits[0].Fields["DateOfBirth.Date"] != nil {
+		dateOfBirth.Date = date.Date(searchResult.Hits[0].Fields["DateOfBirth.Date"].(float64))
+		dateOfBirth.Precision = searchResult.Hits[0].Fields["DateOfBirth.Precision"].(float64)
 	}
-	dateOfDeath := date.Zero
-	if searchResult.Hits[0].Fields["DateOfDeath"] != nil {
-		dateOfDeath = date.Date(searchResult.Hits[0].Fields["DateOfDeath"].(float64))
-		if err != nil {
-			return Author{}, err
-		}
+	dateOfDeath := precisiondate.PrecisionDate{Date: date.Zero}
+	if searchResult.Hits[0].Fields["DateOfDeath.Date"] != nil {
+		dateOfDeath.Date = date.Date(searchResult.Hits[0].Fields["DateOfDeath.Date"].(float64))
+		dateOfDeath.Precision = searchResult.Hits[0].Fields["DateOfDeath.Precision"].(float64)
 	}
 
 	author := Author{
@@ -419,9 +416,7 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 		InstanceOf:    int(searchResult.Hits[0].Fields["InstanceOf"].(float64)),
 		Description:   make(map[string]string),
 		DateOfBirth:   dateOfBirth,
-		YearOfBirth:   int(searchResult.Hits[0].Fields["YearOfBirth"].(float64)),
 		DateOfDeath:   dateOfDeath,
-		YearOfDeath:   int(searchResult.Hits[0].Fields["YearOfDeath"].(float64)),
 		Website:       searchResult.Hits[0].Fields["Website"].(string),
 		Image:         searchResult.Hits[0].Fields["Image"].(string),
 		Gender:        int(searchResult.Hits[0].Fields["Gender"].(float64)),

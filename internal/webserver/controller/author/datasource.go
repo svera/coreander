@@ -3,19 +3,16 @@ package author
 import (
 	"time"
 
-	"github.com/rickb777/date/v2"
+	"github.com/svera/coreander/v4/internal/precisiondate"
 )
 
 type Author interface {
-	Name(language string) string
 	BirthName() string
 	Description(language string) string
 	InstanceOf() int
 	Gender() int
-	DateOfBirth() date.Date
-	YearOfBirth() int
-	DateOfDeath() date.Date
-	YearOfDeath() int
+	DateOfBirth() precisiondate.PrecisionDate
+	DateOfDeath() precisiondate.PrecisionDate
 	Image() string
 	Website() string
 	WikipediaLink(language string) string

@@ -6,6 +6,7 @@ import (
 
 	"github.com/rickb777/date/v2"
 	"github.com/rickb777/date/v2/timespan"
+	"github.com/svera/coreander/v4/internal/precisiondate"
 )
 
 type Author struct {
@@ -18,10 +19,8 @@ type Author struct {
 	WikipediaLink map[string]string
 	InstanceOf    int
 	Description   map[string]string
-	DateOfBirth   date.Date
-	YearOfBirth   int // Used when DateOfBirth is not available
-	DateOfDeath   date.Date
-	YearOfDeath   int // Used when DateOfDeath is not available
+	DateOfBirth   precisiondate.PrecisionDate
+	DateOfDeath   precisiondate.PrecisionDate
 	Website       string
 	Image         string
 	Gender        int
@@ -35,27 +34,27 @@ func (a Author) BleveType() string {
 }
 
 func (a Author) YearOfBirthAbs() int {
-	if a.YearOfBirth < 0 {
-		return -a.YearOfBirth
+	if a.DateOfBirth.Year() < 0 {
+		return -a.DateOfBirth.Year()
 	}
-	return a.YearOfBirth
+	return a.DateOfBirth.Year()
 }
 
 func (a Author) YearOfDeathAbs() int {
-	if a.YearOfDeath < 0 {
-		return -a.YearOfDeath
+	if a.DateOfDeath.Year() < 0 {
+		return -a.DateOfDeath.Year()
 	}
-	return a.YearOfDeath
+	return a.DateOfDeath.Year()
 }
 
 func (a Author) Age() int {
-	if a.DateOfBirth == 0 {
+	if a.DateOfBirth.Date == 0 {
 		return 0
 	}
 
-	period := timespan.BetweenDates(a.DateOfBirth, date.Today())
-	if a.DateOfDeath != 0 {
-		period = timespan.BetweenDates(a.DateOfBirth, a.DateOfDeath)
+	period := timespan.BetweenDates(a.DateOfBirth.Date, date.Today())
+	if a.DateOfDeath.Date != 0 {
+		period = timespan.BetweenDates(a.DateOfBirth.Date, a.DateOfDeath.Date)
 	}
 
 	return int(period.Days() / 365)
