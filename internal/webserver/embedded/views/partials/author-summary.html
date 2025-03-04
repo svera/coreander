@@ -18,7 +18,7 @@
                 {{if ne .Author.DateOfBirth.Date 0}}
                     <dt>{{t .Lang "Date of birth"}}</dt>
                     <dd>
-                        {{if .Author.DateOfBirth.IsPrecisionYear}}
+                        {{if (or .Author.DateOfBirth.IsPrecisionYear .Author.DateOfBirth.IsPrecisionDecade) }}
                             {{.Author.YearOfBirthAbs}}
                             {{if lt .Author.DateOfBirth.Year 0}}
                                 <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
@@ -76,7 +76,7 @@
                 <p class="ms-3 opacity-75"><small>
                     <i class="bi-person-fill-exclamation me-2"></i>
                     <a class="link-light" data-bs-toggle="collapse" href="#update-author-form" aria-expanded="false">
-                        {{ t .Lang "Is not the right author? Click here to update the Wikidata ID" }}
+                        {{ t .Lang "Is not the right author or data is outdated? Click here to update the Wikidata ID" }}
                     </a>
                 </small>
                 </p>

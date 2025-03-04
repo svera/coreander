@@ -25,12 +25,12 @@ const (
 func NewPrecisionDate(ISOdate string, precision float64) PrecisionDate {
 	if precision < PrecisionDay {
 		switch precision {
-		case PrecisionYear:
+		case PrecisionDecade, PrecisionYear:
 			year := ISOdate[:5]
-			ISOdate = fmt.Sprintf("+%s-01-01T00:00:00Z", year)
+			ISOdate = fmt.Sprintf("%s-01-01T00:00:00Z", year)
 		case PrecisionMonth:
 			yearMonth := ISOdate[:8]
-			ISOdate = fmt.Sprintf("+%s-01T00:00:00Z", yearMonth)
+			ISOdate = fmt.Sprintf("%s-01T00:00:00Z", yearMonth)
 		}
 	}
 	parsedDate, err := date.ParseISO(ISOdate)
