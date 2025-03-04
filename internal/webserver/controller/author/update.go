@@ -23,7 +23,7 @@ func (a *Controller) Update(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	combineWithFromDataSource(&author, authorDataSource, supportedLanguages)
+	combineWithDataSource(&author, authorDataSource, supportedLanguages)
 
 	if err := a.idx.IndexAuthor(author); err != nil {
 		log.Println(err)

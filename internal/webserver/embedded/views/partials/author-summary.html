@@ -1,12 +1,14 @@
 <div class="card text-bg-secondary mb-3">
     <div class="row">
-        <div class="card-body col-sm-6 col-md-6 col-lg-9">
-            <h2 class="card-title ms-3">{{.Author.Name}}</h2>
+        <div class="card-body col-sm-6 col-md-6 col-lg-9 clearfix">
+            <div class="clearfix d-flex align-items-baseline">
+                <h2 class="card-title ms-3 float-start">{{.Author.Name}}</h2>
+                {{if and (ne .Author.BirthName "") (not .Author.BirthNameIncludesName)}}
+                    <p class="opacity-50 ms-3 float-start">&nbsp;{{.Author.BirthName}}</p>
+                {{end}}
+            </div>
             {{if index .Author.Description .Lang}}
                 <p class="card-text ms-3 capitalize lead">{{index .Author.Description .Lang}}</p>
-            {{end}}
-            {{if and (ne .Author.BirthName "") (not .Author.BirthNameIncludesName)}}
-                <p class="opacity-50 ms-3">{{t .Lang "Born"}} {{.Author.BirthName}}</p>
             {{end}}
             {{if .Author.Pseudonyms}}
                 <p class="opacity-50 ms-3">{{t .Lang "Alias"}} {{join .Author.Pseudonyms ", "}}</p>

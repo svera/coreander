@@ -48,7 +48,7 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	combineWithFromDataSource(&author, authorDataSource, supportedLanguages)
+	combineWithDataSource(&author, authorDataSource, supportedLanguages)
 
 	if err := a.idx.IndexAuthor(author); err != nil {
 		log.Println(err)
@@ -65,7 +65,7 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 	return nil
 }
 
-func combineWithFromDataSource(author *index.Author, authorDataSource Author, supportedLanguages []string) {
+func combineWithDataSource(author *index.Author, authorDataSource Author, supportedLanguages []string) {
 	author.DataSourceID = authorDataSource.SourceID()
 	author.BirthName = authorDataSource.BirthName()
 	author.RetrievedOn = authorDataSource.RetrievedOn()
