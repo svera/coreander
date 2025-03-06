@@ -18,6 +18,7 @@ const (
 	propertyBirthName            = "P1477"
 	propertyNameInNativeLanguage = "P1559"
 	propertyOfficialName         = "P1448"
+	propertyPointInTime          = "P585"
 )
 
 // Wikidata "instance of" values
@@ -58,16 +59,18 @@ type Author struct {
 	birthName        string
 	wikidataEntityId string
 	wikipediaLink    map[string]string
-	instanceOf       int
+	instanceOf       float64
 	description      map[string]string
 	dateOfBirth      precisiondate.PrecisionDate
 	dateOfDeath      precisiondate.PrecisionDate
 	website          string
 	image            string
 	retrievedOn      time.Time
-	gender           int
+	gender           float64
 	pseudonyms       []string
 }
+
+var ranks = [3]string{"preferred", "normal", "deprecated"}
 
 func (a Author) BirthName() string {
 	return a.birthName
@@ -93,7 +96,7 @@ func (a Author) Image() string {
 	return a.image
 }
 
-func (a Author) InstanceOf() int {
+func (a Author) InstanceOf() float64 {
 	return a.instanceOf
 }
 
@@ -101,7 +104,7 @@ func (a Author) WikipediaLink(language string) string {
 	return a.wikipediaLink[language]
 }
 
-func (a Author) Gender() int {
+func (a Author) Gender() float64 {
 	return a.gender
 }
 

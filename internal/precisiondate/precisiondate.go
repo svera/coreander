@@ -6,9 +6,9 @@ import (
 	"github.com/rickb777/date/v2"
 )
 
-// PrecisionDate implement a format for partially-known dates following Wikidata format
+// PrecisionDate implement a format for partially-known dates following Wikidata format.
 // Some dates for relevant people are not fully known, for example, for Seneca, full
-// birth and death dates are not known, only the years.
+// birth and death dates are unknown, only the years.
 type PrecisionDate struct {
 	date.Date
 	Precision float64
@@ -22,10 +22,15 @@ const (
 	PrecisionDay     = 11
 )
 
+// NewPrecisionDate parses a ISO 8601 formatted string and parses it into a PrecisionDate.
+// As Wikidata dates come in different precision levels, we need to know what's the precision a date is using
+// before parsing it, because dates in levels under day precision come with zero values
+// for months or days, for example 2006-00-00.
+// As this is not a valid ISO 8601, we need to convert it to a valid string beforehand.
 func NewPrecisionDate(ISOdate string, precision float64) PrecisionDate {
 	if precision < PrecisionDay {
 		switch precision {
-		case PrecisionDecade, PrecisionYear:
+		case PrecisionDecade, PrecisionYear, PrecisionCentury:
 			year := ISOdate[:5]
 			ISOdate = fmt.Sprintf("%s-01-01T00:00:00Z", year)
 		case PrecisionMonth:
@@ -62,4 +67,18 @@ func (p PrecisionDate) IsPrecisionMonth() bool {
 
 func (p PrecisionDate) IsPrecisionDay() bool {
 	return p.Precision == PrecisionDay
+}
+
+func (p PrecisionDate) Century() int {
+	if p.Date.Year() < 0 {
+		return int(p.Date.Year()/100) - 1
+	}
+	return int(p.Date.Year()/100) + 1
+}
+
+func (p PrecisionDate) CenturyAbs() int {
+	if p.Century() < 0 {
+		return -p.Century()
+	}
+	return p.Century()
 }

@@ -17,13 +17,13 @@ type Author struct {
 	RetrievedOn   time.Time
 	Type          string
 	WikipediaLink map[string]string
-	InstanceOf    int
+	InstanceOf    float64
 	Description   map[string]string
 	DateOfBirth   precisiondate.PrecisionDate
 	DateOfDeath   precisiondate.PrecisionDate
 	Website       string
 	Image         string
-	Gender        int
+	Gender        float64
 	Pseudonyms    []string
 }
 
@@ -49,6 +49,10 @@ func (a Author) YearOfDeathAbs() int {
 
 func (a Author) Age() int {
 	if a.DateOfBirth.Date == 0 {
+		return 0
+	}
+
+	if a.DateOfBirth.Precision < precisiondate.PrecisionDay || a.DateOfDeath.Precision < precisiondate.PrecisionDay {
 		return 0
 	}
 

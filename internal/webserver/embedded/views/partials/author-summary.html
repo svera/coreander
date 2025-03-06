@@ -18,7 +18,12 @@
                 {{if ne .Author.DateOfBirth.Date 0}}
                     <dt>{{t .Lang "Date of birth"}}</dt>
                     <dd>
-                        {{if (or .Author.DateOfBirth.IsPrecisionYear .Author.DateOfBirth.IsPrecisionDecade) }}
+                        {{if .Author.DateOfBirth.IsPrecisionCentury}}
+                            {{t .Lang "%d century" .Author.DateOfBirth.CenturyAbs}}
+                            {{if lt .Author.DateOfBirth.Century 0}}
+                                <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
+                            {{end}}
+                        {{else if (or .Author.DateOfBirth.IsPrecisionYear .Author.DateOfBirth.IsPrecisionDecade) }}
                             {{.Author.YearOfBirthAbs}}
                             {{if lt .Author.DateOfBirth.Year 0}}
                                 <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
@@ -38,7 +43,12 @@
                 {{if ne .Author.DateOfDeath.Date 0}}
                     <dt>{{t .Lang "Date of death"}}</dt>
                     <dd>
-                        {{if .Author.DateOfDeath.IsPrecisionYear}}
+                        {{if .Author.DateOfDeath.IsPrecisionCentury}}
+                            {{t .Lang "%d century" .Author.DateOfDeath.CenturyAbs}}
+                            {{if lt .Author.DateOfDeath.Century 0}}
+                                <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
+                            {{end}}
+                        {{else if .Author.DateOfDeath.IsPrecisionYear}}
                             {{.Author.YearOfDeathAbs}}
                             {{if lt .Author.DateOfDeath.Year 0}}
                                 <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
@@ -73,26 +83,7 @@
 
             {{if eq .Session.Role 2}}
                 {{if ne .Author.DataSourceID "" }}
-                <p class="ms-3 opacity-75"><small>
-                    <i class="bi-person-fill-exclamation me-2"></i>
-                    <a class="link-light" data-bs-toggle="collapse" href="#update-author-form" aria-expanded="false">
-                        {{ t .Lang "Is not the right author or data is outdated? Click here to update the Wikidata ID" }}
-                    </a>
-                </small>
-                </p>
-                <div class="collapse" id="update-author-form">
-                    <p class="ms-3 opacity-75"><small>{{ t .Lang "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here." }}</small></p>
-                    <div class="row">
-                        <div class="col-12 col-lg-6">
-                            <form hx-put="/authors/{{.Author.Slug}}" class="ms-3">
-                                <div class="input-group input-group-sm">
-                                    <input class="form-control" type="text" name="sourceID" value="{{.Author.DataSourceID}}">
-                                    <button type="submit" class="btn btn-dark">{{t .Lang "Update"}}</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
+                    {{template "partials/author-update-form" .}}
                 {{end}}
             {{end}}
         </div>

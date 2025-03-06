@@ -46,7 +46,7 @@ func TestAuthor(t *testing.T) {
 			}
 
 			if author.Gender() != tcase.expectedValues.gender {
-				t.Errorf("Wrong gender, expected '%d', got '%d'", tcase.expectedValues.gender, author.Gender())
+				t.Errorf("Wrong gender, expected '%f', got '%f'", tcase.expectedValues.gender, author.Gender())
 			}
 
 			if author.WikipediaLink("en") != tcase.expectedValues.wikipediaLink {
@@ -63,7 +63,7 @@ type payloads struct {
 
 type authorExpectedValues struct {
 	wikidataID    string
-	gender        int
+	gender        float64
 	wikipediaLink string
 	dateOfBirth   date.Date
 }
@@ -88,6 +88,7 @@ func testCases(t *testing.T) []testCase {
 					"Test description",
 					"https://en.wikipedia.org/wiki/Miguel",
 					map[string]string{
+						propertyInstanceOf:  qidInstanceOfHuman,
 						propertySexOrGender: qidGenderMale,
 						propertyDateOfBirth: "+1967-02-06T00:00:00Z",
 					},
@@ -97,7 +98,7 @@ func testCases(t *testing.T) []testCase {
 				wikidataID:    "Q123456",
 				gender:        GenderMale,
 				wikipediaLink: "https://en.wikipedia.org/wiki/Miguel",
-				dateOfBirth:   parseDate(t, "+1967-02-06T00:00:00Z"),
+				dateOfBirth:   parseISODate(t, "+1967-02-06T00:00:00Z"),
 			},
 		},
 		{
@@ -112,6 +113,31 @@ func testCases(t *testing.T) []testCase {
 					"",
 					"",
 					map[string]string{
+						propertySexOrGender: "",
+						propertyDateOfBirth: "",
+					},
+				),
+			},
+			expectedValues: authorExpectedValues{
+				wikidataID:    "",
+				gender:        GenderUnknown,
+				wikipediaLink: "",
+				dateOfBirth:   date.Zero,
+			},
+		},
+		{
+			name: "Found entry is not human",
+			pl: struct {
+				searchEntitiesResponse gowikidata.SearchEntitiesResponse
+				entity                 gowikidata.Entity
+			}{
+				searchEntitiesResponse: searchEntitiesResponsePayloadBuilder("Q654321", "Miguel"),
+				entity: entityPayloadBuilder(
+					"",
+					"",
+					"",
+					map[string]string{
+						propertyInstanceOf:  "Q12308941", // Male given name
 						propertySexOrGender: "",
 						propertyDateOfBirth: "",
 					},
@@ -190,7 +216,7 @@ func timeClaimBuilder(value string) gowikidata.Claim {
 	}
 }
 
-func parseDate(t *testing.T, dateString string) date.Date {
+func parseISODate(t *testing.T, dateString string) date.Date {
 	var parsed date.Date
 	parsed, err := date.ParseISO(dateString)
 	if err != nil {

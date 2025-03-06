@@ -67,57 +67,47 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (author
 		return nil, err
 	}
 
-	id := ""
-	for _, id = range ids {
+	for _, id := range ids {
 		if instanceOf, exists := (*entities)[id].Claims[propertyInstanceOf]; exists {
-			if parseInstanceOf(instanceOf[0]) != InstanceUnknown {
+			if instanceOf := parseInstanceOf(instanceOf[0]); instanceOf != InstanceUnknown {
+				author.wikidataEntityId = id
+				author.instanceOf = instanceOf
 				break
 			}
 		}
 	}
 
-	if id == "" {
+	if author.wikidataEntityId == "" {
 		return author, nil
 	}
 
-	if value, exists := (*entities)[id].Claims[propertyBirthName]; exists {
+	if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyBirthName]; exists {
 		author.birthName = value[0].MainSnak.DataValue.Value.ValueFields.Text
-	} else if value, exists := (*entities)[id].Claims[propertyNameInNativeLanguage]; exists {
+	} else if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyNameInNativeLanguage]; exists {
 		author.birthName = value[0].MainSnak.DataValue.Value.ValueFields.Text
-	} else if value, exists := (*entities)[id].Claims[propertyOfficialName]; exists {
+	} else if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyOfficialName]; exists {
 		author.birthName = value[0].MainSnak.DataValue.Value.ValueFields.Text
 	}
 
-	if value, exists := (*entities)[id].Claims[propertyInstanceOf]; exists {
-		author.instanceOf = parseInstanceOf(value[0])
-	}
-
-	if value, exists := (*entities)[id].Claims[propertySexOrGender]; exists {
+	if value, exists := (*entities)[author.wikidataEntityId].Claims[propertySexOrGender]; exists {
 		author.gender = parseGender(value[0])
 	}
 
-	author.wikidataEntityId = id
 	author.retrievedOn = time.Now().UTC()
 	for _, lang := range languages {
-		author.wikipediaLink[lang] = (*entities)[id].SiteLinks[fmt.Sprintf("%swiki", lang)].URL
-		author.description[lang] = (*entities)[id].Descriptions[lang].Value
+		author.wikipediaLink[lang] = (*entities)[author.wikidataEntityId].SiteLinks[fmt.Sprintf("%swiki", lang)].URL
+		author.description[lang] = (*entities)[author.wikidataEntityId].Descriptions[lang].Value
 	}
-	if value, exists := (*entities)[id].Claims[propertyDateOfBirth]; exists {
-		author.dateOfBirth = precisiondate.NewPrecisionDate(
-			value[0].MainSnak.DataValue.Value.ValueFields.Time,
-			value[0].MainSnak.DataValue.Value.ValueFields.Precision,
-		)
+	if claim, exists := (*entities)[author.wikidataEntityId].Claims[propertyDateOfBirth]; exists {
+		author.dateOfBirth = parseDate(claim)
 	}
-	if value, exists := (*entities)[id].Claims[propertyDateOfDeath]; exists {
-		author.dateOfDeath = precisiondate.NewPrecisionDate(
-			value[0].MainSnak.DataValue.Value.ValueFields.Time,
-			value[0].MainSnak.DataValue.Value.ValueFields.Precision,
-		)
+	if claim, exists := (*entities)[author.wikidataEntityId].Claims[propertyDateOfDeath]; exists {
+		author.dateOfDeath = parseDate(claim)
 	}
-	if value, exists := (*entities)[id].Claims[propertyWebsite]; exists {
+	if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyWebsite]; exists {
 		author.website = value[0].MainSnak.DataValue.Value.S
 	}
-	if value, exists := (*entities)[id].Claims[propertyPseudonym]; exists {
+	if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyPseudonym]; exists {
 		author.pseudonyms = make([]string, 0, len(value))
 		for _, claim := range value {
 			pseudonym, err := strconv.Unquote("\"" + claim.MainSnak.DataValue.Value.S + "\"")
@@ -128,7 +118,7 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (author
 		}
 	}
 
-	if value, exists := (*entities)[id].Claims[propertyImage]; exists {
+	if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyImage]; exists {
 		img, err := strconv.Unquote("\"" + value[0].MainSnak.DataValue.Value.S + "\"")
 		if err != nil {
 			return nil, err
@@ -165,7 +155,7 @@ func (a WikidataSource) getEntityIds(name string) ([]string, error) {
 	return res, nil
 }
 
-func parseGender(claim gowikidata.Claim) int {
+func parseGender(claim gowikidata.Claim) float64 {
 	switch claim.MainSnak.DataValue.Value.ValueFields.ID {
 	case qidGenderMale:
 		return GenderMale
@@ -181,7 +171,7 @@ func parseGender(claim gowikidata.Claim) int {
 	return GenderUnknown
 }
 
-func parseInstanceOf(claim gowikidata.Claim) int {
+func parseInstanceOf(claim gowikidata.Claim) float64 {
 	switch claim.MainSnak.DataValue.Value.ValueFields.ID {
 	case qidInstanceOfHuman:
 		return InstanceHuman
@@ -193,4 +183,25 @@ func parseInstanceOf(claim gowikidata.Claim) int {
 		return InstanceCollectivePseudonym
 	}
 	return InstanceUnknown
+}
+
+// parseDate parses a Wikidata time claim, returning a precisionDate.
+// As there might be multiple dates for a single claim, we pick up the one ranked as preferred, if any.
+// Otherwise, we return the first date.
+func parseDate(claim []gowikidata.Claim) precisiondate.PrecisionDate {
+	var date precisiondate.PrecisionDate
+out:
+	for _, rank := range ranks {
+		for _, v := range claim {
+			if v.Rank == rank {
+				date = precisiondate.NewPrecisionDate(
+					v.MainSnak.DataValue.Value.ValueFields.Time,
+					v.MainSnak.DataValue.Value.ValueFields.Precision,
+				)
+				break out
+			}
+		}
+	}
+
+	return date
 }

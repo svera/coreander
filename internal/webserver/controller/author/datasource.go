@@ -9,8 +9,8 @@ import (
 type Author interface {
 	BirthName() string
 	Description(language string) string
-	InstanceOf() int
-	Gender() int
+	InstanceOf() float64
+	Gender() float64
 	DateOfBirth() precisiondate.PrecisionDate
 	DateOfDeath() precisiondate.PrecisionDate
 	Image() string
