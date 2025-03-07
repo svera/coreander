@@ -52,12 +52,15 @@ func (a Author) Age() int {
 		return 0
 	}
 
-	if a.DateOfBirth.Precision < precisiondate.PrecisionDay || a.DateOfDeath.Precision < precisiondate.PrecisionDay {
+	if a.DateOfBirth.Precision < precisiondate.PrecisionDay {
 		return 0
 	}
 
 	period := timespan.BetweenDates(a.DateOfBirth.Date, date.Today())
 	if a.DateOfDeath.Date != 0 {
+		if a.DateOfDeath.Precision < precisiondate.PrecisionDay {
+			return 0
+		}
 		period = timespan.BetweenDates(a.DateOfBirth.Date, a.DateOfDeath.Date)
 	}
 
