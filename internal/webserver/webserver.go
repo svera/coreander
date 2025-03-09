@@ -42,6 +42,7 @@ type Config struct {
 	FQDN                  string
 	Port                  int
 	HomeDir               string
+	CacheDir              string
 	LibraryPath           string
 	CoverMaxWidth         int
 	RequireAuth           bool

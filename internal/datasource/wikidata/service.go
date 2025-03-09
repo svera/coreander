@@ -1,6 +1,8 @@
 package wikidata
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -14,7 +16,7 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/controller/author"
 )
 
-const imgUrl = "https://commons.wikimedia.org/w/index.php?title=Special:Redirect/file/%s"
+const imgUrl = "https://upload.wikimedia.org/wikipedia/commons/%s/%s/%s"
 
 type wikidata interface {
 	NewSearch(string, string) (SearchEntitiesRequest, error)
@@ -124,8 +126,8 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (author
 			return nil, err
 		}
 
-		if slices.Contains([]string{".png", ".jpg", ".jpeg"}, strings.ToLower(filepath.Ext(img))) {
-			author.image = fmt.Sprintf(imgUrl, url.QueryEscape(img))
+		if slices.Contains([]string{".png", ".jpg", ".jpeg", ".tif", ".tiff"}, strings.ToLower(filepath.Ext(img))) {
+			author.image = getImageUrl(filepath.Base(img))
 		}
 	}
 
@@ -204,4 +206,22 @@ out:
 	}
 
 	return date
+}
+
+// getImageUrl will return a URL in the format
+// https://upload.wikimedia.org/wikipedia/commons/a/ab/img_name.ext,
+// where a and b are the first and the second chars of MD5 hashsum of the
+// img_name.ext (with all whitespaces replaced by _)
+func getImageUrl(filename string) string {
+	u, err := url.QueryUnescape(filename)
+	if err != nil {
+		return ""
+	}
+
+	filename = strings.ReplaceAll(u, " ", "_")
+
+	sum := md5.Sum([]byte(filename))
+	hash := hex.EncodeToString(sum[:])
+
+	return fmt.Sprintf(imgUrl, string(hash[0]), string(hash[0])+string(hash[1]), url.PathEscape(filename))
 }

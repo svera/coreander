@@ -7,10 +7,12 @@ type CLIInput struct {
 	Version kong.VersionFlag `short:"v" name:"version" help:"Get version number."`
 	// LibPath holds the absolute path to the folder containing the documents
 	LibPath string `arg:"" env:"LIB_PATH" help:"Absolute path to the folder containing the documents." type:"path"`
+	// CacheDir defines where cache files will be stored
+	CacheDir string `env:"CACHE_DIR" short:"c" name:"cache-dir" help:"Directory where to store cache files"`
 	// FQDN stores the domain name of the server. If the server is listening on a non-standard HTTP / HTTPS port, include it using a colon (e. g. example.com:3000)
 	FQDN string `env:"FQDN" short:"d" default:"localhost" name:"fqdn" help:"Domain name of the server. If the server is listening on a non-standard HTTP / HTTPS port, include it using a colon (e. g. example:3000)"`
 	// Port defines the port number in which the webserver listens for requests
-	Port int `env:"PORT" short:"p" default:"3000" help:"Port number in which the webserver listens for requests"`
+	Port int `env:"PORT" short:"p" default:"3000" name:"port" help:"Port number in which the webserver listens for requests"`
 	// BatchSize indicates the number of documents persisted by the indexer in one operation
 	BatchSize int `env:"BATCH_SIZE" short:"b" default:"100" name:"batch-size" help:"Number of documents persisted by the indexer in one operation"`
 	// CoverMaxWidth sets the maximum horizontal size for documents cover thumbnails in pixels

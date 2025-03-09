@@ -97,6 +97,7 @@ func main() {
 		FQDN:                  input.FQDN,
 		Port:                  input.Port,
 		HomeDir:               homeDir,
+		CacheDir:              input.CacheDir,
 		LibraryPath:           input.LibPath,
 		CoverMaxWidth:         input.CoverMaxWidth,
 		RequireAuth:           input.RequireAuth,
@@ -111,6 +112,16 @@ func main() {
 	webserverConfig.RecoveryTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", input.RecoveryTimeout))
 	if err != nil {
 		log.Fatal(fmt.Errorf("wrong value for recovery timeout"))
+	}
+
+	if webserverConfig.CacheDir == "" {
+		webserverConfig.CacheDir = homeDir + "/.coreander/cache"
+		if _, err := os.Stat(webserverConfig.CacheDir); os.IsNotExist(err) {
+			if err = os.MkdirAll(webserverConfig.CacheDir, os.ModePerm); err != nil {
+				log.Fatal(err)
+			}
+			log.Printf("Created cache folder at %s\n", webserverConfig.CacheDir)
+		}
 	}
 
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})

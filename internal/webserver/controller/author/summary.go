@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gosimple/slug"
 	"github.com/svera/coreander/v4/internal/index"
 )
 
@@ -23,9 +24,15 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 
 	author, _ := a.idx.Author(authorSlug, lang)
 
+	pseudonymsSlugs := make([]string, len(author.Pseudonyms))
+	for i, name := range author.Pseudonyms {
+		pseudonymsSlugs[i] = slug.Make(name)
+	}
+
 	if author.DataSourceID != "" {
 		templateVars := fiber.Map{
-			"Author": author,
+			"Author":         author,
+			"PseudonymSlugs": pseudonymsSlugs,
 		}
 
 		if err = c.Render("partials/author-summary", templateVars); err != nil {
@@ -38,6 +45,7 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 	if !author.RetrievedOn.IsZero() {
 		return fiber.ErrNotFound
 	}
+
 	authorDataSource, err = a.dataSource.SearchAuthor(author.Name, supportedLanguages)
 
 	if err != nil {
@@ -55,7 +63,8 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Author": author,
+		"Author":         author,
+		"PseudonymSlugs": pseudonymsSlugs,
 	}
 
 	if err = c.Render("partials/author-summary", templateVars); err != nil {

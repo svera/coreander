@@ -77,7 +77,8 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	docsGroup.Get("/:slug", controllers.Documents.Detail)
 	docsGroup.Get("/", controllers.Documents.Search)
 
-	app.Get("/authors/:slug", controllers.Authors.Search)
+	app.Get("/authors/:slug.:extension", controllers.Authors.Portrait)
+	app.Get("/authors/:slug", controllers.Authors.Documents)
 	app.Get("/authors/:slug/summary", controllers.Authors.Summary)
 	app.Put("/authors/:slug", controllers.Authors.Update, alwaysRequireAuthentication, RequireAdmin)
 
