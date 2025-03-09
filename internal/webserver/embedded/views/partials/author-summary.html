@@ -11,12 +11,8 @@
                 <p class="card-text ms-3 capitalize lead">{{index .Author.Description .Lang}}</p>
             {{end}}
             {{if gt (len .Author.Pseudonyms) 0}}
-                {{$pseudonymSlugs := .PseudonymSlugs}}
                 <p class="opacity-50 ms-3">{{t .Lang "Alias"}}
-                    {{range $i, $pseudonym := .Author.Pseudonyms}}
-                        <a class="link-light" href="/authors/{{index $pseudonymSlugs $i}}">{{$pseudonym}}</a>
-                        {{if notLast $pseudonymSlugs $i}}, {{end}}
-                    {{end}}
+                    {{join .Author.Pseudonyms ", "}}
                 </p>
             {{end}}
 
