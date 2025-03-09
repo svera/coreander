@@ -21,8 +21,9 @@ type highlightsRepository interface {
 }
 
 type Config struct {
-	WordsPerMinute float64
-	CacheDir       string
+	WordsPerMinute      float64
+	CacheDir            string
+	AuthorImageMaxWidth int
 }
 
 type Controller struct {

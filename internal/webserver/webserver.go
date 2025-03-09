@@ -44,6 +44,7 @@ type Config struct {
 	HomeDir               string
 	CacheDir              string
 	LibraryPath           string
+	AuthorImageMaxWidth   int
 	CoverMaxWidth         int
 	RequireAuth           bool
 	UploadDocumentMaxSize int

@@ -99,6 +99,7 @@ func main() {
 		HomeDir:               homeDir,
 		CacheDir:              input.CacheDir,
 		LibraryPath:           input.LibPath,
+		AuthorImageMaxWidth:   input.AuthorImageMaxWidth,
 		CoverMaxWidth:         input.CoverMaxWidth,
 		RequireAuth:           input.RequireAuth,
 		UploadDocumentMaxSize: input.UploadDocumentMaxSize,

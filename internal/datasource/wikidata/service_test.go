@@ -182,6 +182,7 @@ func entityPayloadBuilder(label, description, siteLink string, claims map[string
 			},
 		},
 		Claims: map[string][]gowikidata.Claim{
+			propertyInstanceOf:  {idClaimBuilder(claims[propertyInstanceOf])},
 			propertySexOrGender: {idClaimBuilder(claims[propertySexOrGender])},
 			propertyDateOfBirth: {timeClaimBuilder(claims[propertyDateOfBirth])},
 		},
@@ -220,7 +221,7 @@ func parseISODate(t *testing.T, dateString string) date.Date {
 	var parsed date.Date
 	parsed, err := date.ParseISO(dateString)
 	if err != nil {
-		t.Fatalf("Error parsing date: %v", err)
+		t.Fatalf("error parsing date: %v", err)
 	}
 	return parsed
 }

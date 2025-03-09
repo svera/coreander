@@ -53,8 +53,9 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 	}
 
 	authorsCfg := author.Config{
-		WordsPerMinute: cfg.WordsPerMinute,
-		CacheDir:       cfg.CacheDir,
+		WordsPerMinute:      cfg.WordsPerMinute,
+		CacheDir:            cfg.CacheDir,
+		AuthorImageMaxWidth: cfg.AuthorImageMaxWidth,
 	}
 
 	homeCfg := home.Config{

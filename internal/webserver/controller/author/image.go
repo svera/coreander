@@ -11,7 +11,7 @@ import (
 	"github.com/kovidgoyal/imaging"
 )
 
-func (a *Controller) Portrait(c *fiber.Ctx) error {
+func (a *Controller) Image(c *fiber.Ctx) error {
 	imageFileName := c.Params("slug") + "." + c.Params("extension")
 	authorSlug := c.Params("slug")
 	lang := c.Locals("Lang").(string)
@@ -23,9 +23,9 @@ func (a *Controller) Portrait(c *fiber.Ctx) error {
 			log.Println(fmt.Errorf("error getting author from index: %w", err))
 			return err
 		}
-		img, err = a.getImage(author.Image)
+		img, err = a.readFromDataSource(author.Image)
 		if err != nil {
-			log.Println(fmt.Errorf("error getting image from source: %w", err))
+			log.Println(fmt.Errorf("error getting image from data source: %w", err))
 			return err
 		}
 		if err = imaging.Save(img, a.config.CacheDir+"/"+imageFileName); err != nil {
@@ -41,7 +41,7 @@ func (a *Controller) Portrait(c *fiber.Ctx) error {
 	return nil
 }
 
-func (a *Controller) getImage(path string) (image.Image, error) {
+func (a *Controller) readFromDataSource(path string) (image.Image, error) {
 	res, err := http.Get(path)
 	if err != nil {
 		return nil, err
@@ -52,8 +52,8 @@ func (a *Controller) getImage(path string) (image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	if img.Bounds().Max.X >= 600 {
-		img = imaging.Resize(img, 600, 0, imaging.Box)
+	if a.config.AuthorImageMaxWidth > 0 && img.Bounds().Max.X >= a.config.AuthorImageMaxWidth {
+		img = imaging.Resize(img, a.config.AuthorImageMaxWidth, 0, imaging.Box)
 	}
 	return img, nil
 }

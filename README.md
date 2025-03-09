@@ -127,6 +127,7 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`-p` or `--port`                     |`PORT`                    | Port number in which the webserver listens for requests. Defaults to 3000.
 |`-b` or `--batch-size`               |`BATCH_SIZE`              | Number of documents persisted by the indexer in one write operation. Defaults to 100.
 |`--cover-max-width`                  |`COVER_MAX_WIDTH`         | Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 600.
+|`--author-image-max-width`                  |`AUTHOR_IMAGE_MAX_WIDTH`         | Maximum horizontal size for author images in pixels. Set to 0 to keep original image size. Defaults to 600.
 |`-f` or `--force-indexing`           |`FORCE_INDEXING`          | Whether to force indexing already indexed documents or not. Defaults to false.
 |`--smtp-server`                      |`SMTP_SERVER`             | Address of the send mail server.
 |`--smtp-port`                        |`SMTP_PORT`               | Port number of the send mail server. Defaults to 587.
