@@ -1,7 +1,9 @@
 package author
 
 import (
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -15,12 +17,24 @@ func (a *Controller) Update(c *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	author, _ := a.idx.Author(authorSlug, lang)
+	author, err := a.idx.Author(authorSlug, lang)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
+	if author.Slug == "" {
+		return fiber.ErrNotFound
+	}
 
 	authorDataSource, err := a.dataSource.RetrieveAuthor([]string{c.FormValue("sourceID")}, supportedLanguages)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrNotFound
+	}
+
+	if err := os.Remove(a.config.CacheDir + "/" + author.Slug + "_" + author.DataSourceID + ".jpg"); err != nil {
+		fmt.Println(err)
 	}
 
 	combineWithDataSource(&author, authorDataSource, supportedLanguages)

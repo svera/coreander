@@ -6,6 +6,7 @@ import (
 	"image"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/kovidgoyal/imaging"
@@ -13,7 +14,7 @@ import (
 
 func (a *Controller) Image(c *fiber.Ctx) error {
 	imageFileName := c.Params("slug") + "." + c.Params("extension")
-	authorSlug := c.Params("slug")
+	authorSlug := strings.Split(c.Params("slug"), "_")[0]
 	lang := c.Locals("Lang").(string)
 
 	img, err := imaging.Open(a.config.CacheDir + "/" + imageFileName)
@@ -21,12 +22,15 @@ func (a *Controller) Image(c *fiber.Ctx) error {
 		author, err := a.idx.Author(authorSlug, lang)
 		if err != nil {
 			log.Println(fmt.Errorf("error getting author from index: %w", err))
-			return err
+			return fiber.ErrInternalServerError
+		}
+		if author.Name == "" {
+			return fiber.ErrNotFound
 		}
 		img, err = a.readFromDataSource(author.Image)
 		if err != nil {
 			log.Println(fmt.Errorf("error getting image from data source: %w", err))
-			return err
+			return fiber.ErrInternalServerError
 		}
 		if err = imaging.Save(img, a.config.CacheDir+"/"+imageFileName); err != nil {
 			log.Println(fmt.Errorf("error saving image '%s' to cache: %w", a.config.CacheDir+"/"+imageFileName, err))
@@ -34,7 +38,8 @@ func (a *Controller) Image(c *fiber.Ctx) error {
 	}
 	buf := new(bytes.Buffer)
 	if err = imaging.Encode(buf, img, imaging.JPEG); err != nil {
-		return err
+		log.Println(fmt.Errorf("error encoding image to JPEG: %w", err))
+		return fiber.ErrInternalServerError
 	}
 	c.Response().Header.Set(fiber.HeaderContentType, "image/jpeg")
 	c.Response().BodyWriter().Write(buf.Bytes())

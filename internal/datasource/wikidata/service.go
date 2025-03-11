@@ -69,17 +69,8 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (author
 		return nil, err
 	}
 
-	for _, id := range ids {
-		if instanceOf, exists := (*entities)[id].Claims[propertyInstanceOf]; exists {
-			if instanceOf := parseInstanceOf(instanceOf[0]); instanceOf != InstanceUnknown {
-				author.wikidataEntityId = id
-				author.instanceOf = instanceOf
-				break
-			}
-		}
-	}
-
-	if author.wikidataEntityId == "" {
+	author.wikidataEntityId, author.instanceOf = getMostAccurateID(ids, entities)
+	if author.instanceOf == InstanceUnknown {
 		return author, nil
 	}
 
@@ -134,6 +125,24 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (author
 	return author, nil
 }
 
+func getMostAccurateID(ids []string, entities *map[string]gowikidata.Entity) (string, float64) {
+	for _, rank := range ranks {
+		for _, id := range ids {
+			claimValue, exists := (*entities)[id].Claims[propertyInstanceOf]
+			if !exists {
+				continue
+			}
+			if claimValue[0].Rank == rank {
+				if instanceOf := parseInstanceOf(claimValue[0]); instanceOf != InstanceUnknown {
+					return id, instanceOf
+				}
+			}
+		}
+	}
+
+	return "", InstanceUnknown
+}
+
 // getEntityIds return all entity IDs from Wikidata which matches the passed name
 func (a WikidataSource) getEntityIds(name string) ([]string, error) {
 	query, err := a.wikidata.NewSearch(url.QueryEscape(name), "en")
@@ -183,6 +192,8 @@ func parseInstanceOf(claim gowikidata.Claim) float64 {
 		return InstancePenName
 	case qidInstanceOfCollectivePseudonym:
 		return InstanceCollectivePseudonym
+	case qidInstanceOfHumanWhoseExistenceIsDisputed:
+		return InstanceHumanWhoseExistenceIsDisputed
 	}
 	return InstanceUnknown
 }
@@ -192,15 +203,14 @@ func parseInstanceOf(claim gowikidata.Claim) float64 {
 // Otherwise, we return the first date.
 func parseDate(claim []gowikidata.Claim) precisiondate.PrecisionDate {
 	var date precisiondate.PrecisionDate
-out:
+
 	for _, rank := range ranks {
 		for _, v := range claim {
 			if v.Rank == rank {
-				date = precisiondate.NewPrecisionDate(
+				return precisiondate.NewPrecisionDate(
 					v.MainSnak.DataValue.Value.ValueFields.Time,
 					v.MainSnak.DataValue.Value.ValueFields.Precision,
 				)
-				break out
 			}
 		}
 	}

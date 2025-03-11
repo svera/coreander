@@ -385,7 +385,7 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 		return Author{}, err
 	}
 	if searchResult.Total == 0 {
-		return Author{}, fmt.Errorf("Author with slug %s not found", slug)
+		return Author{}, nil
 	}
 
 	retrievedOn := time.Time{}

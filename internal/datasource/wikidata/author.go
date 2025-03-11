@@ -23,10 +23,11 @@ const (
 
 // Wikidata "instance of" values
 const (
-	qidInstanceOfHuman               = "Q5"
-	qidInstanceOfPseudonym           = "Q61002"
-	qidInstanceOfPenName             = "Q127843"
-	qidInstanceOfCollectivePseudonym = "Q16017119"
+	qidInstanceOfHuman                         = "Q5"
+	qidInstanceOfPseudonym                     = "Q61002"
+	qidInstanceOfPenName                       = "Q127843"
+	qidInstanceOfCollectivePseudonym           = "Q16017119"
+	qidInstanceOfHumanWhoseExistenceIsDisputed = "Q21070568"
 )
 
 // Wikidata gender values
@@ -44,6 +45,7 @@ const (
 	InstancePseudonym
 	InstancePenName
 	InstanceCollectivePseudonym
+	InstanceHumanWhoseExistenceIsDisputed
 )
 
 const (

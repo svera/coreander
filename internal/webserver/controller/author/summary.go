@@ -21,7 +21,15 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	author, _ := a.idx.Author(authorSlug, lang)
+	author, err := a.idx.Author(authorSlug, lang)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
+	if author.Name == "" {
+		return fiber.ErrNotFound
+	}
 
 	if author.DataSourceID != "" {
 		templateVars := fiber.Map{
