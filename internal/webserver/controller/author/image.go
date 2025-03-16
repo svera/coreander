@@ -17,7 +17,7 @@ func (a *Controller) Image(c *fiber.Ctx) error {
 	authorSlug := strings.Split(c.Params("slug"), "_")[0]
 	lang := c.Locals("Lang").(string)
 
-	img, err := imaging.Open(a.config.CacheDir + "/" + imageFileName)
+	img, err := a.openImage(a.config.CacheDir + "/" + imageFileName)
 	if err != nil {
 		author, err := a.idx.Author(authorSlug, lang)
 		if err != nil {
@@ -32,7 +32,7 @@ func (a *Controller) Image(c *fiber.Ctx) error {
 			log.Println(fmt.Errorf("error getting image from data source: %w", err))
 			return fiber.ErrInternalServerError
 		}
-		if err = imaging.Save(img, a.config.CacheDir+"/"+imageFileName); err != nil {
+		if err = a.saveImage(img, a.config.CacheDir+"/"+imageFileName); err != nil {
 			log.Println(fmt.Errorf("error saving image '%s' to cache: %w", a.config.CacheDir+"/"+imageFileName, err))
 		}
 	}
@@ -61,4 +61,30 @@ func (a *Controller) readFromDataSource(path string) (image.Image, error) {
 		img = imaging.Resize(img, a.config.AuthorImageMaxWidth, 0, imaging.Box)
 	}
 	return img, nil
+}
+
+func (a *Controller) openImage(filename string, opts ...imaging.DecodeOption) (image.Image, error) {
+	file, err := a.appFs.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return imaging.Decode(file, opts...)
+}
+
+func (a *Controller) saveImage(img image.Image, filename string, opts ...imaging.EncodeOption) (err error) {
+	f, err := imaging.FormatFromFilename(filename)
+	if err != nil {
+		return err
+	}
+	file, err := a.appFs.Create(filename)
+	if err != nil {
+		return err
+	}
+	err = imaging.Encode(file, img, f, opts...)
+	errc := file.Close()
+	if err == nil {
+		err = errc
+	}
+	return err
 }

@@ -69,6 +69,6 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		Highlights: highlight.NewController(highlightsRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
 		Documents:  document.NewController(highlightsRepository, sender, idx, metadataReaders, appFs, documentsCfg),
 		Home:       home.NewController(highlightsRepository, sender, idx, homeCfg),
-		Authors:    author.NewController(highlightsRepository, sender, idx, authorsCfg, dataSource),
+		Authors:    author.NewController(highlightsRepository, sender, idx, authorsCfg, dataSource, appFs),
 	}
 }

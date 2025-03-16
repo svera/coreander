@@ -200,6 +200,7 @@ func idClaimBuilder(value string) gowikidata.Claim {
 				},
 			},
 		},
+		Rank: "normal",
 	}
 }
 
@@ -214,6 +215,7 @@ func timeClaimBuilder(value string) gowikidata.Claim {
 				},
 			},
 		},
+		Rank: "normal",
 	}
 }
 
