@@ -379,7 +379,7 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 	authorsCompoundQuery.AddQuery(tq)
 
 	searchOptions := bleve.NewSearchRequest(authorsCompoundQuery)
-	searchOptions.Fields = []string{"Name", "BirthName", "Slug", "DataSourceID", "RetrievedOn", "WikipediaLink." + lang, "InstanceOf", "Description." + lang, "DateOfBirth.Date", "DateOfBirth.Precision", "DateOfDeath.Date", "DateOfDeath.Precision", "Website", "Image", "Gender", "Pseudonyms"}
+	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return Author{}, err
@@ -407,20 +407,20 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 	}
 
 	author := Author{
-		Name:          searchResult.Hits[0].Fields["Name"].(string),
-		BirthName:     searchResult.Hits[0].Fields["BirthName"].(string),
-		Slug:          slug,
-		DataSourceID:  searchResult.Hits[0].Fields["DataSourceID"].(string),
-		RetrievedOn:   retrievedOn,
-		WikipediaLink: make(map[string]string),
-		InstanceOf:    searchResult.Hits[0].Fields["InstanceOf"].(float64),
-		Description:   make(map[string]string),
-		DateOfBirth:   dateOfBirth,
-		DateOfDeath:   dateOfDeath,
-		Website:       searchResult.Hits[0].Fields["Website"].(string),
-		Image:         searchResult.Hits[0].Fields["Image"].(string),
-		Gender:        searchResult.Hits[0].Fields["Gender"].(float64),
-		Pseudonyms:    slicer(searchResult.Hits[0].Fields["Pseudonyms"]),
+		Name:            searchResult.Hits[0].Fields["Name"].(string),
+		BirthName:       searchResult.Hits[0].Fields["BirthName"].(string),
+		Slug:            slug,
+		DataSourceID:    searchResult.Hits[0].Fields["DataSourceID"].(string),
+		RetrievedOn:     retrievedOn,
+		WikipediaLink:   make(map[string]string),
+		InstanceOf:      searchResult.Hits[0].Fields["InstanceOf"].(float64),
+		Description:     make(map[string]string),
+		DateOfBirth:     dateOfBirth,
+		DateOfDeath:     dateOfDeath,
+		Website:         searchResult.Hits[0].Fields["Website"].(string),
+		DataSourceImage: searchResult.Hits[0].Fields["DataSourceImage"].(string),
+		Gender:          searchResult.Hits[0].Fields["Gender"].(float64),
+		Pseudonyms:      slicer(searchResult.Hits[0].Fields["Pseudonyms"]),
 	}
 
 	if value, ok := searchResult.Hits[0].Fields["WikipediaLink."+lang].(string); ok {

@@ -13,27 +13,29 @@ import (
 )
 
 func (a *Controller) Image(c *fiber.Ctx) error {
-	imageFileName := c.Params("slug") + "." + c.Params("extension")
 	authorSlug := strings.Split(c.Params("slug"), "_")[0]
 	lang := c.Locals("Lang").(string)
 
-	img, err := a.openImage(a.config.CacheDir + "/" + imageFileName)
+	imageFileName := a.config.CacheDir + "/" + authorSlug + ".jpg"
+	img, err := a.openImage(imageFileName)
 	if err != nil {
 		author, err := a.idx.Author(authorSlug, lang)
+		if author.Name == "" {
+			return fiber.ErrNotFound
+		}
 		if err != nil {
 			log.Println(fmt.Errorf("error getting author from index: %w", err))
 			return fiber.ErrInternalServerError
 		}
-		if author.Name == "" {
-			return fiber.ErrNotFound
-		}
-		img, err = a.readFromDataSource(author.Image)
+
+		img, err = a.readFromDataSource(author.DataSourceImage)
 		if err != nil {
 			log.Println(fmt.Errorf("error getting image from data source: %w", err))
 			return fiber.ErrInternalServerError
 		}
-		if err = a.saveImage(img, a.config.CacheDir+"/"+imageFileName); err != nil {
-			log.Println(fmt.Errorf("error saving image '%s' to cache: %w", a.config.CacheDir+"/"+imageFileName, err))
+
+		if err = a.saveImage(img, imageFileName); err != nil {
+			log.Println(fmt.Errorf("error saving image '%s' to cache: %w", imageFileName, err))
 		}
 	}
 	buf := new(bytes.Buffer)

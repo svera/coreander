@@ -84,7 +84,7 @@ func combineWithDataSource(author *index.Author, authorDataSource Author, suppor
 	author.DateOfBirth = authorDataSource.DateOfBirth()
 	author.DateOfDeath = authorDataSource.DateOfDeath()
 	author.Website = authorDataSource.Website()
-	author.Image = authorDataSource.Image()
+	author.DataSourceImage = authorDataSource.Image()
 	author.Gender = authorDataSource.Gender()
 	author.Pseudonyms = make([]string, 0, len(authorDataSource.Pseudonyms()))
 

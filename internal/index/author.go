@@ -10,21 +10,21 @@ import (
 )
 
 type Author struct {
-	Slug          string
-	Name          string
-	BirthName     string
-	DataSourceID  string
-	RetrievedOn   time.Time
-	Type          string
-	WikipediaLink map[string]string
-	InstanceOf    float64
-	Description   map[string]string
-	DateOfBirth   precisiondate.PrecisionDate
-	DateOfDeath   precisiondate.PrecisionDate
-	Website       string
-	Image         string
-	Gender        float64
-	Pseudonyms    []string
+	Slug            string
+	Name            string
+	BirthName       string
+	DataSourceID    string
+	RetrievedOn     time.Time
+	Type            string
+	WikipediaLink   map[string]string
+	InstanceOf      float64
+	Description     map[string]string
+	DateOfBirth     precisiondate.PrecisionDate
+	DateOfDeath     precisiondate.PrecisionDate
+	Website         string
+	DataSourceImage string
+	Gender          float64
+	Pseudonyms      []string
 }
 
 // BleveType is part of the bleve.Classifier interface and its purpose is to tell the indexer
