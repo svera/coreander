@@ -82,11 +82,10 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 			return nil
 		}
 
-		indexedEntries, err := b.indexAuthors(document, batch.Index)
+		_, err = b.indexAuthors(document, batch.Index)
 		if err != nil {
 			return err
 		}
-		b.indexedEntries += indexedEntries
 		b.indexedEntries += 1
 
 		if batch.Size() >= batchSize {
@@ -114,14 +113,14 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data interface{}) error) (float64, error) {
 	indexedEntries := 0.0
 	for i, name := range document.Authors {
-		/*indexedAuthor, err := b.idx.Document(document.AuthorsSlugs[i])
+		indexedAuthor, err := b.idx.Document(document.AuthorsSlugs[i])
 		if err != nil {
 			return indexedEntries, err
 		}
 		if indexedAuthor != nil {
 			indexedEntries++
 			continue
-		}*/
+		}
 
 		author := Author{
 			Name: name,
