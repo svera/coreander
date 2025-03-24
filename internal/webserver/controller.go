@@ -23,7 +23,7 @@ type Controllers struct {
 	Authors    *author.Controller
 }
 
-func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs) Controllers {
+func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {
 	usersRepository := &model.UserRepository{DB: db}
 	highlightsRepository := &model.HighlightRepository{DB: db}
 
@@ -53,7 +53,9 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 	}
 
 	authorsCfg := author.Config{
-		WordsPerMinute: cfg.WordsPerMinute,
+		WordsPerMinute:      cfg.WordsPerMinute,
+		CacheDir:            cfg.CacheDir,
+		AuthorImageMaxWidth: cfg.AuthorImageMaxWidth,
 	}
 
 	homeCfg := home.Config{
@@ -67,6 +69,6 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		Highlights: highlight.NewController(highlightsRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
 		Documents:  document.NewController(highlightsRepository, sender, idx, metadataReaders, appFs, documentsCfg),
 		Home:       home.NewController(highlightsRepository, sender, idx, homeCfg),
-		Authors:    author.NewController(highlightsRepository, sender, idx, authorsCfg),
+		Authors:    author.NewController(highlightsRepository, sender, idx, authorsCfg, dataSource, appFs),
 	}
 }

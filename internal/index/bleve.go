@@ -24,7 +24,7 @@ import (
 
 // Version identifies the mapping used for indexing. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const Version = "v4"
+const Version = "v5"
 
 const (
 	TypeDocument = "document"
@@ -82,7 +82,7 @@ func CreateMapping() mapping.IndexMapping {
 	indexMapping := bleve.NewIndexMapping()
 
 	err := indexMapping.AddCustomAnalyzer(defaultAnalyzer,
-		map[string]interface{}{
+		map[string]any{
 			"type": custom.Name,
 			"char_filters": []string{
 				asciifolding.Name,
@@ -102,6 +102,12 @@ func CreateMapping() mapping.IndexMapping {
 
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
+
+	noIndexFieldMapping := bleve.NewKeywordFieldMapping()
+	noIndexFieldMapping.Index = false
+	noIndexFieldMapping.IncludeTermVectors = false
+
+	numericFieldMapping := bleve.NewNumericFieldMapping()
 
 	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()
@@ -141,6 +147,21 @@ func CreateMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("SeriesSlug", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Year", keywordFieldMappingNotIndexable)
+
+	indexMapping.AddDocumentMapping(TypeAuthor, bleve.NewDocumentMapping())
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Slug", keywordFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Name", keywordFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("BirthName", keywordFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("RetrievedOn", noIndexFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DataSourceID", noIndexFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DataSourceImage", noIndexFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Website", noIndexFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfBirth.Date", numericFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping, noIndexFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfDeath.Date", numericFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfDeath.Precision", numericFieldMapping, noIndexFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("InstanceOf", numericFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Gender", numericFieldMapping)
 
 	return indexMapping
 }

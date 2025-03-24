@@ -1,0 +1,101 @@
+<div class="card text-bg-secondary mb-3">
+    <div class="row">
+        <div class="card-body col-sm-6 col-md-6 col-lg-9 clearfix">
+            <div class="clearfix d-flex align-items-baseline">
+                <h2 class="card-title ms-3 float-start">{{.Author.Name}}</h2>
+                {{if and (ne .Author.BirthName "") (not .Author.BirthNameIncludesName)}}
+                    <p class="opacity-50 ms-3 float-start">&nbsp;{{.Author.BirthName}}</p>
+                {{end}}
+            </div>
+            {{if index .Author.Description .Lang}}
+                <p class="card-text ms-3 capitalize lead">{{index .Author.Description .Lang}}</p>
+            {{end}}
+            {{if gt (len .Author.Pseudonyms) 0}}
+                <p class="opacity-50 ms-3">{{t .Lang "Alias"}}
+                    {{join .Author.Pseudonyms ", "}}
+                </p>
+            {{end}}
+
+            <dl class="ms-3">
+                {{if ne .Author.DateOfBirth.Date 0}}
+                    <dt>{{t .Lang "Date of birth"}}</dt>
+                    <dd>
+                        {{if .Author.DateOfBirth.IsPrecisionCentury}}
+                            {{t .Lang "%d century" .Author.DateOfBirth.CenturyAbs}}
+                            {{if lt .Author.DateOfBirth.Century 0}}
+                                <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
+                            {{end}}
+                        {{else if (or .Author.DateOfBirth.IsPrecisionYear .Author.DateOfBirth.IsPrecisionDecade) }}
+                            {{.Author.YearOfBirthAbs}}
+                            {{if lt .Author.DateOfBirth.Year 0}}
+                                <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
+                            {{end}}
+                        {{else}}
+                            <time datetime='{{.Author.DateOfBirth.Date.FormatISO 6}}'>{{.Author.DateOfBirth.FormatISO 6}}</time>
+                            {{if lt .Author.DateOfBirth.Year 0}}
+                                <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
+                            {{end}}
+                            {{if and (gt .Author.Age 0) (eq .Author.DateOfDeath.Date 0) }}
+                                ({{t .Lang "%d years old" .Author.Age}})
+                            {{end}}
+                        {{end}}
+                    </dd>
+                {{end}}
+
+                {{if ne .Author.DateOfDeath.Date 0}}
+                    <dt>{{t .Lang "Date of death"}}</dt>
+                    <dd>
+                        {{if .Author.DateOfDeath.IsPrecisionCentury}}
+                            {{t .Lang "%d century" .Author.DateOfDeath.CenturyAbs}}
+                            {{if lt .Author.DateOfDeath.Century 0}}
+                                <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
+                            {{end}}
+                        {{else if .Author.DateOfDeath.IsPrecisionYear}}
+                            {{.Author.YearOfDeathAbs}}
+                            {{if lt .Author.DateOfDeath.Year 0}}
+                                <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
+                            {{end}}
+                        {{else}}
+                            <time datetime='{{.Author.DateOfDeath.Date.FormatISO 6}}'>{{.Author.DateOfDeath.FormatISO 6}}</time>
+                            {{if lt .Author.DateOfDeath.Year 0}}
+                            <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
+                            {{end}}
+                            {{if gt .Author.Age 0}}
+                                ({{t .Lang "%d years old" .Author.Age}})
+                            {{end}}
+                        {{end}}
+                    </dd>
+                {{end}}
+            </dl>
+            <ul class="list-unstyled ms-3">
+                {{if .Author.Website}}
+                    <li>
+                        <i class="bi-globe-europe-africa me-2"></i>
+                        <a href="{{.Author.Website}}" class="link-light">{{t .Lang "Website"}}</a>
+                    </li>
+                {{end}}
+
+                {{if index .Author.WikipediaLink .Lang}}
+                    <li>
+                        <i class="bi-wikipedia me-2"></i>
+                        <a href="{{index .Author.WikipediaLink .Lang}}" class="link-light">{{t .Lang "Go to Wikipedia entry"}}</a>
+                    </li>
+                {{end}}
+            </ul>
+
+            {{if eq .Session.Role 2}}
+                {{if ne .Author.DataSourceID "" }}
+                    {{template "partials/author-update-form" .}}
+                {{end}}
+            {{end}}
+        </div>
+        {{if .Author.DataSourceImage}}
+        <div class="col-lg-3 col-md-6 col-sm-6 d-flex">
+            <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid rounded-end object-fit-cover" alt="{{.Author.Name}}">
+        </div>
+        {{end}}
+    </div>
+</div>
+
+<script type="module" src="/js/datetime.js"></script>
+

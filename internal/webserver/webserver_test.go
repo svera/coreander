@@ -16,6 +16,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v4/internal/datasource/wikidata"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/webserver"
@@ -58,6 +59,8 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 		idx *index.BleveIndexer
 	)
 
+	dataSource := wikidata.NewWikidataSource(wikidata.GowikidataMock{})
+
 	metadataReaders := map[string]metadata.Reader{
 		".epub": metadata.NewEpubReader(),
 		".pdf":  metadata.PdfReader{},
@@ -81,7 +84,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 	if err != nil {
 		log.Fatal(err)
 	}
-	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
+	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs, dataSource)
 	return webserver.New(webserverConfig, controllers, sender, idx)
 }
 

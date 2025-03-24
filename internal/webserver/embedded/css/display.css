@@ -40,14 +40,14 @@ a.collapse-control.collapsed:after {
     content: '▼';
 }
 
-.collapse:not(.show) {
+.partial.collapse:not(.show) {
     display: block;
     /* height = lineheight * no of lines to display */
     height: 7.5em;
     overflow: hidden;
 }
 
-.collapsing {
+.partial.collapsing {
     height: 7.5em;
 }
 
@@ -118,7 +118,7 @@ a.collapse-control.collapsed:after {
     white-space: nowrap;
 }
 
-.datetime::first-letter {
+.capitalize::first-letter {
     text-transform: capitalize;
 }
 

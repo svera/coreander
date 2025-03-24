@@ -33,7 +33,9 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
 	}
 
-	indexAuthors(document, b.idx.Index)
+	if err := b.indexAuthors(document, b.idx.Index); err != nil {
+		return document.Slug, err
+	}
 
 	return document.Slug, nil
 }
@@ -80,7 +82,9 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 			return nil
 		}
 
-		b.indexedEntries += indexAuthors(document, batch.Index)
+		if err = b.indexAuthors(document, batch.Index); err != nil {
+			return err
+		}
 		b.indexedEntries += 1
 
 		if batch.Size() >= batchSize {
@@ -104,9 +108,17 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	return e
 }
 
-func indexAuthors(document Document, index func(id string, data interface{}) error) float64 {
-	indexedEntries := 0.0
+// indexAuthors indexes authors of a document if they are not already indexed
+func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data interface{}) error) error {
 	for i, name := range document.Authors {
+		indexedAuthor, err := b.idx.Document(document.AuthorsSlugs[i])
+		if err != nil {
+			return err
+		}
+		if indexedAuthor != nil {
+			continue
+		}
+
 		author := Author{
 			Name: name,
 			Slug: document.AuthorsSlugs[i],
@@ -117,9 +129,16 @@ func indexAuthors(document Document, index func(id string, data interface{}) err
 			log.Printf("Error indexing author %s: %s\n", name, err)
 			continue
 		}
-		indexedEntries++
 	}
-	return indexedEntries
+	return nil
+}
+
+func (b *BleveIndexer) IndexAuthor(author Author) error {
+	author.Type = TypeAuthor
+	if err := b.idx.Index(author.Slug, author); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {
