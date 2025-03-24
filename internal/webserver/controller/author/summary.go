@@ -51,6 +51,7 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 
 	if err != nil {
 		log.Println(err)
+		return fiber.ErrInternalServerError
 	}
 
 	if authorDataSource == nil {

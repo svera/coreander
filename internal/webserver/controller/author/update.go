@@ -29,6 +29,10 @@ func (a *Controller) Update(c *fiber.Ctx) error {
 	authorDataSource, err := a.dataSource.RetrieveAuthor([]string{c.FormValue("sourceID")}, supportedLanguages)
 	if err != nil {
 		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
+	if authorDataSource == nil {
 		return fiber.ErrNotFound
 	}
 
