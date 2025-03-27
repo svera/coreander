@@ -1,7 +1,5 @@
 github.com/Navid2zp/easyreq v1.1.0 h1:l72URNUdG7u2bsEwc+I/XvlIqHyK1wQh45zlJVfglOs=
 github.com/Navid2zp/easyreq v1.1.0/go.mod h1:mXy1+Mp8NBc3ujieKS27RS84REq138ZCvtpj8hFUeYk=
-github.com/Navid2zp/go-wikidata v1.0.1 h1:iMN2flgmgBl6SsPqcZfPm8cyuQr7oWSWgPu9Zjw22e4=
-github.com/Navid2zp/go-wikidata v1.0.1/go.mod h1:lhWsJmB2kIMdNR1fAOAS5eiHy4Pd7y6PFwOe7pSLnP4=
 github.com/PuerkitoBio/goquery v1.10.1 h1:Y8JGYUkXWTGRB6Ars3+j3kN0xg1YqqlwvdTV8WTFQcU=
 github.com/PuerkitoBio/goquery v1.10.1/go.mod h1:IYiHrOMps66ag56LEH7QYDDupKXyo5A8qrjIx3ZtujY=
 github.com/RoaringBitmap/roaring v1.9.4 h1:yhEIoH4YezLYT04s1nHehNO64EKFTop/wBhxv2QzDdQ=
@@ -220,6 +218,8 @@ github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UV
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
+github.com/svera/go-wikidata v1.0.2 h1:PPaTHI0C58EQmvpf6BBjOjIZvLdGigdWwh9aSixULNE=
+github.com/svera/go-wikidata v1.0.2/go.mod h1:lhWsJmB2kIMdNR1fAOAS5eiHy4Pd7y6PFwOe7pSLnP4=
 github.com/tinylib/msgp v1.1.6/go.mod h1:75BAfg2hauQhs3qedfdDZmWAPcFMAvJE5b9rGOMufyw=
 github.com/tinylib/msgp v1.1.8/go.mod h1:qkpG+2ldGg4xRFmx+jfTvZPxfGFhi64BcnL9vkCm/Tw=
 github.com/tinylib/msgp v1.2.5 h1:WeQg1whrXRFiZusidTQqzETkRpGjFjcIhW6uqWH09po=

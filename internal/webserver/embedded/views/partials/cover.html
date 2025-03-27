@@ -1,11 +1,8 @@
-<div class="position-relative mb-3 border border-2 cover-background">
+<div class="position-relative mb-3 border border-2">
     {{if not .DisableCoverMainLink}}<a href="/documents/{{.Document.Slug}}" class="text-decoration-none">
-        <div class="zoomable">{{end}}
-        <picture>
-            <source srcset="/documents/{{.Document.Slug}}/cover" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' />
-            <img src="/images/generic.jpg" loading="lazy" class="cover img-fluid" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}" />
-        </picture>
-        {{if not .DisableCoverMainLink}}</div>{{end}}
+        <div class="zoomable cover">{{end}}
+            <img src="/images/generic.jpg" data-src="/documents/{{.Document.Slug}}/cover" loading="lazy" class="cover img-fluid" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}" />
+            {{if not .DisableCoverMainLink}}</div>{{end}}
         <div class="card-img-overlay card-body d-none" id="cover-title-{{.Document.Slug}}">
             <h5 class="card-title text-center text-truncate">{{.Document.Title}}</h5>
             {{if .Document.Authors}}
