@@ -1,4 +1,4 @@
-html,
+internal/webserver/embedded/css/display.csshtml,
 body {
     height: 100%;
 }
@@ -102,7 +102,7 @@ a.collapse-control.collapsed:after {
   }
 
 .cover-background {
-    background-image: url("../images/generic.jpg");
+    background-image: url("../images/generic.webp");
     background-size: cover;
 }
 

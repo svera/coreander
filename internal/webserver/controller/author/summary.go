@@ -4,12 +4,13 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/svera/coreander/v4/internal/datasource/model"
 	"github.com/svera/coreander/v4/internal/index"
 )
 
 func (a *Controller) Summary(c *fiber.Ctx) error {
 	var (
-		authorDataSource Author
+		authorDataSource model.Author
 		err              error
 	)
 
@@ -75,7 +76,7 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 	return nil
 }
 
-func combineWithDataSource(author *index.Author, authorDataSource Author, supportedLanguages []string) {
+func combineWithDataSource(author *index.Author, authorDataSource model.Author, supportedLanguages []string) {
 	author.DataSourceID = authorDataSource.SourceID()
 	author.BirthName = authorDataSource.BirthName()
 	author.RetrievedOn = authorDataSource.RetrievedOn()

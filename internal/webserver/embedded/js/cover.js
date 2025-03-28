@@ -5,12 +5,12 @@ document.querySelectorAll(".cover").forEach(function(elem) {
         return;
     }
 
-    elem.setAttribute('src', elem.getAttribute('data-src'));
-
     elem.addEventListener("error", () => {
-        const coverTitleId = elem.getAttribute("data-cover-title-id")
         elem.onerror = null;
-        elem.src = '/images/generic.jpg';
+        elem.src = '/images/generic.webp';
+        const coverTitleId = elem.getAttribute("data-cover-title-id");
         document.getElementById(coverTitleId).classList.remove('d-none')
     })
+
+    elem.setAttribute('src', elem.getAttribute('data-src'));
 })

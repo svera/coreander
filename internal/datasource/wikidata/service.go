@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
+	"github.com/svera/coreander/v4/internal/datasource/model"
 	"github.com/svera/coreander/v4/internal/precisiondate"
-	"github.com/svera/coreander/v4/internal/webserver/controller/author"
 )
 
 const imgUrl = "https://upload.wikimedia.org/wikipedia/commons/%s/%s/%s"
@@ -41,7 +42,7 @@ func NewWikidataSource(w wikidata) WikidataSource {
 	return WikidataSource{w}
 }
 
-func (a WikidataSource) SearchAuthor(name string, languages []string) (author.Author, error) {
+func (a WikidataSource) SearchAuthor(name string, languages []string) (model.Author, error) {
 	ids, err := a.getEntityIds(name)
 	if err != nil {
 		return nil, err
@@ -51,22 +52,28 @@ func (a WikidataSource) SearchAuthor(name string, languages []string) (author.Au
 }
 
 // RetrieveAuthor returns the first match from the list of passed Wikidata entity IDs that represents a human
-func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (author.Author, error) {
+func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.Author, error) {
 	author := Author{
 		wikipediaLink: make(map[string]string),
 		description:   make(map[string]string),
 	}
 
+	for _, id := range ids {
+		if !validateID(id) {
+			return Author{}, fmt.Errorf("invalid author ID %s", id)
+		}
+	}
+
 	entitiesReq, err := a.wikidata.NewGetEntities(ids)
 	if err != nil {
-		return nil, err
+		return Author{}, err
 	}
 	entitiesReq.SetProps([]string{"descriptions", "claims", "sitelinks/urls", "labels"})
 	entitiesReq.SetLanguages(languages)
 	// Call get to make the request based on the configurations
 	entities, err := entitiesReq.Get()
 	if err != nil {
-		return nil, err
+		return Author{}, err
 	}
 
 	author.wikidataEntityId, author.instanceOf = getMostAccurateID(ids, entities)
@@ -114,7 +121,7 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (author
 	if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyImage]; exists {
 		img, err := strconv.Unquote("\"" + value[0].MainSnak.DataValue.Value.S + "\"")
 		if err != nil {
-			return nil, err
+			return Author{}, err
 		}
 
 		if slices.Contains([]string{".png", ".jpg", ".jpeg", ".tif", ".tiff"}, strings.ToLower(filepath.Ext(img))) {
@@ -234,4 +241,11 @@ func getImageUrl(filename string) string {
 	hash := hex.EncodeToString(sum[:])
 
 	return fmt.Sprintf(imgUrl, string(hash[0]), string(hash[0])+string(hash[1]), url.PathEscape(filename))
+}
+
+func validateID(id string) bool {
+	if id == "" {
+		return true
+	}
+	return regexp.MustCompile(`^[Qq]\d+$`).MatchString(id)
 }
