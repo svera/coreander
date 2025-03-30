@@ -3,7 +3,7 @@
         <div class="zoomable cover">{{end}}
             <img src="/images/generic.webp" data-src="/documents/{{.Document.Slug}}/cover" loading="lazy" class="cover img-fluid" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}" />
             {{if not .DisableCoverMainLink}}</div>{{end}}
-        <div class="card-img-overlay card-body d-none" id="cover-title-{{.Document.Slug}}">
+        <div class="card-img-overlay card-body" id="cover-title-{{.Document.Slug}}">
             <h5 class="card-title text-center text-truncate">{{.Document.Title}}</h5>
             {{if .Document.Authors}}
                 <p class="card-text text-center text-truncate">

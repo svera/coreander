@@ -5,10 +5,18 @@ document.querySelectorAll(".cover").forEach(function(elem) {
         return;
     }
 
+    const coverTitleId = elem.getAttribute("data-cover-title-id");
+
+    elem.addEventListener("load", () => {
+        if (elem.src.endsWith("/images/generic.webp")) {
+            return
+        }
+        document.getElementById(coverTitleId).classList.add('d-none')
+    })
+
     elem.addEventListener("error", () => {
         elem.onerror = null;
         elem.src = '/images/generic.webp';
-        const coverTitleId = elem.getAttribute("data-cover-title-id");
         document.getElementById(coverTitleId).classList.remove('d-none')
     })
 
