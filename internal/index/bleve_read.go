@@ -165,7 +165,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 		docs[i] = hydrateDocument(val)
 	}
 
-	return result.NewPaginated[[]Document](
+	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(searchResult.Total),
