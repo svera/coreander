@@ -8,39 +8,23 @@ import (
 )
 
 func TestAuthor(t *testing.T) {
+	mockServer := NewMockServer(t, "fixtures")
+	defer mockServer.Close()
+	gowikidata.WikidataDomain = mockServer.URL
+
 	for _, tcase := range testCases(t) {
 		t.Run(tcase.name, func(t *testing.T) {
-			mockSearchEntitiesRequest := SearchEntitiesRequestMock{
-				GetFn: func() (*gowikidata.SearchEntitiesResponse, error) {
-					return &tcase.pl.searchEntitiesResponse, nil
-				},
-			}
 
-			mockGetEntitiesRequest := GetEntitiesRequestMock{
-				SetPropsFn:     func(props []string) {},
-				SetLanguagesFn: func(languages []string) {},
-				GetFn: func() (*map[string]gowikidata.Entity, error) {
-					return &map[string]gowikidata.Entity{
-						"Q123456": tcase.pl.entity,
-					}, nil
-				},
-			}
+			wikidataSource := NewWikidataSource(Gowikidata{})
 
-			mock := GowikidataMock{
-				NewSearchFn: func(search string, language string) (SearchEntitiesRequest, error) {
-					return mockSearchEntitiesRequest, nil
-				},
-				NewGetEntitiesFn: func(ids []string) (GetEntitiesRequest, error) {
-					return mockGetEntitiesRequest, nil
-				},
-			}
-
-			wikidataSource := NewWikidataSource(mock)
-
-			author, err := wikidataSource.SearchAuthor("Miguel", []string{"en"})
-			if err != nil {
+			author, err := wikidataSource.SearchAuthor(tcase.search, []string{"en"})
+			if err != nil && tcase.expectedValues != nil {
 				t.Errorf("Error retrieving author: %v", err)
 			}
+			if tcase.expectedValues == nil {
+				return
+			}
+
 			if author.SourceID() != tcase.expectedValues.wikidataID {
 				t.Errorf("Wrong source ID name, expected '%s', got '%s'", tcase.expectedValues.wikidataID, author.SourceID())
 			}
@@ -49,173 +33,48 @@ func TestAuthor(t *testing.T) {
 				t.Errorf("Wrong gender, expected '%f', got '%f'", tcase.expectedValues.gender, author.Gender())
 			}
 
-			if author.WikipediaLink("en") != tcase.expectedValues.wikipediaLink {
-				t.Errorf("Wrong Wikipedia link, expected '%s', got '%s'", tcase.expectedValues.wikipediaLink, author.WikipediaLink("en"))
+			if expected, actual := tcase.expectedValues.website, author.Website(); author.Website() != tcase.expectedValues.website {
+				t.Errorf("Wrong website link, expected '%s', got '%s'", expected, actual)
 			}
 		})
 	}
 }
 
-type payloads struct {
-	searchEntitiesResponse gowikidata.SearchEntitiesResponse
-	entity                 gowikidata.Entity
-}
-
 type authorExpectedValues struct {
-	wikidataID    string
-	gender        float64
-	wikipediaLink string
-	dateOfBirth   date.Date
+	wikidataID  string
+	gender      float64
+	website     string
+	dateOfBirth date.Date
 }
 
 type testCase struct {
 	name           string
-	pl             payloads
-	expectedValues authorExpectedValues
+	search         string
+	expectedValues *authorExpectedValues
 }
 
 func testCases(t *testing.T) []testCase {
 	return []testCase{
 		{
-			name: "Author successfully retrieved",
-			pl: struct {
-				searchEntitiesResponse gowikidata.SearchEntitiesResponse
-				entity                 gowikidata.Entity
-			}{
-				searchEntitiesResponse: searchEntitiesResponsePayloadBuilder("Q123456", "Miguel"),
-				entity: entityPayloadBuilder(
-					"Miguel",
-					"Test description",
-					"https://en.wikipedia.org/wiki/Miguel",
-					map[string]string{
-						propertyInstanceOf:  qidInstanceOfHuman,
-						propertySexOrGender: qidGenderMale,
-						propertyDateOfBirth: "+1967-02-06T00:00:00Z",
-					},
-				),
-			},
-			expectedValues: authorExpectedValues{
-				wikidataID:    "Q123456",
-				gender:        GenderMale,
-				wikipediaLink: "https://en.wikipedia.org/wiki/Miguel",
-				dateOfBirth:   parseISODate(t, "+1967-02-06T00:00:00Z"),
+			name:   "Author successfully retrieved",
+			search: "Miguel",
+			expectedValues: &authorExpectedValues{
+				wikidataID:  "Q1234",
+				gender:      GenderMale,
+				website:     "https://douglasadams.com",
+				dateOfBirth: parseISODate(t, "+1967-02-06T00:00:00Z"),
 			},
 		},
 		{
-			name: "Author not found",
-			pl: struct {
-				searchEntitiesResponse gowikidata.SearchEntitiesResponse
-				entity                 gowikidata.Entity
-			}{
-				searchEntitiesResponse: searchEntitiesResponsePayloadBuilder("", ""),
-				entity: entityPayloadBuilder(
-					"",
-					"",
-					"",
-					map[string]string{
-						propertySexOrGender: "",
-						propertyDateOfBirth: "",
-					},
-				),
-			},
-			expectedValues: authorExpectedValues{
-				wikidataID:    "",
-				gender:        GenderUnknown,
-				wikipediaLink: "",
-				dateOfBirth:   date.Zero,
-			},
+			name:           "Author not found",
+			search:         "Eufrasio",
+			expectedValues: nil,
 		},
 		{
-			name: "Found entry is not human",
-			pl: struct {
-				searchEntitiesResponse gowikidata.SearchEntitiesResponse
-				entity                 gowikidata.Entity
-			}{
-				searchEntitiesResponse: searchEntitiesResponsePayloadBuilder("Q654321", "Miguel"),
-				entity: entityPayloadBuilder(
-					"",
-					"",
-					"",
-					map[string]string{
-						propertyInstanceOf:  "Q12308941", // Male given name
-						propertySexOrGender: "",
-						propertyDateOfBirth: "",
-					},
-				),
-			},
-			expectedValues: authorExpectedValues{
-				wikidataID:    "",
-				gender:        GenderUnknown,
-				wikipediaLink: "",
-				dateOfBirth:   date.Zero,
-			},
+			name:           "Found entry is not human",
+			search:         "Q1234",
+			expectedValues: nil,
 		},
-	}
-}
-
-func searchEntitiesResponsePayloadBuilder(ID, title string) gowikidata.SearchEntitiesResponse {
-	return gowikidata.SearchEntitiesResponse{
-		SearchResult: []gowikidata.SearchEntity{
-			{
-				Title: title,
-				ID:    ID,
-			},
-		},
-	}
-}
-
-func entityPayloadBuilder(label, description, siteLink string, claims map[string]string) gowikidata.Entity {
-	return gowikidata.Entity{
-		Labels: map[string]gowikidata.Label{
-			"en": {
-				Value: label,
-			},
-		},
-		Descriptions: map[string]gowikidata.Description{
-			"en": {
-				Value: description,
-			},
-		},
-		SiteLinks: map[string]gowikidata.SiteLink{
-			"enwiki": {
-				URL: siteLink,
-			},
-		},
-		Claims: map[string][]gowikidata.Claim{
-			propertyInstanceOf:  {idClaimBuilder(claims[propertyInstanceOf])},
-			propertySexOrGender: {idClaimBuilder(claims[propertySexOrGender])},
-			propertyDateOfBirth: {timeClaimBuilder(claims[propertyDateOfBirth])},
-		},
-	}
-}
-
-func idClaimBuilder(value string) gowikidata.Claim {
-	return gowikidata.Claim{
-		MainSnak: gowikidata.Snak{
-			DataValue: gowikidata.DataValue{
-				Value: gowikidata.DynamicDataValue{
-					ValueFields: gowikidata.DataValueFields{
-						ID: value,
-					},
-				},
-			},
-		},
-		Rank: "normal",
-	}
-}
-
-func timeClaimBuilder(value string) gowikidata.Claim {
-	return gowikidata.Claim{
-		MainSnak: gowikidata.Snak{
-			DataValue: gowikidata.DataValue{
-				Value: gowikidata.DynamicDataValue{
-					ValueFields: gowikidata.DataValueFields{
-						Time: value,
-					},
-				},
-			},
-		},
-		Rank: "normal",
 	}
 }
 
