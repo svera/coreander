@@ -95,8 +95,12 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.
 
 	author.retrievedOn = time.Now().UTC()
 	for _, lang := range languages {
-		author.wikipediaLink[lang] = (*entities)[author.wikidataEntityId].SiteLinks[fmt.Sprintf("%swiki", lang)].URL
-		author.description[lang] = (*entities)[author.wikidataEntityId].Descriptions[lang].Value
+		if url := (*entities)[author.wikidataEntityId].SiteLinks[fmt.Sprintf("%swiki", lang)].URL; url != "" {
+			author.wikipediaLink[lang] = url
+		}
+		if description := (*entities)[author.wikidataEntityId].Descriptions[lang].Value; description != "" {
+			author.description[lang] = description
+		}
 	}
 	if claim, exists := (*entities)[author.wikidataEntityId].Claims[propertyDateOfBirth]; exists {
 		author.dateOfBirth = parseDate(claim)

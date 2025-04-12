@@ -1,10 +1,11 @@
 package wikidata
 
 import (
+	"reflect"
 	"testing"
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
-	"github.com/rickb777/date/v2"
+	"github.com/svera/coreander/v4/internal/precisiondate"
 )
 
 func TestAuthor(t *testing.T) {
@@ -18,39 +19,25 @@ func TestAuthor(t *testing.T) {
 			wikidataSource := NewWikidataSource(Gowikidata{})
 
 			author, err := wikidataSource.SearchAuthor(tcase.search, []string{"en"})
-			if err != nil && tcase.expectedValues != nil {
+			if err != nil && !reflect.DeepEqual(tcase.expectedValue, Author{}) {
 				t.Errorf("Error retrieving author: %v", err)
 			}
-			if tcase.expectedValues == nil {
+			if reflect.DeepEqual(tcase.expectedValue, Author{}) {
 				return
 			}
 
-			if author.SourceID() != tcase.expectedValues.wikidataID {
-				t.Errorf("Wrong source ID name, expected '%s', got '%s'", tcase.expectedValues.wikidataID, author.SourceID())
-			}
-
-			if author.Gender() != tcase.expectedValues.gender {
-				t.Errorf("Wrong gender, expected '%f', got '%f'", tcase.expectedValues.gender, author.Gender())
-			}
-
-			if expected, actual := tcase.expectedValues.website, author.Website(); author.Website() != tcase.expectedValues.website {
-				t.Errorf("Wrong website link, expected '%s', got '%s'", expected, actual)
+			tcase.expectedValue.retrievedOn = author.RetrievedOn()
+			if !reflect.DeepEqual(author, tcase.expectedValue) {
+				t.Errorf("Wrong author\n\nexpected '%#v'\n\ngot '%#v'", tcase.expectedValue, author)
 			}
 		})
 	}
 }
 
-type authorExpectedValues struct {
-	wikidataID  string
-	gender      float64
-	website     string
-	dateOfBirth date.Date
-}
-
 type testCase struct {
-	name           string
-	search         string
-	expectedValues *authorExpectedValues
+	name          string
+	search        string
+	expectedValue Author
 }
 
 func testCases(t *testing.T) []testCase {
@@ -58,31 +45,29 @@ func testCases(t *testing.T) []testCase {
 		{
 			name:   "Author successfully retrieved",
 			search: "Miguel",
-			expectedValues: &authorExpectedValues{
-				wikidataID:  "Q1234",
-				gender:      GenderMale,
-				website:     "https://douglasadams.com",
-				dateOfBirth: parseISODate(t, "+1967-02-06T00:00:00Z"),
+			expectedValue: Author{
+				birthName:        "Douglas Noël Adams",
+				instanceOf:       InstanceHuman,
+				wikidataEntityId: "Q1234",
+				wikipediaLink:    make(map[string]string),
+				description:      make(map[string]string),
+				gender:           GenderMale,
+				website:          "https://douglasadams.com",
+				image:            "https://upload.wikimedia.org/wikipedia/commons/4/44/Duble_herma_of_Socrates_and_Seneca_Antikensammlung_Berlin_07.jpg",
+				dateOfBirth:      precisiondate.NewPrecisionDate("-0004-00-00T00:00:00Z", precisiondate.PrecisionDecade),
+				dateOfDeath:      precisiondate.NewPrecisionDate("+0065-04-12T00:00:00Z", precisiondate.PrecisionDay),
+				pseudonyms:       []string{"David Agnew"},
 			},
 		},
 		{
-			name:           "Author not found",
-			search:         "Eufrasio",
-			expectedValues: nil,
+			name:          "Author not found",
+			search:        "Eufrasio",
+			expectedValue: Author{},
 		},
 		{
-			name:           "Found entry is not human",
-			search:         "Q1234",
-			expectedValues: nil,
+			name:          "Found entry is not human",
+			search:        "Q1234",
+			expectedValue: Author{},
 		},
 	}
-}
-
-func parseISODate(t *testing.T, dateString string) date.Date {
-	var parsed date.Date
-	parsed, err := date.ParseISO(dateString)
-	if err != nil {
-		t.Fatalf("error parsing date: %v", err)
-	}
-	return parsed
 }
