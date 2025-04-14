@@ -32,7 +32,7 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	if author.DataSourceID != "" {
+	if !author.RetrievedOn.IsZero() {
 		templateVars := fiber.Map{
 			"Author": author,
 		}
@@ -42,10 +42,6 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 			return fiber.ErrInternalServerError
 		}
 		return nil
-	}
-
-	if !author.RetrievedOn.IsZero() {
-		return fiber.ErrNotFound
 	}
 
 	authorDataSource, err = a.dataSource.SearchAuthor(author.Name, supportedLanguages)

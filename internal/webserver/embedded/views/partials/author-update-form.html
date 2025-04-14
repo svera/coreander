@@ -11,7 +11,7 @@
         <div class="col-12 col-lg-6">
             <form hx-put="/authors/{{.Author.Slug}}" class="ms-3">
                 <div class="input-group input-group-sm">
-                    <input class="form-control" type="text" name="sourceID" value="{{.Author.DataSourceID}}" maxlength="10" placeholder="Q42" pattern="^[Qq]\d+$">
+                    <input class="form-control" type="text" name="sourceID" value="{{.Author.DataSourceID}}" maxlength="10" pattern="^[Qq]\d+$">
                     <button type="submit" class="btn btn-dark">{{t .Lang "Update"}}</button>
                 </div>
             </form>

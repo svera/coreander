@@ -103,11 +103,10 @@ func CreateMapping() mapping.IndexMapping {
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
 
-	noIndexFieldMapping := bleve.NewKeywordFieldMapping()
-	noIndexFieldMapping.Index = false
-	noIndexFieldMapping.IncludeTermVectors = false
-
 	numericFieldMapping := bleve.NewNumericFieldMapping()
+
+	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
+	dateTimeFieldMapping.Index = false
 
 	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()
@@ -152,14 +151,14 @@ func CreateMapping() mapping.IndexMapping {
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Slug", keywordFieldMapping)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Name", keywordFieldMapping)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("BirthName", keywordFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("RetrievedOn", noIndexFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DataSourceID", noIndexFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DataSourceImage", noIndexFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Website", noIndexFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("RetrievedOn", dateTimeFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DataSourceID", keywordFieldMappingNotIndexable)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DataSourceImage", keywordFieldMappingNotIndexable)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Website", keywordFieldMappingNotIndexable)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfBirth.Date", numericFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping, noIndexFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping, keywordFieldMappingNotIndexable)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfDeath.Date", numericFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfDeath.Precision", numericFieldMapping, noIndexFieldMapping)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfDeath.Precision", numericFieldMapping, keywordFieldMappingNotIndexable)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("InstanceOf", numericFieldMapping)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Gender", numericFieldMapping)
 

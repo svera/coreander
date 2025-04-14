@@ -84,9 +84,7 @@
             </ul>
 
             {{if eq .Session.Role 2}}
-                {{if ne .Author.DataSourceID "" }}
-                    {{template "partials/author-update-form" .}}
-                {{end}}
+                {{template "partials/author-update-form" .}}
             {{end}}
         </div>
         {{if .Author.DataSourceImage}}

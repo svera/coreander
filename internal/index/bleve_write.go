@@ -109,7 +109,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 }
 
 // indexAuthors indexes authors of a document if they are not already indexed
-func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data interface{}) error) error {
+func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data any) error) error {
 	for i, name := range document.Authors {
 		indexedAuthor, err := b.idx.Document(document.AuthorsSlugs[i])
 		if err != nil {
@@ -119,10 +119,12 @@ func (b *BleveIndexer) indexAuthors(document Document, index func(id string, dat
 			continue
 		}
 
+		zeroTime, _ := time.Parse(time.RFC3339, "0001-01-01T00:00:00Z")
 		author := Author{
-			Name: name,
-			Slug: document.AuthorsSlugs[i],
-			Type: TypeAuthor,
+			Name:        name,
+			Slug:        document.AuthorsSlugs[i],
+			Type:        TypeAuthor,
+			RetrievedOn: zeroTime,
 		}
 
 		if err := index(author.Slug, author); err != nil {
