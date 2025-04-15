@@ -84,14 +84,14 @@
             </ul>
 
             {{if eq .Session.Role 2}}
-                {{if ne .Author.DataSourceID "" }}
+                {{if not .Author.RetrievedOn.IsZero }}
                     {{template "partials/author-update-form" .}}
                 {{end}}
             {{end}}
         </div>
         {{if .Author.DataSourceImage}}
         <div class="col-lg-3 col-md-6 col-sm-6 d-flex">
-            <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid rounded-end object-fit-cover" alt="{{.Author.Name}}">
+            <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid object-fit-cover w-100" alt="{{.Author.Name}}">
         </div>
         {{end}}
     </div>

@@ -59,7 +59,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 		idx *index.BleveIndexer
 	)
 
-	dataSource := wikidata.NewWikidataSource(wikidata.GowikidataMock{})
+	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
 	metadataReaders := map[string]metadata.Reader{
 		".epub": metadata.NewEpubReader(),

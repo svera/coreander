@@ -10,7 +10,7 @@ import (
 func TestAge(t *testing.T) {
 	for _, tcase := range testCasesAuthorAge() {
 		t.Run(tcase.name, func(t *testing.T) {
-			if age, expectedAge := tcase.author.Age(), tcase.expectedAge; tcase.author.Age() != tcase.expectedAge {
+			if age, expectedAge := tcase.author.Age(), tcase.expectedAge; age != expectedAge {
 				t.Errorf("Wrong author age, expected '%d', got '%d'", age, expectedAge)
 			}
 		})
@@ -59,7 +59,7 @@ func testCasesAuthorAge() []testCaseAuthorAge {
 func TestBirthNameIncludesName(t *testing.T) {
 	for _, tcase := range testCasesAuthorBirthNameIncludesName() {
 		t.Run(tcase.name, func(t *testing.T) {
-			if result, expectedResult := tcase.author.BirthNameIncludesName(), tcase.expectedResult; tcase.author.BirthNameIncludesName() != tcase.expectedResult {
+			if result, expectedResult := tcase.author.BirthNameIncludesName(), tcase.expectedResult; result != expectedResult {
 				t.Errorf("Wrong result in birth name includes name, expected '%v', got '%v'", result, expectedResult)
 			}
 		})

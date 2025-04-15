@@ -28,6 +28,7 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 	}
 
 	document := b.createDocument(meta, file, nil)
+	document.AddedOn = time.Now().UTC()
 
 	if err = b.idx.Index(document.ID, document); err != nil {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
@@ -57,6 +58,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	batchSlugs := make(map[string]struct{}, batchSize)
 	languages := []string{}
 	b.indexStartTime = float64(time.Now().UnixNano())
+
 	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
 		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed && !forceIndexing {
 			b.indexedEntries += 1
@@ -76,6 +78,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 		document := b.createDocument(meta, fullPath, batchSlugs)
 		batchSlugs[document.Slug] = struct{}{}
 		languages = addLanguage(meta.Language, languages)
+		document.AddedOn = time.Time{}
 
 		if err = batch.Index(document.ID, document); err != nil {
 			log.Printf("Error indexing file %s: %s\n", fullPath, err)
@@ -109,7 +112,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 }
 
 // indexAuthors indexes authors of a document if they are not already indexed
-func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data interface{}) error) error {
+func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data any) error) error {
 	for i, name := range document.Authors {
 		indexedAuthor, err := b.idx.Document(document.AuthorsSlugs[i])
 		if err != nil {
@@ -120,9 +123,10 @@ func (b *BleveIndexer) indexAuthors(document Document, index func(id string, dat
 		}
 
 		author := Author{
-			Name: name,
-			Slug: document.AuthorsSlugs[i],
-			Type: TypeAuthor,
+			Name:        name,
+			Slug:        document.AuthorsSlugs[i],
+			Type:        TypeAuthor,
+			RetrievedOn: time.Time{},
 		}
 
 		if err := index(author.Slug, author); err != nil {

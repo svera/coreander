@@ -1,6 +1,8 @@
 package index
 
 import (
+	"time"
+
 	"github.com/svera/coreander/v4/internal/metadata"
 )
 
@@ -13,6 +15,7 @@ type Document struct {
 	SubjectsSlugs []string
 	Highlighted   bool
 	Type          string
+	AddedOn       time.Time
 }
 
 // BleveType is part of the bleve.Classifier interface and its purpose is to tell the indexer

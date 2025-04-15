@@ -101,11 +101,6 @@ a.collapse-control.collapsed:after {
     }
   }
 
-.cover-background {
-    background-image: url("../images/generic.jpg");
-    background-size: cover;
-}
-
 .cursor-pointer {
     cursor: pointer;
 }

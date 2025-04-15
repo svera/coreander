@@ -19,7 +19,7 @@ import (
 	"github.com/svera/coreander/v4/internal/result"
 )
 
-var docSearchFields = []string{"ID", "Title", "Slug", "Authors", "AuthorsSlugs", "Description", "Year", "Words", "Series", "SeriesSlug", "SeriesIndex", "Pages", "Format", "Subjects", "SubjectsSlugs"}
+var docSearchFields = []string{"ID", "Title", "Slug", "Authors", "AuthorsSlugs", "Description", "Year", "Words", "Series", "SeriesSlug", "SeriesIndex", "Pages", "Format", "Subjects", "SubjectsSlugs", "AddedOn"}
 
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 	var progress Progress
@@ -165,7 +165,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 		docs[i] = hydrateDocument(val)
 	}
 
-	return result.NewPaginated[[]Document](
+	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(searchResult.Total),
@@ -434,6 +434,15 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 }
 
 func hydrateDocument(match *search.DocumentMatch) Document {
+	var err error
+
+	addedOn := time.Time{}
+	if match.Fields["AddedOn"] != nil {
+		if addedOn, err = time.Parse(time.RFC3339, match.Fields["AddedOn"].(string)); err != nil {
+			return Document{}
+		}
+	}
+
 	doc := Document{
 		ID: match.ID,
 		Metadata: metadata.Metadata{
@@ -452,6 +461,7 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		AuthorsSlugs:  slicer(match.Fields["AuthorsSlugs"]),
 		SeriesSlug:    match.Fields["SeriesSlug"].(string),
 		SubjectsSlugs: slicer(match.Fields["SubjectsSlugs"]),
+		AddedOn:       addedOn,
 	}
 
 	return doc

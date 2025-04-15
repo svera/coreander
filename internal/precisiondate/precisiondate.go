@@ -9,6 +9,7 @@ import (
 // PrecisionDate implement a format for partially-known dates following Wikidata format.
 // Some dates for relevant people are not fully known, for example, for Seneca, full
 // birth and death dates are unknown, only the years.
+// https://www.wikidata.org/wiki/Help:Dates
 type PrecisionDate struct {
 	date.Date
 	Precision float64

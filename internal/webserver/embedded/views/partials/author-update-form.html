@@ -1,7 +1,7 @@
 <p class="ms-3 opacity-75"><small>
     <i class="bi-person-fill-exclamation me-2"></i>
     <a class="link-light" data-bs-toggle="collapse" href="#update-author-form" aria-expanded="false">
-        {{ t .Lang "Is not the right author or data is outdated? Click here to update" }}
+        {{ t .Lang "Is not the right author or data is outdated?" }}
     </a>
 </small>
 </p>
@@ -11,7 +11,7 @@
         <div class="col-12 col-lg-6">
             <form hx-put="/authors/{{.Author.Slug}}" class="ms-3">
                 <div class="input-group input-group-sm">
-                    <input class="form-control" type="text" name="sourceID" value="{{.Author.DataSourceID}}">
+                    <input class="form-control" type="text" name="sourceID" value="{{.Author.DataSourceID}}" maxlength="10" pattern="^[Qq]\d+$">
                     <button type="submit" class="btn btn-dark">{{t .Lang "Update"}}</button>
                 </div>
             </form>

@@ -8,7 +8,7 @@
         </span>
         <form action="/documents" class="d-flex justify-content-center flex-grow-1 pe-3" roles="search">
             <div class="input-group input-group-sm">
-                <label for="search" class="visually-hidden">{{t .Lang "search"}}</label>
+                <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
                 <input type="search" name="search" id="searchbox" class="form-control" placeholder={{t .Lang "Title, authors, subjects, etc."}} maxlength="255" required autofocus value="{{.Keywords}}">
                 <button class="btn btn-outline-secondary" type="submit"><i class="bi-search"></i></button>
             </div>
