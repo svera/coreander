@@ -28,6 +28,7 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 	}
 
 	document := b.createDocument(meta, file, nil)
+	document.AddedOn = time.Now().UTC()
 
 	if err = b.idx.Index(document.ID, document); err != nil {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
@@ -57,6 +58,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	batchSlugs := make(map[string]struct{}, batchSize)
 	languages := []string{}
 	b.indexStartTime = float64(time.Now().UnixNano())
+
 	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
 		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed && !forceIndexing {
 			b.indexedEntries += 1
@@ -76,6 +78,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 		document := b.createDocument(meta, fullPath, batchSlugs)
 		batchSlugs[document.Slug] = struct{}{}
 		languages = addLanguage(meta.Language, languages)
+		document.AddedOn = time.Time{}
 
 		if err = batch.Index(document.ID, document); err != nil {
 			log.Printf("Error indexing file %s: %s\n", fullPath, err)
@@ -119,12 +122,11 @@ func (b *BleveIndexer) indexAuthors(document Document, index func(id string, dat
 			continue
 		}
 
-		zeroTime, _ := time.Parse(time.RFC3339, "0001-01-01T00:00:00Z")
 		author := Author{
 			Name:        name,
 			Slug:        document.AuthorsSlugs[i],
 			Type:        TypeAuthor,
-			RetrievedOn: zeroTime,
+			RetrievedOn: time.Time{},
 		}
 
 		if err := index(author.Slug, author); err != nil {
