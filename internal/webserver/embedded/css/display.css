@@ -1,4 +1,4 @@
-internal/webserver/embedded/css/display.csshtml,
+html,
 body {
     height: 100%;
 }
@@ -100,11 +100,6 @@ a.collapse-control.collapsed:after {
       filter: invert(100%);
     }
   }
-
-.cover-background {
-    background-image: url("../images/generic.webp");
-    background-size: cover;
-}
 
 .cursor-pointer {
     cursor: pointer;
