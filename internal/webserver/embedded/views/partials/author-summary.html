@@ -84,7 +84,7 @@
             </ul>
 
             {{if eq .Session.Role 2}}
-                {{if ne .Author.RetrievedOn "" }}
+                {{if not .Author.RetrievedOn.IsZero }}
                     {{template "partials/author-update-form" .}}
                 {{end}}
             {{end}}
