@@ -24,7 +24,7 @@ import (
 
 // Version identifies the mapping used for indexing. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const Version = "v6"
+const Version = "v7"
 
 const (
 	TypeDocument = "document"
@@ -104,6 +104,7 @@ func CreateMapping() mapping.IndexMapping {
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
 
 	numericFieldMapping := bleve.NewNumericFieldMapping()
+	numericFieldMapping.Index = false
 
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
 	dateTimeFieldMapping.Index = false
@@ -158,9 +159,9 @@ func CreateMapping() mapping.IndexMapping {
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DataSourceImage", keywordFieldMappingNotIndexable)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Website", keywordFieldMappingNotIndexable)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfBirth.Date", numericFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping, keywordFieldMappingNotIndexable)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfDeath.Date", numericFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfDeath.Precision", numericFieldMapping, keywordFieldMappingNotIndexable)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfDeath.Precision", numericFieldMapping)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("InstanceOf", numericFieldMapping)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Gender", numericFieldMapping)
 

@@ -272,7 +272,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	bq.AddMust(typeQuery)
 
 	res := make([]Document, 0, quantity)
-	for i := 0; i < quantity; i++ {
+	for range quantity {
 		doc, err := b.runQuery(bq, 1)
 		if err != nil {
 			return res, err
@@ -431,6 +431,27 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 	}
 
 	return author, nil
+}
+
+func (b *BleveIndexer) LatestDocs(limit int) ([]Document, error) {
+	bq := bleve.NewBooleanQuery()
+
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+
+	falseValue := false
+	trueValue := true
+	dateQuery := bleve.NewDateRangeInclusiveQuery(time.Time{}, time.Now().UTC(), &falseValue, &trueValue)
+	dateQuery.SetField("AddedOn")
+
+	bq.AddMust(typeQuery)
+	bq.AddMust(dateQuery)
+
+	searchOptions := bleve.NewSearchRequestOptions(bq, limit, 0, false)
+	searchOptions.SortBy([]string{"-AddedOn"})
+	searchOptions.Fields = docSearchFields
+
+	return b.runQuery(bq, limit)
 }
 
 func hydrateDocument(match *search.DocumentMatch) Document {
