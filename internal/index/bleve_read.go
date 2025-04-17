@@ -19,8 +19,6 @@ import (
 	"github.com/svera/coreander/v4/internal/result"
 )
 
-var docSearchFields = []string{"ID", "Title", "Slug", "Authors", "AuthorsSlugs", "Description", "Year", "Words", "Series", "SeriesSlug", "SeriesIndex", "Pages", "Format", "Subjects", "SubjectsSlugs", "AddedOn"}
-
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 	var progress Progress
 
@@ -149,7 +147,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
-	searchOptions.Fields = docSearchFields
+	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return result.Paginated[[]Document]{}, err
@@ -195,7 +193,7 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 	compoundQuery.AddQuery(query, typeQuery)
 
 	searchOptions := bleve.NewSearchRequest(compoundQuery)
-	searchOptions.Fields = docSearchFields
+	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return Document{}, err
@@ -216,7 +214,7 @@ func (b *BleveIndexer) Documents(IDs []string) (map[string]Document, error) {
 	compoundQuery.AddQuery(query, typeQuery)
 
 	searchOptions := bleve.NewSearchRequest(compoundQuery)
-	searchOptions.Fields = docSearchFields
+	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return docs, err
@@ -449,7 +447,7 @@ func (b *BleveIndexer) LatestDocs(limit int) ([]Document, error) {
 
 	searchOptions := bleve.NewSearchRequestOptions(bq, limit, 0, false)
 	searchOptions.SortBy([]string{"-AddedOn"})
-	searchOptions.Fields = docSearchFields
+	searchOptions.Fields = []string{"*"}
 
 	return b.runQuery(bq, limit)
 }
@@ -464,13 +462,19 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		}
 	}
 
+	publication := precisiondate.PrecisionDate{Date: date.Zero}
+	if match.Fields["Publication.Date"] != nil {
+		publication.Date = date.Date(match.Fields["Publication.Date"].(float64))
+		publication.Precision = match.Fields["Publication.Precision"].(float64)
+	}
+
 	doc := Document{
 		ID: match.ID,
 		Metadata: metadata.Metadata{
 			Title:       match.Fields["Title"].(string),
 			Authors:     slicer(match.Fields["Authors"]),
 			Description: template.HTML(match.Fields["Description"].(string)),
-			Year:        match.Fields["Year"].(string),
+			Publication: publication,
 			Words:       match.Fields["Words"].(float64),
 			Series:      match.Fields["Series"].(string),
 			SeriesIndex: match.Fields["SeriesIndex"].(float64),

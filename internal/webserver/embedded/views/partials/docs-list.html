@@ -31,7 +31,7 @@
                             title={{$seriesTitle}}>{{$document.Series}}{{ if ne $document.SeriesIndex 0.0 }} {{$document.SeriesIndex}}{{end}}</a></p>
                     {{ end }}
                     <h4 class="text-start">
-                        <a href="/documents/{{$document.Slug}}">{{$document.Title}}</a> <small class="small text-muted">{{$document.Year}}</small>
+                        <a href="/documents/{{$document.Slug}}">{{$document.Title}}</a> <small class="small text-muted">{{$document.Publication.Date.Year}}</small>
                     </h4>
                 </div>
                 {{if and $session (eq $session.Role 2)}}

@@ -9,12 +9,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/kovidgoyal/imaging"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/pirmd/epub"
+	"github.com/rickb777/date/v2"
+	"github.com/svera/coreander/v4/internal/precisiondate"
 )
 
 type EpubReader struct {
@@ -91,20 +92,17 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 		lang = meta.Language[0]
 	}
 
-	year := ""
-	for _, date := range meta.Date {
-		if date.Event == "publication" || date.Event == "" {
-			t, err := time.Parse("2006-01-02", date.Stamp)
-			if err != nil {
-				t, err = time.Parse("2006", date.Stamp)
+	publication := precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay}
+	for _, currentDate := range meta.Date {
+		if currentDate.Event == "publication" || currentDate.Event == "" {
+			if publication.Date, err = date.Parse("2006-01-02", currentDate.Stamp); err != nil {
+				publication.Precision = precisiondate.PrecisionYear
+				publication.Date, _ = date.Parse("2006", currentDate.Stamp)
 			}
-
-			if err == nil {
-				year = strings.TrimLeft(t.Format("2006"), "0")
-				break
-			}
+			break
 		}
 	}
+
 	var seriesIndex float64 = 0
 
 	seriesIndex, _ = strconv.ParseFloat(meta.SeriesIndex, 64)
@@ -114,7 +112,7 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 		Authors:     authors,
 		Description: template.HTML(description),
 		Language:    lang,
-		Year:        year,
+		Publication: publication,
 		Series:      meta.Series,
 		SeriesIndex: seriesIndex,
 		Format:      "EPUB",
