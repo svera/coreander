@@ -109,6 +109,9 @@ func CreateMapping() mapping.IndexMapping {
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
 	dateTimeFieldMapping.Index = false
 
+	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
+	dateTimeFieldMapping.Index = false
+
 	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()
 		textFieldMapping.Analyzer = lang
