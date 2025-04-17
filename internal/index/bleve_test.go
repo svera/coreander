@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/precisiondate"
 	"github.com/svera/coreander/v4/internal/result"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
@@ -93,6 +94,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"perez"},
 						SeriesSlug:    "",
@@ -131,6 +133,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"benoit"},
 						SeriesSlug:    "",
@@ -169,6 +172,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"clifford-d-simak"},
 						SeriesSlug:    "",
@@ -206,6 +210,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"james-ellroy"},
 						SeriesSlug:    "",
@@ -243,6 +248,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"james-ellroy"},
 						SeriesSlug:    "",
@@ -281,6 +287,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"anonimo"},
 						SeriesSlug:    "",
@@ -319,6 +326,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"anonimo"},
 						SeriesSlug:    "",
@@ -357,6 +365,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"irene-vallejo"},
 						SeriesSlug:    "",
@@ -395,6 +404,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "WWII"},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"patrick-r-reid"},
 						SeriesSlug:    "",
@@ -433,6 +443,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{""},
 						SeriesSlug:    "",

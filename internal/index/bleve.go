@@ -109,9 +109,6 @@ func CreateMapping() mapping.IndexMapping {
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
 	dateTimeFieldMapping.Index = false
 
-	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
-	dateTimeFieldMapping.Index = false
-
 	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()
 		textFieldMapping.Analyzer = lang
@@ -137,7 +134,7 @@ func CreateMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Publication.Date", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Publication.Precision", numericFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("RetrievedOn", dateTimeFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	}
 
 	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
@@ -153,7 +150,7 @@ func CreateMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Publication.Date", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Publication.Precision", numericFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("RetrievedOn", dateTimeFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 
 	indexMapping.AddDocumentMapping(TypeAuthor, bleve.NewDocumentMapping())
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Slug", keywordFieldMapping)
