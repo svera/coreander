@@ -95,7 +95,7 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 	publication := precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay}
 	for _, currentDate := range meta.Date {
 		if currentDate.Event == "publication" || currentDate.Event == "" {
-			if publication.Date, err = date.Parse("2006-01-02", currentDate.Stamp); err != nil {
+			if publication.Date, err = date.ParseISO(currentDate.Stamp); err != nil {
 				publication.Precision = precisiondate.PrecisionYear
 				publication.Date, _ = date.Parse("2006", currentDate.Stamp)
 			}

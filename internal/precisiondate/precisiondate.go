@@ -32,10 +32,10 @@ func NewPrecisionDate(ISOdate string, precision float64) PrecisionDate {
 	if precision < PrecisionDay {
 		switch precision {
 		case PrecisionDecade, PrecisionYear, PrecisionCentury:
-			year := ISOdate[:5]
+			year := ISOdate[:4]
 			ISOdate = fmt.Sprintf("%s-01-01T00:00:00Z", year)
 		case PrecisionMonth:
-			yearMonth := ISOdate[:8]
+			yearMonth := ISOdate[:7]
 			ISOdate = fmt.Sprintf("%s-01T00:00:00Z", yearMonth)
 		}
 	}

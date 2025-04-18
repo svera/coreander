@@ -78,9 +78,15 @@ func testCases() []testCase {
 				Description: []string{"Just test metadata"},
 				Language:    []string{"es"},
 				Subject:     []string{"History", "Middle age"},
+				Date: []epub.Date{
+					{
+						Stamp: "2023-10-01",
+						Event: "publication",
+					},
+				},
 			},
 			"perez",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -94,7 +100,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
-							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
+							Publication: precisiondate.NewPrecisionDate("2023-10-01T00:00:00Z", precisiondate.PrecisionDay),
 						},
 						AuthorsSlugs:  []string{"perez"},
 						SeriesSlug:    "",
@@ -117,9 +123,15 @@ func testCases() []testCase {
 				Description: []string{"Just test metadata"},
 				Language:    []string{"fr"},
 				Subject:     []string{},
+				Date: []epub.Date{
+					{
+						Stamp: "1974",
+						Event: "publication",
+					},
+				},
 			},
 			"benoit",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -133,7 +145,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{},
 							Format:      "EPUB",
-							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
+							Publication: precisiondate.NewPrecisionDate("1974-01-01T00:00:00Z", precisiondate.PrecisionYear),
 						},
 						AuthorsSlugs:  []string{"benoit"},
 						SeriesSlug:    "",
@@ -156,9 +168,15 @@ func testCases() []testCase {
 				Description: []string{"Just test metadata"},
 				Language:    []string{"en"},
 				Subject:     []string{},
+				Date: []epub.Date{
+					{
+						Stamp: "1950-11-02T00:00:00Z",
+						Event: "publication",
+					},
+				},
 			},
 			"clifford simak",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -172,7 +190,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{},
 							Format:      "EPUB",
-							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
+							Publication: precisiondate.NewPrecisionDate("1950-11-02T00:00:00Z", precisiondate.PrecisionDay),
 						},
 						AuthorsSlugs:  []string{"clifford-d-simak"},
 						SeriesSlug:    "",
