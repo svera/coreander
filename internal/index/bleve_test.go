@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/precisiondate"
 	"github.com/svera/coreander/v4/internal/result"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
@@ -77,9 +78,15 @@ func testCases() []testCase {
 				Description: []string{"Just test metadata"},
 				Language:    []string{"es"},
 				Subject:     []string{"History", "Middle age"},
+				Date: []epub.Date{
+					{
+						Stamp: "2023-10-01",
+						Event: "publication",
+					},
+				},
 			},
 			"perez",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -93,6 +100,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("2023-10-01T00:00:00Z", precisiondate.PrecisionDay),
 						},
 						AuthorsSlugs:  []string{"perez"},
 						SeriesSlug:    "",
@@ -115,9 +123,15 @@ func testCases() []testCase {
 				Description: []string{"Just test metadata"},
 				Language:    []string{"fr"},
 				Subject:     []string{},
+				Date: []epub.Date{
+					{
+						Stamp: "1974",
+						Event: "publication",
+					},
+				},
 			},
 			"benoit",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -131,6 +145,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{},
 							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("1974-01-01T00:00:00Z", precisiondate.PrecisionYear),
 						},
 						AuthorsSlugs:  []string{"benoit"},
 						SeriesSlug:    "",
@@ -153,9 +168,15 @@ func testCases() []testCase {
 				Description: []string{"Just test metadata"},
 				Language:    []string{"en"},
 				Subject:     []string{},
+				Date: []epub.Date{
+					{
+						Stamp: "1950-11-02T00:00:00Z",
+						Event: "publication",
+					},
+				},
 			},
 			"clifford simak",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -169,6 +190,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{},
 							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("1950-11-02T00:00:00Z", precisiondate.PrecisionDay),
 						},
 						AuthorsSlugs:  []string{"clifford-d-simak"},
 						SeriesSlug:    "",
@@ -193,7 +215,7 @@ func testCases() []testCase {
 				Subject:     []string{},
 			},
 			"james ellroy",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -206,6 +228,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"james-ellroy"},
 						SeriesSlug:    "",
@@ -230,7 +253,7 @@ func testCases() []testCase {
 				Subject:     []string{},
 			},
 			" james       ellroy ",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -243,6 +266,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"james-ellroy"},
 						SeriesSlug:    "",
@@ -267,7 +291,7 @@ func testCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			"guerrero",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -281,6 +305,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"anonimo"},
 						SeriesSlug:    "",
@@ -305,7 +330,7 @@ func testCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			"fratello",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -319,6 +344,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"anonimo"},
 						SeriesSlug:    "",
@@ -343,7 +369,7 @@ func testCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			"infinito junco",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -357,6 +383,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"irene-vallejo"},
 						SeriesSlug:    "",
@@ -381,7 +408,7 @@ func testCases() []testCase {
 				Subject:     []string{"History", "WWII"},
 			},
 			"ultimos",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -395,6 +422,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{"History", "WWII"},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{"patrick-r-reid"},
 						SeriesSlug:    "",
@@ -419,7 +447,7 @@ func testCases() []testCase {
 				Subject:     []string{","},
 			},
 			"sin nombre",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -433,6 +461,7 @@ func testCases() []testCase {
 							Description: "<p>Just test metadata</p>",
 							Subjects:    []string{},
 							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
 						},
 						AuthorsSlugs:  []string{""},
 						SeriesSlug:    "",

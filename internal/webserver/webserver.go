@@ -42,7 +42,9 @@ type Config struct {
 	FQDN                  string
 	Port                  int
 	HomeDir               string
+	CacheDir              string
 	LibraryPath           string
+	AuthorImageMaxWidth   int
 	CoverMaxWidth         int
 	RequireAuth           bool
 	UploadDocumentMaxSize int

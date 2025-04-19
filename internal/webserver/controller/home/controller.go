@@ -2,7 +2,6 @@ package home
 
 import (
 	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/result"
 )
 
 type Sender interface {
@@ -14,15 +13,17 @@ type Sender interface {
 type IdxReaderWriter interface {
 	Documents(IDs []string) (map[string]index.Document, error)
 	Count(t string) (uint64, error)
+	LatestDocs(limit int) ([]index.Document, error)
 }
 
 type highlightsRepository interface {
-	Highlights(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
+	Highlighted(userID int, doc index.Document) index.Document
 }
 
 type Config struct {
-	LibraryPath   string
-	CoverMaxWidth int
+	LibraryPath     string
+	CoverMaxWidth   int
+	LatestDocsLimit int
 }
 
 type Controller struct {

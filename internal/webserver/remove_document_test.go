@@ -75,7 +75,6 @@ func TestRemoveDocument(t *testing.T) {
 				}
 
 				assertSearchResults(app, t, "john+doe", 3)
-
 			}
 
 			if response.StatusCode != tcase.expectedHTTPStatus {

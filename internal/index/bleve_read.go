@@ -12,12 +12,12 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
+	"github.com/rickb777/date/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/precisiondate"
 	"github.com/svera/coreander/v4/internal/result"
 )
-
-var docSearchFields = []string{"ID", "Title", "Slug", "Authors", "AuthorsSlugs", "Description", "Year", "Words", "Series", "SeriesSlug", "SeriesIndex", "Pages", "Format", "Subjects", "SubjectsSlugs"}
 
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 	var progress Progress
@@ -147,7 +147,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
-	searchOptions.Fields = docSearchFields
+	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return result.Paginated[[]Document]{}, err
@@ -163,7 +163,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 		docs[i] = hydrateDocument(val)
 	}
 
-	return result.NewPaginated[[]Document](
+	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(searchResult.Total),
@@ -193,7 +193,7 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 	compoundQuery.AddQuery(query, typeQuery)
 
 	searchOptions := bleve.NewSearchRequest(compoundQuery)
-	searchOptions.Fields = docSearchFields
+	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return Document{}, err
@@ -214,7 +214,7 @@ func (b *BleveIndexer) Documents(IDs []string) (map[string]Document, error) {
 	compoundQuery.AddQuery(query, typeQuery)
 
 	searchOptions := bleve.NewSearchRequest(compoundQuery)
-	searchOptions.Fields = docSearchFields
+	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return docs, err
@@ -270,7 +270,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	bq.AddMust(typeQuery)
 
 	res := make([]Document, 0, quantity)
-	for i := 0; i < quantity; i++ {
+	for range quantity {
 		doc, err := b.runQuery(bq, 1)
 		if err != nil {
 			return res, err
@@ -358,31 +358,6 @@ func (b *BleveIndexer) analyzers() ([]string, error) {
 	return strings.Split(string(languages), ","), nil
 }
 
-func slicer(val interface{}) []string {
-	var (
-		terms []interface{}
-		ok    bool
-	)
-
-	if val == nil {
-		return []string{}
-	}
-
-	// Bleve indexes string slices of one element as just string
-	if terms, ok = val.([]interface{}); !ok {
-		terms = append(terms, val)
-	}
-	termsStrings := make([]string, len(terms))
-	for j, term := range terms {
-		if term == nil {
-			return termsStrings
-		}
-		termsStrings[j] = term.(string)
-	}
-
-	return termsStrings
-}
-
 func (b *BleveIndexer) SearchByAuthor(authorSlug string, page, resultsPerPage int) (result.Paginated[[]Document], error) {
 	aq := bleve.NewTermQuery(authorSlug)
 	aq.SetField("AuthorsSlugs")
@@ -390,7 +365,7 @@ func (b *BleveIndexer) SearchByAuthor(authorSlug string, page, resultsPerPage in
 	return b.runPaginatedQuery(aq, page, resultsPerPage)
 }
 
-func (b *BleveIndexer) Author(slug string) (Author, error) {
+func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 	authorsCompoundQuery := bleve.NewConjunctionQuery()
 
 	aq := bleve.NewTermQuery(slug)
@@ -402,32 +377,108 @@ func (b *BleveIndexer) Author(slug string) (Author, error) {
 	authorsCompoundQuery.AddQuery(tq)
 
 	searchOptions := bleve.NewSearchRequest(authorsCompoundQuery)
-	searchOptions.Fields = []string{"Name"}
+	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return Author{}, err
 	}
 	if searchResult.Total == 0 {
-		return Author{}, fmt.Errorf("Author with slug %s not found", slug)
+		return Author{}, nil
 	}
 
-	return Author{
-		Name: searchResult.Hits[0].Fields["Name"].(string),
-	}, nil
+	retrievedOn := time.Time{}
+	if searchResult.Hits[0].Fields["RetrievedOn"] != nil {
+		retrievedOn, err = time.Parse("2006-01-02T15:04:05Z", searchResult.Hits[0].Fields["RetrievedOn"].(string))
+		if err != nil {
+			return Author{}, err
+		}
+	}
+	dateOfBirth := precisiondate.PrecisionDate{Date: date.Zero}
+	if searchResult.Hits[0].Fields["DateOfBirth.Date"] != nil {
+		dateOfBirth.Date = date.Date(searchResult.Hits[0].Fields["DateOfBirth.Date"].(float64))
+		dateOfBirth.Precision = searchResult.Hits[0].Fields["DateOfBirth.Precision"].(float64)
+	}
+	dateOfDeath := precisiondate.PrecisionDate{Date: date.Zero}
+	if searchResult.Hits[0].Fields["DateOfDeath.Date"] != nil {
+		dateOfDeath.Date = date.Date(searchResult.Hits[0].Fields["DateOfDeath.Date"].(float64))
+		dateOfDeath.Precision = searchResult.Hits[0].Fields["DateOfDeath.Precision"].(float64)
+	}
+
+	author := Author{
+		Name:            searchResult.Hits[0].Fields["Name"].(string),
+		BirthName:       searchResult.Hits[0].Fields["BirthName"].(string),
+		Slug:            slug,
+		DataSourceID:    searchResult.Hits[0].Fields["DataSourceID"].(string),
+		RetrievedOn:     retrievedOn,
+		WikipediaLink:   make(map[string]string),
+		InstanceOf:      searchResult.Hits[0].Fields["InstanceOf"].(float64),
+		Description:     make(map[string]string),
+		DateOfBirth:     dateOfBirth,
+		DateOfDeath:     dateOfDeath,
+		Website:         searchResult.Hits[0].Fields["Website"].(string),
+		DataSourceImage: searchResult.Hits[0].Fields["DataSourceImage"].(string),
+		Gender:          searchResult.Hits[0].Fields["Gender"].(float64),
+		Pseudonyms:      slicer(searchResult.Hits[0].Fields["Pseudonyms"]),
+	}
+
+	if value, ok := searchResult.Hits[0].Fields["WikipediaLink."+lang].(string); ok {
+		author.WikipediaLink[lang] = value
+	}
+	if value, ok := searchResult.Hits[0].Fields["Description."+lang].(string); ok {
+		author.Description[lang] = value
+	}
+
+	return author, nil
+}
+
+func (b *BleveIndexer) LatestDocs(limit int) ([]Document, error) {
+	bq := bleve.NewBooleanQuery()
+
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+
+	falseValue := false
+	trueValue := true
+	dateQuery := bleve.NewDateRangeInclusiveQuery(time.Time{}, time.Now().UTC(), &falseValue, &trueValue)
+	dateQuery.SetField("AddedOn")
+
+	bq.AddMust(typeQuery)
+	bq.AddMust(dateQuery)
+
+	searchOptions := bleve.NewSearchRequestOptions(bq, limit, 0, false)
+	searchOptions.SortBy([]string{"-AddedOn"})
+	searchOptions.Fields = []string{"*"}
+
+	return b.runQuery(bq, limit)
 }
 
 func hydrateDocument(match *search.DocumentMatch) Document {
+	var err error
+
+	addedOn := time.Time{}
+	if match.Fields["AddedOn"] != nil {
+		if addedOn, err = time.Parse(time.RFC3339, match.Fields["AddedOn"].(string)); err != nil {
+			return Document{}
+		}
+	}
+
+	publication := precisiondate.PrecisionDate{Date: date.Zero}
+	if match.Fields["Publication.Date"] != nil {
+		publication.Date = date.Date(match.Fields["Publication.Date"].(float64))
+		publication.Precision = match.Fields["Publication.Precision"].(float64)
+	}
+
 	doc := Document{
 		ID: match.ID,
 		Metadata: metadata.Metadata{
 			Title:       match.Fields["Title"].(string),
 			Authors:     slicer(match.Fields["Authors"]),
 			Description: template.HTML(match.Fields["Description"].(string)),
-			Year:        match.Fields["Year"].(string),
+			Publication: publication,
 			Words:       match.Fields["Words"].(float64),
 			Series:      match.Fields["Series"].(string),
 			SeriesIndex: match.Fields["SeriesIndex"].(float64),
-			Pages:       int(match.Fields["Pages"].(float64)),
+			Pages:       match.Fields["Pages"].(float64),
 			Subjects:    slicer(match.Fields["Subjects"]),
 			Format:      match.Fields["Format"].(string),
 		},
@@ -435,7 +486,33 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		AuthorsSlugs:  slicer(match.Fields["AuthorsSlugs"]),
 		SeriesSlug:    match.Fields["SeriesSlug"].(string),
 		SubjectsSlugs: slicer(match.Fields["SubjectsSlugs"]),
+		AddedOn:       addedOn,
 	}
 
 	return doc
+}
+
+func slicer(val any) []string {
+	var (
+		terms []any
+		ok    bool
+	)
+
+	if val == nil {
+		return []string{}
+	}
+
+	// Bleve indexes string slices of one element as just string
+	if terms, ok = val.([]any); !ok {
+		terms = append(terms, val)
+	}
+	termsStrings := make([]string, len(terms))
+	for j, term := range terms {
+		if term == nil {
+			return termsStrings
+		}
+		termsStrings[j] = term.(string)
+	}
+
+	return termsStrings
 }

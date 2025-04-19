@@ -1,6 +1,8 @@
 package highlight
 
 import (
+	"log"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
@@ -13,5 +15,11 @@ func (h *Controller) Create(c *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	return h.hlRepository.Highlight(int(user.ID), document.ID)
+	if err = h.hlRepository.Highlight(int(user.ID), document.ID); err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
+	c.Response().Header.Set("HX-Trigger", "highlight")
+	return nil
 }

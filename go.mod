@@ -3,6 +3,7 @@ module github.com/svera/coreander/v4
 go 1.23.0
 
 require (
+	github.com/Navid2zp/go-wikidata v1.0.1
 	github.com/alecthomas/kong v1.6.1
 	github.com/blevesearch/bleve/v2 v2.4.4
 	github.com/bmatcuk/doublestar/v4 v4.7.1
@@ -17,6 +18,7 @@ require (
 	github.com/magefile/mage v1.15.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pdfcpu/pdfcpu v0.9.1
+	github.com/rickb777/date/v2 v2.1.7
 	github.com/rjeczalik/notify v0.9.3
 	github.com/spf13/afero v1.11.0
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
@@ -26,6 +28,7 @@ require (
 )
 
 require (
+	github.com/Navid2zp/easyreq v1.1.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/beevik/etree v1.4.1 // indirect
 	github.com/blevesearch/go-faiss v1.0.24 // indirect
@@ -35,6 +38,7 @@ require (
 	github.com/gofiber/template v1.8.3 // indirect
 	github.com/gofiber/utils v1.1.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
+	github.com/govalues/decimal v0.1.36 // indirect
 	github.com/hhrutter/lzw v1.0.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
@@ -46,6 +50,8 @@ require (
 	github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/rickb777/period v1.0.9 // indirect
+	github.com/rickb777/plural v1.4.2 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/tinylib/msgp v1.2.5 // indirect
 	golang.org/x/sync v0.12.0 // indirect
@@ -105,3 +111,5 @@ require (
 	google.golang.org/protobuf v1.36.2 // indirect
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )
+
+replace github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.2

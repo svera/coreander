@@ -31,7 +31,8 @@
                             title={{$seriesTitle}}>{{$document.Series}}{{ if ne $document.SeriesIndex 0.0 }} {{$document.SeriesIndex}}{{end}}</a></p>
                     {{ end }}
                     <h4 class="text-start">
-                        <a href="/documents/{{$document.Slug}}">{{$document.Title}}</a> <small class="small text-muted">{{$document.Year}}</small>
+                        <a href="/documents/{{$document.Slug}}">{{$document.Title}}</a>
+                        {{if not (eq $document.Publication.Date 0)}}<time class="small text-muted">{{$document.Publication.Date.Year}}</time>{{end}}
                     </h4>
                 </div>
                 {{if and $session (eq $session.Role 2)}}
@@ -74,7 +75,7 @@
                     {{ end }}
 
                     {{if $document.Description}}
-                    <div class="mb-1 mt-3 collapse" id="collapse-desc{{$i}}">{{$document.Description}}</div>
+                    <div class="mb-1 mt-3 collapse partial" id="collapse-desc{{$i}}">{{$document.Description}}</div>
                     {{else}}
                     <div class="mb-1 mt-3"><em>{{t $lang "No description available"}}</em></div>
                     {{end}}

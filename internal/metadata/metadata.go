@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"html/template"
 	"time"
+
+	"github.com/svera/coreander/v4/internal/precisiondate"
 )
 
 type Metadata struct {
@@ -11,11 +13,11 @@ type Metadata struct {
 	Authors     []string
 	Description template.HTML
 	Language    string
-	Year        string
+	Publication precisiondate.PrecisionDate
 	Words       float64
 	Series      string
 	SeriesIndex float64
-	Pages       int
+	Pages       float64
 	Format      string
 	Subjects    []string
 }

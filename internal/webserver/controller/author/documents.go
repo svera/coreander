@@ -12,7 +12,7 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
-func (a *Controller) Search(c *fiber.Ctx) error {
+func (a *Controller) Documents(c *fiber.Ctx) error {
 	emailSendingConfigured := true
 	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -39,7 +39,11 @@ func (a *Controller) Search(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	author, _ := a.idx.Author(authorSlug)
+	author, err := a.idx.Author(authorSlug, c.Locals("Lang").(string))
+	if err != nil {
+		log.Println(err)
+	}
+
 	if searchResults, err = a.idx.SearchByAuthor(authorSlug, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
