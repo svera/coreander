@@ -478,7 +478,7 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 			Words:       match.Fields["Words"].(float64),
 			Series:      match.Fields["Series"].(string),
 			SeriesIndex: match.Fields["SeriesIndex"].(float64),
-			Pages:       int(match.Fields["Pages"].(float64)),
+			Pages:       match.Fields["Pages"].(float64),
 			Subjects:    slicer(match.Fields["Subjects"]),
 			Format:      match.Fields["Format"].(string),
 		},

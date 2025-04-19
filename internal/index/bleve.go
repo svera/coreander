@@ -134,6 +134,8 @@ func CreateMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Publication.Date", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Publication.Precision", numericFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Words", numericFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Pages", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	}
 
@@ -150,6 +152,8 @@ func CreateMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Publication.Date", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Publication.Precision", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Words", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Pages", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 
 	indexMapping.AddDocumentMapping(TypeAuthor, bleve.NewDocumentMapping())

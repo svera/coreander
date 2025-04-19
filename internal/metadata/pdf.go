@@ -65,7 +65,7 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 		Description: template.HTML(description),
 		Language:    lang,
 		Publication: publication,
-		Pages:       pdf.GetPagesCount(),
+		Pages:       float64(pdf.GetPagesCount()),
 		Format:      "PDF",
 		Subjects:    []string{},
 	}

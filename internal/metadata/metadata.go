@@ -17,7 +17,7 @@ type Metadata struct {
 	Words       float64
 	Series      string
 	SeriesIndex float64
-	Pages       int
+	Pages       float64
 	Format      string
 	Subjects    []string
 }
