@@ -21,8 +21,9 @@ type highlightsRepository interface {
 }
 
 type Config struct {
-	LibraryPath   string
-	CoverMaxWidth int
+	LibraryPath     string
+	CoverMaxWidth   int
+	LatestDocsLimit int
 }
 
 type Controller struct {

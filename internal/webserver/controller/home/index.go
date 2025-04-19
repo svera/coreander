@@ -26,7 +26,7 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	latestDocs, err := d.idx.LatestDocs(5)
+	latestDocs, err := d.idx.LatestDocs(d.config.LatestDocsLimit)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError

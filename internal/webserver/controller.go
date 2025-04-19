@@ -59,8 +59,9 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 	}
 
 	homeCfg := home.Config{
-		LibraryPath:   cfg.LibraryPath,
-		CoverMaxWidth: cfg.CoverMaxWidth,
+		LibraryPath:     cfg.LibraryPath,
+		CoverMaxWidth:   cfg.CoverMaxWidth,
+		LatestDocsLimit: 6,
 	}
 
 	return Controllers{

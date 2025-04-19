@@ -19,7 +19,8 @@
                 <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</p>
                 {{ end }}
                 <h1 class="text-start">
-                    {{.Document.Title}} <small class="small text-muted">{{.Document.Publication.Date.Year}}</small>
+                    {{.Document.Title}}
+                    {{if not (eq .Document.Publication.Date 0)}}<time class="small text-muted">{{.Document.Publication.Date.Year}}</time>{{end}}
                 </h1>
             </div>
         </div>
