@@ -215,7 +215,7 @@ func testCases() []testCase {
 				Subject:     []string{},
 			},
 			"james ellroy",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -253,7 +253,7 @@ func testCases() []testCase {
 				Subject:     []string{},
 			},
 			" james       ellroy ",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -291,7 +291,7 @@ func testCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			"guerrero",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -330,7 +330,7 @@ func testCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			"fratello",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -369,7 +369,7 @@ func testCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			"infinito junco",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -408,7 +408,7 @@ func testCases() []testCase {
 				Subject:     []string{"History", "WWII"},
 			},
 			"ultimos",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -447,7 +447,7 @@ func testCases() []testCase {
 				Subject:     []string{","},
 			},
 			"sin nombre",
-			result.NewPaginated[[]index.Document](
+			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
