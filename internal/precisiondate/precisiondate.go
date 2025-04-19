@@ -2,6 +2,7 @@ package precisiondate
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/rickb777/date/v2"
 )
@@ -32,10 +33,16 @@ func NewPrecisionDate(ISOdate string, precision float64) PrecisionDate {
 	if precision < PrecisionDay {
 		switch precision {
 		case PrecisionDecade, PrecisionYear, PrecisionCentury:
-			year := ISOdate[:5]
+			year := ISOdate[:4]
+			if strings.HasPrefix(ISOdate, "-") || strings.HasPrefix(ISOdate, "+") {
+				year = ISOdate[:5]
+			}
 			ISOdate = fmt.Sprintf("%s-01-01T00:00:00Z", year)
 		case PrecisionMonth:
-			yearMonth := ISOdate[:8]
+			yearMonth := ISOdate[:7]
+			if strings.HasPrefix(ISOdate, "-") || strings.HasPrefix(ISOdate, "+") {
+				yearMonth = ISOdate[:8]
+			}
 			ISOdate = fmt.Sprintf("%s-01T00:00:00Z", yearMonth)
 		}
 	}

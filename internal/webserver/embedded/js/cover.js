@@ -16,13 +16,13 @@ const coversLoader = () => {
             if (elem.src.endsWith("/images/generic.webp")) {
                 return
             }
-            document.getElementById(coverTitleId).classList.add('d-none')
+            document.getElementById(coverTitleId).remove();
         })
 
         elem.addEventListener("error", () => {
             elem.onerror = null;
             elem.src = '/images/generic.webp';
-            document.getElementById(coverTitleId).classList.remove('d-none')
+            document.getElementById(coverTitleId).classList.remove('d-none');
         })
 
         elem.setAttribute('src', elem.getAttribute('data-src'));

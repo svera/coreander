@@ -24,7 +24,7 @@ import (
 
 // Version identifies the mapping used for indexing. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const Version = "v6"
+const Version = "v7"
 
 const (
 	TypeDocument = "document"
@@ -104,6 +104,7 @@ func CreateMapping() mapping.IndexMapping {
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
 
 	numericFieldMapping := bleve.NewNumericFieldMapping()
+	numericFieldMapping.Index = false
 
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
 	dateTimeFieldMapping.Index = false
@@ -131,8 +132,11 @@ func CreateMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Series", noStopWordsTextFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("SeriesSlug", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Year", keywordFieldMappingNotIndexable)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("RetrievedOn", dateTimeFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Publication.Date", numericFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Publication.Precision", numericFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Words", numericFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Pages", numericFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	}
 
 	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
@@ -146,8 +150,11 @@ func CreateMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Series", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("SeriesSlug", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("Year", keywordFieldMappingNotIndexable)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("RetrievedOn", dateTimeFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Publication.Date", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Publication.Precision", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Words", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Pages", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 
 	indexMapping.AddDocumentMapping(TypeAuthor, bleve.NewDocumentMapping())
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Slug", keywordFieldMapping)
@@ -158,9 +165,9 @@ func CreateMapping() mapping.IndexMapping {
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DataSourceImage", keywordFieldMappingNotIndexable)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Website", keywordFieldMappingNotIndexable)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfBirth.Date", numericFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping, keywordFieldMappingNotIndexable)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfDeath.Date", numericFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfDeath.Precision", numericFieldMapping, keywordFieldMappingNotIndexable)
+	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfDeath.Precision", numericFieldMapping)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("InstanceOf", numericFieldMapping)
 	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Gender", numericFieldMapping)
 

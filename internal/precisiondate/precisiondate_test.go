@@ -77,5 +77,14 @@ func testCases() []testCase {
 			expectedMonth:   9,
 			expectedDay:     29,
 		},
+		{
+			name:            "Raiders' premiere (day precision without sign prefix)",
+			date:            "1981-06-12T00:00:00Z",
+			precision:       precisiondate.PrecisionDay,
+			expectedCentury: 20,
+			expectedYear:    1981,
+			expectedMonth:   6,
+			expectedDay:     12,
+		},
 	}
 }
