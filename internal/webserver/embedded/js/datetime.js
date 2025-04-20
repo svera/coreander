@@ -3,7 +3,7 @@
 import { DateTime } from "./luxon.min.js";
 
 const datetimeFormatter = () => {
-    const datetime = document.querySelectorAll('time');
+    const datetime = document.querySelectorAll('time.locale');
     datetime.forEach(function(element) {
         let dt = DateTime.fromISO(element.textContent);
         if (dt.isValid) {
