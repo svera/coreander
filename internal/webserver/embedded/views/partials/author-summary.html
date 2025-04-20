@@ -31,7 +31,7 @@
                                 <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
                             {{end}}
                         {{else}}
-                            <time datetime='{{.Author.DateOfBirth.Date.FormatISO 6}}'>{{.Author.DateOfBirth.FormatISO 6}}</time>
+                            <time datetime='{{.Author.DateOfBirth.Date.FormatISO 6}}' class='locale'>{{.Author.DateOfBirth.FormatISO 6}}</time>
                             {{if lt .Author.DateOfBirth.Year 0}}
                                 <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
                             {{end}}
@@ -56,7 +56,7 @@
                                 <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
                             {{end}}
                         {{else}}
-                            <time datetime='{{.Author.DateOfDeath.Date.FormatISO 6}}'>{{.Author.DateOfDeath.FormatISO 6}}</time>
+                            <time datetime='{{.Author.DateOfDeath.Date.FormatISO 6}}' class='locale'>{{.Author.DateOfDeath.FormatISO 6}}</time>
                             {{if lt .Author.DateOfDeath.Year 0}}
                             <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>
                             {{end}}
