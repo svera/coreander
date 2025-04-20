@@ -1,4 +1,20 @@
-<h2 class="text-center mt-3">{{t .Lang "Titles by %s" .Author.Name }}</h2>
+{{if ne .Author.Name ""}}
+<div hx-get="/authors/{{.Author.Slug}}/summary" hx-trigger="load" hx-target="this">
+    <div class="card text-bg-secondary mb-3">
+        <div class="row">
+            <div class="card-body col-sm-6 col-md-9">
+                <h2 class="card-title ms-3">{{.Author.Name}}</h2>
+                <div class="col-md-3 col-sm-6 text-end d-flex align-items-center"></div>
+                {{if eq .Session.Role 2}}
+                    {{if ne .AuthorData.SourceID "" }}
+                        {{template "partials/author-update-form" .}}
+                    {{end}}
+                {{end}}
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
 
 {{template "partials/docs-list-placeholder" .}}
 

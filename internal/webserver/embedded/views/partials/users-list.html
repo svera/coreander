@@ -19,11 +19,11 @@
                     <span class="badge rounded-pill text-bg-secondary">Admin</span>
                     {{end}}
                 </td>
-                <td class="datetime">
+                <td>
                     {{if $user.LastLogin.IsZero }}
                         {{t $lang "Never"}}
                     {{else}}
-                        <span>{{$user.LastLogin.Format "2006-01-02T15:04:05Z"}}</span>
+                        <time class="relative capitalize locale" datetime='{{$user.LastLogin.Format "2006-01-02T15:04:05Z"}}'>{{$user.LastLogin.Format "2006-01-02T15:04:05Z"}}</time>
                     {{end}}
                 </td>
                 <td class="text-end">

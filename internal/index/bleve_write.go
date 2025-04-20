@@ -28,12 +28,15 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 	}
 
 	document := b.createDocument(meta, file, nil)
+	document.AddedOn = time.Now().UTC()
 
 	if err = b.idx.Index(document.ID, document); err != nil {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
 	}
 
-	indexAuthors(document, b.idx.Index)
+	if err := b.indexAuthors(document, b.idx.Index); err != nil {
+		return document.Slug, err
+	}
 
 	return document.Slug, nil
 }
@@ -55,6 +58,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	batchSlugs := make(map[string]struct{}, batchSize)
 	languages := []string{}
 	b.indexStartTime = float64(time.Now().UnixNano())
+
 	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
 		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed && !forceIndexing {
 			b.indexedEntries += 1
@@ -74,13 +78,16 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 		document := b.createDocument(meta, fullPath, batchSlugs)
 		batchSlugs[document.Slug] = struct{}{}
 		languages = addLanguage(meta.Language, languages)
+		document.AddedOn = time.Time{}
 
 		if err = batch.Index(document.ID, document); err != nil {
 			log.Printf("Error indexing file %s: %s\n", fullPath, err)
 			return nil
 		}
 
-		b.indexedEntries += indexAuthors(document, batch.Index)
+		if err = b.indexAuthors(document, batch.Index); err != nil {
+			return err
+		}
 		b.indexedEntries += 1
 
 		if batch.Size() >= batchSize {
@@ -104,22 +111,38 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	return e
 }
 
-func indexAuthors(document Document, index func(id string, data interface{}) error) float64 {
-	indexedEntries := 0.0
+// indexAuthors indexes authors of a document if they are not already indexed
+func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data any) error) error {
 	for i, name := range document.Authors {
+		indexedAuthor, err := b.idx.Document(document.AuthorsSlugs[i])
+		if err != nil {
+			return err
+		}
+		if indexedAuthor != nil {
+			continue
+		}
+
 		author := Author{
-			Name: name,
-			Slug: document.AuthorsSlugs[i],
-			Type: TypeAuthor,
+			Name:        name,
+			Slug:        document.AuthorsSlugs[i],
+			Type:        TypeAuthor,
+			RetrievedOn: time.Time{},
 		}
 
 		if err := index(author.Slug, author); err != nil {
 			log.Printf("Error indexing author %s: %s\n", name, err)
 			continue
 		}
-		indexedEntries++
 	}
-	return indexedEntries
+	return nil
+}
+
+func (b *BleveIndexer) IndexAuthor(author Author) error {
+	author.Type = TypeAuthor
+	if err := b.idx.Index(author.Slug, author); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {

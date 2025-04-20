@@ -14,7 +14,7 @@ func addNoStopWordsAnalyzer(lang string, indexMapping *mapping.IndexMappingImpl)
 	}
 
 	return indexMapping.AddCustomAnalyzer(lang+"_no_stop_words",
-		map[string]interface{}{
+		map[string]any{
 			"type":          custom.Name,
 			"tokenizer":     unicode.Name,
 			"token_filters": noStopWordsFilters[lang],

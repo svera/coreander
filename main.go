@@ -13,6 +13,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v4/internal/datasource/wikidata"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/webserver"
@@ -96,7 +97,9 @@ func main() {
 		FQDN:                  input.FQDN,
 		Port:                  input.Port,
 		HomeDir:               homeDir,
+		CacheDir:              input.CacheDir,
 		LibraryPath:           input.LibPath,
+		AuthorImageMaxWidth:   input.AuthorImageMaxWidth,
 		CoverMaxWidth:         input.CoverMaxWidth,
 		RequireAuth:           input.RequireAuth,
 		UploadDocumentMaxSize: input.UploadDocumentMaxSize,
@@ -112,7 +115,19 @@ func main() {
 		log.Fatal(fmt.Errorf("wrong value for recovery timeout"))
 	}
 
-	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs)
+	if webserverConfig.CacheDir == "" {
+		webserverConfig.CacheDir = homeDir + "/.coreander/cache"
+		if _, err := os.Stat(webserverConfig.CacheDir); os.IsNotExist(err) {
+			if err = os.MkdirAll(webserverConfig.CacheDir, os.ModePerm); err != nil {
+				log.Fatal(err)
+			}
+			log.Printf("Created cache folder at %s\n", webserverConfig.CacheDir)
+		}
+	}
+
+	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
+
+	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs, dataSource)
 	app := webserver.New(webserverConfig, controllers, sender, idx)
 	if strings.ToLower(input.FQDN) == "localhost" {
 		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accessible outside this system.\n")

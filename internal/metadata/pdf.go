@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/flotzilla/pdf_parser"
 	"github.com/hhrutter/tiff"
@@ -17,6 +16,8 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
+	"github.com/rickb777/date/v2"
+	"github.com/svera/coreander/v4/internal/precisiondate"
 )
 
 type PdfReader struct{}
@@ -35,10 +36,10 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 		title = strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 	}
 
-	year := ""
-	date, err := time.Parse("2006-01-02T15:04:05-0700", pdf.GetDate())
-	if err == nil {
-		year = date.Format("2006")
+	publication := precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay}
+	if publication.Date, err = date.Parse("2006-01-02", pdf.GetDate()); err != nil {
+		publication.Precision = precisiondate.PrecisionYear
+		publication.Date, _ = date.Parse("2006", pdf.GetDate())
 	}
 
 	description := pdf.GetDescription()
@@ -63,8 +64,8 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 		Authors:     authors,
 		Description: template.HTML(description),
 		Language:    lang,
-		Year:        year,
-		Pages:       pdf.GetPagesCount(),
+		Publication: publication,
+		Pages:       float64(pdf.GetPagesCount()),
 		Format:      "PDF",
 		Subjects:    []string{},
 	}
