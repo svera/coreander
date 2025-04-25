@@ -164,3 +164,7 @@ a.collapse-control.collapsed:after {
 .htmx-request.list-group-placeholder ~ div {
     display: none;
 }
+
+.cover {
+    min-height: 200px;
+}
