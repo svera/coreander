@@ -90,6 +90,9 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 
 func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	langCompoundQuery := bleve.NewDisjunctionQuery()
+	// Special query for searches using partial title names and author names
+	authorTitleQuery := bleve.NewConjunctionQuery()
+	allLangsOrTitleQuery := bleve.NewDisjunctionQuery()
 
 	for _, analyzer := range analyzers {
 		noStopWordsAnalyzer := analyzer
@@ -101,25 +104,30 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 		qt.Analyzer = noStopWordsAnalyzer
 		qt.SetField("Title")
 		qt.Operator = query.MatchQueryOperatorAnd
-		langCompoundQuery.AddQuery(qt)
 
 		qs := bleve.NewMatchQuery(keywords)
 		qs.Analyzer = noStopWordsAnalyzer
 		qs.SetField("Series")
 		qs.Operator = query.MatchQueryOperatorAnd
-		langCompoundQuery.AddQuery(qs)
 
 		qu := bleve.NewMatchQuery(keywords)
 		qu.Analyzer = analyzer
 		qu.SetField("Subjects")
 		qu.Operator = query.MatchQueryOperatorAnd
-		langCompoundQuery.AddQuery(qu)
 
 		qd := bleve.NewMatchQuery(keywords)
 		qd.Analyzer = analyzer
 		qd.SetField("Description")
 		qd.Operator = query.MatchQueryOperatorAnd
-		langCompoundQuery.AddQuery(qd)
+
+		langCompoundQuery.AddQuery(qt, qs, qu, qd)
+
+		orTitleQuery := bleve.NewMatchQuery(keywords)
+		orTitleQuery.SetField("Title")
+		orTitleQuery.Operator = query.MatchQueryOperatorOr
+		orTitleQuery.Analyzer = analyzer
+
+		allLangsOrTitleQuery.AddQuery(orTitleQuery)
 	}
 
 	qa := bleve.NewMatchQuery(keywords)
@@ -127,7 +135,14 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	qa.Operator = query.MatchQueryOperatorAnd
 	qa.Analyzer = defaultAnalyzer
 
-	return bleve.NewDisjunctionQuery(qa, langCompoundQuery)
+	orAuthorQuery := bleve.NewMatchQuery(keywords)
+	orAuthorQuery.SetField("Authors")
+	orAuthorQuery.Operator = query.MatchQueryOperatorOr
+	orAuthorQuery.Analyzer = defaultAnalyzer
+
+	authorTitleQuery.AddQuery(orAuthorQuery, allLangsOrTitleQuery)
+
+	return bleve.NewDisjunctionQuery(qa, langCompoundQuery, authorTitleQuery)
 }
 
 func (b *BleveIndexer) runQuery(query query.Query, results int) ([]Document, error) {

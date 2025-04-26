@@ -123,7 +123,7 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 
 |Flag|Environment variable|Description|
 |----|--------------------|-----------|
-|`--lib-path`                         |`LIB_PATH`                | Absolute path to the folder containing the documents.
+|                                     |`LIB_PATH`                | Absolute path to the folder containing the documents.
 |`-p` or `--port`                     |`PORT`                    | Port number in which the webserver listens for requests. Defaults to 3000.
 |`-b` or `--batch-size`               |`BATCH_SIZE`              | Number of documents persisted by the indexer in one write operation. Defaults to 100.
 |`--cover-max-width`                  |`COVER_MAX_WIDTH`         | Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 600.

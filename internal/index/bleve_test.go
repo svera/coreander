@@ -470,5 +470,44 @@ func testCases() []testCase {
 				},
 			),
 		},
+		{
+			"Test search with partial title and author",
+			"lib/book8.epub",
+			&epub.Information{
+				Title: []string{"El Infinito en un Junco"},
+				Creator: []epub.Author{
+					{
+						FullName: "Irene Vallejo",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"Just test metadata"},
+				Language:    []string{"es"},
+				Subject:     []string{"History", "Middle age"},
+			},
+			"irene junco",
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book8.epub",
+						Slug: "irene-vallejo-el-infinito-en-un-junco",
+						Metadata: metadata.Metadata{
+							Title:       "El Infinito en un Junco",
+							Authors:     []string{"Irene Vallejo"},
+							Description: "<p>Just test metadata</p>",
+							Subjects:    []string{"History", "Middle age"},
+							Format:      "EPUB",
+							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
+						},
+						AuthorsSlugs:  []string{"irene-vallejo"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"history", "middle-age"},
+					},
+				},
+			),
+		},
 	}
 }

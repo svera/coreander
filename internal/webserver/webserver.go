@@ -114,18 +114,16 @@ func New(cfg Config, controllers Controllers, sender Sender, progress ProgressIn
 		StreamRequestBody:            true,
 	})
 
-	app.Use(SetFQDN(cfg))
-
-	app.Use(SetProgress(progress))
-
-	app.Use(favicon.New())
-
-	app.Use(cache.New(cache.Config{
-		ExpirationGenerator: func(c *fiber.Ctx, cfg *cache.Config) time.Duration {
-			newCacheTime, _ := strconv.Atoi(c.GetRespHeader("Cache-Time", "0"))
-			return time.Second * time.Duration(newCacheTime)
-		},
-	}),
+	app.Use(
+		SetFQDN(cfg),
+		SetProgress(progress),
+		favicon.New(),
+		cache.New(cache.Config{
+			ExpirationGenerator: func(c *fiber.Ctx, cfg *cache.Config) time.Duration {
+				newCacheTime, _ := strconv.Atoi(c.GetRespHeader("Cache-Time", "0"))
+				return time.Second * time.Duration(newCacheTime)
+			},
+		}),
 	)
 
 	routes(app, controllers, cfg.JwtSecret, sender, cfg.RequireAuth)

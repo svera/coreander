@@ -20,7 +20,7 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 		session = val
 	}
 
-	count, err := d.idx.Count(index.TypeDocument)
+	totalDocumentsCount, err := d.idx.Count(index.TypeDocument)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
@@ -39,7 +39,7 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 	}
 
 	return c.Render("index", fiber.Map{
-		"Count":                  count,
+		"Count":                  totalDocumentsCount,
 		"Title":                  "Home",
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),
