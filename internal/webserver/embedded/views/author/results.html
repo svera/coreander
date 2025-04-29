@@ -4,12 +4,6 @@
         <div class="row">
             <div class="card-body col-sm-6 col-md-9">
                 <h2 class="card-title ms-3">{{.Author.Name}}</h2>
-                <div class="col-md-3 col-sm-6 text-end d-flex align-items-center"></div>
-                {{if eq .Session.Role 2}}
-                    {{if ne .AuthorData.SourceID "" }}
-                        {{template "partials/author-update-form" .}}
-                    {{end}}
-                {{end}}
             </div>
         </div>
     </div>
@@ -28,3 +22,4 @@
 <script type="module" src="/js/delete.js"></script>
 <script type="module" src="/js/highlight.js"></script>
 <script type="module" src="/js/cover.js"></script>
+<script type="module" src="/js/datetime.js"></script>

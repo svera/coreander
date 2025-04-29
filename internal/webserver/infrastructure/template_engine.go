@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/template/html/v2"
+	"github.com/gosimple/slug"
 	"golang.org/x/text/message"
 )
 
@@ -48,6 +49,10 @@ func TemplateEngine(viewsFS fs.FS, printers map[string]*message.Printer) (*html.
 
 	engine.AddFunc("join", func(elems []string, sep string) string {
 		return strings.Join(elems, sep)
+	})
+
+	engine.AddFunc("slugify", func(text string) string {
+		return slug.Make(text)
 	})
 
 	return engine, nil

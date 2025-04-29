@@ -14,6 +14,10 @@ func (a *Controller) Update(c *fiber.Ctx) error {
 	supportedLanguages := c.Locals("SupportedLanguages").([]string)
 	lang := c.Locals("Lang").(string)
 	sourceID := c.FormValue("sourceID")
+	template := "partials/author-summary"
+	if c.Query("style") == "clear" {
+		template = "partials/author-summary-doc-detail"
+	}
 
 	if authorSlug == "" {
 		return fiber.ErrBadRequest
@@ -57,7 +61,7 @@ func (a *Controller) Update(c *fiber.Ctx) error {
 		"Author": author,
 	}
 
-	if err = c.Render("partials/author-summary", templateVars); err != nil {
+	if err = c.Render(template, templateVars); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}

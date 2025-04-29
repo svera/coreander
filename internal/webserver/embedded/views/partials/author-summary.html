@@ -1,4 +1,4 @@
-<div class="card text-bg-secondary mb-3">
+<div class="card mb-3">
     <div class="row">
         <div class="card-body col-sm-6 col-md-6 col-lg-9 clearfix">
             <div class="clearfix d-flex align-items-baseline">
@@ -71,14 +71,14 @@
                 {{if .Author.Website}}
                     <li>
                         <i class="bi-globe-europe-africa me-2"></i>
-                        <a href="{{.Author.Website}}" class="link-light">{{t .Lang "Website"}}</a>
+                        <a href="{{.Author.Website}}">{{t .Lang "Website"}}</a>
                     </li>
                 {{end}}
 
                 {{if index .Author.WikipediaLink .Lang}}
                     <li>
                         <i class="bi-wikipedia me-2"></i>
-                        <a href="{{index .Author.WikipediaLink .Lang}}" class="link-light">{{t .Lang "Go to Wikipedia entry"}}</a>
+                        <a href="{{index .Author.WikipediaLink .Lang}}">{{t .Lang "Go to Wikipedia entry"}}</a>
                     </li>
                 {{end}}
             </ul>
@@ -90,12 +90,11 @@
             {{end}}
         </div>
         {{if .Author.DataSourceImage}}
-        <div class="col-lg-3 col-md-6 col-sm-6 d-flex">
-            <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid object-fit-cover w-100" alt="{{.Author.Name}}">
+        <div class="col-lg-3 col-md-6 col-sm-6 p-3 d-flex align-items-center">
+            <div class="ratio ratio-1x1">
+                <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid object-fit-cover w-100 rounded-circle" alt="{{.Author.Name}}">
+            </div>
         </div>
         {{end}}
     </div>
 </div>
-
-<script type="module" src="/js/datetime.js"></script>
-
