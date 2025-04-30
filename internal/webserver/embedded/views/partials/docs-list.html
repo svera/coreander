@@ -66,12 +66,12 @@
                     {{ end }}
 
                     {{ if $document.Subjects }}
-                    <div>
+                    <ul class="list-inline">
                         {{range $i, $subject := $document.Subjects}}
                             {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                            <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?search=SubjectsSlugs&colon;{{index $document.SubjectsSlugs $i}}" title={{$subjectTitle}}>{{$subject}}</a>
+                            <li class="list-inline-item"><a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?search=SubjectsSlugs&colon;{{index $document.SubjectsSlugs $i}}" title={{$subjectTitle}}>{{$subject}}</a></li>
                         {{end}}
-                    </div>
+                    </ul>
                     {{ end }}
 
                     {{if $document.Description}}
