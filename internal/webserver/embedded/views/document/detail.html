@@ -5,67 +5,79 @@
 {{$document := .Document}}
 
 <div class="row mt-5">
-    <div class="col-12 col-md-4 pe-3">
+    <div class="col-12">
+        {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s" .Document.Series}}
+            <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</p>
+        {{ end }}
+        <header>
+            <h1 class="text-start">
+                {{.Document.Title}}
+            </h1>
+            {{if .Document.Authors}}
+                <h2>
+                    {{join $document.Authors ", "}}
+                </h2>
+            {{else}}
+                <h2>{{t $lang "Unknown author"}}</h2>
+            {{end}}
+        </header>
+    </div>
+    <div class="col-12 col-md-4 mt-3 pe-3">
         <div class="card border border-0">
             {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true}}
         </div>
         {{template "partials/actions" dict "Lang" $lang "Document" .Document "Session" $session "EmailSendingConfigured" .EmailSendingConfigured "EmailFrom" $emailFrom}}
+
+        <dl class="row text-muted">
+            {{if not (eq .Document.Publication.Date 0)}}
+                <dt class="col-8">{{t $lang "Year"}}</dt>
+                <dd class="col-4 text-end"><time>{{.Document.Publication.Date.Year}}</time>
+            </dd>
+            {{end}}
+            {{ if gt .Document.Words 0.0 }}
+                <dt class="col-8">{{t $lang "Estimated reading time"}}</dt>
+                <dd class="col-4 text-end"><time>{{.Document.ReadingTime .WordsPerMinute}}</time></dd>
+            {{ end }}
+            {{ if .Document.Pages }}
+                <dt class="col-8">{{t $lang "Pages" }}</dt>
+                <dd class="col-4 text-end">{{.Document.Pages}}<dd>
+            {{ end }}
+        </dl>
+
+
+        {{ if .Document.Subjects }}
+        <ul class="list-inline">
+            {{range $i, $subject := .Document.Subjects}}
+            {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
+            <li class="list-inline-item"><a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?search=SubjectsSlugs&colon;{{index $document.SubjectsSlugs $i}}"
+                title={{$subjectTitle}}>{{$subject}}</a></li>
+            {{end}}
+        </ul>
+        {{ end }}
     </div>
     <div class="col-12 col-md-8 ps-3">
         <div class="row">
-            <div class="col-12">
-                {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
-                .Document.Series}}
-                <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</p>
-                {{ end }}
-                <h1 class="text-start">
-                    {{.Document.Title}}
-                    {{if not (eq .Document.Publication.Date 0)}}<time class="small text-muted">{{.Document.Publication.Date.Year}}</time>{{end}}
-                </h1>
-            </div>
-        </div>
-
-        <div class="row">
             <div class="col-12 text-start">
-                {{if .Document.Authors}}
-                <h2>
-                    {{join $document.Authors ", "}}
-                </h2>
-                {{else}}
-                <h2>{{t $lang "Unknown author"}}</h2>
-                {{end}}
-
-                {{ if gt .Document.Words 0.0 }}
-                <p class="text-muted"><em>{{t $lang "Estimated reading time"}}:
-                        {{.Document.ReadingTime .WordsPerMinute}}</em></p>
-                {{ end }}
-
-                {{ if .Document.Pages }}
-                <p class="text-muted"><em>{{t $lang "%d pages" .Document.Pages}}</em></p>
-                {{ end }}
-
-                {{ if .Document.Subjects }}
-                <div>
-                    {{range $i, $subject := .Document.Subjects}}
-                    {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                    <a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?search=SubjectsSlugs&colon;{{index $document.SubjectsSlugs $i}}"
-                        title={{$subjectTitle}}>{{$subject}}</a>
-                    {{end}}
-                </div>
-                {{ end }}
-
                 {{if .Document.Description}}
-                <div class="mb-1 mt-3">{{.Document.Description}}</div>
+                <div class="mb-1 mt-3 lead">{{.Document.Description}}</div>
                 {{else}}
                 <div class="mb-1"><em>{{t $lang "No description available"}}</em></div>
                 {{end}}
             </div>
         </div>
 
+
+        {{if and (gt (len .Document.Authors) 0) (ne (index .Document.Authors 0) "")}}
+        <div class="row">
+            <div hx-get="/authors/{{slugify (index .Document.Authors 0)}}/summary?style=clear" hx-trigger="load" hx-target="this">
+            </div>
+        </div>
+        {{end}}
+
         {{ $length := len .SameSeries }} {{ if gt $length 0 }}
         <section class="row mt-5">
             <div class="col-9">
-                <h4>{{t $lang "Also in collection \"%s\"" .Document.Series}}</h4>
+                <h4>{{t $lang "Other titles in collection \"%s\"" .Document.Series}}</h4>
             </div>
             <div class="col-3 text-end">
                 <a  href="/documents?search=SeriesSlug&colon;{{.Document.SeriesSlug}}">
@@ -135,3 +147,4 @@
 <script type="module" src="/js/send-email.js"></script>
 <script type="module" src="/js/highlight.js"></script>
 <script type="module" src="/js/cover.js"></script>
+<script type="module" src="/js/datetime.js"></script>

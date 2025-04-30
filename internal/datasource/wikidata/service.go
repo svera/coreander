@@ -66,19 +66,19 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.
 
 	entitiesReq, err := a.wikidata.NewGetEntities(ids)
 	if err != nil {
-		return Author{}, err
+		return nil, err
 	}
 	entitiesReq.SetProps([]string{"descriptions", "claims", "sitelinks/urls", "labels"})
 	entitiesReq.SetLanguages(languages)
 	// Call get to make the request based on the configurations
 	entities, err := entitiesReq.Get()
 	if err != nil {
-		return Author{}, err
+		return nil, err
 	}
 
 	author.wikidataEntityId, author.instanceOf = getMostAccurateID(ids, entities)
 	if author.instanceOf == InstanceUnknown {
-		return author, nil
+		return nil, nil
 	}
 
 	if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyBirthName]; exists {
@@ -125,7 +125,7 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.
 	if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyImage]; exists {
 		img, err := strconv.Unquote("\"" + value[0].MainSnak.DataValue.Value.S + "\"")
 		if err != nil {
-			return Author{}, err
+			return nil, err
 		}
 
 		if slices.Contains([]string{".png", ".jpg", ".jpeg", ".tif", ".tiff"}, strings.ToLower(filepath.Ext(img))) {
