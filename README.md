@@ -20,7 +20,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Restrictable access only to registered users.
 * Upload documents through the web interface.
 * Download as kepub (epub for Kobo devices) converted on the fly thanks to [Kepubify](https://github.com/pgaskin/kepubify).
-* Gather information about authors from [Wikidata](https://wikidata.org)
+* Gather information about authors from [Wikidata](https://wikidata.org).
 
 ## Installation
 

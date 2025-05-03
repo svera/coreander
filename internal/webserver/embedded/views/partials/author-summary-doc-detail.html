@@ -1,4 +1,4 @@
-<div class="border-top mt-3 p-3 ps-0 row">
+<div class="border-top mt-3 pt-3 row">
     <div class="col-9 clearfix ps-0">
         <div class="clearfix d-flex align-items-baseline">
             <h3 class="ms-3 float-start">{{.Author.Name}}</h3>
@@ -89,7 +89,7 @@
     {{if .Author.DataSourceImage}}
     <div class="col-3 d-flex align-items-start">
         <div class="ratio ratio-1x1">
-            <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid object-fit-cover w-100 rounded-circle p-3" alt="{{.Author.Name}}">
+            <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid object-fit-cover w-100 rounded-circle" alt="{{.Author.Name}}">
         </div>
     </div>
     {{end}}

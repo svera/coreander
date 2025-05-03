@@ -34,7 +34,6 @@
                         {{ end }}
                         <h4 class="text-start">
                             <a href="/documents/{{$document.Slug}}">{{$document.Title}}</a>
-                            {{if not (eq $document.Publication.Date 0)}}<time class="small text-muted">{{$document.Publication.Date.Year}}</time>{{end}}
                         </h4>
                     </div>
                     {{if and $session (eq $session.Role 2)}}
@@ -58,14 +57,21 @@
                             <h5>{{t $lang "Unknown author"}}</h5>
                         {{end}}
 
-                        {{ if gt $document.Words 0.0 }}
-                        <p class="text-muted"><em>{{t $lang "Estimated reading time"}}:
-                                {{$document.ReadingTime $wordsPerMinute}}</em></p>
-                        {{ end }}
-
-                        {{ if $document.Pages }}
-                        <p class="text-muted"><em>{{t $lang "%d pages" $document.Pages}}</em></p>
-                        {{ end }}
+                        <dl class="text-muted list-inline">
+                            {{if not (eq $document.Publication.Date 0)}}
+                                <dt class="list-inline-item">{{t $lang "Year"}}</dt>
+                                <dd class="list-inline-item"><time>{{$document.Publication.Date.Year}}</time>
+                            </dd><br />
+                            {{end}}
+                            {{ if gt $document.Words 0.0 }}
+                                <dt class="list-inline-item">{{t $lang "Estimated reading time"}}</dt>
+                                <dd class="list-inline-item"><time>{{$document.ReadingTime $wordsPerMinute}}</time></dd><br />
+                            {{ end }}
+                            {{ if $document.Pages }}
+                                <dt class="list-inline-item">{{t $lang "Pages" }}</dt>
+                                <dd class="list-inline-item">{{$document.Pages}}<dd>
+                            {{ end }}
+                        </dl>
 
                         {{ if $document.Subjects }}
                         <ul class="list-inline">
