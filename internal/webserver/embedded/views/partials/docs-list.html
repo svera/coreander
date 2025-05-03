@@ -12,81 +12,85 @@
     {{end}}
 </p>
 
-{{if .Results}} {{range $i, $document := .Results.Hits}}
-<div class="list-group-item">
-    <div class="row">
-        <div class="col-12 col-md-4 col-lg-3">
-            <div class="card border border-0">
-                {{template "partials/cover" dict "Lang" $lang "Document" $document "Session" $session}}
-            </div>
-            {{template "partials/actions" dict "Lang" $lang "Document" $document "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom}}
-        </div>
-        <div class="col-12 col-md-8 col-lg-9">
-            <div class="row">
-                <div class="col-7">
-                    {{ if ne $document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
-                    $document.Series}}
-                    <p class="text-start text-muted text-uppercase mb-0"><a
-                            href="/documents?search=SeriesSlug&colon;{{$document.SeriesSlug}}"
-                            title={{$seriesTitle}}>{{$document.Series}}{{ if ne $document.SeriesIndex 0.0 }} {{$document.SeriesIndex}}{{end}}</a></p>
-                    {{ end }}
-                    <h4 class="text-start">
-                        <a href="/documents/{{$document.Slug}}">{{$document.Title}}</a>
-                        {{if not (eq $document.Publication.Date 0)}}<time class="small text-muted">{{$document.Publication.Date.Year}}</time>{{end}}
-                    </h4>
+{{if .Results}}
+<ul class="list-group">
+    {{range $i, $document := .Results.Hits}}
+    <li class="list-group-item border border-0 px-0 {{if gt $i 0}}border-top{{end}}">
+        <div class="row">
+            <div class="col-12 col-md-4 col-lg-3">
+                <div class="card border border-0">
+                    {{template "partials/cover" dict "Lang" $lang "Document" $document "Session" $session}}
                 </div>
-                {{if and $session (eq $session.Role 2)}}
-                <div class="col-5 text-end">
-                    <button href="#" data-bs-toggle="modal" data-bs-target="#delete-modal" data-url="/documents/{{$document.Slug}}" class="btn btn-sm btn-danger" title="{{$document.ID}}">
-                        <i class="bi-trash3-fill"></i>
-                    </button>
-                </div>
-                {{end}}
+                {{template "partials/actions" dict "Lang" $lang "Document" $document "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom}}
             </div>
-            <div class="row">
-                <div class="col-12 text-start">
-                    {{if $document.Authors}}
-                    <h5>
-                        {{range $i, $author := $document.Authors}}
-                        {{$authorTitle := t $lang "Search for more titles by %s" $author}}
-                        <a href="/authors/{{index $document.AuthorsSlugs $i}}" title={{$authorTitle}}>{{$author}}</a>{{if notLast $document.Authors $i}}, {{end}}
-                        {{end}}
-                    </h5>
-                    {{else}}
-                        <h5>{{t $lang "Unknown author"}}</h5>
+            <div class="col-12 col-md-8 col-lg-9">
+                <div class="row">
+                    <div class="col-7">
+                        {{ if ne $document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
+                        $document.Series}}
+                        <p class="text-start text-muted text-uppercase mb-0"><a
+                                href="/documents?search=SeriesSlug&colon;{{$document.SeriesSlug}}"
+                                title={{$seriesTitle}}>{{$document.Series}}{{ if ne $document.SeriesIndex 0.0 }} {{$document.SeriesIndex}}{{end}}</a></p>
+                        {{ end }}
+                        <h4 class="text-start">
+                            <a href="/documents/{{$document.Slug}}">{{$document.Title}}</a>
+                            {{if not (eq $document.Publication.Date 0)}}<time class="small text-muted">{{$document.Publication.Date.Year}}</time>{{end}}
+                        </h4>
+                    </div>
+                    {{if and $session (eq $session.Role 2)}}
+                    <div class="col-5 text-end">
+                        <button href="#" data-bs-toggle="modal" data-bs-target="#delete-modal" data-url="/documents/{{$document.Slug}}" class="btn btn-sm btn-danger" title="{{$document.ID}}">
+                            <i class="bi-trash3-fill"></i>
+                        </button>
+                    </div>
                     {{end}}
-
-                    {{ if gt $document.Words 0.0 }}
-                    <p class="text-muted"><em>{{t $lang "Estimated reading time"}}:
-                            {{$document.ReadingTime $wordsPerMinute}}</em></p>
-                    {{ end }}
-
-                    {{ if $document.Pages }}
-                    <p class="text-muted"><em>{{t $lang "%d pages" $document.Pages}}</em></p>
-                    {{ end }}
-
-                    {{ if $document.Subjects }}
-                    <ul class="list-inline">
-                        {{range $i, $subject := $document.Subjects}}
-                            {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-                            <li class="list-inline-item"><a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?search=SubjectsSlugs&colon;{{index $document.SubjectsSlugs $i}}" title={{$subjectTitle}}>{{$subject}}</a></li>
+                </div>
+                <div class="row">
+                    <div class="col-12 text-start">
+                        {{if $document.Authors}}
+                        <h5>
+                            {{range $i, $author := $document.Authors}}
+                            {{$authorTitle := t $lang "Search for more titles by %s" $author}}
+                            <a href="/authors/{{index $document.AuthorsSlugs $i}}" title={{$authorTitle}}>{{$author}}</a>{{if notLast $document.Authors $i}}, {{end}}
+                            {{end}}
+                        </h5>
+                        {{else}}
+                            <h5>{{t $lang "Unknown author"}}</h5>
                         {{end}}
-                    </ul>
-                    {{ end }}
 
-                    {{if $document.Description}}
-                    <div class="mb-1 mt-3 collapse partial" id="collapse-desc{{$i}}">{{$document.Description}}</div>
-                    {{else}}
-                    <div class="mb-1 mt-3"><em>{{t $lang "No description available"}}</em></div>
-                    {{end}}
+                        {{ if gt $document.Words 0.0 }}
+                        <p class="text-muted"><em>{{t $lang "Estimated reading time"}}:
+                                {{$document.ReadingTime $wordsPerMinute}}</em></p>
+                        {{ end }}
 
-                    <a data-bs-toggle="collapse" class="collapse-control collapsed" href="#collapse-desc{{$i}}"></a>
+                        {{ if $document.Pages }}
+                        <p class="text-muted"><em>{{t $lang "%d pages" $document.Pages}}</em></p>
+                        {{ end }}
+
+                        {{ if $document.Subjects }}
+                        <ul class="list-inline">
+                            {{range $i, $subject := $document.Subjects}}
+                                {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
+                                <li class="list-inline-item"><a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?search=SubjectsSlugs&colon;{{index $document.SubjectsSlugs $i}}" title={{$subjectTitle}}>{{$subject}}</a></li>
+                            {{end}}
+                        </ul>
+                        {{ end }}
+
+                        {{if $document.Description}}
+                        <div class="mb-1 mt-3 collapse partial" id="collapse-desc{{$i}}">{{$document.Description}}</div>
+                        {{else}}
+                        <div class="mb-1 mt-3"><em>{{t $lang "No description available"}}</em></div>
+                        {{end}}
+
+                        <a data-bs-toggle="collapse" class="collapse-control collapsed" href="#collapse-desc{{$i}}"></a>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-{{end}} {{end}}
+    </li>
+    {{end}}
+</ul>
+{{end}}
 
 {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
 {{template "partials/pagination" .}}

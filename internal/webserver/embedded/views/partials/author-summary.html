@@ -86,19 +86,22 @@
                 {{end}}
             </ul>
             {{end}}
-
-            {{if eq .Session.Role 2}}
-                {{if not .Author.RetrievedOn.IsZero }}
-                    {{template "partials/author-update-form" .}}
-                {{end}}
-            {{end}}
         </div>
         {{if .Author.DataSourceImage}}
         <div class="col-lg-3 col-md-6 col-sm-6 p-3 d-flex align-items-center">
             <div class="ratio ratio-1x1">
-                <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid object-fit-cover w-100 rounded-circle" alt="{{.Author.Name}}">
+                <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid object-fit-cover w-100 rounded-circle p-3" alt="{{.Author.Name}}">
             </div>
         </div>
         {{end}}
     </div>
+    {{if eq .Session.Role 2}}
+        {{if not .Author.RetrievedOn.IsZero }}
+            <div class="row">
+                <div class="col-12">
+                    {{template "partials/author-update-form" dict "Lang" .Lang "Author" .Author "Style" "clear"}}
+                </div>
+            </div>
+        {{end}}
+    {{end}}
 </div>

@@ -145,6 +145,7 @@
 "Website": "Site"
 "Is not the right author?": "N'est-ce pas le bon auteur ou les données sont obsolètes?"
 "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here.": "L'ID Wikidata est un identifiant unique pour l'auteur dans la base de données Wikidata. Si vous connaissez l'ID correct, vous pouvez le mettre à jour ici."
+"Leave it blank if the author does not have a Wikidata entry yet.": "Laissez-le vide si l'auteur n'a pas encore d'entrée Wikidata."
 "Born": "Né"
 "Alias": "Alias"
 "%d century": "%d siècle"
