@@ -67,11 +67,11 @@
         </div>
 
 
-        {{if and (gt (len .Document.Authors) 0) (ne (index .Document.Authors 0) "")}}
-        <div class="row">
-            <div hx-get="/authors/{{slugify (index .Document.Authors 0)}}/summary?style=clear" hx-trigger="load" hx-target="this">
-            </div>
-        </div>
+        {{if and (gt (len .Document.Authors) 0) (le (len .Document.Authors) 2) (ne (index .Document.Authors 0) "")}}
+            {{range $i, $author := .Document.Authors}}
+                <div class="row" hx-get="/authors/{{slugify $author}}/summary?style=clear" hx-trigger="load" hx-target="this">
+                </div>
+            {{end}}
         {{end}}
 
         {{ $length := len .SameSeries }} {{ if gt $length 0 }}
