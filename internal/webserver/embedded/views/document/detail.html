@@ -68,6 +68,7 @@
 
 
         {{if and (gt (len .Document.Authors) 0) (le (len .Document.Authors) 2) (ne (index .Document.Authors 0) "")}}
+            <hr>
             {{range $i, $author := .Document.Authors}}
                 <div class="row" hx-get="/authors/{{slugify $author}}/summary?style=clear" hx-trigger="load" hx-target="this">
                 </div>

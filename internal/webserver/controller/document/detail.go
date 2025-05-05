@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/index"
@@ -54,7 +55,11 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 	}
 
 	msg := ""
-	if c.Query("success") != "" {
+	if c.Cookies("success") == "true" {
+		c.Cookie(&fiber.Cookie{
+			Name:    "success",
+			Expires: time.Now().Add(-(time.Hour * 2)),
+		})
 		msg = "Document uploaded successfully."
 	}
 

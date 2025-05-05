@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -78,7 +79,12 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 		return internalServerErrorStatus
 	}
 
-	return c.Redirect(fmt.Sprintf("/documents/%s?success=1", slug))
+	c.Cookie(&fiber.Cookie{
+		Name:    "success",
+		Value:   "true",
+		Expires: time.Now().Add(24 * time.Hour),
+	})
+	return c.Redirect(fmt.Sprintf("/documents/%s", slug))
 }
 
 func fileToBytes(fileHeader *multipart.FileHeader) ([]byte, error) {
