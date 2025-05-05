@@ -1,4 +1,4 @@
-<p class="ms-3 opacity-75"><small>
+<p class="opacity-75"><small>
     <i class="bi-person-fill-exclamation me-2"></i>
     <a data-bs-toggle="collapse" href="#update-author-form" aria-expanded="false">
         {{ t .Lang "Is not the right author or data is outdated?" }}
@@ -6,10 +6,11 @@
 </small>
 </p>
 <div class="collapse" id="update-author-form">
-    <p class="ms-3 opacity-75"><small>{{ t .Lang "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here." }}</small></p>
-    <div class="row">
+    <p class="opacity-75"><small>{{ t .Lang "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here." }}</small></p>
+    <p class="opacity-75"><small>{{ t .Lang "Leave it blank if the author does not have a Wikidata entry yet."}}</small></p>
+    <div class="row pb-3">
         <div class="col-12 col-lg-6">
-            <form hx-put="/authors/{{.Author.Slug}}{{if ne .Style ""}}?style={{.Style}}{{end}}" class="ms-3">
+            <form hx-put="/authors/{{.Author.Slug}}{{if ne .Style ""}}?style={{.Style}}{{end}}">
                 <div class="input-group input-group-sm">
                     <input class="form-control" type="text" name="sourceID" value="{{.Author.DataSourceID}}" maxlength="10" pattern="^[Qq]\d+$">
                     <button type="submit" class="btn btn-secondary">{{t .Lang "Update"}}</button>

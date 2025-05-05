@@ -7,7 +7,9 @@
                     <p class="opacity-50 ms-3 float-start">&nbsp;{{.Author.BirthName}}</p>
                 {{end}}
             </div>
-            {{if index .Author.Description .Lang}}
+            {{if eq .Author.DataSourceID ""}}
+                <p class="ms-3"><i>{{t .Lang "Sorry, we don't have information about this author at the moment"}}</i></p>
+            {{else if index .Author.Description .Lang}}
                 <p class="card-text ms-3 capitalize lead">{{index .Author.Description .Lang}}</p>
             {{end}}
             {{if gt (len .Author.Pseudonyms) 0}}
@@ -16,6 +18,7 @@
                 </p>
             {{end}}
 
+            {{if ne .Author.DataSourceID ""}}
             <dl class="ms-3">
                 {{if ne .Author.DateOfBirth.Date 0}}
                     <dt>{{t .Lang "Date of birth"}}</dt>
@@ -82,19 +85,23 @@
                     </li>
                 {{end}}
             </ul>
-
-            {{if eq .Session.Role 2}}
-                {{if not .Author.RetrievedOn.IsZero }}
-                    {{template "partials/author-update-form" .}}
-                {{end}}
             {{end}}
         </div>
         {{if .Author.DataSourceImage}}
         <div class="col-lg-3 col-md-6 col-sm-6 p-3 d-flex align-items-center">
             <div class="ratio ratio-1x1">
-                <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid object-fit-cover w-100 rounded-circle" alt="{{.Author.Name}}">
+                <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid object-fit-cover w-100 rounded-circle p-3" alt="{{.Author.Name}}">
             </div>
         </div>
         {{end}}
     </div>
+    {{if eq .Session.Role 2}}
+        {{if not .Author.RetrievedOn.IsZero }}
+            <div class="row">
+                <div class="col-12 ms-3">
+                    {{template "partials/author-update-form" dict "Lang" .Lang "Author" .Author "Style" "clear"}}
+                </div>
+            </div>
+        {{end}}
+    {{end}}
 </div>
