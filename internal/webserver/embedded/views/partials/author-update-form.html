@@ -6,11 +6,11 @@
 </small>
 </p>
 <div class="collapse" id="update-author-form">
-    <p class="ms-3 opacity-75"><small>{{ t .Lang "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here." }}</small></p>
-    <p class="ms-3 opacity-75"><small>{{ t .Lang "Leave it blank if the author does not have a Wikidata entry yet."}}</small></p>
+    <p class="opacity-75"><small>{{ t .Lang "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here." }}</small></p>
+    <p class="opacity-75"><small>{{ t .Lang "Leave it blank if the author does not have a Wikidata entry yet."}}</small></p>
     <div class="row pb-3">
         <div class="col-12 col-lg-6">
-            <form hx-put="/authors/{{.Author.Slug}}{{if ne .Style ""}}?style={{.Style}}{{end}}" class="ms-3">
+            <form hx-put="/authors/{{.Author.Slug}}{{if ne .Style ""}}?style={{.Style}}{{end}}">
                 <div class="input-group input-group-sm">
                     <input class="form-control" type="text" name="sourceID" value="{{.Author.DataSourceID}}" maxlength="10" pattern="^[Qq]\d+$">
                     <button type="submit" class="btn btn-secondary">{{t .Lang "Update"}}</button>

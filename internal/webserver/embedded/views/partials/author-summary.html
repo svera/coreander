@@ -98,7 +98,7 @@
     {{if eq .Session.Role 2}}
         {{if not .Author.RetrievedOn.IsZero }}
             <div class="row">
-                <div class="col-12">
+                <div class="col-12 ms-3">
                     {{template "partials/author-update-form" dict "Lang" .Lang "Author" .Author "Style" "clear"}}
                 </div>
             </div>
