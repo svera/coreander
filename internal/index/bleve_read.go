@@ -96,7 +96,7 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 
 	for _, analyzer := range analyzers {
 		noStopWordsAnalyzer := analyzer
-		if analyzer != defaultAnalyzer {
+		if analyzer != defaultAnalyzer && analyzer != "" {
 			noStopWordsAnalyzer = analyzer + "_no_stop_words"
 		}
 

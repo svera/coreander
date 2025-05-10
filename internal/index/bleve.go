@@ -24,7 +24,7 @@ import (
 
 // Version identifies the mapping used for indexing. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const Version = "v7"
+const Version = "v8"
 
 const (
 	TypeDocument = "document"
@@ -104,10 +104,7 @@ func CreateMapping() mapping.IndexMapping {
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
 
 	numericFieldMapping := bleve.NewNumericFieldMapping()
-	numericFieldMapping.Index = true
-
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
-	dateTimeFieldMapping.Index = false
 
 	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()
