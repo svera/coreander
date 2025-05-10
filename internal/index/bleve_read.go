@@ -96,7 +96,7 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 
 	for _, analyzer := range analyzers {
 		noStopWordsAnalyzer := analyzer
-		if analyzer != defaultAnalyzer {
+		if analyzer != defaultAnalyzer && analyzer != "" {
 			noStopWordsAnalyzer = analyzer + "_no_stop_words"
 		}
 
@@ -464,7 +464,16 @@ func (b *BleveIndexer) LatestDocs(limit int) ([]Document, error) {
 	searchOptions.SortBy([]string{"-AddedOn"})
 	searchOptions.Fields = []string{"*"}
 
-	return b.runQuery(bq, limit)
+	searchResult, err := b.idx.Search(searchOptions)
+	if err != nil {
+		return []Document{}, err
+	}
+
+	docs := make([]Document, len(searchResult.Hits))
+	for i, val := range searchResult.Hits {
+		docs[i] = hydrateDocument(val)
+	}
+	return docs, err
 }
 
 func hydrateDocument(match *search.DocumentMatch) Document {

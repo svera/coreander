@@ -11,6 +11,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/webserver"
@@ -248,6 +249,22 @@ func TestUpload(t *testing.T) {
 			t.Errorf("Expected status %d, got %d", expectedStatus, response.StatusCode)
 		}
 
-		assertSearchResults(app, t, "children+literature", 1)
+		// The recently added document should appear in home page under "Latest additions"
+		req, err = http.NewRequest(http.MethodGet, "/", &buf)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		response, err = app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		doc, err := goquery.NewDocumentFromReader(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if expectedResults, actualResults := 1, doc.Find("h2:contains(\"Latest additions\")").Length(); actualResults != expectedResults {
+			t.Errorf("Expected %d results, got %d", expectedResults, actualResults)
+		}
 	})
 }
