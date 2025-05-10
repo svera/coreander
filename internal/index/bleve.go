@@ -104,7 +104,7 @@ func CreateMapping() mapping.IndexMapping {
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
 
 	numericFieldMapping := bleve.NewNumericFieldMapping()
-	numericFieldMapping.Index = false
+	numericFieldMapping.Index = true
 
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
 	dateTimeFieldMapping.Index = false
