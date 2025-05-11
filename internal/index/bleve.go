@@ -18,13 +18,14 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/token/porter"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
+	index "github.com/blevesearch/bleve_index_api"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/metadata"
 )
 
 // Version identifies the mapping used for indexing. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const Version = "v8"
+const Version = "v9"
 
 const (
 	TypeDocument = "document"
@@ -80,6 +81,7 @@ func Create(path string) bleve.Index {
 
 func CreateMapping() mapping.IndexMapping {
 	indexMapping := bleve.NewIndexMapping()
+	indexMapping.ScoringModel = index.BM25Scoring
 
 	err := indexMapping.AddCustomAnalyzer(defaultAnalyzer,
 		map[string]any{

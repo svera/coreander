@@ -1,6 +1,8 @@
 package index
 
 import (
+	"fmt"
+
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
@@ -72,6 +74,14 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		return []Document{}, err
 	}
 
+	fmt.Println("top")
+	for i := range topResults {
+		fmt.Println(topResults[i].Fields["Title"].(string), topResults[i].Score)
+	}
+	fmt.Println("bottom")
+	for i := range bottomResults {
+		fmt.Println(bottomResults[i].Fields["Title"].(string), bottomResults[i].Score)
+	}
 	return b.sortByTempDistance(doc, topResults, bottomResults, quantity)
 }
 
@@ -80,27 +90,30 @@ func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, rangeQuery *qu
 	query.AddMust(rangeQuery)
 
 	resultSet := make([]*search.DocumentMatch, 0, quantity)
-	for range quantity {
-		searchOptions := bleve.NewSearchRequestOptions(query, 1, 0, false)
-		searchOptions.SortBy([]string{"-_score", dateSort})
-		searchOptions.Fields = []string{"*"}
-		current, err := b.idx.Search(searchOptions)
+	//for range quantity {
+	searchOptions := bleve.NewSearchRequestOptions(query, 4, 0, false)
+	searchOptions.SortBy([]string{"-_score", dateSort})
+	searchOptions.Fields = []string{"*"}
+	current, err := b.idx.Search(searchOptions)
 
-		//current, err := b.runQuery(query, 1, []string{"-_score", dateSort})
-		if err != nil {
-			return resultSet, err
-		}
-		if current.Total == 0 {
-			return resultSet, nil
-		}
-		resultSet = append(resultSet, current.Hits[0])
+	//current, err := b.runQuery(query, 1, []string{"-_score", dateSort})
+	if err != nil {
+		return resultSet, err
+	}
+	if current.Total == 0 {
+		return resultSet, nil
+	}
+
+	resultSet = append(resultSet, current.Hits...)
+	/*
 		for _, slug := range slicer(current.Hits[0].Fields["AuthorsSlugs"]) {
 			qa := bleve.NewTermQuery(slug)
 			qa.SetField("AuthorsSlugs")
 			authorsCompoundQuery.AddQuery(qa)
 		}
 		query.AddMustNot(authorsCompoundQuery)
-	}
+	*/
+	//}
 
 	return resultSet, err
 }
