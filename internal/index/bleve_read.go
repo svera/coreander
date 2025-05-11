@@ -1,7 +1,6 @@
 package index
 
 import (
-	"fmt"
 	"html/template"
 	"io/fs"
 	"math"
@@ -214,7 +213,7 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 		return Document{}, err
 	}
 	if searchResult.Total == 0 {
-		return Document{}, fmt.Errorf("Document with slug %s not found", slug)
+		return Document{}, nil
 	}
 
 	return hydrateDocument(searchResult.Hits[0]), nil
