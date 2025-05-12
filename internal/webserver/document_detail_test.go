@@ -22,6 +22,7 @@ func TestDocumentAndRead(t *testing.T) {
 		{"/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha--2/read", http.StatusOK},
 		{"/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha--3/read", http.StatusOK},
 		{"/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
+		{"/documents/john-doe-non-existing-document", http.StatusNotFound},
 	}
 
 	for _, tcase := range cases {

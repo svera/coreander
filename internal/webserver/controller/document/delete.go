@@ -12,7 +12,11 @@ import (
 func (d *Controller) Delete(c *fiber.Ctx) error {
 	document, err := d.idx.Document(c.Params("slug"))
 	if err != nil {
-		return fiber.ErrBadRequest
+		return fiber.ErrInternalServerError
+	}
+
+	if document.Slug == "" {
+		return fiber.ErrNotFound
 	}
 
 	fullPath := filepath.Join(d.config.LibraryPath, document.ID)

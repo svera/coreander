@@ -23,7 +23,7 @@ func TestSendDocument(t *testing.T) {
 		expectedHTTPStatus int
 	}{
 		{"Send no email address", "", "empty", http.StatusBadRequest},
-		{"Send non existing document slug", "admin@example.com", "wrong", http.StatusBadRequest},
+		{"Send non existing document slug", "admin@example.com", "wrong", http.StatusNotFound},
 		{"Send document slug and email address", "admin@example.com", "john-doe-test-epub", http.StatusOK},
 	}
 
