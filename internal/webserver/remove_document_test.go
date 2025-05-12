@@ -43,7 +43,7 @@ func TestRemoveDocument(t *testing.T) {
 		slug               string
 		expectedHTTPStatus int
 	}{
-		{"Remove non existing document slug", "admin@example.com", "admin", "wrong.epub", "wrong-epub", http.StatusBadRequest},
+		{"Remove non existing document slug", "admin@example.com", "admin", "wrong.epub", "wrong-epub", http.StatusNotFound},
 		{"Remove document with a regular user", "regular@example.com", "regular", "metadata.epub", "john-doe-test-epub", http.StatusForbidden},
 		{"Remove document with an admin user", "admin@example.com", "admin", "metadata.epub", "john-doe-test-epub", http.StatusOK},
 	}

@@ -22,7 +22,11 @@ func (d *Controller) Send(c *fiber.Ctx) error {
 
 	document, err := d.idx.Document(slug)
 	if err != nil {
-		return fiber.ErrBadRequest
+		return fiber.ErrInternalServerError
+	}
+
+	if document.Slug == "" {
+		return fiber.ErrNotFound
 	}
 
 	if _, err := os.Stat(filepath.Join(d.config.LibraryPath, document.ID)); err != nil {
