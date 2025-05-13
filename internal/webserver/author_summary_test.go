@@ -31,6 +31,7 @@ func TestAuthorSummary(t *testing.T) {
 	}{
 		{"Search for authors", "/authors/john-doe/summary", http.StatusOK, 1},
 		{"Search for authors not found", "/authors/not-found/summary", http.StatusNotFound, 0},
+		{"Search for authors not found", "/authors/miguel-de-cervantes-y-saavedra/summary", http.StatusNotFound, 0},
 	}
 
 	for _, tcase := range cases {
