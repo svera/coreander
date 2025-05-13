@@ -48,6 +48,10 @@ func (a WikidataSource) SearchAuthor(name string, languages []string) (model.Aut
 		return nil, err
 	}
 
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
 	return a.RetrieveAuthor(ids, languages)
 }
 
@@ -166,7 +170,7 @@ func (a WikidataSource) getEntityIds(name string) ([]string, error) {
 	}
 
 	if len(result.SearchResult) == 0 {
-		return []string{}, fmt.Errorf("no entity found for %s", name)
+		return []string{}, nil
 	}
 
 	res := make([]string, 0, len(result.SearchResult))
