@@ -57,7 +57,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 		if strings.HasPrefix(strings.Trim(keywords, " "), prefix) {
 			query := bleve.NewQueryStringQuery(keywords)
 
-			return b.runPaginatedQuery(query, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+			return b.runPaginatedQuery(query, page, resultsPerPage)
 		}
 	}
 
@@ -77,7 +77,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 			qs.SetField(strings.TrimSuffix(prefix, ":"))
 			qb.AddQuery(qs)
 		}
-		return b.runPaginatedQuery(qb, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+		return b.runPaginatedQuery(qb, page, resultsPerPage)
 	}
 
 	analyzers, err := b.analyzers()
@@ -85,7 +85,7 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 		return result.Paginated[[]Document]{}, err
 	}
 	compound := composeQuery(keywords, analyzers)
-	return b.runPaginatedQuery(compound, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+	return b.runPaginatedQuery(compound, page, resultsPerPage)
 }
 
 func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
@@ -145,15 +145,15 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	return bleve.NewDisjunctionQuery(qa, langCompoundQuery, authorTitleQuery)
 }
 
-func (b *BleveIndexer) runQuery(query query.Query, results int, sortBy []string) ([]Document, error) {
-	res, err := b.runPaginatedQuery(query, 0, results, sortBy)
+func (b *BleveIndexer) runQuery(query query.Query, results int) ([]Document, error) {
+	res, err := b.runPaginatedQuery(query, 0, results)
 	if err != nil {
 		return nil, err
 	}
 	return res.Hits(), nil
 }
 
-func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage int, sortBy []string) (result.Paginated[[]Document], error) {
+func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage int) (result.Paginated[[]Document], error) {
 	var res result.Paginated[[]Document]
 
 	if page < 1 {
@@ -161,7 +161,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	}
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
-	searchOptions.SortBy(sortBy)
+	searchOptions.SortBy([]string{"-_score", "Series", "SeriesIndex"})
 	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
@@ -242,6 +242,129 @@ func (b *BleveIndexer) Documents(IDs []string) (map[string]Document, error) {
 	return docs, nil
 }
 
+// SameSubjects returns an array of metadata of documents by other authors, different between each other,
+// which have similar subjects as the passed one and does not belong to the same collection
+func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, error) {
+	doc, err := b.Document(slugID)
+	if err != nil {
+		return []Document{}, err
+	}
+
+	if len(doc.Subjects) == 0 {
+		return []Document{}, err
+	}
+
+	bq := bleve.NewBooleanQuery()
+	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
+
+	for _, slug := range doc.SubjectsSlugs {
+		qu := bleve.NewTermQuery(slug)
+		qu.SetField("SubjectsSlugs")
+		subjectsCompoundQuery.AddQuery(qu)
+	}
+
+	if doc.SeriesSlug != "" {
+		sq := bleve.NewTermQuery(doc.SeriesSlug)
+		sq.SetField("SeriesSlug")
+		bq.AddMustNot(sq)
+	}
+
+	bq.AddMust(subjectsCompoundQuery)
+	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
+
+	authorsCompoundQuery := bleve.NewDisjunctionQuery()
+	for _, slug := range doc.AuthorsSlugs {
+		qa := bleve.NewTermQuery(slug)
+		qa.SetField("AuthorsSlugs")
+		authorsCompoundQuery.AddQuery(qa)
+	}
+	bq.AddMustNot(authorsCompoundQuery)
+
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	bq.AddMust(typeQuery)
+
+	res := make([]Document, 0, quantity)
+	for range quantity {
+		doc, err := b.runQuery(bq, 1)
+		if err != nil {
+			return res, err
+		}
+		if len(doc) == 0 {
+			return res, nil
+		}
+		res = append(res, doc[0])
+		for _, slug := range doc[0].AuthorsSlugs {
+			qa := bleve.NewTermQuery(slug)
+			qa.SetField("AuthorsSlugs")
+			authorsCompoundQuery.AddQuery(qa)
+		}
+		bq.AddMustNot(authorsCompoundQuery)
+	}
+
+	return res, err
+}
+
+// SameAuthors returns an array of metadata of documents by the same authors which
+// does not belong to the same collection
+func (b *BleveIndexer) SameAuthors(slugID string, quantity int) ([]Document, error) {
+	doc, err := b.Document(slugID)
+	if err != nil {
+		return []Document{}, err
+	}
+
+	if len(doc.Authors) == 0 {
+		return []Document{}, err
+	}
+
+	authorsCompoundQuery := bleve.NewDisjunctionQuery()
+	for _, slug := range doc.AuthorsSlugs {
+		qu := bleve.NewTermQuery(slug)
+		qu.SetField("AuthorsSlugs")
+		authorsCompoundQuery.AddQuery(qu)
+	}
+	bq := bleve.NewBooleanQuery()
+	bq.AddMust(authorsCompoundQuery)
+	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
+
+	if doc.Series != "" {
+		sq := bleve.NewTermQuery(doc.SeriesSlug)
+		sq.SetField("SeriesSlug")
+		bq.AddMustNot(sq)
+	}
+
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	bq.AddMust(typeQuery)
+
+	return b.runQuery(bq, quantity)
+}
+
+// SameSeries returns an array of metadata of documents in the same series
+func (b *BleveIndexer) SameSeries(slugID string, quantity int) ([]Document, error) {
+	doc, err := b.Document(slugID)
+	if err != nil {
+		return []Document{}, err
+	}
+
+	if doc.Series == "" {
+		return []Document{}, err
+	}
+
+	bq := bleve.NewBooleanQuery()
+	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
+
+	sq := bleve.NewTermQuery(doc.SeriesSlug)
+	sq.SetField("SeriesSlug")
+	bq.AddMust(sq)
+
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	bq.AddMust(typeQuery)
+
+	return b.runQuery(bq, quantity)
+}
+
 func (b *BleveIndexer) analyzers() ([]string, error) {
 	languages, err := b.idx.GetInternal([]byte("languages"))
 	if err != nil {
@@ -254,7 +377,7 @@ func (b *BleveIndexer) SearchByAuthor(authorSlug string, page, resultsPerPage in
 	aq := bleve.NewTermQuery(authorSlug)
 	aq.SetField("AuthorsSlugs")
 
-	return b.runPaginatedQuery(aq, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+	return b.runPaginatedQuery(aq, page, resultsPerPage)
 }
 
 func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
@@ -337,7 +460,20 @@ func (b *BleveIndexer) LatestDocs(limit int) ([]Document, error) {
 	bq.AddMust(typeQuery)
 	bq.AddMust(dateQuery)
 
-	return b.runQuery(bq, limit, []string{"-AddedOn"})
+	searchOptions := bleve.NewSearchRequestOptions(bq, limit, 0, false)
+	searchOptions.SortBy([]string{"-AddedOn"})
+	searchOptions.Fields = []string{"*"}
+
+	searchResult, err := b.idx.Search(searchOptions)
+	if err != nil {
+		return []Document{}, err
+	}
+
+	docs := make([]Document, len(searchResult.Hits))
+	for i, val := range searchResult.Hits {
+		docs[i] = hydrateDocument(val)
+	}
+	return docs, err
 }
 
 func hydrateDocument(match *search.DocumentMatch) Document {
