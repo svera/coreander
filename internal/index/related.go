@@ -21,8 +21,8 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		return []Document{}, err
 	}
 
-	bqTop := bleve.NewBooleanQuery()
-	bqBottom := bleve.NewBooleanQuery()
+	bqNewer := bleve.NewBooleanQuery()
+	bqOlder := bleve.NewBooleanQuery()
 	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
 
 	for _, slug := range doc.SubjectsSlugs {
@@ -34,14 +34,14 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	if doc.SeriesSlug != "" {
 		sq := bleve.NewTermQuery(doc.SeriesSlug)
 		sq.SetField("SeriesSlug")
-		bqTop.AddMustNot(sq)
-		bqBottom.AddMustNot(sq)
+		bqNewer.AddMustNot(sq)
+		bqOlder.AddMustNot(sq)
 	}
 
-	bqTop.AddMust(subjectsCompoundQuery)
-	bqTop.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
-	bqBottom.AddMust(subjectsCompoundQuery)
-	bqBottom.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
+	bqNewer.AddMust(subjectsCompoundQuery)
+	bqNewer.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
+	bqOlder.AddMust(subjectsCompoundQuery)
+	bqOlder.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
 
 	authorsCompoundQuery := bleve.NewDisjunctionQuery()
 	for _, slug := range doc.AuthorsSlugs {
@@ -49,40 +49,42 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		qa.SetField("AuthorsSlugs")
 		authorsCompoundQuery.AddQuery(qa)
 	}
-	bqTop.AddMustNot(authorsCompoundQuery)
-	bqBottom.AddMustNot(authorsCompoundQuery)
+	bqNewer.AddMustNot(authorsCompoundQuery)
+	bqOlder.AddMustNot(authorsCompoundQuery)
 
 	typeQuery := bleve.NewTermQuery(TypeDocument)
 	typeQuery.SetField("Type")
-	bqTop.AddMust(typeQuery)
-	bqBottom.AddMust(typeQuery)
+	bqNewer.AddMust(typeQuery)
+	bqOlder.AddMust(typeQuery)
 
 	dateLimit := float64(doc.Publication.Date)
 
 	olderDocsQuery := bleve.NewNumericRangeQuery(nil, &dateLimit)
+	// we don't want to include date as part of the score
+	olderDocsQuery.SetBoost(0)
 	olderDocsQuery.SetField("Publication.Date")
-	bottomResults, err := b.dateRangeResult(bqBottom, olderDocsQuery, authorsCompoundQuery, "-Publication.Date", quantity)
+	olderResults, err := b.dateRangeResult(bqOlder, olderDocsQuery, authorsCompoundQuery, "-Publication.Date", quantity)
 	if err != nil {
 		return []Document{}, err
 	}
 
 	newerDocsQuery := bleve.NewNumericRangeQuery(&dateLimit, nil)
+	newerDocsQuery.SetBoost(0)
 	newerDocsQuery.SetField("Publication.Date")
-	topResults, err := b.dateRangeResult(bqTop, newerDocsQuery, authorsCompoundQuery, "Publication.Date", quantity)
-
+	newerResults, err := b.dateRangeResult(bqNewer, newerDocsQuery, authorsCompoundQuery, "Publication.Date", quantity)
 	if err != nil {
 		return []Document{}, err
 	}
 
-	fmt.Println("top")
-	for i := range topResults {
-		fmt.Println(topResults[i].Fields["Title"].(string), topResults[i].Score)
+	fmt.Println("newer")
+	for i := range newerResults {
+		fmt.Println(newerResults[i].Fields["Title"].(string), newerResults[i].Score)
 	}
-	fmt.Println("bottom")
-	for i := range bottomResults {
-		fmt.Println(bottomResults[i].Fields["Title"].(string), bottomResults[i].Score)
+	fmt.Println("older")
+	for i := range olderResults {
+		fmt.Println(olderResults[i].Fields["Title"].(string), olderResults[i].Score)
 	}
-	return b.sortByTempDistance(doc, topResults, bottomResults, quantity)
+	return b.sortByTempDistance(doc, newerResults, olderResults, quantity)
 }
 
 func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, rangeQuery *query.NumericRangeQuery, authorsCompoundQuery *query.DisjunctionQuery, dateSort string, quantity int) ([]*search.DocumentMatch, error) {
@@ -119,7 +121,23 @@ func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, rangeQuery *qu
 }
 
 func (b *BleveIndexer) sortByTempDistance(referenceDoc Document, topResults, bottomResults []*search.DocumentMatch, quantity int) ([]Document, error) {
+	totalResults := len(topResults) + len(bottomResults)
+	if totalResults < quantity {
+		quantity = totalResults
+	}
+
 	docs := make([]Document, 0, quantity)
+
+	if len(topResults) == 0 || len(bottomResults) == 0 {
+		for _, doc := range bottomResults {
+			docs = append(docs, hydrateDocument(doc))
+		}
+		for _, doc := range topResults {
+			docs = append(docs, hydrateDocument(doc))
+		}
+		return docs, nil
+	}
+
 	topPos, bottomPos := 0, 0
 	for {
 		if len(docs) == quantity {
@@ -135,6 +153,7 @@ func (b *BleveIndexer) sortByTempDistance(referenceDoc Document, topResults, bot
 			bottomPos++
 			continue
 		}
+
 		topDoc := hydrateDocument(topResults[topPos])
 		bottomDoc := hydrateDocument(bottomResults[bottomPos])
 
