@@ -1,8 +1,6 @@
 package index
 
 import (
-	"fmt"
-
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
@@ -58,47 +56,37 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	bqOlder.AddMust(typeQuery)
 
 	dateLimit := float64(doc.Publication.Date)
+	inclusive := true
 
-	olderDocsQuery := bleve.NewNumericRangeQuery(nil, &dateLimit)
+	olderDocsQuery := bleve.NewNumericRangeInclusiveQuery(nil, &dateLimit, nil, &inclusive)
 	// we don't want to include date as part of the score
 	olderDocsQuery.SetBoost(0)
 	olderDocsQuery.SetField("Publication.Date")
-	olderResults, err := b.dateRangeResult(bqOlder, olderDocsQuery, authorsCompoundQuery, "-Publication.Date", quantity)
+	olderResults, err := b.dateRangeResult(bqOlder, olderDocsQuery, "-Publication.Date", quantity)
 	if err != nil {
 		return []Document{}, err
 	}
 
-	newerDocsQuery := bleve.NewNumericRangeQuery(&dateLimit, nil)
+	newerDocsQuery := bleve.NewNumericRangeInclusiveQuery(&dateLimit, nil, &inclusive, nil)
 	newerDocsQuery.SetBoost(0)
 	newerDocsQuery.SetField("Publication.Date")
-	newerResults, err := b.dateRangeResult(bqNewer, newerDocsQuery, authorsCompoundQuery, "Publication.Date", quantity)
+	newerResults, err := b.dateRangeResult(bqNewer, newerDocsQuery, "Publication.Date", quantity)
 	if err != nil {
 		return []Document{}, err
 	}
 
-	fmt.Println("newer")
-	for i := range newerResults {
-		fmt.Println(newerResults[i].Fields["Title"].(string), newerResults[i].Score)
-	}
-	fmt.Println("older")
-	for i := range olderResults {
-		fmt.Println(olderResults[i].Fields["Title"].(string), olderResults[i].Score)
-	}
 	return b.sortByTempDistance(doc, newerResults, olderResults, quantity)
 }
 
-func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, rangeQuery *query.NumericRangeQuery, authorsCompoundQuery *query.DisjunctionQuery, dateSort string, quantity int) ([]*search.DocumentMatch, error) {
+func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, rangeQuery *query.NumericRangeQuery, dateSort string, quantity int) ([]*search.DocumentMatch, error) {
 	var err error
 	query.AddMust(rangeQuery)
 
 	resultSet := make([]*search.DocumentMatch, 0, quantity)
-	//for range quantity {
 	searchOptions := bleve.NewSearchRequestOptions(query, 4, 0, false)
 	searchOptions.SortBy([]string{"-_score", dateSort})
 	searchOptions.Fields = []string{"*"}
 	current, err := b.idx.Search(searchOptions)
-
-	//current, err := b.runQuery(query, 1, []string{"-_score", dateSort})
 	if err != nil {
 		return resultSet, err
 	}
@@ -106,71 +94,76 @@ func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, rangeQuery *qu
 		return resultSet, nil
 	}
 
-	resultSet = append(resultSet, current.Hits...)
-	/*
-		for _, slug := range slicer(current.Hits[0].Fields["AuthorsSlugs"]) {
-			qa := bleve.NewTermQuery(slug)
-			qa.SetField("AuthorsSlugs")
-			authorsCompoundQuery.AddQuery(qa)
-		}
-		query.AddMustNot(authorsCompoundQuery)
-	*/
-	//}
-
-	return resultSet, err
+	return append(resultSet, current.Hits...), nil
 }
 
-func (b *BleveIndexer) sortByTempDistance(referenceDoc Document, topResults, bottomResults []*search.DocumentMatch, quantity int) ([]Document, error) {
-	totalResults := len(topResults) + len(bottomResults)
+func (b *BleveIndexer) sortByTempDistance(referenceDoc Document, newerResults, olderResults []*search.DocumentMatch, quantity int) ([]Document, error) {
+	totalResults := len(newerResults) + len(olderResults)
 	if totalResults < quantity {
 		quantity = totalResults
 	}
 
 	docs := make([]Document, 0, quantity)
 
-	if len(topResults) == 0 || len(bottomResults) == 0 {
-		for _, doc := range bottomResults {
+	if len(newerResults) == 0 || len(olderResults) == 0 {
+		for _, doc := range olderResults {
 			docs = append(docs, hydrateDocument(doc))
 		}
-		for _, doc := range topResults {
+		for _, doc := range newerResults {
 			docs = append(docs, hydrateDocument(doc))
 		}
 		return docs, nil
 	}
 
-	topPos, bottomPos := 0, 0
+	newerPos, olderPos := 0, 0
 	for {
 		if len(docs) == quantity {
 			return docs, nil
 		}
-		if topResults[topPos].Score > bottomResults[bottomPos].Score {
-			docs = append(docs, hydrateDocument(topResults[topPos]))
-			topPos++
+
+		if len(newerResults) == newerPos {
+			for _, doc := range olderResults[olderPos:] {
+				docs = append(docs, hydrateDocument(doc))
+			}
+			return docs, nil
+		}
+
+		if len(olderResults) == olderPos {
+			for _, doc := range newerResults[newerPos:] {
+				docs = append(docs, hydrateDocument(doc))
+			}
+			return docs, nil
+		}
+
+		if newerResults[newerPos].Score > olderResults[olderPos].Score {
+			docs = append(docs, hydrateDocument(newerResults[newerPos]))
+			newerPos++
 			continue
 		}
-		if bottomResults[bottomPos].Score > topResults[topPos].Score {
-			docs = append(docs, hydrateDocument(bottomResults[bottomPos]))
-			bottomPos++
+		if olderResults[olderPos].Score > newerResults[newerPos].Score {
+			docs = append(docs, hydrateDocument(olderResults[olderPos]))
+			olderPos++
 			continue
 		}
 
-		topDoc := hydrateDocument(topResults[topPos])
-		bottomDoc := hydrateDocument(bottomResults[bottomPos])
+		newerDoc := hydrateDocument(newerResults[newerPos])
+		newerDocTempDistance := newerDoc.Publication.Date - referenceDoc.Publication.Date
+		if newerDocTempDistance < 0 {
+			newerDocTempDistance = -newerDocTempDistance
+		}
 
-		topDocTempDistance := topDoc.Publication.Date.Year() - referenceDoc.Publication.Date.Year()
-		if topDocTempDistance < 0 {
-			topDocTempDistance = -topDocTempDistance
+		OlderDoc := hydrateDocument(olderResults[olderPos])
+		olderDocTempDistance := OlderDoc.Publication.Date - referenceDoc.Publication.Date
+		if olderDocTempDistance < 0 {
+			olderDocTempDistance = -olderDocTempDistance
 		}
-		bottomDocTempDistance := bottomDoc.Publication.Date.Year() - referenceDoc.Publication.Date.Year()
-		if bottomDocTempDistance < 0 {
-			bottomDocTempDistance = -bottomDocTempDistance
-		}
-		if topDocTempDistance < bottomDocTempDistance {
-			docs = append(docs, topDoc)
-			topPos++
+
+		if newerDocTempDistance < olderDocTempDistance {
+			docs = append(docs, newerDoc)
+			newerPos++
 		} else {
-			docs = append(docs, bottomDoc)
-			bottomPos++
+			docs = append(docs, OlderDoc)
+			olderPos++
 		}
 	}
 }
