@@ -6,7 +6,7 @@ import (
 	"github.com/blevesearch/bleve/v2/search/query"
 )
 
-// SameSubjects returns an array of metadata of documents by other authors, different between each other,
+// SameSubjects returns an array of metadata of documents by other authors,
 // which have similar subjects as the passed one and does not belong to the same collection
 // They are sorted by subjects matching and date, the closest to the publishing date of the reference document first
 func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, error) {
@@ -56,10 +56,9 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	bqOlder.AddMust(typeQuery)
 
 	dateLimit := float64(doc.Publication.Date)
-	inclusive := true
 
-	olderDocsQuery := bleve.NewNumericRangeInclusiveQuery(nil, &dateLimit, nil, &inclusive)
-	// we don't want to include date as part of the score
+	olderDocsQuery := bleve.NewNumericRangeQuery(nil, &dateLimit)
+	// we don't want to include date in the score calculation
 	olderDocsQuery.SetBoost(0)
 	olderDocsQuery.SetField("Publication.Date")
 	olderResults, err := b.dateRangeResult(bqOlder, olderDocsQuery, "-Publication.Date", quantity)
@@ -67,7 +66,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		return []Document{}, err
 	}
 
-	newerDocsQuery := bleve.NewNumericRangeInclusiveQuery(&dateLimit, nil, &inclusive, nil)
+	newerDocsQuery := bleve.NewNumericRangeQuery(&dateLimit, nil)
 	newerDocsQuery.SetBoost(0)
 	newerDocsQuery.SetField("Publication.Date")
 	newerResults, err := b.dateRangeResult(bqNewer, newerDocsQuery, "Publication.Date", quantity)
