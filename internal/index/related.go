@@ -24,6 +24,15 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 
 	dateLimit := float64(doc.Publication.Date)
 
+	if dateLimit == 0 {
+		bq := b.subjectsQuery(doc)
+		res, err := b.runQuery(bq, quantity, []string{"-_score"})
+		if err != nil {
+			return []Document{}, err
+		}
+		return res, nil
+	}
+
 	olderQuery := b.dateRangeSubjectsQuery(doc, nil, &dateLimit)
 	olderResults, err := b.dateRangeResult(olderQuery, "-Publication.Date", quantity)
 	if err != nil {
@@ -38,7 +47,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	return b.sortByTempDistance(float64(doc.Publication.Date), append(olderResults, newerResults...), quantity)
 }
 
-func (b *BleveIndexer) dateRangeSubjectsQuery(doc Document, minDate, maxDate *float64) *query.BooleanQuery {
+func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 	bq := bleve.NewBooleanQuery()
 	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
 
@@ -68,6 +77,12 @@ func (b *BleveIndexer) dateRangeSubjectsQuery(doc Document, minDate, maxDate *fl
 	typeQuery := bleve.NewTermQuery(TypeDocument)
 	typeQuery.SetField("Type")
 	bq.AddMust(typeQuery)
+
+	return bq
+}
+
+func (b *BleveIndexer) dateRangeSubjectsQuery(doc Document, minDate, maxDate *float64) *query.BooleanQuery {
+	bq := b.subjectsQuery(doc)
 
 	rangeQuery := bleve.NewNumericRangeQuery(minDate, maxDate)
 	// We set the boost to 0 to avoid it being used to calculate the score
