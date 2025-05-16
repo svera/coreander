@@ -4,6 +4,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
+	"github.com/rickb777/date/v2"
 )
 
 // SameSubjects returns an array of metadata of documents by other authors,
@@ -32,7 +33,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		return []Document{}, err
 	}
 
-	return b.sortByTempDistance(doc, newerResults, olderResults, quantity)
+	return b.sortByTempDistance(doc.Publication.Date, newerResults, olderResults, quantity)
 }
 
 func (b *BleveIndexer) dateRangeSubjectsQuery(doc Document, minDate, maxDate *float64) *query.BooleanQuery {
@@ -67,6 +68,7 @@ func (b *BleveIndexer) dateRangeSubjectsQuery(doc Document, minDate, maxDate *fl
 	bq.AddMust(typeQuery)
 
 	rangeQuery := bleve.NewNumericRangeQuery(minDate, maxDate)
+	// We set the boost to 0 to avoid it being used to calculate the score
 	rangeQuery.SetBoost(0)
 	rangeQuery.SetField("Publication.Date")
 	bq.AddMust(rangeQuery)
@@ -92,7 +94,7 @@ func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, dateSort strin
 	return append(resultSet, current.Hits...), nil
 }
 
-func (b *BleveIndexer) sortByTempDistance(referenceDoc Document, newerResults, olderResults []*search.DocumentMatch, quantity int) ([]Document, error) {
+func (b *BleveIndexer) sortByTempDistance(referenceDate date.Date, newerResults, olderResults []*search.DocumentMatch, quantity int) ([]Document, error) {
 	totalResults := len(newerResults) + len(olderResults)
 	if totalResults < quantity {
 		quantity = totalResults
@@ -142,13 +144,13 @@ func (b *BleveIndexer) sortByTempDistance(referenceDoc Document, newerResults, o
 		}
 
 		newerDoc := hydrateDocument(newerResults[newerPos])
-		newerDocTempDistance := newerDoc.Publication.Date - referenceDoc.Publication.Date
+		newerDocTempDistance := newerDoc.Publication.Date - referenceDate
 		if newerDocTempDistance < 0 {
 			newerDocTempDistance = -newerDocTempDistance
 		}
 
 		OlderDoc := hydrateDocument(olderResults[olderPos])
-		olderDocTempDistance := OlderDoc.Publication.Date - referenceDoc.Publication.Date
+		olderDocTempDistance := OlderDoc.Publication.Date - referenceDate
 		if olderDocTempDistance < 0 {
 			olderDocTempDistance = -olderDocTempDistance
 		}
