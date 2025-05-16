@@ -19,8 +19,24 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		return []Document{}, err
 	}
 
-	bqNewer := bleve.NewBooleanQuery()
-	bqOlder := bleve.NewBooleanQuery()
+	dateLimit := float64(doc.Publication.Date)
+
+	olderQuery := b.dateRangeSubjectsQuery(doc, nil, &dateLimit)
+	olderResults, err := b.dateRangeResult(olderQuery, "-Publication.Date", quantity)
+	if err != nil {
+		return []Document{}, err
+	}
+	newerQuery := b.dateRangeSubjectsQuery(doc, &dateLimit, nil)
+	newerResults, err := b.dateRangeResult(newerQuery, "Publication.Date", quantity)
+	if err != nil {
+		return []Document{}, err
+	}
+
+	return b.sortByTempDistance(doc, newerResults, olderResults, quantity)
+}
+
+func (b *BleveIndexer) dateRangeSubjectsQuery(doc Document, minDate, maxDate *float64) *query.BooleanQuery {
+	bq := bleve.NewBooleanQuery()
 	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
 
 	for _, slug := range doc.SubjectsSlugs {
@@ -32,14 +48,11 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	if doc.SeriesSlug != "" {
 		sq := bleve.NewTermQuery(doc.SeriesSlug)
 		sq.SetField("SeriesSlug")
-		bqNewer.AddMustNot(sq)
-		bqOlder.AddMustNot(sq)
+		bq.AddMustNot(sq)
 	}
 
-	bqNewer.AddMust(subjectsCompoundQuery)
-	bqNewer.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
-	bqOlder.AddMust(subjectsCompoundQuery)
-	bqOlder.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
+	bq.AddMust(subjectsCompoundQuery)
+	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
 
 	authorsCompoundQuery := bleve.NewDisjunctionQuery()
 	for _, slug := range doc.AuthorsSlugs {
@@ -47,39 +60,22 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		qa.SetField("AuthorsSlugs")
 		authorsCompoundQuery.AddQuery(qa)
 	}
-	bqNewer.AddMustNot(authorsCompoundQuery)
-	bqOlder.AddMustNot(authorsCompoundQuery)
+	bq.AddMustNot(authorsCompoundQuery)
 
 	typeQuery := bleve.NewTermQuery(TypeDocument)
 	typeQuery.SetField("Type")
-	bqNewer.AddMust(typeQuery)
-	bqOlder.AddMust(typeQuery)
+	bq.AddMust(typeQuery)
 
-	dateLimit := float64(doc.Publication.Date)
+	rangeQuery := bleve.NewNumericRangeQuery(minDate, maxDate)
+	rangeQuery.SetBoost(0)
+	rangeQuery.SetField("Publication.Date")
+	bq.AddMust(rangeQuery)
 
-	olderDocsQuery := bleve.NewNumericRangeQuery(nil, &dateLimit)
-	// we don't want to include date in the score calculation
-	olderDocsQuery.SetBoost(0)
-	olderDocsQuery.SetField("Publication.Date")
-	olderResults, err := b.dateRangeResult(bqOlder, olderDocsQuery, "-Publication.Date", quantity)
-	if err != nil {
-		return []Document{}, err
-	}
-
-	newerDocsQuery := bleve.NewNumericRangeQuery(&dateLimit, nil)
-	newerDocsQuery.SetBoost(0)
-	newerDocsQuery.SetField("Publication.Date")
-	newerResults, err := b.dateRangeResult(bqNewer, newerDocsQuery, "Publication.Date", quantity)
-	if err != nil {
-		return []Document{}, err
-	}
-
-	return b.sortByTempDistance(doc, newerResults, olderResults, quantity)
+	return bq
 }
 
-func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, rangeQuery *query.NumericRangeQuery, dateSort string, quantity int) ([]*search.DocumentMatch, error) {
+func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, dateSort string, quantity int) ([]*search.DocumentMatch, error) {
 	var err error
-	query.AddMust(rangeQuery)
 
 	resultSet := make([]*search.DocumentMatch, 0, quantity)
 	searchOptions := bleve.NewSearchRequestOptions(query, 4, 0, false)
