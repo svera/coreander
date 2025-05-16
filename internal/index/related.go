@@ -1,10 +1,12 @@
 package index
 
 import (
+	"math"
+	"sort"
+
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
-	"github.com/rickb777/date/v2"
 )
 
 // SameSubjects returns an array of metadata of documents by other authors,
@@ -17,7 +19,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	}
 
 	if len(doc.Subjects) == 0 {
-		return []Document{}, err
+		return []Document{}, nil
 	}
 
 	dateLimit := float64(doc.Publication.Date)
@@ -33,7 +35,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		return []Document{}, err
 	}
 
-	return b.sortByTempDistance(doc.Publication.Date, newerResults, olderResults, quantity)
+	return b.sortByTempDistance(float64(doc.Publication.Date), append(olderResults, newerResults...), quantity)
 }
 
 func (b *BleveIndexer) dateRangeSubjectsQuery(doc Document, minDate, maxDate *float64) *query.BooleanQuery {
@@ -76,93 +78,47 @@ func (b *BleveIndexer) dateRangeSubjectsQuery(doc Document, minDate, maxDate *fl
 	return bq
 }
 
-func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, dateSort string, quantity int) ([]*search.DocumentMatch, error) {
-	var err error
-
-	resultSet := make([]*search.DocumentMatch, 0, quantity)
-	searchOptions := bleve.NewSearchRequestOptions(query, 4, 0, false)
+func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, dateSort string, quantity int) (search.DocumentMatchCollection, error) {
+	searchOptions := bleve.NewSearchRequestOptions(query, quantity, 0, false)
 	searchOptions.SortBy([]string{"-_score", dateSort})
 	searchOptions.Fields = []string{"*"}
-	current, err := b.idx.Search(searchOptions)
+	result, err := b.idx.Search(searchOptions)
 	if err != nil {
-		return resultSet, err
-	}
-	if current.Total == 0 {
-		return resultSet, nil
+		return nil, err
 	}
 
-	return append(resultSet, current.Hits...), nil
+	return result.Hits, nil
 }
 
-func (b *BleveIndexer) sortByTempDistance(referenceDate date.Date, newerResults, olderResults []*search.DocumentMatch, quantity int) ([]Document, error) {
-	totalResults := len(newerResults) + len(olderResults)
-	if totalResults < quantity {
-		quantity = totalResults
+func (b *BleveIndexer) sortByTempDistance(referenceDate float64, results search.DocumentMatchCollection, quantity int) ([]Document, error) {
+	if len(results) < quantity {
+		quantity = len(results)
 	}
+
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Score != results[j].Score {
+			return results[i].Score > results[j].Score
+		}
+
+		return distanceToDate(referenceDate, results[i]) < distanceToDate(referenceDate, results[j])
+	})
 
 	docs := make([]Document, 0, quantity)
 
-	if len(newerResults) == 0 || len(olderResults) == 0 {
-		for _, doc := range olderResults {
-			docs = append(docs, hydrateDocument(doc))
-		}
-		for _, doc := range newerResults {
-			docs = append(docs, hydrateDocument(doc))
-		}
-		return docs, nil
+	for i := range quantity {
+		docs = append(docs, hydrateDocument(results[i]))
 	}
 
-	newerPos, olderPos := 0, 0
-	for {
-		if len(docs) == quantity {
-			return docs, nil
-		}
+	return docs, nil
+}
 
-		if len(newerResults) == newerPos {
-			for _, doc := range olderResults[olderPos:] {
-				docs = append(docs, hydrateDocument(doc))
-			}
-			return docs, nil
-		}
+func distanceToDate(referenceDate float64, match *search.DocumentMatch) float64 {
+	var date float64
 
-		if len(olderResults) == olderPos {
-			for _, doc := range newerResults[newerPos:] {
-				docs = append(docs, hydrateDocument(doc))
-			}
-			return docs, nil
-		}
-
-		if newerResults[newerPos].Score > olderResults[olderPos].Score {
-			docs = append(docs, hydrateDocument(newerResults[newerPos]))
-			newerPos++
-			continue
-		}
-		if olderResults[olderPos].Score > newerResults[newerPos].Score {
-			docs = append(docs, hydrateDocument(olderResults[olderPos]))
-			olderPos++
-			continue
-		}
-
-		newerDoc := hydrateDocument(newerResults[newerPos])
-		newerDocTempDistance := newerDoc.Publication.Date - referenceDate
-		if newerDocTempDistance < 0 {
-			newerDocTempDistance = -newerDocTempDistance
-		}
-
-		OlderDoc := hydrateDocument(olderResults[olderPos])
-		olderDocTempDistance := OlderDoc.Publication.Date - referenceDate
-		if olderDocTempDistance < 0 {
-			olderDocTempDistance = -olderDocTempDistance
-		}
-
-		if newerDocTempDistance < olderDocTempDistance {
-			docs = append(docs, newerDoc)
-			newerPos++
-		} else {
-			docs = append(docs, OlderDoc)
-			olderPos++
-		}
+	if match.Fields["Publication.Date"] != nil {
+		date = match.Fields["Publication.Date"].(float64)
 	}
+	return math.Abs(date - referenceDate)
 }
 
 // SameAuthors returns an array of metadata of documents by the same authors which
