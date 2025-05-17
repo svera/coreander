@@ -1,0 +1,14 @@
+<h2 class="text-center">{{t .Lang "Collection \"%s\"" .Title}}</h2>
+{{template "partials/docs-list-placeholder" .}}
+
+<div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
+    {{ template "partials/docs-list" . }}
+</div>
+
+{{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
+
+<script type="module" src="/js/send-email.js"></script>
+<script type="module" src="/js/delete.js"></script>
+<script type="module" src="/js/highlight.js"></script>
+<script type="module" src="/js/cover.js"></script>
+<script type="module" src="/js/datetime.js"></script>
