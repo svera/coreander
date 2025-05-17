@@ -29,7 +29,7 @@
                         {{ if ne $document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
                         $document.Series}}
                         <p class="text-start text-muted text-uppercase mb-0"><a
-                                href="/documents?search=SeriesSlug&colon;{{$document.SeriesSlug}}"
+                                href="/series/{{$document.SeriesSlug}}"
                                 title={{$seriesTitle}}>{{$document.Series}}{{ if ne $document.SeriesIndex 0.0 }} {{$document.SeriesIndex}}{{end}}</a></p>
                         {{ end }}
                         <h4 class="text-start">
