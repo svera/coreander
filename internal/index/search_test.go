@@ -15,7 +15,7 @@ import (
 )
 
 func TestIndexAndSearch(t *testing.T) {
-	for _, tcase := range testCases() {
+	for _, tcase := range testIndexAndSearchCases() {
 		t.Run(tcase.name, func(t *testing.T) {
 			indexMem, err := bleve.NewMemOnly(index.CreateMapping())
 			if err != nil {
@@ -62,7 +62,7 @@ type testCase struct {
 	expectedResult result.Paginated[[]index.Document]
 }
 
-func testCases() []testCase {
+func testIndexAndSearchCases() []testCase {
 	return []testCase{
 		{
 			"Look for a term without accent must return accented results",
