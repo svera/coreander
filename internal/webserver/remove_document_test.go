@@ -65,10 +65,6 @@ func TestRemoveDocument(t *testing.T) {
 				t.Fatalf("Unexpected error: %v", err.Error())
 			}
 
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err.Error())
-			}
-
 			if tcase.expectedHTTPStatus == http.StatusOK {
 				if _, err := appFS.Stat(tcase.file); !os.IsNotExist(err) {
 					t.Errorf("Expected 'file not exist' error when trying to access a file that should have been removed")

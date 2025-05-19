@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	"github.com/google/uuid"
@@ -20,12 +21,16 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 		log.Printf("Created database at %s\n", path)
 	}
 
-	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("%s?_pragma=foreign_keys(1)", path)), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("%s?_pragma=foreign_keys(1)", path)), &gorm.Config{
+		NowFunc: func() time.Time {
+			return time.Now().UTC()
+		},
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := db.AutoMigrate(&model.User{}, &model.Highlight{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Highlight{}, &model.Progress{}); err != nil {
 		log.Fatal(err)
 	}
 	addDefaultAdmin(db, wordsPerMinute)

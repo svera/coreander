@@ -35,6 +35,10 @@ type highlightsRepository interface {
 	RemoveDocument(documentPath string) error
 }
 
+type readingRepository interface {
+	Update(userID int, documentPath string) error
+}
+
 type Config struct {
 	WordsPerMinute        float64
 	LibraryPath           string
@@ -46,21 +50,23 @@ type Config struct {
 }
 
 type Controller struct {
-	hlRepository    highlightsRepository
-	idx             IdxReaderWriter
-	sender          Sender
-	config          Config
-	metadataReaders map[string]metadata.Reader
-	appFs           afero.Fs
+	hlRepository      highlightsRepository
+	readingRepository readingRepository
+	idx               IdxReaderWriter
+	sender            Sender
+	config            Config
+	metadataReaders   map[string]metadata.Reader
+	appFs             afero.Fs
 }
 
-func NewController(hlRepository highlightsRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config) *Controller {
+func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config) *Controller {
 	return &Controller{
-		hlRepository:    hlRepository,
-		idx:             idx,
-		sender:          sender,
-		config:          cfg,
-		metadataReaders: metadataReaders,
-		appFs:           appFs,
+		hlRepository:      hlRepository,
+		readingRepository: readingRepository,
+		idx:               idx,
+		sender:            sender,
+		config:            cfg,
+		metadataReaders:   metadataReaders,
+		appFs:             appFs,
 	}
 }
