@@ -46,8 +46,9 @@ func TestDocumentDetail(t *testing.T) {
 
 func TestDocumentRead(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
+	appFS := loadFilesInMemoryFs([]string{"fixtures/library/quijote.epub"})
 	smtpMock := &infrastructure.SMTPMock{}
-	app := bootstrapApp(db, smtpMock, afero.NewOsFs(), webserver.Config{})
+	app := bootstrapApp(db, smtpMock, appFS, webserver.Config{})
 
 	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
@@ -58,13 +59,13 @@ func TestDocumentRead(t *testing.T) {
 		url            string
 		expectedStatus int
 	}{
-		{"/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/read", http.StatusOK},
-		{"/documents/john-doe-non-existing-document/read", http.StatusNotFound},
+		{"/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
+		{"/documents/john-doe-non-existing-document", http.StatusNotFound},
 	}
 
 	for _, tcase := range cases {
 		t.Run(tcase.url, func(t *testing.T) {
-			req, err := http.NewRequest(http.MethodGet, tcase.url, nil)
+			req, err := http.NewRequest(http.MethodGet, tcase.url+"/read", nil)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())
 			}
@@ -85,8 +86,11 @@ func TestDocumentRead(t *testing.T) {
 				t.Errorf("Expected to have a resume reading section in home")
 			}
 
-			if _, err = deleteRequest(url.Values{}, adminCookie, app, tcase.url, t); err != nil {
+			if response, err = deleteRequest(url.Values{}, adminCookie, app, tcase.url, t); err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())
+			}
+			if response.StatusCode != http.StatusOK {
+				t.Errorf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
 			}
 
 			if isProgressSectionShownInHome(t, app, adminCookie) {
