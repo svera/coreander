@@ -24,7 +24,7 @@ func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage in
 	}
 	u.DB.Table("highlights").Where("user_id = ?", userID).Count(&total)
 
-	return result.NewPaginated[[]string](
+	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(total),
@@ -51,7 +51,7 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 		documents[i].Highlighted = slices.Contains(highlights, doc.ID)
 	}
 
-	return result.NewPaginated[[]index.Document](
+	return result.NewPaginated(
 		ResultsPerPage,
 		results.Page(),
 		results.TotalHits(),

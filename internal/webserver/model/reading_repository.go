@@ -16,13 +16,13 @@ func (u *ReadingRepository) List(userID int, page int, resultsPerPage int) (resu
 	docs := []string{}
 	var total int64
 
-	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("progress").Select("path").Where("user_id = ?", userID).Order("updated_at DESC").Pluck("path", &docs)
+	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("readings").Select("path").Where("user_id = ?", userID).Order("updated_at DESC").Pluck("path", &docs)
 	if res.Error != nil {
 		log.Printf("error listing documents in progress: %s\n", res.Error)
 	}
-	u.DB.Table("progress").Where("user_id = ?", userID).Count(&total)
+	u.DB.Table("readings").Where("user_id = ?", userID).Count(&total)
 
-	return result.NewPaginated[[]string](
+	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(total),
@@ -31,7 +31,7 @@ func (u *ReadingRepository) List(userID int, page int, resultsPerPage int) (resu
 }
 
 func (u *ReadingRepository) Update(userID int, documentPath string) error {
-	progress := Progress{
+	progress := Reading{
 		UserID: userID,
 		Path:   documentPath,
 	}
