@@ -8,7 +8,7 @@ require (
 	github.com/blevesearch/bleve/v2 v2.5.1
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/glebarez/sqlite v1.11.0
-	github.com/gofiber/fiber/v2 v2.52.6
+	github.com/gofiber/fiber/v2 v2.52.7
 	github.com/gofiber/jwt/v3 v3.3.10
 	github.com/gofiber/template/html/v2 v2.1.3
 	github.com/golang-jwt/jwt/v4 v4.5.2
