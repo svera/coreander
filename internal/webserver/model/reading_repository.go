@@ -37,3 +37,7 @@ func (u *ReadingRepository) Update(userID int, documentPath string) error {
 	}
 	return u.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(&progress).Error
 }
+
+func (u *ReadingRepository) RemoveDocument(documentPath string) error {
+	return u.DB.Where("path = ?", documentPath).Delete(&Reading{}).Error
+}

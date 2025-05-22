@@ -1,8 +1,8 @@
-# ![Coreander logo](readme-header.png)
+# ![Coreander logo](assets/readme-header.png)
 
 A personal documents server, Coreander indexes the documents (EPUBs and PDFs with no DRM) that it finds in the passed folder, and provides a web interface to search and access them.
 
-![Coreander home](home.png)
+![Coreander home](assets/home.png)
 *Coreander home*
 
 ## Features
@@ -27,7 +27,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 Binaries for Windows 64 bit, Linux 32 and 64 bits for both X86 and ARM (Raspberry Pi and other SBCs) and Macs with Intel and Apple processors are available at [releases](https://github.com/svera/coreander/releases/latest). Just download and unzip the one appropriate for your system.
 
 ### Building from source
-Coreander's only requirement is Go >= 1.24.1.
+Coreander's only requirement is the Go compiler. The minimum required Go version is stated in the [`go.mod`](go.mod) file.
 
 When cloning Coreander's repository, use Git's `--recurse-submodules` flag to also retrieve `foliate-js` contents as well, which is required for the reader component:
 
@@ -148,9 +148,9 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 
 ## Screenshots
 
-![Search results](search-results.png)
+![Search results](assets/search-results.png)
 *Search results*
-![Document detail in dark mode](doc-detail.png)
+![Document detail in dark mode](assets/doc-detail.png)
 *Document detail in dark mode*
-![Reading interface](reading.png)
+![Reading interface](assets/reading.png)
 *Reading interface*

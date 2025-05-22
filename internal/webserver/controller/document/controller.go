@@ -37,6 +37,7 @@ type highlightsRepository interface {
 
 type readingRepository interface {
 	Update(userID int, documentPath string) error
+	RemoveDocument(documentPath string) error
 }
 
 type Config struct {
