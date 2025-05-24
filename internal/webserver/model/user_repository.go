@@ -20,14 +20,15 @@ func (u *UserRepository) List(page int, resultsPerPage int) (result.Paginated[[]
 	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Order("email ASC").Find(&users)
 	if res.Error != nil {
 		log.Printf("error listing users: %s\n", res.Error)
+		return result.Paginated[[]User]{}, res.Error
 	}
 
-	return result.NewPaginated[[]User](
+	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(u.Total()),
 		users,
-	), res.Error
+	), nil
 }
 
 func (u *UserRepository) Total() int64 {
