@@ -44,14 +44,15 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
+	if searchResults.TotalHits() == 0 {
+		return fiber.ErrNotFound
+	}
+
 	if session.ID > 0 {
 		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
-	title := ""
-	if searchResults.TotalHits() > 0 {
-		title = searchResults.Hits()[0].Series
-	}
+	title := searchResults.Hits()[0].Series
 
 	templateVars := fiber.Map{
 		"Results":                searchResults,
