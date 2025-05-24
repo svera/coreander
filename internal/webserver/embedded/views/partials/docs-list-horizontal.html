@@ -1,21 +1,21 @@
-    <div class="row border-bottom mb-3 d-flex align-items-center">
-        <div class="col-9">
-            <h2>{{ t .Lang .Title }}</h2>
-        </div>
+<div class="row border-bottom mb-3 d-flex align-items-center">
+    <div class="col-9">
+        <h2>{{ t .Lang .Title }}</h2>
     </div>
+</div>
 
-    <div class="row pe-0 align-items-end">
-        {{$lang := .Lang}}
-        {{$emailSendingConfigured := .EmailSendingConfigured}}
-        {{$session := .Session}}
-        {{$emailFrom := .EmailFrom}}
+<div class="row pe-0 align-items-end">
+    {{$lang := .Lang}}
+    {{$emailSendingConfigured := .EmailSendingConfigured}}
+    {{$session := .Session}}
+    {{$emailFrom := .EmailFrom}}
 
-        {{range $i, $doc := .Reading}}
-        <div class="col-6 col-md-4 col-lg-3 col-xl-2 pe-0">
-            <div class="card border border-0">
-                {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session}}
-            </div>
-            {{template "partials/actions" dict "Lang" $lang "Document" $doc "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom}}
+    {{range $i, $doc := .Reading}}
+    <div class="col-6 col-md-4 col-lg-3 col-xl-2 pe-0">
+        <div class="card border border-0">
+            {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session}}
         </div>
-        {{end}}
+        {{template "partials/actions" dict "Lang" $lang "Document" $doc "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom}}
     </div>
+    {{end}}
+</div>
