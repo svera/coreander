@@ -12,7 +12,7 @@ type ReadingRepository struct {
 	DB *gorm.DB
 }
 
-func (u *ReadingRepository) List(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error) {
+func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error) {
 	docs := []string{}
 	var total int64
 

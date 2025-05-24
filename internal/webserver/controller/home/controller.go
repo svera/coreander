@@ -22,7 +22,7 @@ type highlightsRepository interface {
 }
 
 type readingRepository interface {
-	List(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
+	Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
 }
 
 type Config struct {

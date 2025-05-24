@@ -38,7 +38,7 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 			latestDocs[i] = d.hlRepository.Highlighted(int(session.ID), latestDocs[i])
 		}
 
-		readingList, err := d.readingRepository.List(int(session.ID), 1, d.config.LatestDocsLimit)
+		readingList, err := d.readingRepository.Latest(int(session.ID), 1, d.config.LatestDocsLimit)
 		if err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
