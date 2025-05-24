@@ -21,15 +21,16 @@ func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage in
 	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("highlights").Select("path").Where("user_id = ?", userID).Order("created_at DESC").Pluck("path", &highlights)
 	if res.Error != nil {
 		log.Printf("error listing highlights: %s\n", res.Error)
+		return result.Paginated[[]string]{}, res.Error
 	}
 	u.DB.Table("highlights").Where("user_id = ?", userID).Count(&total)
 
-	return result.NewPaginated[[]string](
+	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(total),
 		highlights,
-	), res.Error
+	), nil
 }
 
 func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document] {
@@ -51,7 +52,7 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 		documents[i].Highlighted = slices.Contains(highlights, doc.ID)
 	}
 
-	return result.NewPaginated[[]index.Document](
+	return result.NewPaginated(
 		ResultsPerPage,
 		results.Page(),
 		results.TotalHits(),

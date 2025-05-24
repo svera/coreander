@@ -2,6 +2,7 @@ package home
 
 import (
 	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/result"
 )
 
 type Sender interface {
@@ -20,6 +21,10 @@ type highlightsRepository interface {
 	Highlighted(userID int, doc index.Document) index.Document
 }
 
+type readingRepository interface {
+	Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
+}
+
 type Config struct {
 	LibraryPath     string
 	CoverMaxWidth   int
@@ -27,17 +32,19 @@ type Config struct {
 }
 
 type Controller struct {
-	hlRepository highlightsRepository
-	idx          IdxReaderWriter
-	sender       Sender
-	config       Config
+	hlRepository      highlightsRepository
+	readingRepository readingRepository
+	idx               IdxReaderWriter
+	sender            Sender
+	config            Config
 }
 
-func NewController(hlRepository highlightsRepository, sender Sender, idx IdxReaderWriter, cfg Config) *Controller {
+func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, cfg Config) *Controller {
 	return &Controller{
-		hlRepository: hlRepository,
-		idx:          idx,
-		sender:       sender,
-		config:       cfg,
+		hlRepository:      hlRepository,
+		readingRepository: readingRepository,
+		idx:               idx,
+		sender:            sender,
+		config:            cfg,
 	}
 }
