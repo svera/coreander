@@ -38,5 +38,9 @@ func (d *Controller) Delete(c *fiber.Ctx) error {
 		log.Printf("error removing file %s from highlights\n", document.ID)
 	}
 
+	if err := d.readingRepository.RemoveDocument(document.ID); err != nil {
+		log.Printf("error removing file %s from readings\n", document.ID)
+	}
+
 	return nil
 }
