@@ -253,7 +253,7 @@ func (b *BleveIndexer) SearchByAuthor(authorSlug string, page, resultsPerPage in
 	aq := bleve.NewTermQuery(authorSlug)
 	aq.SetField("AuthorsSlugs")
 
-	return b.runPaginatedQuery(aq, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+	return b.runPaginatedQuery(aq, page, resultsPerPage, []string{"Series", "SeriesIndex"})
 }
 
 func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
@@ -326,7 +326,7 @@ func (b *BleveIndexer) SearchBySeries(seriesSlug string, page, resultsPerPage in
 	aq := bleve.NewTermQuery(seriesSlug)
 	aq.SetField("SeriesSlug")
 
-	return b.runPaginatedQuery(aq, page, resultsPerPage, []string{"-_score", "SeriesIndex"})
+	return b.runPaginatedQuery(aq, page, resultsPerPage, []string{"SeriesIndex"})
 }
 
 func (b *BleveIndexer) LatestDocs(limit int) ([]Document, error) {

@@ -72,8 +72,7 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		return nil
 	}
 
-	err = c.Render("author/results", templateVars, "layout")
-	if err != nil {
+	if err = c.Render("author/results", templateVars, "layout"); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
