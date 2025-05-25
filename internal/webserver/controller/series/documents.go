@@ -1,4 +1,4 @@
-package author
+package series
 
 import (
 	"log"
@@ -28,9 +28,9 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 	}
 
 	var searchResults result.Paginated[[]index.Document]
-	authorSlug := c.Params("slug")
+	seriesSlug := c.Params("slug")
 
-	if authorSlug == "" {
+	if seriesSlug == "" {
 		return fiber.ErrBadRequest
 	}
 
@@ -39,25 +39,25 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	author, err := a.idx.Author(authorSlug, c.Locals("Lang").(string))
-	if err != nil {
-		log.Println(err)
-	}
-
-	if searchResults, err = a.idx.SearchByAuthor(authorSlug, page, model.ResultsPerPage); err != nil {
+	if searchResults, err = a.idx.SearchBySeries(seriesSlug, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
+	}
+
+	if searchResults.TotalHits() == 0 {
+		return fiber.ErrNotFound
 	}
 
 	if session.ID > 0 {
 		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
+	title := searchResults.Hits()[0].Series
+
 	templateVars := fiber.Map{
-		"Author":                 author,
 		"Results":                searchResults,
 		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, map[string]string{}),
-		"Title":                  author.Name,
+		"Title":                  title,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              a.sender.From(),
 		"WordsPerMinute":         a.config.WordsPerMinute,
@@ -72,7 +72,7 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if err = c.Render("author/results", templateVars, "layout"); err != nil {
+	if err = c.Render("series/results", templateVars, "layout"); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}

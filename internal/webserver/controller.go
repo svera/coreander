@@ -9,6 +9,7 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/controller/document"
 	"github.com/svera/coreander/v4/internal/webserver/controller/highlight"
 	"github.com/svera/coreander/v4/internal/webserver/controller/home"
+	"github.com/svera/coreander/v4/internal/webserver/controller/series"
 	"github.com/svera/coreander/v4/internal/webserver/controller/user"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"gorm.io/gorm"
@@ -21,6 +22,7 @@ type Controllers struct {
 	Documents  *document.Controller
 	Home       *home.Controller
 	Authors    *author.Controller
+	Series     *series.Controller
 }
 
 func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {
@@ -59,6 +61,10 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		AuthorImageMaxWidth: cfg.AuthorImageMaxWidth,
 	}
 
+	seriesCfg := series.Config{
+		WordsPerMinute: cfg.WordsPerMinute,
+	}
+
 	homeCfg := home.Config{
 		LibraryPath:     cfg.LibraryPath,
 		CoverMaxWidth:   cfg.CoverMaxWidth,
@@ -72,5 +78,5 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		Documents:  document.NewController(highlightsRepository, readingRepository, sender, idx, metadataReaders, appFs, documentsCfg),
 		Home:       home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),
 		Authors:    author.NewController(highlightsRepository, sender, idx, authorsCfg, dataSource, appFs),
-	}
+		Series:     series.NewController(highlightsRepository, sender, idx, seriesCfg, appFs)}
 }
