@@ -9,7 +9,7 @@
         <form action="/documents" class="d-flex justify-content-center flex-grow-1 pe-3" roles="search">
             <div class="input-group input-group-sm">
                 <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
-                <input type="search" name="search" id="searchbox" class="form-control" maxlength="255" required autofocus value="{{.Keywords}}" placeholder="{{t .Lang "Search"}}...">
+                <input type="search" name="search" id="searchbox" class="form-control" maxlength="255" required autofocus value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
                 <button class="btn btn-outline-secondary" type="submit"><i class="bi-search"></i></button>
             </div>
         </form>

@@ -51,17 +51,17 @@ func countFiles(dir string, fileSystem afero.Fs) (float64, error) {
 }
 
 // Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> documents, offset by <page>
-func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result.Paginated[[]Document], error) {
+func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
 	for _, prefix := range []string{"Authors:", "Series:", "Title:", "Subjects:", "\""} {
-		if strings.HasPrefix(strings.Trim(keywords, " "), prefix) {
-			query := bleve.NewQueryStringQuery(keywords)
+		if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
+			query := bleve.NewQueryStringQuery(searchFields.Keywords)
 
 			return b.runPaginatedQuery(query, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
 		}
 	}
 
 	for _, prefix := range []string{"AuthorsSlugs:", "SeriesSlug:", "SubjectsSlugs:"} {
-		unescaped, err := url.QueryUnescape(strings.TrimSpace(keywords))
+		unescaped, err := url.QueryUnescape(strings.TrimSpace(searchFields.Keywords))
 		if err != nil {
 			break
 		}
@@ -83,8 +83,24 @@ func (b *BleveIndexer) Search(keywords string, page, resultsPerPage int) (result
 	if err != nil {
 		return result.Paginated[[]Document]{}, err
 	}
-	compound := composeQuery(keywords, analyzers)
-	return b.runPaginatedQuery(compound, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+	query := composeQuery(searchFields.Keywords, analyzers)
+
+	if searchFields.PubDateFrom != 0 || searchFields.PubDateTo != 0 {
+		filtersQuery := bleve.NewConjunctionQuery(query)
+		minDate := float64(searchFields.PubDateFrom)
+		maxDate := float64(searchFields.PubDateTo)
+		q := bleve.NewNumericRangeQuery(
+			&minDate,
+			&maxDate,
+		)
+		q.SetField("Publication.Date")
+		filtersQuery.AddQuery(q)
+
+		return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+	}
+
+	return b.runPaginatedQuery(query, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+
 }
 
 func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {

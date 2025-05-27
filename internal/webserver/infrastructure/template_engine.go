@@ -55,6 +55,14 @@ func TemplateEngine(viewsFS fs.FS, printers map[string]*message.Printer) (*html.
 		return slug.Make(text)
 	})
 
+	engine.AddFunc("seq", func(min, max int) []int {
+		var Items []int
+		for i := min; i < max; i++ {
+			Items = append(Items, i)
+		}
+		return Items
+	})
+
 	return engine, nil
 }
 

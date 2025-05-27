@@ -58,7 +58,7 @@ type testCase struct {
 	name           string
 	filename       string
 	mockedMeta     *epub.Information
-	search         string
+	search         index.SearchFields
 	expectedResult result.Paginated[[]index.Document]
 }
 
@@ -85,7 +85,7 @@ func testIndexAndSearchCases() []testCase {
 					},
 				},
 			},
-			"perez",
+			index.SearchFields{Keywords: "perez"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -130,7 +130,7 @@ func testIndexAndSearchCases() []testCase {
 					},
 				},
 			},
-			"benoit",
+			index.SearchFields{Keywords: "benoit"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -175,7 +175,7 @@ func testIndexAndSearchCases() []testCase {
 					},
 				},
 			},
-			"clifford simak",
+			index.SearchFields{Keywords: "clifford simak"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -214,7 +214,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"en"},
 				Subject:     []string{},
 			},
-			"james ellroy",
+			index.SearchFields{Keywords: "james ellroy"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -252,7 +252,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"en"},
 				Subject:     []string{},
 			},
-			" james       ellroy ",
+			index.SearchFields{Keywords: " james       ellroy "},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -290,7 +290,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"es"},
 				Subject:     []string{"History", "Middle age"},
 			},
-			"guerrero",
+			index.SearchFields{Keywords: "guerrero"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -329,7 +329,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"it"},
 				Subject:     []string{"History", "Middle age"},
 			},
-			"fratello",
+			index.SearchFields{Keywords: "fratello"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -368,7 +368,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"es"},
 				Subject:     []string{"History", "Middle age"},
 			},
-			"infinito junco",
+			index.SearchFields{Keywords: "infinito junco"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -407,7 +407,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"es"},
 				Subject:     []string{"History", "WWII"},
 			},
-			"ultimos",
+			index.SearchFields{Keywords: "ultimos"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -446,7 +446,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"es"},
 				Subject:     []string{","},
 			},
-			"sin nombre",
+			index.SearchFields{Keywords: "sin nombre"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -485,7 +485,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"es"},
 				Subject:     []string{"History", "Middle age"},
 			},
-			"irene junco",
+			index.SearchFields{Keywords: "irene junco"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,

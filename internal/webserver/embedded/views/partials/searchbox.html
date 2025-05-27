@@ -3,7 +3,75 @@
         <form action="/documents">
             <div class="input-group mb-3 mt-5">
                 <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
-                <input type="search" name="search" id="searchbox" class="form-control form-control-lg" placeholder={{t .Lang "Search in %d documents" .Count}} maxlength="255" required autofocus value="{{.Keywords}}">
+                <input type="search" name="search" id="searchbox" class="form-control form-control-lg" placeholder={{t .Lang "Search in %d documents" .Count}} maxlength="255" autofocus value="{{.SearchFields.Keywords}}">
+                <!--<button class="btn btn-primary" type="submit">{{t .Lang "Search"}}</button>-->
+            </div>
+            <p class="opacity-75 text-end">
+                <small>
+                    <i class="bi-search me-2"></i>
+                    <a data-bs-toggle="collapse" href="#search-filters" aria-expanded="false">
+                        {{ t .Lang "Advanced search" }}
+                    </a>
+                </small>
+            </p>
+            <div class="collapse text-start" id="search-filters">
+                <div class="row pb-3">
+                    <fieldset>
+                        <legend>{{t .Lang "Published on"}}</legend>
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="form-label">{{t .Lang "From"}}</label>
+                                <div class="input-group input-group-sm">
+                                    <input class="form-control" type="number" name="pub-date-from-year" maxlength="4" placeholder='{{t .Lang "Year"}}'>
+                                    <select class="form-control" name="pub-date-from-month">
+                                        <option value="1">{{t .Lang "January"}}</option>
+                                        <option value="2">{{t .Lang "February"}}</option>
+                                        <option value="3">{{t .Lang "March"}}</option>
+                                        <option value="4">{{t .Lang "April"}}</option>
+                                        <option value="5">{{t .Lang "May"}}</option>
+                                        <option value="6">{{t .Lang "June"}}</option>
+                                        <option value="7">{{t .Lang "July"}}</option>
+                                        <option value="8">{{t .Lang "August"}}</option>
+                                        <option value="9">{{t .Lang "September"}}</option>
+                                        <option value="10">{{t .Lang "October"}}</option>
+                                        <option value="11">{{t .Lang "November"}}</option>
+                                        <option value="12">{{t .Lang "December"}}</option>
+                                    </select>
+                                    <select class="form-control" name="pub-date-from-day">
+                                        {{range $i := seq 1 32}}
+                                            <option value="{{$i}}">{{$i}}</option>
+                                        {{end}}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">{{t .Lang "To"}}</label>
+                                <div class="input-group input-group-sm">
+                                    <input class="form-control" type="number" name="pub-date-to-year" maxlength="4" placeholder='{{t .Lang "Year"}}'>
+                                    <select class="form-control" name="pub-date-to-month">
+                                        <option value="1">{{t .Lang "January"}}</option>
+                                        <option value="2">{{t .Lang "February"}}</option>
+                                        <option value="3">{{t .Lang "March"}}</option>
+                                        <option value="4">{{t .Lang "April"}}</option>
+                                        <option value="5">{{t .Lang "May"}}</option>
+                                        <option value="6">{{t .Lang "June"}}</option>
+                                        <option value="7">{{t .Lang "July"}}</option>
+                                        <option value="8">{{t .Lang "August"}}</option>
+                                        <option value="9">{{t .Lang "September"}}</option>
+                                        <option value="10">{{t .Lang "October"}}</option>
+                                        <option value="11">{{t .Lang "November"}}</option>
+                                        <option value="12">{{t .Lang "December"}}</option>
+                                    </select>
+                                    <select class="form-control" name="pub-date-to-day">
+                                        {{range $i := seq 1 32}}
+                                            <option value="{{$i}}">{{$i}}</option>
+                                        {{end}}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
                 <button class="btn btn-primary" type="submit">{{t .Lang "Search"}}</button>
             </div>
         </form>

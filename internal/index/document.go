@@ -3,8 +3,15 @@ package index
 import (
 	"time"
 
+	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v4/internal/metadata"
 )
+
+type SearchFields struct {
+	Keywords    string
+	PubDateFrom date.Date
+	PubDateTo   date.Date
+}
 
 type Document struct {
 	metadata.Metadata

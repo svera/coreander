@@ -1,10 +1,12 @@
 package document
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
@@ -28,9 +30,9 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	}
 
 	var searchResults result.Paginated[[]index.Document]
-	keywords := c.Query("search")
-
-	if keywords == "" {
+	searchFields, err := d.parseSearchQuery(c)
+	if err != nil {
+		log.Println(err)
 		return fiber.ErrBadRequest
 	}
 
@@ -39,7 +41,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	if searchResults, err = d.idx.Search(keywords, page, model.ResultsPerPage); err != nil {
+	if searchResults, err = d.idx.Search(searchFields, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
@@ -48,10 +50,12 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
+	queries := c.Queries()
+	delete(queries, "page")
 	templateVars := fiber.Map{
-		"Keywords":               keywords,
+		"SearchFields":           searchFields,
 		"Results":                searchResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, map[string]string{"search": keywords}),
+		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, queries),
 		"Title":                  "Search results",
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),
@@ -73,4 +77,36 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	}
 
 	return nil
+}
+
+func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) {
+	searchFields := index.SearchFields{
+		Keywords: c.Query("search"),
+	}
+
+	/*if searchFields.Keywords == "" {
+		return searchFields, fmt.Errorf("search keywords cannot be empty")
+	}*/
+
+	if c.Query("pub-date-from-year") != "" && c.Query("pub-date-from-month") != "" && c.Query("pub-date-from-day") != "" {
+		pubDateFrom, err := date.ParseISO(fmt.Sprintf("%04s-%02s-%02s", c.Query("pub-date-from-year"), c.Query("pub-date-from-month"), c.Query("pub-date-from-day")))
+		if err != nil {
+			return searchFields, err
+		}
+		searchFields.PubDateFrom = pubDateFrom
+	}
+
+	if c.Query("pub-date-to-year") != "" && c.Query("pub-date-to-month") != "" && c.Query("pub-date-to-day") != "" {
+		pubDateTo, err := date.ParseISO(fmt.Sprintf("%04s-%02s-%02s", c.Query("pub-date-to-year"), c.Query("pub-date-to-month"), c.Query("pub-date-to-day")))
+		if err != nil {
+			return searchFields, err
+		}
+		searchFields.PubDateTo = pubDateTo
+	}
+
+	if searchFields.PubDateTo != 0 && searchFields.PubDateFrom > searchFields.PubDateTo {
+		return searchFields, fmt.Errorf("publication date from cannot be later than publication date to")
+	}
+
+	return searchFields, nil
 }
