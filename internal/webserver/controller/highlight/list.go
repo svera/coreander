@@ -70,7 +70,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 
 	templateVars := fiber.Map{
 		"Results":                paginatedResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, paginatedResults, nil),
+		"Paginator":              view.Pagination(model.MaxPagesNavigator, paginatedResults, c.Queries()),
 		"Title":                  "Highlights",
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              h.sender.From(),

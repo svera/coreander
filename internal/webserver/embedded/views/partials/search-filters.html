@@ -1,0 +1,16 @@
+<div class="row pb-3">
+    <fieldset>
+        <legend>{{t .Lang "Published on"}}</legend>
+        <div class="row">
+            <div class="col-6">
+                <label class="form-label">{{t .Lang "From"}}</label>
+                {{template "partials/date-control" dict "Name" "pub-date-from" "Lang" .Lang "Date" .SearchFields.PubDateFrom }}
+            </div>
+            <div class="col-6">
+                <label class="form-label">{{t .Lang "To"}}</label>
+                {{template "partials/date-control" dict "Name" "pub-date-to" "Lang" .Lang "Date" .SearchFields.PubDateTo }}
+            </div>
+        </div>
+    </fieldset>
+</div>
+<script type="module" src="/js/search-filters.js"></script>

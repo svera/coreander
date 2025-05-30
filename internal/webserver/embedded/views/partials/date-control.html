@@ -1,0 +1,41 @@
+{{define "year"}}
+<input class="form-control input-year" type="number" id="{{.Name}}-year" maxlength="4" max="2999" placeholder='{{t .Lang "Year"}}' value="{{.Date.Year}}">
+{{end}}
+
+{{define "month"}}
+<select class="form-control input-month" id="{{.Name}}-month">
+    <option value="01">{{t .Lang "January"}}</option>
+    <option value="02">{{t .Lang "February"}}</option>
+    <option value="03">{{t .Lang "March"}}</option>
+    <option value="04">{{t .Lang "April"}}</option>
+    <option value="05">{{t .Lang "May"}}</option>
+    <option value="06">{{t .Lang "June"}}</option>
+    <option value="07">{{t .Lang "July"}}</option>
+    <option value="08">{{t .Lang "August"}}</option>
+    <option value="09">{{t .Lang "September"}}</option>
+    <option value="10">{{t .Lang "October"}}</option>
+    <option value="11">{{t .Lang "November"}}</option>
+    <option value="12">{{t .Lang "December"}}</option>
+</select>
+{{end}}
+
+{{define "day"}}
+<select class="form-control input-day" id="{{.Name}}-day">
+    {{range $i := seq 1 32}}
+        <option value="{{$i}}">{{$i}}</option>
+    {{end}}
+</select>
+{{end}}
+
+<div class="input-group input-group-sm date-control">
+{{if eq .Lang "en"}}
+    {{template "year" dict "Name" .Name "Lang" .Lang "Date" .Date}}
+    {{template "month" dict "Name" .Name "Lang" .Lang "Date" .Date}}
+    {{template "day" dict "Name" .Name "Lang" .Lang "Date" .Date}}
+{{else}}
+    {{template "day" dict "Name" .Name "Lang" .Lang "Date" .Date}}
+    {{template "month" dict "Name" .Name "Lang" .Lang "Date" .Date}}
+    {{template "year" dict "Name" .Name "Lang" .Lang "Date" .Date}}
+{{end}}
+    <input type="hidden" id="{{.Name}}" name="{{.Name}}" class="date" disabled />
+</div>

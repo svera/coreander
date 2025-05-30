@@ -50,43 +50,55 @@ func countFiles(dir string, fileSystem afero.Fs) (float64, error) {
 	return total, nil
 }
 
-// Search look for documents which match with the passed keywords. Returns a maximum <resultsPerPage> documents, offset by <page>
+// Search look for documents which match the passed keywords and filters.
+// Returns a maximum <resultsPerPage> documents, offset by <page>
 func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
-	for _, prefix := range []string{"Authors:", "Series:", "Title:", "Subjects:", "\""} {
-		if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
-			query := bleve.NewQueryStringQuery(searchFields.Keywords)
+	filtersQuery := bleve.NewConjunctionQuery()
 
-			return b.runPaginatedQuery(query, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+	if searchFields.Keywords != "" {
+		for _, prefix := range []string{"Authors:", "Series:", "Title:", "Subjects:", "\""} {
+			if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
+				query := bleve.NewQueryStringQuery(searchFields.Keywords)
+
+				return b.runPaginatedQuery(query, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+			}
 		}
-	}
 
-	for _, prefix := range []string{"AuthorsSlugs:", "SeriesSlug:", "SubjectsSlugs:"} {
-		unescaped, err := url.QueryUnescape(strings.TrimSpace(searchFields.Keywords))
+		for _, prefix := range []string{"AuthorsSlugs:", "SeriesSlug:", "SubjectsSlugs:"} {
+			unescaped, err := url.QueryUnescape(strings.TrimSpace(searchFields.Keywords))
+			if err != nil {
+				break
+			}
+			if !strings.HasPrefix(unescaped, prefix) {
+				continue
+			}
+			unescaped = strings.TrimPrefix(unescaped, prefix)
+			terms := strings.Split(unescaped, ",")
+			qb := bleve.NewDisjunctionQuery()
+			for _, term := range terms {
+				qs := bleve.NewTermQuery(term)
+				qs.SetField(strings.TrimSuffix(prefix, ":"))
+				qb.AddQuery(qs)
+			}
+			return b.runPaginatedQuery(qb, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+		}
+
+		analyzers, err := b.analyzers()
 		if err != nil {
-			break
+			return result.Paginated[[]Document]{}, err
 		}
-		if !strings.HasPrefix(unescaped, prefix) {
-			continue
-		}
-		unescaped = strings.TrimPrefix(unescaped, prefix)
-		terms := strings.Split(unescaped, ",")
-		qb := bleve.NewDisjunctionQuery()
-		for _, term := range terms {
-			qs := bleve.NewTermQuery(term)
-			qs.SetField(strings.TrimSuffix(prefix, ":"))
-			qb.AddQuery(qs)
-		}
-		return b.runPaginatedQuery(qb, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+
+		query := composeQuery(searchFields.Keywords, analyzers)
+		filtersQuery.AddQuery(query)
 	}
 
-	analyzers, err := b.analyzers()
-	if err != nil {
-		return result.Paginated[[]Document]{}, err
-	}
-	query := composeQuery(searchFields.Keywords, analyzers)
+	addFilters(searchFields, filtersQuery)
 
+	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+}
+
+func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
 	if searchFields.PubDateFrom != 0 || searchFields.PubDateTo != 0 {
-		filtersQuery := bleve.NewConjunctionQuery(query)
 		minDate := float64(searchFields.PubDateFrom)
 		maxDate := float64(searchFields.PubDateTo)
 		q := bleve.NewNumericRangeQuery(
@@ -95,12 +107,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		)
 		q.SetField("Publication.Date")
 		filtersQuery.AddQuery(q)
-
-		return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
 	}
-
-	return b.runPaginatedQuery(query, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
-
 }
 
 func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {

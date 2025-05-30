@@ -20,7 +20,7 @@ func (u *Controller) List(c *fiber.Ctx) error {
 	templateVars := fiber.Map{
 		"Title":     "Users",
 		"Users":     users.Hits(),
-		"Paginator": view.Pagination(model.MaxPagesNavigator, users, map[string]string{}),
+		"Paginator": view.Pagination(model.MaxPagesNavigator, users, c.Queries()),
 		"Admins":    u.repository.Admins(),
 		"URL":       view.URL(c),
 	}

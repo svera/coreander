@@ -56,7 +56,7 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 	templateVars := fiber.Map{
 		"Author":                 author,
 		"Results":                searchResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, map[string]string{}),
+		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
 		"Title":                  author.Name,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              a.sender.From(),

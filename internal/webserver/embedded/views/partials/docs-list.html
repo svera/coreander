@@ -10,7 +10,17 @@
     {{else}}
         {{t .Lang "%d matches found" .Results.TotalHits }}
     {{end}}
+    <a data-bs-toggle="collapse" href="#search-filters" aria-expanded="false">
+        {{ t .Lang "Advanced search" }}
+    </a>
 </p>
+
+<div class="collapse text-start mb-5" id="search-filters">
+     <form action="/documents">
+        {{template "partials/search-filters" dict "Lang" .Lang "SearchFields" .SearchFields }}
+        <button class="btn btn-primary" type="submit">{{t .Lang "Search"}}</button>
+    </form>
+</div>
 
 {{if .Results}}
 <ul class="list-group">

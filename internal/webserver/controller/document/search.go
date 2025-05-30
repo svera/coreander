@@ -50,12 +50,10 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
-	queries := c.Queries()
-	delete(queries, "page")
 	templateVars := fiber.Map{
 		"SearchFields":           searchFields,
 		"Results":                searchResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, queries),
+		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
 		"Title":                  "Search results",
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),
@@ -84,20 +82,16 @@ func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) 
 		Keywords: c.Query("search"),
 	}
 
-	/*if searchFields.Keywords == "" {
-		return searchFields, fmt.Errorf("search keywords cannot be empty")
-	}*/
-
-	if c.Query("pub-date-from-year") != "" && c.Query("pub-date-from-month") != "" && c.Query("pub-date-from-day") != "" {
-		pubDateFrom, err := date.ParseISO(fmt.Sprintf("%04s-%02s-%02s", c.Query("pub-date-from-year"), c.Query("pub-date-from-month"), c.Query("pub-date-from-day")))
+	if c.Query("pub-date-from") != "" {
+		pubDateFrom, err := date.ParseISO(c.Query("pub-date-from"))
 		if err != nil {
 			return searchFields, err
 		}
 		searchFields.PubDateFrom = pubDateFrom
 	}
 
-	if c.Query("pub-date-to-year") != "" && c.Query("pub-date-to-month") != "" && c.Query("pub-date-to-day") != "" {
-		pubDateTo, err := date.ParseISO(fmt.Sprintf("%04s-%02s-%02s", c.Query("pub-date-to-year"), c.Query("pub-date-to-month"), c.Query("pub-date-to-day")))
+	if c.Query("pub-date-to") != "" {
+		pubDateTo, err := date.ParseISO(c.Query("pub-date-to"))
 		if err != nil {
 			return searchFields, err
 		}
