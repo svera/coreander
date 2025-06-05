@@ -4,22 +4,21 @@
 {{$emailFrom := .EmailFrom}}
 {{$wordsPerMinute := .WordsPerMinute}}
 
-<p class="text-center mb-5">
-    {{if eq .Results.TotalHits 0}}
-        {{t .Lang "No matches found" }}
-    {{else}}
-        {{t .Lang "%d matches found" .Results.TotalHits }}
-    {{end}}
-    <a data-bs-toggle="collapse" href="#search-filters" aria-expanded="false">
-        {{ t .Lang "Advanced search" }}
-    </a>
-</p>
-
-<div class="collapse text-start mb-5" id="search-filters">
-     <form action="/documents">
-        {{template "partials/search-filters" dict "Lang" .Lang "SearchFields" .SearchFields }}
-        <button class="btn btn-primary" type="submit">{{t .Lang "Search"}}</button>
-    </form>
+<div class="row mt-5 mb-5 border-bottom">
+    <div class="col-6 col-md-9">
+        <p class="text-start">
+            {{if eq .Results.TotalHits 0}}
+                {{t .Lang "No matches found" }}
+            {{else}}
+                {{t .Lang "%d matches found" .Results.TotalHits }}
+            {{end}}
+        </p>
+    </div>
+    <div class="col-6 col-md-3 text-end">
+        <select class="form-select form-select-sm" id="order-by" name="order-by">
+            <option>{{t .Lang "Order by %s" "relevance"}}</option>
+        </select>
+    </div>
 </div>
 
 {{if .Results}}

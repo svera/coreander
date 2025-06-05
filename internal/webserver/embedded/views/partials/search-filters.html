@@ -1,16 +1,26 @@
 <div class="row pb-3">
     <fieldset>
-        <legend>{{t .Lang "Published on"}}</legend>
+        <legend>{{t .Lang "Publishing date"}}</legend>
         <div class="row">
             <div class="col-6">
                 <label class="form-label">{{t .Lang "From"}}</label>
-                {{template "partials/date-control" dict "Name" "pub-date-from" "Lang" .Lang "Date" .SearchFields.PubDateFrom }}
+                {{$pubDateFrom := ""}}
+                {{if .SearchFields}}
+                    {{$pubDateFrom = .SearchFields.PubDateFrom}}
+                {{end}}
+                {{template "partials/date-control" dict "Name" "pub-date-from" "Lang" .Lang "Date" $pubDateFrom }}
             </div>
             <div class="col-6">
                 <label class="form-label">{{t .Lang "To"}}</label>
-                {{template "partials/date-control" dict "Name" "pub-date-to" "Lang" .Lang "Date" .SearchFields.PubDateTo }}
+                {{$pubDateTo := ""}}
+                {{if .SearchFields}}
+                    {{$pubDateTo = .SearchFields.PubDateTo}}
+                {{end}}
+                {{template "partials/date-control" dict "Name" "pub-date-to" "Lang" .Lang "Date" $pubDateTo }}
             </div>
         </div>
     </fieldset>
 </div>
+<button class="btn btn-primary" type="submit">{{t .Lang "Search"}}</button>
+
 <script type="module" src="/js/search-filters.js"></script>

@@ -1,28 +1,29 @@
 {{define "year"}}
-<input class="form-control input-year" type="number" id="{{.Name}}-year" maxlength="4" max="2999" placeholder='{{t .Lang "Year"}}' value="{{.Date.Year}}">
+<input class="form-control input-year" type="number" maxlength="4" max="2999" placeholder='{{t .Lang "Year"}}' value="{{if .Date}}{{.Date.Year}}{{end}}">
 {{end}}
 
 {{define "month"}}
-<select class="form-control input-month" id="{{.Name}}-month">
-    <option value="01">{{t .Lang "January"}}</option>
-    <option value="02">{{t .Lang "February"}}</option>
-    <option value="03">{{t .Lang "March"}}</option>
-    <option value="04">{{t .Lang "April"}}</option>
-    <option value="05">{{t .Lang "May"}}</option>
-    <option value="06">{{t .Lang "June"}}</option>
-    <option value="07">{{t .Lang "July"}}</option>
-    <option value="08">{{t .Lang "August"}}</option>
-    <option value="09">{{t .Lang "September"}}</option>
-    <option value="10">{{t .Lang "October"}}</option>
-    <option value="11">{{t .Lang "November"}}</option>
-    <option value="12">{{t .Lang "December"}}</option>
+<select class="form-control input-month">
+    <option value="01" {{if and (.Date) (eq .Date.Month 1)}}selected{{end}}>{{t .Lang "January"}}</option>
+    <option value="02" {{if and (.Date) (eq .Date.Month 2)}}selected{{end}}>{{t .Lang "February"}}</option>
+    <option value="03" {{if and (.Date) (eq .Date.Month 3)}}selected{{end}}>{{t .Lang "March"}}</option>
+    <option value="04" {{if and (.Date) (eq .Date.Month 4)}}selected{{end}}>{{t .Lang "April"}}</option>
+    <option value="05" {{if and (.Date) (eq .Date.Month 5)}}selected{{end}}>{{t .Lang "May"}}</option>
+    <option value="06" {{if and (.Date) (eq .Date.Month 6)}}selected{{end}}>{{t .Lang "June"}}</option>
+    <option value="07" {{if and (.Date) (eq .Date.Month 7)}}selected{{end}}>{{t .Lang "July"}}</option>
+    <option value="08" {{if and (.Date) (eq .Date.Month 8)}}selected{{end}}>{{t .Lang "August"}}</option>
+    <option value="09" {{if and (.Date) (eq .Date.Month 9)}}selected{{end}}>{{t .Lang "September"}}</option>
+    <option value="10" {{if and (.Date) (eq .Date.Month 10)}}selected{{end}}>{{t .Lang "October"}}</option>
+    <option value="11" {{if and (.Date) (eq .Date.Month 11)}}selected{{end}}>{{t .Lang "November"}}</option>
+    <option value="12" {{if and (.Date) (eq .Date.Month 12)}}selected{{end}}>{{t .Lang "December"}}</option>
 </select>
 {{end}}
 
 {{define "day"}}
-<select class="form-control input-day" id="{{.Name}}-day">
+<select class="form-control input-day">
+    {{$date := .Date}}
     {{range $i := seq 1 32}}
-        <option value="{{$i}}">{{$i}}</option>
+        <option value="{{$i}}" {{if and ($date) (eq $date.Day $i)}}selected{{end}}>{{$i}}</option>
     {{end}}
 </select>
 {{end}}
@@ -37,5 +38,6 @@
     {{template "month" dict "Name" .Name "Lang" .Lang "Date" .Date}}
     {{template "year" dict "Name" .Name "Lang" .Lang "Date" .Date}}
 {{end}}
-    <input type="hidden" id="{{.Name}}" name="{{.Name}}" class="date" disabled />
+    <div class="invalid-feedback error-from-date-later-than-to-date d-none">{{t .Lang "'From' date must be earlier than 'to' date"}}</div>
+    <input type="hidden" id="{{.Name}}" name="{{.Name}}" class="date" />
 </div>
