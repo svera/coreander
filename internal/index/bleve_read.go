@@ -101,10 +101,14 @@ func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery)
 	if searchFields.PubDateFrom != 0 || searchFields.PubDateTo != 0 {
 		minDate := float64(searchFields.PubDateFrom)
 		maxDate := float64(searchFields.PubDateTo)
-		q := bleve.NewNumericRangeQuery(
-			&minDate,
-			&maxDate,
-		)
+
+		q := bleve.NewNumericRangeQuery(nil, nil)
+		if minDate != 0 {
+			q.Min = &minDate
+		}
+		if maxDate != 0 {
+			q.Max = &maxDate
+		}
 		q.SetField("Publication.Date")
 		filtersQuery.AddQuery(q)
 	}
