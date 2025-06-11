@@ -6,6 +6,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/pirmd/epub"
+	"github.com/rickb777/date/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
@@ -505,6 +506,104 @@ func testIndexAndSearchCases() []testCase {
 						AuthorsSlugs:  []string{"irene-vallejo"},
 						SeriesSlug:    "",
 						SubjectsSlugs: []string{"history", "middle-age"},
+					},
+				},
+			),
+		},
+		{
+			"Test date range search",
+			"lib/book11.epub",
+			&epub.Information{
+				Title: []string{"Modern History Book"},
+				Creator: []epub.Author{
+					{
+						FullName: "John Smith",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"A book about modern history"},
+				Language:    []string{"en"},
+				Subject:     []string{"History", "Modern"},
+				Date: []epub.Date{
+					{
+						Stamp: "2020-06-15",
+						Event: "publication",
+					},
+				},
+			},
+			index.SearchFields{
+				Keywords:    "",
+				PubDateFrom: date.New(2020, 1, 1),
+				PubDateTo:   date.New(2020, 12, 31),
+			},
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book11.epub",
+						Slug: "john-smith-modern-history-book",
+						Metadata: metadata.Metadata{
+							Title:       "Modern History Book",
+							Authors:     []string{"John Smith"},
+							Description: "<p>A book about modern history</p>",
+							Subjects:    []string{"History", "Modern"},
+							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("2020-06-15T00:00:00Z", precisiondate.PrecisionDay),
+						},
+						AuthorsSlugs:  []string{"john-smith"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"history", "modern"},
+					},
+				},
+			),
+		},
+		{
+			"Test date range search with year precision",
+			"lib/book12.epub",
+			&epub.Information{
+				Title: []string{"Ancient History Book"},
+				Creator: []epub.Author{
+					{
+						FullName: "Jane Doe",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"A book about ancient history"},
+				Language:    []string{"en"},
+				Subject:     []string{"History", "Ancient"},
+				Date: []epub.Date{
+					{
+						Stamp: "1975",
+						Event: "publication",
+					},
+				},
+			},
+			index.SearchFields{
+				Keywords:    "",
+				PubDateFrom: date.New(1970, 1, 1),
+				PubDateTo:   date.New(1980, 1, 1),
+			},
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book12.epub",
+						Slug: "jane-doe-ancient-history-book",
+						Metadata: metadata.Metadata{
+							Title:       "Ancient History Book",
+							Authors:     []string{"Jane Doe"},
+							Description: "<p>A book about ancient history</p>",
+							Subjects:    []string{"History", "Ancient"},
+							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("1975-01-01T00:00:00Z", precisiondate.PrecisionYear),
+						},
+						AuthorsSlugs:  []string{"jane-doe"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"history", "ancient"},
 					},
 				},
 			),

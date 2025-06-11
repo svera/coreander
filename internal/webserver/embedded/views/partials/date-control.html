@@ -20,12 +20,7 @@
 {{end}}
 
 {{define "day"}}
-<select class="form-control input-day">
-    {{$date := .Date}}
-    {{range $i := seq 1 32}}
-        <option value="{{$i}}" {{if and ($date) (eq $date.Day $i)}}selected{{end}}>{{$i}}</option>
-    {{end}}
-</select>
+<input type="number" maxlength="2" max="31" min="1" class="form-control input-day" oninput="this.value=this.value.slice(0,this.maxLength)">
 {{end}}
 
 <div class="input-group input-group-sm date-control">
@@ -39,5 +34,5 @@
     {{template "year" dict "Name" .Name "Lang" .Lang "Date" .Date}}
 {{end}}
     <div class="invalid-feedback error-from-date-later-than-to-date d-none">{{t .Lang "'From' date must be earlier than 'to' date"}}</div>
-    <input type="hidden" id="{{.Name}}" name="{{.Name}}" class="date" />
+    <input type="hidden" id="{{.Name}}" name="{{.Name}}" class="date">
 </div>

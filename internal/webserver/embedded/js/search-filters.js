@@ -4,7 +4,7 @@ const searchFiltersForm = searchFilters.closest('form')
 searchFiltersForm.addEventListener('submit', event => {
   event.preventDefault()
 
-  event.target.querySelectorAll('.date-control').forEach(function (el) {
+  searchFiltersForm.querySelectorAll('.date-control').forEach(function (el) {
       if (el.getElementsByClassName('input-year')[0].value === '' || el.getElementsByClassName('input-year')[0].value === '0') return
       let composed = el.getElementsByClassName('date')[0]
       composed.value = el.getElementsByClassName('input-year')[0].value.padStart(4, '0') + '-' + el.getElementsByClassName('input-month')[0].value + '-' + el.getElementsByClassName('input-day')[0].value.padStart(2, '0')
@@ -24,7 +24,7 @@ searchFiltersForm.addEventListener('submit', event => {
       let dateControl = pubDateFrom.closest('.date-control')
       dateControl.querySelector('.error-from-date-later-than-to-date').classList.remove('d-none')
       dateControl.querySelectorAll('input, select').forEach(function (el) {
-        el.classList.add('invalid')
+        el.classList.add('is-invalid')
       })
       return
     }
