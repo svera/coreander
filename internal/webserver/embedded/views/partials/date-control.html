@@ -3,7 +3,7 @@
     We cannot use a number input here because the oninput event function does get an empty value if the value is not a number.
     This happens when trying to add a negative value.
 */}}
-<input class="form-control input-year" type="text" inputmode="numeric" maxlength="5" placeholder='{{t .Lang "Year"}}' value="{{if .Date}}{{.Date.Year}}{{end}}" oninput="this.value=this.value.slice(0,this.maxLength)">
+<input class="form-control input-year" type="text" inputmode="numeric" maxlength="5" placeholder='{{t .Lang "Year"}}' value="{{if .Date}}{{.Date.Year}}{{end}}" oninput="this.value=this.value.slice(0,this.maxLength)" pattern="^-?\d+$">
 {{end}}
 
 {{define "month"}}
