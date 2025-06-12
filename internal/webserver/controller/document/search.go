@@ -1,7 +1,6 @@
 package document
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 
@@ -99,7 +98,7 @@ func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) 
 	}
 
 	if searchFields.PubDateTo != 0 && searchFields.PubDateFrom > searchFields.PubDateTo {
-		return searchFields, fmt.Errorf("publication date from cannot be later than publication date to")
+		searchFields.PubDateFrom, searchFields.PubDateTo = searchFields.PubDateTo, searchFields.PubDateFrom
 	}
 
 	return searchFields, nil

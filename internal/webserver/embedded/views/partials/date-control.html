@@ -1,5 +1,10 @@
 {{define "year"}}
-<input class="form-control input-year" type="number" maxlength="4" max="2999" placeholder='{{t .Lang "Year"}}' value="{{if .Date}}{{.Date.Year}}{{end}}">
+{{
+  // We cannot use a number input here because the oninput event function does get an empty value if the value is not a number.
+  // This happens when trying to add a negative value.
+}}
+{{if eq .Lang "en"}}
+<input class="form-control input-year" type="text" inputmode="numeric" maxlength="5" placeholder='{{t .Lang "Year"}}' value="{{if .Date}}{{.Date.Year}}{{end}}" oninput="this.value=this.value.slice(0,this.maxLength)">
 {{end}}
 
 {{define "month"}}
@@ -20,7 +25,7 @@
 {{end}}
 
 {{define "day"}}
-<input type="number" maxlength="2" max="31" min="1" class="form-control input-day" oninput="this.value=this.value.slice(0,this.maxLength)">
+<input type="number" maxlength="2" max="31" min="1" class="form-control input-day" oninput="this.value=this.value.slice(0,this.maxLength)" value="{{if .Date}}{{.Date.Day}}{{else}}1{{end}}" placeholder='{{t .Lang "Day"}}'>
 {{end}}
 
 <div class="input-group input-group-sm date-control">
@@ -33,6 +38,5 @@
     {{template "month" dict "Name" .Name "Lang" .Lang "Date" .Date}}
     {{template "year" dict "Name" .Name "Lang" .Lang "Date" .Date}}
 {{end}}
-    <div class="invalid-feedback error-from-date-later-than-to-date d-none">{{t .Lang "'From' date must be earlier than 'to' date"}}</div>
     <input type="hidden" id="{{.Name}}" name="{{.Name}}" class="date">
 </div>

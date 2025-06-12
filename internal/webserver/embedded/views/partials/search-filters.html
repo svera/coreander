@@ -2,7 +2,7 @@
     <fieldset>
         <legend>{{t .Lang "Publishing date"}}</legend>
         <div class="row">
-            <div class="col-6">
+            <div class="col-12 col-xl-6">
                 <label class="form-label">{{t .Lang "From"}}</label>
                 {{$pubDateFrom := ""}}
                 {{if .SearchFields}}
@@ -10,7 +10,7 @@
                 {{end}}
                 {{template "partials/date-control" dict "Name" "pub-date-from" "Lang" .Lang "Date" $pubDateFrom }}
             </div>
-            <div class="col-6">
+            <div class="col-12 col-xl-6">
                 <label class="form-label">{{t .Lang "To"}}</label>
                 {{$pubDateTo := ""}}
                 {{if .SearchFields}}
