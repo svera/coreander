@@ -11,6 +11,7 @@ type SearchFields struct {
 	Keywords    string
 	PubDateFrom date.Date
 	PubDateTo   date.Date
+	SortBy      []string
 }
 
 type Document struct {

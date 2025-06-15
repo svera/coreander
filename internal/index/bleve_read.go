@@ -60,7 +60,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
 				query := bleve.NewQueryStringQuery(searchFields.Keywords)
 
-				return b.runPaginatedQuery(query, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+				return b.runPaginatedQuery(query, page, resultsPerPage, searchFields.SortBy)
 			}
 		}
 
@@ -80,7 +80,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 				qs.SetField(strings.TrimSuffix(prefix, ":"))
 				qb.AddQuery(qs)
 			}
-			return b.runPaginatedQuery(qb, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+			return b.runPaginatedQuery(qb, page, resultsPerPage, searchFields.SortBy)
 		}
 
 		analyzers, err := b.analyzers()
@@ -94,7 +94,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 
 	addFilters(searchFields, filtersQuery)
 
-	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, []string{"-_score", "Series", "SeriesIndex"})
+	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 }
 
 func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
@@ -276,11 +276,11 @@ func (b *BleveIndexer) analyzers() ([]string, error) {
 	return strings.Split(string(languages), ","), nil
 }
 
-func (b *BleveIndexer) SearchByAuthor(authorSlug string, page, resultsPerPage int) (result.Paginated[[]Document], error) {
-	aq := bleve.NewTermQuery(authorSlug)
+func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
+	aq := bleve.NewTermQuery(searchFields.Keywords)
 	aq.SetField("AuthorsSlugs")
 
-	return b.runPaginatedQuery(aq, page, resultsPerPage, []string{"Series", "SeriesIndex"})
+	return b.runPaginatedQuery(aq, page, resultsPerPage, searchFields.SortBy)
 }
 
 func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
@@ -349,11 +349,11 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 	return author, nil
 }
 
-func (b *BleveIndexer) SearchBySeries(seriesSlug string, page, resultsPerPage int) (result.Paginated[[]Document], error) {
-	aq := bleve.NewTermQuery(seriesSlug)
+func (b *BleveIndexer) SearchBySeries(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
+	aq := bleve.NewTermQuery(searchFields.Keywords)
 	aq.SetField("SeriesSlug")
 
-	return b.runPaginatedQuery(aq, page, resultsPerPage, []string{"SeriesIndex"})
+	return b.runPaginatedQuery(aq, page, resultsPerPage, searchFields.SortBy)
 }
 
 func (b *BleveIndexer) LatestDocs(limit int) ([]Document, error) {

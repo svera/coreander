@@ -44,7 +44,12 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		log.Println(err)
 	}
 
-	if searchResults, err = a.idx.SearchByAuthor(authorSlug, page, model.ResultsPerPage); err != nil {
+	searchFields := index.SearchFields{
+		Keywords: authorSlug,
+		SortBy:   a.parseSortBy(c),
+	}
+
+	if searchResults, err = a.idx.SearchByAuthor(searchFields, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
@@ -62,6 +67,8 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		"EmailFrom":              a.sender.From(),
 		"WordsPerMinute":         a.config.WordsPerMinute,
 		"URL":                    view.URL(c),
+		"SortURL":                view.SortURL(c),
+		"SortBy":                 c.Query("sort-by"),
 	}
 
 	if c.Get("hx-request") == "true" {
@@ -77,4 +84,16 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	return nil
+}
+
+func (d *Controller) parseSortBy(c *fiber.Ctx) []string {
+	if c.Query("sort-by") != "" {
+		switch c.Query("sort-by") {
+		case "pub-date-older-first":
+			return []string{"Publication.Date"}
+		case "pub-date-newer-first":
+			return []string{"-Publication.Date"}
+		}
+	}
+	return []string{"Series", "SeriesIndex"}
 }

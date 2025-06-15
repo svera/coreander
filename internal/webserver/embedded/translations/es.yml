@@ -171,3 +171,6 @@
 "To": "Hasta"
 "Advanced search": "Búsqueda avanzada"
 "'From' date must be earlier than 'to' date": "La fecha de 'desde' debe ser anterior a la fecha de 'hasta'"
+"Order by relevance": "Ordenar por relevancia"
+"Order by publication date (older first)": "Ordenar por fecha de publicación (los más antiguos primero)"
+"Order by publication date (newer first)": "Ordenar por fecha de publicación (los más recientes primero)"

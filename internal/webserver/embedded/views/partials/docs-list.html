@@ -5,19 +5,20 @@
 {{$wordsPerMinute := .WordsPerMinute}}
 
 <div class="row mt-5">
-    <div class="col-6 col-md-9">
-        <p class="text-start">
-            {{if eq .Results.TotalHits 0}}
-                {{t .Lang "No matches found" }}
-            {{else}}
-                {{t .Lang "%d matches found" .Results.TotalHits }}
-            {{end}}
-        </p>
+    {{if eq .Results.TotalHits 0}}
+    <div class="col-12">
+        <p class="text-center">{{t .Lang "No matches found" }}</p>
     </div>
-    {{if gt .Results.TotalHits 0}}
-    <div class="col-6 col-md-3 text-end">
-        <select class="form-select form-select-sm" id="order-by" name="order-by">
-            <option>{{t .Lang "Order by %s" "relevance"}}</option>
+    {{else}}
+    <div class="col-6 col-md-8">
+        <p class="text-start">{{t .Lang "%d matches found" .Results.TotalHits }}</p>
+    </div>
+    <div class="col-6 col-md-4 text-end">
+        <select class="form-select form-select-sm" id="sort-by" name="sort-by"
+            onchange="window.location.href='{{.SortURL}}sort-by='+this.value;">
+            <option value="relevance" {{if eq .SortBy "relevance"}}selected{{end}}>{{t .Lang "Order by relevance"}}</option>
+            <option value="pub-date-older-first" {{if eq .SortBy "pub-date-older-first"}}selected{{end}}>{{t .Lang "Order by publication date (older first)"}}</option>
+            <option value="pub-date-newer-first" {{if eq .SortBy "pub-date-newer-first"}}selected{{end}}>{{t .Lang "Order by publication date (newer first)"}}</option>
         </select>
     </div>
     {{end}}

@@ -58,6 +58,8 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		"EmailFrom":              d.sender.From(),
 		"WordsPerMinute":         d.config.WordsPerMinute,
 		"URL":                    view.URL(c),
+		"SortURL":                view.SortURL(c),
+		"SortBy":                 c.Query("sort-by"),
 	}
 
 	if c.Get("hx-request") == "true" {
@@ -79,6 +81,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) {
 	searchFields := index.SearchFields{
 		Keywords: c.Query("search"),
+		SortBy:   d.parseSortBy(c),
 	}
 
 	if c.Query("pub-date-from") != "" {
@@ -102,4 +105,16 @@ func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) 
 	}
 
 	return searchFields, nil
+}
+
+func (d *Controller) parseSortBy(c *fiber.Ctx) []string {
+	if c.Query("sort-by") != "" {
+		switch c.Query("sort-by") {
+		case "pub-date-older-first":
+			return []string{"Publication.Date"}
+		case "pub-date-newer-first":
+			return []string{"-Publication.Date"}
+		}
+	}
+	return []string{"-_score", "Series", "SeriesIndex"}
 }

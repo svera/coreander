@@ -171,3 +171,6 @@
 "To": "À"
 "Advanced search": "Recherche avancée"
 "'From' date must be earlier than 'to' date": "La date 'De' doit être antérieure à la date 'À'"
+"Order by relevance": "Ordre par pertinence"
+"Order by publication date (older first)": "Ordre par date de publication (les plus anciens d'abord)"
+"Order by publication date (newer first)": "Ordre par date de publication (les plus récents d'abord)"
