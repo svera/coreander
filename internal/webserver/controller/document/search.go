@@ -60,6 +60,14 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		"URL":                    view.URL(c),
 		"SortURL":                view.SortURL(c),
 		"SortBy":                 c.Query("sort-by"),
+		"AdditionalSortOptions": []struct {
+			Key   string
+			Value string
+		}{
+			{"relevance", "relevance"},
+			{"pub-date-older-first", "publication date (older first)"},
+			{"pub-date-newer-first", "publication date (newer first)"},
+		},
 	}
 
 	if c.Get("hx-request") == "true" {

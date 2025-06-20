@@ -21,5 +21,8 @@ func SortURL(c *fiber.Ctx) template.URL {
 	queries := c.Queries()
 	delete(queries, "sort-by")
 	delete(queries, "page")
-	return template.URL(url + "?" + string(ToQueryString(queries)))
+	if len(queries) > 0 {
+		return template.URL(url + "?" + string(ToQueryString(queries)+"&"))
+	}
+	return template.URL(url + "?")
 }

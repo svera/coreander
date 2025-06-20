@@ -25,11 +25,11 @@ type IdxReaderWriter interface {
 	SameSeries(slug string, quantity int) ([]index.Document, error)
 	AddFile(file string) (string, error)
 	RemoveFile(file string) error
-	Documents(IDs []string) (map[string]index.Document, error)
+	Documents(IDs []string, sortBy []string) ([]index.Document, error)
 }
 
 type highlightsRepository interface {
-	Highlights(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
+	Highlights(userID int, page int, resultsPerPage int, sortBy string) (result.Paginated[[]string], error)
 	Highlighted(userID int, doc index.Document) index.Document
 	HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
 	RemoveDocument(documentPath string) error

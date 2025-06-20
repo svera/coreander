@@ -69,6 +69,14 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		"URL":                    view.URL(c),
 		"SortURL":                view.SortURL(c),
 		"SortBy":                 c.Query("sort-by"),
+		"AdditionalSortOptions": []struct {
+			Key   string
+			Value string
+		}{
+			{"number", "series number"},
+			{"pub-date-older-first", "publication date (older first)"},
+			{"pub-date-newer-first", "publication date (newer first)"},
+		},
 	}
 
 	if c.Get("hx-request") == "true" {

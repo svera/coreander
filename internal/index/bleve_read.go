@@ -246,10 +246,9 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 	return hydrateDocument(searchResult.Hits[0]), nil
 }
 
-func (b *BleveIndexer) Documents(IDs []string) (map[string]Document, error) {
+func (b *BleveIndexer) DocumentByID(ID string) (Document, error) {
 	compoundQuery := bleve.NewConjunctionQuery()
-	docs := make(map[string]Document, len(IDs))
-	query := bleve.NewDocIDQuery(IDs)
+	query := bleve.NewDocIDQuery([]string{ID})
 	typeQuery := bleve.NewTermQuery(TypeDocument)
 	typeQuery.SetField("Type")
 	compoundQuery.AddQuery(query, typeQuery)
@@ -258,11 +257,34 @@ func (b *BleveIndexer) Documents(IDs []string) (map[string]Document, error) {
 	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
+		return Document{}, err
+	}
+
+	if searchResult.Total == 0 {
+		return Document{}, nil
+	}
+
+	return hydrateDocument(searchResult.Hits[0]), nil
+}
+
+func (b *BleveIndexer) Documents(IDs []string, sortBy []string) ([]Document, error) {
+	compoundQuery := bleve.NewConjunctionQuery()
+	var docs []Document
+	query := bleve.NewDocIDQuery(IDs)
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	compoundQuery.AddQuery(query, typeQuery)
+
+	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions.Fields = []string{"*"}
+	searchOptions.SortBy(sortBy)
+	searchResult, err := b.idx.Search(searchOptions)
+	if err != nil {
 		return docs, err
 	}
 
 	for _, hit := range searchResult.Hits {
-		docs[hit.ID] = hydrateDocument(hit)
+		docs = append(docs, hydrateDocument(hit))
 	}
 
 	return docs, nil
