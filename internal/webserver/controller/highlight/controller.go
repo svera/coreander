@@ -19,7 +19,6 @@ type highlightsRepository interface {
 type IdxReaderWriter interface {
 	Document(Slug string) (index.Document, error)
 	DocumentByID(ID string) (index.Document, error)
-	Documents(IDs []string, sortBy []string) ([]index.Document, error)
 }
 
 type usersRepository interface {

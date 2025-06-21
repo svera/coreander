@@ -86,8 +86,8 @@ func (h *Controller) List(c *fiber.Ctx) error {
 			Key   string
 			Value string
 		}{
-			{"highlighted-newer-first", "highlighted date (latest first)"},
-			{"highlighted-older-first", "highlighted date (oldest first)"},
+			{"highlighted-newer-first", "highlighted date (newer first)"},
+			{"highlighted-older-first", "highlighted date (older first)"},
 		},
 	}
 

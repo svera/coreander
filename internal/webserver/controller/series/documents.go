@@ -74,6 +74,7 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 			Value string
 		}{
 			{"number", "series number"},
+			{"number-desc", "series number (descending)"},
 			{"pub-date-older-first", "publication date (older first)"},
 			{"pub-date-newer-first", "publication date (newer first)"},
 		},
@@ -98,9 +99,11 @@ func (d *Controller) parseSortBy(c *fiber.Ctx) []string {
 	if c.Query("sort-by") != "" {
 		switch c.Query("sort-by") {
 		case "pub-date-older-first":
-			return []string{"Publication.Date"}
+			return []string{"Publication.Date", "SeriesIndex"}
 		case "pub-date-newer-first":
-			return []string{"-Publication.Date"}
+			return []string{"-Publication.Date", "SeriesIndex"}
+		case "number-desc":
+			return []string{"-SeriesIndex"}
 		}
 	}
 	return []string{"SeriesIndex"}
