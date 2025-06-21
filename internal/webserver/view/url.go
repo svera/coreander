@@ -15,3 +15,14 @@ func URL(c *fiber.Ctx) template.URL {
 	}
 	return template.URL(url)
 }
+
+func SortURL(c *fiber.Ctx) template.URL {
+	url := c.Path()
+	queries := c.Queries()
+	delete(queries, "sort-by")
+	delete(queries, "page")
+	if len(queries) > 0 {
+		return template.URL(url + "?" + string(ToQueryString(queries)+"&"))
+	}
+	return template.URL(url + "?")
+}

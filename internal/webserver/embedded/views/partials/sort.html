@@ -1,0 +1,11 @@
+{{$sortBy := .SortBy}}
+{{$lang := .Lang}}
+<div class="form-floating">
+    <select class="form-select form-select-sm" id="sort-by" name="sort-by"
+        onchange="window.location.href='{{.SortURL}}sort-by='+this.value;">
+        {{range $option := .AdditionalSortOptions}}
+        <option value="{{$option.Key}}" {{if eq $sortBy $option.Key}}selected{{end}}>{{t $lang $option.Value}}</option>
+        {{end}}
+    </select>
+    <label for="sort-by">{{t $lang "Sort by"}}</label>
+</div>

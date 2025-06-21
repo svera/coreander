@@ -4,16 +4,23 @@
 {{$emailFrom := .EmailFrom}}
 {{$wordsPerMinute := .WordsPerMinute}}
 
-<p class="text-center mb-5">
+<div class="row mt-5 mb-2 d-flex">
     {{if eq .Results.TotalHits 0}}
-        {{t .Lang "No matches found" }}
+    <div class="col-12 align-content-end">
+        <p class="text-center">{{t .Lang "No matches found" }}</p>
+    </div>
     {{else}}
-        {{t .Lang "%d matches found" .Results.TotalHits }}
+    <div class="col-6 col-md-8 align-content-end">
+        <p class="text-start">{{t .Lang "%d matches found" .Results.TotalHits }}</p>
+    </div>
+    <div class="col-6 col-md-4 text-end">
+        {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" $lang "AdditionalSortOptions" .AdditionalSortOptions}}
+    </div>
     {{end}}
-</p>
+</div>
 
-{{if .Results}}
-<ul class="list-group">
+{{if gt .Results.TotalHits 0}}
+<ul class="list-group border-top pt-5">
     {{range $i, $document := .Results.Hits}}
     <li class="list-group-item border border-0 px-0 {{if gt $i 0}}border-top{{end}}">
         <div class="row">

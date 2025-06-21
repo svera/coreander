@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
@@ -28,9 +29,9 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	}
 
 	var searchResults result.Paginated[[]index.Document]
-	keywords := c.Query("search")
-
-	if keywords == "" {
+	searchFields, err := d.parseSearchQuery(c)
+	if err != nil {
+		log.Println(err)
 		return fiber.ErrBadRequest
 	}
 
@@ -39,7 +40,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	if searchResults, err = d.idx.Search(keywords, page, model.ResultsPerPage); err != nil {
+	if searchResults, err = d.idx.Search(searchFields, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
@@ -49,14 +50,24 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Keywords":               keywords,
+		"SearchFields":           searchFields,
 		"Results":                searchResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, map[string]string{"search": keywords}),
+		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
 		"Title":                  "Search results",
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),
 		"WordsPerMinute":         d.config.WordsPerMinute,
 		"URL":                    view.URL(c),
+		"SortURL":                view.SortURL(c),
+		"SortBy":                 c.Query("sort-by"),
+		"AdditionalSortOptions": []struct {
+			Key   string
+			Value string
+		}{
+			{"relevance", "relevance"},
+			{"pub-date-older-first", "publication date (older first)"},
+			{"pub-date-newer-first", "publication date (newer first)"},
+		},
 	}
 
 	if c.Get("hx-request") == "true" {
@@ -73,4 +84,45 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	}
 
 	return nil
+}
+
+func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) {
+	searchFields := index.SearchFields{
+		Keywords: c.Query("search"),
+		SortBy:   d.parseSortBy(c),
+	}
+
+	if c.Query("pub-date-from") != "" {
+		pubDateFrom, err := date.ParseISO(c.Query("pub-date-from"))
+		if err != nil {
+			return searchFields, err
+		}
+		searchFields.PubDateFrom = pubDateFrom
+	}
+
+	if c.Query("pub-date-to") != "" {
+		pubDateTo, err := date.ParseISO(c.Query("pub-date-to"))
+		if err != nil {
+			return searchFields, err
+		}
+		searchFields.PubDateTo = pubDateTo
+	}
+
+	if searchFields.PubDateTo != 0 && searchFields.PubDateFrom > searchFields.PubDateTo {
+		searchFields.PubDateFrom, searchFields.PubDateTo = searchFields.PubDateTo, searchFields.PubDateFrom
+	}
+
+	return searchFields, nil
+}
+
+func (d *Controller) parseSortBy(c *fiber.Ctx) []string {
+	if c.Query("sort-by") != "" {
+		switch c.Query("sort-by") {
+		case "pub-date-older-first":
+			return []string{"Publication.Date"}
+		case "pub-date-newer-first":
+			return []string{"-Publication.Date"}
+		}
+	}
+	return []string{"-_score", "Series", "SeriesIndex"}
 }

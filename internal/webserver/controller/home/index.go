@@ -44,15 +44,15 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 			return fiber.ErrInternalServerError
 		}
 		for _, ID := range readingList.Hits() {
-			doc, err := d.idx.Documents([]string{ID})
+			doc, err := d.idx.DocumentByID(ID)
 			if err != nil {
 				log.Println(err)
 				return fiber.ErrInternalServerError
 			}
-			if _, ok := doc[ID]; !ok {
+			if doc.ID == "" {
 				continue
 			}
-			readingDocs = append(readingDocs, doc[ID])
+			readingDocs = append(readingDocs, doc)
 		}
 	}
 

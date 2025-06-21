@@ -1,11 +1,13 @@
 package index_test
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/pirmd/epub"
+	"github.com/rickb777/date/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
@@ -54,11 +56,156 @@ func TestIndexAndSearch(t *testing.T) {
 	}
 }
 
+func TestSearchResultsSortedByDate(t *testing.T) {
+	indexMem, err := bleve.NewMemOnly(index.CreateMapping())
+	if err != nil {
+		t.Fatalf("Error initialising index: %v", err)
+	}
+
+	mockMetadataReaders := map[string]metadata.Reader{
+		".epub": metadata.EpubReader{
+			GetMetadataFromFile: func(file string) (*epub.Information, error) {
+				switch file {
+				case "lib/oldest.epub":
+					return &epub.Information{
+						Title: []string{"Oldest Book"},
+						Creator: []epub.Author{
+							{FullName: "Ancient Author", Role: "aut"},
+						},
+						Description: []string{"The oldest book"},
+						Language:    []string{"en"},
+						Subject:     []string{"History"},
+						Date: []epub.Date{
+							{Stamp: "1800-01-01", Event: "publication"},
+						},
+					}, nil
+				case "lib/older.epub":
+					return &epub.Information{
+						Title: []string{"Older Book"},
+						Creator: []epub.Author{
+							{FullName: "Old Author", Role: "aut"},
+						},
+						Description: []string{"An older book"},
+						Language:    []string{"en"},
+						Subject:     []string{"History"},
+						Date: []epub.Date{
+							{Stamp: "1900-06-15", Event: "publication"},
+						},
+					}, nil
+				case "lib/newer.epub":
+					return &epub.Information{
+						Title: []string{"Newer Book"},
+						Creator: []epub.Author{
+							{FullName: "New Author", Role: "aut"},
+						},
+						Description: []string{"A newer book"},
+						Language:    []string{"en"},
+						Subject:     []string{"History"},
+						Date: []epub.Date{
+							{Stamp: "2000-12-31", Event: "publication"},
+						},
+					}, nil
+				case "lib/newest.epub":
+					return &epub.Information{
+						Title: []string{"Newest Book"},
+						Creator: []epub.Author{
+							{FullName: "Modern Author", Role: "aut"},
+						},
+						Description: []string{"The newest book"},
+						Language:    []string{"en"},
+						Subject:     []string{"History"},
+						Date: []epub.Date{
+							{Stamp: "2023-03-20", Event: "publication"},
+						},
+					}, nil
+				case "lib/no-date.epub":
+					return &epub.Information{
+						Title: []string{"No Date Book"},
+						Creator: []epub.Author{
+							{FullName: "Unknown Author", Role: "aut"},
+						},
+						Description: []string{"A book without publication date"},
+						Language:    []string{"en"},
+						Subject:     []string{"History"},
+						Date:        []epub.Date{},
+					}, nil
+				default:
+					return nil, fmt.Errorf("unknown file: %s", file)
+				}
+			},
+			GetPackageFromFile: epub.GetPackageFromFile,
+		},
+	}
+
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+
+	// Create test files
+	testFiles := []string{"lib/oldest.epub", "lib/older.epub", "lib/newer.epub", "lib/newest.epub", "lib/no-date.epub"}
+	for _, file := range testFiles {
+		if err = afero.WriteFile(appFS, file, []byte(""), 0644); err != nil {
+			t.Fatalf("Couldn't write file %s: %v", file, err)
+		}
+	}
+
+	idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+
+	if err = idx.AddLibrary(1, true); err != nil {
+		t.Fatalf("Error indexing: %v", err)
+	}
+
+	t.Run("Test search results sorted by publication date older first", func(t *testing.T) {
+		res, err := idx.Search(index.SearchFields{
+			Keywords: "history",
+			SortBy:   []string{"Publication.Date"},
+		}, 1, 10)
+
+		if err != nil {
+			t.Fatalf("Error searching: %v", err)
+		}
+
+		if len(res.Hits()) != 5 {
+			t.Fatalf("Expected 5 results, got %d", len(res.Hits()))
+		}
+
+		// Verify they are sorted from oldest to newest, with no-date books at the beginning (date value 0)
+		expectedOrder := []string{"no-date.epub", "oldest.epub", "older.epub", "newer.epub", "newest.epub"}
+		for i, doc := range res.Hits() {
+			if doc.ID != expectedOrder[i] {
+				t.Errorf("Expected document %s at position %d, got %s", expectedOrder[i], i, doc.ID)
+			}
+		}
+	})
+
+	t.Run("Test search results sorted by publication date newer first", func(t *testing.T) {
+		res, err := idx.Search(index.SearchFields{
+			Keywords: "history",
+			SortBy:   []string{"-Publication.Date"},
+		}, 1, 10)
+
+		if err != nil {
+			t.Fatalf("Error searching: %v", err)
+		}
+
+		if len(res.Hits()) != 5 {
+			t.Fatalf("Expected 5 results, got %d", len(res.Hits()))
+		}
+
+		// Verify they are sorted from newest to oldest, with no-date books at the end
+		expectedOrder := []string{"newest.epub", "newer.epub", "older.epub", "oldest.epub", "no-date.epub"}
+		for i, doc := range res.Hits() {
+			if doc.ID != expectedOrder[i] {
+				t.Errorf("Expected document %s at position %d, got %s", expectedOrder[i], i, doc.ID)
+			}
+		}
+	})
+}
+
 type testCase struct {
 	name           string
 	filename       string
 	mockedMeta     *epub.Information
-	search         string
+	search         index.SearchFields
 	expectedResult result.Paginated[[]index.Document]
 }
 
@@ -85,7 +232,7 @@ func testIndexAndSearchCases() []testCase {
 					},
 				},
 			},
-			"perez",
+			index.SearchFields{Keywords: "perez"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -130,7 +277,7 @@ func testIndexAndSearchCases() []testCase {
 					},
 				},
 			},
-			"benoit",
+			index.SearchFields{Keywords: "benoit"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -175,7 +322,7 @@ func testIndexAndSearchCases() []testCase {
 					},
 				},
 			},
-			"clifford simak",
+			index.SearchFields{Keywords: "clifford simak"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -214,7 +361,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"en"},
 				Subject:     []string{},
 			},
-			"james ellroy",
+			index.SearchFields{Keywords: "james ellroy"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -252,7 +399,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"en"},
 				Subject:     []string{},
 			},
-			" james       ellroy ",
+			index.SearchFields{Keywords: " james       ellroy "},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -290,7 +437,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"es"},
 				Subject:     []string{"History", "Middle age"},
 			},
-			"guerrero",
+			index.SearchFields{Keywords: "guerrero"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -329,7 +476,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"it"},
 				Subject:     []string{"History", "Middle age"},
 			},
-			"fratello",
+			index.SearchFields{Keywords: "fratello"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -368,7 +515,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"es"},
 				Subject:     []string{"History", "Middle age"},
 			},
-			"infinito junco",
+			index.SearchFields{Keywords: "infinito junco"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -407,7 +554,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"es"},
 				Subject:     []string{"History", "WWII"},
 			},
-			"ultimos",
+			index.SearchFields{Keywords: "ultimos"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -446,7 +593,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"es"},
 				Subject:     []string{","},
 			},
-			"sin nombre",
+			index.SearchFields{Keywords: "sin nombre"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -485,7 +632,7 @@ func testIndexAndSearchCases() []testCase {
 				Language:    []string{"es"},
 				Subject:     []string{"History", "Middle age"},
 			},
-			"irene junco",
+			index.SearchFields{Keywords: "irene junco"},
 			result.NewPaginated(
 				model.ResultsPerPage,
 				1,
@@ -505,6 +652,296 @@ func testIndexAndSearchCases() []testCase {
 						AuthorsSlugs:  []string{"irene-vallejo"},
 						SeriesSlug:    "",
 						SubjectsSlugs: []string{"history", "middle-age"},
+					},
+				},
+			),
+		},
+		{
+			"Test date range search",
+			"lib/book11.epub",
+			&epub.Information{
+				Title: []string{"Modern History Book"},
+				Creator: []epub.Author{
+					{
+						FullName: "John Smith",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"A book about modern history"},
+				Language:    []string{"en"},
+				Subject:     []string{"History", "Modern"},
+				Date: []epub.Date{
+					{
+						Stamp: "2020-06-15",
+						Event: "publication",
+					},
+				},
+			},
+			index.SearchFields{
+				Keywords:    "",
+				PubDateFrom: date.New(2020, 1, 1),
+				PubDateTo:   date.New(2020, 12, 31),
+			},
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book11.epub",
+						Slug: "john-smith-modern-history-book",
+						Metadata: metadata.Metadata{
+							Title:       "Modern History Book",
+							Authors:     []string{"John Smith"},
+							Description: "<p>A book about modern history</p>",
+							Subjects:    []string{"History", "Modern"},
+							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("2020-06-15T00:00:00Z", precisiondate.PrecisionDay),
+						},
+						AuthorsSlugs:  []string{"john-smith"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"history", "modern"},
+					},
+				},
+			),
+		},
+		{
+			"Test date range search with year precision",
+			"lib/book12.epub",
+			&epub.Information{
+				Title: []string{"Ancient History Book"},
+				Creator: []epub.Author{
+					{
+						FullName: "Jane Doe",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"A book about ancient history"},
+				Language:    []string{"en"},
+				Subject:     []string{"History", "Ancient"},
+				Date: []epub.Date{
+					{
+						Stamp: "1975",
+						Event: "publication",
+					},
+				},
+			},
+			index.SearchFields{
+				Keywords:    "",
+				PubDateFrom: date.New(1970, 1, 1),
+				PubDateTo:   date.New(1980, 1, 1),
+			},
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book12.epub",
+						Slug: "jane-doe-ancient-history-book",
+						Metadata: metadata.Metadata{
+							Title:       "Ancient History Book",
+							Authors:     []string{"Jane Doe"},
+							Description: "<p>A book about ancient history</p>",
+							Subjects:    []string{"History", "Ancient"},
+							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("1975-01-01T00:00:00Z", precisiondate.PrecisionYear),
+						},
+						AuthorsSlugs:  []string{"jane-doe"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"history", "ancient"},
+					},
+				},
+			),
+		},
+		{
+			"Test search results sorted by publication date older first",
+			"lib/book13.epub",
+			&epub.Information{
+				Title: []string{"Old Book"},
+				Creator: []epub.Author{
+					{
+						FullName: "Ancient Author",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"An old book"},
+				Language:    []string{"en"},
+				Subject:     []string{"History"},
+				Date: []epub.Date{
+					{
+						Stamp: "1800-01-01",
+						Event: "publication",
+					},
+				},
+			},
+			index.SearchFields{
+				Keywords: "history",
+				SortBy:   []string{"Publication.Date"},
+			},
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book13.epub",
+						Slug: "ancient-author-old-book",
+						Metadata: metadata.Metadata{
+							Title:       "Old Book",
+							Authors:     []string{"Ancient Author"},
+							Description: "<p>An old book</p>",
+							Subjects:    []string{"History"},
+							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("1800-01-01T00:00:00Z", precisiondate.PrecisionDay),
+						},
+						AuthorsSlugs:  []string{"ancient-author"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"history"},
+					},
+				},
+			),
+		},
+		{
+			"Test search results sorted by publication date newer first",
+			"lib/book14.epub",
+			&epub.Information{
+				Title: []string{"New Book"},
+				Creator: []epub.Author{
+					{
+						FullName: "Modern Author",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"A new book"},
+				Language:    []string{"en"},
+				Subject:     []string{"Technology"},
+				Date: []epub.Date{
+					{
+						Stamp: "2023-12-31",
+						Event: "publication",
+					},
+				},
+			},
+			index.SearchFields{
+				Keywords: "technology",
+				SortBy:   []string{"-Publication.Date"},
+			},
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book14.epub",
+						Slug: "modern-author-new-book",
+						Metadata: metadata.Metadata{
+							Title:       "New Book",
+							Authors:     []string{"Modern Author"},
+							Description: "<p>A new book</p>",
+							Subjects:    []string{"Technology"},
+							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("2023-12-31T00:00:00Z", precisiondate.PrecisionDay),
+						},
+						AuthorsSlugs:  []string{"modern-author"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"technology"},
+					},
+				},
+			),
+		},
+		{
+			"Test multiple books sorted by publication date older first",
+			"lib/book15.epub",
+			&epub.Information{
+				Title: []string{"Middle Book"},
+				Creator: []epub.Author{
+					{
+						FullName: "Middle Author",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"A middle-aged book"},
+				Language:    []string{"en"},
+				Subject:     []string{"Literature"},
+				Date: []epub.Date{
+					{
+						Stamp: "1950-06-15",
+						Event: "publication",
+					},
+				},
+			},
+			index.SearchFields{
+				Keywords: "literature",
+				SortBy:   []string{"Publication.Date"},
+			},
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book15.epub",
+						Slug: "middle-author-middle-book",
+						Metadata: metadata.Metadata{
+							Title:       "Middle Book",
+							Authors:     []string{"Middle Author"},
+							Description: "<p>A middle-aged book</p>",
+							Subjects:    []string{"Literature"},
+							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("1950-06-15T00:00:00Z", precisiondate.PrecisionDay),
+						},
+						AuthorsSlugs:  []string{"middle-author"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"literature"},
+					},
+				},
+			),
+		},
+		{
+			"Test books with different date precisions sorted by publication date",
+			"lib/book16.epub",
+			&epub.Information{
+				Title: []string{"Decade Book"},
+				Creator: []epub.Author{
+					{
+						FullName: "Decade Author",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"A book from a specific decade"},
+				Language:    []string{"en"},
+				Subject:     []string{"History"},
+				Date: []epub.Date{
+					{
+						Stamp: "1980",
+						Event: "publication",
+					},
+				},
+			},
+			index.SearchFields{
+				Keywords: "history",
+				SortBy:   []string{"Publication.Date"},
+			},
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book16.epub",
+						Slug: "decade-author-decade-book",
+						Metadata: metadata.Metadata{
+							Title:       "Decade Book",
+							Authors:     []string{"Decade Author"},
+							Description: "<p>A book from a specific decade</p>",
+							Subjects:    []string{"History"},
+							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("1980-01-01T00:00:00Z", precisiondate.PrecisionYear),
+						},
+						AuthorsSlugs:  []string{"decade-author"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"history"},
 					},
 				},
 			),
