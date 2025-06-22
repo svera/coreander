@@ -9,7 +9,7 @@ import (
 const latestHighlightsAmount = 6
 
 type highlightsRepository interface {
-	Highlights(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
+	Highlights(userID int, page int, resultsPerPage int, sortBy string) (result.Paginated[[]string], error)
 	Highlight(userID int, documentPath string) error
 	Remove(userID int, documentPath string) error
 	Highlighted(userID int, documents index.Document) index.Document
@@ -18,7 +18,7 @@ type highlightsRepository interface {
 // IdxReaderWriter defines a set of reading and writing operations over an index
 type IdxReaderWriter interface {
 	Document(Slug string) (index.Document, error)
-	Documents(IDs []string) (map[string]index.Document, error)
+	DocumentByID(ID string) (index.Document, error)
 }
 
 type usersRepository interface {

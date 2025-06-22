@@ -44,7 +44,12 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		log.Println(err)
 	}
 
-	if searchResults, err = a.idx.SearchByAuthor(authorSlug, page, model.ResultsPerPage); err != nil {
+	searchFields := index.SearchFields{
+		Keywords: authorSlug,
+		SortBy:   a.parseSortBy(c),
+	}
+
+	if searchResults, err = a.idx.SearchByAuthor(searchFields, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
@@ -56,12 +61,21 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 	templateVars := fiber.Map{
 		"Author":                 author,
 		"Results":                searchResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, map[string]string{}),
+		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
 		"Title":                  author.Name,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              a.sender.From(),
 		"WordsPerMinute":         a.config.WordsPerMinute,
 		"URL":                    view.URL(c),
+		"SortURL":                view.SortURL(c),
+		"SortBy":                 c.Query("sort-by"),
+		"AdditionalSortOptions": []struct {
+			Key   string
+			Value string
+		}{
+			{"pub-date-older-first", "publication date (older first)"},
+			{"pub-date-newer-first", "publication date (newer first)"},
+		},
 	}
 
 	if c.Get("hx-request") == "true" {
@@ -77,4 +91,14 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	return nil
+}
+
+func (d *Controller) parseSortBy(c *fiber.Ctx) []string {
+	if c.Query("sort-by") != "" {
+		switch c.Query("sort-by") {
+		case "pub-date-newer-first":
+			return []string{"-Publication.Date"}
+		}
+	}
+	return []string{"Publication.Date"}
 }

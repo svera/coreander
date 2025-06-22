@@ -44,19 +44,23 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	if c.Query("view") == "latest" {
-		highlights, _, err := h.sortedHighlights(c, page, user, latestHighlightsAmount)
+		highlights, _, err := h.sortedHighlights(page, user, latestHighlightsAmount, "created_at DESC")
 		if err != nil {
 			return err
 		}
 		return h.latest(c, highlights, emailSendingConfigured)
 	}
 
-	highlights, totalHits, err := h.sortedHighlights(c, page, user, model.ResultsPerPage)
+	sortBy := "created_at DESC"
+	if c.Query("sort-by") == "highlighted-older-first" {
+		sortBy = "created_at ASC"
+	}
+	highlights, totalHits, err := h.sortedHighlights(page, user, model.ResultsPerPage, sortBy)
 	if err != nil {
 		return err
 	}
 
-	paginatedResults := result.NewPaginated[[]index.Document](
+	paginatedResults := result.NewPaginated(
 		model.ResultsPerPage,
 		page,
 		totalHits,
@@ -70,12 +74,21 @@ func (h *Controller) List(c *fiber.Ctx) error {
 
 	templateVars := fiber.Map{
 		"Results":                paginatedResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, paginatedResults, nil),
+		"Paginator":              view.Pagination(model.MaxPagesNavigator, paginatedResults, c.Queries()),
 		"Title":                  "Highlights",
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              h.sender.From(),
 		"WordsPerMinute":         h.wordsPerMinute,
 		"URL":                    view.URL(c),
+		"SortURL":                view.SortURL(c),
+		"SortBy":                 c.Query("sort-by"),
+		"AdditionalSortOptions": []struct {
+			Key   string
+			Value string
+		}{
+			{"highlighted-newer-first", "highlighted date (newer first)"},
+			{"highlighted-older-first", "highlighted date (older first)"},
+		},
 	}
 
 	if c.Get("hx-request") == "true" {
@@ -93,8 +106,8 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	return nil
 }
 
-func (h *Controller) sortedHighlights(c *fiber.Ctx, page int, user *model.User, highlightsAmount int) ([]index.Document, int, error) {
-	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount)
+func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmount int, sortBy string) ([]index.Document, int, error) {
+	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy)
 	if err != nil {
 		log.Println(err)
 		return nil, 0, fiber.ErrInternalServerError
@@ -102,25 +115,23 @@ func (h *Controller) sortedHighlights(c *fiber.Ctx, page int, user *model.User, 
 
 	if docsSortedByHighlightedDate.TotalPages() < page {
 		page = docsSortedByHighlightedDate.TotalPages()
-		docsSortedByHighlightedDate, err = h.hlRepository.Highlights(int(user.ID), page, highlightsAmount)
+		docsSortedByHighlightedDate, err = h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy)
 		if err != nil {
 			log.Println(err)
 			return nil, 0, fiber.ErrInternalServerError
 		}
 	}
 
-	docs, err := h.idx.Documents(docsSortedByHighlightedDate.Hits())
-	if err != nil {
-		log.Println(err)
-		return nil, 0, fiber.ErrInternalServerError
-	}
-
-	highlights := make([]index.Document, 0, len(docs))
+	highlights := make([]index.Document, 0, len(docsSortedByHighlightedDate.Hits()))
 	for _, path := range docsSortedByHighlightedDate.Hits() {
-		if _, ok := docs[path]; !ok {
+		doc, err := h.idx.DocumentByID(path)
+		if err != nil {
+			log.Println(err)
+			return nil, 0, fiber.ErrInternalServerError
+		}
+		if doc.ID == "" {
 			continue
 		}
-		doc := docs[path]
 		doc.Highlighted = true
 		highlights = append(highlights, doc)
 	}

@@ -12,7 +12,7 @@ type Sender interface {
 
 // IdxReader defines a set of author reading operations over an index
 type IdxReader interface {
-	SearchBySeries(seriesSlug string, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
+	SearchBySeries(searchFields index.SearchFields, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
 }
 
 type highlightsRepository interface {

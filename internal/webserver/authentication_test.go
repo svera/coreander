@@ -165,7 +165,7 @@ func TestRecover(t *testing.T) {
 			t.Fatal(err)
 		}
 		errorMessages := []string{}
-		doc.Find(".invalid-feedback").Each(func(i int, s *goquery.Selection) {
+		doc.Find(".invalid-feedback").Not(".d-none").Each(func(i int, s *goquery.Selection) {
 			errorMessages = append(errorMessages, strings.TrimSpace(s.Text()))
 		})
 		if !reflect.DeepEqual(expectedErrorMessages, errorMessages) {
