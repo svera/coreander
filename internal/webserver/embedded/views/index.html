@@ -5,14 +5,14 @@
 
 {{if and (.Session) (ne .Session.Name "") (gt (len .Reading) 0)}}
 <section class="row pt-5" id="in-progress-docs">
-    {{template "partials/docs-list-horizontal" dict "Title" "Resume reading" "Lang" .Lang "EmailSendingConfigured" .EmailSendingConfigured "Session" .Session "EmailFrom" .EmailFrom "Reading" .Reading}}
+    {{template "partials/docs-list-horizontal" dict "Title" "Resume reading" "Lang" .Lang "EmailSendingConfigured" .EmailSendingConfigured "Session" .Session "EmailFrom" .EmailFrom "Docs" .Reading}}
 </section>
 {{end}}
 
 
 {{if gt (len .LatestDocs) 0}}
 <section class="row pt-5" id="latest-docs">
-    {{template "partials/docs-list-horizontal" dict "Title" "Latest additions" "Lang" .Lang "EmailSendingConfigured" .EmailSendingConfigured "Session" .Session "EmailFrom" .EmailFrom "Reading" .Reading}}
+    {{template "partials/docs-list-horizontal" dict "Title" "Latest additions" "Lang" .Lang "EmailSendingConfigured" .EmailSendingConfigured "Session" .Session "EmailFrom" .EmailFrom "Docs" .LatestDocs}}
 </section>
 {{end}}
 
