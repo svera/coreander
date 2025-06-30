@@ -16,5 +16,6 @@ func (u *Controller) New(c *fiber.Ctx) error {
 		"User":              user,
 		"UsernamePattern":   model.UsernamePattern,
 		"Errors":            map[string]string{},
+		"EmailFrom":         u.sender.From(),
 	}, "layout")
 }

@@ -51,6 +51,9 @@
                         {{t .Lang .Errors.sendtoemail}}
                     </div>
                     {{end}}
+                    <p class="text-end">
+                        <small class="text-muted"><em>{{t .Lang "Sent from %s" .EmailFrom}}</em></small>
+                    </p>
                 </div>
                 <div class="mb-3">
                     <label for="words-per-minute" class="form-label">{{t .Lang "Reading speed (in words per minute)"}}</label>
