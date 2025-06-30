@@ -112,6 +112,19 @@ func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery)
 		q.SetField("Publication.Date")
 		filtersQuery.AddQuery(q)
 	}
+	if searchFields.EstReadTimeFrom > 0 || searchFields.EstReadTimeTo > 0 {
+		q := bleve.NewNumericRangeQuery(nil, nil)
+		if searchFields.EstReadTimeFrom > 0 {
+			min := searchFields.EstReadTimeFrom * 60 * searchFields.WordsPerMinute
+			q.Min = &min
+		}
+		if searchFields.EstReadTimeTo > 0 {
+			max := searchFields.EstReadTimeTo * 60 * searchFields.WordsPerMinute
+			q.Max = &max
+		}
+		q.SetField("Words")
+		filtersQuery.AddQuery(q)
+	}
 }
 
 func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {

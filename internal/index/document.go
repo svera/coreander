@@ -8,10 +8,13 @@ import (
 )
 
 type SearchFields struct {
-	Keywords    string
-	PubDateFrom date.Date
-	PubDateTo   date.Date
-	SortBy      []string
+	Keywords        string
+	PubDateFrom     date.Date
+	PubDateTo       date.Date
+	EstReadTimeFrom float64
+	EstReadTimeTo   float64
+	WordsPerMinute  float64
+	SortBy          []string
 }
 
 type Document struct {
