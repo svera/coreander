@@ -10,10 +10,7 @@
             <div class="input-group input-group-sm">
                 <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
                 <input type="search" name="search" id="searchbox" class="form-control" maxlength="255" autofocus value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown" aria-expanded="false" id="search-filters-dropdown-toggle" data-bs-auto-close="outside" aria-expanded="false"><i class="bi bi-sliders"></i></button>
-                <div class="dropdown-menu dropdown-menu-end p-3" id="search-filters">
-                    {{template "partials/search-filters" dict "Lang" .Lang "SearchFields" .SearchFields }}
-                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" id="search-filters-offcanvas-toggle" data-bs-auto-close="outside" aria-expanded="false"><i class="bi bi-sliders"></i></button>
             </div>
         </form>
         {{end}}
@@ -107,3 +104,22 @@
         </div>
     </div>
 </nav>
+
+<div class="offcanvas offcanvas-start" tabindex="-1" id="search-filters-offcanvas" aria-labelledby="search-filters-offcanvas-label">
+    <div class="offcanvas-header">
+        <h5>{{t .Lang "Search filters"}}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form action="/documents" roles="search">
+            <div class="row">
+                <div class="col-12">
+                    <input type="search" name="search" id="searchbox-offcanvas" class="form-control" maxlength="255" autofocus value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
+                </div>
+            </div>
+            {{template "partials/search-filters" dict "Lang" .Lang "SearchFields" .SearchFields }}
+        </form>
+    </div>
+</div>
+
+<script type="module" src="/js/search-filters-offcanvas.js"></script>

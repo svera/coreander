@@ -8,12 +8,12 @@
             <p class="opacity-75 text-end">
                 <small>
                     <i class="bi-search me-2"></i>
-                    <a data-bs-toggle="collapse" href="#search-filters" aria-expanded="false">
+                    <a data-bs-toggle="collapse" href="#search-filters-collapse" aria-expanded="false">
                         {{ t .Lang "Advanced search" }}
                     </a>
                 </small>
             </p>
-            <div class="collapse text-start" id="search-filters">
+            <div class="collapse text-start card" id="search-filters-collapse">
                 {{template "partials/search-filters" dict "Lang" .Lang }}
             </div>
         </form>
