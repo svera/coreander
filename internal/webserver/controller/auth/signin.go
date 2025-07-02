@@ -79,6 +79,7 @@ func GenerateToken(c *fiber.Ctx, user *model.User, expiration time.Time, secret 
 			Uuid:           user.Uuid,
 			SendToEmail:    user.SendToEmail,
 			WordsPerMinute: user.WordsPerMinute,
+			ShowFileName:   user.ShowFileName,
 		},
 		"exp": jwt.NewNumericDate(expiration),
 	},

@@ -11,7 +11,7 @@ func sessionData(c *fiber.Ctx) model.Session {
 
 	if t, ok := c.Locals("user").(*jwt.Token); ok {
 		claims := t.Claims.(jwt.MapClaims)
-		userDataMap := claims["userdata"].(map[string]interface{})
+		userDataMap := claims["userdata"].(map[string]any)
 		if value, ok := userDataMap["ID"].(float64); ok {
 			session.ID = uint(value)
 		}
@@ -35,6 +35,9 @@ func sessionData(c *fiber.Ctx) model.Session {
 		}
 		if value, ok := userDataMap["WordsPerMinute"].(float64); ok {
 			session.WordsPerMinute = value
+		}
+		if value, ok := userDataMap["ShowFileName"].(bool); ok {
+			session.ShowFileName = value
 		}
 
 		session.Exp = claims["exp"].(float64)

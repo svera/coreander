@@ -53,6 +53,10 @@
                 </div>
                 <div class="row">
                     <div class="col-12 text-start">
+                        {{if and $session $session.ShowFileName}}
+                        <p class="text-muted"><small><i>{{$document.ID}}</i></small></p>
+                        {{end}}
+
                         {{if $document.Authors}}
                         <h5>
                             {{range $i, $author := $document.Authors}}

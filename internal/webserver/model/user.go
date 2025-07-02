@@ -31,6 +31,7 @@ type User struct {
 	Highlights         []Highlight `gorm:"constraint:OnDelete:CASCADE"`
 	Readings           []Reading   `gorm:"constraint:OnDelete:CASCADE"`
 	LastLogin          time.Time
+	ShowFileName       bool `gorm:"default:false"`
 }
 
 // Validate checks all user's fields to ensure they are in the required format

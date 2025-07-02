@@ -31,44 +31,61 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
-	if c.FormValue("password-tab") == "true" {
-		return u.updateUserPassword(c, *user, session)
+	var validationErrs map[string]string
+
+	switch c.FormValue("tab") {
+	case "profile":
+		validationErrs, err = u.updateUserData(c, user, session)
+	case "password":
+		validationErrs, err = u.updateUserPassword(c, *user, session)
+	default:
+		err = u.updateOptions(c, user, session)
 	}
 
-	return u.updateUserData(c, user, session)
-}
-
-func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session model.Session) error {
-	user.Name = strings.TrimSpace(c.FormValue("name"))
-	user.Username = strings.ToLower(c.FormValue("username"))
-	user.Email = c.FormValue("email")
-	user.SendToEmail = c.FormValue("send-to-email")
-	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
-
-	validationErrs, err := u.validate(c, user, session)
 	if err != nil {
-		return err
+		log.Println(err.Error())
+		return fiber.ErrInternalServerError
+	}
+
+	vars := fiber.Map{
+		"Title":             "Edit user",
+		"User":              user,
+		"MinPasswordLength": u.config.MinPasswordLength,
+		"UsernamePattern":   model.UsernamePattern,
+		"Errors":            validationErrs,
+		"ActiveTab":         c.FormValue("tab"),
 	}
 
 	if len(validationErrs) > 0 {
-		return c.Status(fiber.StatusBadRequest).Render("user/edit", fiber.Map{
-			"Title":             "Edit user",
-			"User":              user,
-			"MinPasswordLength": u.config.MinPasswordLength,
-			"UsernamePattern":   model.UsernamePattern,
-			"Errors":            validationErrs,
-		}, "partials/main")
+		return c.Status(fiber.StatusBadRequest).Render("user/edit", vars, "partials/main")
 	}
+
+	vars["Message"] = "Profile updated"
+	return c.Render("user/edit", vars, "partials/main")
+}
+
+func (u *Controller) updateOptions(c *fiber.Ctx, user *model.User, session model.Session) error {
+	user.ShowFileName = c.FormValue("show-file-name") == "on"
+	user.SendToEmail = c.FormValue("send-to-email")
+	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
 
 	if err := u.repository.Update(user); err != nil {
 		return fiber.ErrInternalServerError
 	}
 
+	if err := u.refreshSession(session, user, c); err != nil {
+		return fiber.ErrInternalServerError
+	}
+
+	return nil
+}
+
+func (u *Controller) refreshSession(session model.Session, user *model.User, c *fiber.Ctx) error {
 	if session.Uuid == user.Uuid {
 		expiration := time.Unix(int64(session.Exp), 0)
 		signedToken, err := auth.GenerateToken(c, user, expiration, u.config.Secret)
 		if err != nil {
-			return fiber.ErrInternalServerError
+			return err
 		}
 
 		c.Cookie(&fiber.Cookie{
@@ -81,15 +98,27 @@ func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session mode
 		})
 		c.Locals("Session", user)
 	}
+	return nil
+}
 
-	return c.Render("user/edit", fiber.Map{
-		"Title":             "Edit user",
-		"User":              user,
-		"MinPasswordLength": u.config.MinPasswordLength,
-		"UsernamePattern":   model.UsernamePattern,
-		"Errors":            validationErrs,
-		"Message":           "Profile updated",
-	}, "partials/main")
+func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session model.Session) (map[string]string, error) {
+	user.Name = strings.TrimSpace(c.FormValue("name"))
+	user.Username = strings.ToLower(c.FormValue("username"))
+	user.Email = c.FormValue("email")
+
+	validationErrs, err := u.validate(c, user, session)
+	if err != nil || len(validationErrs) > 0 {
+		return validationErrs, err
+	}
+
+	if err := u.repository.Update(user); err != nil {
+		return nil, fiber.ErrInternalServerError
+	}
+
+	if err := u.refreshSession(session, user, c); err != nil {
+		return nil, fiber.ErrInternalServerError
+	}
+	return nil, nil
 }
 
 func (u *Controller) validate(c *fiber.Ctx, user *model.User, session model.Session) (map[string]string, error) {
@@ -146,7 +175,7 @@ func (u *Controller) emailExists(c *fiber.Ctx, session model.Session) (bool, err
 }
 
 // updateUserPassword gathers information from the edit user form and updates user password
-func (u *Controller) updateUserPassword(c *fiber.Ctx, user model.User, session model.Session) error {
+func (u *Controller) updateUserPassword(c *fiber.Ctx, user model.User, session model.Session) (map[string]string, error) {
 	user.Password = c.FormValue("password")
 
 	errs := user.Validate(u.config.MinPasswordLength)
@@ -155,7 +184,7 @@ func (u *Controller) updateUserPassword(c *fiber.Ctx, user model.User, session m
 	if session.Uuid == c.FormValue("id") {
 		user, err := u.repository.FindByEmail(user.Email)
 		if err != nil {
-			return fiber.ErrInternalServerError
+			return nil, fiber.ErrInternalServerError
 		}
 
 		if user.Password != model.Hash(c.FormValue("old-password")) {
@@ -164,28 +193,13 @@ func (u *Controller) updateUserPassword(c *fiber.Ctx, user model.User, session m
 	}
 
 	if errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.config.MinPasswordLength, errs); len(errs) > 0 {
-		return c.Render("user/edit", fiber.Map{
-			"Title":             "Edit user",
-			"User":              user,
-			"MinPasswordLength": u.config.MinPasswordLength,
-			"ActiveTab":         "password",
-			"UsernamePattern":   model.UsernamePattern,
-			"Errors":            errs,
-		}, "layout")
+		return errs, nil
 	}
 
 	user.Password = model.Hash(user.Password)
 	if err := u.repository.Update(&user); err != nil {
-		return fiber.ErrInternalServerError
+		return errs, fiber.ErrInternalServerError
 	}
 
-	return c.Render("user/edit", fiber.Map{
-		"Title":             "Edit user",
-		"User":              user,
-		"MinPasswordLength": u.config.MinPasswordLength,
-		"ActiveTab":         "password",
-		"UsernamePattern":   model.UsernamePattern,
-		"Errors":            errs,
-		"Message":           "Password updated",
-	}, "layout")
+	return nil, nil
 }
