@@ -5,6 +5,10 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
+type Sender interface {
+	From() string
+}
+
 type usersRepository interface {
 	List(page int, resultsPerPage int) (result.Paginated[[]model.User], error)
 	Total() int64
@@ -26,12 +30,14 @@ type Config struct {
 type Controller struct {
 	repository usersRepository
 	config     Config
+	sender     Sender
 }
 
 // NewController returns a new instance of the users controller
-func NewController(repository usersRepository, usersCfg Config) *Controller {
+func NewController(repository usersRepository, usersCfg Config, sender Sender) *Controller {
 	return &Controller{
 		repository: repository,
 		config:     usersCfg,
+		sender:     sender,
 	}
 }

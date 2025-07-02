@@ -33,5 +33,6 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		"MinPasswordLength": u.config.MinPasswordLength,
 		"UsernamePattern":   model.UsernamePattern,
 		"Errors":            map[string]string{},
+		"EmailFrom":         u.sender.From(),
 	}, "layout")
 }

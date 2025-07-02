@@ -67,6 +67,8 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 			{"relevance", "relevance"},
 			{"pub-date-older-first", "publication date (older first)"},
 			{"pub-date-newer-first", "publication date (newer first)"},
+			{"est-read-time-shorter-first", "estimated reading time (shorter first)"},
+			{"est-read-time-longer-first", "estimated reading time (longer first)"},
 		},
 	}
 
@@ -88,8 +90,11 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 
 func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) {
 	searchFields := index.SearchFields{
-		Keywords: c.Query("search"),
-		SortBy:   d.parseSortBy(c),
+		Keywords:        c.Query("search"),
+		SortBy:          d.parseSortBy(c),
+		EstReadTimeFrom: c.QueryFloat("est-read-time-from", 0),
+		EstReadTimeTo:   c.QueryFloat("est-read-time-to", 0),
+		WordsPerMinute:  d.config.WordsPerMinute,
 	}
 
 	if c.Query("pub-date-from") != "" {
@@ -112,6 +117,10 @@ func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) 
 		searchFields.PubDateFrom, searchFields.PubDateTo = searchFields.PubDateTo, searchFields.PubDateFrom
 	}
 
+	if searchFields.EstReadTimeFrom > searchFields.EstReadTimeTo {
+		searchFields.EstReadTimeFrom, searchFields.EstReadTimeTo = searchFields.EstReadTimeTo, searchFields.EstReadTimeFrom
+	}
+
 	return searchFields, nil
 }
 
@@ -122,6 +131,10 @@ func (d *Controller) parseSortBy(c *fiber.Ctx) []string {
 			return []string{"Publication.Date"}
 		case "pub-date-newer-first":
 			return []string{"-Publication.Date"}
+		case "est-read-time-shorter-first":
+			return []string{"Words"}
+		case "est-read-time-longer-first":
+			return []string{"-Words"}
 		}
 	}
 	return []string{"-_score", "Series", "SeriesIndex"}

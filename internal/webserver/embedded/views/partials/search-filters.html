@@ -1,6 +1,6 @@
-<div class="row pb-3">
-    <fieldset>
-        <legend>{{t .Lang "Publishing date"}}</legend>
+<div class="row pb-3 card-body" id="search-filters">
+    <fieldset class="mt-5">
+        <legend class="fs-5">{{t .Lang "Publishing date"}}</legend>
         <div class="row">
             <div class="col-12 col-xl-6">
                 <label class="form-label">{{t .Lang "From"}}</label>
@@ -20,11 +20,39 @@
             </div>
         </div>
     </fieldset>
-</div>
-<div class="row">
-    <div class="col-12 text-end">
-        <button class="btn btn-primary" type="submit">{{t .Lang "Search"}}</button>
-    </div>
+    <fieldset class="mt-5">
+        <legend class="fs-5">{{t .Lang "Estimated reading time"}}</legend>
+        <div class="row">
+            <div class="col-12 col-xl-6">
+                <label class="form-label">{{t .Lang "From"}}</label>
+                {{$estReadTimeFrom := ""}}
+                {{if .SearchFields}}
+                    {{$estReadTimeFrom = .SearchFields.EstReadTimeFrom}}
+                {{end}}
+                <div class="input-group input-group-sm">
+                    <input class="form-control" type="number" value="{{$estReadTimeFrom}}" min="0" max="1000" step="1" name="est-read-time-from" id="est-read-time-from">
+                    <span class="input-group-text">{{t .Lang "Hours"}}</span>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-6">
+                <label class="form-label">{{t .Lang "To"}}</label>
+                {{$estReadTimeTo := ""}}
+                {{if .SearchFields}}
+                    {{$estReadTimeTo = .SearchFields.EstReadTimeTo}}
+                {{end}}
+                <div class="input-group input-group-sm">
+                    <input class="form-control" type="number" value="{{$estReadTimeTo}}" min="0" max="1000" step="1" name="est-read-time-to" id="est-read-time-to">
+                    <span class="input-group-text">{{t .Lang "Hours"}}</span>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-5">
+            <div class="col-12 text-end">
+                <button class="btn btn-primary btn-sm" type="submit">{{t .Lang "Search"}}</button>
+            </div>
+        </div>
+    </fieldset>
 </div>
 
 

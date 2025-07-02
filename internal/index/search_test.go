@@ -2,6 +2,7 @@ package index_test
 
 import (
 	"fmt"
+	"html/template"
 	"reflect"
 	"testing"
 
@@ -24,13 +25,29 @@ func TestIndexAndSearch(t *testing.T) {
 				t.Errorf("Error initialising index")
 			}
 
-			mockMetadataReaders := map[string]metadata.Reader{
-				".epub": metadata.EpubReader{
-					GetMetadataFromFile: func(file string) (*epub.Information, error) {
-						return tcase.mockedMeta, nil
+			var mockMetadataReaders map[string]metadata.Reader
+
+			// Use custom mockEpubReader for reading time tests that need specific word counts
+			if tcase.name == "Test estimated reading time range search" {
+				mockMetadataReaders = map[string]metadata.Reader{
+					".epub": mockEpubReader{
+						EpubReader: metadata.EpubReader{
+							GetMetadataFromFile: func(file string) (*epub.Information, error) {
+								return tcase.mockedMeta, nil
+							},
+							GetPackageFromFile: epub.GetPackageFromFile,
+						},
 					},
-					GetPackageFromFile: epub.GetPackageFromFile,
-				},
+				}
+			} else {
+				mockMetadataReaders = map[string]metadata.Reader{
+					".epub": metadata.EpubReader{
+						GetMetadataFromFile: func(file string) (*epub.Information, error) {
+							return tcase.mockedMeta, nil
+						},
+						GetPackageFromFile: epub.GetPackageFromFile,
+					},
+				}
 			}
 
 			appFS := afero.NewMemMapFs()
@@ -193,6 +210,231 @@ func TestSearchResultsSortedByDate(t *testing.T) {
 
 		// Verify they are sorted from newest to oldest, with no-date books at the end
 		expectedOrder := []string{"newest.epub", "newer.epub", "older.epub", "oldest.epub", "no-date.epub"}
+		for i, doc := range res.Hits() {
+			if doc.ID != expectedOrder[i] {
+				t.Errorf("Expected document %s at position %d, got %s", expectedOrder[i], i, doc.ID)
+			}
+		}
+	})
+}
+
+// Create a custom metadata reader that sets different word counts
+type mockEpubReader struct {
+	metadata.EpubReader
+}
+
+func (m mockEpubReader) Metadata(filename string) (metadata.Metadata, error) {
+	// Get the base metadata from the mock
+	meta, err := m.GetMetadataFromFile(filename)
+	if err != nil {
+		return metadata.Metadata{}, err
+	}
+
+	// Create metadata with custom word counts based on filename
+	var wordCount float64
+	switch filename {
+	case "lib/shortest.epub":
+		wordCount = 1000 // 1000 words
+	case "lib/shorter.epub":
+		wordCount = 5000 // 5000 words
+	case "lib/longer.epub":
+		wordCount = 15000 // 15000 words
+	case "lib/longest.epub":
+		wordCount = 50000 // 50000 words
+	case "lib/no-words.epub":
+		wordCount = 0 // 0 words
+	case "lib/book19.epub":
+		wordCount = 24000 // 24000 words = 2 hours at 200 wpm
+	default:
+		wordCount = 0
+	}
+
+	// Create the metadata manually
+	title := meta.Title[0]
+	var authors []string
+	for _, creator := range meta.Creator {
+		if creator.Role == "aut" || creator.Role == "" {
+			authors = append(authors, creator.FullName)
+		}
+	}
+	if len(authors) == 0 {
+		authors = []string{""}
+	}
+
+	description := ""
+	if len(meta.Description) > 0 {
+		description = "<p>" + meta.Description[0] + "</p>"
+	}
+
+	lang := ""
+	if len(meta.Language) > 0 {
+		lang = meta.Language[0]
+	}
+
+	publication := precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay}
+	for _, currentDate := range meta.Date {
+		if currentDate.Event == "publication" || currentDate.Event == "" {
+			if publication.Date, err = date.ParseISO(currentDate.Stamp); err != nil {
+				publication.Precision = precisiondate.PrecisionYear
+				publication.Date, _ = date.Parse("2006", currentDate.Stamp)
+			}
+			break
+		}
+	}
+
+	return metadata.Metadata{
+		Title:       title,
+		Authors:     authors,
+		Description: template.HTML(description),
+		Language:    lang,
+		Publication: publication,
+		Series:      meta.Series,
+		SeriesIndex: 0,
+		Format:      "EPUB",
+		Subjects:    meta.Subject,
+		Words:       wordCount,
+	}, nil
+}
+
+func TestSearchResultsSortedByReadingTime(t *testing.T) {
+	indexMem, err := bleve.NewMemOnly(index.CreateMapping())
+	if err != nil {
+		t.Fatalf("Error initialising index: %v", err)
+	}
+
+	mockMetadataReaders := map[string]metadata.Reader{
+		".epub": mockEpubReader{
+			EpubReader: metadata.EpubReader{
+				GetMetadataFromFile: func(file string) (*epub.Information, error) {
+					switch file {
+					case "lib/shortest.epub":
+						return &epub.Information{
+							Title: []string{"Shortest Book"},
+							Creator: []epub.Author{
+								{FullName: "Short Author", Role: "aut"},
+							},
+							Description: []string{"The shortest book"},
+							Language:    []string{"en"},
+							Subject:     []string{"Short Stories"},
+							Date: []epub.Date{
+								{Stamp: "2020-01-01", Event: "publication"},
+							},
+						}, nil
+					case "lib/shorter.epub":
+						return &epub.Information{
+							Title: []string{"Shorter Book"},
+							Creator: []epub.Author{
+								{FullName: "Medium Author", Role: "aut"},
+							},
+							Description: []string{"A shorter book"},
+							Language:    []string{"en"},
+							Subject:     []string{"Short Stories"},
+							Date: []epub.Date{
+								{Stamp: "2020-06-15", Event: "publication"},
+							},
+						}, nil
+					case "lib/longer.epub":
+						return &epub.Information{
+							Title: []string{"Longer Book"},
+							Creator: []epub.Author{
+								{FullName: "Long Author", Role: "aut"},
+							},
+							Description: []string{"A longer book"},
+							Language:    []string{"en"},
+							Subject:     []string{"Novels"},
+							Date: []epub.Date{
+								{Stamp: "2020-12-31", Event: "publication"},
+							},
+						}, nil
+					case "lib/longest.epub":
+						return &epub.Information{
+							Title: []string{"Longest Book"},
+							Creator: []epub.Author{
+								{FullName: "Epic Author", Role: "aut"},
+							},
+							Description: []string{"The longest book"},
+							Language:    []string{"en"},
+							Subject:     []string{"Epic Novels"},
+							Date: []epub.Date{
+								{Stamp: "2023-03-20", Event: "publication"},
+							},
+						}, nil
+					case "lib/no-words.epub":
+						return &epub.Information{
+							Title: []string{"No Words Book"},
+							Creator: []epub.Author{
+								{FullName: "Unknown Author", Role: "aut"},
+							},
+							Description: []string{"A book without word count"},
+							Language:    []string{"en"},
+							Subject:     []string{"Mystery"},
+							Date:        []epub.Date{},
+						}, nil
+					default:
+						return nil, fmt.Errorf("unknown file: %s", file)
+					}
+				},
+				GetPackageFromFile: epub.GetPackageFromFile,
+			},
+		},
+	}
+
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+
+	// Create test files
+	testFiles := []string{"lib/shortest.epub", "lib/shorter.epub", "lib/longer.epub", "lib/longest.epub", "lib/no-words.epub"}
+	for _, file := range testFiles {
+		if err = afero.WriteFile(appFS, file, []byte(""), 0644); err != nil {
+			t.Fatalf("Couldn't write file %s: %v", file, err)
+		}
+	}
+
+	idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+
+	if err = idx.AddLibrary(1, true); err != nil {
+		t.Fatalf("Error indexing: %v", err)
+	}
+
+	t.Run("Test search results sorted by reading time shorter first", func(t *testing.T) {
+		res, err := idx.Search(index.SearchFields{
+			Keywords: "book",
+			SortBy:   []string{"Words"},
+		}, 1, 10)
+
+		if err != nil {
+			t.Fatalf("Error searching: %v", err)
+		}
+
+		if len(res.Hits()) != 5 {
+			t.Fatalf("Expected 5 results, got %d", len(res.Hits()))
+		}
+
+		// Verify they are sorted from shortest to longest, with no-words books at the beginning (words value 0)
+		expectedOrder := []string{"no-words.epub", "shortest.epub", "shorter.epub", "longer.epub", "longest.epub"}
+		for i, doc := range res.Hits() {
+			if doc.ID != expectedOrder[i] {
+				t.Errorf("Expected document %s at position %d, got %s", expectedOrder[i], i, doc.ID)
+			}
+		}
+	})
+
+	t.Run("Test search results sorted by reading time longer first", func(t *testing.T) {
+		res, err := idx.Search(index.SearchFields{
+			Keywords: "book",
+			SortBy:   []string{"-Words"},
+		}, 1, 10)
+
+		if err != nil {
+			t.Fatalf("Error searching: %v", err)
+		}
+
+		if len(res.Hits()) != 5 {
+			t.Fatalf("Expected 5 results, got %d", len(res.Hits()))
+		}
+
+		// Verify they are sorted from longest to shortest, with no-words books at the end
+		expectedOrder := []string{"longest.epub", "longer.epub", "shorter.epub", "shortest.epub", "no-words.epub"}
 		for i, doc := range res.Hits() {
 			if doc.ID != expectedOrder[i] {
 				t.Errorf("Expected document %s at position %d, got %s", expectedOrder[i], i, doc.ID)
@@ -942,6 +1184,153 @@ func testIndexAndSearchCases() []testCase {
 						AuthorsSlugs:  []string{"decade-author"},
 						SeriesSlug:    "",
 						SubjectsSlugs: []string{"history"},
+					},
+				},
+			),
+		},
+		{
+			"Test search results sorted by reading time shorter first",
+			"lib/book17.epub",
+			&epub.Information{
+				Title: []string{"Short Book"},
+				Creator: []epub.Author{
+					{
+						FullName: "Short Author",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"A short book"},
+				Language:    []string{"en"},
+				Subject:     []string{"Short Stories"},
+				Date: []epub.Date{
+					{
+						Stamp: "2020-01-01",
+						Event: "publication",
+					},
+				},
+			},
+			index.SearchFields{
+				Keywords: "short",
+				SortBy:   []string{"Words"},
+			},
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book17.epub",
+						Slug: "short-author-short-book",
+						Metadata: metadata.Metadata{
+							Title:       "Short Book",
+							Authors:     []string{"Short Author"},
+							Description: "<p>A short book</p>",
+							Subjects:    []string{"Short Stories"},
+							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("2020-01-01T00:00:00Z", precisiondate.PrecisionDay),
+						},
+						AuthorsSlugs:  []string{"short-author"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"short-stories"},
+					},
+				},
+			),
+		},
+		{
+			"Test search results sorted by reading time longer first",
+			"lib/book18.epub",
+			&epub.Information{
+				Title: []string{"Long Book"},
+				Creator: []epub.Author{
+					{
+						FullName: "Long Author",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"A long book"},
+				Language:    []string{"en"},
+				Subject:     []string{"Novels"},
+				Date: []epub.Date{
+					{
+						Stamp: "2020-12-31",
+						Event: "publication",
+					},
+				},
+			},
+			index.SearchFields{
+				Keywords: "long",
+				SortBy:   []string{"-Words"},
+			},
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book18.epub",
+						Slug: "long-author-long-book",
+						Metadata: metadata.Metadata{
+							Title:       "Long Book",
+							Authors:     []string{"Long Author"},
+							Description: "<p>A long book</p>",
+							Subjects:    []string{"Novels"},
+							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("2020-12-31T00:00:00Z", precisiondate.PrecisionDay),
+						},
+						AuthorsSlugs:  []string{"long-author"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"novels"},
+					},
+				},
+			),
+		},
+		{
+			"Test estimated reading time range search",
+			"lib/book19.epub",
+			&epub.Information{
+				Title: []string{"Medium Length Book"},
+				Creator: []epub.Author{
+					{
+						FullName: "Medium Author",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"A medium length book"},
+				Language:    []string{"en"},
+				Subject:     []string{"Fiction"},
+				Date: []epub.Date{
+					{
+						Stamp: "2021-06-15",
+						Event: "publication",
+					},
+				},
+			},
+			index.SearchFields{
+				Keywords:        "",
+				EstReadTimeFrom: 1.0, // 1 hour minimum
+				EstReadTimeTo:   3.0, // 3 hours maximum
+				WordsPerMinute:  200.0,
+			},
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book19.epub",
+						Slug: "medium-author-medium-length-book",
+						Metadata: metadata.Metadata{
+							Title:       "Medium Length Book",
+							Authors:     []string{"Medium Author"},
+							Description: "<p>A medium length book</p>",
+							Subjects:    []string{"Fiction"},
+							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("2021-06-15T00:00:00Z", precisiondate.PrecisionDay),
+							Words:       24000, // 24000 words = 2 hours at 200 wpm
+						},
+						AuthorsSlugs:  []string{"medium-author"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"fiction"},
 					},
 				},
 			),

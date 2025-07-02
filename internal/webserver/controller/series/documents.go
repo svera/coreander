@@ -77,6 +77,8 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 			{"number-desc", "series number (descending)"},
 			{"pub-date-older-first", "publication date (older first)"},
 			{"pub-date-newer-first", "publication date (newer first)"},
+			{"est-read-time-shorter-first", "estimated reading time (shorter first)"},
+			{"est-read-time-longer-first", "estimated reading time (longer first)"},
 		},
 	}
 
@@ -104,6 +106,10 @@ func (d *Controller) parseSortBy(c *fiber.Ctx) []string {
 			return []string{"-Publication.Date", "SeriesIndex"}
 		case "number-desc":
 			return []string{"-SeriesIndex"}
+		case "est-read-time-shorter-first":
+			return []string{"Words"}
+		case "est-read-time-longer-first":
+			return []string{"-Words"}
 		}
 	}
 	return []string{"SeriesIndex"}
