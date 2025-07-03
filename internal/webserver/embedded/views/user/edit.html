@@ -4,16 +4,52 @@
     </div>
     <ul class="nav nav-tabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class='nav-link {{if ne .ActiveTab "password"}}active{{end}}' id="home-tab" data-bs-toggle="tab" data-bs-target="#profile-tab-pane"
-                type="button" role="tab" aria-controls="home-tab-pane" aria-selected="true">{{t .Lang "Profile"}}</button>
+            <button class='nav-link {{if eq .ActiveTab "options"}}active{{end}}' id="options-tab" data-bs-toggle="tab" data-bs-target="#options-tab-pane"
+                type="button" role="tab" aria-controls="options-tab-pane" aria-selected="true">{{t .Lang "Options"}}</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class='nav-link {{if eq .ActiveTab "password"}}active{{end}}' id="profile-tab" data-bs-toggle="tab" data-bs-target="#password-tab-pane"
-                type="button" role="tab" aria-controls="profile-tab-pane" aria-selected="false">{{t .Lang "Change password"}}</button>
+            <button class='nav-link {{if eq .ActiveTab "profile"}}active{{end}}' id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile-tab-pane"
+                type="button" role="tab" aria-controls="profile-tab-pane" aria-selected="true">{{t .Lang "Profile"}}</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class='nav-link {{if eq .ActiveTab "password"}}active{{end}}' id="password-tab" data-bs-toggle="tab" data-bs-target="#password-tab-pane"
+                type="button" role="tab" aria-controls="password-tab-pane" aria-selected="false">{{t .Lang "Change password"}}</button>
         </li>
     </ul>
     <div class="tab-content">
-        <div class='tab-pane fade p-3 {{if ne .ActiveTab "password"}}show active{{end}}' id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab"
+        <div class='tab-pane fade p-3 {{if eq .ActiveTab "options"}}show active{{end}}' id="options-tab-pane" role="tabpanel" aria-labelledby="options-tab"
+            tabindex="0">
+            <form hx-put="/users/{{.User.Username}}" hx-target="main" hx-target-400="main">
+                <div class="mb-3">
+                    <label for="send-to-email" class="form-label">{{t .Lang "Default send to email address"}}</label>
+                    <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}" maxlength="100" aria-describedby="send-to-email-help">
+                    <div class="form-text text-end" id="send-to-email-help">
+                        {{t .Lang "Sent from %s" .EmailFrom}}
+                    </div>
+                    {{if ne (index .Errors "sendtoemail") ""}}
+                    <div class="invalid-feedback">
+                        {{t .Lang .Errors.sendtoemail}}
+                    </div>
+                    {{end}}
+                </div>
+                <div class="mb-3">
+                    <label for="words-per-minute" class="form-label">{{t .Lang "Reading speed (in words per minute)"}}</label>
+                    <input type="number" name="words-per-minute" class='form-control {{if ne (index .Errors "wordsperminute") ""}}is-invalid{{end}}' id="words-per-minute" value="{{.User.WordsPerMinute}}" min="1" max="999" required="required">
+                    {{if ne (index .Errors "wordsperminute") ""}}
+                    <div class="invalid-feedback">
+                        {{t .Lang .Errors.wordsperminute}}
+                    </div>
+                    {{end}}
+                </div>
+                <div class="mb-3 form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="show-file-name" name="show-file-name" {{if .User.ShowFileName}}checked{{end}}>
+                    <label class="form-check-label" for="show-file-name">{{t .Lang "Show documents file names"}}</label>
+                </div>
+                <input type="hidden" name="tab" value="options">
+                <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
+            </form>
+        </div>
+        <div class='tab-pane fade p-3 {{if eq .ActiveTab "profile"}}show active{{end}}' id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab"
             tabindex="0">
             <form hx-put="/users/{{.User.Username}}" hx-target="main" hx-target-400="main">
                 <div class="mb-3">
@@ -43,28 +79,8 @@
                     </div>
                     {{end}}
                 </div>
-                <div class="mb-3">
-                    <label for="send-to-email" class="form-label">{{t .Lang "Default send to email address"}}</label>
-                    <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}" maxlength="100" aria-describedby="send-to-email-help">
-                    <div class="form-text text-end" id="send-to-email-help">
-                        {{t .Lang "Sent from %s" .EmailFrom}}
-                    </div>
-                    {{if ne (index .Errors "sendtoemail") ""}}
-                    <div class="invalid-feedback">
-                        {{t .Lang .Errors.sendtoemail}}
-                    </div>
-                    {{end}}
-                </div>
-                <div class="mb-3">
-                    <label for="words-per-minute" class="form-label">{{t .Lang "Reading speed (in words per minute)"}}</label>
-                    <input type="number" name="words-per-minute" class='form-control {{if ne (index .Errors "wordsperminute") ""}}is-invalid{{end}}' id="words-per-minute" value="{{.User.WordsPerMinute}}" min="1" max="999" required="required">
-                    {{if ne (index .Errors "wordsperminute") ""}}
-                    <div class="invalid-feedback">
-                        {{t .Lang .Errors.wordsperminute}}
-                    </div>
-                    {{end}}
-                </div>
                 <input type="hidden" name="id" value="{{.User.Uuid}}">
+                <input type="hidden" name="tab" value="profile">
                 <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
             </form>
         </div>
@@ -104,7 +120,7 @@
                     {{end}}
                 </div>
 
-                <input type="hidden" name="password-tab" value="true">
+                <input type="hidden" name="tab" value="password">
                 <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
             </form>
         </div>

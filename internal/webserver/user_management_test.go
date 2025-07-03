@@ -241,6 +241,7 @@ func TestUserManagement(t *testing.T) {
 
 		regularUserData.Set("name", "Updated regular user   ") // Extra spaces to test trimming
 		regularUserData.Set("id", regularUser.Uuid)
+		regularUserData.Set("tab", "profile")
 
 		response, err := getRequest(regularUserCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
 		if response == nil {
@@ -265,6 +266,7 @@ func TestUserManagement(t *testing.T) {
 
 		regularUserData.Set("name", "Updated regular user by an admin")
 		regularUserData.Set("id", regularUser.Uuid)
+		regularUserData.Set("tab", "profile")
 
 		response, err := putRequest(regularUserData, adminCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
 		if response == nil {

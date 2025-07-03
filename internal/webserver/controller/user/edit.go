@@ -34,5 +34,6 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		"UsernamePattern":   model.UsernamePattern,
 		"Errors":            map[string]string{},
 		"EmailFrom":         u.sender.From(),
+		"ActiveTab":         "options",
 	}, "layout")
 }
