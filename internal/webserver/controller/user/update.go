@@ -53,6 +53,7 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 		"MinPasswordLength": u.config.MinPasswordLength,
 		"UsernamePattern":   model.UsernamePattern,
 		"Errors":            validationErrs,
+		"EmailFrom":         u.sender.From(),
 		"ActiveTab":         c.FormValue("tab"),
 	}
 
