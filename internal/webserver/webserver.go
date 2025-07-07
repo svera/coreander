@@ -12,6 +12,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
+	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/favicon"
 	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/index"
@@ -124,6 +125,7 @@ func New(cfg Config, controllers Controllers, sender Sender, progress ProgressIn
 				return time.Second * time.Duration(newCacheTime)
 			},
 		}),
+		compress.New(),
 	)
 
 	routes(app, controllers, cfg.JwtSecret, sender, cfg.RequireAuth)
