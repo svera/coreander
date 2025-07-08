@@ -13,6 +13,11 @@
             <h1 class="text-start">
                 {{.Document.Title}}
             </h1>
+
+            {{if and $session $session.ShowFileName}}
+            <p class="text-muted"><small><i>{{$document.ID}}</i></small></p>
+            {{end}}
+
             {{if .Document.Authors}}
                 <h2>
                     {{join $document.Authors ", "}}
