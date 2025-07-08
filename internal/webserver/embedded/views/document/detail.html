@@ -14,10 +14,6 @@
                 {{.Document.Title}}
             </h1>
 
-            {{if and $session $session.ShowFileName}}
-            <p class="text-muted"><small><i>{{$document.ID}}</i></small></p>
-            {{end}}
-
             {{if .Document.Authors}}
                 <h2>
                     {{join $document.Authors ", "}}
@@ -34,6 +30,11 @@
         {{template "partials/actions" dict "Lang" $lang "Document" .Document "Session" $session "EmailSendingConfigured" .EmailSendingConfigured "EmailFrom" $emailFrom}}
 
         <dl class="row text-muted">
+            {{if and $session $session.ShowFileName}}
+                <dt class="col-5">{{t $lang "File name"}}</dt>
+                <dd class="col-7 text-end"><small><i>{{$document.ID}}</i></small></dd><br >
+            {{end}}
+
             {{if not (eq .Document.Publication.Date 0)}}
                 <dt class="col-8">{{t $lang "Year"}}</dt>
                 <dd class="col-4 text-end"><time>{{.Document.Publication.Date.Year}}</time>

@@ -53,10 +53,6 @@
                 </div>
                 <div class="row">
                     <div class="col-12 text-start">
-                        {{if and $session $session.ShowFileName}}
-                        <p class="text-muted"><small><i>{{$document.ID}}</i></small></p>
-                        {{end}}
-
                         {{if $document.Authors}}
                         <h5>
                             {{range $i, $author := $document.Authors}}
@@ -69,6 +65,11 @@
                         {{end}}
 
                         <dl class="text-muted list-inline">
+                            {{if and $session $session.ShowFileName}}
+                                <dt class="list-inline-item">{{t $lang "File name"}}</dt>
+                                <dd class="list-inline-item"><i>{{$document.ID}}</i></dd><br />
+                            {{end}}
+
                             {{if not (eq $document.Publication.Date 0)}}
                                 <dt class="list-inline-item">{{t $lang "Year"}}</dt>
                                 <dd class="list-inline-item"><time>{{$document.Publication.Date.Year}}</time>
