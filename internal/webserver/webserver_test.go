@@ -116,6 +116,7 @@ func getRequest(cookie *http.Cookie, app *fiber.App, URL string, t *testing.T) (
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("Accept-Language", "en")
 	req.AddCookie(cookie)
 
 	return app.Test(req)
@@ -145,6 +146,7 @@ func formRequest(method string, data url.Values, cookie *http.Cookie, app *fiber
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept-Language", "en")
 	req.AddCookie(cookie)
 
 	return app.Test(req)

@@ -40,6 +40,7 @@ func TestAuthorSummary(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())
 			}
+			req.Header.Set("Accept-Language", "en")
 			response, err := app.Test(req)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())
