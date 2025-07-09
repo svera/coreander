@@ -74,14 +74,14 @@
                         <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi-globe"></i>
                         </button>
-                        <ul class="dropdown-menu">
+                        <ul class="dropdown-menu shadow">
                         {{range $i, $currentLang := .SupportedLanguages}}
                             {{if eq $lang $currentLang}}
-                                <li class="dropdown-item">{{uppercase $currentLang}}</li>
+                                <li class="dropdown-item">{{language $currentLang}}</li>
                             {{else if eq $queryString ""}}
-                                <li class="dropdown-item"><a href="{{$URLPath}}?l={{$currentLang}}">{{uppercase $currentLang}}</a></li>
+                                <li class="dropdown-item"><a href="{{$URLPath}}?l={{$currentLang}}">{{language $currentLang}}</a></li>
                             {{else}}
-                                <li class="dropdown-item"><a href="{{$URLPath}}?{{$queryString}}&l={{$currentLang}}">{{uppercase $currentLang}}</a></li>
+                                <li class="dropdown-item"><a href="{{$URLPath}}?{{$queryString}}&l={{$currentLang}}">{{language $currentLang}}</a></li>
                             {{end}}
                         {{end}}
                         </ul>

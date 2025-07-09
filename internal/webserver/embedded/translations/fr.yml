@@ -1,3 +1,4 @@
+"_language": "Français"
 "Search": "Rechercher"
 "Search results": "Résultats de la recherche"
 "Search in %d documents": "Rechercher dans %d documents"
@@ -10,7 +11,6 @@
 "Search for more titles belonging to %s": "Recherche d'autres titres appartenant à %s"
 "Search for more titles by %s": "Rechercher plus de titres par %s"
 "Search for more titles in %s": "Rechercher plus de titres de %s"
-"Search tips": Conseils de recherche
 "Send to email": Envoyer par e-mail
 "Send": Envoyer
 "Actions": Actions
@@ -38,7 +38,6 @@
 "Update your profile": "Mettre à jour votre profil"
 "Logout": "Se déconnecter"
 "New user": "Nouvel utilisateur"
-"Edit user": "Modifier l'utilisateur"
 "Name cannot be empty": "Le nom ne peut pas être vide"
 "Incorrect email address": "Adresse e-mail incorrecte"
 "Incorrect send to email address": "Adresse e-mail d'envoi incorrecte"
