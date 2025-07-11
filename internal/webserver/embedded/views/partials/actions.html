@@ -6,7 +6,7 @@
                 <span class='badge text-bg-primary'>{{.Session.PreferredEpubType}}</span>
             </a>
             <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"></button>
-            <ul class="dropdown-menu dropdown-menu-end">
+            <ul class="dropdown-menu dropdown-menu-end shadow">
                 <li>
                     <a href="/documents/{{.Document.Slug}}/download?format={{if eq .Session.PreferredEpubType "KEPUB"}}epub{{else}}kepub{{end}}" class="dropdown-item" download title='{{t .Lang "Download"}}'>
                         <i class="bi-cloud-download"></i>
@@ -35,7 +35,7 @@
             <input type="hidden" name="email" id="quick-email-{{.Document.Slug}}" value="{{$sendToEmail}}" />
             <input type="hidden" name="slug" id="slug-{{.Document.Slug}}" value="{{.Document.Slug}}" />
             <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"></button>
-            <ul class="dropdown-menu dropdown-menu-end p-3">
+            <ul class="dropdown-menu dropdown-menu-end p-3 shadow">
                 <li>
                     <form hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-indicator="#hx-spinner-{{.Document.Slug}}" data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title }}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title }}' class="send-email mt-3">
                         <label for="email-{{.Document.Slug}}" class="form-label text-start text-nowrap">

@@ -169,6 +169,7 @@ func highlight(cookie *http.Cookie, app *fiber.App, slug string, method string, 
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept-Language", "en")
 	req.AddCookie(cookie)
 
 	return app.Test(req)
@@ -181,6 +182,7 @@ func assertHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie, expecte
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
+	req.Header.Set("Accept-Language", "en")
 	req.AddCookie(cookie)
 	response, err := app.Test(req)
 	if err != nil {
@@ -204,6 +206,7 @@ func assertNoHighlights(app *fiber.App, t *testing.T, cookie *http.Cookie) {
 	t.Helper()
 
 	req, err := http.NewRequest(http.MethodGet, "/highlights", nil)
+	req.Header.Set("Accept-Language", "en")
 	req.AddCookie(cookie)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())

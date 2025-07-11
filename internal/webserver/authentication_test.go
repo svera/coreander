@@ -89,6 +89,7 @@ func TestRecoverNoEmailService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
+	req.Header.Set("Accept-Language", "en")
 	response, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
@@ -131,6 +132,7 @@ func TestRecover(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
+		req.Header.Set("Accept-Language", "en")
 		response, err := app.Test(req)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -145,6 +147,7 @@ func TestRecover(t *testing.T) {
 
 		req, err := http.NewRequest(http.MethodPost, "/recover", nil)
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Accept-Language", "en")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -250,6 +253,7 @@ func TestRecover(t *testing.T) {
 
 		req, err = http.NewRequest(http.MethodPost, "/reset-password", strings.NewReader(data.Encode()))
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Accept-Language", "en")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -278,6 +282,7 @@ func TestRecover(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
+		req.Header.Set("Accept-Language", "en")
 
 		q := req.URL.Query()
 		q.Add("id", adminUser.RecoveryUUID)
@@ -319,6 +324,7 @@ func TestRecover(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
+		req.Header.Set("Accept-Language", "en")
 
 		response, err = app.Test(req)
 		if err != nil {
@@ -338,6 +344,7 @@ func TestRecover(t *testing.T) {
 
 		req, err = http.NewRequest(http.MethodPost, "/reset-password", strings.NewReader(data.Encode()))
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Accept-Language", "en")
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}

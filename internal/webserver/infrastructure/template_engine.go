@@ -20,6 +20,13 @@ func TemplateEngine(viewsFS fs.FS, printers map[string]*message.Printer) (*html.
 		return template.HTML(printers[lang].Sprintf(key, values...))
 	})
 
+  engine.AddFunc("language", func(lang string) template.HTML {
+		if lang == "en" {
+			return template.HTML("English")
+		}
+		return template.HTML(printers[lang].Sprintf("_language"))
+	})
+
 	engine.AddFunc("dict", func(values ...any) map[string]any {
 		if len(values)%2 != 0 {
 			fmt.Println("invalid dict call")

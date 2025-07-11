@@ -76,6 +76,7 @@ func TestUpload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
+		req.Header.Set("Accept-Language", "en")
 		req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 		req.AddCookie(regularUserCookie)
 
@@ -110,6 +111,7 @@ func TestUpload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
+		req.Header.Set("Accept-Language", "en")
 		req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 		req.AddCookie(adminCookie)
 
@@ -138,6 +140,7 @@ func TestUpload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
+		req.Header.Set("Accept-Language", "en")
 		req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 		req.AddCookie(adminCookie)
 
@@ -160,6 +163,7 @@ func TestUpload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
+		req.Header.Set("Accept-Language", "en")
 		req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 		req.AddCookie(adminCookie)
 
@@ -194,6 +198,7 @@ func TestUpload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
+		req.Header.Set("Accept-Language", "en")
 		req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 		req.AddCookie(adminCookie)
 
@@ -237,6 +242,7 @@ func TestUpload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
+		req.Header.Set("Accept-Language", "en")
 		req.Header.Set("Content-Type", multipartWriter.FormDataContentType())
 		req.AddCookie(adminCookie)
 
@@ -254,6 +260,7 @@ func TestUpload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
+		req.Header.Set("Accept-Language", "en")
 		response, err = app.Test(req)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
