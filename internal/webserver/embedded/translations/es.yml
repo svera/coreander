@@ -1,3 +1,4 @@
+"_language": "Español"
 "Search": "Buscar"
 "Search results": "Resultados de la búsqueda"
 "Search in %d documents": "Buscar en %d documentos"
@@ -10,7 +11,6 @@
 "Search for more titles belonging to %s": "Buscar más títulos que pertenezcan a %s"
 "Search for more titles by %s": "Buscar más títulos de %s"
 "Search for more titles in %s": "Buscar más títulos en %s"
-"Search tips": Consejos de búsqueda
 "Send to email": Enviar a correo electrónico
 "Send": Enviar
 "Actions": Acciones
@@ -38,7 +38,6 @@
 "Update your profile": "Actualizar tu perfil"
 "Logout": "Cerrar sesión"
 "New user": "Nuevo usuario"
-"Edit user": "Editar usuario"
 "Name cannot be empty": "Debes introducir un nombre"
 "Incorrect email address": "Dirección de correo electrónico incorrecta"
 "Incorrect send to email address": "Dirección de correo electrónico de envío incorrecta"
