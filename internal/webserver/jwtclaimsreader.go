@@ -39,6 +39,9 @@ func sessionData(c *fiber.Ctx) model.Session {
 		if value, ok := userDataMap["ShowFileName"].(bool); ok {
 			session.ShowFileName = value
 		}
+		if value, ok := userDataMap["PreferredEpubType"].(string); ok {
+			session.PreferredEpubType = value
+		}
 
 		session.Exp = claims["exp"].(float64)
 	}

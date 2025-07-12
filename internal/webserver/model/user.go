@@ -31,7 +31,8 @@ type User struct {
 	Highlights         []Highlight `gorm:"constraint:OnDelete:CASCADE"`
 	Readings           []Reading   `gorm:"constraint:OnDelete:CASCADE"`
 	LastLogin          time.Time
-	ShowFileName       bool `gorm:"default:false; not null"`
+	ShowFileName       bool   `gorm:"default:false; not null"`
+	PreferredEpubType  string `gorm:"default:'epub'; not null"`
 }
 
 // Validate checks all user's fields to ensure they are in the required format

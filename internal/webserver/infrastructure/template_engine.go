@@ -16,23 +16,23 @@ import (
 func TemplateEngine(viewsFS fs.FS, printers map[string]*message.Printer) (*html.Engine, error) {
 	engine := html.NewFileSystem(http.FS(viewsFS), ".html")
 
-	engine.AddFunc("t", func(lang, key string, values ...interface{}) template.HTML {
+	engine.AddFunc("t", func(lang, key string, values ...any) template.HTML {
 		return template.HTML(printers[lang].Sprintf(key, values...))
 	})
 
-	engine.AddFunc("language", func(lang string) template.HTML {
+  engine.AddFunc("language", func(lang string) template.HTML {
 		if lang == "en" {
 			return template.HTML("English")
 		}
 		return template.HTML(printers[lang].Sprintf("_language"))
 	})
 
-	engine.AddFunc("dict", func(values ...interface{}) map[string]interface{} {
+	engine.AddFunc("dict", func(values ...any) map[string]any {
 		if len(values)%2 != 0 {
 			fmt.Println("invalid dict call")
 			return nil
 		}
-		dict := make(map[string]interface{}, len(values)/2)
+		dict := make(map[string]any, len(values)/2)
 		for i := 0; i < len(values); i += 2 {
 			key, ok := values[i].(string)
 			if !ok {

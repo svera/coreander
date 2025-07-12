@@ -33,7 +33,7 @@ func (d *Controller) Download(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	if c.Query("format") == "kepub" {
+	if strings.ToLower(c.Query("format")) == "kepub" {
 		output, err = kepubify(fullPath)
 		if err != nil {
 			log.Println(err)
