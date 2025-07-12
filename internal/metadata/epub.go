@@ -181,7 +181,7 @@ func words(documentFullPath string) (int, error) {
 			continue
 		}
 
-		if f.Name == "nav.xhtml" || f.Name == "toc.xhtml" {
+		if filepath.Base(f.Name) == "nav.xhtml" {
 			continue
 		}
 
