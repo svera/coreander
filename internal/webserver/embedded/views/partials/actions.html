@@ -8,7 +8,7 @@
             <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"></button>
             <ul class="dropdown-menu dropdown-menu-end shadow">
                 <li>
-                    <a href="/documents/{{.Document.Slug}}/download?format={{if .Session}}{{if eq .Session.PreferredEpubType "kepub"}}epub{{else}}kepub{{end}}{{else}}kepub{{end}}" class="dropdown-item" download title='{{t .Lang "Download"}}'>
+                    <a href='/documents/{{.Document.Slug}}/download?format={{if .Session}}{{if eq .Session.PreferredEpubType "kepub"}}epub{{else}}kepub{{end}}{{else}}kepub{{end}}' class="dropdown-item" download title='{{t .Lang "Download"}}'>
                         <i class="bi-cloud-download"></i>
                         <span class='badge text-bg-primary'>{{if .Session}}{{if eq .Session.PreferredEpubType "kepub"}}EPUB{{else}}KEPUB{{end}}{{else}}KEPUB{{end}}</span>
                     </a>
