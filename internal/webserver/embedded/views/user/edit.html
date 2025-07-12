@@ -44,8 +44,8 @@
                 <div class="mb-3">
                     <label for="preferred-epub-type" class="form-label">{{t .Lang "Preferred EPUB type for download"}}</label>
                     <select class="form-select" aria-label="{{t .Lang "Preferred EPUB type for download"}}" name="preferred-epub-type">
-                        <option value="epub" {{if eq .User.PreferredEpubType "EPUB"}}selected{{end}}>EPUB</option>
-                        <option value="kepub" {{if eq .User.PreferredEpubType "KEPUB"}}selected{{end}}>{{t .Lang "KEPUB (EPUB for Kobo devices)"}}</option>
+                        <option value="epub" {{if eq .User.PreferredEpubType "epub"}}selected{{end}}>EPUB</option>
+                        <option value="kepub" {{if eq .User.PreferredEpubType "kepub"}}selected{{end}}>{{t .Lang "KEPUB (EPUB for Kobo devices)"}}</option>
                     </select>
                 </div>
                 <div class="mb-3 form-check form-switch">
