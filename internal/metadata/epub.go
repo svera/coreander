@@ -181,6 +181,10 @@ func words(documentFullPath string) (int, error) {
 			continue
 		}
 
+		if f.Name == "nav.xhtml" || f.Name == "toc.xhtml" {
+			continue
+		}
+
 		rc, err := f.Open()
 		if err != nil {
 			return 0, err
