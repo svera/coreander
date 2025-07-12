@@ -68,9 +68,9 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 func (u *Controller) updateOptions(c *fiber.Ctx, user *model.User, session model.Session) error {
 	user.ShowFileName = c.FormValue("show-file-name") == "on"
 	user.SendToEmail = c.FormValue("send-to-email")
-	user.PreferredEpubType = c.FormValue("preferred-epub-type")
+	user.PreferredEpubType = strings.ToLower(c.FormValue("preferred-epub-type"))
 
-	if user.PreferredEpubType != "EPUB" && user.PreferredEpubType != "KEPUB" {
+	if user.PreferredEpubType != "epub" && user.PreferredEpubType != "kepub" {
 		return fiber.ErrBadRequest
 	}
 

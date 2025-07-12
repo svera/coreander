@@ -3,14 +3,14 @@
         <div class="btn-group mb-1 flex-sm-fill" role="group" aria-label="Button group with nested dropdown">
             <a href="/documents/{{.Document.Slug}}/download?format={{.Session.PreferredEpubType}}" class="btn btn-sm btn-outline-secondary w-100" download title='{{t .Lang "Download"}}'>
                 <i class="bi-cloud-download"></i>
-                <span class='badge text-bg-primary'>{{.Session.PreferredEpubType}}</span>
+                <span class='badge text-bg-primary'>{{uppercase .Session.PreferredEpubType}}</span>
             </a>
             <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false"></button>
             <ul class="dropdown-menu dropdown-menu-end shadow">
                 <li>
-                    <a href="/documents/{{.Document.Slug}}/download?format={{if eq .Session.PreferredEpubType "KEPUB"}}epub{{else}}kepub{{end}}" class="dropdown-item" download title='{{t .Lang "Download"}}'>
+                    <a href="/documents/{{.Document.Slug}}/download?format={{if eq .Session.PreferredEpubType "kepub"}}epub{{else}}kepub{{end}}" class="dropdown-item" download title='{{t .Lang "Download"}}'>
                         <i class="bi-cloud-download"></i>
-                        <span class='badge text-bg-primary'>{{if eq .Session.PreferredEpubType "KEPUB"}}EPUB{{else}}KEPUB{{end}}</span>
+                        <span class='badge text-bg-primary'>{{if eq .Session.PreferredEpubType "kepub"}}EPUB{{else}}KEPUB{{end}}</span>
                     </a>
                 </li>
             </ul>

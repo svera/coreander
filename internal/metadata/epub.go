@@ -45,8 +45,8 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 		if creator.Role == "aut" || creator.Role == "" {
 			// Some epub files mistakenly put all authors in a single field instead of using a field for each one.
 			// We want to identify those cases looking for specific separators and then indexing each author properly.
-			names := strings.Split(creator.FullName, "&")
-			for _, name := range names {
+			names := strings.SplitSeq(creator.FullName, "&")
+			for name := range names {
 				if name = strings.TrimSpace(name); name != "" {
 					authors = append(authors, name)
 				}
