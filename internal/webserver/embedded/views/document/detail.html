@@ -32,7 +32,7 @@
         <dl class="row text-muted">
             {{if and $session $session.ShowFileName}}
                 <dt class="col-5">{{t $lang "File name"}}</dt>
-                <dd class="col-7 text-end"><small><i>{{$document.ID}}</i></small></dd><br >
+                <dd class="col-7 text-end"><small><i>{{$document.ID}}</i></small></dd>
             {{end}}
 
             {{if not (eq .Document.Publication.Date 0)}}
@@ -84,7 +84,7 @@
         {{ $length := len .SameSeries }} {{ if gt $length 0 }}
         <section class="row mt-5">
             <div class="col-9">
-                <h4>{{t $lang "Other titles in collection \"%s\"" .Document.Series}}</h4>
+                <h3>{{t $lang "Other titles in collection \"%s\"" .Document.Series}}</h3>
             </div>
             <div class="col-3 text-end">
                 <a  href="/series/{{.Document.SeriesSlug}}">
@@ -104,10 +104,10 @@
         {{ $length := len .SameAuthors }} {{ if gt $length 0 }}
         <section class="row mt-5">
             <div class="col-9">
-                <h4>
+                <h3>
                     {{t $lang "Also by"}}
                     {{join $document.Authors ", "}}
-                </h4>
+                </h3>
             </div>
             <div class="col-3 text-end">
                 {{if gt (len $document.Authors) 1}}
@@ -132,7 +132,7 @@
         {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
         <section class="row mt-5">
             <div class="col-9">
-                <h4>{{t $lang "With similar subjects"}}</h4>
+                <h3>{{t $lang "With similar subjects"}}</h3>
             </div>
             <div class="col-3 text-end">
                 <a  href='/documents?search=SubjectsSlugs&colon;{{join $document.SubjectsSlugs ","}}'>
