@@ -117,7 +117,7 @@ func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) 
 		searchFields.PubDateFrom, searchFields.PubDateTo = searchFields.PubDateTo, searchFields.PubDateFrom
 	}
 
-	if searchFields.EstReadTimeFrom > searchFields.EstReadTimeTo {
+	if searchFields.EstReadTimeTo != 0 && searchFields.EstReadTimeFrom > searchFields.EstReadTimeTo {
 		searchFields.EstReadTimeFrom, searchFields.EstReadTimeTo = searchFields.EstReadTimeTo, searchFields.EstReadTimeFrom
 	}
 
