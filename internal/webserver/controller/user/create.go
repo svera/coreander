@@ -33,12 +33,13 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 	}
 
 	if errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.config.MinPasswordLength, errs); len(errs) > 0 {
-		return c.Render("user/new", fiber.Map{
+		return c.Status(fiber.StatusBadRequest).Render("user/new", fiber.Map{
 			"Title":           "Add user",
 			"UsernamePattern": model.UsernamePattern,
 			"Errors":          errs,
 			"User":            user,
-		}, "layout")
+			"EmailFrom":       u.sender.From(),
+		})
 	}
 
 	user.Password = model.Hash(user.Password)
