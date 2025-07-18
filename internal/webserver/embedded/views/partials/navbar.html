@@ -10,12 +10,12 @@
             <div class="input-group input-group-sm">
                 <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
                 <input type="search" name="search" id="searchbox" class="form-control" maxlength="255" autofocus value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" id="search-filters-offcanvas-toggle" data-bs-auto-close="outside" aria-expanded="false"><i class="bi bi-sliders"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" id="search-filters-offcanvas-toggle" data-bs-auto-close="outside" aria-expanded="false" aria-label='{{t .Lang "Search filters"}}'><i class="bi bi-sliders"></i></button>
             </div>
         </form>
         {{end}}
         <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas"
-            data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar">
+            data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="offcanvas-lg offcanvas-end" tabindex="-1" id="offcanvasNavbar"
