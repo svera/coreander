@@ -26,7 +26,7 @@
     <header>
         {{template "partials/navbar" .}}
     </header>
-    <main class="mt-5">
+    <main class="mt-5" data-unexpected-server-error='{{t .Lang "Unexpected server error"}}'>
         {{template "partials/main"
             dict "Lang" .Lang
             "RemainingIndexingTime" .RemainingIndexingTime
@@ -45,8 +45,9 @@
     </footer>
     <script src="/js/bootstrap.bundle.min.js"></script>
     <script src="/js/htmx.min.js"></script>
-    <script type="module" src="/js/hx-swap-400.js"></script>
+    <script type="module" src="/js/hx-feedback.js"></script>
     <link rel="preload" href="/css/bootstrap-icons.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+
     <noscript><link rel="stylesheet" href="/css/bootstrap-icons.min.css"></noscript>
 </body>
 
