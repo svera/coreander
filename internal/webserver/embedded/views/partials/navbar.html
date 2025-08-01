@@ -105,6 +105,7 @@
     </div>
 </nav>
 
+{{if not .HomeNavbar}}
 <div class="offcanvas offcanvas-start" tabindex="-1" id="search-filters-offcanvas" aria-labelledby="search-filters-offcanvas-label">
     <div class="offcanvas-header">
         <h5>{{t .Lang "Search filters"}}</h5>
@@ -122,6 +123,5 @@
     </div>
 </div>
 
-{{if not .HomeNavbar}}
 <script type="module" src="/js/search-filters-offcanvas.js"></script>
 {{end}}

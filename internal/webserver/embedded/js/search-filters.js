@@ -3,11 +3,6 @@
 const searchFilters = document.getElementById('search-filters')
 const searchFiltersForm = searchFilters.closest('form')
 
-console.log(searchFiltersForm, "SEARCH FILTERS FORM");
-console.log(searchFilters, "SEARCH FILTERS");
-searchFilters.querySelectorAll('.date-control').forEach(dateControl => {
-    console.log(dateControl.querySelector('.input-month'), "DATE CONTROL");
-});
 /**
  * Determines if a given year is a leap year
  * @param {number} year - The year to check
@@ -62,7 +57,6 @@ searchFilters.querySelectorAll('.date-control').forEach(dateControl => {
 
     // Update max days when month changes
     monthSelect.addEventListener('change', () => {
-      console.log("Month changed to:", monthSelect.value)
         updateMaxDays(monthSelect, dayInput, yearInput)
     })
 
@@ -92,12 +86,11 @@ searchFiltersForm.addEventListener('submit', event => {
       composed.value = year + '-' + el.getElementsByClassName('input-month')[0].value + '-' + el.getElementsByClassName('input-day')[0].value.padStart(2, '0')
   })
 
-  Array.from(searchFilters.querySelectorAll('input')).forEach(input => {
-    console.log(input.value, input.name)
+  searchFilters.querySelectorAll('input').forEach(input => {
     if (input.value === '' || input.value === '0') {
       input.setAttribute('disabled', 'disabled')
     }
   })
 
-  //searchFiltersForm.submit()
+  searchFiltersForm.submit()
 })
