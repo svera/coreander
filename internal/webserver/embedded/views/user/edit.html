@@ -1,4 +1,4 @@
-<div class="row mb-3 mt-5">
+<div class="row mb-3 mt-5" id="user-edit">
     <div class="col mb-3">
         <h2>{{.User.Name}}</h2>
     </div>
@@ -19,7 +19,7 @@
     <div class="tab-content">
         <div class='tab-pane fade p-3 {{if eq .ActiveTab "options"}}show active{{end}}' id="options-tab-pane" role="tabpanel" aria-labelledby="options-tab"
             tabindex="0">
-            <form hx-put="/users/{{.User.Username}}" hx-target="main" hx-target-400="main">
+            <form hx-put="/users/{{.User.Username}}" hx-swap="outerHTML" hx-target="#user-edit" data-success-message='{{t .Lang "Profile updated"}}'>
                 <div class="mb-3">
                     <label for="send-to-email" class="form-label">{{t .Lang "Default send to email address"}}</label>
                     <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}" maxlength="100" aria-describedby="send-to-email-help">
@@ -58,7 +58,7 @@
         </div>
         <div class='tab-pane fade p-3 {{if eq .ActiveTab "profile"}}show active{{end}}' id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab"
             tabindex="0">
-            <form hx-put="/users/{{.User.Username}}" hx-target="main" hx-target-400="main">
+            <form hx-put="/users/{{.User.Username}}" hx-swap="outerHTML" hx-target="#user-edit" data-success-message='{{t .Lang "Profile updated"}}'>
                 <div class="mb-3">
                     <label for="name" class="form-label">{{t .Lang "Name"}}</label>
                     <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="50">
@@ -93,7 +93,7 @@
         </div>
         <div class='tab-pane fade p-3 {{if eq .ActiveTab "password"}}show active{{end}}' id="password-tab-pane" role="tabpanel" aria-labelledby="password-tab"
             tabindex="0">
-            <form hx-put="/users/{{.User.Username}}" hx-target="main" hx-target-400="main">
+            <form hx-put="/users/{{.User.Username}}" hx-swap="outerHTML" hx-target="#user-edit" data-success-message='{{t .Lang "Password updated"}}'>
                 {{if eq .Session.Uuid .User.Uuid}}
                 <div class="mb-3">
                     <label for="old-password" class="form-label">{{t .Lang "Current password"}}</label>
@@ -134,4 +134,3 @@
     </div>
 </div>
 
-<script type="text/javascript" src="/js/xh-error-check.js"></script>

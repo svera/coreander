@@ -1,3 +1,5 @@
+"use strict"
+
 const searchFilters = document.getElementById('search-filters')
 const searchFiltersForm = searchFilters.closest('form')
 
@@ -84,11 +86,21 @@ searchFiltersForm.addEventListener('submit', event => {
       composed.value = year + '-' + el.getElementsByClassName('input-month')[0].value + '-' + el.getElementsByClassName('input-day')[0].value.padStart(2, '0')
   })
 
-  Array.from(searchFilters.querySelectorAll('input[name]')).forEach(input => {
+  // Disable inputs with empty or zero values
+  // This prevents empty inputs from being submitted
+  searchFilters.querySelectorAll('input').forEach(input => {
     if (input.value === '' || input.value === '0') {
       input.setAttribute('disabled', 'disabled')
     }
   })
 
   searchFiltersForm.submit()
+})
+
+// Enable inputs when the page is shown
+// This is useful for when the page is loaded from cache or the back button is used
+window.addEventListener('pageshow', () => {
+    searchFilters.querySelectorAll('input').forEach(input => {
+      input.removeAttribute('disabled')
+  })
 })

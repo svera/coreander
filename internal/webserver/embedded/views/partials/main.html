@@ -11,11 +11,6 @@
     </div>
     {{end}}
 
-    <div class="row text-start">
-        <div class="alert alert-danger" role="alert" hidden id="box-error" data-unexpected-error='{{t .Lang "Unexpected error, check your connection and try to refresh the page."}}' data-unexpected-server-error='{{t .Lang "Unexpected server error"}}'>
-        </div>
-    </div>
-
     {{if .Error}}
         <div class="row text-start">
             <div class="alert alert-danger" role="alert">

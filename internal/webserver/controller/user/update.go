@@ -58,11 +58,10 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 	}
 
 	if len(validationErrs) > 0 {
-		return c.Status(fiber.StatusBadRequest).Render("user/edit", vars, "partials/main")
+		c.Status(fiber.StatusBadRequest)
 	}
 
-	vars["Message"] = "Profile updated"
-	return c.Render("user/edit", vars, "partials/main")
+	return c.Render("user/edit", vars)
 }
 
 func (u *Controller) updateOptions(c *fiber.Ctx, user *model.User, session model.Session) error {
