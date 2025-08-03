@@ -71,12 +71,12 @@
                             {{end}}
 
                             {{if not (eq $document.Publication.Date 0)}}
-                                <dt class="list-inline-item">{{t $lang "Year"}}</dt>
+                                <dt class="list-inline-item"><i class="bi bi-calendar3"></i> {{t $lang "Year"}}</dt>
                                 <dd class="list-inline-item"><time>{{$document.Publication.Date.Year}}</time>
                             </dd><br />
                             {{end}}
                             {{ if gt $document.Words 0.0 }}
-                                <dt class="list-inline-item">{{t $lang "Estimated reading time"}}</dt>
+                                <dt class="list-inline-item"><i class="bi bi-stopwatch"></i> {{t $lang "Estimated reading time"}}</dt>
                                 <dd class="list-inline-item"><time>{{$document.ReadingTime $wordsPerMinute}}</time></dd><br />
                             {{ end }}
                             {{ if $document.Pages }}

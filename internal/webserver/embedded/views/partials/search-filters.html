@@ -23,27 +23,31 @@
     <fieldset class="mt-5">
         <legend class="fs-5"><i class="bi bi-stopwatch"></i> {{t .Lang "Estimated reading time"}}</legend>
         <div class="row">
-            <div class="col-12 col-xl-6">
-                <label class="form-label">{{t .Lang "From"}}</label>
+            <div class="col-12 col-xl-6 mb-3">
                 {{$estReadTimeFrom := ""}}
                 {{if .SearchFields}}
                     {{$estReadTimeFrom = .SearchFields.EstReadTimeFrom}}
                 {{end}}
-                <div class="input-group input-group-sm">
-                    <input class="form-control" type="number" value="{{$estReadTimeFrom}}" min="0" max="1000" step="1" name="est-read-time-from" id="est-read-time-from">
-                    <span class="input-group-text">{{t .Lang "Hours"}}</span>
+                <div class="row">
+                    <div class="input-group input-group-sm">
+                        <label class="col-sm-2 col-form-label text-start me-2" for="est-read-time-from">{{t .Lang "From"}}</label>
+                        <input class="col-sm-10 form-control" type="number" value="{{$estReadTimeFrom}}" min="0" max="1000" step="1" name="est-read-time-from" id="est-read-time-from">
+                        <span class="input-group-text">{{t .Lang "Hours"}}</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="col-12 col-xl-6">
-                <label class="form-label">{{t .Lang "To"}}</label>
+            <div class="col-12 col-xl-6 mb-3">
                 {{$estReadTimeTo := ""}}
                 {{if .SearchFields}}
                     {{$estReadTimeTo = .SearchFields.EstReadTimeTo}}
                 {{end}}
-                <div class="input-group input-group-sm">
-                    <input class="form-control" type="number" value="{{$estReadTimeTo}}" min="0" max="1000" step="1" name="est-read-time-to" id="est-read-time-to">
-                    <span class="input-group-text">{{t .Lang "Hours"}}</span>
+                <div class="row">
+                    <div class="input-group input-group-sm">
+                        <label class="col-sm-2 col-form-label text-start me-2" for="est-read-time-to">{{t .Lang "To"}}</label>
+                        <input class="col-sm-10 form-control" type="number" value="{{$estReadTimeTo}}" min="0" max="1000" step="1" name="est-read-time-to" id="est-read-time-to">
+                        <span class="input-group-text">{{t .Lang "Hours"}}</span>
+                    </div>
                 </div>
             </div>
         </div>

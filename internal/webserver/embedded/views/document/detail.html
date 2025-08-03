@@ -36,12 +36,12 @@
             {{end}}
 
             {{if not (eq .Document.Publication.Date 0)}}
-                <dt class="col-8">{{t $lang "Year"}}</dt>
+                <dt class="col-8"><i class="bi bi-calendar3"></i> {{t $lang "Year"}}</dt>
                 <dd class="col-4 text-end"><time>{{.Document.Publication.Date.Year}}</time>
             </dd>
             {{end}}
             {{ if gt .Document.Words 0.0 }}
-                <dt class="col-8">{{t $lang "Estimated reading time"}}</dt>
+                <dt class="col-8"><i class="bi bi-stopwatch"></i> {{t $lang "Estimated reading time"}}</dt>
                 <dd class="col-4 text-end"><time>{{.Document.ReadingTime .WordsPerMinute}}</time></dd>
             {{ end }}
             {{ if .Document.Pages }}
