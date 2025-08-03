@@ -24,16 +24,19 @@
 {{end}}
 
 {{define "day"}}
-<input type="number" maxlength="2" max="31" min="1" class="form-control input-day" oninput="this.value=this.value.slice(0,this.maxLength)" value="{{if .Date}}{{.Date.Day}}{{else}}1{{end}}" placeholder='{{t .Lang "Day"}}'>
+<div class="form-floating">
+    <input type="number" maxlength="2" max="31" min="1" class="form-control input-day" oninput="this.value=this.value.slice(0,this.maxLength)" value="{{if .Date}}{{.Date.Day}}{{else}}1{{end}}" placeholder='{{t .Lang "Day"}}'>
+    <label class="form-label" for="input-day">{{t .Lang .Label}}</label>
+</div>
 {{end}}
 
 <div class="input-group input-group-sm date-control">
 {{if eq .Lang "en"}}
     {{template "year" dict "Name" .Name "Lang" .Lang "Date" .Date}}
     {{template "month" dict "Name" .Name "Lang" .Lang "Date" .Date}}
-    {{template "day" dict "Name" .Name "Lang" .Lang "Date" .Date}}
+    {{template "day" dict "Name" .Name "Lang" .Lang "Date" .Date "Label" .Label}}
 {{else}}
-    {{template "day" dict "Name" .Name "Lang" .Lang "Date" .Date}}
+    {{template "day" dict "Name" .Name "Lang" .Lang "Date" .Date "Label" .Label}}
     {{template "month" dict "Name" .Name "Lang" .Lang "Date" .Date}}
     {{template "year" dict "Name" .Name "Lang" .Lang "Date" .Date}}
 {{end}}
