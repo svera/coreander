@@ -64,7 +64,7 @@
                             <h5>{{t $lang "Unknown author"}}</h5>
                         {{end}}
 
-                        <dl class="text-muted row">
+                        <dl class="row text-muted">
                             {{if and $session $session.ShowFileName}}
                                 <dt class="col-4">{{t $lang "File name"}}</dt>
                                 <dd class="col-8"><i>{{$document.ID}}</i></dd>
@@ -100,7 +100,7 @@
                         <div class="mb-1 mt-3"><em>{{t $lang "No description available"}}</em></div>
                         {{end}}
 
-                        <a data-bs-toggle="collapse" class="collapse-control collapsed" href="#collapse-desc{{$i}}"></a>
+                        <a data-bs-toggle="collapse" class="collapse-control collapsed" href="#collapse-desc{{$i}}" role="button" aria-expanded="false" aria-controls="collapse-desc{{$i}}" aria-label='{{t $lang "Toggle description"}}'></a>
                     </div>
                 </div>
             </div>

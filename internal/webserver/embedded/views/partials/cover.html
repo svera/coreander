@@ -20,8 +20,8 @@
     {{end}}
 
     <div class="position-absolute bottom-0 end-0 me-2 mb-1 cursor-pointer w-10">
-        <a href="/documents/{{.Document.Slug}}/read" class="icon-link" title='{{t .Lang "Read"}}'>
-            <img src="/images/eye-solid.svg" class="img-fluid w-100" style="min-width: 1em"/>
+        <a href="/documents/{{.Document.Slug}}/read" class="icon-link" title='{{t .Lang "Read"}}' aria-label='{{t .Lang "Read"}}'>
+            <img src="/images/eye-solid.svg" class="img-fluid w-100" style="min-width: 1em" alt='' />
         </a>
     </div>
 </div>
