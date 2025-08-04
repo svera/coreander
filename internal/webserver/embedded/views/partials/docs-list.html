@@ -64,24 +64,24 @@
                             <h5>{{t $lang "Unknown author"}}</h5>
                         {{end}}
 
-                        <dl class="text-muted list-inline">
+                        <dl class="text-muted row">
                             {{if and $session $session.ShowFileName}}
-                                <dt class="list-inline-item">{{t $lang "File name"}}</dt>
-                                <dd class="list-inline-item"><i>{{$document.ID}}</i></dd><br />
+                                <dt class="col-4">{{t $lang "File name"}}</dt>
+                                <dd class="col-8"><i>{{$document.ID}}</i></dd>
                             {{end}}
 
                             {{if not (eq $document.Publication.Date 0)}}
-                                <dt class="list-inline-item"><i class="bi bi-calendar3"></i> {{t $lang "Year"}}</dt>
-                                <dd class="list-inline-item"><time>{{$document.Publication.Date.Year}}</time>
-                            </dd><br />
+                                <dt class="col-4"><i class="bi bi-calendar3"></i> {{t $lang "Year"}}</dt>
+                                <dd class="col-8"><time>{{$document.Publication.Date.Year}}</time>
+                            </dd>
                             {{end}}
                             {{ if gt $document.Words 0.0 }}
-                                <dt class="list-inline-item"><i class="bi bi-stopwatch"></i> {{t $lang "Estimated reading time"}}</dt>
-                                <dd class="list-inline-item"><time>{{$document.ReadingTime $wordsPerMinute}}</time></dd><br />
+                                <dt class="col-4"><i class="bi bi-stopwatch"></i> {{t $lang "Estimated reading time"}}</dt>
+                                <dd class="col-8"><time>{{$document.ReadingTime $wordsPerMinute}}</time></dd>
                             {{ end }}
                             {{ if $document.Pages }}
-                                <dt class="list-inline-item">{{t $lang "Pages" }}</dt>
-                                <dd class="list-inline-item">{{$document.Pages}}<dd>
+                                <dt class="col-4">{{t $lang "Pages" }}</dt>
+                                <dd class="col-8">{{$document.Pages}}</dd>
                             {{ end }}
                         </dl>
 

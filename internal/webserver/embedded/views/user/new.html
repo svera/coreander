@@ -15,7 +15,7 @@
         </div>
         <div class="mb-3">
             <label for="username" class="form-label">{{t .Lang "Username"}}</label>
-            <input type="text" name="username" class='form-control {{if ne (index .Errors "username") ""}}is-invalid{{end}}' id="username" required="required" value="{{.User.Username}}" maxlength="20" pattern="{{.UsernamePattern}}" placeholder={{t .Lang "Only letters, numbers, _, - and . allowed"}}>
+            <input type="text" name="username" class='form-control {{if ne (index .Errors "username") ""}}is-invalid{{end}}' id="username" required="required" value="{{.User.Username}}" maxlength="20" pattern="{{.UsernamePattern}}">
             {{if ne (index .Errors "username") ""}}
             <div class="invalid-feedback">
                 {{t .Lang .Errors.username}}
@@ -34,7 +34,7 @@
         <div class="mb-3">
             <label for="password" class="form-label">{{t .Lang "Password"}}</label>
             <input type="password" name="password" class='form-control {{if ne (index .Errors "password") ""}}is-invalid{{end}}' id="password" required="required"
-                minlength="{{.MinPasswordLength}}" maxlength="50">
+                minlength="{{.MinPasswordLength}}" maxlength="50" autocomplete="new-password">
             {{if ne (index .Errors "password") ""}}
             <div class="invalid-feedback">
                 {{t .Lang .Errors.password .MinPasswordLength}}
