@@ -2,14 +2,14 @@
     <fieldset class="mt-5">
         <legend class="fs-5"><i class="bi bi-calendar3"></i> {{t .Lang "Publishing date"}}</legend>
         <div class="row">
-            <div class="col-12 col-xl-6 mb-3">
+            <div class="col-12 {{if .Responsive}}col-xl-6{{end}} mb-3">
                 {{$pubDateFrom := ""}}
                 {{if .SearchFields}}
                     {{$pubDateFrom = .SearchFields.PubDateFrom}}
                 {{end}}
                 {{template "partials/date-control" dict "Name" "pub-date-from" "Lang" .Lang "Date" $pubDateFrom "Label" "From" }}
             </div>
-            <div class="col-12 col-xl-6">
+            <div class="col-12 {{if .Responsive}}col-xl-6{{end}}">
                 {{$pubDateTo := ""}}
                 {{if .SearchFields}}
                     {{$pubDateTo = .SearchFields.PubDateTo}}
@@ -21,7 +21,7 @@
     <fieldset class="mt-5">
         <legend class="fs-5"><i class="bi bi-stopwatch"></i> {{t .Lang "Estimated reading time"}}</legend>
         <div class="row">
-            <div class="col-12 col-xl-6 mb-3">
+            <div class="col-12 {{if .Responsive}}col-xl-6{{end}} mb-3">
                 {{$estReadTimeFrom := ""}}
                 {{if .SearchFields}}
                     {{$estReadTimeFrom = .SearchFields.EstReadTimeFrom}}
@@ -37,7 +37,7 @@
                 </div>
             </div>
 
-            <div class="col-12 col-xl-6">
+            <div class="col-12 {{if .Responsive}}col-xl-6{{end}}">
                 {{$estReadTimeTo := ""}}
                 {{if .SearchFields}}
                     {{$estReadTimeTo = .SearchFields.EstReadTimeTo}}
