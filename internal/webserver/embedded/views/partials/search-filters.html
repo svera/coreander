@@ -55,7 +55,9 @@
         </div>
         <div class="row mt-5">
             <div class="col-12 text-end">
-                <button class="btn btn-primary btn-sm" type="submit">{{t .Lang "Search"}}</button>
+                {{if not .Responsive}}<div class="d-grid gap-2">{{end}}
+                    <button class="btn btn-primary" type="submit">{{t .Lang "Search"}}</button>
+                {{if not .Responsive}}</div>{{end}}
             </div>
         </div>
     </fieldset>
