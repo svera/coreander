@@ -3,6 +3,7 @@ package user
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -46,6 +47,11 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
+	c.Cookie(&fiber.Cookie{
+		Name:    "success",
+		Value:   "true",
+		Expires: time.Now().Add(24 * time.Hour),
+	})
 	c.Set("HX-Redirect", "/users")
 	return nil
 }
