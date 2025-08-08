@@ -71,6 +71,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 			SessionTimeout:        24 * time.Hour,
 			RecoveryTimeout:       2 * time.Hour,
 			LibraryPath:           "fixtures/library",
+			WordsPerMinute:        250,
 			UploadDocumentMaxSize: 1,
 		}
 	}

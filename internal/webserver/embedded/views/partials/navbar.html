@@ -6,7 +6,7 @@
                 <img src="/images/coreander-logo-small.png" alt="Logo" width="32" height="32" class="d-inline-block align-text-middle">
             </a>
         </span>
-        <form action="/documents" class="d-flex justify-content-center flex-grow-1 pe-3" roles="search">
+        <form action="/documents" class="d-flex justify-content-center flex-grow-1 pe-2" roles="search">
             <div class="input-group input-group-sm">
                 <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
                 <input type="search" name="search" id="searchbox" class="form-control" maxlength="255" autofocus value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
@@ -105,6 +105,7 @@
     </div>
 </nav>
 
+{{if not .HomeNavbar}}
 <div class="offcanvas offcanvas-start" tabindex="-1" id="search-filters-offcanvas" aria-labelledby="search-filters-offcanvas-label">
     <div class="offcanvas-header">
         <h5>{{t .Lang "Search filters"}}</h5>
@@ -123,3 +124,4 @@
 </div>
 
 <script type="module" src="/js/search-filters-offcanvas.js"></script>
+{{end}}

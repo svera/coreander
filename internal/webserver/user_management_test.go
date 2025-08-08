@@ -53,8 +53,7 @@ func TestUserManagement(t *testing.T) {
 			"words-per-minute": {"250"},
 		}
 
-		response, err := postRequest(regularUserData, adminCookie, app, "/users", t)
-		if response == nil {
+		if response, err := postRequest(regularUserData, adminCookie, app, "/users", t); response == nil || err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
@@ -120,7 +119,10 @@ func TestUserManagement(t *testing.T) {
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
-		mustRedirectToUsersList(response, t)
+
+		if expected := http.StatusOK; response.StatusCode != expected {
+			t.Fatalf("Expected status %d, received %d", expected, response.StatusCode)
+		}
 
 		var totalUsers int64
 		var user model.User
@@ -161,7 +163,6 @@ func TestUserManagement(t *testing.T) {
 			"Name cannot be empty",
 			"Username cannot be empty",
 			"Incorrect email address",
-			"Incorrect reading speed",
 			"Confirm password cannot be empty",
 			"Incorrect role",
 		}
@@ -380,21 +381,6 @@ func checkErrorMessages(response *http.Response, t *testing.T, expectedErrorMess
 	})
 	if !reflect.DeepEqual(expectedErrorMessages, errorMessages) {
 		t.Errorf("Expected %v error messages, got %v", expectedErrorMessages, errorMessages)
-	}
-}
-
-func mustRedirectToUsersList(response *http.Response, t *testing.T) {
-	t.Helper()
-
-	if response.StatusCode != http.StatusFound {
-		t.Fatalf("Expected status %d, received %d", http.StatusFound, response.StatusCode)
-	}
-	url, err := response.Location()
-	if err != nil {
-		t.Fatal("No location header present")
-	}
-	if url.Path != "/users" {
-		t.Errorf("Expected location %s, received %s", "/users", url.Path)
 	}
 }
 

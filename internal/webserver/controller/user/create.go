@@ -3,6 +3,7 @@ package user
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -13,15 +14,14 @@ import (
 func (u *Controller) Create(c *fiber.Ctx) error {
 	role, _ := strconv.Atoi(c.FormValue("role"))
 	user := model.User{
-		Name:        strings.TrimSpace(c.FormValue("name")),
-		Username:    strings.ToLower(c.FormValue("username")),
-		Email:       c.FormValue("email"),
-		SendToEmail: c.FormValue("send-to-email"),
-		Password:    c.FormValue("password"),
-		Role:        role,
-		Uuid:        uuid.NewString(),
+		Name:           strings.TrimSpace(c.FormValue("name")),
+		Username:       strings.ToLower(c.FormValue("username")),
+		Email:          c.FormValue("email"),
+		Password:       c.FormValue("password"),
+		Role:           role,
+		Uuid:           uuid.NewString(),
+		WordsPerMinute: u.config.WordsPerMinute,
 	}
-	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
 
 	errs := user.Validate(u.config.MinPasswordLength)
 	if exist, _ := u.repository.FindByEmail(c.FormValue("email")); exist != nil {
@@ -33,12 +33,13 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 	}
 
 	if errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.config.MinPasswordLength, errs); len(errs) > 0 {
-		return c.Render("user/new", fiber.Map{
+		return c.Status(fiber.StatusBadRequest).Render("user/new", fiber.Map{
 			"Title":           "Add user",
 			"UsernamePattern": model.UsernamePattern,
 			"Errors":          errs,
 			"User":            user,
-		}, "layout")
+			"EmailFrom":       u.sender.From(),
+		})
 	}
 
 	user.Password = model.Hash(user.Password)
@@ -46,5 +47,11 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	return c.Redirect("/users")
+	c.Cookie(&fiber.Cookie{
+		Name:    "success",
+		Value:   "true",
+		Expires: time.Now().Add(24 * time.Hour),
+	})
+	c.Set("HX-Redirect", "/users")
+	return nil
 }

@@ -1,6 +1,6 @@
 <div class="row">
     <div class="col-sm">
-        <form action="/documents">
+        <form action="/documents" roles="search">
             <div class="input-group mb-3 mt-5">
                 <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
                 <input type="search" name="search" id="searchbox" class="form-control form-control-lg" placeholder={{t .Lang "Search in %d documents" .Count}} maxlength="255" autofocus value="{{.SearchFields.Keywords}}">
@@ -14,7 +14,7 @@
                 </small>
             </p>
             <div class="collapse text-start card" id="search-filters-collapse">
-                {{template "partials/search-filters" dict "Lang" .Lang }}
+                {{template "partials/search-filters" dict "Lang" .Lang "Responsive" true}}
             </div>
         </form>
     </div>
