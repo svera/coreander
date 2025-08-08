@@ -46,5 +46,6 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	return c.Redirect("/users")
+	c.Set("HX-Redirect", "/users")
+	return nil
 }
