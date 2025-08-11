@@ -49,7 +49,7 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 
 	c.Cookie(&fiber.Cookie{
 		Name:    "success",
-		Value:   "true",
+		Value:   user.Username,
 		Expires: time.Now().Add(24 * time.Hour),
 	})
 	c.Set("HX-Redirect", "/users")

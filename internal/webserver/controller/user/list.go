@@ -19,12 +19,13 @@ func (u *Controller) List(c *fiber.Ctx) error {
 	users, _ := u.repository.List(page, model.ResultsPerPage)
 
 	msg := ""
-	if c.Cookies("success") == "true" {
+	if c.Cookies("success") != "" {
+		lang := c.Locals("Lang").(string)
+		msg = u.printers.T(lang, "User \"%s\" created", c.Cookies("success"))
 		c.Cookie(&fiber.Cookie{
 			Name:    "success",
 			Expires: time.Now().Add(-(time.Hour * 2)),
 		})
-		msg = "User created."
 	}
 
 	templateVars := fiber.Map{

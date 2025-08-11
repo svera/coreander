@@ -3,8 +3,8 @@ package auth
 import (
 	"time"
 
+	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/webserver/model"
-	"golang.org/x/text/message"
 )
 
 type authRepository interface {
@@ -20,7 +20,7 @@ type recoveryEmail interface {
 type Controller struct {
 	repository authRepository
 	sender     recoveryEmail
-	printers   map[string]*message.Printer
+	printers   *i18n.Printers
 	config     Config
 }
 
@@ -33,7 +33,7 @@ type Config struct {
 	RecoveryTimeout   time.Duration
 }
 
-func NewController(repository authRepository, sender recoveryEmail, cfg Config, printers map[string]*message.Printer) *Controller {
+func NewController(repository authRepository, sender recoveryEmail, cfg Config, printers *i18n.Printers) *Controller {
 	return &Controller{
 		repository: repository,
 		sender:     sender,

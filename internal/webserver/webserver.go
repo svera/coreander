@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
-	"sort"
 	"strconv"
 	"time"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"golang.org/x/exp/slices"
-	"golang.org/x/text/message"
 )
 
 var (
@@ -28,7 +26,7 @@ var (
 	cssFS              fs.FS
 	jsFS               fs.FS
 	imagesFS           fs.FS
-	printers           map[string]*message.Printer
+	printers           *i18n.Printers
 	supportedLanguages []string
 )
 
@@ -84,12 +82,12 @@ func init() {
 		log.Fatal(err)
 	}
 
-	printers, err = i18n.Printers(dir, "en")
+	printers, err = i18n.New(dir, "en")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	supportedLanguages = getSupportedLanguages()
+	supportedLanguages = printers.SupportedLanguages()
 }
 
 // New builds a new Fiber application and set up the required routes
@@ -130,19 +128,6 @@ func New(cfg Config, controllers Controllers, sender Sender, progress ProgressIn
 
 	routes(app, controllers, cfg.JwtSecret, sender, cfg.RequireAuth)
 	return app
-}
-
-func getSupportedLanguages() []string {
-	langs := make([]string, len(printers))
-
-	i := 0
-	for k := range printers {
-		langs[i] = k
-		i++
-	}
-
-	sort.Strings(langs)
-	return langs
 }
 
 func chooseBestLanguage(c *fiber.Ctx) string {

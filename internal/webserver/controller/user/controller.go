@@ -1,6 +1,7 @@
 package user
 
 import (
+	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/result"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
@@ -31,13 +32,15 @@ type Controller struct {
 	repository usersRepository
 	config     Config
 	sender     Sender
+	printers   *i18n.Printers
 }
 
 // NewController returns a new instance of the users controller
-func NewController(repository usersRepository, usersCfg Config, sender Sender) *Controller {
+func NewController(repository usersRepository, usersCfg Config, sender Sender, printers *i18n.Printers) *Controller {
 	return &Controller{
 		repository: repository,
 		config:     usersCfg,
 		sender:     sender,
+		printers:   printers,
 	}
 }
