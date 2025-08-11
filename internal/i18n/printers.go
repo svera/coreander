@@ -2,8 +2,9 @@ package i18n
 
 import (
 	"io/fs"
+	"maps"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"golang.org/x/text/language"
@@ -11,11 +12,9 @@ import (
 	"golang.org/x/text/message/catalog"
 )
 
-type Printers struct {
-	printers map[string]*message.Printer
-}
+type Printers map[string]*message.Printer
 
-func New(dir fs.FS, fallbackLang string) (*Printers, error) {
+func New(dir fs.FS, fallbackLang string) (Printers, error) {
 	cat, err := newCatalogFromFolder(dir, fallbackLang)
 	if err != nil {
 		return nil, err
@@ -28,7 +27,7 @@ func New(dir fs.FS, fallbackLang string) (*Printers, error) {
 		return nil, err
 	}
 
-	printers := map[string]*message.Printer{
+	printers := Printers{
 		fallbackLang: message.NewPrinter(base),
 	}
 
@@ -38,25 +37,19 @@ func New(dir fs.FS, fallbackLang string) (*Printers, error) {
 		printers[twoLetterCode] = message.NewPrinter(lang)
 	}
 
-	return &Printers{printers: printers}, nil
+	return printers, nil
 }
 
 // T returns the translated string for the given key in the specified language.
-func (p *Printers) T(lang, key string, values ...any) string {
-	return p.printers[lang].Sprintf(key, values...)
+func (p Printers) T(lang, key string, values ...any) string {
+	return p[lang].Sprintf(key, values...)
 }
 
 // SupportedLanguages returns a sorted list of supported languages.
-func (p *Printers) SupportedLanguages() []string {
-	langs := make([]string, len(p.printers))
+func (p Printers) SupportedLanguages() []string {
+	langs := slices.Collect(maps.Keys(p))
 
-	i := 0
-	for k := range p.printers {
-		langs[i] = k
-		i++
-	}
-
-	sort.Strings(langs)
+	slices.Sort(langs)
 	return langs
 }
 

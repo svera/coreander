@@ -26,7 +26,7 @@ var (
 	cssFS              fs.FS
 	jsFS               fs.FS
 	imagesFS           fs.FS
-	printers           *i18n.Printers
+	printers           i18n.Printers
 	supportedLanguages []string
 )
 
