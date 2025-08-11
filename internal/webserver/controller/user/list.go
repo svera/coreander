@@ -1,6 +1,7 @@
 package user
 
 import (
+	"log"
 	"strconv"
 	"time"
 
@@ -34,6 +35,14 @@ func (u *Controller) List(c *fiber.Ctx) error {
 		"Admins":    u.repository.Admins(),
 		"URL":       view.URL(c),
 		"Message":   msg,
+	}
+
+	if c.Get("hx-request") == "true" {
+		if err = c.Render("partials/users-list", templateVars); err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
+		return nil
 	}
 
 	return c.Render("user/index", templateVars, "layout")
