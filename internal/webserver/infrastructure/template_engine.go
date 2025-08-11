@@ -13,7 +13,7 @@ import (
 	"github.com/svera/coreander/v4/internal/i18n"
 )
 
-func TemplateEngine(viewsFS fs.FS, printers i18n.Printers) (*html.Engine, error) {
+func TemplateEngine(viewsFS fs.FS, printers i18n.Translations) (*html.Engine, error) {
 	engine := html.NewFileSystem(http.FS(viewsFS), ".html")
 
 	engine.AddFunc("t", func(lang, key string, values ...any) template.HTML {

@@ -32,11 +32,11 @@ type Controller struct {
 	repository usersRepository
 	config     Config
 	sender     Sender
-	printers   i18n.Printers
+	printers   i18n.Translations
 }
 
 // NewController returns a new instance of the users controller
-func NewController(repository usersRepository, usersCfg Config, sender Sender, printers i18n.Printers) *Controller {
+func NewController(repository usersRepository, usersCfg Config, sender Sender, printers i18n.Translations) *Controller {
 	return &Controller{
 		repository: repository,
 		config:     usersCfg,

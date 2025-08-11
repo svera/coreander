@@ -12,9 +12,9 @@ import (
 	"golang.org/x/text/message/catalog"
 )
 
-type Printers map[string]*message.Printer
+type Translations map[string]*message.Printer
 
-func New(dir fs.FS, fallbackLang string) (Printers, error) {
+func New(dir fs.FS, fallbackLang string) (Translations, error) {
 	cat, err := newCatalogFromFolder(dir, fallbackLang)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func New(dir fs.FS, fallbackLang string) (Printers, error) {
 		return nil, err
 	}
 
-	printers := Printers{
+	printers := Translations{
 		fallbackLang: message.NewPrinter(base),
 	}
 
@@ -41,12 +41,12 @@ func New(dir fs.FS, fallbackLang string) (Printers, error) {
 }
 
 // T returns the translated string for the given key in the specified language.
-func (p Printers) T(lang, key string, values ...any) string {
+func (p Translations) T(lang, key string, values ...any) string {
 	return p[lang].Sprintf(key, values...)
 }
 
 // SupportedLanguages returns a sorted list of supported languages.
-func (p Printers) SupportedLanguages() []string {
+func (p Translations) SupportedLanguages() []string {
 	langs := slices.Collect(maps.Keys(p))
 
 	slices.Sort(langs)
