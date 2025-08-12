@@ -1,6 +1,6 @@
 <div class="row pb-3 card-body" id="search-filters">
     <fieldset class="mt-5">
-        <legend class="fs-5"><i class="bi bi-calendar3"></i> {{t .Lang "Publishing date"}}</legend>
+        <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Publishing date"}}</legend>
         <div class="row">
             <div class="col-12 {{if .Responsive}}col-xl-6{{end}} mb-3">
                 {{$pubDateFrom := ""}}
@@ -19,7 +19,7 @@
         </div>
     </fieldset>
     <fieldset class="mt-5">
-        <legend class="fs-5"><i class="bi bi-stopwatch"></i> {{t .Lang "Estimated reading time"}}</legend>
+        <legend class="fs-5"><i class="bi bi-stopwatch me-3"></i>{{t .Lang "Estimated reading time"}}</legend>
         <div class="row">
             <div class="col-12 {{if .Responsive}}col-xl-6{{end}} mb-3">
                 {{$estReadTimeFrom := ""}}
@@ -29,7 +29,7 @@
                 <div class="row">
                     <div class="input-group input-group-sm">
                         <div class="form-floating">
-                            <input class="col-9 col-sm-10 form-control" type="number" value="{{$estReadTimeFrom}}" min="0" max="1000" step="1" name="est-read-time-from" id="est-read-time-from" placeholder='{{t .Lang "From"}}'>
+                            <input class="col-9 col-sm-10 form-control" type="number" value="{{if $estReadTimeFrom}}{{$estReadTimeFrom}}{{end}}" min="0" max="1000" step="1" name="est-read-time-from" id="est-read-time-from" placeholder='{{t .Lang "From"}}'>
                             <label class="form-label" for="est-read-time-from">{{t .Lang "From"}}</label>
                         </div>
                         <span class="input-group-text">{{t .Lang "Hours"}}</span>
@@ -45,7 +45,7 @@
                 <div class="row">
                     <div class="input-group input-group-sm">
                         <div class="form-floating">
-                            <input class="col-9 col-sm-10 form-control" type="number" value="{{$estReadTimeTo}}" min="0" max="1000" step="1" name="est-read-time-to" id="est-read-time-to" placeholder='{{t .Lang "To"}}'>
+                            <input class="col-9 col-sm-10 form-control" type="number" value="{{if $estReadTimeTo}}{{$estReadTimeTo}}{{end}}" min="0" max="1000" step="1" name="est-read-time-to" id="est-read-time-to" placeholder='{{t .Lang "To"}}'>
                             <label class="form-label" for="est-read-time-to">{{t .Lang "To"}}</label>
                         </div>
                         <span class="input-group-text">{{t .Lang "Hours"}}</span>
