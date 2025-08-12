@@ -10,21 +10,21 @@ import (
 
 	"github.com/gofiber/template/html/v2"
 	"github.com/gosimple/slug"
-	"golang.org/x/text/message"
+	"github.com/svera/coreander/v4/internal/i18n"
 )
 
-func TemplateEngine(viewsFS fs.FS, printers map[string]*message.Printer) (*html.Engine, error) {
+func TemplateEngine(viewsFS fs.FS, i18n i18n.Translator) (*html.Engine, error) {
 	engine := html.NewFileSystem(http.FS(viewsFS), ".html")
 
 	engine.AddFunc("t", func(lang, key string, values ...any) template.HTML {
-		return template.HTML(printers[lang].Sprintf(key, values...))
+		return template.HTML(i18n.T(lang, key, values...))
 	})
 
-  engine.AddFunc("language", func(lang string) template.HTML {
+	engine.AddFunc("language", func(lang string) template.HTML {
 		if lang == "en" {
 			return template.HTML("English")
 		}
-		return template.HTML(printers[lang].Sprintf("_language"))
+		return template.HTML(i18n.T(lang, "_language"))
 	})
 
 	engine.AddFunc("dict", func(values ...any) map[string]any {

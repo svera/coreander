@@ -2,7 +2,9 @@ package i18n
 
 import (
 	"io/fs"
+	"maps"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"golang.org/x/text/language"
@@ -10,7 +12,9 @@ import (
 	"golang.org/x/text/message/catalog"
 )
 
-func Printers(dir fs.FS, fallbackLang string) (map[string]*message.Printer, error) {
+type Translator map[string]*message.Printer
+
+func New(dir fs.FS, fallbackLang string) (Translator, error) {
 	cat, err := newCatalogFromFolder(dir, fallbackLang)
 	if err != nil {
 		return nil, err
@@ -23,7 +27,7 @@ func Printers(dir fs.FS, fallbackLang string) (map[string]*message.Printer, erro
 		return nil, err
 	}
 
-	printers := map[string]*message.Printer{
+	printers := Translator{
 		fallbackLang: message.NewPrinter(base),
 	}
 
@@ -34,6 +38,19 @@ func Printers(dir fs.FS, fallbackLang string) (map[string]*message.Printer, erro
 	}
 
 	return printers, nil
+}
+
+// T returns the translated string for the given key in the specified language.
+func (p Translator) T(lang, key string, values ...any) string {
+	return p[lang].Sprintf(key, values...)
+}
+
+// SupportedLanguages returns a sorted list of supported languages.
+func (p Translator) SupportedLanguages() []string {
+	langs := slices.Collect(maps.Keys(p))
+
+	slices.Sort(langs)
+	return langs
 }
 
 // newCatalogFromFolder read all translations yml files from dir and generates a
