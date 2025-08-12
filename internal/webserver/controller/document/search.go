@@ -65,10 +65,10 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 			Value string
 		}{
 			{"relevance", "relevance"},
-			{"pub-date-older-first", "publication date (older first)"},
-			{"pub-date-newer-first", "publication date (newer first)"},
-			{"est-read-time-shorter-first", "estimated reading time (shorter first)"},
-			{"est-read-time-longer-first", "estimated reading time (longer first)"},
+			{"pub-date-older-first", "older"},
+			{"pub-date-newer-first", "newer"},
+			{"est-read-time-shorter-first", "shorter"},
+			{"est-read-time-longer-first", "longer"},
 		},
 	}
 
