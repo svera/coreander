@@ -22,7 +22,7 @@ func (u *Controller) List(c *fiber.Ctx) error {
 	msg := ""
 	if c.Cookies("success") != "" {
 		lang := c.Locals("Lang").(string)
-		msg = u.printers.T(lang, "User \"%s\" created", c.Cookies("success"))
+		msg = u.translator.T(lang, "User \"%s\" created", c.Cookies("success"))
 		c.Cookie(&fiber.Cookie{
 			Name:    "success",
 			Expires: time.Now().Add(-(time.Hour * 2)),

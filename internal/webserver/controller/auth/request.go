@@ -47,7 +47,7 @@ func (a *Controller) Request(c *fiber.Ctx) error {
 
 		a.sender.Send(
 			c.FormValue("email"),
-			a.printers.T(c.Locals("Lang").(string), "Password recovery request"),
+			a.translator.T(c.Locals("Lang").(string), "Password recovery request"),
 			string(c.Response().Body()),
 		)
 	}

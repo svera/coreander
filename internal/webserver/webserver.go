@@ -26,7 +26,7 @@ var (
 	cssFS              fs.FS
 	jsFS               fs.FS
 	imagesFS           fs.FS
-	printers           i18n.I18n
+	translator         i18n.Translator
 	supportedLanguages []string
 )
 
@@ -82,12 +82,12 @@ func init() {
 		log.Fatal(err)
 	}
 
-	printers, err = i18n.New(dir, "en")
+	translator, err = i18n.New(dir, "en")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	supportedLanguages = printers.SupportedLanguages()
+	supportedLanguages = translator.SupportedLanguages()
 }
 
 // New builds a new Fiber application and set up the required routes
@@ -97,7 +97,7 @@ func New(cfg Config, controllers Controllers, sender Sender, progress ProgressIn
 		log.Fatal(err)
 	}
 
-	engine, err := infrastructure.TemplateEngine(viewsFS, printers)
+	engine, err := infrastructure.TemplateEngine(viewsFS, translator)
 	if err != nil {
 		log.Fatal(err)
 	}
