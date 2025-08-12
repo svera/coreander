@@ -20,7 +20,7 @@ type recoveryEmail interface {
 type Controller struct {
 	repository authRepository
 	sender     recoveryEmail
-	printers   i18n.Translations
+	printers   i18n.I18n
 	config     Config
 }
 
@@ -33,7 +33,7 @@ type Config struct {
 	RecoveryTimeout   time.Duration
 }
 
-func NewController(repository authRepository, sender recoveryEmail, cfg Config, printers i18n.Translations) *Controller {
+func NewController(repository authRepository, sender recoveryEmail, cfg Config, printers i18n.I18n) *Controller {
 	return &Controller{
 		repository: repository,
 		sender:     sender,
