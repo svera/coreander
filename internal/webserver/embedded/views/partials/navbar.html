@@ -10,7 +10,7 @@
             <div class="input-group input-group-sm">
                 <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
                 <input type="search" name="search" id="searchbox" class="form-control" maxlength="255" autofocus value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" id="search-filters-offcanvas-toggle" data-bs-auto-close="outside" aria-expanded="false" aria-label='{{t .Lang "Search filters"}}'><i class="bi bi-sliders"></i></button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" id="search-filters-offcanvas-toggle" data-bs-auto-close="outside" aria-expanded="false" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders"></i></button>
             </div>
         </form>
         {{end}}
@@ -30,35 +30,29 @@
             <div class="offcanvas-body">
                 <ul class="navbar-nav justify-content-end flex-grow-1 pe-3 text-start">
                     {{if and (.Session) (ne .Session.Name "")}}
-                    <li class="p-2">
-                        {{if eq .Session.Role 2}}
-                        <a href="/users" class="link-underline link-underline-opacity-0">
-                            <i class="bi-person-fill"></i>
-
-                            {{t .Lang "Users"}}
-                        </a>
-                        {{else}}
-                        <a href="/users/{{.Session.Username}}" class="link-underline link-underline-opacity-0">
-                            <i class="bi-person-fill"></i>
-
-                            {{t .Lang "Update your profile"}}
-                        </a>
-                        {{end}}
-                    </li>
-                    <li class="p-2">
-                        <a href="/highlights" class="link-underline link-underline-opacity-0">
-                            <i class="bi-star-fill"></i>
-
-                            {{t .Lang "Highlights"}}
-                        </a>
-                    </li>
                     {{if eq .Session.Role 2}}
-                    <li class="p-2">
-                        <a href="/upload" class="link-underline link-underline-opacity-0">
-                            <i class="bi-cloud-upload-fill"></i>
+                    <li class="nav-item dropdown">
+                        <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi-gear-fill"></i>
 
-                            {{t .Lang "Upload document"}}
-                        </a>
+                            {{t .Lang "Manage"}}
+                        </button>
+                        <ul class="dropdown-menu shadow">
+                            <li class="dropdown-item">
+                                <a href="/users" class="link-underline link-underline-opacity-0">
+                                    <i class="bi-people-fill"></i>
+
+                                    {{t .Lang "Users"}}
+                                </a>
+                            </li>
+                            <li class="dropdown-item">
+                                <a href="/upload" class="link-underline link-underline-opacity-0">
+                                    <i class="bi-cloud-upload-fill"></i>
+
+                                    {{t .Lang "Upload document"}}
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     {{end}}
                     {{else if not .DisableLoginLink}}
@@ -91,12 +85,34 @@
                     </li>
                     {{if and (.Session) (ne .Session.Name "")}}
                     <hr class="d-lg-none">
-                    <li class="p-2">
-                        <a href="/sessions" hx-delete="/sessions" class="link-underline link-underline-opacity-0">
-                            <i class="bi-box-arrow-right"></i>
+                    <li class="nav-item dropdown">
+                        <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            {{.Session.Name}}
+                        </button>
+                        <ul class="dropdown-menu shadow">
+                            <li class="dropdown-item">
+                                <a href="/highlights" class="link-underline link-underline-opacity-0">
+                                    <i class="bi-star-fill"></i>
 
-                            {{t .Lang "Logout"}}
-                        </a>
+                                    {{t .Lang "Highlights"}}
+                                </a>
+                            </li>
+                            <li class="dropdown-item">
+                                <a href="/users/{{.Session.Username}}" class="link-underline link-underline-opacity-0">
+                                    <i class="bi-person-fill"></i>
+
+                                    {{t .Lang "Update your profile"}}
+                                </a>
+                            </li>
+                            <hr>
+                            <li class="dropdown-item">
+                                <a href="/sessions" hx-delete="/sessions" class="link-underline link-underline-opacity-0">
+                                    <i class="bi-box-arrow-right"></i>
+
+                                    {{t .Lang "Logout"}}
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     {{end}}
                 </ul>
@@ -108,7 +124,7 @@
 {{if not .HomeNavbar}}
 <div class="offcanvas offcanvas-start" tabindex="-1" id="search-filters-offcanvas" aria-labelledby="search-filters-offcanvas-label">
     <div class="offcanvas-header">
-        <h5>{{t .Lang "Search filters"}}</h5>
+        <h5>{{t .Lang "Advanced search"}}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body">

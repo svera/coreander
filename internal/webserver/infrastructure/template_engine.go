@@ -13,18 +13,18 @@ import (
 	"github.com/svera/coreander/v4/internal/i18n"
 )
 
-func TemplateEngine(viewsFS fs.FS, i18n i18n.Translator) (*html.Engine, error) {
+func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, error) {
 	engine := html.NewFileSystem(http.FS(viewsFS), ".html")
 
 	engine.AddFunc("t", func(lang, key string, values ...any) template.HTML {
-		return template.HTML(i18n.T(lang, key, values...))
+		return template.HTML(translator.T(lang, key, values...))
 	})
 
 	engine.AddFunc("language", func(lang string) template.HTML {
 		if lang == "en" {
 			return template.HTML("English")
 		}
-		return template.HTML(i18n.T(lang, "_language"))
+		return template.HTML(translator.T(lang, "_language"))
 	})
 
 	engine.AddFunc("dict", func(values ...any) map[string]any {
