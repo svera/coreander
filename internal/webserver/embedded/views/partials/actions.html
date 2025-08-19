@@ -1,11 +1,11 @@
-<div class="d-grid gap-2 mx-auto d-sm-flex justify-content-sm-center actions mb-3">
+<div class="d-grid gap-2 mx-auto d-flex justify-content-sm-center actions mb-3">
     {{if eq .Document.Format "EPUB"}}
-        <div class="btn-group mb-1 flex-sm-fill" role="group" aria-label="Button group with nested dropdown">
-            <a href="/documents/{{.Document.Slug}}/download?format={{if .Session}}{{.Session.PreferredEpubType}}{{else}}epub{{end}}" class="btn btn-sm btn-outline-secondary w-100" download title='{{t .Lang "Download"}}'>
+        <div class="btn-group mb-1 flex-fill" role="group" aria-label="Button group with nested dropdown">
+            <a href="/documents/{{.Document.Slug}}/download?format={{if .Session}}{{.Session.PreferredEpubType}}{{else}}epub{{end}}" class="btn btn-outline-secondary w-100" download title='{{t .Lang "Download"}}'>
                 <i class="bi-cloud-download"></i>
                 <span class='badge text-bg-primary'>{{if .Session}}{{uppercase .Session.PreferredEpubType}}{{else}}EPUB{{end}}</span>
             </a>
-            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Select download format"}}'></button>
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Select download format"}}'></button>
             <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
                 <li>
                     <a href='/documents/{{.Document.Slug}}/download?format={{if .Session}}{{if eq .Session.PreferredEpubType "kepub"}}epub{{else}}kepub{{end}}{{else}}kepub{{end}}' class="dropdown-item" download title='{{t .Lang "Download"}}'>
@@ -27,14 +27,14 @@
         {{$sendToEmail := ""}}
         {{if .Session}}{{$sendToEmail = .Session.SendToEmail}}{{end}}
         {{if not $sendToEmail}}{{$disabled = true}}{{end}}
-        <div class="btn-group mb-1 flex-sm-fill" role="group" aria-label="Button group with nested dropdown">
-            <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="btn btn-sm btn-outline-secondary w-100" {{if $disabled}}disabled{{end}} {{if $sendToEmail}}title='{{t .Lang "Send to %s" $sendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
+        <div class="btn-group mb-1 flex-fill" role="group" aria-label="Button group with nested dropdown">
+            <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="btn btn-outline-secondary w-100" {{if $disabled}}disabled{{end}} {{if $sendToEmail}}title='{{t .Lang "Send to %s" $sendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
                 <div id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator" aria-hidden="true"></div>
                 <i class="bi-envelope-fill"></i>
             </button>
             <input type="hidden" name="email" id="quick-email-{{.Document.Slug}}" value="{{$sendToEmail}}" />
             <input type="hidden" name="slug" id="slug-{{.Document.Slug}}" value="{{.Document.Slug}}" />
-            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-email-{{.Document.Slug}}" aria-label='{{t .Lang "Send email dialog"}}'></button>
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-email-{{.Document.Slug}}" aria-label='{{t .Lang "Send email dialog"}}'></button>
             <ul class="dropdown-menu dropdown-menu-end p-3 shadow" id="dropdown-menu-email-{{.Document.Slug}}">
                 <li>
                     <form hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-indicator="#hx-spinner-{{.Document.Slug}}" data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title }}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title }}' class="send-email mt-3">
