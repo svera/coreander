@@ -16,15 +16,22 @@ func TestSendDocument(t *testing.T) {
 	smtpMock := &infrastructure.SMTPMock{}
 	app := bootstrapApp(db, smtpMock, afero.NewOsFs(), webserver.Config{})
 
+	adminCookie, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+
 	var cases = []struct {
 		name               string
+		cookie             *http.Cookie
 		email              string
 		slug               string
 		expectedHTTPStatus int
 	}{
-		{"Send no email address", "", "empty", http.StatusBadRequest},
-		{"Send non existing document slug", "admin@example.com", "wrong", http.StatusNotFound},
-		{"Send document slug and email address", "admin@example.com", "john-doe-test-epub", http.StatusOK},
+		{"Send no email address", adminCookie, "", "empty", http.StatusBadRequest},
+		{"Send non existing document slug", adminCookie, "admin@example.com", "wrong", http.StatusNotFound},
+		{"Send document slug and email address while being unauthenticated", nil, "admin@example.com", "john-doe-test-epub", http.StatusForbidden},
+		{"Send document slug and email address", adminCookie, "admin@example.com", "john-doe-test-epub", http.StatusOK},
 	}
 
 	for _, tcase := range cases {
@@ -39,9 +46,13 @@ func TestSendDocument(t *testing.T) {
 			}
 
 			req, err := http.NewRequest(http.MethodPost, "/documents/"+tcase.slug+"/send", strings.NewReader(data.Encode()))
-			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err.Error())
+			}
+
+			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+			if tcase.cookie != nil {
+				req.AddCookie(tcase.cookie)
 			}
 
 			if tcase.expectedHTTPStatus == http.StatusOK {
