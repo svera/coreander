@@ -54,3 +54,9 @@ htmx.on('htmx:afterRequest', (evt) => {
         toastBootstrap.show()
     }
 });
+
+document.querySelectorAll('[data-warning-once]').forEach((el) => {
+    el.addEventListener('click', () => {
+        document.cookie = `warning-once=${el.getAttribute('data-warning-once')}; path=/`;
+    });
+});

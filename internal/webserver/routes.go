@@ -73,7 +73,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	docsGroup.Get("/:slug/cover", controllers.Documents.Cover)
 	docsGroup.Get("/:slug/read", controllers.Documents.Reader)
 	docsGroup.Get("/:slug/download", controllers.Documents.Download)
-	docsGroup.Post("/:slug/send", controllers.Documents.Send)
+	docsGroup.Post("/:slug/send", alwaysRequireAuthentication, controllers.Documents.Send)
 	docsGroup.Get("/:slug", controllers.Documents.Detail)
 	docsGroup.Get("/", controllers.Documents.Search)
 

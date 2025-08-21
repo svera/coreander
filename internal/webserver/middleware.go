@@ -123,3 +123,29 @@ func forbidden(c *fiber.Ctx, sender Sender, err error) error {
 		"Warning":                message,
 	}, "layout")
 }
+
+func OneTimeMessages() func(c *fiber.Ctx) error {
+	return func(c *fiber.Ctx) error {
+		msg := ""
+		if c.Cookies("warning-once") != "" {
+			msg = c.Cookies("warning-once")
+			c.Cookie(&fiber.Cookie{
+				Name:    "warning-once",
+				Expires: time.Now().Add(-(time.Hour * 2)),
+			})
+		}
+		c.Locals("Warning", msg)
+
+		msg = ""
+		if c.Cookies("success-once") != "" {
+			msg = c.Cookies("success-once")
+			c.Cookie(&fiber.Cookie{
+				Name:    "success-once",
+				Expires: time.Now().Add(-(time.Hour * 2)),
+			})
+		}
+		c.Locals("Success", msg)
+
+		return c.Next()
+	}
+}

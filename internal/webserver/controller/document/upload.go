@@ -79,8 +79,8 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 	}
 
 	c.Cookie(&fiber.Cookie{
-		Name:    "success",
-		Value:   "true",
+		Name:    "success-once",
+		Value:   "Document uploaded successfully.",
 		Expires: time.Now().Add(24 * time.Hour),
 	})
 	return c.Redirect(fmt.Sprintf("/documents/%s", slug))

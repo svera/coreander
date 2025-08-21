@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/index"
@@ -54,15 +53,6 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		document = d.hlRepository.Highlighted(int(session.ID), document)
 	}
 
-	msg := ""
-	if c.Cookies("success") == "true" {
-		c.Cookie(&fiber.Cookie{
-			Name:    "success",
-			Expires: time.Now().Add(-(time.Hour * 2)),
-		})
-		msg = "Document uploaded successfully."
-	}
-
 	return c.Render("document/detail", fiber.Map{
 		"Title":                  title,
 		"Document":               document,
@@ -72,7 +62,6 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		"SameAuthors":            sameAuthors,
 		"SameSubjects":           sameSubjects,
 		"WordsPerMinute":         d.config.WordsPerMinute,
-		"Message":                msg,
 	}, "layout")
 }
 

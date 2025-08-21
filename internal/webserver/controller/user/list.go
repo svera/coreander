@@ -35,7 +35,7 @@ func (u *Controller) List(c *fiber.Ctx) error {
 		"Paginator": view.Pagination(model.MaxPagesNavigator, users, c.Queries()),
 		"Admins":    u.repository.Admins(),
 		"URL":       view.URL(c),
-		"Message":   msg,
+		"Success":   msg,
 	}
 
 	if c.Get("hx-request") == "true" {
