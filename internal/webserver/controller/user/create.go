@@ -47,9 +47,10 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
+	lang := c.Locals("Lang").(string)
 	c.Cookie(&fiber.Cookie{
-		Name:    "success",
-		Value:   user.Username,
+		Name:    "success-once",
+		Value:   u.translator.T(lang, "User \"%s\" created", user.Username),
 		Expires: time.Now().Add(24 * time.Hour),
 	})
 	c.Set("HX-Redirect", "/users")
