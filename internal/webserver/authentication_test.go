@@ -271,7 +271,7 @@ func TestRecover(t *testing.T) {
 			t.Error("No location header present")
 			return
 		}
-		if expectedURL := "/sessions"; url.Path != expectedURL {
+		if expectedURL := "/sessions/new"; url.Path != expectedURL {
 			t.Errorf("Expected location %s, received %s", expectedURL, url.Path)
 		}
 

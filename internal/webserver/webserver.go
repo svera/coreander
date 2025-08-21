@@ -123,6 +123,7 @@ func New(cfg Config, controllers Controllers, sender Sender, progress ProgressIn
 				return time.Second * time.Duration(newCacheTime)
 			},
 		}),
+		OneTimeMessages(),
 		compress.New(),
 	)
 
@@ -165,7 +166,14 @@ func errorHandler(c *fiber.Ctx, err error) error {
 
 	session, _ := c.Locals("Session").(model.Session)
 	// Send custom error page
-	err = c.Status(code).Render(
+	c.Status(code)
+
+	// Only render the error page if the request is not an htmx request
+	if c.Get("hx-request") == "true" {
+		return nil
+	}
+
+	err = c.Render(
 		fmt.Sprintf("errors/%d", code),
 		fiber.Map{
 			"Lang":    chooseBestLanguage(c),

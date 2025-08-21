@@ -3,7 +3,6 @@ package user
 import (
 	"log"
 	"strconv"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/webserver/model"
@@ -19,23 +18,12 @@ func (u *Controller) List(c *fiber.Ctx) error {
 
 	users, _ := u.repository.List(page, model.ResultsPerPage)
 
-	msg := ""
-	if c.Cookies("success") != "" {
-		lang := c.Locals("Lang").(string)
-		msg = u.translator.T(lang, "User \"%s\" created", c.Cookies("success"))
-		c.Cookie(&fiber.Cookie{
-			Name:    "success",
-			Expires: time.Now().Add(-(time.Hour * 2)),
-		})
-	}
-
 	templateVars := fiber.Map{
 		"Title":     "Users",
 		"Users":     users.Hits(),
 		"Paginator": view.Pagination(model.MaxPagesNavigator, users, c.Queries()),
 		"Admins":    u.repository.Admins(),
 		"URL":       view.URL(c),
-		"Message":   msg,
 	}
 
 	if c.Get("hx-request") == "true" {

@@ -44,7 +44,13 @@ func (a *Controller) UpdatePassword(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	return c.Redirect("/sessions")
+	c.Cookie(&fiber.Cookie{
+		Name:    "success-once",
+		Value:   "Password changed successfully. Please sign in.",
+		Expires: time.Now().Add(24 * time.Hour),
+	})
+
+	return c.Redirect("/sessions/new")
 }
 
 func (a *Controller) validateRecoveryAccess(recoveryUuid string) (*model.User, error) {

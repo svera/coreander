@@ -21,7 +21,7 @@
             tabindex="0">
             <form hx-put="/users/{{.User.Username}}" hx-swap="outerHTML" hx-target="#user-edit" data-success-message='{{t .Lang "Profile updated"}}'>
                 <div class="mb-3">
-                    <label for="send-to-email" class="form-label">{{t .Lang "Default send to email address"}}</label>
+                    <label for="send-to-email" class="form-label">{{t .Lang "Send to email address"}}</label>
                     <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}" maxlength="100" aria-describedby="send-to-email-help">
                     <div class="form-text text-end" id="send-to-email-help">
                         {{t .Lang "Sent from %s" .EmailFrom}}

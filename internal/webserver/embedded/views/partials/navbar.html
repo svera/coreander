@@ -56,8 +56,8 @@
                     </li>
                     {{end}}
                     {{else if not .DisableLoginLink}}
-                    <li class="p-2">
-                        <a href="/sessions/new">{{t .Lang "Login"}}</a>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/sessions/new"><i class="bi bi-box-arrow-in-right pe-2"></i>{{t .Lang "Login"}}</a>
                     </li>
                     {{end}}
                     <hr class="d-lg-none">
