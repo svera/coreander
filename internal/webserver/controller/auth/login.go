@@ -12,7 +12,7 @@ func (a *Controller) Login(c *fiber.Ctx) error {
 	}
 
 	return c.Render("auth/login", fiber.Map{
-		"Title":                  "Log in",
+		"Title":                  "Login",
 		"EmailSendingConfigured": emailSendingConfigured,
 		"DisableLoginLink":       true,
 	}, "layout")
