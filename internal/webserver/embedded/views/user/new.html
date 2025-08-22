@@ -51,7 +51,7 @@
             </div>
             {{end}}
         </div>
-        <div class="mb-3">
+        <div class="mb-5">
             <label for="role" class="form-label">{{t .Lang "Role"}}</label>
             <select name="role" class="form-control" id='form-control {{if ne (index .Errors "role") ""}}is-invalid{{end}}'>
                 <option value="1">{{t .Lang "Regular"}}</option>

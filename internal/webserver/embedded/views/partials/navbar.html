@@ -22,13 +22,35 @@
             aria-labelledby="offcanvasNavbarLabel">
             <div class="offcanvas-header">
                 <h5 class="offcanvas-title" id="offcanvasNavbarLabel">
-                    <img src="/images/coreander-logo-small.png" alt="Logo" width="32" height="32" class="d-inline-block align-text-middle">
-                    {{.Session.Name}}
+                    <img src="/images/coreander-header.png" alt="Logo" class="w-50 color-invertible">
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#offcanvasNavbar" aria-label="Close"></button>
             </div>
             <div class="offcanvas-body">
                 <ul class="navbar-nav justify-content-end flex-grow-1 pe-3 text-start">
+                    {{$lang := .Lang}}
+                    {{$URLPath := .URLPath}}
+                    {{$queryString := .QueryString}}
+                    <li class="nav-item dropdown">
+                        <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi-globe"></i>
+                        </button>
+                        <ul class="dropdown-menu shadow">
+                        {{range $i, $currentLang := .SupportedLanguages}}
+                            {{if eq $lang $currentLang}}
+                                <li class="dropdown-item">{{language $currentLang}}</li>
+                            {{else if eq $queryString ""}}
+                                <li class="dropdown-item"><a href="{{$URLPath}}?l={{$currentLang}}">{{language $currentLang}}</a></li>
+                            {{else}}
+                                <li class="dropdown-item"><a href="{{$URLPath}}?{{$queryString}}&l={{$currentLang}}">{{language $currentLang}}</a></li>
+                            {{end}}
+                        {{end}}
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        {{template "partials/color-mode-toggle" dict "Lang" $lang}}
+                    </li>
+                    <hr class="d-lg-none">
                     {{if and (.Session) (ne .Session.Name "")}}
                     {{if eq .Session.Role 2}}
                     <li class="nav-item dropdown">
@@ -55,38 +77,9 @@
                         </ul>
                     </li>
                     {{end}}
-                    {{else if not .DisableLoginLink}}
-                    <li class="nav-item">
-                        <a class="nav-link" href="/sessions/new"><i class="bi bi-box-arrow-in-right pe-2"></i>{{t .Lang "Login"}}</a>
-                    </li>
-                    {{end}}
-                    <hr class="d-lg-none">
-                    {{$lang := .Lang}}
-                    {{$URLPath := .URLPath}}
-                    {{$queryString := .QueryString}}
                     <li class="nav-item dropdown">
                         <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi-globe"></i>
-                        </button>
-                        <ul class="dropdown-menu shadow">
-                        {{range $i, $currentLang := .SupportedLanguages}}
-                            {{if eq $lang $currentLang}}
-                                <li class="dropdown-item">{{language $currentLang}}</li>
-                            {{else if eq $queryString ""}}
-                                <li class="dropdown-item"><a href="{{$URLPath}}?l={{$currentLang}}">{{language $currentLang}}</a></li>
-                            {{else}}
-                                <li class="dropdown-item"><a href="{{$URLPath}}?{{$queryString}}&l={{$currentLang}}">{{language $currentLang}}</a></li>
-                            {{end}}
-                        {{end}}
-                        </ul>
-                    </li>
-                    <li class="nav-item dropdown">
-                        {{template "partials/color-mode-toggle" dict "Lang" $lang}}
-                    </li>
-                    {{if and (.Session) (ne .Session.Name "")}}
-                    <hr class="d-lg-none">
-                    <li class="nav-item dropdown">
-                        <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi-person-fill"></i>
                             {{.Session.Name}}
                         </button>
                         <ul class="dropdown-menu shadow">
@@ -99,7 +92,7 @@
                             </li>
                             <li class="dropdown-item">
                                 <a href="/users/{{.Session.Username}}" class="link-underline link-underline-opacity-0">
-                                    <i class="bi-person-fill"></i>
+                                    <i class="bi-person-fill-gear"></i>
 
                                     {{t .Lang "Update your profile"}}
                                 </a>
@@ -113,6 +106,10 @@
                                 </a>
                             </li>
                         </ul>
+                    </li>
+                    {{else if not .DisableLoginLink}}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/sessions/new"><i class="bi bi-box-arrow-in-right pe-2"></i>{{t .Lang "Login"}}</a>
                     </li>
                     {{end}}
                 </ul>

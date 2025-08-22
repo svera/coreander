@@ -3,8 +3,8 @@
 "Search results": "Résultats de la recherche"
 "Search in %d documents": "Rechercher dans %d documents"
 "Download": "Télécharger"
-"%d matches found": "%d correspondances trouvées"
-"No matches found": "Aucune correspondance trouvée"
+"%d documents found": "%d documents trouvés"
+"No documents found": "Aucun document trouvé"
 "Estimated reading time": "Temps de lecture estimé"
 "Coreander - search results": Coreander - résultats de la recherche
 "Made with words by Sergio Vera": Fait avec des mots par Sergio Vera
@@ -30,7 +30,6 @@
 "Login": "Accès"
 "Sign in": "Accéder"
 "Forbidden": "Interdit"
-"Please sign in": "Veuillez vous connecter"
 "Wrong email or password": "Mauvais e-mail ou mot de passe"
 "Cancel": "Annuler"
 "Are you sure you want to delete this user?": "Êtes-vous sûr de vouloir supprimer cet utilisateur?"
