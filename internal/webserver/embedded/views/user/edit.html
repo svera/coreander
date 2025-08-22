@@ -24,7 +24,8 @@
                     <label for="send-to-email" class="form-label">{{t .Lang "Send to email address"}}</label>
                     <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}" maxlength="100" aria-describedby="send-to-email-help">
                     <div class="form-text text-end" id="send-to-email-help">
-                        {{t .Lang "Sent from %s" .EmailFrom}}
+                        <p>{{t .Lang "Documents sent from <b>%s</b>" .EmailFrom}}<br>
+                        <i class="bi bi-amazon"></i> {{t .Lang "<a href='https://www.amazon.com/sendtokindle/email'>Add this address to your trusted list</a> if you want to receive documents on a Kindle device"}}</p>
                     </div>
                     {{if ne (index .Errors "sendtoemail") ""}}
                     <div class="invalid-feedback">
@@ -133,4 +134,3 @@
         </div>
     </div>
 </div>
-
