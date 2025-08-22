@@ -17,10 +17,10 @@
         </li>
     </ul>
     <div class="tab-content">
-        <div class='tab-pane fade p-3 {{if eq .ActiveTab "options"}}show active{{end}}' id="options-tab-pane" role="tabpanel" aria-labelledby="options-tab"
+        <div class='tab-pane fade {{if eq .ActiveTab "options"}}show active{{end}}' id="options-tab-pane" role="tabpanel" aria-labelledby="options-tab"
             tabindex="0">
             <form hx-put="/users/{{.User.Username}}" hx-swap="outerHTML" hx-target="#user-edit" data-success-message='{{t .Lang "Profile updated"}}'>
-                <div class="mb-3">
+                <div class="mt-5 mb-3">
                     <label for="send-to-email" class="form-label">{{t .Lang "Send to email address"}}</label>
                     <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" value="{{.User.SendToEmail}}" maxlength="100" aria-describedby="send-to-email-help">
                     <div class="form-text text-end" id="send-to-email-help">
@@ -32,7 +32,7 @@
                     </div>
                     {{end}}
                 </div>
-                <div class="mb-3">
+                <div class="mb-5">
                     <label for="words-per-minute" class="form-label">{{t .Lang "Reading speed (in words per minute)"}}</label>
                     <input type="number" name="words-per-minute" class='form-control {{if ne (index .Errors "wordsperminute") ""}}is-invalid{{end}}' id="words-per-minute" value="{{.User.WordsPerMinute}}" min="1" max="999" required="required">
                     {{if ne (index .Errors "wordsperminute") ""}}
@@ -41,14 +41,14 @@
                     </div>
                     {{end}}
                 </div>
-                <div class="mb-3">
+                <div class="mb-5">
                     <label for="preferred-epub-type" class="form-label">{{t .Lang "Preferred EPUB type for download"}}</label>
                     <select class="form-select" aria-label="{{t .Lang "Preferred EPUB type for download"}}" name="preferred-epub-type">
                         <option value="epub" {{if eq .User.PreferredEpubType "epub"}}selected{{end}}>EPUB</option>
                         <option value="kepub" {{if eq .User.PreferredEpubType "kepub"}}selected{{end}}>{{t .Lang "KEPUB (EPUB for Kobo devices)"}}</option>
                     </select>
                 </div>
-                <div class="mb-3 form-check form-switch">
+                <div class="mb-5 form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="show-file-name" name="show-file-name" {{if .User.ShowFileName}}checked{{end}}>
                     <label class="form-check-label" for="show-file-name">{{t .Lang "Show documents file names"}}</label>
                 </div>
@@ -56,10 +56,10 @@
                 <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
             </form>
         </div>
-        <div class='tab-pane fade p-3 {{if eq .ActiveTab "profile"}}show active{{end}}' id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab"
+        <div class='tab-pane fade {{if eq .ActiveTab "profile"}}show active{{end}}' id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab"
             tabindex="0">
             <form hx-put="/users/{{.User.Username}}" hx-swap="outerHTML" hx-target="#user-edit" data-success-message='{{t .Lang "Profile updated"}}'>
-                <div class="mb-3">
+                <div class="my-5">
                     <label for="name" class="form-label">{{t .Lang "Name"}}</label>
                     <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="50">
                     {{if ne (index .Errors "name") ""}}
@@ -68,7 +68,7 @@
                     </div>
                     {{end}}
                 </div>
-                <div class="mb-3">
+                <div class="mb-5">
                     <label for="username" class="form-label">{{t .Lang "Username"}}</label>
                     <input type="text" name="username" class='form-control {{if ne (index .Errors "username") ""}}is-invalid{{end}}' id="username" required="required" value="{{.User.Username}}" maxlength="20" pattern="{{.UsernamePattern}}">
                     {{if ne (index .Errors "username") ""}}
@@ -77,7 +77,7 @@
                     </div>
                     {{end}}
                 </div>
-                <div class="mb-3">
+                <div class="mb-5">
                     <label for="email" class="form-label">{{t .Lang "Email"}}</label>
                     <input type="email" name="email" class='form-control {{if ne (index .Errors "email") ""}}is-invalid{{end}}' id="email" required="required" value="{{.User.Email}}" maxlength="100">
                     {{if ne (index .Errors "email") ""}}
@@ -91,11 +91,11 @@
                 <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
             </form>
         </div>
-        <div class='tab-pane fade p-3 {{if eq .ActiveTab "password"}}show active{{end}}' id="password-tab-pane" role="tabpanel" aria-labelledby="password-tab"
+        <div class='tab-pane fade {{if eq .ActiveTab "password"}}show active{{end}}' id="password-tab-pane" role="tabpanel" aria-labelledby="password-tab"
             tabindex="0">
             <form hx-put="/users/{{.User.Username}}" hx-swap="outerHTML" hx-target="#user-edit" data-success-message='{{t .Lang "Password updated"}}'>
                 {{if eq .Session.Uuid .User.Uuid}}
-                <div class="mb-3">
+                <div class="my-5">
                     <label for="old-password" class="form-label">{{t .Lang "Current password"}}</label>
                     <input type="password" name="old-password" class='form-control {{if ne (index .Errors "oldpassword") ""}}is-invalid{{end}}' id="old-password"
                         required="required" minlength="{{.MinPasswordLength}}" maxlength="50">
@@ -106,7 +106,7 @@
                     {{end}}
                 </div>
                 {{end}}
-                <div class="mb-3">
+                <div class="mb-5">
                     <label for="password" class="form-label">{{t .Lang "Password"}}</label>
                     <input type="password" name="password" class='form-control {{if ne (index .Errors "password") ""}}is-invalid{{end}}' id="password" required="required"
                         minlength="{{.MinPasswordLength}}" maxlength="50">
@@ -116,7 +116,7 @@
                     </div>
                     {{end}}
                 </div>
-                <div class="mb-3">
+                <div class="mb-5">
                     <label for="confirm-password" class="form-label">{{t .Lang "Confirm password"}}</label>
                     <input type="password" name="confirm-password" class='form-control {{if ne (index .Errors "confirmpassword") ""}}is-invalid{{end}}' id="confirm-password"
                         required="required" minlength="{{.MinPasswordLength}}" maxlength="50">
