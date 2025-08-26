@@ -28,7 +28,6 @@ require (
 )
 
 require (
-	github.com/Navid2zp/easyreq v1.1.0 // indirect
 	github.com/RoaringBitmap/roaring/v2 v2.6.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/beevik/etree v1.5.1 // indirect
@@ -112,4 +111,4 @@ require (
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )
 
-replace github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.2
+replace github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.3
