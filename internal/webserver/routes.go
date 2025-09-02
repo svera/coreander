@@ -5,15 +5,16 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
-func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, requireAuth bool) {
+func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, translator i18n.Translator, requireAuth bool) {
 	// Middlewares
 	var (
 		allowIfNotLoggedIn          = AllowIfNotLoggedIn(jwtSecret)
-		alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender)
-		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, requireAuth)
+		alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender, translator)
+		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, translator, requireAuth)
 	)
 
 	app.Use("/css", filesystem.New(filesystem.Config{

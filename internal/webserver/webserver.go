@@ -127,7 +127,7 @@ func New(cfg Config, controllers Controllers, sender Sender, progress ProgressIn
 		compress.New(),
 	)
 
-	routes(app, controllers, cfg.JwtSecret, sender, cfg.RequireAuth)
+	routes(app, controllers, cfg.JwtSecret, sender, translator, cfg.RequireAuth)
 	return app
 }
 

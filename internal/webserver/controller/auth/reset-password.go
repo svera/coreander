@@ -46,7 +46,7 @@ func (a *Controller) UpdatePassword(c *fiber.Ctx) error {
 
 	c.Cookie(&fiber.Cookie{
 		Name:    "success-once",
-		Value:   "Password changed successfully. Please sign in.",
+		Value:   "Password changed successfully. Please log in.",
 		Expires: time.Now().Add(24 * time.Hour),
 	})
 

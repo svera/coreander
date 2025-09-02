@@ -52,8 +52,10 @@ func (a *Controller) Request(c *fiber.Ctx) error {
 		)
 	}
 
-	return c.Render("auth/request", fiber.Map{
-		"Title":  "Recover password",
-		"Errors": map[string]string{},
-	}, "layout")
+	c.Cookie(&fiber.Cookie{
+		Name:    "success-once",
+		Value:   "<p>We've received your password recovery request. If the address you introduced is registered in our system, you'll receive an email with further instructions in your inbox.</p><p>Check your spam folder if you don't receive the recovery email after a while.</p>",
+		Expires: time.Now().Add(24 * time.Hour),
+	})
+	return c.Redirect("/sessions/new")
 }

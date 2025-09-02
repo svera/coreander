@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	jwtware "github.com/gofiber/jwt/v3"
+	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
@@ -71,7 +72,7 @@ func AllowIfNotLoggedIn(jwtSecret []byte) func(*fiber.Ctx) error {
 
 // AlwaysRequireAuthentication returns forbidden and renders the login page
 // if the user trying to access has not logged in
-func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender) func(*fiber.Ctx) error {
+func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator) func(*fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
 		SigningMethod: "HS256",
@@ -81,13 +82,13 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender) func(*fiber.Ct
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return forbidden(c, sender, err)
+			return forbidden(c, sender, translator, err)
 		},
 	})
 }
 
 // ConfigurableAuthentication allows to enable or disable authentication on routes which may or may not require it
-func ConfigurableAuthentication(jwtSecret []byte, sender Sender, requireAuth bool) func(*fiber.Ctx) error {
+func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, requireAuth bool) func(*fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
 		SigningMethod: "HS256",
@@ -98,14 +99,14 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, requireAuth boo
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			if requireAuth {
-				return forbidden(c, sender, err)
+				return forbidden(c, sender, translator, err)
 			}
 			return c.Next()
 		},
 	})
 }
 
-func forbidden(c *fiber.Ctx, sender Sender, err error) error {
+func forbidden(c *fiber.Ctx, sender Sender, translator i18n.Translator, err error) error {
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -116,7 +117,7 @@ func forbidden(c *fiber.Ctx, sender Sender, err error) error {
 	}
 	return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
 		"Lang":                   chooseBestLanguage(c),
-		"Title":                  "Login",
+		"Title":                  translator.T(c.Locals("Lang").(string), "Log in"),
 		"Version":                c.App().Config().AppName,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"DisableLoginLink":       true,
