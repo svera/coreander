@@ -145,6 +145,7 @@ func (h *Controller) latest(c *fiber.Ctx, highlights []index.Document, emailSend
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              h.sender.From(),
 		"WordsPerMinute":         h.wordsPerMinute,
+		"Amount":                 c.QueryInt("amount", 3),
 	})
 	if err != nil {
 		log.Println(err)
