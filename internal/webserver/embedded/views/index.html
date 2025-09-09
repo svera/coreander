@@ -3,22 +3,93 @@
     {{template "partials/searchbox" .}}
 </section>
 
-{{if and (.Session) (ne .Session.Name "") (gt (len .Reading) 0)}}
-<section class="row pt-5" id="in-progress-docs">
-    {{template "partials/docs-list-horizontal" dict "Title" "Resume reading" "Lang" .Lang "EmailSendingConfigured" .EmailSendingConfigured "Session" .Session "EmailFrom" .EmailFrom "Docs" .Reading}}
-</section>
-{{end}}
-
-
 {{if gt (len .LatestDocs) 0}}
-<section class="row pt-5" id="latest-docs">
-    {{template "partials/docs-list-horizontal" dict "Title" "Latest additions" "Lang" .Lang "EmailSendingConfigured" .EmailSendingConfigured "Session" .Session "EmailFrom" .EmailFrom "Docs" .LatestDocs}}
+<section class="row py-5" id="latest-docs">
+    <h2>{{ t .Lang "Latest additions" }}</h2>
+    <div class="card px-0 bg-body-secondary">
+        <div class="card-body">
+            <div id="latest-docs-carousel" class="carousel slide" data-bs-ride="carousel">
+                <div class="carousel-indicators">
+                    {{range $i, $doc := .LatestDocs}}
+                    <button type="button" data-bs-target="#latest-docs-carousel" data-bs-slide-to="{{$i}}" class="{{if eq $i 0}}active{{end}}" aria-current="{{if eq $i 0}}true{{end}}" aria-label="Slide {{$i}}"></button>
+                    {{end}}
+                </div>
+                <div class="carousel-inner">
+                    {{$lang := .Lang}}
+                    {{$emailSendingConfigured := .EmailSendingConfigured}}
+                    {{$session := .Session}}
+                    {{$emailFrom := .EmailFrom}}
+
+                    {{range $i, $doc := .LatestDocs}}
+                    <div class="carousel-item {{if eq $i 0}}active{{end}}">
+                        <div class="row">
+                            <div class="col-12 col-md-4 col-lg-3">
+                                {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session}}
+                            </div>
+                            <div class="d-sm-none d-md-block col-md-8 col-lg-9">
+                                {{ if ne $doc.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
+                                $doc.Series}}{{end}}
+
+                                <h4 class="text-start">
+                                    <a href="/documents/{{$doc.Slug}}">{{$doc.Title}}</a>
+                                </h4>
+
+                                {{if $doc.Authors}}
+                                <h5>
+                                    {{range $i, $author := $doc.Authors}}
+                                    {{$authorTitle := t $lang "Search for more titles by %s" $author}}
+                                    <a href="/authors/{{index $doc.AuthorsSlugs $i}}" title={{$authorTitle}}>{{$author}}</a>{{if notLast $doc.Authors $i}}, {{end}}
+                                    {{end}}
+                                </h5>
+                                {{else}}
+                                    <h5>{{t $lang "Unknown author"}}</h5>
+                                {{end}}
+                                </dl>
+                                <div class="mt-5" style="display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; overflow: hidden;">{{$doc.Description}}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+        </div>
+    </div>
 </section>
 {{end}}
 
 {{if and (.Session) (ne .Session.Name "")}}
-    <section class="row pt-5" id="latest-highlights" hx-get="/highlights?view=latest&amount={{.HighlightsAmount}}" hx-trigger="load, highlight from:body, dehighlight from:body">
-    </section>
+<div class="row">
+    {{if gt (len .Reading) 0}}
+    <div class="col-12 col-md-4 col-lg-4">
+        <h3>{{ t .Lang "Resume reading" }}</h3>
+        {{$lang := .Lang}}
+        {{$emailSendingConfigured := .EmailSendingConfigured}}
+        {{$session := .Session}}
+        {{$emailFrom := .EmailFrom}}
+
+        {{range $i, $doc := .Reading}}
+        <div class="col-12">
+            <div class="card border border-0">
+                {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session}}
+            </div>
+            {{template "partials/actions" dict "Lang" $lang "Document" $doc "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom}}
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+
+    <div class="col-12 {{if gt (len .Reading) 0}}col-md-8 col-lg-7 offset-lg-1{{end}}">
+        <div class="row">
+            <div class="col-6"><h3>{{t .Lang "Your highlights" }}</h3></div>
+            <div class="col-6">
+                <p class="text-end">
+                    <a href="/highlights">{{t .Lang "See all"}}</a>
+                </p>
+            </div>
+        <div class="row pe-0" id="latest-highlights" hx-get="/highlights?view=latest&amount=3" hx-trigger="load, highlight from:body, dehighlight from:body">
+        </div>
+    </div>
+</div>
 {{end}}
 
 <script type="module" src="/js/highlight.js"></script>

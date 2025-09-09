@@ -59,6 +59,7 @@ a.collapse-control.collapsed:after {
 :root, [data-bs-theme=light] {
     --bs-link-color-rgb: 0, 0, 0;
     --bs-link-hover-color-rgb: 0, 0, 0;
+    --bs-carousel-indicator-active-bg: black;
     .pagination {
         --bs-pagination-active-bg: #000000;
         --bs-pagination-active-border-color: #000000;
@@ -79,6 +80,7 @@ a.collapse-control.collapsed:after {
     --bs-link-hover-color: white;
     --bs-link-color-rgb: 255, 255, 255;
     --bs-link-hover-color-rgb: 255, 255, 255;
+    --bs-carousel-indicator-active-bg: white; /* Fix a bug in bootstrap */
     .pagination {
         --bs-pagination-active-bg: #ffffff;
         --bs-pagination-active-color: #000000;
@@ -89,17 +91,14 @@ a.collapse-control.collapsed:after {
         --bs-bg-opacity: 1;
         background-color: rgba(var(--bs-dark-rgb), var(--bs-bg-opacity)) !important;
     }
+    .color-invertible {
+      filter: invert(100%);
+    }
 }
 
 .card-img-overlay a, .card-img-overlay p, .card-img-overlay h2, .card-img-overlay h3, .card-img-overlay h4, .card-img-overlay h5 {
     color: rgba(255,255,255,0.8);
 }
-
-[data-bs-theme=dark] {
-    .color-invertible {
-      filter: invert(100%);
-    }
-  }
 
 .cursor-pointer {
     cursor: pointer;
