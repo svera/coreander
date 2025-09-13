@@ -1,4 +1,4 @@
-<div class="position-relative mb-3 border border-2">
+<div class="position-relative border border-2">
     {{if not .DisableCoverMainLink}}<a href="/documents/{{.Document.Slug}}{{if .LinkToReader}}/read{{end}}" class="text-decoration-none">
         <div class="zoomable cover">{{end}}
             <img src="/images/generic.webp" data-src="/documents/{{.Document.Slug}}/cover" loading="lazy" class="cover img-fluid" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}" />

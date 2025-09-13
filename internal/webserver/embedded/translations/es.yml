@@ -150,7 +150,7 @@
 "Year": "Año"
 "Sorry, we don't have information about this author at the moment": "Lo sentimos, ahora mismo no tenemos información sobre este autor/a"
 "Collection \"%s\"": "Colección «%s»"
-"Resume reading": "Continuar leyendo"
+"Resume": "Continuar"
 "January": "enero"
 "February": "febrero"
 "March": "marzo"
@@ -192,4 +192,3 @@
 "Please login to use this feature": "Por favor, identifícate para utilizar esta función"
 "Edit user": "Editar usuario"
 "<a href='https://www.amazon.com/sendtokindle/email'>Add this address to your trusted list</a> if you want to receive documents on a Kindle device": "<a href='https://www.amazon.com/sendtokindle/email'>Añade esta dirección a tu lista de confianza</a> si deseas recibir documentos en un dispositivo Kindle"
-"Mark as read": "Marcar como leído"
