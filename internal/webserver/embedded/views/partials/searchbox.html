@@ -3,11 +3,16 @@
         <form action="/documents" roles="search">
             <div class="input-group mb-3 mt-5">
                 <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
-                <input type="search" name="search" id="searchbox" class="form-control form-control-lg" placeholder={{t .Lang "Search in %d documents" .Count}} maxlength="255" autofocus value="{{.SearchFields.Keywords}}">
+                <input type="search" name="search" id="searchbox" class="form-control form-control-lg border-end-0 border rounded-start-5" placeholder={{t .Lang "Search in %d documents" .Count}} maxlength="255" autofocus value="{{.SearchFields.Keywords}}">
+                <span class="input-group-append">
+                    <button class="btn btn-outline-secondary border-start-0 rounded-start-0 rounded-end-5 p-3 border" type="button">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </span>
             </div>
             <p class="opacity-75 text-end">
                 <small>
-                    <i class="bi-search me-2"></i>
+                    <i class="bi-sliders me-2"></i>
                     <a data-bs-toggle="collapse" href="#search-filters-collapse" aria-expanded="false">
                         {{ t .Lang "Advanced search" }}
                     </a>

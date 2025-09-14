@@ -60,6 +60,7 @@ a.collapse-control.collapsed:after {
     --bs-link-color-rgb: 0, 0, 0;
     --bs-link-hover-color-rgb: 0, 0, 0;
     --bs-carousel-indicator-active-bg: black;
+    --bs-carousel-control-icon-filter: invert(1); /* Fix a bug in bootstrap */
     .pagination {
         --bs-pagination-active-bg: #000000;
         --bs-pagination-active-border-color: #000000;
@@ -81,6 +82,7 @@ a.collapse-control.collapsed:after {
     --bs-link-color-rgb: 255, 255, 255;
     --bs-link-hover-color-rgb: 255, 255, 255;
     --bs-carousel-indicator-active-bg: white; /* Fix a bug in bootstrap */
+    --bs-carousel-control-icon-filter: none; /* Fix a bug in bootstrap */
     .pagination {
         --bs-pagination-active-bg: #ffffff;
         --bs-pagination-active-color: #000000;
@@ -168,3 +170,15 @@ a.collapse-control.collapsed:after {
     min-height: 200px;
 }
 
+.clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 6;
+    line-clamp: 6;
+    overflow: hidden;
+}
+
+/*
+#resume-reading-docs .carousel-control-prev, #resume-reading-docs .carousel-control-next {
+    position: relative;
+}*/
