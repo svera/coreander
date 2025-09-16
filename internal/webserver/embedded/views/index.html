@@ -2,6 +2,7 @@
 {{$emailSendingConfigured := .EmailSendingConfigured}}
 {{$session := .Session}}
 {{$emailFrom := .EmailFrom}}
+{{$reading := .Reading}}
 
 <section class="pb-5 text-center">
     <img src="/images/coreander-header.png" class="w-50 mt-5 color-invertible" alt="" />
@@ -52,9 +53,13 @@
                 {{range $i, $doc := .LatestDocs}}
                 <div class="carousel-item {{if eq $i 0}}active{{end}}">
                     <div class="row">
-                        <div class="d-none d-lg-block col-lg-8">
+                        <div class="d-none {{if eq (len $reading) 0}}d-md-block col-md-8{{end}} d-lg-block col-lg-8">
                             {{ if ne $doc.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
-                            $doc.Series}}{{end}}
+                            $doc.Series}}
+                                <p class="text-start text-muted text-uppercase mb-0">
+                                    <a href="/series/{{$doc.SeriesSlug}}" title={{$seriesTitle}}>{{$doc.Series}}{{ if ne $doc.SeriesIndex 0.0 }} {{$doc.SeriesIndex}}{{end}}</a>
+                                </p>
+                            {{end}}
 
                             <h4 class="text-start">
                                 <a href="/documents/{{$doc.Slug}}">{{$doc.Title}}</a>
@@ -71,11 +76,11 @@
                                 <h5>{{t $lang "Unknown author"}}</h5>
                             {{end}}
                             </dl>
-                            <div class="mt-5 d-sm-none d-lg-block">
+                            <div class="mt-5 d-none {{if eq (len $reading) 0}}d-md-block{{end}} d-lg-block">
                                 <div class="clamp">{{$doc.Description}}</div>
                             </div>
                         </div>
-                        <div class="col-12 col-lg-4">
+                        <div class="col-12 {{if eq (len $reading) 0}}col-md-4{{end}} col-lg-4">
                             {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session}}
                         </div>
                     </div>

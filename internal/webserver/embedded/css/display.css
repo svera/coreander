@@ -178,7 +178,20 @@ a.collapse-control.collapsed:after {
     overflow: hidden;
 }
 
-/*
-#resume-reading-docs .carousel-control-prev, #resume-reading-docs .carousel-control-next {
-    position: relative;
-}*/
+#searchbox-container .btn:hover {
+    color: var(--bs-btn-color);
+    background-color: rgba(0, 0, 0, 0);
+}
+
+#searchbox-container .input-group:focus-within {
+    color: #212529;
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgb(13 110 253 / 25%);
+    z-index: 3;
+    border-radius: .25rem;
+}
+
+#searchbox-container .input-group .form-control:focus {
+    box-shadow: none !important;
+}
