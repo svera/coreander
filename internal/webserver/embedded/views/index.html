@@ -12,7 +12,7 @@
 <section class="row py-5">
     {{if and (.Session) (ne .Session.Name "")}}
         {{if gt (len .Reading) 0}}
-        <div class="col-12 col-md-6 col-lg-3 mb-5">
+        <div class="col-12 col-md-6 col-lg-3 mb-5" id="in-progress-docs">
             <div class="card px-0 bg-body-secondary">
                 <div class="card-header text-center">
                     <h4 class="mb-0">{{ t .Lang "Resume reading" }}</h4>
@@ -104,7 +104,7 @@
     </div>
 </div>
 <div class="row">
-    <div class="row pe-0" id="latest-highlights" hx-get="/highlights?view=latest&amount=6" hx-trigger="load, highlight from:body, dehighlight from:body">
+    <div class="row pe-0" id="latest-highlights" hx-get="/highlights?view=latest" hx-trigger="load, highlight from:body, dehighlight from:body">
     </div>
 </div>
 {{end}}
