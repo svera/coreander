@@ -3,7 +3,6 @@
     {{$emailSendingConfigured := .EmailSendingConfigured}}
     {{$session := .Session}}
     {{$emailFrom := .EmailFrom}}
-    {{$amount := .Amount}}
 
     {{range $i, $doc := .Highlights}}
     <div class="col-6 col-md-3 col-xl-2 pe-0 {{if gt $i 3}}d-none d-xl-block{{end}}">

@@ -44,7 +44,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	if c.Query("view") == "latest" {
-		highlights, _, err := h.sortedHighlights(page, user, c.QueryInt("amount"), "created_at DESC")
+		highlights, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "created_at DESC")
 		if err != nil {
 			return err
 		}
