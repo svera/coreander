@@ -24,15 +24,15 @@
 
     {{if .EmailSendingConfigured}}
         {{if not .Session}}
-            <a href="/sessions/new" class="btn btn-sm btn-outline-secondary w-100" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
+            <a href="/sessions/new" class="btn btn-sm btn-outline-secondary" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
                 <i class="bi-envelope-fill"></i>
             </a>
         {{else if not .Session.SendToEmail}}
-            <a href="/users/{{.Session.Username}}" class="btn btn-sm btn-outline-secondary w-100" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
+            <a href="/users/{{.Session.Username}}" class="btn btn-sm btn-outline-secondary" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
                 <i class="bi-envelope-fill"></i>
             </a>
         {{else}}
-            <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="btn btn-sm btn-outline-secondary w-100" {{if .Session.SendToEmail}}title='{{t .Lang "Send to %s" .Session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
+            <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="btn btn-sm btn-outline-secondary flex-fill" {{if .Session.SendToEmail}}title='{{t .Lang "Send to %s" .Session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
                 <div id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator" aria-hidden="true"></div>
                 <i class="bi-envelope-fill"></i>
             </button>
