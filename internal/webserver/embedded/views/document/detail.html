@@ -24,7 +24,7 @@
         </header>
     </div>
     <div class="col-12 col-md-4 mt-3 pe-3">
-        <div class="card border border-0">
+        <div class="mb-3">
             {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true}}
         </div>
         {{template "partials/actions" dict "Lang" $lang "Document" .Document "Session" $session "EmailSendingConfigured" .EmailSendingConfigured "EmailFrom" $emailFrom}}

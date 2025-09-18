@@ -59,6 +59,8 @@ a.collapse-control.collapsed:after {
 :root, [data-bs-theme=light] {
     --bs-link-color-rgb: 0, 0, 0;
     --bs-link-hover-color-rgb: 0, 0, 0;
+    --bs-carousel-indicator-active-bg: black;
+    --bs-carousel-control-icon-filter: invert(1); /* Fix a bug in bootstrap */
     .pagination {
         --bs-pagination-active-bg: #000000;
         --bs-pagination-active-border-color: #000000;
@@ -79,6 +81,8 @@ a.collapse-control.collapsed:after {
     --bs-link-hover-color: white;
     --bs-link-color-rgb: 255, 255, 255;
     --bs-link-hover-color-rgb: 255, 255, 255;
+    --bs-carousel-indicator-active-bg: white; /* Fix a bug in bootstrap */
+    --bs-carousel-control-icon-filter: none; /* Fix a bug in bootstrap */
     .pagination {
         --bs-pagination-active-bg: #ffffff;
         --bs-pagination-active-color: #000000;
@@ -89,17 +93,14 @@ a.collapse-control.collapsed:after {
         --bs-bg-opacity: 1;
         background-color: rgba(var(--bs-dark-rgb), var(--bs-bg-opacity)) !important;
     }
+    .color-invertible {
+      filter: invert(100%);
+    }
 }
 
 .card-img-overlay a, .card-img-overlay p, .card-img-overlay h2, .card-img-overlay h3, .card-img-overlay h4, .card-img-overlay h5 {
     color: rgba(255,255,255,0.8);
 }
-
-[data-bs-theme=dark] {
-    .color-invertible {
-      filter: invert(100%);
-    }
-  }
 
 .cursor-pointer {
     cursor: pointer;
@@ -169,3 +170,32 @@ a.collapse-control.collapsed:after {
     min-height: 200px;
 }
 
+.clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 6;
+    line-clamp: 6;
+    overflow: hidden;
+}
+
+#searchbox-container .btn:hover {
+    color: var(--bs-btn-color);
+    background-color: rgba(0, 0, 0, 0);
+}
+
+#searchbox-container .input-group:focus-within {
+    color: #212529;
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgb(13 110 253 / 25%);
+    z-index: 3;
+    border-radius: .25rem;
+}
+
+#searchbox-container .input-group .form-control:focus {
+    box-shadow: none !important;
+}
+
+#latest-docs .carousel-indicators {
+    position: relative;
+}

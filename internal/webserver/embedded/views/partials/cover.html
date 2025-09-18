@@ -1,7 +1,7 @@
-<div class="position-relative mb-3 border border-2">
-    {{if not .DisableCoverMainLink}}<a href="/documents/{{.Document.Slug}}" class="text-decoration-none">
+<div class="position-relative border border-2">
+    {{if not .DisableCoverMainLink}}<a href="/documents/{{.Document.Slug}}{{if .LinkToReader}}/read{{end}}" class="text-decoration-none">
         <div class="zoomable cover">{{end}}
-            <img src="/images/generic.webp" data-src="/documents/{{.Document.Slug}}/cover" loading="lazy" class="cover img-fluid" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}" />
+            <img src="/images/generic.webp" data-src="/documents/{{.Document.Slug}}/cover" loading="lazy" class="cover img-fluid w-100" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}" />
             {{if not .DisableCoverMainLink}}</div>{{end}}
         <div class="card-img-overlay card-body" id="cover-title-{{.Document.Slug}}">
             <h5 class="card-title text-center text-truncate">{{.Document.Title}}</h5>
@@ -15,13 +15,15 @@
         </div>
     {{if not .DisableCoverMainLink}}</a>{{end}}
 
-    {{if and (.Session) (ne .Session.Name "")}}
+    {{if and (.Session) (ne .Session.Name "") (not .DisableActions)}}
         {{template "partials/highlight-toggle" dict "Lang" .Lang "Document" .Document}}
     {{end}}
 
+    {{if not .DisableActions}}
     <div class="position-absolute bottom-0 end-0 me-2 mb-1 cursor-pointer w-10">
         <a href="/documents/{{.Document.Slug}}/read" class="icon-link" title='{{t .Lang "Read"}}' aria-label='{{t .Lang "Read"}}'>
             <img src="/images/eye-solid.svg" class="img-fluid w-100" style="min-width: 1em" alt='' />
         </a>
     </div>
+    {{end}}
 </div>

@@ -55,8 +55,16 @@ htmx.on('htmx:afterRequest', (evt) => {
     }
 });
 
-document.querySelectorAll('[data-warning-once]').forEach((el) => {
-    el.addEventListener('click', () => {
-        document.cookie = `warning-once=${el.getAttribute('data-warning-once')}; path=/`;
+const setUpWarningsListener = () => {
+    document.querySelectorAll('[data-warning-once]').forEach((el) => {
+        el.addEventListener('click', () => {
+            document.cookie = `warning-once=${el.getAttribute('data-warning-once')}; path=/`;
+        });
     });
-});
+}
+
+const warningsObserver = new MutationObserver(setUpWarningsListener);
+
+// Start observing the target node for configured mutations
+const node = document.getElementById("latest-highlights");
+warningsObserver.observe(node, { attributes: true, childList: false, subtree: true });

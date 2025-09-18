@@ -1,7 +1,7 @@
 <div class="d-grid gap-2 mx-auto d-flex justify-content-sm-center actions mb-3">
     {{if eq .Document.Format "EPUB"}}
-        <div class="btn-group mb-1 flex-fill" role="group" aria-label="Button group with nested dropdown">
-            <a href="/documents/{{.Document.Slug}}/download?format={{if .Session}}{{.Session.PreferredEpubType}}{{else}}epub{{end}}" class="btn btn-sm btn-outline-secondary w-100" download title='{{t .Lang "Download"}}'>
+        <div class="btn-group flex-fill" role="group" aria-label="Button group with nested dropdown">
+            <a href="/documents/{{.Document.Slug}}/download?format={{if .Session}}{{.Session.PreferredEpubType}}{{else}}epub{{end}}" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" download title='{{t .Lang "Download"}}'>
                 <i class="bi-cloud-download"></i>
                 <span class='badge text-bg-primary'>{{if .Session}}{{uppercase .Session.PreferredEpubType}}{{else}}EPUB{{end}}</span>
             </a>
@@ -16,30 +16,28 @@
             </ul>
         </div>
     {{else}}
-        <a href="/documents/{{.Document.Slug}}/download" class="btn btn-sm btn-outline-secondary mb-1 flex-sm-fill" download title='{{t .Lang "Download"}}'>
+        <a href="/documents/{{.Document.Slug}}/download" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" download title='{{t .Lang "Download"}}'>
             <i class="bi-cloud-download"></i>
             <span class='badge text-bg-danger'>{{.Document.Format}}</span>
         </a>
     {{end}}
 
     {{if .EmailSendingConfigured}}
-        <div class="btn-group mb-1 flex-fill" role="group" aria-label="Button group with nested dropdown">
-            {{if not .Session}}
-                <a href="/sessions/new" class="btn btn-sm btn-outline-secondary w-100" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
-                    <i class="bi-envelope-fill"></i>
-                </a>
-            {{else if not .Session.SendToEmail}}
-                <a href="/users/{{.Session.Username}}" class="btn btn-sm btn-outline-secondary w-100" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
-                    <i class="bi-envelope-fill"></i>
-                </a>
-            {{else}}
-                <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="btn btn-sm btn-outline-secondary w-100" {{if .Session.SendToEmail}}title='{{t .Lang "Send to %s" .Session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
-                    <div id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator" aria-hidden="true"></div>
-                    <i class="bi-envelope-fill"></i>
-                </button>
-                <input type="hidden" name="email" id="quick-email-{{.Document.Slug}}" value="{{.Session.SendToEmail}}" />
-                <input type="hidden" name="slug" id="slug-{{.Document.Slug}}" value="{{.Document.Slug}}" />
-            {{end}}
-        </div>
+        {{if not .Session}}
+            <a href="/sessions/new" class="btn btn-sm btn-outline-secondary" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
+                <i class="bi-envelope-fill"></i>
+            </a>
+        {{else if not .Session.SendToEmail}}
+            <a href="/users/{{.Session.Username}}" class="btn btn-sm btn-outline-secondary" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
+                <i class="bi-envelope-fill"></i>
+            </a>
+        {{else}}
+            <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="btn btn-sm btn-outline-secondary flex-fill" {{if .Session.SendToEmail}}title='{{t .Lang "Send to %s" .Session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
+                <div id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator" aria-hidden="true"></div>
+                <i class="bi-envelope-fill"></i>
+            </button>
+            <input type="hidden" name="email" id="quick-email-{{.Document.Slug}}" value="{{.Session.SendToEmail}}" />
+            <input type="hidden" name="slug" id="slug-{{.Document.Slug}}" value="{{.Document.Slug}}" />
+        {{end}}
     {{end}}
 </div>
