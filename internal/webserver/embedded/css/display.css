@@ -195,3 +195,7 @@ a.collapse-control.collapsed:after {
 #searchbox-container .input-group .form-control:focus {
     box-shadow: none !important;
 }
+
+#latest-docs .carousel-indicators {
+    position: relative;
+}

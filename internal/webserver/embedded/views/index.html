@@ -44,11 +44,6 @@
     <div class="col-12 {{if gt (len .Reading) 0}}col-md-6 col-lg-9{{end}}" id="latest-docs">
         <h2 class="border-bottom mb-3 pb-2">{{ t .Lang "Latest additions" }}</h2>
         <div id="latest-docs-carousel" class="carousel slide" data-bs-ride="carousel">
-            <div class="carousel-indicators">
-                {{range $i, $doc := .LatestDocs}}
-                <button type="button" data-bs-target="#latest-docs-carousel" data-bs-slide-to="{{$i}}" class="{{if eq $i 0}}active{{end}}" aria-current="{{if eq $i 0}}true{{end}}" aria-label="Slide {{$i}}"></button>
-                {{end}}
-            </div>
             <div class="carousel-inner">
                 {{range $i, $doc := .LatestDocs}}
                 <div class="carousel-item {{if eq $i 0}}active{{end}}">
@@ -85,6 +80,11 @@
                         </div>
                     </div>
                 </div>
+                {{end}}
+            </div>
+            <div class="carousel-indicators">
+                {{range $i, $doc := .LatestDocs}}
+                <button type="button" data-bs-target="#latest-docs-carousel" data-bs-slide-to="{{$i}}" class="{{if eq $i 0}}active{{end}}" aria-current="{{if eq $i 0}}true{{end}}" aria-label="Slide {{$i}}"></button>
                 {{end}}
             </div>
         </div>
