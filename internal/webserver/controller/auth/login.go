@@ -12,7 +12,7 @@ func (a *Controller) Login(c *fiber.Ctx) error {
 	}
 
 	return c.Render("auth/login", fiber.Map{
-		"Title":                  a.translator.T(c.Locals("Lang").(string), "Log in"),
+		"Title":                  a.translator.T(c.Locals("Lang").(string), "Sign in"),
 		"EmailSendingConfigured": emailSendingConfigured,
 		"DisableLoginLink":       true,
 	}, "layout")

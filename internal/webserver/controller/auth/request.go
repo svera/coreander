@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"log"
 	"net/mail"
 	"strconv"
 	"time"
@@ -32,6 +33,7 @@ func (a *Controller) Request(c *fiber.Ctx) error {
 		user.RecoveryUUID = uuid.NewString()
 		user.RecoveryValidUntil = time.Now().UTC().Add(a.config.RecoveryTimeout)
 		if err := a.repository.Update(user); err != nil {
+			log.Printf("error updating user with recovery UUID: %v\n", err)
 			return fiber.ErrInternalServerError
 		}
 
@@ -45,11 +47,14 @@ func (a *Controller) Request(c *fiber.Ctx) error {
 			"RecoveryTimeout": strconv.FormatFloat(a.config.RecoveryTimeout.Hours(), 'f', -1, 64),
 		})
 
-		a.sender.Send(
+		if err := a.sender.Send(
 			c.FormValue("email"),
 			a.translator.T(c.Locals("Lang").(string), "Password recovery request"),
 			string(c.Response().Body()),
-		)
+		); err != nil {
+			log.Printf("error sending recovery email: %v\n", err)
+			return fiber.ErrInternalServerError
+		}
 	}
 
 	c.Cookie(&fiber.Cookie{
