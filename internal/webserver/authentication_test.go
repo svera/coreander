@@ -193,7 +193,7 @@ func TestRecover(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
 			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 		}
 
@@ -233,7 +233,7 @@ func TestRecover(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
 			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 		}
 
@@ -312,7 +312,7 @@ func TestRecover(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
 			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 		}
 

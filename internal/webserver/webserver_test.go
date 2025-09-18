@@ -169,7 +169,7 @@ func mustReturnForbiddenAndShowLogin(response *http.Response, t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if selection != "Login | Coreander" {
+	if selection != "Log in | Coreander" {
 		t.Errorf("Expected login page, received %s", selection)
 	}
 }
