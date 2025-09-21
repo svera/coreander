@@ -11,7 +11,7 @@ func TestAge(t *testing.T) {
 	for _, tcase := range testCasesAuthorAge() {
 		t.Run(tcase.name, func(t *testing.T) {
 			if age, expectedAge := tcase.author.Age(), tcase.expectedAge; age != expectedAge {
-				t.Errorf("Wrong author age, expected '%d', got '%d'", age, expectedAge)
+				t.Errorf("Wrong author age, expected '%d', got '%d'", expectedAge, age)
 			}
 		})
 	}
@@ -38,6 +38,20 @@ func testCasesAuthorAge() []testCaseAuthorAge {
 				),
 			},
 			expectedAge: 62,
+		},
+		{
+			name: "Juan Luis Arinaga",
+			author: index.Author{
+				DateOfBirth: precisiondate.NewPrecisionDate(
+					"+1954-09-28T00:00:00Z",
+					precisiondate.PrecisionDay,
+				),
+				DateOfDeath: precisiondate.NewPrecisionDate(
+					"+2025-09-19T00:00:00Z",
+					precisiondate.PrecisionDay,
+				),
+			},
+			expectedAge: 70,
 		},
 		{
 			name: "Lucius Annaeus Seneca (not enough precision in date of birth)",
