@@ -66,5 +66,5 @@ const setUpWarningsListener = () => {
 const warningsObserver = new MutationObserver(setUpWarningsListener);
 
 // Start observing the target node for configured mutations
-const node = document.getElementById("latest-highlights");
+const node = document.getElementsByTagName('body')[0];
 warningsObserver.observe(node, { attributes: true, childList: false, subtree: true });

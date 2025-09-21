@@ -46,7 +46,7 @@
         <div id="latest-docs-carousel" class="carousel slide" data-bs-ride="carousel">
             <div class="carousel-inner">
                 {{range $i, $doc := .LatestDocs}}
-                <div class="carousel-item {{if eq $i 0}}active{{end}}">
+                <div class="carousel-item {{if eq $i 0}}active{{end}}" data-bs-interval="10000">
                     <div class="row">
                         <div class="d-none {{if eq (len $reading) 0}}d-md-block col-md-8{{end}} d-lg-block col-lg-8">
                             {{ if ne $doc.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"

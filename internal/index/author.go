@@ -64,12 +64,11 @@ func (a Author) Age() int {
 		period = timespan.BetweenDates(a.DateOfBirth.Date, a.DateOfDeath.Date)
 	}
 
-	return int(period.Days() / 365)
+	return int(float64(period.Days()) / 365.25)
 }
 
 func (a Author) BirthNameIncludesName() bool {
-	nameParts := strings.Split(a.Name, " ")
-	for _, part := range nameParts {
+	for part := range strings.SplitSeq(a.Name, " ") {
 		if !strings.Contains(a.BirthName, part) {
 			return false
 		}
