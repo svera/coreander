@@ -29,7 +29,7 @@
         </div>
         {{template "partials/actions" dict "Lang" $lang "Document" .Document "Session" $session "EmailSendingConfigured" .EmailSendingConfigured "EmailFrom" $emailFrom}}
 
-        <dl class="row text-muted">
+        <dl class="row text-muted mt-3">
             {{if and $session $session.ShowFileName}}
                 <dt class="col-5">{{t $lang "File name"}}</dt>
                 <dd class="col-7 text-end"><small><i>{{$document.ID}}</i></small></dd>
