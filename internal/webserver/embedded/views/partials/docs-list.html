@@ -20,9 +20,9 @@
 </div>
 
 {{if gt .Results.TotalHits 0}}
-<ul class="list-group list-group-flush border-top pt-5 rounded-0">
+<ul class="list-group border-top rounded-0">
     {{range $i, $document := .Results.Hits}}
-    <li class="list-group-item border border-0 px-0 {{if gt $i 0}}mt-5{{end}}">
+    <li class="list-group-item border border-0 px-0 mt-5">
         <div class="row card-body">
             <div class="col-12 col-md-4 col-lg-3">
                 <div class="mb-3">
