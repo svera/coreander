@@ -1,10 +1,10 @@
-<div class="card mb-3">
+<div class="card mb-3 bg-body-secondary">
     <div class="row">
         <div class="card-body col-sm-6 col-md-6 col-lg-9">
             <div class="d-flex align-items-baseline">
                 <h2 class="card-title ms-3 float-start">{{.Author.Name}}</h2>
                 {{if and (ne .Author.BirthName "") (not .Author.BirthNameIncludesName)}}
-                    <p class="opacity-50 ms-3 float-start">&nbsp;{{.Author.BirthName}}</p>
+                    <p class="opacity-50 ms-3 float-start">{{.Author.BirthName}}</p>
                 {{end}}
             </div>
             {{if eq .Author.DataSourceID ""}}

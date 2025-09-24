@@ -28,29 +28,6 @@ main .form-control:focus {
     font-size: 0.65em;
 }
 
-a.collapse-control {
-    text-decoration: none;
-}
-
-a.collapse-control:not(.collapsed):after {
-    content: '▲';
-}
-
-a.collapse-control.collapsed:after {
-    content: '▼';
-}
-
-.partial.collapse:not(.show) {
-    display: block;
-    /* height = lineheight * no of lines to display */
-    height: 7.5em;
-    overflow: hidden;
-}
-
-.partial.collapsing {
-    height: 7.5em;
-}
-
 .nav-item .bi {
     width: 1em;
     height: 1em;
