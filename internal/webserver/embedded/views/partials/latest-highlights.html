@@ -5,7 +5,7 @@
     {{$emailFrom := .EmailFrom}}
 
     {{range $i, $doc := .Highlights}}
-    <div class="col-6 col-md-3 col-xl-2 pe-0 {{if gt $i 3}}d-none d-xl-block{{end}}">
+    <div class="col-6 col-md-3 col-xl-2 pe-0 {{if gt $i 3}}d-none d-xl-block{{end}} mt-3">
         <div class="mb-3">
             {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session}}
         </div>

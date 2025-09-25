@@ -1,4 +1,4 @@
-<div class="d-grid gap-2 mx-auto d-flex justify-content-sm-center actions">
+<div class="d-grid gap-1 mx-auto d-flex justify-content-sm-center actions">
     {{if eq .Document.Format "EPUB"}}
         <div class="btn-group flex-fill" role="group" aria-label="Button group with nested dropdown">
             <a href="/documents/{{.Document.Slug}}/download?format={{if .Session}}{{.Session.PreferredEpubType}}{{else}}epub{{end}}" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" download title='{{t .Lang "Download"}}'>
