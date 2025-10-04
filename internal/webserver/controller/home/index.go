@@ -58,7 +58,6 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 
 	return c.Render("index", fiber.Map{
 		"Count":                  totalDocumentsCount,
-		"Title":                  "Home",
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),
 		"HomeNavbar":             true,
