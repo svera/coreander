@@ -21,8 +21,8 @@ type highlightsRepository interface {
 	Highlighted(userID int, doc index.Document) index.Document
 }
 
-type readingRepository interface {
-	Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
+type historyRepository interface {
+	LatestReads(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
 }
 
 type Config struct {
@@ -33,16 +33,16 @@ type Config struct {
 
 type Controller struct {
 	hlRepository      highlightsRepository
-	readingRepository readingRepository
+	historyRepository historyRepository
 	idx               IdxReaderWriter
 	sender            Sender
 	config            Config
 }
 
-func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, cfg Config) *Controller {
+func NewController(hlRepository highlightsRepository, historyRepository historyRepository, sender Sender, idx IdxReaderWriter, cfg Config) *Controller {
 	return &Controller{
 		hlRepository:      hlRepository,
-		readingRepository: readingRepository,
+		historyRepository: historyRepository,
 		idx:               idx,
 		sender:            sender,
 		config:            cfg,

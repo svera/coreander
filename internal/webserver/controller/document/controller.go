@@ -35,9 +35,9 @@ type highlightsRepository interface {
 	RemoveDocument(documentPath string) error
 }
 
-type readingRepository interface {
-	Update(userID int, documentPath string) error
-	RemoveDocument(documentPath string) error
+type historyRepository interface {
+	UpdateReading(userID int, documentPath string) error
+	Remove(documentPath string) error
 }
 
 type Config struct {
@@ -52,7 +52,7 @@ type Config struct {
 
 type Controller struct {
 	hlRepository      highlightsRepository
-	readingRepository readingRepository
+	historyRepository historyRepository
 	idx               IdxReaderWriter
 	sender            Sender
 	config            Config
@@ -60,10 +60,10 @@ type Controller struct {
 	appFs             afero.Fs
 }
 
-func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config) *Controller {
+func NewController(hlRepository highlightsRepository, historyRepository historyRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config) *Controller {
 	return &Controller{
 		hlRepository:      hlRepository,
-		readingRepository: readingRepository,
+		historyRepository: historyRepository,
 		idx:               idx,
 		sender:            sender,
 		config:            cfg,

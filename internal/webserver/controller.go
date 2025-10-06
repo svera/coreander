@@ -28,7 +28,7 @@ type Controllers struct {
 func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {
 	usersRepository := &model.UserRepository{DB: db}
 	highlightsRepository := &model.HighlightRepository{DB: db}
-	readingRepository := &model.ReadingRepository{DB: db}
+	historyRepository := &model.HistoryRepository{DB: db}
 
 	authCfg := auth.Config{
 		MinPasswordLength: cfg.MinPasswordLength,
@@ -75,8 +75,8 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		Auth:       auth.NewController(usersRepository, sender, authCfg, translator),
 		Users:      user.NewController(usersRepository, usersCfg, sender, translator),
 		Highlights: highlight.NewController(highlightsRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
-		Documents:  document.NewController(highlightsRepository, readingRepository, sender, idx, metadataReaders, appFs, documentsCfg),
-		Home:       home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),
+		Documents:  document.NewController(highlightsRepository, historyRepository, sender, idx, metadataReaders, appFs, documentsCfg),
+		Home:       home.NewController(highlightsRepository, historyRepository, sender, idx, homeCfg),
 		Authors:    author.NewController(highlightsRepository, sender, idx, authorsCfg, dataSource, appFs),
 		Series:     series.NewController(highlightsRepository, sender, idx, seriesCfg, appFs)}
 }

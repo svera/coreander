@@ -31,7 +31,7 @@ func (d *Controller) Reader(c *fiber.Ctx) error {
 		session = val
 	}
 	if session.ID > 0 {
-		if err := d.readingRepository.Update(int(session.ID), document.ID); err != nil {
+		if err := d.historyRepository.UpdateReading(int(session.ID), document.ID); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
