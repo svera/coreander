@@ -8,6 +8,8 @@ import (
 )
 
 func (d *Controller) Cover(c *fiber.Ctx) error {
+	// Set cache control headers with 24 hour TTL
+	c.Set("Cache-Control", "public, max-age=86400")
 	c.Append("Cache-Time", "86400")
 
 	var (

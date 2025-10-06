@@ -17,7 +17,12 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, translator, requireAuth)
 	)
 
-	app.Use("/css", filesystem.New(filesystem.Config{
+	app.Use("/css", func(c *fiber.Ctx) error {
+		// Set cache control headers for CSS and font files (1 year TTL)
+		c.Set("Cache-Control", "public, max-age=31536000, immutable")
+		c.Append("Cache-Time", "31536000")
+		return c.Next()
+	}, filesystem.New(filesystem.Config{
 		Root: http.FS(cssFS),
 	}))
 

@@ -9,8 +9,8 @@
     <title>{{t .Lang .Title}} | Coreander</title>
 
     <!-- Bootstrap core CSS -->
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/css/display.css" rel="stylesheet">
+    <link href="/css/bootstrap.min.css?v={{.Version}}" rel="stylesheet">
+    <link href="/css/display.css?v={{.Version}}" rel="stylesheet">
     <!-- Favicons -->
     <meta name="theme-color" content="#000">
     <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
@@ -46,9 +46,9 @@
     <script src="/js/bootstrap.bundle.min.js"></script>
     <script src="/js/htmx.min.js"></script>
     <script type="module" src="/js/feedback.js"></script>
-    <link rel="preload" href="/css/bootstrap-icons.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="/css/bootstrap-icons.min.css?v={{.Version}}" as="style" onload="this.onload=null;this.rel='stylesheet'">
 
-    <noscript><link rel="stylesheet" href="/css/bootstrap-icons.min.css"></noscript>
+    <noscript><link rel="stylesheet" href="/css/bootstrap-icons.min.css?v={{.Version}}"></noscript>
 </body>
 
 </html>
