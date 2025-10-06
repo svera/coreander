@@ -5,11 +5,11 @@
 <title>{{.Title}}</title>
 <meta name="description" content="{{.Description}}">
 <meta name="author" content="{{.Author}}">
-<link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
-<link rel="manifest" href="/images/site.webmanifest">
-<link rel="mask-icon" href="/images/safari-pinned-tab.svg" color="#5bbad5">
+<link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png?v={{.Version}}">
+<link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png?v={{.Version}}">
+<link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png?v={{.Version}}">
+<link rel="manifest" href="/images/site.webmanifest?v={{.Version}}">
+<link rel="mask-icon" href="/images/safari-pinned-tab.svg?v={{.Version}}" color="#5bbad5">
 <meta name="msapplication-TileColor" content="#da532c">
 <link href="/css/reader.css?v={{.Version}}" rel="stylesheet">
 
@@ -79,4 +79,4 @@
     "untitled_document": {{t .Lang "Untitled document"}}
 }}</script>
 
-<script src="/js/reader.js" type="module"></script>
+<script src="/js/reader.js?v={{.Version}}" type="module"></script>

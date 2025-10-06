@@ -15,6 +15,10 @@ import (
 )
 
 func (a *Controller) Image(c *fiber.Ctx) error {
+	// Set cache control headers with 24 hour TTL
+	c.Set("Cache-Control", "public, max-age=86400")
+	c.Append("Cache-Time", "86400")
+
 	authorSlug := strings.Split(c.Params("slug"), "_")[0]
 	lang := c.Locals("Lang").(string)
 

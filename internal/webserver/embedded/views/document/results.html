@@ -6,7 +6,7 @@
 
 {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
 
-<script type="module" src="/js/send-email.js"></script>
-<script type="module" src="/js/delete.js"></script>
-<script type="module" src="/js/highlight.js"></script>
-<script type="module" src="/js/cover.js"></script>
+<script type="module" src="/js/send-email.js?v={{.Version}}"></script>
+<script type="module" src="/js/delete.js?v={{.Version}}"></script>
+<script type="module" src="/js/highlight.js?v={{.Version}}"></script>
+<script type="module" src="/js/cover.js?v={{.Version}}"></script>

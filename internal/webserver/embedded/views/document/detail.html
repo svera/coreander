@@ -25,7 +25,7 @@
     </div>
     <div class="col-12 col-md-4 mt-3 pe-3">
         <div class="mb-3">
-            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true}}
+            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true "Version" .Version}}
         </div>
         {{template "partials/actions" dict "Lang" $lang "Document" .Document "Session" $session "EmailSendingConfigured" .EmailSendingConfigured "EmailFrom" $emailFrom}}
 
@@ -94,7 +94,7 @@
             <div class="row pe-0 align-items-end">
                 {{range $i, $doc := .SameSeries}}
                     <div class="col-6 col-lg-3 pe-0 mt-3">
-                        {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session}}
+                        {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session "Version" $.Version}}
                     </div>
                 {{end}}
             </div>
@@ -122,7 +122,7 @@
             <div class="row pe-0 align-items-end">
                 {{range $i, $doc := .SameAuthors}}
                 <div class="col-6 col-lg-3 pe-0 mt-3">
-                    {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session}}
+                    {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session "Version" $.Version}}
                 </div>
                 {{end}}
             </div>
@@ -142,7 +142,7 @@
             <div class="row pe-0 align-items-end">
                 {{range $i, $doc := .SameSubjects}}
                 <div class="col-6 col-lg-3 pe-0 mt-3">
-                    {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session}}
+                    {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session "Version" $.Version}}
                 </div>
                 {{end}}
             </div>
@@ -151,7 +151,7 @@
     </div>
 </div>
 
-<script type="module" src="/js/send-email.js"></script>
-<script type="module" src="/js/highlight.js"></script>
-<script type="module" src="/js/cover.js"></script>
-<script type="module" src="/js/datetime.js"></script>
+<script type="module" src="/js/send-email.js?v={{.Version}}"></script>
+<script type="module" src="/js/highlight.js?v={{.Version}}"></script>
+<script type="module" src="/js/cover.js?v={{.Version}}"></script>
+<script type="module" src="/js/datetime.js?v={{.Version}}"></script>
