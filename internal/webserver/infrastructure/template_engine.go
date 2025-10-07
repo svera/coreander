@@ -62,6 +62,13 @@ func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, er
 		return slug.Make(text)
 	})
 
+	engine.AddFunc("versionParam", func(version string) string {
+		if version != "" && version != "unknown" {
+			return "?v=" + version
+		}
+		return ""
+	})
+
 	return engine, nil
 }
 

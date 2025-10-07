@@ -3,7 +3,7 @@
         {{if not .HomeNavbar}}
         <span class="navbar-brand mb-0 h1">
             <a class="text-decoration-none" href="/">
-                <img src="/images/coreander-logo-small.png?v={{.Version}}" alt="Logo" width="32" height="32" class="d-inline-block align-text-middle color-invertible">
+                <img src="/images/coreander-logo-small.png{{versionParam .Version}}" alt="Logo" width="32" height="32" class="d-inline-block align-text-middle color-invertible">
             </a>
         </span>
         <form action="/documents" class="d-flex justify-content-center flex-grow-1 pe-2" roles="search">
@@ -22,7 +22,7 @@
             aria-labelledby="offcanvasNavbarLabel">
             <div class="offcanvas-header">
                 <h5 class="offcanvas-title" id="offcanvasNavbarLabel">
-                    <img src="/images/coreander-header.png?v={{.Version}}" alt="Logo" class="w-50 color-invertible">
+                    <img src="/images/coreander-header.png{{versionParam .Version}}" alt="Logo" class="w-50 color-invertible">
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#offcanvasNavbar" aria-label="Close"></button>
             </div>
@@ -136,5 +136,5 @@
     </div>
 </div>
 
-<script type="module" src="/js/search-filters-offcanvas.js?v={{.Version}}"></script>
+<script type="module" src="/js/search-filters-offcanvas.js{{versionParam .Version}}"></script>
 {{end}}

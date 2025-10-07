@@ -5,7 +5,7 @@
 {{$reading := .Reading}}
 
 <section class="pb-5 text-center">
-    <img src="/images/coreander-header.png?v={{.Version}}" class="w-50 mt-5 color-invertible" alt="" />
+    <img src="/images/coreander-header.png{{versionParam .Version}}" class="w-50 mt-5 color-invertible" alt="" />
     {{template "partials/searchbox" .}}
 </section>
 
@@ -109,6 +109,6 @@
 </div>
 {{end}}
 
-<script type="module" src="/js/highlight.js?v={{.Version}}"></script>
-<script type="module" src="/js/cover.js?v={{.Version}}"></script>
-<script type="module" src="/js/send-email.js?v={{.Version}}"></script>
+<script type="module" src="/js/highlight.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/cover.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/send-email.js{{versionParam .Version}}"></script>
