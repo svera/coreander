@@ -118,7 +118,6 @@ func forbidden(c *fiber.Ctx, sender Sender, translator i18n.Translator, err erro
 	return c.Status(fiber.StatusForbidden).Render("auth/login", fiber.Map{
 		"Lang":                   chooseBestLanguage(c),
 		"Title":                  translator.T(c.Locals("Lang").(string), "Log in"),
-		"Version":                c.App().Config().AppName,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"DisableLoginLink":       true,
 		"Warning":                message,

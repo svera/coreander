@@ -90,9 +90,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 }
 
 func loadFilesInMemoryFs(files []string) afero.Fs {
-	var (
-		contents map[string][]byte
-	)
+	contents := make(map[string][]byte)
 
 	appFS := afero.NewMemMapFs()
 
@@ -101,6 +99,11 @@ func loadFilesInMemoryFs(files []string) afero.Fs {
 		if err != nil {
 			log.Fatalf("Couldn't open %s", fileName)
 		}
+		fileInfo, err := file.Stat()
+		if err != nil {
+			log.Fatalf("Couldn't get file info for %s", fileName)
+		}
+		contents[fileName] = make([]byte, fileInfo.Size())
 		_, err = file.Read(contents[fileName])
 		if err != nil {
 			log.Fatalf("Couldn't read contents of %s", fileName)
@@ -175,9 +178,7 @@ func mustReturnForbiddenAndShowLogin(response *http.Response, t *testing.T) {
 }
 
 func loadDirInMemoryFs(dir string) afero.Fs {
-	var (
-		contents map[string][]byte
-	)
+	contents := make(map[string][]byte)
 
 	appFS := afero.NewMemMapFs()
 
@@ -189,11 +190,16 @@ func loadDirInMemoryFs(dir string) afero.Fs {
 		if err != nil {
 			log.Fatalf("Couldn't open %s", entry.Name())
 		}
+		fileInfo, err := file.Stat()
+		if err != nil {
+			log.Fatalf("Couldn't get file info for %s", entry.Name())
+		}
+		contents[path] = make([]byte, fileInfo.Size())
 		_, err = file.Read(contents[path])
 		if err != nil {
 			log.Fatalf("Couldn't read contents of %s", entry.Name())
 		}
-		afero.WriteFile(appFS, path, contents[entry.Name()], 0644)
+		afero.WriteFile(appFS, path, contents[path], 0644)
 		return nil
 	})
 	return appFS

@@ -1,13 +1,13 @@
 <div class="position-absolute top-0 start-0 ms-2 mt-2 cursor-pointer w-10">
     <div class="{{if not .Document.Highlighted}}visually-hidden{{end}} dehighlight">
         <a class="icon-link dehighlight" hx-delete="/highlights/{{.Document.Slug}}" hx-swap="none" hx-indicator="find .htmx-indicator-sink" title='{{t .Lang "Remove from highlights"}}' role="button" aria-label='{{t .Lang "Remove from highlights"}}'>
-            <img src="/images/star-solid.svg" class="img-fluid w-100" style="min-width: 1em" alt="" />
+            <img src="/images/star-solid.svg{{versionParam .Version}}" class="img-fluid w-100" style="min-width: 1em" alt="" />
             <div class="htmx-indicator-sink"></div>
         </a>
     </div>
     <div class="{{if .Document.Highlighted}}visually-hidden{{end}} highlight">
         <a class="icon-link highlight" hx-post="/highlights/{{.Document.Slug}}" hx-swap="none" hx-indicator="find .htmx-indicator-sink" title='{{t .Lang "Highlight"}}' role="button" aria-label='{{t .Lang "Highlight"}}'>
-            <img src="/images/star-hollow.svg" class="img-fluid w-100" style="min-width: 1em" alt="" />
+            <img src="/images/star-hollow.svg{{versionParam .Version}}" class="img-fluid w-100" style="min-width: 1em" alt="" />
             <div class="htmx-indicator-sink"></div>
         </a>
     </div>

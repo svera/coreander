@@ -5,7 +5,7 @@
 {{$reading := .Reading}}
 
 <section class="pb-5 text-center">
-    <img src="/images/coreander-header.png" class="w-50 mt-5 color-invertible" alt="" />
+    <img src="/images/coreander-header.png{{versionParam .Version}}" class="w-50 mt-5 color-invertible" alt="" />
     {{template "partials/searchbox" .}}
 </section>
 
@@ -23,7 +23,7 @@
                             <div class="carousel-inner">
                                 {{range $i, $doc := .Reading}}
                                 <div class="carousel-item {{if eq $i 0}}active{{end}}">
-                                {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session "DisableActions" true "LinkToReader" true}}
+                                {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session "DisableActions" true "LinkToReader" true "Version" $.Version}}
                                 </div>
                                 {{end}}
                             </div>
@@ -76,7 +76,7 @@
                             </div>
                         </div>
                         <div class="col-12 {{if eq (len $reading) 0}}col-md-4{{end}} col-lg-4">
-                            {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session}}
+                            {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session "Version" $.Version}}
                         </div>
                     </div>
                 </div>
@@ -109,6 +109,6 @@
 </div>
 {{end}}
 
-<script type="module" src="/js/highlight.js"></script>
-<script type="module" src="/js/cover.js"></script>
-<script type="module" src="/js/send-email.js"></script>
+<script type="module" src="/js/highlight.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/cover.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/send-email.js{{versionParam .Version}}"></script>

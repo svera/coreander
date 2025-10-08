@@ -178,7 +178,6 @@ func errorHandler(c *fiber.Ctx, err error) error {
 		fiber.Map{
 			"Lang":    chooseBestLanguage(c),
 			"Title":   "Error",
-			"Version": c.App().Config().AppName,
 			"Session": session,
 		},
 		"layout")

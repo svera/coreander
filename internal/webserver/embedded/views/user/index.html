@@ -42,5 +42,5 @@
 
 {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/users" "ModalHeader" "Delete user" "ModalBody" "Are you sure you want to delete this user?" "ModalErrorMessage" "There was an error deleting the user, please try again later"}}
 
-<script type="module" src="/js/delete.js"></script>
-<script type="module" src="/js/datetime.js"></script>
+<script type="module" src="/js/delete.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/datetime.js{{versionParam .Version}}"></script>

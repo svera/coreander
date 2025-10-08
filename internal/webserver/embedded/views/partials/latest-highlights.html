@@ -7,7 +7,7 @@
     {{range $i, $doc := .Highlights}}
     <div class="col-6 col-md-3 col-xl-2 pe-0 {{if gt $i 3}}d-none d-xl-block{{end}} mt-3">
         <div class="mb-3">
-            {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session}}
+            {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session "Version" $.Version}}
         </div>
         {{template "partials/actions" dict "Lang" $lang "Document" $doc "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom}}
     </div>

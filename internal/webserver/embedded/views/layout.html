@@ -9,17 +9,17 @@
     <title>{{if .Title}}{{t .Lang .Title}} | {{end}}Coreander</title>
 
     <!-- Bootstrap core CSS -->
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/css/display.css" rel="stylesheet">
+    <link href="/css/bootstrap.min.css{{versionParam .Version}}" rel="stylesheet">
+    <link href="/css/display.css{{versionParam .Version}}" rel="stylesheet">
     <!-- Favicons -->
     <meta name="theme-color" content="#000">
-    <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
-    <link rel="manifest" href="/images/site.webmanifest">
-    <link rel="mask-icon" href="/images/safari-pinned-tab.svg" color="#5bbad5">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png{{versionParam .Version}}">
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png{{versionParam .Version}}">
+    <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png{{versionParam .Version}}">
+    <link rel="manifest" href="/images/site.webmanifest{{versionParam .Version}}">
+    <link rel="mask-icon" href="/images/safari-pinned-tab.svg{{versionParam .Version}}" color="#5bbad5">
     <meta name="msapplication-TileColor" content="#da532c">
-    <script src="/js/color-mode-toggler.js"></script>
+    <script src="/js/color-mode-toggler.js{{versionParam .Version}}"></script>
 </head>
 
 <body class="d-flex flex-column h-100" hx-ext="response-targets">
@@ -43,12 +43,12 @@
                         rel="noopener noreferrer">{{.Version}}</a></small></span>
         </div>
     </footer>
-    <script src="/js/bootstrap.bundle.min.js"></script>
-    <script src="/js/htmx.min.js"></script>
-    <script type="module" src="/js/feedback.js"></script>
-    <link rel="preload" href="/css/bootstrap-icons.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <script src="/js/bootstrap.bundle.min.js{{versionParam .Version}}"></script>
+    <script src="/js/htmx.min.js{{versionParam .Version}}"></script>
+    <script type="module" src="/js/feedback.js{{versionParam .Version}}"></script>
+    <link rel="preload" href="/css/bootstrap-icons.min.css{{versionParam .Version}}" as="style" onload="this.onload=null;this.rel='stylesheet'">
 
-    <noscript><link rel="stylesheet" href="/css/bootstrap-icons.min.css"></noscript>
+    <noscript><link rel="stylesheet" href="/css/bootstrap-icons.min.css{{versionParam .Version}}"></noscript>
 </body>
 
 </html>
