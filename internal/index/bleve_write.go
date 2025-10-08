@@ -114,6 +114,11 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 // indexAuthors indexes authors of a document if they are not already indexed
 func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data any) error) error {
 	for i, name := range document.Authors {
+		// Skip authors with empty names or empty slugs
+		if name == "" || document.AuthorsSlugs[i] == "" {
+			continue
+		}
+
 		indexedAuthor, err := b.idx.Document(document.AuthorsSlugs[i])
 		if err != nil {
 			return err
