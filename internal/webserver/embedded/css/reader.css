@@ -235,3 +235,92 @@ body {
     fill: #888;
     stroke: #888;
 }
+
+/* Footnote Modal Styles */
+#footnote-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(90vw, 600px);
+    max-height: 80vh;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    background: Canvas;
+    color: CanvasText;
+    padding: 0;
+    overflow: hidden;
+}
+
+#footnote-modal::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: inherit;
+}
+
+#footnote-close {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    border-radius: 4px;
+    color: inherit;
+    transition: background-color 0.2s ease;
+}
+
+#footnote-close:hover {
+    background: var(--active-bg);
+}
+
+#footnote-close svg {
+    width: 20px;
+    height: 20px;
+}
+
+.modal-content {
+    padding: 20px;
+    max-height: calc(80vh - 80px);
+    overflow-y: auto;
+    line-height: 1.6;
+}
+
+.modal-content p {
+    margin: 0 0 12px 0;
+}
+
+.modal-content p:last-child {
+    margin-bottom: 0;
+}
+
+.modal-content a {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.modal-content a:hover {
+    text-decoration: none;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .modal-header {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.02);
+    }
+}
