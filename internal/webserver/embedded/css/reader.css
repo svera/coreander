@@ -6,6 +6,10 @@
         :root {
             --active-bg: rgba(255, 255, 255, .1);
         }
+        .modal-header {
+            border-bottom-color: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
+        }
     }
 }
 html {
@@ -238,12 +242,13 @@ body {
 
 /* Footnote Modal Styles */
 #footnote-modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
     width: min(90vw, 600px);
     max-height: 80vh;
+    margin: 0 !important;
     border: none;
     border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
@@ -251,11 +256,20 @@ body {
     color: CanvasText;
     padding: 0;
     overflow: hidden;
+    z-index: 1000;
 }
 
 #footnote-modal::backdrop {
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(2px);
+}
+
+@media (max-width: 768px) {
+    #footnote-modal { width: 95vw; max-height: 85vh; }
+}
+
+@media (max-height: 600px) {
+    #footnote-modal { max-height: 90vh; }
 }
 
 .modal-header {
@@ -298,6 +312,7 @@ body {
     max-height: calc(80vh - 80px);
     overflow-y: auto;
     line-height: 1.6;
+    outline: none;
 }
 
 .modal-content p {
@@ -315,12 +330,4 @@ body {
 
 .modal-content a:hover {
     text-decoration: none;
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-    .modal-header {
-        border-bottom-color: rgba(255, 255, 255, 0.1);
-        background: rgba(255, 255, 255, 0.02);
-    }
 }
