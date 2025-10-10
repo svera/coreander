@@ -193,3 +193,4 @@
 "Next": "Siguiente"
 "Footnote": "Nota al pie"
 "Close footnote": "Cerrar nota al pie"
+"Footnote content could not be loaded. This may be an external reference or the footnote may not be available in this document.": "No se ha podido cargar el contenido de la nota al pie. Puede que sea una referencia externa o que la nota al pie no esté disponible en este documento."

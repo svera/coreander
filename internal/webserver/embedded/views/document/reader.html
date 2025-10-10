@@ -35,7 +35,7 @@
 <div id="dimming-overlay" aria-hidden="true"></div>
 
 <!-- Footnote Modal -->
-<dialog id="footnote-modal" aria-labelledby="footnote-title">
+<dialog id="footnote-modal" aria-labelledby="footnote-title" data-error-message='<p><em>{{t .Lang "Footnote content could not be loaded. This may be an external reference or the footnote may not be available in this document."}}</em></p>'>
     <div class="modal-header">
         <h3 id="footnote-title">{{t .Lang "Footnote"}}</h3>
         <button id="footnote-close" aria-label='{{t .Lang "Close footnote"}}' type="button">
@@ -45,8 +45,8 @@
             </svg>
         </button>
     </div>
-    <div class="modal-content" id="footnote-content">
-        <!-- Footnote content will be inserted here -->
+    <div class="modal-content" id="footnote-content" tabindex="-1">
+        <!-- Footnote content will replace this paragraph is loading is successful -->
     </div>
 </dialog>
 <div id="side-bar">

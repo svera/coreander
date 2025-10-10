@@ -195,3 +195,5 @@
 "Next": "Suivant"
 "Footnote": "Note de bas de page"
 "Close footnote": "Fermer la note de bas de page"
+"Footnote content could not be loaded. This may be an external reference or the footnote may not be available in this document.": "Le contenu de la note de bas de page n'a pas pu être chargé. Il peut s'agir d'une référence externe ou la note de bas de page peut ne pas être disponible dans ce document."
+
