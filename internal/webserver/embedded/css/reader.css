@@ -1,16 +1,49 @@
 :root {
     --active-bg: rgba(0, 0, 0, .05);
+    --active-bg-dark: rgba(255, 255, 255, .1);
+    
+    /* Menu icon SVGs (defined once, inverted for dark mode) */
+    --radio-checked: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%223%22%20fill%3D%22%23000%22%2F%3E%3C%2Fsvg%3E');
+    --checkbox-unchecked: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20x%3D%225%22%20y%3D%225%22%20width%3D%2214%22%20height%3D%2214%22%20rx%3D%222%22%20fill%3D%22none%22%20stroke%3D%22%23000%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E');
+    --checkbox-checked: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20x%3D%225%22%20y%3D%225%22%20width%3D%2214%22%20height%3D%2214%22%20rx%3D%222%22%20fill%3D%22%23000%22%2F%3E%3Cpath%20d%3D%22M9%2012l2%202%204-4%22%20stroke%3D%22%23fff%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E');
 }
+
+/* Dark mode - applies when OS prefers dark mode (auto mode) */
 @supports (color-scheme: light dark) {
     @media (prefers-color-scheme: dark) {
-        :root {
-            --active-bg: rgba(255, 255, 255, .1);
+        :root:not([style*="color-scheme: light"]) {
+            --active-bg: var(--active-bg-dark);
         }
-        .modal-header {
+        :root:not([style*="color-scheme: light"]) .modal-header {
             border-bottom-color: rgba(255, 255, 255, 0.1);
             background: rgba(255, 255, 255, 0.02);
         }
+        /* Invert menu icons for dark mode (not the text) */
+        :root:not([style*="color-scheme: light"]) .menu li[role="menuitemradio"][aria-checked="true"]::before,
+        :root:not([style*="color-scheme: light"]) .menu li[role="menuitemcheckbox"]::before {
+            filter: invert(1);
+        }
     }
+}
+
+/* Explicit dark mode when user selects dark theme */
+html[style*="color-scheme: dark"] {
+    --active-bg: var(--active-bg-dark);
+}
+/* Invert menu icons for explicit dark mode (not the text) */
+html[style*="color-scheme: dark"] .menu li[role="menuitemradio"][aria-checked="true"]::before,
+html[style*="color-scheme: dark"] .menu li[role="menuitemcheckbox"]::before {
+    filter: invert(1);
+}
+html[style*="color-scheme: dark"] .modal-header {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.02);
+}
+html[style*="color-scheme: dark"] .toolbar button:hover {
+    background: rgba(255, 255, 255, .1);
+}
+html[style*="color-scheme: dark"] #side-bar-header {
+    border-bottom: 1px solid rgba(255, 255, 255, .1);
 }
 html {
     height: 100%;
@@ -216,10 +249,58 @@ body {
 .menu li:hover {
     background: var(--active-bg);
 }
-.menu li[aria-checked="true"] {
-    background-position: center left;
+/* Radio button menu items */
+.menu li[role="menuitemradio"] {
+    position: relative;
+    padding-left: 32px;
+}
+.menu li[role="menuitemradio"][aria-checked="true"]::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    background-position: center;
     background-repeat: no-repeat;
-    background-image: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%223%22%2F%3E%3C%2Fsvg%3E');
+    background-image: var(--radio-checked);
+}
+
+/* Checkbox menu items */
+.menu li[role="menuitemcheckbox"] {
+    position: relative;
+    padding-left: 32px;
+}
+.menu li[role="menuitemcheckbox"]::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+.menu li[role="menuitemcheckbox"][aria-checked="false"]::before {
+    background-image: var(--checkbox-unchecked);
+}
+.menu li[role="menuitemcheckbox"][aria-checked="true"]::before {
+    background-image: var(--checkbox-checked);
+}
+.menu hr[role="separator"] {
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, .1);
+    margin: 6px 0;
+}
+html[style*="color-scheme: dark"] .menu hr[role="separator"] {
+    border-top-color: rgba(255, 255, 255, .1);
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([style*="color-scheme: light"]) .menu hr[role="separator"] {
+        border-top-color: rgba(255, 255, 255, .1);
+    }
 }
 .popover {
     background: Canvas;

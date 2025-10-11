@@ -1,18 +1,29 @@
 import './foliate-js/view.js'
 import { createTOCView } from './foliate-js/ui/tree.js'
-import { createMenu } from './foliate-js/ui/menu.js'
+import { createMenu } from './menu.js'
 import { Overlayer } from './foliate-js/overlayer.js'
 
-const getCSS = ({ spacing, justify, hyphenate }) => `
+const getCSS = ({ spacing, justify, hyphenate, theme }) => `
     @namespace epub "http://www.idpf.org/2007/ops";
     html {
-        color-scheme: light dark;
+        color-scheme: ${theme === 'auto' ? 'light dark' : theme};
     }
+    ${theme === 'dark' ? `
+    html {
+        background: #1a1a1a !important;
+        color: #e0e0e0 !important;
+    }
+    a:link {
+        color: lightblue;
+    }
+    ` : ''}
     /* https://github.com/whatwg/html/issues/5426 */
     @media (prefers-color-scheme: dark) {
+        ${theme === 'auto' ? `
         a:link {
             color: lightblue;
         }
+        ` : ''}
     }
     p, li, blockquote, dd {
         line-height: ${spacing};
@@ -70,12 +81,34 @@ class Reader {
         spacing: 1.4,
         justify: true,
         hyphenate: true,
+        theme: 'auto',
     }
     annotations = new Map()
     annotationsByValue = new Map()
     closeSideBar() {
         $('#dimming-overlay').classList.remove('show')
         $('#side-bar').classList.remove('show')
+    }
+    #applyTheme(theme) {
+        // Save theme preference to localStorage
+        window.localStorage.setItem('reader-theme', theme)
+        
+        // Apply theme to the main document
+        const html = document.documentElement
+        if (theme === 'dark') {
+            html.style.colorScheme = 'dark'
+            document.body.style.background = '#1a1a1a'
+            document.body.style.color = '#e0e0e0'
+        } else if (theme === 'light') {
+            html.style.colorScheme = 'light'
+            document.body.style.background = '#ffffff'
+            document.body.style.color = '#000000'
+        } else {
+            // Auto mode
+            html.style.colorScheme = 'light dark'
+            document.body.style.removeProperty('background')
+            document.body.style.removeProperty('color')
+        }
     }
     #setupFootnoteModal() {
         this.#footnoteModal = $('#footnote-modal')
@@ -114,15 +147,32 @@ class Reader {
 
        const menu = createMenu([
             {
-                name: 'layout',
-                label: 'Layout',
+                name: 'continuous',
+                label: t.continuous,
+                type: 'checkbox',
+                onclick: checked => {
+                    window.localStorage.setItem('reader-continuous', checked)
+                    this.view?.renderer.setAttribute('flow', checked ? 'scrolled' : 'paginated')
+                },
+            },
+            {
+                type: 'separator',
+            },
+            {
+                name: 'theme',
+                label: 'Theme',
                 type: 'radio',
                 items: [
-                    [t.paginated, 'paginated'],
-                    [t.scrolled, 'scrolled'],
+                    [t.auto, 'auto'],
+                    [t.light, 'light'],
+                    [t.dark, 'dark'],
                 ],
                 onclick: value => {
-                    this.view?.renderer.setAttribute('flow', value)
+                    this.style.theme = value
+                    this.#applyTheme(value)
+                    if (this.view?.renderer) {
+                        this.view.renderer.setStyles?.(getCSS(this.style))
+                    }
                 },
             },
         ])
@@ -131,7 +181,17 @@ class Reader {
         $('#menu-button').append(menu.element)
         $('#menu-button > button').addEventListener('click', () =>
             menu.element.classList.toggle('show'))
-        menu.groups.layout.select('paginated')
+        
+        // Load saved theme from localStorage or default to 'auto'
+        const storage = window.localStorage
+        const savedTheme = storage.getItem('reader-theme') || 'auto'
+        this.style.theme = savedTheme
+        menu.groups.theme.select(savedTheme)
+        this.#applyTheme(savedTheme)
+        
+        // Load saved continuous mode from localStorage or default to false (paginated mode)
+        const savedContinuous = storage.getItem('reader-continuous') === 'true'
+        menu.groups.continuous.setChecked(savedContinuous)
         
         // Initialize footnote modal
         this.#setupFootnoteModal()
@@ -172,6 +232,11 @@ class Reader {
 
         const { book } = this.view
         this.view.renderer.setStyles?.(getCSS(this.style))
+        
+        // Apply saved continuous mode state
+        const savedContinuous = storage.getItem('reader-continuous') === 'true'
+        this.view.renderer.setAttribute('flow', savedContinuous ? 'scrolled' : 'paginated')
+        
         this.view.renderer.next()
 
         $('#header-bar').style.visibility = 'visible'
