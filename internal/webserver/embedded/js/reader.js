@@ -64,6 +64,8 @@ const formatContributor = contributor => Array.isArray(contributor)
 
 class Reader {
     #tocView
+    #footnoteModal
+    #footnoteContent
     style = {
         spacing: 1.4,
         justify: true,
@@ -74,6 +76,32 @@ class Reader {
     closeSideBar() {
         $('#dimming-overlay').classList.remove('show')
         $('#side-bar').classList.remove('show')
+    }
+    #setupFootnoteModal() {
+        this.#footnoteModal = $('#footnote-modal')
+        this.#footnoteContent = $('#footnote-content')
+        
+        if (!this.#footnoteModal || !this.#footnoteContent) return
+        
+        // Set up close button
+        const closeBtn = $('#footnote-close')
+        if (closeBtn) {
+            closeBtn.onclick = () => this.#footnoteModal.close()
+        }
+        
+        // Close on backdrop click
+        this.#footnoteModal.onclick = (e) => {
+            if (e.target === this.#footnoteModal) {
+                this.#footnoteModal.close()
+            }
+        }
+        
+        // Close on Escape key
+        this.#footnoteModal.onkeydown = (e) => {
+            if (e.key === 'Escape') {
+                this.#footnoteModal.close()
+            }
+        }
     }
     constructor() {
         $('#side-bar-button').addEventListener('click', () => {
@@ -104,6 +132,9 @@ class Reader {
         $('#menu-button > button').addEventListener('click', () =>
             menu.element.classList.toggle('show'))
         menu.groups.layout.select('paginated')
+        
+        // Initialize footnote modal
+        this.#setupFootnoteModal()
     }
     async open(file) {
         this.view = document.createElement('foliate-view')
@@ -114,6 +145,27 @@ class Reader {
         await this.view.init({lastLocation: storage.getItem(slug)})
         this.view.addEventListener('load', this.#onLoad.bind(this))
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
+        
+        // Intercept link events to handle footnotes
+        this.view.addEventListener('link', e => {
+            const { a, href } = e.detail
+            
+            // Check if this looks like a footnote link
+            const isLikelyFootnote = href && (
+                href.includes('footnote') ||
+                href.includes('note') ||
+                a.textContent.match(/^\d+$/) ||
+                a.getAttributeNS('http://www.idpf.org/2007/ops', 'type') === 'noteref' ||
+                a.querySelector('sup')
+            )
+            
+            if (isLikelyFootnote) {
+                // Return false to prevent view.js from navigating
+                e.preventDefault()
+                this.#handleFootnoteLinkEvent(href)
+                return false
+            }
+        })
 
         document.body.removeChild($('#spinner-container'))
         document.body.removeChild($('#error-icon-container'))
@@ -193,8 +245,73 @@ class Reader {
         if (k === 'ArrowLeft' || k === 'h') this.view.goLeft()
         else if(k === 'ArrowRight' || k === 'l') this.view.goRight()
     }
-    #onLoad({ detail: { doc } }) {
+    #onLoad({ detail: { doc, index } }) {
         doc.addEventListener('keydown', this.#handleKeydown.bind(this))
+    }
+    async #handleFootnoteLinkEvent(href) {
+        try {
+            const { book } = this.view
+            
+            // Resolve the href to get the target
+            const target = await book.resolveHref(href)
+            if (target && target.index !== undefined) {
+                const targetSection = book.sections[target.index]
+                const targetDoc = await targetSection.createDocument()
+                
+                if (targetDoc && target.anchor) {
+                    const element = target.anchor(targetDoc)
+                    if (element) {
+                        this.#showFootnote(element)
+                        return
+                    }
+                }
+            }
+            
+            // Fallback: show error message
+            this.#showFootnoteError()
+        } catch (error) {
+            console.error('Error handling footnote:', error)
+            this.#showFootnoteError()
+        }
+    }
+    #showFootnote(element) {
+        if (!this.#footnoteModal || !this.#footnoteContent) return
+        
+        const clonedContent = element.cloneNode(true)
+        
+        // Remove backlinks
+        const backlinks = clonedContent.querySelectorAll('[role="doc-backlink"]')
+        backlinks.forEach(backlink => backlink.remove())
+        
+        // Remove internal links
+        const links = clonedContent.querySelectorAll('a[href]')
+        links.forEach(link => {
+            const href = link.getAttribute('href')
+            if (href && (href.startsWith('#') || !href.includes('://'))) {
+                link.remove()
+            }
+        })
+        
+        this.#footnoteContent.innerHTML = ''
+        this.#footnoteContent.appendChild(clonedContent)
+        this.#footnoteModal.showModal()
+        
+        // Focus the content for keyboard navigation
+        setTimeout(() => {
+            this.#footnoteContent.focus()
+        }, 0)
+    }
+    #showFootnoteError() {
+        if (!this.#footnoteModal || !this.#footnoteContent) return
+        
+        const errorMessage = this.#footnoteModal.dataset.errorMessage || '<p><em>Footnote content could not be loaded.</em></p>'
+        this.#footnoteContent.innerHTML = errorMessage
+        this.#footnoteModal.showModal()
+        
+        // Focus the content for keyboard navigation
+        setTimeout(() => {
+            this.#footnoteContent.focus()
+        }, 0)
     }
     #onRelocate({ detail }) {
         const storage = window.localStorage
