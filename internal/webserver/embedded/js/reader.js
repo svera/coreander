@@ -296,13 +296,8 @@ class Reader {
         this.#footnoteContent.appendChild(clonedContent)
         this.#footnoteModal.showModal()
         
-        // Force positioning
+        // Focus the content for keyboard navigation
         setTimeout(() => {
-            this.#footnoteModal.style.position = 'fixed'
-            this.#footnoteModal.style.top = '50%'
-            this.#footnoteModal.style.left = '50%'
-            this.#footnoteModal.style.transform = 'translate(-50%, -50%)'
-            this.#footnoteModal.style.margin = '0'
             this.#footnoteContent.focus()
         }, 0)
     }
@@ -313,12 +308,8 @@ class Reader {
         this.#footnoteContent.innerHTML = errorMessage
         this.#footnoteModal.showModal()
         
+        // Focus the content for keyboard navigation
         setTimeout(() => {
-            this.#footnoteModal.style.position = 'fixed'
-            this.#footnoteModal.style.top = '50%'
-            this.#footnoteModal.style.left = '50%'
-            this.#footnoteModal.style.transform = 'translate(-50%, -50%)'
-            this.#footnoteModal.style.margin = '0'
             this.#footnoteContent.focus()
         }, 0)
     }
