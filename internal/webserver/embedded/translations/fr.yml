@@ -193,3 +193,7 @@
 "<a href='https://www.amazon.com/sendtokindle/email'>Add this address to your trusted list</a> if you want to receive documents on a Kindle device": "<a href='https://www.amazon.com/sendtokindle/email'>Ajoutez cette adresse à votre liste de confiance</a> si vous souhaitez recevoir des documents sur un appareil Kindle"
 "Previous": "Précédent"
 "Next": "Suivant"
+"Footnote": "Note de bas de page"
+"Close footnote": "Fermer la note de bas de page"
+"Footnote content could not be loaded. This may be an external reference or the footnote may not be available in this document.": "Le contenu de la note de bas de page n'a pas pu être chargé. Il peut s'agir d'une référence externe ou la note de bas de page peut ne pas être disponible dans ce document."
+
