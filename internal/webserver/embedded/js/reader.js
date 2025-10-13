@@ -8,22 +8,11 @@ const getCSS = ({ spacing, justify, hyphenate, theme }) => `
     html {
         color-scheme: ${theme === 'auto' ? 'light dark' : theme};
     }
-    ${theme === 'dark' ? `
-    html {
-        background: #1a1a1a !important;
-        color: #e0e0e0 !important;
-    }
-    a:link {
-        color: lightblue;
-    }
-    ` : ''}
     /* https://github.com/whatwg/html/issues/5426 */
     @media (prefers-color-scheme: dark) {
-        ${theme === 'auto' ? `
         a:link {
             color: lightblue;
         }
-        ` : ''}
     }
     p, li, blockquote, dd {
         line-height: ${spacing};
@@ -93,22 +82,19 @@ class Reader {
         // Save theme preference to localStorage
         window.localStorage.setItem('reader-theme', theme)
         
-        // Apply theme to the main document
+        // Apply theme to the main document using system color-scheme
         const html = document.documentElement
         if (theme === 'dark') {
             html.style.colorScheme = 'dark'
-            document.body.style.background = '#1a1a1a'
-            document.body.style.color = '#e0e0e0'
         } else if (theme === 'light') {
             html.style.colorScheme = 'light'
-            document.body.style.background = '#ffffff'
-            document.body.style.color = '#000000'
         } else {
             // Auto mode
             html.style.colorScheme = 'light dark'
-            document.body.style.removeProperty('background')
-            document.body.style.removeProperty('color')
         }
+        // Remove any hardcoded colors to let system color-scheme apply
+        document.body.style.removeProperty('background')
+        document.body.style.removeProperty('color')
     }
     #setupFootnoteModal() {
         this.#footnoteModal = $('#footnote-modal')
