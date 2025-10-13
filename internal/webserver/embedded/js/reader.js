@@ -84,6 +84,7 @@ class Reader {
         
         // Apply theme to the main document using system color-scheme
         const html = document.documentElement
+        html.dataset.theme = theme
         if (theme === 'dark') {
             html.style.colorScheme = 'dark'
         } else if (theme === 'light') {
