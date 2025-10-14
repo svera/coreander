@@ -11,39 +11,56 @@
 /* Dark mode - applies when OS prefers dark mode (auto mode) */
 @supports (color-scheme: light dark) {
     @media (prefers-color-scheme: dark) {
-        :root:not([style*="color-scheme: light"]) {
+        html[data-theme="auto"] {
             --active-bg: var(--active-bg-dark);
         }
-        :root:not([style*="color-scheme: light"]) .modal-header {
+        html[data-theme="auto"] .modal-header {
             border-bottom-color: rgba(255, 255, 255, 0.1);
             background: rgba(255, 255, 255, 0.02);
         }
         /* Invert menu icons for dark mode (not the text) */
-        :root:not([style*="color-scheme: light"]) .menu li[role="menuitemradio"][aria-checked="true"]::before,
-        :root:not([style*="color-scheme: light"]) .menu li[role="menuitemcheckbox"]::before {
+        html[data-theme="auto"] .menu li[role="menuitemradio"][aria-checked="true"]::before,
+        html[data-theme="auto"] .menu li[role="menuitemcheckbox"]::before {
             filter: invert(1);
         }
     }
 }
 
 /* Explicit dark mode when user selects dark theme */
-html[style*="color-scheme: dark"] {
+html[data-theme="dark"] {
     --active-bg: var(--active-bg-dark);
 }
 /* Invert menu icons for explicit dark mode (not the text) */
-html[style*="color-scheme: dark"] .menu li[role="menuitemradio"][aria-checked="true"]::before,
-html[style*="color-scheme: dark"] .menu li[role="menuitemcheckbox"]::before {
+html[data-theme="dark"] .menu li[role="menuitemradio"][aria-checked="true"]::before,
+html[data-theme="dark"] .menu li[role="menuitemcheckbox"]::before {
     filter: invert(1);
 }
-html[style*="color-scheme: dark"] .modal-header {
+html[data-theme="dark"] .modal-header {
     border-bottom-color: rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.02);
 }
-html[style*="color-scheme: dark"] .toolbar button:hover {
+html[data-theme="dark"] .toolbar button:hover {
     background: rgba(255, 255, 255, .1);
 }
-html[style*="color-scheme: dark"] #side-bar-header {
+html[data-theme="dark"] #side-bar-header {
     border-bottom: 1px solid rgba(255, 255, 255, .1);
+}
+html[data-theme="dark"] #footnote-modal {
+    background: #2a2a2a;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+html[data-theme="dark"] #footnote-modal::backdrop {
+    background: rgba(0, 0, 0, 0.7);
+}
+/* Auto mode dark theme for footnote modal */
+@media (prefers-color-scheme: dark) {
+    html[data-theme="auto"] #footnote-modal {
+        background: #2a2a2a;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+    html[data-theme="auto"] #footnote-modal::backdrop {
+        background: rgba(0, 0, 0, 0.7);
+    }
 }
 html {
     height: 100%;
