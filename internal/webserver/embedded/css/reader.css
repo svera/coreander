@@ -45,6 +45,23 @@ html[data-theme="dark"] .toolbar button:hover {
 html[data-theme="dark"] #side-bar-header {
     border-bottom: 1px solid rgba(255, 255, 255, .1);
 }
+html[data-theme="dark"] #footnote-modal {
+    background: #2a2a2a;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+html[data-theme="dark"] #footnote-modal::backdrop {
+    background: rgba(0, 0, 0, 0.7);
+}
+/* Auto mode dark theme for footnote modal */
+@media (prefers-color-scheme: dark) {
+    html[data-theme="auto"] #footnote-modal {
+        background: #2a2a2a;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+    html[data-theme="auto"] #footnote-modal::backdrop {
+        background: rgba(0, 0, 0, 0.7);
+    }
+}
 html {
     height: 100%;
 }
