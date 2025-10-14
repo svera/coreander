@@ -3,10 +3,11 @@ import { createTOCView } from './foliate-js/ui/tree.js'
 import { createMenu } from './menu.js'
 import { Overlayer } from './foliate-js/overlayer.js'
 
-const getCSS = ({ spacing, justify, hyphenate, theme }) => `
+const getCSS = ({ spacing, justify, hyphenate, theme, fontSize }) => `
     @namespace epub "http://www.idpf.org/2007/ops";
     html {
         color-scheme: ${theme === 'auto' ? 'light dark' : theme};
+        font-size: ${fontSize}% !important;
     }
     /* https://github.com/whatwg/html/issues/5426 */
     @media (prefers-color-scheme: dark) {
@@ -71,12 +72,51 @@ class Reader {
         justify: true,
         hyphenate: true,
         theme: 'auto',
+        fontSize: 100, // Percentage: 100 = 100%
     }
+    #defaultFontSize = 100
+    #minFontSize = 75
+    #maxFontSize = 200
+    #fontSizeStep = 10
     annotations = new Map()
     annotationsByValue = new Map()
     closeSideBar() {
         $('#dimming-overlay').classList.remove('show')
         $('#side-bar').classList.remove('show')
+    }
+    #increaseFontSize() {
+        if (this.style.fontSize < this.#maxFontSize) {
+            this.style.fontSize += this.#fontSizeStep
+            this.#applyFontSize()
+        }
+    }
+    #decreaseFontSize() {
+        if (this.style.fontSize > this.#minFontSize) {
+            this.style.fontSize -= this.#fontSizeStep
+            this.#applyFontSize()
+        }
+    }
+    #resetFontSize() {
+        this.style.fontSize = this.#defaultFontSize
+        this.#applyFontSize()
+    }
+    #applyFontSize() {
+        window.localStorage.setItem('reader-fontSize', this.style.fontSize)
+        if (this.view?.renderer) {
+            this.view.renderer.setStyles?.(getCSS(this.style))
+        }
+        this.#updateFontSizeButtons()
+    }
+    #updateFontSizeButtons() {
+        const decreaseBtn = $('#decrease-font')
+        const increaseBtn = $('#increase-font')
+        
+        if (decreaseBtn) {
+            decreaseBtn.disabled = this.style.fontSize <= this.#minFontSize
+        }
+        if (increaseBtn) {
+            increaseBtn.disabled = this.style.fontSize >= this.#maxFontSize
+        }
     }
     #applyTheme(theme) {
         // Save theme preference to localStorage
@@ -129,6 +169,11 @@ class Reader {
             $('#side-bar').classList.add('show')
         })
         $('#dimming-overlay').addEventListener('click', () => this.closeSideBar())
+        
+        // Font size controls
+        $('#increase-font').addEventListener('click', () => this.#increaseFontSize())
+        $('#decrease-font').addEventListener('click', () => this.#decreaseFontSize())
+        $('#reset-font').addEventListener('click', () => this.#resetFontSize())
 
        const t = JSON.parse(document.getElementById('i18n').textContent).i18n;
 
@@ -180,6 +225,15 @@ class Reader {
         const savedContinuous = storage.getItem('reader-continuous') === 'true'
         menu.groups.continuous.setChecked(savedContinuous)
         
+        // Load saved font size from localStorage or default to 100%
+        const savedFontSize = parseInt(storage.getItem('reader-fontSize'))
+        if (savedFontSize && savedFontSize >= this.#minFontSize && savedFontSize <= this.#maxFontSize) {
+            this.style.fontSize = savedFontSize
+        }
+        
+        // Initialize font size button states
+        this.#updateFontSizeButtons()
+        
         // Initialize footnote modal
         this.#setupFootnoteModal()
     }
@@ -190,6 +244,15 @@ class Reader {
         document.body.append(this.view)
         await this.view.open(file)
         await this.view.init({lastLocation: storage.getItem(slug)})
+        
+        // Check if it's pre-paginated content (PDF or fixed-layout) after the book is opened
+        // Font size controls don't work for pre-paginated content
+        const { book } = this.view
+        const isPrePaginated = book?.rendition?.layout === 'pre-paginated'
+        const fontSizeControls = $('#font-size-controls')
+        if (fontSizeControls) {
+            fontSizeControls.style.display = isPrePaginated ? 'none' : 'flex'
+        }
         this.view.addEventListener('load', this.#onLoad.bind(this))
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
         
@@ -217,7 +280,6 @@ class Reader {
         document.body.removeChild($('#spinner-container'))
         document.body.removeChild($('#error-icon-container'))
 
-        const { book } = this.view
         this.view.renderer.setStyles?.(getCSS(this.style))
         
         // Apply saved continuous mode state

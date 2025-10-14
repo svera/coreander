@@ -111,8 +111,27 @@ body {
     background: rgba(0, 0, 0, .1);
     color: currentcolor;
 }
+.toolbar button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+.toolbar button:disabled:hover {
+    background: none;
+}
 #header-bar {
     top: 0;
+}
+#font-size-controls {
+    display: none; /* Hidden by default, shown by JS for non-PDF files */
+    gap: 6px;
+}
+
+#font-size-controls button text {
+    fill: GrayText;
+    stroke: none;
+}
+#font-size-controls button line {
+    stroke: GrayText;
 }
 #nav-bar {
     bottom: 0;
