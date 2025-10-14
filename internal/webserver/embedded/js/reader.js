@@ -3,27 +3,17 @@ import { createTOCView } from './foliate-js/ui/tree.js'
 import { createMenu } from './menu.js'
 import { Overlayer } from './foliate-js/overlayer.js'
 
-const getCSS = ({ spacing, justify, hyphenate, theme }) => `
+const getCSS = ({ spacing, justify, hyphenate, theme, fontSize }) => `
     @namespace epub "http://www.idpf.org/2007/ops";
     html {
         color-scheme: ${theme === 'auto' ? 'light dark' : theme};
+        font-size: ${fontSize}% !important;
     }
-    ${theme === 'dark' ? `
-    html {
-        background: #1a1a1a !important;
-        color: #e0e0e0 !important;
-    }
-    a:link {
-        color: lightblue;
-    }
-    ` : ''}
     /* https://github.com/whatwg/html/issues/5426 */
     @media (prefers-color-scheme: dark) {
-        ${theme === 'auto' ? `
         a:link {
             color: lightblue;
         }
-        ` : ''}
     }
     p, li, blockquote, dd {
         line-height: ${spacing};
@@ -82,12 +72,39 @@ class Reader {
         justify: true,
         hyphenate: true,
         theme: 'auto',
+        fontSize: 100, // Percentage: 100 = 100%
     }
+    #defaultFontSize = 100
+    #minFontSize = 75
+    #maxFontSize = 200
+    #fontSizeStep = 10
     annotations = new Map()
     annotationsByValue = new Map()
     closeSideBar() {
         $('#dimming-overlay').classList.remove('show')
         $('#side-bar').classList.remove('show')
+    }
+    #increaseFontSize() {
+        if (this.style.fontSize < this.#maxFontSize) {
+            this.style.fontSize += this.#fontSizeStep
+            this.#applyFontSize()
+        }
+    }
+    #decreaseFontSize() {
+        if (this.style.fontSize > this.#minFontSize) {
+            this.style.fontSize -= this.#fontSizeStep
+            this.#applyFontSize()
+        }
+    }
+    #resetFontSize() {
+        this.style.fontSize = this.#defaultFontSize
+        this.#applyFontSize()
+    }
+    #applyFontSize() {
+        window.localStorage.setItem('reader-fontSize', this.style.fontSize)
+        if (this.view?.renderer) {
+            this.view.renderer.setStyles?.(getCSS(this.style))
+        }
     }
     #applyTheme(theme) {
         // Save theme preference to localStorage
@@ -142,6 +159,11 @@ class Reader {
             $('#side-bar').classList.add('show')
         })
         $('#dimming-overlay').addEventListener('click', () => this.closeSideBar())
+        
+        // Font size controls
+        $('#increase-font').addEventListener('click', () => this.#increaseFontSize())
+        $('#decrease-font').addEventListener('click', () => this.#decreaseFontSize())
+        $('#reset-font').addEventListener('click', () => this.#resetFontSize())
 
        const t = JSON.parse(document.getElementById('i18n').textContent).i18n;
 
@@ -192,6 +214,12 @@ class Reader {
         // Load saved continuous mode from localStorage or default to false (paginated mode)
         const savedContinuous = storage.getItem('reader-continuous') === 'true'
         menu.groups.continuous.setChecked(savedContinuous)
+        
+        // Load saved font size from localStorage or default to 100%
+        const savedFontSize = parseInt(storage.getItem('reader-fontSize'))
+        if (savedFontSize && savedFontSize >= this.#minFontSize && savedFontSize <= this.#maxFontSize) {
+            this.style.fontSize = savedFontSize
+        }
         
         // Initialize footnote modal
         this.#setupFootnoteModal()

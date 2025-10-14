@@ -97,6 +97,18 @@ body {
 #header-bar {
     top: 0;
 }
+#font-size-controls {
+    display: flex;
+    gap: 6px;
+}
+
+#font-size-controls button text {
+    fill: GrayText;
+    stroke: none;
+}
+#font-size-controls button line {
+    stroke: GrayText;
+}
 #nav-bar {
     bottom: 0;
 }
