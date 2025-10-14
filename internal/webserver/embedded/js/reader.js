@@ -124,6 +124,7 @@ class Reader {
         
         // Apply theme to the main document
         const html = document.documentElement
+        html.dataset.theme = theme
         if (theme === 'dark') {
             html.style.colorScheme = 'dark'
             document.body.style.background = '#1a1a1a'
@@ -246,6 +247,15 @@ class Reader {
         document.body.append(this.view)
         await this.view.open(file)
         await this.view.init({lastLocation: storage.getItem(slug)})
+        
+        // Check if it's pre-paginated content (PDF or fixed-layout) after the book is opened
+        // Font size controls don't work for pre-paginated content
+        const { book } = this.view
+        const isPrePaginated = book?.rendition?.layout === 'pre-paginated'
+        const fontSizeControls = $('#font-size-controls')
+        if (fontSizeControls) {
+            fontSizeControls.style.display = isPrePaginated ? 'none' : 'flex'
+        }
         this.view.addEventListener('load', this.#onLoad.bind(this))
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
         
@@ -273,7 +283,6 @@ class Reader {
         document.body.removeChild($('#spinner-container'))
         document.body.removeChild($('#error-icon-container'))
 
-        const { book } = this.view
         this.view.renderer.setStyles?.(getCSS(this.style))
         
         // Apply saved continuous mode state

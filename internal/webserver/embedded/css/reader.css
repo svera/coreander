@@ -105,7 +105,7 @@ body {
     top: 0;
 }
 #font-size-controls {
-    display: flex;
+    display: none; /* Hidden by default, shown by JS for non-PDF files */
     gap: 6px;
 }
 
