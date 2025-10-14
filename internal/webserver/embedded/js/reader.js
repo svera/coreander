@@ -105,6 +105,18 @@ class Reader {
         if (this.view?.renderer) {
             this.view.renderer.setStyles?.(getCSS(this.style))
         }
+        this.#updateFontSizeButtons()
+    }
+    #updateFontSizeButtons() {
+        const decreaseBtn = $('#decrease-font')
+        const increaseBtn = $('#increase-font')
+        
+        if (decreaseBtn) {
+            decreaseBtn.disabled = this.style.fontSize <= this.#minFontSize
+        }
+        if (increaseBtn) {
+            increaseBtn.disabled = this.style.fontSize >= this.#maxFontSize
+        }
     }
     #applyTheme(theme) {
         // Save theme preference to localStorage
@@ -220,6 +232,9 @@ class Reader {
         if (savedFontSize && savedFontSize >= this.#minFontSize && savedFontSize <= this.#maxFontSize) {
             this.style.fontSize = savedFontSize
         }
+        
+        // Initialize font size button states
+        this.#updateFontSizeButtons()
         
         // Initialize footnote modal
         this.#setupFootnoteModal()

@@ -94,6 +94,13 @@ body {
     background: rgba(0, 0, 0, .1);
     color: currentcolor;
 }
+.toolbar button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+.toolbar button:disabled:hover {
+    background: none;
+}
 #header-bar {
     top: 0;
 }
