@@ -245,6 +245,11 @@ class Reader {
             },
         ])
         menu.element.classList.add('menu')
+        
+        // Store references to font size elements for later removal if needed
+        this.fontSizeMenuItem = menu.groups.fontSize?.element
+        // The separator is the element right before the fontSize menu item
+        this.fontSizeSeparator = this.fontSizeMenuItem?.previousElementSibling
 
         $('#menu-button').append(menu.element)
         $('#menu-button > button').addEventListener('click', () =>
@@ -285,9 +290,10 @@ class Reader {
         // Font size controls don't work for pre-paginated content
         const { book } = this.view
         const isPrePaginated = book?.rendition?.layout === 'pre-paginated'
-        const fontSizeControls = $('#font-size-controls')
-        if (fontSizeControls) {
-            fontSizeControls.style.display = isPrePaginated ? 'none' : 'flex'
+        if (isPrePaginated) {
+            // Remove font size controls and their separator from the menu
+            this.fontSizeMenuItem?.remove()
+            this.fontSizeSeparator?.remove()
         }
         this.view.addEventListener('load', this.#onLoad.bind(this))
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
