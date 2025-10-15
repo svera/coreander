@@ -44,20 +44,33 @@ export const createMenu = arr => {
     const element = document.createElement('ul')
     element.setAttribute('role', 'menu')
     const hide = () => element.classList.remove('show')
-    const hideAnd = f => (...args) => (hide(), f(...args))
-    for (const { name, label, type, items, onclick } of arr) {
+    for (const { name, label, type, items, onclick, content } of arr) {
         if (type === 'separator') {
             const separator = document.createElement('hr')
             separator.setAttribute('role', 'separator')
             element.append(separator)
         } else if (type === 'checkbox') {
-            const widget = createMenuItemCheckbox(label, hideAnd(onclick))
+            const widget = createMenuItemCheckbox(label, onclick)
             if (name) groups[name] = widget
             element.append(widget.element)
         } else if (type === 'radio') {
-            const widget = createMenuItemRadioGroup(label, items, hideAnd(onclick))
+            const widget = createMenuItemRadioGroup(label, items, onclick)
             if (name) groups[name] = widget
             element.append(widget.element)
+        } else if (type === 'custom') {
+            const item = document.createElement('li')
+            item.classList.add('menu-custom-item')
+            if (label) {
+                const labelSpan = document.createElement('span')
+                labelSpan.classList.add('menu-item-label')
+                labelSpan.innerText = label
+                item.append(labelSpan)
+            }
+            if (content) {
+                item.append(content)
+            }
+            element.append(item)
+            if (name) groups[name] = { element: item }
         }
     }
     // TODO: keyboard events

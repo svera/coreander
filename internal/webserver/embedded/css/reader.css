@@ -104,18 +104,6 @@ body {
 #header-bar {
     top: 0;
 }
-#font-size-controls {
-    display: none; /* Hidden by default, shown by JS for non-PDF files */
-    gap: 6px;
-}
-
-#font-size-controls button text {
-    fill: GrayText;
-    stroke: none;
-}
-#font-size-controls button line {
-    stroke: GrayText;
-}
 #nav-bar {
     bottom: 0;
 }
@@ -336,6 +324,48 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     :root:not([style*="color-scheme: light"]) .menu hr[role="separator"] {
         border-top-color: rgba(255, 255, 255, .1);
     }
+}
+/* Custom menu items */
+.menu .menu-custom-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 6px 12px;
+}
+.menu .menu-custom-item:hover {
+    background: transparent;
+}
+.menu .menu-item-label {
+    flex-shrink: 0;
+    margin-right: auto;
+}
+.menu #font-size-controls {
+    display: flex;
+    gap: 6px;
+}
+.menu #font-size-controls button {
+    padding: 3px;
+    border-radius: 6px;
+    background: none;
+    border: 0;
+    color: CanvasText;
+    cursor: pointer;
+}
+.menu #font-size-controls button:hover {
+    background: rgba(0, 0, 0, .1);
+    color: currentcolor;
+}
+.menu #font-size-controls button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+.menu #font-size-controls button text {
+    fill: CanvasText;
+    stroke: none;
+}
+.menu #font-size-controls button line {
+    stroke: CanvasText;
 }
 .popover {
     background: Canvas;

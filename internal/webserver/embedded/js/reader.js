@@ -173,13 +173,37 @@ class Reader {
         })
         $('#dimming-overlay').addEventListener('click', () => this.closeSideBar())
         $('#side-bar-close').addEventListener('click', () => this.closeSideBar())
-        
-        // Font size controls
-        $('#increase-font').addEventListener('click', () => this.#increaseFontSize())
-        $('#decrease-font').addEventListener('click', () => this.#decreaseFontSize())
-        $('#reset-font').addEventListener('click', () => this.#resetFontSize())
 
        const t = JSON.parse(document.getElementById('i18n').textContent).i18n;
+       
+       // Create font size controls
+       const fontSizeControls = document.createElement('div')
+       fontSizeControls.id = 'font-size-controls'
+       fontSizeControls.style.display = 'flex'
+       fontSizeControls.style.gap = '6px'
+       
+       const decreaseBtn = document.createElement('button')
+       decreaseBtn.id = 'decrease-font'
+       decreaseBtn.setAttribute('aria-label', 'Decrease font size')
+       decreaseBtn.title = 'Decrease font size'
+       decreaseBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="11" y="18" text-anchor="middle" font-size="18" font-weight="bold">A</text><line x1="17" y1="14" x2="22" y2="14" stroke="currentColor" stroke-width="2"/></svg>'
+       decreaseBtn.addEventListener('click', () => this.#decreaseFontSize())
+       
+       const resetBtn = document.createElement('button')
+       resetBtn.id = 'reset-font'
+       resetBtn.setAttribute('aria-label', 'Reset font size')
+       resetBtn.title = 'Reset font size'
+       resetBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="12" y="18" text-anchor="middle" font-size="16" font-weight="bold">A</text></svg>'
+       resetBtn.addEventListener('click', () => this.#resetFontSize())
+       
+       const increaseBtn = document.createElement('button')
+       increaseBtn.id = 'increase-font'
+       increaseBtn.setAttribute('aria-label', 'Increase font size')
+       increaseBtn.title = 'Increase font size'
+       increaseBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="11" y="18" text-anchor="middle" font-size="18" font-weight="bold">A</text><line x1="17" y1="14" x2="22" y2="14" stroke="currentColor" stroke-width="2"/><line x1="19.5" y1="11" x2="19.5" y2="17" stroke="currentColor" stroke-width="2"/></svg>'
+       increaseBtn.addEventListener('click', () => this.#increaseFontSize())
+       
+       fontSizeControls.append(decreaseBtn, resetBtn, increaseBtn)
 
        const menu = createMenu([
             {
@@ -210,6 +234,14 @@ class Reader {
                         this.view.renderer.setStyles?.(getCSS(this.style))
                     }
                 },
+            },
+            {
+                type: 'separator',
+            },
+            {
+                name: 'fontSize',
+                type: 'custom',
+                content: fontSizeControls
             },
         ])
         menu.element.classList.add('menu')
