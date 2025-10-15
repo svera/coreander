@@ -184,22 +184,22 @@ class Reader {
        
        const decreaseBtn = document.createElement('button')
        decreaseBtn.id = 'decrease-font'
-       decreaseBtn.setAttribute('aria-label', 'Decrease font size')
-       decreaseBtn.title = 'Decrease font size'
+       decreaseBtn.setAttribute('aria-label', t.decrease_font_size)
+       decreaseBtn.title = t.decrease_font_size
        decreaseBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="11" y="18" text-anchor="middle" font-size="18" font-weight="bold">A</text><line x1="17" y1="14" x2="22" y2="14" stroke="currentColor" stroke-width="2"/></svg>'
        decreaseBtn.addEventListener('click', () => this.#decreaseFontSize())
        
        const resetBtn = document.createElement('button')
        resetBtn.id = 'reset-font'
-       resetBtn.setAttribute('aria-label', 'Reset font size')
-       resetBtn.title = 'Reset font size'
+       resetBtn.setAttribute('aria-label', t.reset_font_size)
+       resetBtn.title = t.reset_font_size
        resetBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="12" y="18" text-anchor="middle" font-size="16" font-weight="bold">A</text></svg>'
        resetBtn.addEventListener('click', () => this.#resetFontSize())
        
        const increaseBtn = document.createElement('button')
        increaseBtn.id = 'increase-font'
-       increaseBtn.setAttribute('aria-label', 'Increase font size')
-       increaseBtn.title = 'Increase font size'
+       increaseBtn.setAttribute('aria-label', t.increase_font_size)
+       increaseBtn.title = t.increase_font_size
        increaseBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="11" y="18" text-anchor="middle" font-size="18" font-weight="bold">A</text><line x1="17" y1="14" x2="22" y2="14" stroke="currentColor" stroke-width="2"/><line x1="19.5" y1="11" x2="19.5" y2="17" stroke="currentColor" stroke-width="2"/></svg>'
        increaseBtn.addEventListener('click', () => this.#increaseFontSize())
        
