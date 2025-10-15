@@ -172,6 +172,7 @@ class Reader {
             $('#side-bar').classList.add('show')
         })
         $('#dimming-overlay').addEventListener('click', () => this.closeSideBar())
+        $('#side-bar-close').addEventListener('click', () => this.closeSideBar())
         
         // Font size controls
         $('#increase-font').addEventListener('click', () => this.#increaseFontSize())
@@ -371,15 +372,36 @@ class Reader {
             
             // Resolve the href to get the target
             const target = await book.resolveHref(href)
+            
             if (target && target.index !== undefined) {
                 const targetSection = book.sections[target.index]
                 const targetDoc = await targetSection.createDocument()
                 
                 if (targetDoc && target.anchor) {
-                    const element = target.anchor(targetDoc)
+                    let element = target.anchor(targetDoc)
+                    
                     if (element) {
-                        this.#showFootnote(element)
-                        return
+                        // If the anchor element is empty or just whitespace, 
+                        // try to find the actual content
+                        if (!element.textContent.trim()) {
+                            // Try parent element (for EPUB2 style footnotes)
+                            const parent = element.parentElement
+                            if (parent && parent.textContent.trim()) {
+                                element = parent
+                            } else {
+                                // Try next sibling
+                                const nextSibling = element.nextElementSibling
+                                if (nextSibling && nextSibling.textContent.trim()) {
+                                    element = nextSibling
+                                }
+                            }
+                        }
+                        
+                        // Check if we have content now
+                        if (element && element.textContent.trim()) {
+                            this.#showFootnote(element)
+                            return
+                        }
                     }
                 }
             }

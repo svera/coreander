@@ -146,6 +146,22 @@ body {
     transform: translateX(0);
     transition-delay: 0s;
 }
+#side-bar-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 6px;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: GrayText;
+    cursor: pointer;
+    z-index: 1;
+}
+#side-bar-close:hover {
+    background: rgba(0, 0, 0, .1);
+    color: CanvasText;
+}
 #dimming-overlay {
     visibility: hidden;
     position: fixed;
