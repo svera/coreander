@@ -40,7 +40,7 @@ There are two possibilities for building Coreander from source:
 * Otherwise, a simple `go build` or `go install` will do, although no version information will be added to the executable.
 
 ## How to use
-Coreander is designed to be run as a service managed by [systemd](https://systemd.io) or any other service manager. For example, in Raspberry Pi OS, just create a file called `/etc/systemd/system/coreander.service` with the following contents:
+Although it can be executed as any desktop app, Coreander is designed to be run as a service managed by [systemd](https://systemd.io) or any other service manager. For example, in Raspberry Pi OS, just create a file called `/etc/systemd/system/coreander.service` with the following contents:
 
 ```
 [Unit]
@@ -148,9 +148,9 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 
 ## Screenshots
 
-![Search results](assets/search-results.png)
-*Search results*
-![Document detail in dark mode](assets/doc-detail.png)
-*Document detail in dark mode*
+![Search results in dark mode](assets/search-results.png)
+*Search results in dark mode*
+![Document detail](assets/doc-detail.png)
+*Document detail*
 ![Reading interface](assets/reading.png)
 *Reading interface*
