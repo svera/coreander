@@ -169,13 +169,38 @@ class Reader {
             $('#side-bar').classList.add('show')
         })
         $('#dimming-overlay').addEventListener('click', () => this.closeSideBar())
-        
-        // Font size controls
-        $('#increase-font').addEventListener('click', () => this.#increaseFontSize())
-        $('#decrease-font').addEventListener('click', () => this.#decreaseFontSize())
-        $('#reset-font').addEventListener('click', () => this.#resetFontSize())
+        $('#side-bar-close').addEventListener('click', () => this.closeSideBar())
 
        const t = JSON.parse(document.getElementById('i18n').textContent).i18n;
+       
+       // Create font size controls
+       const fontSizeControls = document.createElement('div')
+       fontSizeControls.id = 'font-size-controls'
+       fontSizeControls.style.display = 'flex'
+       fontSizeControls.style.gap = '6px'
+       
+       const decreaseBtn = document.createElement('button')
+       decreaseBtn.id = 'decrease-font'
+       decreaseBtn.setAttribute('aria-label', t.decrease_font_size)
+       decreaseBtn.title = t.decrease_font_size
+       decreaseBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="11" y="18" text-anchor="middle" font-size="18" font-weight="bold">A</text><line x1="17" y1="14" x2="22" y2="14" stroke="currentColor" stroke-width="2"/></svg>'
+       decreaseBtn.addEventListener('click', () => this.#decreaseFontSize())
+       
+       const resetBtn = document.createElement('button')
+       resetBtn.id = 'reset-font'
+       resetBtn.setAttribute('aria-label', t.reset_font_size)
+       resetBtn.title = t.reset_font_size
+       resetBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="12" y="18" text-anchor="middle" font-size="16" font-weight="bold">A</text></svg>'
+       resetBtn.addEventListener('click', () => this.#resetFontSize())
+       
+       const increaseBtn = document.createElement('button')
+       increaseBtn.id = 'increase-font'
+       increaseBtn.setAttribute('aria-label', t.increase_font_size)
+       increaseBtn.title = t.increase_font_size
+       increaseBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="11" y="18" text-anchor="middle" font-size="18" font-weight="bold">A</text><line x1="17" y1="14" x2="22" y2="14" stroke="currentColor" stroke-width="2"/><line x1="19.5" y1="11" x2="19.5" y2="17" stroke="currentColor" stroke-width="2"/></svg>'
+       increaseBtn.addEventListener('click', () => this.#increaseFontSize())
+       
+       fontSizeControls.append(decreaseBtn, resetBtn, increaseBtn)
 
        const menu = createMenu([
             {
@@ -207,8 +232,21 @@ class Reader {
                     }
                 },
             },
+            {
+                type: 'separator',
+            },
+            {
+                name: 'fontSize',
+                type: 'custom',
+                content: fontSizeControls
+            },
         ])
         menu.element.classList.add('menu')
+        
+        // Store references to font size elements for later removal if needed
+        this.fontSizeMenuItem = menu.groups.fontSize?.element
+        // The separator is the element right before the fontSize menu item
+        this.fontSizeSeparator = this.fontSizeMenuItem?.previousElementSibling
 
         $('#menu-button').append(menu.element)
         $('#menu-button > button').addEventListener('click', () =>
@@ -249,9 +287,10 @@ class Reader {
         // Font size controls don't work for pre-paginated content
         const { book } = this.view
         const isPrePaginated = book?.rendition?.layout === 'pre-paginated'
-        const fontSizeControls = $('#font-size-controls')
-        if (fontSizeControls) {
-            fontSizeControls.style.display = isPrePaginated ? 'none' : 'flex'
+        if (isPrePaginated) {
+            // Remove font size controls and their separator from the menu
+            this.fontSizeMenuItem?.remove()
+            this.fontSizeSeparator?.remove()
         }
         this.view.addEventListener('load', this.#onLoad.bind(this))
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
@@ -368,15 +407,36 @@ class Reader {
             
             // Resolve the href to get the target
             const target = await book.resolveHref(href)
+            
             if (target && target.index !== undefined) {
                 const targetSection = book.sections[target.index]
                 const targetDoc = await targetSection.createDocument()
                 
                 if (targetDoc && target.anchor) {
-                    const element = target.anchor(targetDoc)
+                    let element = target.anchor(targetDoc)
+                    
                     if (element) {
-                        this.#showFootnote(element)
-                        return
+                        // If the anchor element is empty or just whitespace, 
+                        // try to find the actual content
+                        if (!element.textContent.trim()) {
+                            // Try parent element (for EPUB2 style footnotes)
+                            const parent = element.parentElement
+                            if (parent && parent.textContent.trim()) {
+                                element = parent
+                            } else {
+                                // Try next sibling
+                                const nextSibling = element.nextElementSibling
+                                if (nextSibling && nextSibling.textContent.trim()) {
+                                    element = nextSibling
+                                }
+                            }
+                        }
+                        
+                        // Check if we have content now
+                        if (element && element.textContent.trim()) {
+                            this.#showFootnote(element)
+                            return
+                        }
                     }
                 }
             }

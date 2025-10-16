@@ -163,6 +163,22 @@ body {
     transform: translateX(0);
     transition-delay: 0s;
 }
+#side-bar-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 6px;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: GrayText;
+    cursor: pointer;
+    z-index: 1;
+}
+#side-bar-close:hover {
+    background: rgba(0, 0, 0, .1);
+    color: CanvasText;
+}
 #dimming-overlay {
     visibility: hidden;
     position: fixed;
@@ -337,6 +353,48 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     :root:not([style*="color-scheme: light"]) .menu hr[role="separator"] {
         border-top-color: rgba(255, 255, 255, .1);
     }
+}
+/* Custom menu items */
+.menu .menu-custom-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 6px 12px;
+}
+.menu .menu-custom-item:hover {
+    background: transparent;
+}
+.menu .menu-item-label {
+    flex-shrink: 0;
+    margin-right: auto;
+}
+.menu #font-size-controls {
+    display: flex;
+    gap: 6px;
+}
+.menu #font-size-controls button {
+    padding: 3px;
+    border-radius: 6px;
+    background: none;
+    border: 0;
+    color: CanvasText;
+    cursor: pointer;
+}
+.menu #font-size-controls button:hover {
+    background: rgba(0, 0, 0, .1);
+    color: currentcolor;
+}
+.menu #font-size-controls button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+.menu #font-size-controls button text {
+    fill: CanvasText;
+    stroke: none;
+}
+.menu #font-size-controls button line {
+    stroke: CanvasText;
 }
 .popover {
     background: Canvas;
