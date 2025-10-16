@@ -324,8 +324,6 @@ class Reader {
         // Apply saved continuous mode state
         const savedContinuous = storage.getItem('reader-continuous') === 'true'
         this.view.renderer.setAttribute('flow', savedContinuous ? 'scrolled' : 'paginated')
-        
-        this.view.renderer.next()
 
         $('#header-bar').style.visibility = 'visible'
         $('#nav-bar').style.visibility = 'visible'
