@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 func (d *Controller) Reader(c *fiber.Ctx) error {
@@ -23,6 +24,18 @@ func (d *Controller) Reader(c *fiber.Ctx) error {
 
 	if _, err := os.Stat(filepath.Join(d.config.LibraryPath, document.ID)); err != nil {
 		return fiber.ErrNotFound
+	}
+
+	// Create/update reading record when opening the document
+	var session model.Session
+	if val, ok := c.Locals("Session").(model.Session); ok {
+		session = val
+	}
+	if session.ID > 0 {
+		if err := d.readingRepository.Update(int(session.ID), document.ID, ""); err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
 	}
 
 	title := document.Title
