@@ -31,10 +31,17 @@ func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (re
 	), nil
 }
 
-func (u *ReadingRepository) Update(userID int, documentPath string) error {
+func (u *ReadingRepository) Get(userID int, documentPath string) (Reading, error) {
+	var reading Reading
+	err := u.DB.Where("user_id = ? AND path = ?", userID, documentPath).First(&reading).Error
+	return reading, err
+}
+
+func (u *ReadingRepository) Update(userID int, documentPath, cfi string) error {
 	progress := Reading{
 		UserID: userID,
 		Path:   documentPath,
+		CFI:    cfi,
 	}
 	return u.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(&progress).Error
 }

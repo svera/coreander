@@ -1,5 +1,3 @@
-# ![Coreander logo](assets/readme-header.png)
-
 A personal documents server, Coreander indexes the documents (EPUBs and PDFs with no DRM) that it finds in the passed folder, and provides a web interface to search and access them.
 
 ![Coreander home](assets/home.png)
@@ -150,7 +148,12 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 
 ![Search results in dark mode](assets/search-results.png)
 *Search results in dark mode*
+
 ![Document detail](assets/doc-detail.png)
 *Document detail*
+
 ![Reading interface](assets/reading.png)
 *Reading interface*
+
+![Reading interface](assets/reading-mobile.png)
+*Reading interface in mobile device*

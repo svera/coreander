@@ -67,6 +67,10 @@ class Reader {
     #tocView
     #footnoteModal
     #footnoteContent
+    #updatePositionTimeout = null
+    #isAuthenticated = false
+    #sessionExpiredNotificationShown = false
+    #t = null
     style = {
         spacing: 1.4,
         justify: true,
@@ -164,6 +168,12 @@ class Reader {
         }
     }
     constructor() {
+        // Check if user is authenticated
+        this.#isAuthenticated = document.getElementById('authenticated')?.value === 'true'
+        
+        // Load translations
+        this.#t = JSON.parse(document.getElementById('i18n').textContent).i18n
+        
         $('#side-bar-button').addEventListener('click', () => {
             $('#dimming-overlay').classList.add('show')
             $('#side-bar').classList.add('show')
@@ -171,7 +181,7 @@ class Reader {
         $('#dimming-overlay').addEventListener('click', () => this.closeSideBar())
         $('#side-bar-close').addEventListener('click', () => this.closeSideBar())
 
-       const t = JSON.parse(document.getElementById('i18n').textContent).i18n;
+       const t = this.#t;
        
        // Create font size controls
        const fontSizeControls = document.createElement('div')
@@ -281,7 +291,29 @@ class Reader {
         const slug = document.getElementById('slug').value
         document.body.append(this.view)
         await this.view.open(file)
-        await this.view.init({lastLocation: storage.getItem(slug)})
+        
+        // Get position, syncing with server if authenticated
+        const localData = this.#getLocalPosition(slug)
+        let lastLocation = localData.cfi
+        
+        if (this.#isAuthenticated) {
+            const serverData = await this.#getServerPosition(slug)
+
+            // Compare timestamps and use the newer position
+            if (serverData.cfi && serverData.updated) {
+                if (!localData.updated || new Date(serverData.updated) > new Date(localData.updated)) {
+                    // Server position is newer
+                    lastLocation = serverData.cfi
+                    // Update localStorage with server data
+                    storage.setItem(slug, JSON.stringify({
+                        cfi: serverData.cfi,
+                        updated: serverData.updated
+                    }))
+                }
+            }
+        }
+        
+        await this.view.init({lastLocation})
         
         // Check if it's pre-paginated content (PDF or fixed-layout) after the book is opened
         // Font size controls don't work for pre-paginated content
@@ -489,7 +521,19 @@ class Reader {
         const storage = window.localStorage
         const slug = document.getElementById('slug').value
 
-        storage.setItem(slug, detail.cfi)
+        storage.setItem(slug, JSON.stringify({
+            cfi: detail.cfi,
+            updated: new Date().toISOString()
+        }))
+        
+        // Update position on server if authenticated (debounced)
+        if (this.#isAuthenticated) {
+            clearTimeout(this.#updatePositionTimeout)
+            this.#updatePositionTimeout = setTimeout(() => {
+                this.#syncPositionToServer(slug, detail.cfi)
+            }, 1000) // Wait 1 second after last position change
+        }
+        
         const { fraction, location, tocItem, pageItem } = detail
         const percent = percentFormat.format(fraction)
         const loc = pageItem
@@ -500,6 +544,91 @@ class Reader {
         slider.value = fraction
         slider.title = `${percent} · ${loc}`
         if (tocItem?.href) this.#tocView?.setCurrentHref?.(tocItem.href)
+    }
+    #getLocalPosition(slug) {
+        const storage = window.localStorage
+        const saved = storage.getItem(slug)
+        
+        if (!saved) {
+            return { cfi: null, updated: null }
+        }
+        
+        try {
+            const parsed = JSON.parse(saved)
+            return {
+                cfi: parsed.cfi || null,
+                updated: parsed.updated || null
+            }
+        } catch {
+            // Old format: plain string (CFI only)
+            return { cfi: saved, updated: null }
+        }
+    }
+    async #getServerPosition(slug) {
+        try {
+            const response = await fetch(`/documents/${slug}/position`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            
+            if (response.status === 403) {
+                // Session expired, mark as unauthenticated and show notification
+                this.#isAuthenticated = false
+                this.#showSessionExpiredNotification()
+                return { cfi: '', updated: '' }
+            }
+            
+            if (response.ok) {
+                return await response.json()
+            }
+            
+            return { cfi: '', updated: '' }
+        } catch (error) {
+            console.error('Error fetching position from server:', error)
+            return { cfi: '', updated: '' }
+        }
+    }
+    async #syncPositionToServer(slug, cfi) {
+        try {
+            const response = await fetch(`/documents/${slug}/position`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ cfi })
+            })
+            
+            if (response.status === 403) {
+                // Session expired, mark as unauthenticated and show notification
+                this.#isAuthenticated = false
+                this.#showSessionExpiredNotification()
+                return
+            }
+            
+            if (!response.ok && response.status !== 204) {
+                console.error('Failed to sync position to server:', response.statusText)
+            }
+        } catch (error) {
+            console.error('Error syncing position to server:', error)
+        }
+    }
+    #showSessionExpiredNotification() {
+        // Only show the notification once
+        if (this.#sessionExpiredNotificationShown) return
+        this.#sessionExpiredNotificationShown = true
+        
+        const toastEl = document.getElementById('live-toast-danger')
+        if (!toastEl) return
+        
+        const toastBody = toastEl.querySelector('.toast-body')
+        if (toastBody) {
+            toastBody.innerHTML = this.#t.session_expired_reading
+        }
+        
+        const toast = bootstrap.Toast.getOrCreateInstance(toastEl)
+        toast.show()
     }
 }
 
@@ -513,14 +642,36 @@ const url = document.getElementById('url').value
 if (url) fetch(url)
     .then(res => {
         if (res.status == 403) {
-            return location.reload()
+            // Session expired or authentication required
+            // Stop the response from rendering
+            const spinner = $('#spinner-container');
+            if (spinner) document.body.removeChild(spinner);
+            $('#error-icon-container').classList.remove('d-none');
+            const errorMsg = document.createElement('p');
+            errorMsg.className = 'mt-3 text-center';
+            errorMsg.textContent = 'Session expired. Please ';
+            const loginLink = document.createElement('a');
+            loginLink.href = '/sessions/new';
+            loginLink.textContent = 'log in';
+            errorMsg.appendChild(loginLink);
+            errorMsg.appendChild(document.createTextNode(' to continue reading.'));
+            $('#error-icon-container').appendChild(errorMsg);
+            throw new Error('Authentication required');
+        }
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
         }
         return res.blob()
     })
-    .then(blob => open(new File([blob], new URL(url).pathname)))
+    .then(blob => {
+        if (blob) open(new File([blob], new URL(url).pathname))
+    })
     .catch(e => {
-        document.body.removeChild($('#spinner-container'));
-        $('#error-icon-container').classList.remove('d-none');
+        if (e.message !== 'Authentication required') {
+            const spinner = $('#spinner-container');
+            if (spinner) document.body.removeChild(spinner);
+            $('#error-icon-container').classList.remove('d-none');
+        }
         console.error(e);
     })
 else dropTarget.style.visibility = 'visible'
