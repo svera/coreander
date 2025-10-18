@@ -31,13 +31,13 @@ func (d *Controller) GetPosition(c *fiber.Ctx) error {
 	if err != nil {
 		// Return empty response if no position is stored
 		return c.JSON(fiber.Map{
-			"cfi":     "",
-			"updated": "",
+			"position": "",
+			"updated":  "",
 		})
 	}
 
 	return c.JSON(fiber.Map{
-		"cfi":     reading.CFI,
-		"updated": reading.UpdatedAt.UTC().Format("2006-01-02T15:04:05.000Z"),
+		"position": reading.Position,
+		"updated":  reading.UpdatedAt.UTC().Format("2006-01-02T15:04:05.000Z"),
 	})
 }

@@ -294,19 +294,19 @@ class Reader {
         
         // Get position, syncing with server if authenticated
         const localData = this.#getLocalPosition(slug)
-        let lastLocation = localData.cfi
+        let lastLocation = localData.position
         
         if (this.#isAuthenticated) {
             const serverData = await this.#getServerPosition(slug)
 
             // Compare timestamps and use the newer position
-            if (serverData.cfi && serverData.updated) {
+            if (serverData.position && serverData.updated) {
                 if (!localData.updated || new Date(serverData.updated) > new Date(localData.updated)) {
                     // Server position is newer
-                    lastLocation = serverData.cfi
+                    lastLocation = serverData.position
                     // Update localStorage with server data
                     storage.setItem(slug, JSON.stringify({
-                        cfi: serverData.cfi,
+                        position: serverData.position,
                         updated: serverData.updated
                     }))
                 }
@@ -522,7 +522,7 @@ class Reader {
         const slug = document.getElementById('slug').value
 
         storage.setItem(slug, JSON.stringify({
-            cfi: detail.cfi,
+            position: detail.cfi,
             updated: new Date().toISOString()
         }))
         
@@ -550,18 +550,18 @@ class Reader {
         const saved = storage.getItem(slug)
         
         if (!saved) {
-            return { cfi: null, updated: null }
+            return { position: null, updated: null }
         }
         
         try {
             const parsed = JSON.parse(saved)
             return {
-                cfi: parsed.cfi || null,
+                position: parsed.position || null,
                 updated: parsed.updated || null
             }
         } catch {
-            // Old format: plain string (CFI only)
-            return { cfi: saved, updated: null }
+            // Old format: plain string (position only)
+            return { position: saved, updated: null }
         }
     }
     async #getServerPosition(slug) {
@@ -577,27 +577,27 @@ class Reader {
                 // Session expired, mark as unauthenticated and show notification
                 this.#isAuthenticated = false
                 this.#showSessionExpiredNotification()
-                return { cfi: '', updated: '' }
+                return { position: '', updated: '' }
             }
             
             if (response.ok) {
                 return await response.json()
             }
             
-            return { cfi: '', updated: '' }
+            return { position: '', updated: '' }
         } catch (error) {
             console.error('Error fetching position from server:', error)
-            return { cfi: '', updated: '' }
+            return { position: '', updated: '' }
         }
     }
-    async #syncPositionToServer(slug, cfi) {
+    async #syncPositionToServer(slug, position) {
         try {
             const response = await fetch(`/documents/${slug}/position`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ cfi })
+                body: JSON.stringify({ position })
             })
             
             if (response.status === 403) {

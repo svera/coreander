@@ -37,11 +37,11 @@ func (u *ReadingRepository) Get(userID int, documentPath string) (Reading, error
 	return reading, err
 }
 
-func (u *ReadingRepository) Update(userID int, documentPath, cfi string) error {
+func (u *ReadingRepository) Update(userID int, documentPath, position string) error {
 	progress := Reading{
-		UserID: userID,
-		Path:   documentPath,
-		CFI:    cfi,
+		UserID:   userID,
+		Path:     documentPath,
+		Position: position,
 	}
 	return u.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(&progress).Error
 }

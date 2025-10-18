@@ -28,14 +28,14 @@ func (d *Controller) UpdatePosition(c *fiber.Ctx) error {
 	}
 
 	var body struct {
-		CFI string `json:"cfi"`
+		Position string `json:"position"`
 	}
 
 	if err := c.BodyParser(&body); err != nil {
 		return fiber.ErrBadRequest
 	}
 
-	if err := d.readingRepository.Update(int(session.ID), document.ID, body.CFI); err != nil {
+	if err := d.readingRepository.Update(int(session.ID), document.ID, body.Position); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
