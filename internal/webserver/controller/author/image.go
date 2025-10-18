@@ -16,9 +16,9 @@ import (
 
 func (a *Controller) Image(c *fiber.Ctx) error {
 	// Set cache control headers
-	cacheControl := fmt.Sprintf("public, max-age=%d", a.config.DynamicImageCacheTTL)
+	cacheControl := fmt.Sprintf("public, max-age=%d", a.config.ImageCacheTTL)
 	c.Set("Cache-Control", cacheControl)
-	c.Append("Cache-Time", fmt.Sprintf("%d", a.config.DynamicImageCacheTTL))
+	c.Append("Cache-Time", fmt.Sprintf("%d", a.config.ImageCacheTTL))
 
 	authorSlug := strings.Split(c.Params("slug"), "_")[0]
 	lang := c.Locals("Lang").(string)

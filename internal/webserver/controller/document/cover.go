@@ -10,9 +10,9 @@ import (
 
 func (d *Controller) Cover(c *fiber.Ctx) error {
 	// Set cache control headers
-	cacheControl := fmt.Sprintf("public, max-age=%d", d.config.DynamicImageCacheTTL)
+	cacheControl := fmt.Sprintf("public, max-age=%d", d.config.ImageCacheTTL)
 	c.Set("Cache-Control", cacheControl)
-	c.Append("Cache-Time", fmt.Sprintf("%d", d.config.DynamicImageCacheTTL))
+	c.Append("Cache-Time", fmt.Sprintf("%d", d.config.ImageCacheTTL))
 
 	var (
 		image []byte
