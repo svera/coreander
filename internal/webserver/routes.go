@@ -1,6 +1,7 @@
 package webserver
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
@@ -9,36 +10,39 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
-func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, translator i18n.Translator, requireAuth bool) {
+func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, translator i18n.Translator, cfg Config) {
 	// Middlewares
 	var (
 		allowIfNotLoggedIn          = AllowIfNotLoggedIn(jwtSecret)
 		alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender, translator)
-		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, translator, requireAuth)
+		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, translator, cfg.RequireAuth)
 	)
 
+	staticCacheControl := fmt.Sprintf("public, max-age=%d, immutable", cfg.ClientStaticCacheTTL)
+	staticCacheTime := fmt.Sprintf("%d", cfg.ServerStaticCacheTTL)
+
 	app.Use("/css", func(c *fiber.Ctx) error {
-		// Set cache control headers for CSS and font files (1 year TTL)
-		c.Set("Cache-Control", "public, max-age=31536000, immutable")
-		c.Append("Cache-Time", "31536000")
+		// Set cache control headers for CSS and font files
+		c.Set("Cache-Control", staticCacheControl)
+		c.Append("Cache-Time", staticCacheTime)
 		return c.Next()
 	}, filesystem.New(filesystem.Config{
 		Root: http.FS(cssFS),
 	}))
 
 	app.Use("/js", func(c *fiber.Ctx) error {
-		// Set cache control headers for JS files (1 year TTL)
-		c.Set("Cache-Control", "public, max-age=31536000, immutable")
-		c.Append("Cache-Time", "31536000")
+		// Set cache control headers for JS files
+		c.Set("Cache-Control", staticCacheControl)
+		c.Append("Cache-Time", staticCacheTime)
 		return c.Next()
 	}, filesystem.New(filesystem.Config{
 		Root: http.FS(jsFS),
 	}))
 
 	app.Use("/images", func(c *fiber.Ctx) error {
-		// Set cache control headers for image files (1 year TTL)
-		c.Set("Cache-Control", "public, max-age=31536000, immutable")
-		c.Append("Cache-Time", "31536000")
+		// Set cache control headers for image files
+		c.Set("Cache-Control", staticCacheControl)
+		c.Append("Cache-Time", staticCacheTime)
 		return c.Next()
 	}, filesystem.New(filesystem.Config{
 		Root: http.FS(imagesFS),

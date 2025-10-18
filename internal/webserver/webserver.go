@@ -31,22 +31,26 @@ var (
 )
 
 type Config struct {
-	Version               string
-	SessionTimeout        time.Duration
-	RecoveryTimeout       time.Duration
-	MinPasswordLength     int
-	WordsPerMinute        float64
-	JwtSecret             []byte
-	Hostname              string
-	FQDN                  string
-	Port                  int
-	HomeDir               string
-	CacheDir              string
-	LibraryPath           string
-	AuthorImageMaxWidth   int
-	CoverMaxWidth         int
-	RequireAuth           bool
-	UploadDocumentMaxSize int
+	Version                    string
+	SessionTimeout             time.Duration
+	RecoveryTimeout            time.Duration
+	MinPasswordLength          int
+	WordsPerMinute             float64
+	JwtSecret                  []byte
+	Hostname                   string
+	FQDN                       string
+	Port                       int
+	HomeDir                    string
+	CacheDir                   string
+	LibraryPath                string
+	AuthorImageMaxWidth        int
+	CoverMaxWidth              int
+	RequireAuth                bool
+	UploadDocumentMaxSize      int
+	ClientStaticCacheTTL       int
+	ClientDynamicImageCacheTTL int
+	ServerStaticCacheTTL       int
+	ServerDynamicImageCacheTTL int
 }
 
 type Sender interface {
@@ -127,7 +131,7 @@ func New(cfg Config, controllers Controllers, sender Sender, progress ProgressIn
 		compress.New(),
 	)
 
-	routes(app, controllers, cfg.JwtSecret, sender, translator, cfg.RequireAuth)
+	routes(app, controllers, cfg.JwtSecret, sender, translator, cfg)
 	return app
 }
 

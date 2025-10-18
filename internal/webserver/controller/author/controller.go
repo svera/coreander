@@ -25,6 +25,8 @@ type Config struct {
 	WordsPerMinute      float64
 	CacheDir            string
 	AuthorImageMaxWidth int
+	ClientImageCacheTTL int
+	ServerImageCacheTTL int
 }
 
 type Controller struct {
