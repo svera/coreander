@@ -619,7 +619,7 @@ class Reader {
         if (this.#sessionExpiredNotificationShown) return
         this.#sessionExpiredNotificationShown = true
         
-        const toastEl = document.getElementById('live-toast-danger')
+        const toastEl = document.getElementById('live-toast')
         if (!toastEl) return
         
         const toastBody = toastEl.querySelector('.toast-body')
