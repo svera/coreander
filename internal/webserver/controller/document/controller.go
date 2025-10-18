@@ -5,6 +5,7 @@ import (
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 const relatedDocuments = 4
@@ -36,7 +37,8 @@ type highlightsRepository interface {
 }
 
 type readingRepository interface {
-	Update(userID int, documentPath string) error
+	Get(userID int, documentPath string) (model.Reading, error)
+	Update(userID int, documentPath, position string) error
 	RemoveDocument(documentPath string) error
 }
 

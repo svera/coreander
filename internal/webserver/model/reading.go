@@ -9,4 +9,5 @@ type Reading struct {
 	UpdatedAt time.Time `gorm:"autoUpdateTime"`
 	UserID    int       `gorm:"primaryKey"`
 	Path      string    `gorm:"primaryKey"`
+	Position  string    `gorm:"type:text"`
 }

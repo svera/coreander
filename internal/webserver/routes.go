@@ -84,10 +84,11 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	// Authentication requirement is configurable for all routes below this middleware
 	app.Use(configurableAuthentication)
-	app.Use(configurableAuthentication)
 
 	docsGroup.Get("/:slug/cover", controllers.Documents.Cover)
 	docsGroup.Get("/:slug/read", controllers.Documents.Reader)
+	docsGroup.Get("/:slug/position", alwaysRequireAuthentication, controllers.Documents.GetPosition)
+	docsGroup.Put("/:slug/position", alwaysRequireAuthentication, controllers.Documents.UpdatePosition)
 	docsGroup.Get("/:slug/download", controllers.Documents.Download)
 	docsGroup.Post("/:slug/send", alwaysRequireAuthentication, controllers.Documents.Send)
 	docsGroup.Get("/:slug", controllers.Documents.Detail)

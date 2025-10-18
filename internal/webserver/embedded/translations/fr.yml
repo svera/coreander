@@ -201,4 +201,5 @@
 "Decrease font size": "Diminuer la taille de la police"
 "Reset font size": "Réinitialiser la taille de la police"
 "Increase font size": "Augmenter la taille de la police"
+"Session expired. Your reading position is still saved locally.": "Session expirée. Votre position de lecture est toujours enregistrée localement. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Se connecter</a>"
 

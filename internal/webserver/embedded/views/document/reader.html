@@ -11,10 +11,12 @@
 <link rel="manifest" href="/images/site.webmanifest{{versionParam .Version}}">
 <link rel="mask-icon" href="/images/safari-pinned-tab.svg{{versionParam .Version}}" color="#5bbad5">
 <meta name="msapplication-TileColor" content="#da532c">
+<link href="/css/bootstrap.min.css{{versionParam .Version}}" rel="stylesheet">
 <link href="/css/reader.css{{versionParam .Version}}" rel="stylesheet">
 
 <input type="hidden" id="url" value="{{.fqdn}}/documents/{{.Slug}}/download">
 <input type="hidden" id="slug" value="{{.Slug}}">
+<input type="hidden" id="authenticated" value="{{if and (.Session) (ne .Session.Name "")}}true{{else}}false{{end}}">
 
 <div id="spinner-container" class="filter">
     <div>
@@ -125,7 +127,18 @@
     "dark": {{t .Lang "Dark"}},
     "decrease_font_size": {{t .Lang "Decrease font size"}},
     "reset_font_size": {{t .Lang "Reset font size"}},
-    "increase_font_size": {{t .Lang "Increase font size"}}
+    "increase_font_size": {{t .Lang "Increase font size"}},
+    "session_expired_reading": {{t .Lang "Session expired. Your reading position is still saved locally."}}
 }}</script>
 
+<div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 9999;">
+    <div id="live-toast" class="toast bg-warning text-dark" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
+        <div class="d-flex">
+            <div class="toast-body"></div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/bootstrap.bundle.min.js{{versionParam .Version}}"></script>
 <script src="/js/reader.js{{versionParam .Version}}" type="module"></script>
