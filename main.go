@@ -103,6 +103,8 @@ func main() {
 		CoverMaxWidth:         input.CoverMaxWidth,
 		RequireAuth:           input.RequireAuth,
 		UploadDocumentMaxSize: input.UploadDocumentMaxSize,
+		StaticCacheTTL:        input.StaticCacheTTL,
+		DynamicImageCacheTTL:  input.DynamicImageCacheTTL,
 	}
 
 	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", input.SessionTimeout))

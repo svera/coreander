@@ -47,6 +47,8 @@ type Config struct {
 	CoverMaxWidth         int
 	RequireAuth           bool
 	UploadDocumentMaxSize int
+	StaticCacheTTL        int
+	DynamicImageCacheTTL  int
 }
 
 type Sender interface {
@@ -127,7 +129,7 @@ func New(cfg Config, controllers Controllers, sender Sender, progress ProgressIn
 		compress.New(),
 	)
 
-	routes(app, controllers, cfg.JwtSecret, sender, translator, cfg.RequireAuth)
+	routes(app, controllers, cfg.JwtSecret, sender, translator, cfg)
 	return app
 }
 

@@ -1,6 +1,7 @@
 package document
 
 import (
+	"fmt"
 	"log"
 	"path/filepath"
 
@@ -8,9 +9,10 @@ import (
 )
 
 func (d *Controller) Cover(c *fiber.Ctx) error {
-	// Set cache control headers with 24 hour TTL
-	c.Set("Cache-Control", "public, max-age=86400")
-	c.Append("Cache-Time", "86400")
+	// Set cache control headers
+	cacheControl := fmt.Sprintf("public, max-age=%d", d.config.DynamicImageCacheTTL)
+	c.Set("Cache-Control", cacheControl)
+	c.Append("Cache-Time", fmt.Sprintf("%d", d.config.DynamicImageCacheTTL))
 
 	var (
 		image []byte

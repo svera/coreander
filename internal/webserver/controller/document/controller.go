@@ -48,6 +48,7 @@ type Config struct {
 	Hostname              string
 	Port                  int
 	UploadDocumentMaxSize int
+	DynamicImageCacheTTL  int
 }
 
 type Controller struct {
