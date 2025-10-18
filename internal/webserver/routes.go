@@ -18,8 +18,8 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, translator, cfg.RequireAuth)
 	)
 
-	staticCacheControl := fmt.Sprintf("public, max-age=%d, immutable", cfg.StaticCacheTTL)
-	staticCacheTime := fmt.Sprintf("%d", cfg.StaticCacheTTL)
+	staticCacheControl := fmt.Sprintf("public, max-age=%d, immutable", cfg.ClientStaticCacheTTL)
+	staticCacheTime := fmt.Sprintf("%d", cfg.ServerStaticCacheTTL)
 
 	app.Use("/css", func(c *fiber.Ctx) error {
 		// Set cache control headers for CSS and font files

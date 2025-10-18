@@ -31,24 +31,26 @@ var (
 )
 
 type Config struct {
-	Version               string
-	SessionTimeout        time.Duration
-	RecoveryTimeout       time.Duration
-	MinPasswordLength     int
-	WordsPerMinute        float64
-	JwtSecret             []byte
-	Hostname              string
-	FQDN                  string
-	Port                  int
-	HomeDir               string
-	CacheDir              string
-	LibraryPath           string
-	AuthorImageMaxWidth   int
-	CoverMaxWidth         int
-	RequireAuth           bool
-	UploadDocumentMaxSize int
-	StaticCacheTTL        int
-	DynamicImageCacheTTL  int
+	Version                    string
+	SessionTimeout             time.Duration
+	RecoveryTimeout            time.Duration
+	MinPasswordLength          int
+	WordsPerMinute             float64
+	JwtSecret                  []byte
+	Hostname                   string
+	FQDN                       string
+	Port                       int
+	HomeDir                    string
+	CacheDir                   string
+	LibraryPath                string
+	AuthorImageMaxWidth        int
+	CoverMaxWidth              int
+	RequireAuth                bool
+	UploadDocumentMaxSize      int
+	ClientStaticCacheTTL       int
+	ClientDynamicImageCacheTTL int
+	ServerStaticCacheTTL       int
+	ServerDynamicImageCacheTTL int
 }
 
 type Sender interface {

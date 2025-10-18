@@ -44,8 +44,12 @@ type CLIInput struct {
 	// UploadDocumentMaxSize is the maximum document size allowed to be uploaded to the library, in megabytes.
 	// Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
 	UploadDocumentMaxSize int `env:"UPLOAD_DOCUMENT_MAX_SIZE" short:"u" default:"20" name:"upload-document-max-size" help:"Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size."`
-	// StaticCacheTTL defines the cache duration for static assets (CSS, JS, images) in seconds. Defaults to 1 year.
-	StaticCacheTTL int `env:"STATIC_CACHE_TTL" default:"31536000" name:"static-cache-ttl" help:"Cache duration for static assets (CSS, JS, images) in seconds. Defaults to 1 year (31536000 seconds)."`
-	// DynamicImageCacheTTL defines the cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours.
-	DynamicImageCacheTTL int `env:"DYNAMIC_IMAGE_CACHE_TTL" default:"86400" name:"dynamic-image-cache-ttl" help:"Cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours (86400 seconds)."`
+	// ClientStaticCacheTTL defines the cache duration for static assets (CSS, JS, images) in seconds. Defaults to 1 year.
+	ClientStaticCacheTTL int `env:"CLIENT_STATIC_CACHE_TTL" default:"31536000" name:"client-static-cache-ttl" help:"Client-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 1 year (31536000 seconds)."`
+	// ClientDynamicImageCacheTTL defines the cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours.
+	ClientDynamicImageCacheTTL int `env:"CLIENT_DYNAMIC_IMAGE_CACHE_TTL" default:"86400" name:"client-dynamic-image-cache-ttl" help:"Client-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours (86400 seconds)."`
+	// ServerStaticCacheTTL defines the server-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 1 year.
+	ServerStaticCacheTTL int `env:"SERVER_STATIC_CACHE_TTL" default:"31536000" name:"server-static-cache-ttl" help:"Server-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 1 year (31536000 seconds)."`
+	// ServerDynamicImageCacheTTL defines the server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours.
+	ServerDynamicImageCacheTTL int `env:"SERVER_DYNAMIC_IMAGE_CACHE_TTL" default:"86400" name:"server-dynamic-image-cache-ttl" help:"Server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours (86400 seconds)."`
 }

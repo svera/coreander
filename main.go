@@ -90,21 +90,23 @@ func main() {
 	}
 
 	webserverConfig := webserver.Config{
-		Version:               version,
-		MinPasswordLength:     input.MinPasswordLength,
-		WordsPerMinute:        input.WordsPerMinute,
-		JwtSecret:             []byte(input.JwtSecret),
-		FQDN:                  input.FQDN,
-		Port:                  input.Port,
-		HomeDir:               homeDir,
-		CacheDir:              input.CacheDir,
-		LibraryPath:           input.LibPath,
-		AuthorImageMaxWidth:   input.AuthorImageMaxWidth,
-		CoverMaxWidth:         input.CoverMaxWidth,
-		RequireAuth:           input.RequireAuth,
-		UploadDocumentMaxSize: input.UploadDocumentMaxSize,
-		StaticCacheTTL:        input.StaticCacheTTL,
-		DynamicImageCacheTTL:  input.DynamicImageCacheTTL,
+		Version:                    version,
+		MinPasswordLength:          input.MinPasswordLength,
+		WordsPerMinute:             input.WordsPerMinute,
+		JwtSecret:                  []byte(input.JwtSecret),
+		FQDN:                       input.FQDN,
+		Port:                       input.Port,
+		HomeDir:                    homeDir,
+		CacheDir:                   input.CacheDir,
+		LibraryPath:                input.LibPath,
+		AuthorImageMaxWidth:        input.AuthorImageMaxWidth,
+		CoverMaxWidth:              input.CoverMaxWidth,
+		RequireAuth:                input.RequireAuth,
+		UploadDocumentMaxSize:      input.UploadDocumentMaxSize,
+		ClientStaticCacheTTL:       input.ClientStaticCacheTTL,
+		ClientDynamicImageCacheTTL: input.ClientDynamicImageCacheTTL,
+		ServerStaticCacheTTL:       input.ServerStaticCacheTTL,
+		ServerDynamicImageCacheTTL: input.ServerDynamicImageCacheTTL,
 	}
 
 	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", input.SessionTimeout))
