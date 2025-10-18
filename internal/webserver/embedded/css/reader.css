@@ -64,12 +64,16 @@ html[data-theme="dark"] #footnote-modal::backdrop {
 }
 html {
     height: 100%;
+    background: Canvas;
+    color: CanvasText;
 }
 body {
     margin: 0 auto;
     height: 100%;
     font: menu;
     font-family: system-ui, sans-serif;
+    background: Canvas;
+    color: CanvasText;
 }
 #spinner-container, #error-icon-container {
     height: 100vh;
