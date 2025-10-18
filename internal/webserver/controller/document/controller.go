@@ -39,6 +39,7 @@ type highlightsRepository interface {
 type readingRepository interface {
 	Get(userID int, documentPath string) (model.Reading, error)
 	Update(userID int, documentPath, position string) error
+	Touch(userID int, documentPath string) error
 	RemoveDocument(documentPath string) error
 }
 

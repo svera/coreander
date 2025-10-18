@@ -26,13 +26,14 @@ func (d *Controller) Reader(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	// Create/update reading record when opening the document
+	// Touch the reading record to track that the document has been opened
+	// This creates a record if it doesn't exist, but doesn't overwrite existing positions
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
 	}
 	if session.ID > 0 {
-		if err := d.readingRepository.Update(int(session.ID), document.ID, ""); err != nil {
+		if err := d.readingRepository.Touch(int(session.ID), document.ID); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}

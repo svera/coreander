@@ -46,6 +46,17 @@ func (u *ReadingRepository) Update(userID int, documentPath, position string) er
 	return u.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(&progress).Error
 }
 
+// Touch creates a reading record if it doesn't exist, but doesn't update it if it does.
+// This is used to track that a document has been opened without overwriting existing positions.
+func (u *ReadingRepository) Touch(userID int, documentPath string) error {
+	progress := Reading{
+		UserID:   userID,
+		Path:     documentPath,
+		Position: "",
+	}
+	return u.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&progress).Error
+}
+
 func (u *ReadingRepository) RemoveDocument(documentPath string) error {
 	return u.DB.Where("path = ?", documentPath).Delete(&Reading{}).Error
 }
