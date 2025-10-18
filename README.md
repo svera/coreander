@@ -7,11 +7,11 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Single binary with all dependencies included.
 * Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for documents in multiple languages.
 * Search by author, title and even document series ([Calibre's](https://calibre-ebook.com/) `series` meta supported)
-* Improved search for documents with metadata in english, spanish, french, italian, german and portuguese, including genre and singular/plural forms of words in the results among others.
+* Improved search for documents with metadata in English, Spanish, French, Italian, German and Portuguese, including genre and singular/plural forms of words in the results among others.
 * Estimated reading time calculation.
 * High-performance web server powered by [Fiber](https://github.com/gofiber/fiber).
 * Lightweight, responsive web interface based on [Bootstrap](https://getbootstrap.com/).
-* Web interface available in english, spanish, german and french, more languages can be easily added.
+* Web interface available in English, Spanish, German and French, more languages can be easily added.
 * New documents added or removed to/from the library folder are automatically indexed (Linux only).
 * [Send to email supported](#send-to-email).
 * Read indexed epubs and PDFs from Coreander's interface thanks to [foliate-js](https://github.com/johnfactotum/foliate-js).
@@ -51,7 +51,7 @@ RestartSec=5s
 WorkingDirectory=<absolute path to directory which contains coreander binary>
 ExecStart=<absolute path to coreander binary>
 PermissionsStartOnly=true
-SyslogIdentifier=sleepservice
+SyslogIdentifier=coreander
 User=<user which will execute this service>
 Environment="LIB_PATH=<absolute path to the library>"
 
@@ -63,7 +63,7 @@ Coreander requires the absolute path where your documents are located as an argu
 
 On first run, Coreander will index the documents in your library, creating a database with those entries located at `$home/coreander/index`. Depending on your system's performance and the size of your library this may take a while. Also, the database can grow fairly big, so make sure you have enough free space on disk.
 
-Every time is run, the application scans the library folder only for documents not yet indexed and adds them to the index. You can force to index all documents wether they were previously indexed or not by passing the `--force-indexing` flag or setting the environment variable `FORCE_INDEXING` to `true`.
+Every time it is run, the application scans the library folder only for documents not yet indexed and adds them to the index. You can force to index all documents whether they were previously indexed or not by passing the `--force-indexing` flag or setting the environment variable `FORCE_INDEXING` to `true`.
 
 Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` with the hostname / IP address of the machine where the server is running if you want to access it from another system). It is possible to change the listening port just executing the application with the `-p` or `--port` flags, or the `PORT` environment variable (e. g. `coreander -p 4000` or `PORT=4000 coreander`)
 
@@ -71,7 +71,7 @@ Even if the application is still indexing entries, you can access its web interf
 
 If you plan to set up Coreander in a public Internet server such as a VPS, using [Caddy](https://caddyserver.com/) as a reverse proxy is strongly recommended, as it is dead simple to set up and comes with several niceties such as HTTPS out of the box through [Let's Encrypt](https://letsencrypt.org/).
 
-For example, if you have Coreander listening to port 3000 in your server and a domain called `coreander.example.com` that points to the IP address of your server, you can just tell Caddy to enroute requests to `coreander.example.com` to Coreander by putting this in Caddy's `Caddyfile`:
+For example, if you have Coreander listening to port 3000 in your server and a domain called `coreander.example.com` that points to the IP address of your server, you can just tell Caddy to route requests to `coreander.example.com` to Coreander by putting this in Caddy's `Caddyfile`:
 
 ```
 coreander.example.com {
@@ -88,7 +88,7 @@ Some features rely on having an SMTP email service set up, and won't be availabl
 * Send document to email.
 * Recover user password.
 
-You can use any email service that allow sending emails using the SMTP protocol, like [GMX](https://gmx.com/mail). The following flags or environment variables need to be defined:
+You can use any email service that allows sending emails using the SMTP protocol, like [GMX](https://gmx.com/mail). The following flags or environment variables need to be defined:
 
 |Flag|Environment variable|Description|
 |----|--------------------|-----------|
@@ -103,9 +103,9 @@ Coreander can send documents through email. This way, you can take advantage of 
 
 ### User management and access restriction
 
-Coreander distinguish between two kinds of users: regular users and administrator users, with the latter being the only ones with the ability to create new users and upload and delete documents.
+Coreander distinguishes between two kinds of users: regular users and administrator users, with the latter being the only ones with the ability to create new users and upload and delete documents.
 
-By default, Coreander allow unrestricted access to its contents, except management areas which require an administrator user. To allow access only to registered users in the whole application, pass the `-a` or `--require-auth` flags, or the `REQUIRE_AUTH=true` environment variable.
+By default, Coreander allows unrestricted access to its contents, except management areas which require an administrator user. To allow access only to registered users in the whole application, pass the `-a` or `--require-auth` flags, or the `REQUIRE_AUTH=true` environment variable.
 
 On first run, Coreander creates an admin user with the following credentials:
 
@@ -119,7 +119,7 @@ On first run, Coreander creates an admin user with the following credentials:
 
 Run `coreander -h` or `coreander --help` to see help.
 
-In case both a flag and its equivalent environment variable are passed, flag takes precendence.
+In case both a flag and its equivalent environment variable are passed, flag takes precedence.
 
 |Flag|Environment variable|Description|
 |----|--------------------|-----------|
