@@ -201,4 +201,6 @@
 "Decrease font size": "Schriftgröße verringern"
 "Reset font size": "Schriftgröße zurücksetzen"
 "Increase font size": "Schriftgröße erhöhen"
+"Line height": "Zeilenhöhe"
+"Regular": "Normal"
 "Session expired. Your reading position is still saved locally.": "Sitzung abgelaufen. Ihre Leseposition ist weiterhin lokal gespeichert. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Anmelden</a>"
