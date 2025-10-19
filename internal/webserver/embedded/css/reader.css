@@ -470,7 +470,7 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
 
 .modal-header h3 {
     margin: 0;
-    font-size: 18px;
+    font-size: 1.125em;
     font-weight: 600;
     color: inherit;
 }
