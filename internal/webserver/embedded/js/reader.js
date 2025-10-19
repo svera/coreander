@@ -109,6 +109,11 @@ class Reader {
         if (this.view?.renderer) {
             this.view.renderer.setStyles?.(getCSS(this.style))
         }
+        // Also apply font size to footnote modal
+        const footnoteModal = document.getElementById('footnote-modal')
+        if (footnoteModal) {
+            footnoteModal.style.fontSize = `${this.style.fontSize}%`
+        }
         this.#updateFontSizeButtons()
     }
     #updateFontSizeButtons() {
@@ -181,6 +186,9 @@ class Reader {
         this.#footnoteContent = $('#footnote-content')
         
         if (!this.#footnoteModal || !this.#footnoteContent) return
+        
+        // Apply current font size to modal
+        this.#footnoteModal.style.fontSize = `${this.style.fontSize}%`
         
         // Set up close button
         const closeBtn = $('#footnote-close')
