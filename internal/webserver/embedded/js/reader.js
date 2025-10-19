@@ -227,8 +227,6 @@ class Reader {
        // Create font size controls
        const fontSizeControls = document.createElement('div')
        fontSizeControls.id = 'font-size-controls'
-       fontSizeControls.style.display = 'flex'
-       fontSizeControls.style.gap = '6px'
        
        const decreaseBtn = document.createElement('button')
        decreaseBtn.id = 'decrease-font'
@@ -256,8 +254,6 @@ class Reader {
        // Create line height controls
        const lineHeightControls = document.createElement('div')
        lineHeightControls.id = 'line-height-controls'
-       lineHeightControls.style.display = 'flex'
-       lineHeightControls.style.gap = '6px'
        
        const regularLineBtn = document.createElement('button')
        regularLineBtn.setAttribute('data-line-height', '1.4')
