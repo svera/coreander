@@ -72,7 +72,7 @@ class Reader {
     #sessionExpiredNotificationShown = false
     #t = null
     style = {
-        spacing: 1.4,
+        spacing: 1.4, // Line height
         justify: true,
         hyphenate: true,
         theme: 'auto',
@@ -120,6 +120,41 @@ class Reader {
         }
         if (increaseBtn) {
             increaseBtn.disabled = this.style.fontSize >= this.#maxFontSize
+        }
+    }
+    #setLineHeight(value) {
+        this.style.spacing = value
+        window.localStorage.setItem('reader-lineHeight', value.toString())
+        if (this.view?.renderer) {
+            this.view.renderer.setStyles?.(getCSS(this.style))
+        }
+        this.#updateLineHeightButtons()
+    }
+    #updateLineHeightButtons() {
+        // Early return if buttons aren't initialized
+        if (!this.lineHeightButtons) return
+        
+        const regularLineBtn = this.lineHeightButtons.regularLineBtn
+        const mediumLineBtn = this.lineHeightButtons.mediumLineBtn
+        const largeLineBtn = this.lineHeightButtons.largeLineBtn
+        
+        // Return if any button is missing
+        if (!regularLineBtn || !mediumLineBtn || !largeLineBtn) return
+        
+        const current = this.style.spacing
+        
+        // Remove active class from all buttons
+        regularLineBtn.classList.remove('active')
+        mediumLineBtn.classList.remove('active')
+        largeLineBtn.classList.remove('active')
+        
+        // Add active class to current selection (CSS handles styling)
+        if (Math.abs(current - 1.4) < 0.01) {
+            regularLineBtn.classList.add('active')
+        } else if (Math.abs(current - 1.6) < 0.01) {
+            mediumLineBtn.classList.add('active')
+        } else if (Math.abs(current - 2.0) < 0.01) {
+            largeLineBtn.classList.add('active')
         }
     }
     #applyTheme(theme) {
@@ -186,8 +221,6 @@ class Reader {
        // Create font size controls
        const fontSizeControls = document.createElement('div')
        fontSizeControls.id = 'font-size-controls'
-       fontSizeControls.style.display = 'flex'
-       fontSizeControls.style.gap = '6px'
        
        const decreaseBtn = document.createElement('button')
        decreaseBtn.id = 'decrease-font'
@@ -211,6 +244,34 @@ class Reader {
        increaseBtn.addEventListener('click', () => this.#increaseFontSize())
        
        fontSizeControls.append(decreaseBtn, resetBtn, increaseBtn)
+       
+       // Create line height controls
+       const lineHeightControls = document.createElement('div')
+       lineHeightControls.id = 'line-height-controls'
+       
+       const regularLineBtn = document.createElement('button')
+       regularLineBtn.setAttribute('data-line-height', '1.4')
+       regularLineBtn.setAttribute('aria-label', t.regular + ' ' + t.line_height)
+       regularLineBtn.title = t.regular + ' (1.4)'
+       regularLineBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><line x1="4" y1="8" x2="20" y2="8" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="16" x2="20" y2="16" stroke="currentColor" stroke-width="1.5"/></svg>'
+       regularLineBtn.addEventListener('click', () => this.#setLineHeight(1.4))
+       
+       const mediumLineBtn = document.createElement('button')
+       mediumLineBtn.setAttribute('data-line-height', '1.6')
+       mediumLineBtn.setAttribute('aria-label', t.line_height + ' 1.6')
+       mediumLineBtn.title = '1.6'
+       mediumLineBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="1.5"/></svg>'
+       mediumLineBtn.addEventListener('click', () => this.#setLineHeight(1.6))
+       
+       const largeLineBtn = document.createElement('button')
+       largeLineBtn.setAttribute('data-line-height', '2.0')
+       largeLineBtn.setAttribute('aria-label', t.line_height + ' 2.0')
+       largeLineBtn.title = '2.0'
+       largeLineBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" stroke-width="1.5"/></svg>'
+       largeLineBtn.addEventListener('click', () => this.#setLineHeight(2.0))
+       
+       lineHeightControls.append(regularLineBtn, mediumLineBtn, largeLineBtn)
+       this.lineHeightButtons = { regularLineBtn, mediumLineBtn, largeLineBtn }
 
        const menu = createMenu([
             {
@@ -250,6 +311,14 @@ class Reader {
                 type: 'custom',
                 content: fontSizeControls
             },
+            {
+                type: 'separator',
+            },
+            {
+                name: 'lineHeight',
+                type: 'custom',
+                content: lineHeightControls
+            },
         ])
         menu.element.classList.add('menu')
         
@@ -279,8 +348,13 @@ class Reader {
             this.style.fontSize = savedFontSize
         }
         
-        // Initialize font size button states
+        // Load saved line height from localStorage or default to 1.4
+        const savedLineHeight = storage.getItem('reader-lineHeight') || '1.4'
+        this.style.spacing = parseFloat(savedLineHeight)
+        
+        // Initialize button states
         this.#updateFontSizeButtons()
+        this.#updateLineHeightButtons()
         
         // Initialize footnote modal
         this.#setupFootnoteModal()
