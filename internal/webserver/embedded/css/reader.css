@@ -373,11 +373,14 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     flex-shrink: 0;
     margin-right: auto;
 }
-.menu #font-size-controls {
+/* Shared styles for font size and line height controls */
+.menu #font-size-controls,
+.menu #line-height-controls {
     display: flex;
     gap: 6px;
 }
-.menu #font-size-controls button {
+.menu #font-size-controls button,
+.menu #line-height-controls button {
     padding: 3px;
     border-radius: 6px;
     background: none;
@@ -385,7 +388,8 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     color: CanvasText;
     cursor: pointer;
 }
-.menu #font-size-controls button:hover {
+.menu #font-size-controls button:hover,
+.menu #line-height-controls button:hover {
     background: rgba(0, 0, 0, .1);
     color: currentcolor;
 }
@@ -397,30 +401,12 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     fill: CanvasText;
     stroke: none;
 }
-.menu #font-size-controls button line {
+.menu #font-size-controls button line,
+.menu #line-height-controls button line {
     stroke: CanvasText;
-}
-.menu #line-height-controls {
-    display: flex;
-    gap: 6px;
-}
-.menu #line-height-controls button {
-    padding: 3px;
-    border-radius: 6px;
-    background: none;
-    border: 0;
-    color: CanvasText;
-    cursor: pointer;
-}
-.menu #line-height-controls button:hover {
-    background: rgba(0, 0, 0, .1);
-    color: currentcolor;
 }
 .menu #line-height-controls button.active {
     background: var(--active-bg);
-}
-.menu #line-height-controls button line {
-    stroke: CanvasText;
 }
 .popover {
     background: Canvas;
