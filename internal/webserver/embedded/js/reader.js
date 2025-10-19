@@ -145,22 +145,16 @@ class Reader {
         
         // Remove active class from all buttons
         regularLineBtn.classList.remove('active')
-        regularLineBtn.style.backgroundColor = ''
         mediumLineBtn.classList.remove('active')
-        mediumLineBtn.style.backgroundColor = ''
         largeLineBtn.classList.remove('active')
-        largeLineBtn.style.backgroundColor = ''
         
-        // Add active class to current selection
+        // Add active class to current selection (CSS handles styling)
         if (Math.abs(current - 1.4) < 0.01) {
             regularLineBtn.classList.add('active')
-            regularLineBtn.style.backgroundColor = 'var(--active-bg)'
-        } else if (Math.abs(current - 1.5) < 0.01) {
+        } else if (Math.abs(current - 1.6) < 0.01) {
             mediumLineBtn.classList.add('active')
-            mediumLineBtn.style.backgroundColor = 'var(--active-bg)'
         } else if (Math.abs(current - 2.0) < 0.01) {
             largeLineBtn.classList.add('active')
-            largeLineBtn.style.backgroundColor = 'var(--active-bg)'
         }
     }
     #applyTheme(theme) {
@@ -263,11 +257,11 @@ class Reader {
        regularLineBtn.addEventListener('click', () => this.#setLineHeight(1.4))
        
        const mediumLineBtn = document.createElement('button')
-       mediumLineBtn.setAttribute('data-line-height', '1.5')
-       mediumLineBtn.setAttribute('aria-label', t.line_height + ' 1.5')
-       mediumLineBtn.title = '1.5'
+       mediumLineBtn.setAttribute('data-line-height', '1.6')
+       mediumLineBtn.setAttribute('aria-label', t.line_height + ' 1.6')
+       mediumLineBtn.title = '1.6'
        mediumLineBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="1.5"/></svg>'
-       mediumLineBtn.addEventListener('click', () => this.#setLineHeight(1.5))
+       mediumLineBtn.addEventListener('click', () => this.#setLineHeight(1.6))
        
        const largeLineBtn = document.createElement('button')
        largeLineBtn.setAttribute('data-line-height', '2.0')
