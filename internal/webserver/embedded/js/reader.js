@@ -2,6 +2,7 @@ import './foliate-js/view.js'
 import { createTOCView } from './foliate-js/ui/tree.js'
 import { createMenu } from './menu.js'
 import { Overlayer } from './foliate-js/overlayer.js'
+import { ReaderSync } from './reader-sync.js'
 
 const getCSS = ({ spacing, justify, hyphenate, theme, fontSize }) => `
     @namespace epub "http://www.idpf.org/2007/ops";
@@ -67,10 +68,9 @@ class Reader {
     #tocView
     #footnoteModal
     #footnoteContent
-    #updatePositionTimeout = null
-    #isAuthenticated = false
-    #sessionExpiredNotificationShown = false
-    #t = null
+    sync = null
+    view = null
+    translations = null
     style = {
         spacing: 1.4, // Line height
         justify: true,
@@ -212,10 +212,13 @@ class Reader {
     }
     constructor() {
         // Check if user is authenticated
-        this.#isAuthenticated = document.getElementById('authenticated')?.value === 'true'
+        const isAuthenticated = document.getElementById('authenticated')?.value === 'true'
         
         // Load translations
-        this.#t = JSON.parse(document.getElementById('i18n').textContent).i18n
+        this.translations = JSON.parse(document.getElementById('i18n').textContent).i18n
+        
+        // Initialize sync helper
+        this.sync = new ReaderSync(this, isAuthenticated)
         
         $('#side-bar-button').addEventListener('click', () => {
             $('#dimming-overlay').classList.add('show')
@@ -224,7 +227,7 @@ class Reader {
         $('#dimming-overlay').addEventListener('click', () => this.closeSideBar())
         $('#side-bar-close').addEventListener('click', () => this.closeSideBar())
 
-       const t = this.#t;
+       const t = this.translations;
        
        // Create font size controls
        const fontSizeControls = document.createElement('div')
@@ -366,6 +369,26 @@ class Reader {
         
         // Initialize footnote modal
         this.#setupFootnoteModal()
+        
+        // Sync position from server when tab becomes visible or window gains focus
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Tab is being hidden, flush any pending position update immediately
+                this.sync.flushPositionUpdate()
+            } else {
+                // Tab is visible again, sync from server
+                this.sync.syncPositionFromServer()
+            }
+        })
+        
+        window.addEventListener('focus', () => {
+            this.sync.syncPositionFromServer()
+        })
+        
+        window.addEventListener('blur', () => {
+            // Window is losing focus, flush any pending position update immediately
+            this.sync.flushPositionUpdate()
+        })
     }
     async open(file) {
         this.view = document.createElement('foliate-view')
@@ -375,11 +398,11 @@ class Reader {
         await this.view.open(file)
         
         // Get position, syncing with server if authenticated
-        const localData = this.#getLocalPosition(slug)
+        const localData = this.sync.getLocalPosition(slug)
         let lastLocation = localData.position
         
-        if (this.#isAuthenticated) {
-            const serverData = await this.#getServerPosition(slug)
+        if (this.sync.isAuthenticated) {
+            const serverData = await this.sync.getServerPosition(slug)
 
             // Compare timestamps and use the newer position
             if (serverData.position && serverData.updated) {
@@ -609,11 +632,8 @@ class Reader {
         }))
         
         // Update position on server if authenticated (debounced)
-        if (this.#isAuthenticated) {
-            clearTimeout(this.#updatePositionTimeout)
-            this.#updatePositionTimeout = setTimeout(() => {
-                this.#syncPositionToServer(slug, detail.cfi)
-            }, 1000) // Wait 1 second after last position change
+        if (this.sync.isAuthenticated) {
+            this.sync.schedulePositionUpdate(slug, detail.cfi)
         }
         
         const { fraction, location, tocItem, pageItem } = detail
@@ -626,91 +646,6 @@ class Reader {
         slider.value = fraction
         slider.title = `${percent} · ${loc}`
         if (tocItem?.href) this.#tocView?.setCurrentHref?.(tocItem.href)
-    }
-    #getLocalPosition(slug) {
-        const storage = window.localStorage
-        const saved = storage.getItem(slug)
-        
-        if (!saved) {
-            return { position: null, updated: null }
-        }
-        
-        try {
-            const parsed = JSON.parse(saved)
-            return {
-                position: parsed.position || null,
-                updated: parsed.updated || null
-            }
-        } catch {
-            // Old format: plain string (position only)
-            return { position: saved, updated: null }
-        }
-    }
-    async #getServerPosition(slug) {
-        try {
-            const response = await fetch(`/documents/${slug}/position`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            })
-            
-            if (response.status === 403) {
-                // Session expired, mark as unauthenticated and show notification
-                this.#isAuthenticated = false
-                this.#showSessionExpiredNotification()
-                return { position: '', updated: '' }
-            }
-            
-            if (response.ok) {
-                return await response.json()
-            }
-            
-            return { position: '', updated: '' }
-        } catch (error) {
-            console.error('Error fetching position from server:', error)
-            return { position: '', updated: '' }
-        }
-    }
-    async #syncPositionToServer(slug, position) {
-        try {
-            const response = await fetch(`/documents/${slug}/position`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ position })
-            })
-            
-            if (response.status === 403) {
-                // Session expired, mark as unauthenticated and show notification
-                this.#isAuthenticated = false
-                this.#showSessionExpiredNotification()
-                return
-            }
-            
-            if (!response.ok && response.status !== 204) {
-                console.error('Failed to sync position to server:', response.statusText)
-            }
-        } catch (error) {
-            console.error('Error syncing position to server:', error)
-        }
-    }
-    #showSessionExpiredNotification() {
-        // Only show the notification once
-        if (this.#sessionExpiredNotificationShown) return
-        this.#sessionExpiredNotificationShown = true
-        
-        const toastEl = document.getElementById('live-toast')
-        if (!toastEl) return
-        
-        const toastBody = toastEl.querySelector('.toast-body')
-        if (toastBody) {
-            toastBody.innerHTML = this.#t.session_expired_reading
-        }
-        
-        const toast = bootstrap.Toast.getOrCreateInstance(toastEl)
-        toast.show()
     }
 }
 
