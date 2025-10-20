@@ -1,6 +1,7 @@
 export class ReaderSync {
     #reader
     #updatePositionTimeout = null
+    #syncFromServerTimeout = null
     #pendingPosition = null
     #pendingSlug = null
     #isAuthenticated = false
@@ -105,6 +106,14 @@ export class ReaderSync {
             this.#pendingPosition = null
             this.#pendingSlug = null
         }
+    }
+
+    debouncedSyncPositionFromServer() {
+        // Debounce sync calls to prevent redundant requests when multiple events fire
+        clearTimeout(this.#syncFromServerTimeout)
+        this.#syncFromServerTimeout = setTimeout(() => {
+            this.syncPositionFromServer()
+        }, 100) // Wait 100ms for other events
     }
 
     async syncPositionFromServer() {

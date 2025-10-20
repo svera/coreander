@@ -376,13 +376,14 @@ class Reader {
                 // Tab is being hidden, flush any pending position update immediately
                 this.sync.flushPositionUpdate()
             } else {
-                // Tab is visible again, sync from server
-                this.sync.syncPositionFromServer()
+                // Tab is visible again, sync from server (debounced)
+                this.sync.debouncedSyncPositionFromServer()
             }
         })
         
         window.addEventListener('focus', () => {
-            this.sync.syncPositionFromServer()
+            // Window gained focus, sync from server (debounced)
+            this.sync.debouncedSyncPositionFromServer()
         })
         
         window.addEventListener('blur', () => {
