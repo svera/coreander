@@ -204,4 +204,6 @@
 "Line height": "Interligne"
 "Regular": "Normal"
 "Session expired. Your reading position is still saved locally.": "Session expirée. Votre position de lecture est toujours enregistrée localement. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Se connecter</a>"
+"Reading position updated from another device.": "Position de lecture mise à jour depuis un autre appareil."
+"You are not logged in. Your reading position is saved locally only.": "Vous n'êtes pas connecté. Votre position de lecture est enregistrée localement uniquement. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Se connecter</a>"
 
