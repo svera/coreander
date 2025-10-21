@@ -1,8 +1,6 @@
 export class ReaderToast {
     #toastEl
     #autoHideTimeout = null
-    #sessionExpiredShown = false
-    #notLoggedInShown = false
 
     constructor() {
         this.#toastEl = document.getElementById('reader-toast')
@@ -69,26 +67,6 @@ export class ReaderToast {
         } catch (error) {
             console.error('Error preparing toast:', error)
         }
-    }
-
-    showSessionExpired(message) {
-        // Only show the notification once
-        if (this.#sessionExpiredShown) return
-        this.#sessionExpiredShown = true
-        
-        this.show('warning', message)
-    }
-
-    showPositionUpdated(message) {
-        this.show('success', message)
-    }
-
-    showNotLoggedIn(message) {
-        // Only show the notification once
-        if (this.#notLoggedInShown) return
-        this.#notLoggedInShown = true
-        
-        this.show('warning', message)
     }
 }
 

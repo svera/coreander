@@ -3,6 +3,7 @@ import { createTOCView } from './foliate-js/ui/tree.js'
 import { createMenu } from './menu.js'
 import { Overlayer } from './foliate-js/overlayer.js'
 import { ReaderSync } from './reader-sync.js'
+import { ReaderToast } from './reader-toast.js'
 
 const getCSS = ({ spacing, justify, hyphenate, theme, fontSize }) => `
     @namespace epub "http://www.idpf.org/2007/ops";
@@ -68,6 +69,9 @@ class Reader {
     #tocView
     #footnoteModal
     #footnoteContent
+    #toast
+    #sessionExpiredShown = false
+    #notLoggedInShown = false
     sync = null
     view = null
     translations = null
@@ -217,8 +221,16 @@ class Reader {
         // Load translations
         this.translations = JSON.parse(document.getElementById('i18n').textContent).i18n
         
+        // Initialize toast
+        this.#toast = new ReaderToast()
+        
         // Initialize sync helper
         this.sync = new ReaderSync(this, isAuthenticated)
+        
+        // Show not logged in notification if needed
+        if (!isAuthenticated) {
+            this.showNotLoggedIn()
+        }
         
         $('#side-bar-button').addEventListener('click', () => {
             $('#dimming-overlay').classList.add('show')
@@ -647,6 +659,23 @@ class Reader {
         slider.value = fraction
         slider.title = `${percent} · ${loc}`
         if (tocItem?.href) this.#tocView?.setCurrentHref?.(tocItem.href)
+    }
+    showSessionExpired() {
+        // Only show the notification once
+        if (this.#sessionExpiredShown) return
+        this.#sessionExpiredShown = true
+        
+        this.#toast.show('warning', this.translations.session_expired_reading)
+    }
+    showPositionUpdated() {
+        this.#toast.show('success', this.translations.position_updated_from_server)
+    }
+    showNotLoggedIn() {
+        // Only show the notification once
+        if (this.#notLoggedInShown) return
+        this.#notLoggedInShown = true
+        
+        this.#toast.show('warning', this.translations.not_logged_in_reading)
     }
 }
 

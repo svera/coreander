@@ -1,5 +1,3 @@
-import { ReaderToast } from './reader-toast.js'
-
 export class ReaderSync {
     #reader
     #updatePositionTimeout = null
@@ -7,17 +5,10 @@ export class ReaderSync {
     #pendingPosition = null
     #pendingSlug = null
     #isAuthenticated = false
-    #toast
 
     constructor(reader, isAuthenticated) {
         this.#reader = reader
         this.#isAuthenticated = isAuthenticated
-        this.#toast = new ReaderToast()
-        
-        // Show notification if not logged in
-        if (!isAuthenticated) {
-            this.#toast.showNotLoggedIn(this.#reader.translations.not_logged_in_reading)
-        }
     }
 
     get isAuthenticated() {
@@ -173,11 +164,11 @@ export class ReaderSync {
     }
 
     showSessionExpiredNotification() {
-        this.#toast.showSessionExpired(this.#reader.translations.session_expired_reading)
+        this.#reader.showSessionExpired()
     }
 
     showPositionUpdatedNotification() {
-        this.#toast.showPositionUpdated(this.#reader.translations.position_updated_from_server)
+        this.#reader.showPositionUpdated()
     }
 }
 
