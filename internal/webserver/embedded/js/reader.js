@@ -225,7 +225,11 @@ class Reader {
         this.#toast = new ReaderToast()
         
         // Initialize sync helper
-        this.sync = new ReaderSync(this, isAuthenticated)
+        this.sync = new ReaderSync(isAuthenticated)
+        
+        // Listen for sync events
+        window.addEventListener('reader-session-expired', () => this.showSessionExpired())
+        window.addEventListener('reader-position-updated', () => this.showPositionUpdated())
         
         // Show not logged in notification if needed
         if (!isAuthenticated) {
@@ -432,6 +436,9 @@ class Reader {
         }
         
         await this.view.init({lastLocation})
+        
+        // Set view in sync helper after initialization
+        this.sync.setView(this.view)
         
         // Check if it's pre-paginated content (PDF or fixed-layout) after the book is opened
         // Font size controls don't work for pre-paginated content
