@@ -585,6 +585,15 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     line-height: 1.4;
 }
 
+.toast-message a {
+    color: inherit;
+    outline: none;
+}
+
+.toast-message a:focus {
+    outline: none;
+}
+
 .toast-close {
     background: none;
     border: none;

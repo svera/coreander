@@ -1,3 +1,5 @@
+import { ReaderToast } from './reader-toast.js'
+
 export class ReaderSync {
     #reader
     #updatePositionTimeout = null
@@ -5,76 +7,16 @@ export class ReaderSync {
     #pendingPosition = null
     #pendingSlug = null
     #isAuthenticated = false
-    #sessionExpiredNotificationShown = false
-    #notLoggedInNotificationShown = false
-    #toastAutoHideTimeout = null
+    #toast
 
     constructor(reader, isAuthenticated) {
         this.#reader = reader
         this.#isAuthenticated = isAuthenticated
+        this.#toast = new ReaderToast()
         
         // Show notification if not logged in
         if (!isAuthenticated) {
-            this.showNotLoggedInNotification()
-        }
-    }
-
-    #setupToastCloseButton(toastEl) {
-        const closeBtn = toastEl.querySelector('.toast-close')
-        if (closeBtn && !closeBtn.onclick) {
-            closeBtn.onclick = () => {
-                clearTimeout(this.#toastAutoHideTimeout)
-                toastEl.close()
-            }
-        }
-    }
-
-    #showToast(toastEl, variant, message) {
-        try {
-            // Set up close button on first use
-            this.#setupToastCloseButton(toastEl)
-            
-            // Clear any existing auto-hide timeout
-            clearTimeout(this.#toastAutoHideTimeout)
-            
-            // Close if already open to reset animation
-            if (toastEl.open) {
-                toastEl.close()
-            }
-            
-            // Remove all variant classes
-            toastEl.classList.remove('toast-warning', 'toast-success', 'toast-info')
-            
-            // Add the appropriate variant class
-            toastEl.classList.add(`toast-${variant}`)
-            
-            // Set the message
-            const messageEl = toastEl.querySelector('.toast-message')
-            if (messageEl) {
-                messageEl.innerHTML = message
-            }
-            
-            // Show the toast using native dialog API
-            // Use requestAnimationFrame to ensure the close() completes before show()
-            requestAnimationFrame(() => {
-                try {
-                    toastEl.show()
-                    
-                    // Auto-hide after delay if data-auto-hide is true
-                    const autoHide = toastEl.dataset.autoHide === 'true'
-                    const delay = parseInt(toastEl.dataset.delay) || 5000
-                    
-                    if (autoHide) {
-                        this.#toastAutoHideTimeout = setTimeout(() => {
-                            toastEl.close()
-                        }, delay)
-                    }
-                } catch (error) {
-                    console.error('Error showing toast:', error)
-                }
-            })
-        } catch (error) {
-            console.error('Error preparing toast:', error)
+            this.#toast.showNotLoggedIn(this.#reader.translations.not_logged_in_reading)
         }
     }
 
@@ -231,32 +173,11 @@ export class ReaderSync {
     }
 
     showSessionExpiredNotification() {
-        // Only show the notification once
-        if (this.#sessionExpiredNotificationShown) return
-        this.#sessionExpiredNotificationShown = true
-        
-        const toastEl = document.getElementById('reader-toast')
-        if (!toastEl) return
-        
-        this.#showToast(toastEl, 'warning', this.#reader.translations.session_expired_reading)
+        this.#toast.showSessionExpired(this.#reader.translations.session_expired_reading)
     }
 
     showPositionUpdatedNotification() {
-        const toastEl = document.getElementById('reader-toast')
-        if (!toastEl) return
-        
-        this.#showToast(toastEl, 'success', this.#reader.translations.position_updated_from_server)
-    }
-
-    showNotLoggedInNotification() {
-        // Only show the notification once
-        if (this.#notLoggedInNotificationShown) return
-        this.#notLoggedInNotificationShown = true
-        
-        const toastEl = document.getElementById('reader-toast')
-        if (!toastEl) return
-        
-        this.#showToast(toastEl, 'warning', this.#reader.translations.not_logged_in_reading)
+        this.#toast.showPositionUpdated(this.#reader.translations.position_updated_from_server)
     }
 }
 
