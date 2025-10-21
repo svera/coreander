@@ -664,9 +664,8 @@ if (url) fetch(url)
             // Stop the response from rendering
             const spinner = $('#spinner-container');
             if (spinner) document.body.removeChild(spinner);
-            $('#error-icon-container').classList.remove('d-none');
+            $('#error-icon-container').classList.remove('none');
             const errorMsg = document.createElement('p');
-            errorMsg.className = 'mt-3 text-center';
             errorMsg.textContent = 'Session expired. Please ';
             const loginLink = document.createElement('a');
             loginLink.href = '/sessions/new';
@@ -688,7 +687,7 @@ if (url) fetch(url)
         if (e.message !== 'Authentication required') {
             const spinner = $('#spinner-container');
             if (spinner) document.body.removeChild(spinner);
-            $('#error-icon-container').classList.remove('d-none');
+            $('#error-icon-container').classList.remove('none');
         }
         console.error(e);
     })

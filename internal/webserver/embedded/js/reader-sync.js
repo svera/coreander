@@ -7,6 +7,7 @@ export class ReaderSync {
     #isAuthenticated = false
     #sessionExpiredNotificationShown = false
     #notLoggedInNotificationShown = false
+    #toastAutoHideTimeout = null
 
     constructor(reader, isAuthenticated) {
         this.#reader = reader
@@ -15,6 +16,65 @@ export class ReaderSync {
         // Show notification if not logged in
         if (!isAuthenticated) {
             this.showNotLoggedInNotification()
+        }
+    }
+
+    #setupToastCloseButton(toastEl) {
+        const closeBtn = toastEl.querySelector('.toast-close')
+        if (closeBtn && !closeBtn.onclick) {
+            closeBtn.onclick = () => {
+                clearTimeout(this.#toastAutoHideTimeout)
+                toastEl.close()
+            }
+        }
+    }
+
+    #showToast(toastEl, variant, message) {
+        try {
+            // Set up close button on first use
+            this.#setupToastCloseButton(toastEl)
+            
+            // Clear any existing auto-hide timeout
+            clearTimeout(this.#toastAutoHideTimeout)
+            
+            // Close if already open to reset animation
+            if (toastEl.open) {
+                toastEl.close()
+            }
+            
+            // Remove all variant classes
+            toastEl.classList.remove('toast-warning', 'toast-success', 'toast-info')
+            
+            // Add the appropriate variant class
+            toastEl.classList.add(`toast-${variant}`)
+            
+            // Set the message
+            const messageEl = toastEl.querySelector('.toast-message')
+            if (messageEl) {
+                messageEl.innerHTML = message
+            }
+            
+            // Show the toast using native dialog API
+            // Use requestAnimationFrame to ensure the close() completes before show()
+            requestAnimationFrame(() => {
+                try {
+                    toastEl.show()
+                    
+                    // Auto-hide after delay if data-auto-hide is true
+                    const autoHide = toastEl.dataset.autoHide === 'true'
+                    const delay = parseInt(toastEl.dataset.delay) || 5000
+                    
+                    if (autoHide) {
+                        this.#toastAutoHideTimeout = setTimeout(() => {
+                            toastEl.close()
+                        }, delay)
+                    }
+                } catch (error) {
+                    console.error('Error showing toast:', error)
+                }
+            })
+        } catch (error) {
+            console.error('Error preparing toast:', error)
         }
     }
 
@@ -175,49 +235,17 @@ export class ReaderSync {
         if (this.#sessionExpiredNotificationShown) return
         this.#sessionExpiredNotificationShown = true
         
-        const toastEl = document.getElementById('live-toast')
+        const toastEl = document.getElementById('reader-toast')
         if (!toastEl) return
         
-        // Ensure warning color scheme
-        toastEl.classList.remove('bg-info', 'bg-success', 'text-white')
-        toastEl.classList.add('bg-warning', 'text-dark')
-        
-        // Update close button for dark text on light background
-        const closeBtn = toastEl.querySelector('.btn-close')
-        if (closeBtn) {
-            closeBtn.classList.remove('btn-close-white')
-        }
-        
-        const toastBody = toastEl.querySelector('.toast-body')
-        if (toastBody) {
-            toastBody.innerHTML = this.#reader.translations.session_expired_reading
-        }
-        
-        const toast = bootstrap.Toast.getOrCreateInstance(toastEl)
-        toast.show()
+        this.#showToast(toastEl, 'warning', this.#reader.translations.session_expired_reading)
     }
 
     showPositionUpdatedNotification() {
-        const toastEl = document.getElementById('live-toast')
+        const toastEl = document.getElementById('reader-toast')
         if (!toastEl) return
         
-        // Change to success color scheme
-        toastEl.classList.remove('bg-warning', 'text-dark', 'bg-info')
-        toastEl.classList.add('bg-success', 'text-white')
-        
-        // Update close button for white text on dark background
-        const closeBtn = toastEl.querySelector('.btn-close')
-        if (closeBtn) {
-            closeBtn.classList.add('btn-close-white')
-        }
-        
-        const toastBody = toastEl.querySelector('.toast-body')
-        if (toastBody) {
-            toastBody.innerHTML = this.#reader.translations.position_updated_from_server
-        }
-        
-        const toast = bootstrap.Toast.getOrCreateInstance(toastEl)
-        toast.show()
+        this.#showToast(toastEl, 'success', this.#reader.translations.position_updated_from_server)
     }
 
     showNotLoggedInNotification() {
@@ -225,26 +253,10 @@ export class ReaderSync {
         if (this.#notLoggedInNotificationShown) return
         this.#notLoggedInNotificationShown = true
         
-        const toastEl = document.getElementById('live-toast')
+        const toastEl = document.getElementById('reader-toast')
         if (!toastEl) return
         
-        // Use warning color scheme (yellow)
-        toastEl.classList.remove('bg-info', 'bg-success', 'text-white')
-        toastEl.classList.add('bg-warning', 'text-dark')
-        
-        // Update close button for dark text on light background
-        const closeBtn = toastEl.querySelector('.btn-close')
-        if (closeBtn) {
-            closeBtn.classList.remove('btn-close-white')
-        }
-        
-        const toastBody = toastEl.querySelector('.toast-body')
-        if (toastBody) {
-            toastBody.innerHTML = this.#reader.translations.not_logged_in_reading
-        }
-        
-        const toast = bootstrap.Toast.getOrCreateInstance(toastEl)
-        toast.show()
+        this.#showToast(toastEl, 'warning', this.#reader.translations.not_logged_in_reading)
     }
 }
 
