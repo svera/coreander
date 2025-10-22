@@ -72,6 +72,8 @@ class Reader {
     #toast
     #sessionExpiredShown = false
     #notLoggedInShown = false
+    #sidebarOpening = false
+    #skipNextPush = false
     sync = null
     view = null
     translations = null
@@ -237,8 +239,15 @@ class Reader {
         }
         
         $('#side-bar-button').addEventListener('click', () => {
+            this.#sidebarOpening = true
+            this.#skipNextPush = true
             $('#dimming-overlay').classList.add('show')
             $('#side-bar').classList.add('show')
+            // Clear the flags after a short delay to allow normal syncing to resume
+            setTimeout(() => {
+                this.#sidebarOpening = false
+                this.#skipNextPush = false
+            }, 500)
         })
         $('#dimming-overlay').addEventListener('click', () => this.closeSideBar())
         $('#side-bar-close').addEventListener('click', () => this.closeSideBar())
@@ -388,10 +397,13 @@ class Reader {
         
         // Sync position from server when tab becomes visible or window gains focus
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                // Tab is being hidden, flush any pending position update immediately
-                this.sync.flushPositionUpdate()
-            } else {
+            if (!document.hidden && !this.#sidebarOpening) {
+                // Set flag to skip pushing position updates triggered by this event
+                this.#skipNextPush = true
+                setTimeout(() => {
+                    this.#skipNextPush = false
+                }, 500)
+                
                 // Tab is visible again, sync from server (debounced)
                 this.sync.debouncedSyncPositionFromServer()
             }
@@ -399,13 +411,16 @@ class Reader {
         
         window.addEventListener('focus', () => {
             // Window gained focus, sync from server (debounced)
-            this.sync.debouncedSyncPositionFromServer()
-        })
-        
-        window.addEventListener('blur', () => {
-            // Window is losing focus, flush any pending position update immediately
-            this.sync.flushPositionUpdate()
-        })
+            if (!this.#sidebarOpening) {
+                // Set flag to skip pushing position updates triggered by this event
+                this.#skipNextPush = true
+                setTimeout(() => {
+                    this.#skipNextPush = false
+                }, 500)
+                
+                this.sync.debouncedSyncPositionFromServer()
+            }
+        })        
     }
     async open(file) {
         this.view = document.createElement('foliate-view')
@@ -652,7 +667,8 @@ class Reader {
         }))
         
         // Update position on server if authenticated (debounced)
-        if (this.sync.isAuthenticated) {
+        // Skip if sidebar is being opened or if we're skipping pushes (e.g., after focus events)
+        if (this.sync.isAuthenticated && !this.#sidebarOpening && !this.#skipNextPush) {
             this.sync.schedulePositionUpdate(slug, detail.cfi)
         }
         

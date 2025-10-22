@@ -1,8 +1,6 @@
 export class ReaderSync {
     #updatePositionTimeout = null
     #syncFromServerTimeout = null
-    #pendingPosition = null
-    #pendingSlug = null
     #isAuthenticated = false
     #view = null
 
@@ -94,16 +92,6 @@ export class ReaderSync {
         }
     }
 
-    flushPositionUpdate() {
-        // If there's a pending position update, send it immediately
-        if (this.#pendingPosition && this.#pendingSlug) {
-            clearTimeout(this.#updatePositionTimeout)
-            this.syncPositionToServer(this.#pendingSlug, this.#pendingPosition)
-            this.#pendingPosition = null
-            this.#pendingSlug = null
-        }
-    }
-
     debouncedSyncPositionFromServer() {
         // Debounce sync calls to prevent redundant requests when multiple events fire
         clearTimeout(this.#syncFromServerTimeout)
@@ -153,16 +141,10 @@ export class ReaderSync {
         }
     }
 
-    schedulePositionUpdate(slug, position) {
-        // Save pending position for immediate flush if needed
-        this.#pendingPosition = position
-        this.#pendingSlug = slug
-        
+    schedulePositionUpdate(slug, position) {        
         clearTimeout(this.#updatePositionTimeout)
         this.#updatePositionTimeout = setTimeout(() => {
             this.syncPositionToServer(slug, position)
-            this.#pendingPosition = null
-            this.#pendingSlug = null
         }, 1000) // Wait 1 second after last position change
     }
 }
