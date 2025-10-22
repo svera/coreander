@@ -739,7 +739,7 @@ if (url) fetch(url)
             // Stop the response from rendering
             const spinner = $('#spinner-container');
             if (spinner) document.body.removeChild(spinner);
-            $('#error-icon-container').classList.remove('none');
+            $('#error-icon-container').classList.remove('d-none');
             const errorMsg = document.createElement('p');
             errorMsg.textContent = 'Session expired. Please ';
             const loginLink = document.createElement('a');
@@ -762,7 +762,7 @@ if (url) fetch(url)
         if (e.message !== 'Authentication required') {
             const spinner = $('#spinner-container');
             if (spinner) document.body.removeChild(spinner);
-            $('#error-icon-container').classList.remove('none');
+            $('#error-icon-container').classList.remove('d-none');
         }
         console.error(e);
     })

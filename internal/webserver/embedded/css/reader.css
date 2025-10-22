@@ -1,7 +1,7 @@
 :root {
     --active-bg: rgba(0, 0, 0, .05);
     --active-bg-dark: rgba(255, 255, 255, .1);
-    
+
     /* Menu icon SVGs (defined once, inverted for dark mode) */
     --radio-checked: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%223%22%20fill%3D%22%23000%22%2F%3E%3C%2Fsvg%3E');
     --checkbox-unchecked: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20x%3D%225%22%20y%3D%225%22%20width%3D%2214%22%20height%3D%2214%22%20rx%3D%222%22%20fill%3D%22none%22%20stroke%3D%22%23000%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E');
@@ -81,7 +81,7 @@ body {
     background: Canvas;
     color: CanvasText;
 }
-.none {
+.d-none {
     display: none !important;
 }
 #spinner-container, #error-icon-container {
