@@ -11,7 +11,6 @@
 <link rel="manifest" href="/images/site.webmanifest{{versionParam .Version}}">
 <link rel="mask-icon" href="/images/safari-pinned-tab.svg{{versionParam .Version}}" color="#5bbad5">
 <meta name="msapplication-TileColor" content="#da532c">
-<link href="/css/bootstrap.min.css{{versionParam .Version}}" rel="stylesheet">
 <link href="/css/reader.css{{versionParam .Version}}" rel="stylesheet">
 
 <input type="hidden" id="url" value="{{.fqdn}}/documents/{{.Slug}}/download">
@@ -135,14 +134,15 @@
     "not_logged_in_reading": {{t .Lang "You are not logged in. Your reading position is saved locally only."}}
 }}</script>
 
-<div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 9999;">
-    <div id="live-toast" class="toast bg-warning text-dark" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
-        <div class="d-flex">
-            <div class="toast-body"></div>
-            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
+<dialog id="reader-toast" role="alert" aria-live="assertive" aria-atomic="true" data-auto-hide="true" data-delay="5000">
+    <div class="toast-content">
+        <div class="toast-message"></div>
+        <button type="button" class="toast-close" aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M.293.293a1 1 0 011.414 0L8 6.586 14.293.293a1 1 0 111.414 1.414L9.414 8l6.293 6.293a1 1 0 01-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 01-1.414-1.414L6.586 8 .293 1.707a1 1 0 010-1.414z"/>
+            </svg>
+        </button>
     </div>
-</div>
+</dialog>
 
-<script src="/js/bootstrap.bundle.min.js{{versionParam .Version}}"></script>
 <script src="/js/reader.js{{versionParam .Version}}" type="module"></script>

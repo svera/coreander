@@ -3,6 +3,7 @@ import { createTOCView } from './foliate-js/ui/tree.js'
 import { createMenu } from './menu.js'
 import { Overlayer } from './foliate-js/overlayer.js'
 import { ReaderSync } from './reader-sync.js'
+import { ReaderToast } from './reader-toast.js'
 
 const getCSS = ({ spacing, justify, hyphenate, theme, fontSize }) => `
     @namespace epub "http://www.idpf.org/2007/ops";
@@ -68,6 +69,11 @@ class Reader {
     #tocView
     #footnoteModal
     #footnoteContent
+    #toast
+    #sessionExpiredShown = false
+    #notLoggedInShown = false
+    #sidebarOpening = false
+    #skipNextPush = false
     sync = null
     view = null
     translations = null
@@ -87,6 +93,10 @@ class Reader {
     closeSideBar() {
         $('#dimming-overlay').classList.remove('show')
         $('#side-bar').classList.remove('show')
+        // Refocus the view so keyboard navigation works
+        if (this.view) {
+            this.view.focus()
+        }
     }
     #increaseFontSize() {
         if (this.style.fontSize < this.#maxFontSize) {
@@ -119,7 +129,7 @@ class Reader {
     #updateFontSizeButtons() {
         const decreaseBtn = $('#decrease-font')
         const increaseBtn = $('#increase-font')
-        
+
         if (decreaseBtn) {
             decreaseBtn.disabled = this.style.fontSize <= this.#minFontSize
         }
@@ -138,21 +148,21 @@ class Reader {
     #updateLineHeightButtons() {
         // Early return if buttons aren't initialized
         if (!this.lineHeightButtons) return
-        
+
         const regularLineBtn = this.lineHeightButtons.regularLineBtn
         const mediumLineBtn = this.lineHeightButtons.mediumLineBtn
         const largeLineBtn = this.lineHeightButtons.largeLineBtn
-        
+
         // Return if any button is missing
         if (!regularLineBtn || !mediumLineBtn || !largeLineBtn) return
-        
+
         const current = this.style.spacing
-        
+
         // Remove active class from all buttons
         regularLineBtn.classList.remove('active')
         mediumLineBtn.classList.remove('active')
         largeLineBtn.classList.remove('active')
-        
+
         // Add active class to current selection (CSS handles styling)
         if (Math.abs(current - 1.4) < 0.01) {
             regularLineBtn.classList.add('active')
@@ -165,7 +175,7 @@ class Reader {
     #applyTheme(theme) {
         // Save theme preference to localStorage
         window.localStorage.setItem('reader-theme', theme)
-        
+
         // Apply theme to the main document using system color-scheme
         const html = document.documentElement
         html.dataset.theme = theme
@@ -184,25 +194,25 @@ class Reader {
     #setupFootnoteModal() {
         this.#footnoteModal = $('#footnote-modal')
         this.#footnoteContent = $('#footnote-content')
-        
+
         if (!this.#footnoteModal || !this.#footnoteContent) return
-        
+
         // Apply current font size to modal
         this.#footnoteModal.style.fontSize = `${this.style.fontSize}%`
-        
+
         // Set up close button
         const closeBtn = $('#footnote-close')
         if (closeBtn) {
             closeBtn.onclick = () => this.#footnoteModal.close()
         }
-        
+
         // Close on backdrop click
         this.#footnoteModal.onclick = (e) => {
             if (e.target === this.#footnoteModal) {
                 this.#footnoteModal.close()
             }
         }
-        
+
         // Close on Escape key
         this.#footnoteModal.onkeydown = (e) => {
             if (e.key === 'Escape') {
@@ -213,74 +223,93 @@ class Reader {
     constructor() {
         // Check if user is authenticated
         const isAuthenticated = document.getElementById('authenticated')?.value === 'true'
-        
+
         // Load translations
         this.translations = JSON.parse(document.getElementById('i18n').textContent).i18n
-        
+
+        // Initialize toast
+        this.#toast = new ReaderToast()
+
         // Initialize sync helper
-        this.sync = new ReaderSync(this, isAuthenticated)
-        
+        this.sync = new ReaderSync(isAuthenticated)
+
+        // Listen for sync events
+        window.addEventListener('reader-session-expired', () => this.showSessionExpired())
+        window.addEventListener('reader-position-updated', () => this.showPositionUpdated())
+
+        // Show not logged in notification if needed
+        if (!isAuthenticated) {
+            this.showNotLoggedIn()
+        }
+
         $('#side-bar-button').addEventListener('click', () => {
+            this.#sidebarOpening = true
+            this.#skipNextPush = true
             $('#dimming-overlay').classList.add('show')
             $('#side-bar').classList.add('show')
+            // Clear the flags after a short delay to allow normal syncing to resume
+            setTimeout(() => {
+                this.#sidebarOpening = false
+                this.#skipNextPush = false
+            }, 500)
         })
         $('#dimming-overlay').addEventListener('click', () => this.closeSideBar())
         $('#side-bar-close').addEventListener('click', () => this.closeSideBar())
 
        const t = this.translations;
-       
+
        // Create font size controls
        const fontSizeControls = document.createElement('div')
        fontSizeControls.id = 'font-size-controls'
-       
+
        const decreaseBtn = document.createElement('button')
        decreaseBtn.id = 'decrease-font'
        decreaseBtn.setAttribute('aria-label', t.decrease_font_size)
        decreaseBtn.title = t.decrease_font_size
        decreaseBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="11" y="18" text-anchor="middle" font-size="18" font-weight="bold">A</text><line x1="17" y1="14" x2="22" y2="14" stroke="currentColor" stroke-width="2"/></svg>'
        decreaseBtn.addEventListener('click', () => this.#decreaseFontSize())
-       
+
        const resetBtn = document.createElement('button')
        resetBtn.id = 'reset-font'
        resetBtn.setAttribute('aria-label', t.reset_font_size)
        resetBtn.title = t.reset_font_size
        resetBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="12" y="18" text-anchor="middle" font-size="16" font-weight="bold">A</text></svg>'
        resetBtn.addEventListener('click', () => this.#resetFontSize())
-       
+
        const increaseBtn = document.createElement('button')
        increaseBtn.id = 'increase-font'
        increaseBtn.setAttribute('aria-label', t.increase_font_size)
        increaseBtn.title = t.increase_font_size
        increaseBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="11" y="18" text-anchor="middle" font-size="18" font-weight="bold">A</text><line x1="17" y1="14" x2="22" y2="14" stroke="currentColor" stroke-width="2"/><line x1="19.5" y1="11" x2="19.5" y2="17" stroke="currentColor" stroke-width="2"/></svg>'
        increaseBtn.addEventListener('click', () => this.#increaseFontSize())
-       
+
        fontSizeControls.append(decreaseBtn, resetBtn, increaseBtn)
-       
+
        // Create line height controls
        const lineHeightControls = document.createElement('div')
        lineHeightControls.id = 'line-height-controls'
-       
+
        const regularLineBtn = document.createElement('button')
        regularLineBtn.setAttribute('data-line-height', '1.4')
        regularLineBtn.setAttribute('aria-label', t.regular + ' ' + t.line_height)
        regularLineBtn.title = t.regular + ' (1.4)'
        regularLineBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><line x1="4" y1="8" x2="20" y2="8" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="16" x2="20" y2="16" stroke="currentColor" stroke-width="1.5"/></svg>'
        regularLineBtn.addEventListener('click', () => this.#setLineHeight(1.4))
-       
+
        const mediumLineBtn = document.createElement('button')
        mediumLineBtn.setAttribute('data-line-height', '1.6')
        mediumLineBtn.setAttribute('aria-label', t.line_height + ' 1.6')
        mediumLineBtn.title = '1.6'
        mediumLineBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="1.5"/></svg>'
        mediumLineBtn.addEventListener('click', () => this.#setLineHeight(1.6))
-       
+
        const largeLineBtn = document.createElement('button')
        largeLineBtn.setAttribute('data-line-height', '2.0')
        largeLineBtn.setAttribute('aria-label', t.line_height + ' 2.0')
        largeLineBtn.title = '2.0'
        largeLineBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.5"/><line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" stroke-width="1.5"/></svg>'
        largeLineBtn.addEventListener('click', () => this.#setLineHeight(2.0))
-       
+
        lineHeightControls.append(regularLineBtn, mediumLineBtn, largeLineBtn)
        this.lineHeightButtons = { regularLineBtn, mediumLineBtn, largeLineBtn }
 
@@ -332,7 +361,7 @@ class Reader {
             },
         ])
         menu.element.classList.add('menu')
-        
+
         // Store references to font size elements for later removal if needed
         this.fontSizeMenuItem = menu.groups.fontSize?.element
         // The separator is the element right before the fontSize menu item
@@ -341,67 +370,75 @@ class Reader {
         $('#menu-button').append(menu.element)
         $('#menu-button > button').addEventListener('click', () =>
             menu.element.classList.toggle('show'))
-        
+
         // Load saved theme from localStorage or default to 'auto'
         const storage = window.localStorage
         const savedTheme = storage.getItem('reader-theme') || 'auto'
         this.style.theme = savedTheme
         menu.groups.theme.select(savedTheme)
         this.#applyTheme(savedTheme)
-        
+
         // Load saved continuous mode from localStorage or default to false (paginated mode)
         const savedContinuous = storage.getItem('reader-continuous') === 'true'
         menu.groups.continuous.setChecked(savedContinuous)
-        
+
         // Load saved font size from localStorage or default to 100%
         const savedFontSize = parseInt(storage.getItem('reader-fontSize'))
         if (savedFontSize && savedFontSize >= this.#minFontSize && savedFontSize <= this.#maxFontSize) {
             this.style.fontSize = savedFontSize
         }
-        
+
         // Load saved line height from localStorage or default to 1.4
         const savedLineHeight = storage.getItem('reader-lineHeight') || '1.4'
         this.style.spacing = parseFloat(savedLineHeight)
-        
+
         // Initialize button states
         this.#updateFontSizeButtons()
         this.#updateLineHeightButtons()
-        
+
         // Initialize footnote modal
         this.#setupFootnoteModal()
-        
+
         // Sync position from server when tab becomes visible or window gains focus
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                // Tab is being hidden, flush any pending position update immediately
-                this.sync.flushPositionUpdate()
-            } else {
+            if (!document.hidden && !this.#sidebarOpening) {
+                // Set flag to skip pushing position updates triggered by this event
+                this.#skipNextPush = true
+                setTimeout(() => {
+                    this.#skipNextPush = false
+                }, 500)
+
                 // Tab is visible again, sync from server (debounced)
                 this.sync.debouncedSyncPositionFromServer()
             }
         })
-        
+
         window.addEventListener('focus', () => {
             // Window gained focus, sync from server (debounced)
-            this.sync.debouncedSyncPositionFromServer()
-        })
-        
-        window.addEventListener('blur', () => {
-            // Window is losing focus, flush any pending position update immediately
-            this.sync.flushPositionUpdate()
+            if (!this.#sidebarOpening) {
+                // Set flag to skip pushing position updates triggered by this event
+                this.#skipNextPush = true
+                setTimeout(() => {
+                    this.#skipNextPush = false
+                }, 500)
+
+                this.sync.debouncedSyncPositionFromServer()
+            }
         })
     }
     async open(file) {
         this.view = document.createElement('foliate-view')
+        // Make the view focusable so it can receive keyboard events
+        this.view.setAttribute('tabindex', '0')
         const storage = window.localStorage
         const slug = document.getElementById('slug').value
         document.body.append(this.view)
         await this.view.open(file)
-        
+
         // Get position, syncing with server if authenticated
         const localData = this.sync.getLocalPosition(slug)
         let lastLocation = localData.position
-        
+
         if (this.sync.isAuthenticated) {
             const serverData = await this.sync.getServerPosition(slug)
 
@@ -418,9 +455,12 @@ class Reader {
                 }
             }
         }
-        
+
         await this.view.init({lastLocation})
-        
+
+        // Set view in sync helper after initialization
+        this.sync.setView(this.view)
+
         // Check if it's pre-paginated content (PDF or fixed-layout) after the book is opened
         // Font size controls don't work for pre-paginated content
         const { book } = this.view
@@ -432,11 +472,22 @@ class Reader {
         }
         this.view.addEventListener('load', this.#onLoad.bind(this))
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
-        
+
+        // Add keyboard listener directly to the view
+        this.view.addEventListener('keydown', this.#handleKeydown.bind(this))
+
+        // Focus the view when clicked to enable keyboard navigation
+        this.view.addEventListener('click', () => {
+            this.view.focus()
+        })
+
+        // Focus the view initially
+        this.view.focus()
+
         // Intercept link events to handle footnotes
         this.view.addEventListener('link', e => {
             const { a, href } = e.detail
-            
+
             // Check if this looks like a footnote link
             const isLikelyFootnote = href && (
                 href.includes('footnote') ||
@@ -445,7 +496,7 @@ class Reader {
                 a.getAttributeNS('http://www.idpf.org/2007/ops', 'type') === 'noteref' ||
                 a.querySelector('sup')
             )
-            
+
             if (isLikelyFootnote) {
                 // Return false to prevent view.js from navigating
                 e.preventDefault()
@@ -458,7 +509,7 @@ class Reader {
         document.body.removeChild($('#error-icon-container'))
 
         this.view.renderer.setStyles?.(getCSS(this.style))
-        
+
         // Apply saved continuous mode state
         const savedContinuous = storage.getItem('reader-continuous') === 'true'
         this.view.renderer.setAttribute('flow', savedContinuous ? 'scrolled' : 'paginated')
@@ -530,6 +581,12 @@ class Reader {
         }
     }
     #handleKeydown(event) {
+        // Don't handle navigation keys when focus is on input elements
+        const target = event.target
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+            return
+        }
+
         const k = event.key
         if (k === 'ArrowLeft' || k === 'h') this.view.goLeft()
         else if(k === 'ArrowRight' || k === 'l') this.view.goRight()
@@ -540,19 +597,19 @@ class Reader {
     async #handleFootnoteLinkEvent(href) {
         try {
             const { book } = this.view
-            
+
             // Resolve the href to get the target
             const target = await book.resolveHref(href)
-            
+
             if (target && target.index !== undefined) {
                 const targetSection = book.sections[target.index]
                 const targetDoc = await targetSection.createDocument()
-                
+
                 if (targetDoc && target.anchor) {
                     let element = target.anchor(targetDoc)
-                    
+
                     if (element) {
-                        // If the anchor element is empty or just whitespace, 
+                        // If the anchor element is empty or just whitespace,
                         // try to find the actual content
                         if (!element.textContent.trim()) {
                             // Try parent element (for EPUB2 style footnotes)
@@ -567,7 +624,7 @@ class Reader {
                                 }
                             }
                         }
-                        
+
                         // Check if we have content now
                         if (element && element.textContent.trim()) {
                             this.#showFootnote(element)
@@ -576,7 +633,7 @@ class Reader {
                     }
                 }
             }
-            
+
             // Fallback: show error message
             this.#showFootnoteError()
         } catch (error) {
@@ -586,13 +643,13 @@ class Reader {
     }
     #showFootnote(element) {
         if (!this.#footnoteModal || !this.#footnoteContent) return
-        
+
         const clonedContent = element.cloneNode(true)
-        
+
         // Remove backlinks
         const backlinks = clonedContent.querySelectorAll('[role="doc-backlink"]')
         backlinks.forEach(backlink => backlink.remove())
-        
+
         // Remove internal links
         const links = clonedContent.querySelectorAll('a[href]')
         links.forEach(link => {
@@ -601,11 +658,11 @@ class Reader {
                 link.remove()
             }
         })
-        
+
         this.#footnoteContent.innerHTML = ''
         this.#footnoteContent.appendChild(clonedContent)
         this.#footnoteModal.showModal()
-        
+
         // Focus the content for keyboard navigation
         setTimeout(() => {
             this.#footnoteContent.focus()
@@ -613,11 +670,11 @@ class Reader {
     }
     #showFootnoteError() {
         if (!this.#footnoteModal || !this.#footnoteContent) return
-        
+
         const errorMessage = this.#footnoteModal.dataset.errorMessage || '<p><em>Footnote content could not be loaded.</em></p>'
         this.#footnoteContent.innerHTML = errorMessage
         this.#footnoteModal.showModal()
-        
+
         // Focus the content for keyboard navigation
         setTimeout(() => {
             this.#footnoteContent.focus()
@@ -631,12 +688,13 @@ class Reader {
             position: detail.cfi,
             updated: new Date().toISOString()
         }))
-        
+
         // Update position on server if authenticated (debounced)
-        if (this.sync.isAuthenticated) {
+        // Skip if sidebar is being opened or if we're skipping pushes (e.g., after focus events)
+        if (this.sync.isAuthenticated && !this.#sidebarOpening && !this.#skipNextPush) {
             this.sync.schedulePositionUpdate(slug, detail.cfi)
         }
-        
+
         const { fraction, location, tocItem, pageItem } = detail
         const percent = percentFormat.format(fraction)
         const loc = pageItem
@@ -647,6 +705,23 @@ class Reader {
         slider.value = fraction
         slider.title = `${percent} · ${loc}`
         if (tocItem?.href) this.#tocView?.setCurrentHref?.(tocItem.href)
+    }
+    showSessionExpired() {
+        // Only show the notification once
+        if (this.#sessionExpiredShown) return
+        this.#sessionExpiredShown = true
+
+        this.#toast.show('warning', this.translations.session_expired_reading)
+    }
+    showPositionUpdated() {
+        this.#toast.show('success', this.translations.position_updated_from_server)
+    }
+    showNotLoggedIn() {
+        // Only show the notification once
+        if (this.#notLoggedInShown) return
+        this.#notLoggedInShown = true
+
+        this.#toast.show('warning', this.translations.not_logged_in_reading)
     }
 }
 
@@ -666,7 +741,6 @@ if (url) fetch(url)
             if (spinner) document.body.removeChild(spinner);
             $('#error-icon-container').classList.remove('d-none');
             const errorMsg = document.createElement('p');
-            errorMsg.className = 'mt-3 text-center';
             errorMsg.textContent = 'Session expired. Please ';
             const loginLink = document.createElement('a');
             loginLink.href = '/sessions/new';
