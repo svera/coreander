@@ -1,21 +1,15 @@
 export class ReaderSync {
-    #reader
     #updatePositionTimeout = null
     #syncFromServerTimeout = null
-    #pendingPosition = null
-    #pendingSlug = null
     #isAuthenticated = false
-    #sessionExpiredNotificationShown = false
-    #notLoggedInNotificationShown = false
+    #view = null
 
-    constructor(reader, isAuthenticated) {
-        this.#reader = reader
+    constructor(isAuthenticated) {
         this.#isAuthenticated = isAuthenticated
-        
-        // Show notification if not logged in
-        if (!isAuthenticated) {
-            this.showNotLoggedInNotification()
-        }
+    }
+
+    setView(view) {
+        this.#view = view
     }
 
     get isAuthenticated() {
@@ -56,9 +50,9 @@ export class ReaderSync {
             })
             
             if (response.status === 403) {
-                // Session expired, mark as unauthenticated and show notification
+                // Session expired, mark as unauthenticated and dispatch event
                 this.#isAuthenticated = false
-                this.showSessionExpiredNotification()
+                window.dispatchEvent(new CustomEvent('reader-session-expired'))
                 return { position: '', updated: '' }
             }
             
@@ -84,9 +78,9 @@ export class ReaderSync {
             })
             
             if (response.status === 403) {
-                // Session expired, mark as unauthenticated and show notification
+                // Session expired, mark as unauthenticated and dispatch event
                 this.#isAuthenticated = false
-                this.showSessionExpiredNotification()
+                window.dispatchEvent(new CustomEvent('reader-session-expired'))
                 return
             }
             
@@ -95,16 +89,6 @@ export class ReaderSync {
             }
         } catch (error) {
             console.error('Error syncing position to server:', error)
-        }
-    }
-
-    flushPositionUpdate() {
-        // If there's a pending position update, send it immediately
-        if (this.#pendingPosition && this.#pendingSlug) {
-            clearTimeout(this.#updatePositionTimeout)
-            this.syncPositionToServer(this.#pendingSlug, this.#pendingPosition)
-            this.#pendingPosition = null
-            this.#pendingSlug = null
         }
     }
 
@@ -118,7 +102,7 @@ export class ReaderSync {
 
     async syncPositionFromServer() {
         // Only sync if authenticated and view is initialized
-        if (!this.#isAuthenticated || !this.#reader.view) {
+        if (!this.#isAuthenticated || !this.#view) {
             return
         }
         
@@ -145,10 +129,10 @@ export class ReaderSync {
                 
                 // Navigate to the new position
                 try {
-                    await this.#reader.view.goTo(serverData.position)
-                    // Show notification only if position actually changed
+                    await this.#view.goTo(serverData.position)
+                    // Dispatch event only if position actually changed
                     if (positionChanged) {
-                        this.showPositionUpdatedNotification()
+                        window.dispatchEvent(new CustomEvent('reader-position-updated'))
                     }
                 } catch (error) {
                     console.error('Error navigating to synced position:', error)
@@ -157,94 +141,11 @@ export class ReaderSync {
         }
     }
 
-    schedulePositionUpdate(slug, position) {
-        // Save pending position for immediate flush if needed
-        this.#pendingPosition = position
-        this.#pendingSlug = slug
-        
+    schedulePositionUpdate(slug, position) {        
         clearTimeout(this.#updatePositionTimeout)
         this.#updatePositionTimeout = setTimeout(() => {
             this.syncPositionToServer(slug, position)
-            this.#pendingPosition = null
-            this.#pendingSlug = null
         }, 1000) // Wait 1 second after last position change
-    }
-
-    showSessionExpiredNotification() {
-        // Only show the notification once
-        if (this.#sessionExpiredNotificationShown) return
-        this.#sessionExpiredNotificationShown = true
-        
-        const toastEl = document.getElementById('live-toast')
-        if (!toastEl) return
-        
-        // Ensure warning color scheme
-        toastEl.classList.remove('bg-info', 'bg-success', 'text-white')
-        toastEl.classList.add('bg-warning', 'text-dark')
-        
-        // Update close button for dark text on light background
-        const closeBtn = toastEl.querySelector('.btn-close')
-        if (closeBtn) {
-            closeBtn.classList.remove('btn-close-white')
-        }
-        
-        const toastBody = toastEl.querySelector('.toast-body')
-        if (toastBody) {
-            toastBody.innerHTML = this.#reader.translations.session_expired_reading
-        }
-        
-        const toast = bootstrap.Toast.getOrCreateInstance(toastEl)
-        toast.show()
-    }
-
-    showPositionUpdatedNotification() {
-        const toastEl = document.getElementById('live-toast')
-        if (!toastEl) return
-        
-        // Change to success color scheme
-        toastEl.classList.remove('bg-warning', 'text-dark', 'bg-info')
-        toastEl.classList.add('bg-success', 'text-white')
-        
-        // Update close button for white text on dark background
-        const closeBtn = toastEl.querySelector('.btn-close')
-        if (closeBtn) {
-            closeBtn.classList.add('btn-close-white')
-        }
-        
-        const toastBody = toastEl.querySelector('.toast-body')
-        if (toastBody) {
-            toastBody.innerHTML = this.#reader.translations.position_updated_from_server
-        }
-        
-        const toast = bootstrap.Toast.getOrCreateInstance(toastEl)
-        toast.show()
-    }
-
-    showNotLoggedInNotification() {
-        // Only show the notification once
-        if (this.#notLoggedInNotificationShown) return
-        this.#notLoggedInNotificationShown = true
-        
-        const toastEl = document.getElementById('live-toast')
-        if (!toastEl) return
-        
-        // Use warning color scheme (yellow)
-        toastEl.classList.remove('bg-info', 'bg-success', 'text-white')
-        toastEl.classList.add('bg-warning', 'text-dark')
-        
-        // Update close button for dark text on light background
-        const closeBtn = toastEl.querySelector('.btn-close')
-        if (closeBtn) {
-            closeBtn.classList.remove('btn-close-white')
-        }
-        
-        const toastBody = toastEl.querySelector('.toast-body')
-        if (toastBody) {
-            toastBody.innerHTML = this.#reader.translations.not_logged_in_reading
-        }
-        
-        const toast = bootstrap.Toast.getOrCreateInstance(toastEl)
-        toast.show()
     }
 }
 

@@ -3,6 +3,7 @@ import { createTOCView } from './foliate-js/ui/tree.js'
 import { createMenu } from './menu.js'
 import { Overlayer } from './foliate-js/overlayer.js'
 import { ReaderSync } from './reader-sync.js'
+import { ReaderToast } from './reader-toast.js'
 
 const getCSS = ({ spacing, justify, hyphenate, theme, fontSize, fontFamily }) => `
     @namespace epub "http://www.idpf.org/2007/ops";
@@ -71,6 +72,11 @@ class Reader {
     #tocView
     #footnoteModal
     #footnoteContent
+    #toast
+    #sessionExpiredShown = false
+    #notLoggedInShown = false
+    #sidebarOpening = false
+    #skipNextPush = false
     sync = null
     view = null
     translations = null
@@ -91,6 +97,10 @@ class Reader {
     closeSideBar() {
         $('#dimming-overlay').classList.remove('show')
         $('#side-bar').classList.remove('show')
+        // Refocus the view so keyboard navigation works
+        if (this.view) {
+            this.view.focus()
+        }
     }
     #increaseFontSize() {
         if (this.style.fontSize < this.#maxFontSize) {
@@ -252,12 +262,31 @@ class Reader {
         // Load translations
         this.translations = JSON.parse(document.getElementById('i18n').textContent).i18n
 
+        // Initialize toast
+        this.#toast = new ReaderToast()
+
         // Initialize sync helper
-        this.sync = new ReaderSync(this, isAuthenticated)
+        this.sync = new ReaderSync(isAuthenticated)
+
+        // Listen for sync events
+        window.addEventListener('reader-session-expired', () => this.showSessionExpired())
+        window.addEventListener('reader-position-updated', () => this.showPositionUpdated())
+
+        // Show not logged in notification if needed
+        if (!isAuthenticated) {
+            this.showNotLoggedIn()
+        }
 
         $('#side-bar-button').addEventListener('click', () => {
+            this.#sidebarOpening = true
+            this.#skipNextPush = true
             $('#dimming-overlay').classList.add('show')
             $('#side-bar').classList.add('show')
+            // Clear the flags after a short delay to allow normal syncing to resume
+            setTimeout(() => {
+                this.#sidebarOpening = false
+                this.#skipNextPush = false
+            }, 500)
         })
         $('#dimming-overlay').addEventListener('click', () => this.closeSideBar())
         $('#side-bar-close').addEventListener('click', () => this.closeSideBar())
@@ -465,10 +494,13 @@ class Reader {
 
         // Sync position from server when tab becomes visible or window gains focus
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                // Tab is being hidden, flush any pending position update immediately
-                this.sync.flushPositionUpdate()
-            } else {
+            if (!document.hidden && !this.#sidebarOpening) {
+                // Set flag to skip pushing position updates triggered by this event
+                this.#skipNextPush = true
+                setTimeout(() => {
+                    this.#skipNextPush = false
+                }, 500)
+
                 // Tab is visible again, sync from server (debounced)
                 this.sync.debouncedSyncPositionFromServer()
             }
@@ -476,16 +508,21 @@ class Reader {
 
         window.addEventListener('focus', () => {
             // Window gained focus, sync from server (debounced)
-            this.sync.debouncedSyncPositionFromServer()
-        })
+            if (!this.#sidebarOpening) {
+                // Set flag to skip pushing position updates triggered by this event
+                this.#skipNextPush = true
+                setTimeout(() => {
+                    this.#skipNextPush = false
+                }, 500)
 
-        window.addEventListener('blur', () => {
-            // Window is losing focus, flush any pending position update immediately
-            this.sync.flushPositionUpdate()
+                this.sync.debouncedSyncPositionFromServer()
+            }
         })
     }
     async open(file) {
         this.view = document.createElement('foliate-view')
+        // Make the view focusable so it can receive keyboard events
+        this.view.setAttribute('tabindex', '0')
         const storage = window.localStorage
         const slug = document.getElementById('slug').value
         document.body.append(this.view)
@@ -514,6 +551,9 @@ class Reader {
 
         await this.view.init({lastLocation})
 
+        // Set view in sync helper after initialization
+        this.sync.setView(this.view)
+
         // Check if it's pre-paginated content (PDF or fixed-layout) after the book is opened
         // Font size controls don't work for pre-paginated content
         const { book } = this.view
@@ -525,6 +565,17 @@ class Reader {
         }
         this.view.addEventListener('load', this.#onLoad.bind(this))
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
+
+        // Add keyboard listener directly to the view
+        this.view.addEventListener('keydown', this.#handleKeydown.bind(this))
+
+        // Focus the view when clicked to enable keyboard navigation
+        this.view.addEventListener('click', () => {
+            this.view.focus()
+        })
+
+        // Focus the view initially
+        this.view.focus()
 
         // Intercept link events to handle footnotes
         this.view.addEventListener('link', e => {
@@ -623,6 +674,12 @@ class Reader {
         }
     }
     #handleKeydown(event) {
+        // Don't handle navigation keys when focus is on input elements
+        const target = event.target
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+            return
+        }
+
         const k = event.key
         if (k === 'ArrowLeft' || k === 'h') this.view.goLeft()
         else if(k === 'ArrowRight' || k === 'l') this.view.goRight()
@@ -726,7 +783,8 @@ class Reader {
         }))
 
         // Update position on server if authenticated (debounced)
-        if (this.sync.isAuthenticated) {
+        // Skip if sidebar is being opened or if we're skipping pushes (e.g., after focus events)
+        if (this.sync.isAuthenticated && !this.#sidebarOpening && !this.#skipNextPush) {
             this.sync.schedulePositionUpdate(slug, detail.cfi)
         }
 
@@ -740,6 +798,23 @@ class Reader {
         slider.value = fraction
         slider.title = `${percent} · ${loc}`
         if (tocItem?.href) this.#tocView?.setCurrentHref?.(tocItem.href)
+    }
+    showSessionExpired() {
+        // Only show the notification once
+        if (this.#sessionExpiredShown) return
+        this.#sessionExpiredShown = true
+
+        this.#toast.show('warning', this.translations.session_expired_reading)
+    }
+    showPositionUpdated() {
+        this.#toast.show('success', this.translations.position_updated_from_server)
+    }
+    showNotLoggedIn() {
+        // Only show the notification once
+        if (this.#notLoggedInShown) return
+        this.#notLoggedInShown = true
+
+        this.#toast.show('warning', this.translations.not_logged_in_reading)
     }
 }
 
@@ -759,7 +834,6 @@ if (url) fetch(url)
             if (spinner) document.body.removeChild(spinner);
             $('#error-icon-container').classList.remove('d-none');
             const errorMsg = document.createElement('p');
-            errorMsg.className = 'mt-3 text-center';
             errorMsg.textContent = 'Session expired. Please ';
             const loginLink = document.createElement('a');
             loginLink.href = '/sessions/new';

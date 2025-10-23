@@ -540,6 +540,7 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
 .modal-content a:hover {
     text-decoration: none;
 }
+
 /* Reader Toast (Dialog-based) */
 #reader-toast {
     position: fixed;
@@ -657,4 +658,3 @@ html[data-theme="dark"] #reader-toast {
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     }
 }
-
