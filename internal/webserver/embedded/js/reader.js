@@ -201,9 +201,8 @@ class Reader {
         sansSerifBtn.classList.remove('active')
 
         // Add active class to current selection (CSS handles styling)
-        if (current === 'serif') {
-            serifBtn.classList.add('active')
-        } else if (current === 'sans-serif') {
+        serifBtn.classList.add('active')
+        if (current === 'sans-serif') {
             sansSerifBtn.classList.add('active')
         }
     }
@@ -214,13 +213,11 @@ class Reader {
         // Apply theme to the main document using system color-scheme
         const html = document.documentElement
         html.dataset.theme = theme
+        html.style.colorScheme = 'light dark'
         if (theme === 'dark') {
             html.style.colorScheme = 'dark'
         } else if (theme === 'light') {
             html.style.colorScheme = 'light'
-        } else {
-            // Auto mode
-            html.style.colorScheme = 'light dark'
         }
         // Remove any hardcoded colors to let system color-scheme apply
         document.body.style.removeProperty('background')
