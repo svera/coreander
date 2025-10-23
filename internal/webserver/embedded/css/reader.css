@@ -127,6 +127,7 @@ foliate-view:focus {
     background: none;
     border: 0;
     color: GrayText;
+    cursor: pointer;
 }
 .toolbar button:hover {
     background: rgba(0, 0, 0, .1);
@@ -263,6 +264,7 @@ foliate-view:focus {
 #toc-view a {
     color: CanvasText;
     text-decoration: none;
+    cursor: pointer;
 }
 #toc-view a:hover {
     background: var(--active-bg);
@@ -275,7 +277,7 @@ foliate-view:focus {
     padding-inline-start: 5px;
     padding-inline-end: 6px;
     fill: CanvasText;
-    cursor: default;
+    cursor: pointer;
     transition: transform .2s ease;
     opacity: .5;
 }
@@ -318,6 +320,7 @@ foliate-view:focus {
     padding: 6px 12px;
     padding-left: 24px;
     border-radius: 6px;
+    cursor: pointer;
 }
 .menu li:hover {
     background: var(--active-bg);
