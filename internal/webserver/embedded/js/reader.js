@@ -201,8 +201,9 @@ class Reader {
         sansSerifBtn.classList.remove('active')
 
         // Add active class to current selection (CSS handles styling)
-        serifBtn.classList.add('active')
-        if (current === 'sans-serif') {
+        if (current === 'serif') {
+            serifBtn.classList.add('active')
+        } else if (current === 'sans-serif') {
             sansSerifBtn.classList.add('active')
         }
     }
@@ -428,6 +429,11 @@ class Reader {
         // The separator is the element right before the fontSize menu item
         this.fontSizeSeparator = this.fontSizeMenuItem?.previousElementSibling
 
+        // Store references to line height elements for later removal if needed
+        this.lineHeightMenuItem = menu.groups.lineHeight?.element
+        // The separator is the element right before the lineHeight menu item
+        this.lineHeightSeparator = this.lineHeightMenuItem?.previousElementSibling
+
         $('#menu-button').append(menu.element)
         $('#menu-button > button').addEventListener('click', () => {
             const wasOpen = menu.element.classList.contains('show')
@@ -552,13 +558,15 @@ class Reader {
         this.sync.setView(this.view)
 
         // Check if it's pre-paginated content (PDF or fixed-layout) after the book is opened
-        // Font size controls don't work for pre-paginated content
+        // Font size and line height controls don't work for pre-paginated content
         const { book } = this.view
         const isPrePaginated = book?.rendition?.layout === 'pre-paginated'
         if (isPrePaginated) {
-            // Remove font size controls and their separator from the menu
+            // Remove font size and line height controls and their separators from the menu
             this.fontSizeMenuItem?.remove()
             this.fontSizeSeparator?.remove()
+            this.lineHeightMenuItem?.remove()
+            this.lineHeightSeparator?.remove()
         }
         this.view.addEventListener('load', this.#onLoad.bind(this))
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
