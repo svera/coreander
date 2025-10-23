@@ -403,11 +403,6 @@ class Reader {
         this.fontSizeSeparator = this.fontSizeMenuItem?.previousElementSibling
 
         $('#menu-button').append(menu.element)
-<<<<<<< Updated upstream
-        $('#menu-button > button').addEventListener('click', () =>
-            menu.element.classList.toggle('show'))
-
-=======
         $('#menu-button > button').addEventListener('click', () => {
             const wasOpen = menu.element.classList.contains('show')
             menu.element.classList.toggle('show')
@@ -435,7 +430,6 @@ class Reader {
         })
         menuObserver.observe(menu.element, { attributes: true, attributeFilter: ['class'] })
 
->>>>>>> Stashed changes
         // Load saved theme from localStorage or default to 'auto'
         const storage = window.localStorage
         const savedTheme = storage.getItem('reader-theme') || 'auto'
@@ -456,13 +450,6 @@ class Reader {
         // Load saved line height from localStorage or default to 1.4
         const savedLineHeight = storage.getItem('reader-lineHeight') || '1.4'
         this.style.spacing = parseFloat(savedLineHeight)
-<<<<<<< Updated upstream
-
-        // Initialize button states
-        this.#updateFontSizeButtons()
-        this.#updateLineHeightButtons()
-
-=======
 
         // Load saved font family from localStorage or default to 'serif'
         const savedFontFamily = storage.getItem('reader-fontFamily') || 'serif'
@@ -473,7 +460,6 @@ class Reader {
         this.#updateLineHeightButtons()
         this.#updateFontFamilyButtons()
 
->>>>>>> Stashed changes
         // Initialize footnote modal
         this.#setupFootnoteModal()
 
