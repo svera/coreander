@@ -1,7 +1,7 @@
 :root {
     --active-bg: rgba(0, 0, 0, .05);
     --active-bg-dark: rgba(255, 255, 255, .1);
-    
+
     /* Menu icon SVGs (defined once, inverted for dark mode) */
     --radio-checked: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%223%22%20fill%3D%22%23000%22%2F%3E%3C%2Fsvg%3E');
     --checkbox-unchecked: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20x%3D%225%22%20y%3D%225%22%20width%3D%2214%22%20height%3D%2214%22%20rx%3D%222%22%20fill%3D%22none%22%20stroke%3D%22%23000%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E');
@@ -74,6 +74,13 @@ body {
     font-family: system-ui, sans-serif;
     background: Canvas;
     color: CanvasText;
+}
+/* Remove focus outline from the reader view for cleaner keyboard navigation */
+foliate-view:focus {
+    outline: none;
+}
+.d-none {
+    display: none !important;
 }
 #spinner-container, #error-icon-container {
     height: 100vh;
@@ -373,14 +380,16 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     flex-shrink: 0;
     margin-right: auto;
 }
-/* Shared styles for font size and line height controls */
+/* Shared styles for font size, line height, and font family controls */
 .menu #font-size-controls,
-.menu #line-height-controls {
+.menu #line-height-controls,
+.menu #font-family-controls {
     display: flex;
     gap: 6px;
 }
 .menu #font-size-controls button,
-.menu #line-height-controls button {
+.menu #line-height-controls button,
+.menu #font-family-controls button {
     padding: 3px;
     border-radius: 6px;
     background: none;
@@ -389,7 +398,8 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     cursor: pointer;
 }
 .menu #font-size-controls button:hover,
-.menu #line-height-controls button:hover {
+.menu #line-height-controls button:hover,
+.menu #font-family-controls button:hover {
     background: rgba(0, 0, 0, .1);
     color: currentcolor;
 }
@@ -397,7 +407,8 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     opacity: 0.3;
     cursor: not-allowed;
 }
-.menu #font-size-controls button text {
+.menu #font-size-controls button text,
+.menu #font-family-controls button text {
     fill: CanvasText;
     stroke: none;
 }
@@ -405,7 +416,8 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
 .menu #line-height-controls button line {
     stroke: CanvasText;
 }
-.menu #line-height-controls button.active {
+.menu #line-height-controls button.active,
+.menu #font-family-controls button.active {
     background: var(--active-bg);
 }
 .popover {
