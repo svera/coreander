@@ -81,6 +81,10 @@ body {
     background: Canvas;
     color: CanvasText;
 }
+/* Remove focus outline from the reader view for cleaner keyboard navigation */
+foliate-view:focus {
+    outline: none;
+}
 .d-none {
     display: none !important;
 }
@@ -123,6 +127,7 @@ body {
     background: none;
     border: 0;
     color: GrayText;
+    cursor: pointer;
 }
 .toolbar button:hover {
     background: rgba(0, 0, 0, .1);
@@ -259,6 +264,7 @@ body {
 #toc-view a {
     color: CanvasText;
     text-decoration: none;
+    cursor: pointer;
 }
 #toc-view a:hover {
     background: var(--active-bg);
@@ -271,7 +277,7 @@ body {
     padding-inline-start: 5px;
     padding-inline-end: 6px;
     fill: CanvasText;
-    cursor: default;
+    cursor: pointer;
     transition: transform .2s ease;
     opacity: .5;
 }
@@ -314,6 +320,7 @@ body {
     padding: 6px 12px;
     padding-left: 24px;
     border-radius: 6px;
+    cursor: pointer;
 }
 .menu li:hover {
     background: var(--active-bg);
@@ -386,14 +393,16 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     flex-shrink: 0;
     margin-right: auto;
 }
-/* Shared styles for font size and line height controls */
+/* Shared styles for font size, line height, and font family controls */
 .menu #font-size-controls,
-.menu #line-height-controls {
+.menu #line-height-controls,
+.menu #font-family-controls {
     display: flex;
     gap: 6px;
 }
 .menu #font-size-controls button,
-.menu #line-height-controls button {
+.menu #line-height-controls button,
+.menu #font-family-controls button {
     padding: 3px;
     border-radius: 6px;
     background: none;
@@ -402,7 +411,8 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     cursor: pointer;
 }
 .menu #font-size-controls button:hover,
-.menu #line-height-controls button:hover {
+.menu #line-height-controls button:hover,
+.menu #font-family-controls button:hover {
     background: rgba(0, 0, 0, .1);
     color: currentcolor;
 }
@@ -410,7 +420,8 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     opacity: 0.3;
     cursor: not-allowed;
 }
-.menu #font-size-controls button text {
+.menu #font-size-controls button text,
+.menu #font-family-controls button text {
     fill: CanvasText;
     stroke: none;
 }
@@ -418,7 +429,8 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
 .menu #line-height-controls button line {
     stroke: CanvasText;
 }
-.menu #line-height-controls button.active {
+.menu #line-height-controls button.active,
+.menu #font-family-controls button.active {
     background: var(--active-bg);
 }
 .popover {

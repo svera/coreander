@@ -5,7 +5,7 @@ import { Overlayer } from './foliate-js/overlayer.js'
 import { ReaderSync } from './reader-sync.js'
 import { ReaderToast } from './reader-toast.js'
 
-const getCSS = ({ spacing, justify, hyphenate, theme, fontSize }) => `
+const getCSS = ({ spacing, justify, hyphenate, theme, fontSize, fontFamily }) => `
     @namespace epub "http://www.idpf.org/2007/ops";
     html {
         color-scheme: ${theme === 'auto' ? 'light dark' : theme};
@@ -16,6 +16,9 @@ const getCSS = ({ spacing, justify, hyphenate, theme, fontSize }) => `
         a:link {
             color: lightblue;
         }
+    }
+    body {
+        font-family: ${fontFamily === 'sans-serif' ? 'sans-serif' : 'serif'} !important;
     }
     p, li, blockquote, dd {
         line-height: ${spacing};
@@ -83,6 +86,7 @@ class Reader {
         hyphenate: true,
         theme: 'auto',
         fontSize: 100, // Percentage: 100 = 100%
+        fontFamily: 'serif', // 'serif' or 'sans-serif'
     }
     #defaultFontSize = 100
     #minFontSize = 75
@@ -172,6 +176,36 @@ class Reader {
             largeLineBtn.classList.add('active')
         }
     }
+    #setFontFamily(value) {
+        this.style.fontFamily = value
+        window.localStorage.setItem('reader-fontFamily', value)
+        if (this.view?.renderer) {
+            this.view.renderer.setStyles?.(getCSS(this.style))
+        }
+        this.#updateFontFamilyButtons()
+    }
+    #updateFontFamilyButtons() {
+        // Early return if buttons aren't initialized
+        if (!this.fontFamilyButtons) return
+
+        const serifBtn = this.fontFamilyButtons.serifBtn
+        const sansSerifBtn = this.fontFamilyButtons.sansSerifBtn
+
+        // Return if any button is missing
+        if (!serifBtn || !sansSerifBtn) return
+
+        const current = this.style.fontFamily
+
+        // Remove active class from all buttons
+        serifBtn.classList.remove('active')
+        sansSerifBtn.classList.remove('active')
+
+        // Add active class to current selection (CSS handles styling)
+        serifBtn.classList.add('active')
+        if (current === 'sans-serif') {
+            sansSerifBtn.classList.add('active')
+        }
+    }
     #applyTheme(theme) {
         // Save theme preference to localStorage
         window.localStorage.setItem('reader-theme', theme)
@@ -179,13 +213,11 @@ class Reader {
         // Apply theme to the main document using system color-scheme
         const html = document.documentElement
         html.dataset.theme = theme
+        html.style.colorScheme = 'light dark'
         if (theme === 'dark') {
             html.style.colorScheme = 'dark'
         } else if (theme === 'light') {
             html.style.colorScheme = 'light'
-        } else {
-            // Auto mode
-            html.style.colorScheme = 'light dark'
         }
         // Remove any hardcoded colors to let system color-scheme apply
         document.body.style.removeProperty('background')
@@ -313,6 +345,27 @@ class Reader {
        lineHeightControls.append(regularLineBtn, mediumLineBtn, largeLineBtn)
        this.lineHeightButtons = { regularLineBtn, mediumLineBtn, largeLineBtn }
 
+       // Create font family controls
+       const fontFamilyControls = document.createElement('div')
+       fontFamilyControls.id = 'font-family-controls'
+
+       const serifBtn = document.createElement('button')
+       serifBtn.setAttribute('data-font-family', 'serif')
+       serifBtn.setAttribute('aria-label', t.serif)
+       serifBtn.title = t.serif
+       serifBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="12" y="18" text-anchor="middle" font-size="16" font-weight="bold" font-family="serif">Aa</text></svg>'
+       serifBtn.addEventListener('click', () => this.#setFontFamily('serif'))
+
+       const sansSerifBtn = document.createElement('button')
+       sansSerifBtn.setAttribute('data-font-family', 'sans-serif')
+       sansSerifBtn.setAttribute('aria-label', t.sans_serif)
+       sansSerifBtn.title = t.sans_serif
+       sansSerifBtn.innerHTML = '<svg class="icon" width="24" height="24" aria-hidden="true"><text x="12" y="18" text-anchor="middle" font-size="16" font-weight="bold" font-family="sans-serif">Aa</text></svg>'
+       sansSerifBtn.addEventListener('click', () => this.#setFontFamily('sans-serif'))
+
+       fontFamilyControls.append(serifBtn, sansSerifBtn)
+       this.fontFamilyButtons = { serifBtn, sansSerifBtn }
+
        const menu = createMenu([
             {
                 name: 'continuous',
@@ -359,6 +412,14 @@ class Reader {
                 type: 'custom',
                 content: lineHeightControls
             },
+            {
+                type: 'separator',
+            },
+            {
+                name: 'fontFamily',
+                type: 'custom',
+                content: fontFamilyControls
+            },
         ])
         menu.element.classList.add('menu')
 
@@ -368,8 +429,32 @@ class Reader {
         this.fontSizeSeparator = this.fontSizeMenuItem?.previousElementSibling
 
         $('#menu-button').append(menu.element)
-        $('#menu-button > button').addEventListener('click', () =>
-            menu.element.classList.toggle('show'))
+        $('#menu-button > button').addEventListener('click', () => {
+            const wasOpen = menu.element.classList.contains('show')
+            menu.element.classList.toggle('show')
+            // If we're closing the menu, refocus the view for keyboard navigation
+            if (wasOpen && this.view) {
+                this.view.focus()
+            }
+        })
+
+        // Watch for menu being hidden by other means (click outside, window blur)
+        // and refocus the view for keyboard navigation
+        let wasMenuVisible = false
+        const menuObserver = new MutationObserver(() => {
+            const isMenuVisible = menu.element.classList.contains('show')
+            // Only refocus if menu transitioned from visible to hidden
+            if (wasMenuVisible && !isMenuVisible && this.view) {
+                // Menu was closed, refocus the view after a brief delay
+                setTimeout(() => {
+                    if (this.view) {
+                        this.view.focus()
+                    }
+                }, 100)
+            }
+            wasMenuVisible = isMenuVisible
+        })
+        menuObserver.observe(menu.element, { attributes: true, attributeFilter: ['class'] })
 
         // Load saved theme from localStorage or default to 'auto'
         const storage = window.localStorage
@@ -392,9 +477,14 @@ class Reader {
         const savedLineHeight = storage.getItem('reader-lineHeight') || '1.4'
         this.style.spacing = parseFloat(savedLineHeight)
 
+        // Load saved font family from localStorage or default to 'serif'
+        const savedFontFamily = storage.getItem('reader-fontFamily') || 'serif'
+        this.style.fontFamily = savedFontFamily
+
         // Initialize button states
         this.#updateFontSizeButtons()
         this.#updateLineHeightButtons()
+        this.#updateFontFamilyButtons()
 
         // Initialize footnote modal
         this.#setupFootnoteModal()
