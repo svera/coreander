@@ -279,7 +279,7 @@ foliate-view:focus {
     fill: CanvasText;
     cursor: pointer;
     transition: transform .2s ease;
-    opacity: .5;
+    opacity: .7;
 }
 #toc-view svg:hover {
     opacity: 1;
