@@ -1,6 +1,8 @@
 package user
 
 import (
+	"time"
+
 	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/result"
 	"github.com/svera/coreander/v4/internal/webserver/model"
@@ -8,6 +10,7 @@ import (
 
 type Sender interface {
 	From() string
+	Send(address, subject, body string) error
 }
 
 type usersRepository interface {
@@ -22,25 +25,37 @@ type usersRepository interface {
 	Delete(uuid string) error
 }
 
+type invitationsRepository interface {
+	Create(invitation *model.Invitation) error
+	FindByUUID(uuid string) (*model.Invitation, error)
+	FindByEmail(email string) (*model.Invitation, error)
+	Delete(uuid string) error
+	DeleteByEmail(email string) error
+}
+
 type Config struct {
 	MinPasswordLength int
 	WordsPerMinute    float64
 	Secret            []byte
+	InvitationTimeout time.Duration
+	FQDN              string
 }
 
 type Controller struct {
-	repository usersRepository
-	config     Config
-	sender     Sender
-	translator i18n.Translator
+	repository            usersRepository
+	invitationsRepository invitationsRepository
+	config                Config
+	sender                Sender
+	translator            i18n.Translator
 }
 
 // NewController returns a new instance of the users controller
-func NewController(repository usersRepository, usersCfg Config, sender Sender, translator i18n.Translator) *Controller {
+func NewController(repository usersRepository, invitationsRepository invitationsRepository, usersCfg Config, sender Sender, translator i18n.Translator) *Controller {
 	return &Controller{
-		repository: repository,
-		config:     usersCfg,
-		sender:     sender,
-		translator: translator,
+		repository:            repository,
+		invitationsRepository: invitationsRepository,
+		config:                usersCfg,
+		sender:                sender,
+		translator:            translator,
 	}
 }

@@ -1,0 +1,26 @@
+<div class="row mb-3 mt-5">
+    <div class="col mb-3">
+        <h2>{{t .Lang "Invite user"}}</h2>
+    </div>
+
+    <form method="POST" action="/users/invite" autocomplete="off">
+        <div class="mb-3">
+            <div class="form-floating">
+                <input type="email" name="email" class='form-control {{if ne (index .Errors "email") ""}}is-invalid{{end}}' id="email" required="required" value="{{.Email}}" maxlength="100" placeholder='{{t .Lang "Email"}}'>
+                <label for="email" class="form-label">{{t .Lang "Email"}}</label>
+            </div>
+            {{if ne (index .Errors "email") ""}}
+            <div class="invalid-feedback">
+                {{t .Lang .Errors.email}}
+            </div>
+            {{end}}
+            <div class="form-text">{{t .Lang "An invitation email will be sent to this address"}}</div>
+        </div>
+
+        <div class="d-grid d-sm-block">
+            <button type="submit" class="btn btn-primary">{{t .Lang "Send invitation"}}</button>
+            <a href="/users" class="btn btn-secondary">{{t .Lang "Cancel"}}</a>
+        </div>
+    </form>
+</div>
+

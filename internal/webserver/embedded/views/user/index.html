@@ -3,6 +3,10 @@
         <h2>{{t .Lang "Users"}}</h2>
     </div>
     <div class="col text-end">
+        <a href="/users/invite" class="btn btn-secondary me-2">
+            <i class="bi-envelope-fill"></i>
+            {{t .Lang "Invite user"}}
+        </a>
         <a href="/users/new" class="btn btn-primary">
             <i class="bi-person-plus-fill"></i>
             {{t .Lang "Add user"}}

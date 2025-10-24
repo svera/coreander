@@ -41,6 +41,8 @@ type CLIInput struct {
 	SessionTimeout float64 `env:"SESSION_TIMEOUT" default:"24" name:"session-timeout" help:"Maximum time a user session may last in hours"`
 	// RecoveryTimeout specifies the maximum time a user recovery link may last in hours
 	RecoveryTimeout float64 `env:"RECOVERY_TIMEOUT" default:"2" name:"recovery-timeout" help:"Maximum time a user recovery link may last in hours"`
+	// InvitationTimeout specifies the maximum time a user invitation link may last in hours
+	InvitationTimeout float64 `env:"INVITATION_TIMEOUT" default:"72" name:"invitation-timeout" help:"Maximum time a user invitation link may last in hours"`
 	// UploadDocumentMaxSize is the maximum document size allowed to be uploaded to the library, in megabytes.
 	// Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
 	UploadDocumentMaxSize int `env:"UPLOAD_DOCUMENT_MAX_SIZE" short:"u" default:"20" name:"upload-document-max-size" help:"Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size."`
