@@ -222,3 +222,7 @@
 "This invitation will expire after %s hours.": "Diese Einladung läuft nach %s Stunden ab."
 "If you didn't expect this invitation, you can safely disregard this email.": "Wenn Sie diese Einladung nicht erwartet haben, können Sie diese E-Mail ignorieren."
 "You've been invited to join Coreander": "Sie wurden eingeladen, Coreander beizutreten"
+"A user with this email already exists": "Ein Benutzer mit dieser E-Mail-Adresse existiert bereits"
+"This username is already taken": "Dieser Benutzername ist bereits vergeben"
+"Invitation sent successfully to %s": "Einladung erfolgreich an %s gesendet"
+"Account created successfully. Please log in.": "Konto erfolgreich erstellt. Bitte melden Sie sich an."

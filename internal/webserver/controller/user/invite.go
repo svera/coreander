@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/mail"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -33,14 +34,15 @@ func (u *Controller) SendInvite(c *fiber.Ctx) error {
 
 	email := c.FormValue("email")
 	errs := map[string]string{}
+	lang := c.Locals("Lang").(string)
 
 	// Validate email
 	if _, err := mail.ParseAddress(email); err != nil {
-		errs["email"] = "Incorrect email address"
+		errs["email"] = u.translator.T(lang, "Incorrect email address")
 	}
 
 	if len(email) > 100 {
-		errs["email"] = "Email cannot be longer than 100 characters"
+		errs["email"] = u.translator.T(lang, "Email cannot be longer than 100 characters")
 	}
 
 	// Check if user already exists
@@ -50,7 +52,7 @@ func (u *Controller) SendInvite(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	if existingUser != nil {
-		errs["email"] = "A user with this email already exists"
+		errs["email"] = u.translator.T(lang, "A user with this email already exists")
 	}
 
 	// Check if there's already a pending invitation
@@ -88,9 +90,15 @@ func (u *Controller) SendInvite(c *fiber.Ctx) error {
 	}
 
 	// Send invitation email
+	fqdn := u.config.FQDN
+	// Ensure FQDN has a protocol
+	if !strings.HasPrefix(fqdn, "http://") && !strings.HasPrefix(fqdn, "https://") {
+		fqdn = "http://" + fqdn
+	}
+
 	invitationLink := fmt.Sprintf(
 		"%s/users/accept-invite?id=%s",
-		u.config.FQDN,
+		fqdn,
 		invitation.UUID,
 	)
 
@@ -110,7 +118,7 @@ func (u *Controller) SendInvite(c *fiber.Ctx) error {
 
 	c.Cookie(&fiber.Cookie{
 		Name:    "success-once",
-		Value:   fmt.Sprintf("Invitation sent successfully to %s", email),
+		Value:   u.translator.T(lang, "Invitation sent successfully to %s", email),
 		Expires: time.Now().Add(24 * time.Hour),
 	})
 
@@ -139,6 +147,8 @@ func (u *Controller) AcceptInvite(c *fiber.Ctx) error {
 		return err
 	}
 
+	lang := c.Locals("Lang").(string)
+
 	// Create user from form data with default values
 	user := model.User{
 		Uuid:              uuid.NewString(),
@@ -163,7 +173,7 @@ func (u *Controller) AcceptInvite(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	if existingUser != nil {
-		errs["username"] = "This username is already taken"
+		errs["username"] = u.translator.T(lang, "This username is already taken")
 	}
 
 	if len(errs) > 0 {
@@ -193,7 +203,7 @@ func (u *Controller) AcceptInvite(c *fiber.Ctx) error {
 
 	c.Cookie(&fiber.Cookie{
 		Name:    "success-once",
-		Value:   "Account created successfully. Please log in.",
+		Value:   u.translator.T(lang, "Account created successfully. Please log in."),
 		Expires: time.Now().Add(24 * time.Hour),
 	})
 

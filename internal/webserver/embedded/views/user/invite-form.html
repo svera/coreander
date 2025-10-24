@@ -10,7 +10,7 @@
                 <label for="email" class="form-label">{{t .Lang "Email"}}</label>
             </div>
             {{if ne (index .Errors "email") ""}}
-            <div class="invalid-feedback">
+            <div class="invalid-feedback d-block">
                 {{t .Lang .Errors.email}}
             </div>
             {{end}}

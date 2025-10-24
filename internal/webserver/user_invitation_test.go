@@ -611,4 +611,55 @@ func TestInvitationEmailContent(t *testing.T) {
 			t.Error("Expected email to contain invitation UUID in link")
 		}
 	})
+
+	t.Run("Invitation email link includes protocol when FQDN lacks one", func(t *testing.T) {
+		db := infrastructure.Connect(":memory:", 250)
+		smtpMock := &infrastructure.SMTPMock{}
+
+		// Configure FQDN without protocol
+		webserverConfig := webserver.Config{
+			SessionTimeout:    24 * time.Hour,
+			RecoveryTimeout:   2 * time.Hour,
+			InvitationTimeout: 72 * time.Hour,
+			LibraryPath:       "fixtures/library",
+			WordsPerMinute:    250,
+			FQDN:              "example.com", // No protocol
+		}
+
+		app := bootstrapApp(db, smtpMock, afero.NewMemMapFs(), webserverConfig)
+
+		adminCookie, err := login(app, "admin@example.com", "admin", t)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		inviteData := url.Values{
+			"email": {"protocoltest@example.com"},
+		}
+
+		smtpMock.Wg.Add(1)
+		_, err = postRequest(inviteData, adminCookie, app, "/users/invite", t)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		smtpMock.Wg.Wait()
+
+		// Get the invitation UUID from database
+		var invitation model.Invitation
+		db.Where("email = ?", "protocoltest@example.com").First(&invitation)
+
+		// The email should contain a link with http:// protocol
+		expectedLink := fmt.Sprintf("http://example.com/users/accept-invite?id=%s", invitation.UUID)
+
+		// Check if the email body contains the full link with protocol
+		if !strings.Contains(smtpMock.LastBody, expectedLink) {
+			t.Errorf("Expected email to contain link with protocol: %s\nGot: %s", expectedLink, smtpMock.LastBody)
+		}
+
+		// Ensure it doesn't start with just the domain (without protocol)
+		badLink := fmt.Sprintf("example.com/users/accept-invite?id=%s", invitation.UUID)
+		if strings.Contains(smtpMock.LastBody, badLink) && !strings.Contains(smtpMock.LastBody, "http://"+badLink) {
+			t.Error("Link in email should have protocol prepended")
+		}
+	})
 }
