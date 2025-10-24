@@ -1,11 +1,12 @@
 <nav class="navbar navbar-expand-lg fixed-top {{if .HomeNavbar}}navbar-home{{end}}">
-    <div class="container d-flex justify-content-end">
+    <div class="container">
         {{if not .HomeNavbar}}
         <span class="navbar-brand mb-0 h1">
             <a class="text-decoration-none" href="/">
                 <img src="/images/coreander-logo-small.png{{versionParam .Version}}" alt="Logo" width="32" height="32" class="d-inline-block align-text-middle color-invertible">
             </a>
         </span>
+        {{if not .HideSearchBar}}
         <form action="/documents" class="d-flex justify-content-center flex-grow-1 pe-2" roles="search">
             <div class="input-group input-group-sm">
                 <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
@@ -13,6 +14,11 @@
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" id="search-filters-offcanvas-toggle" data-bs-auto-close="outside" aria-expanded="false" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders"></i></button>
             </div>
         </form>
+        {{else}}
+        <div class="flex-grow-1"></div>
+        {{end}}
+        {{else}}
+        <div class="flex-grow-1"></div>
         {{end}}
         <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas"
             data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -118,7 +124,7 @@
     </div>
 </nav>
 
-{{if not .HomeNavbar}}
+{{if and (not .HomeNavbar) (not .HideSearchBar)}}
 <div class="offcanvas offcanvas-start" tabindex="-1" id="search-filters-offcanvas" aria-labelledby="search-filters-offcanvas-label">
     <div class="offcanvas-header">
         <h5>{{t .Lang "Advanced search"}}</h5>

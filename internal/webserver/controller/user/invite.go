@@ -137,6 +137,7 @@ func (u *Controller) AcceptInviteForm(c *fiber.Ctx) error {
 		"InvitationUUID": invitation.UUID,
 		"Email":          invitation.Email,
 		"Errors":         map[string]string{},
+		"HideSearchBar":  true,
 	}, "layout")
 }
 
