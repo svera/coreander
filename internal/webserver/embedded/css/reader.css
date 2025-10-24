@@ -1,6 +1,6 @@
 :root {
-    --active-bg: rgba(0, 0, 0, .05);
-    --active-bg-dark: rgba(255, 255, 255, .1);
+    --active-bg: rgba(0, 0, 0, .12);
+    --active-bg-dark: rgba(255, 255, 255, .2);
 
     /* Menu icon SVGs (defined once, inverted for dark mode) */
     --radio-checked: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%223%22%20fill%3D%22%23000%22%2F%3E%3C%2Fsvg%3E');
@@ -45,6 +45,9 @@ html[data-theme="dark"] .toolbar button:hover {
 html[data-theme="dark"] #side-bar-header {
     border-bottom: 1px solid rgba(255, 255, 255, .1);
 }
+html[data-theme="dark"] #side-bar-header a {
+    color: #ffffff;
+}
 html[data-theme="dark"] #footnote-modal {
     background: #2a2a2a;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
@@ -66,6 +69,9 @@ html[data-theme="dark"] .menu {
     }
     html[data-theme="auto"] .menu {
         box-shadow: 0 0 0 1px rgba(255, 255, 255, .2), 0 0 16px rgba(0, 0, 0, .3);
+    }
+    html[data-theme="auto"] #side-bar-header a {
+        color: #ffffff;
     }
 }
 html {
@@ -223,6 +229,10 @@ foliate-view:focus {
     display: flex;
     border-bottom: 1px solid rgba(0, 0, 0, .1);
     align-items: center;
+}
+#side-bar-header a {
+    color: #000000;
+    text-decoration: none;
 }
 #side-bar-cover {
     height: 10vh;
@@ -406,7 +416,7 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     padding: 3px;
     border-radius: 6px;
     background: none;
-    border: 0;
+    border: 1px solid transparent;
     color: CanvasText;
     cursor: pointer;
 }
@@ -432,6 +442,17 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
 .menu #line-height-controls button.active,
 .menu #font-family-controls button.active {
     background: var(--active-bg);
+    border: 1px solid rgba(0, 0, 0, .2);
+}
+html[data-theme="dark"] .menu #line-height-controls button.active,
+html[data-theme="dark"] .menu #font-family-controls button.active {
+    border-color: rgba(255, 255, 255, .3);
+}
+@media (prefers-color-scheme: dark) {
+    html[data-theme="auto"] .menu #line-height-controls button.active,
+    html[data-theme="auto"] .menu #font-family-controls button.active {
+        border-color: rgba(255, 255, 255, .3);
+    }
 }
 .popover {
     background: Canvas;
