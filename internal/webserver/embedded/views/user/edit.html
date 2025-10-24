@@ -127,7 +127,7 @@
                     {{end}}
                 </div>
                 {{end}}
-                <div class="mb-5">
+                <div class="{{if eq .Session.Uuid .User.Uuid}}mb-5{{else}}my-5{{end}}">
                     <div class="form-floating">
                         <input type="password" name="password" class='form-control {{if ne (index .Errors "password") ""}}is-invalid{{end}}' id="password" required="required"
                             minlength="{{.MinPasswordLength}}" maxlength="50" placeholder='{{t .Lang "New password"}}'>
