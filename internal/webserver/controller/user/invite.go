@@ -33,40 +33,11 @@ func (u *Controller) SendInvite(c *fiber.Ctx) error {
 	}
 
 	email := c.FormValue("email")
-	errs := map[string]string{}
 	lang := c.Locals("Lang").(string)
 
-	// Validate email
-	if _, err := mail.ParseAddress(email); err != nil {
-		errs["email"] = u.translator.T(lang, "Incorrect email address")
-	}
-
-	if len(email) > 100 {
-		errs["email"] = u.translator.T(lang, "Email cannot be longer than 100 characters")
-	}
-
-	// Check if user already exists
-	existingUser, err := u.repository.FindByEmail(email)
+	errs, err := u.validateInviteEmail(email, lang)
 	if err != nil {
-		log.Printf("error checking for existing user: %v\n", err)
-		return fiber.ErrInternalServerError
-	}
-	if existingUser != nil {
-		errs["email"] = u.translator.T(lang, "A user with this email already exists")
-	}
-
-	// Check if there's already a pending invitation
-	existingInvitation, err := u.invitationsRepository.FindByEmail(email)
-	if err != nil {
-		log.Printf("error checking for existing invitation: %v\n", err)
-		return fiber.ErrInternalServerError
-	}
-	if existingInvitation != nil {
-		// Delete old invitation before creating a new one
-		if err := u.invitationsRepository.DeleteByEmail(email); err != nil {
-			log.Printf("error deleting old invitation: %v\n", err)
-			return fiber.ErrInternalServerError
-		}
+		return err
 	}
 
 	if len(errs) > 0 {
@@ -169,7 +140,7 @@ func (u *Controller) AcceptInvite(c *fiber.Ctx) error {
 	errs = user.ConfirmPassword(c.FormValue("confirm-password"), u.config.MinPasswordLength, errs)
 
 	// Check if username already exists
-	existingUser, err := u.repository.FindByUsername(user.Username)
+	existingUser, err := u.usersRepository.FindByUsername(user.Username)
 	if err != nil {
 		log.Printf("error checking for existing username: %v\n", err)
 		return fiber.ErrInternalServerError
@@ -194,7 +165,7 @@ func (u *Controller) AcceptInvite(c *fiber.Ctx) error {
 	user.Password = model.Hash(user.Password)
 
 	// Create user
-	if err := u.repository.Create(&user); err != nil {
+	if err := u.usersRepository.Create(&user); err != nil {
 		log.Printf("error creating user: %v\n", err)
 		return fiber.ErrInternalServerError
 	}
@@ -239,4 +210,44 @@ func (u *Controller) validateInvitation(invitationUUID string) (*model.Invitatio
 	// Invitation expired, delete it
 	u.invitationsRepository.Delete(invitationUUID)
 	return nil, fiber.NewError(fiber.StatusBadRequest, "This invitation has expired")
+}
+
+func (u *Controller) validateInviteEmail(email, lang string) (map[string]string, error) {
+	errs := map[string]string{}
+
+	// Validate email format
+	if _, err := mail.ParseAddress(email); err != nil {
+		errs["email"] = u.translator.T(lang, "Incorrect email address")
+	}
+
+	// Validate email length
+	if len(email) > 100 {
+		errs["email"] = u.translator.T(lang, "Email cannot be longer than 100 characters")
+	}
+
+	// Check if user already exists
+	existingUser, err := u.usersRepository.FindByEmail(email)
+	if err != nil {
+		log.Printf("error checking for existing user: %v\n", err)
+		return nil, fiber.ErrInternalServerError
+	}
+	if existingUser != nil {
+		errs["email"] = u.translator.T(lang, "A user with this email already exists")
+	}
+
+	// Check if there's already a pending invitation
+	existingInvitation, err := u.invitationsRepository.FindByEmail(email)
+	if err != nil {
+		log.Printf("error checking for existing invitation: %v\n", err)
+		return nil, fiber.ErrInternalServerError
+	}
+	if existingInvitation != nil {
+		// Delete old invitation before creating a new one
+		if err := u.invitationsRepository.DeleteByEmail(email); err != nil {
+			log.Printf("error deleting old invitation: %v\n", err)
+			return nil, fiber.ErrInternalServerError
+		}
+	}
+
+	return errs, nil
 }

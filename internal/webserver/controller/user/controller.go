@@ -42,7 +42,7 @@ type Config struct {
 }
 
 type Controller struct {
-	repository            usersRepository
+	usersRepository       usersRepository
 	invitationsRepository invitationsRepository
 	config                Config
 	sender                Sender
@@ -52,7 +52,7 @@ type Controller struct {
 // NewController returns a new instance of the users controller
 func NewController(repository usersRepository, invitationsRepository invitationsRepository, usersCfg Config, sender Sender, translator i18n.Translator) *Controller {
 	return &Controller{
-		repository:            repository,
+		usersRepository:       repository,
 		invitationsRepository: invitationsRepository,
 		config:                usersCfg,
 		sender:                sender,

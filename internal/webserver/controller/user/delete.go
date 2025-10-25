@@ -7,7 +7,7 @@ import (
 
 // Delete removes a user from the database
 func (u *Controller) Delete(c *fiber.Ctx) error {
-	user, err := u.repository.FindByUsername(c.Params("username"))
+	user, err := u.usersRepository.FindByUsername(c.Params("username"))
 	if err != nil {
 		return fiber.ErrInternalServerError
 	}
@@ -16,11 +16,11 @@ func (u *Controller) Delete(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	if u.repository.Admins() == 1 && user.Role == model.RoleAdmin {
+	if u.usersRepository.Admins() == 1 && user.Role == model.RoleAdmin {
 		return fiber.ErrForbidden
 	}
 
-	if err = u.repository.Delete(user.Uuid); err != nil {
+	if err = u.usersRepository.Delete(user.Uuid); err != nil {
 		return fiber.ErrInternalServerError
 	}
 
