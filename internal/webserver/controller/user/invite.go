@@ -133,11 +133,12 @@ func (u *Controller) AcceptInviteForm(c *fiber.Ctx) error {
 	}
 
 	return c.Render("user/accept-invite", fiber.Map{
-		"Title":          "Accept invitation",
-		"InvitationUUID": invitation.UUID,
-		"Email":          invitation.Email,
-		"Errors":         map[string]string{},
-		"HideSearchBar":  true,
+		"Title":            "Accept invitation",
+		"InvitationUUID":   invitation.UUID,
+		"Email":            invitation.Email,
+		"Errors":           map[string]string{},
+		"HideSearchBar":    true,
+		"DisableLoginLink": true,
 	}, "layout")
 }
 
@@ -179,12 +180,13 @@ func (u *Controller) AcceptInvite(c *fiber.Ctx) error {
 
 	if len(errs) > 0 {
 		return c.Render("user/accept-invite", fiber.Map{
-			"Title":          "Accept invitation",
-			"InvitationUUID": invitation.UUID,
-			"Email":          invitation.Email,
-			"Name":           user.Name,
-			"Username":       user.Username,
-			"Errors":         errs,
+			"Title":            "Accept invitation",
+			"InvitationUUID":   invitation.UUID,
+			"Email":            invitation.Email,
+			"Name":             user.Name,
+			"Username":         user.Username,
+			"Errors":           errs,
+			"DisableLoginLink": true,
 		}, "layout")
 	}
 
