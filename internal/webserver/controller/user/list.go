@@ -16,13 +16,13 @@ func (u *Controller) List(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	users, _ := u.repository.List(page, model.ResultsPerPage)
+	users, _ := u.usersRepository.List(page, model.ResultsPerPage)
 
 	templateVars := fiber.Map{
 		"Title":     "Users",
 		"Users":     users.Hits(),
 		"Paginator": view.Pagination(model.MaxPagesNavigator, users, c.Queries()),
-		"Admins":    u.repository.Admins(),
+		"Admins":    u.usersRepository.Admins(),
 		"URL":       view.URL(c),
 	}
 

@@ -24,11 +24,11 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 	}
 
 	errs := user.Validate(u.config.MinPasswordLength)
-	if exist, _ := u.repository.FindByEmail(c.FormValue("email")); exist != nil {
+	if exist, _ := u.usersRepository.FindByEmail(c.FormValue("email")); exist != nil {
 		errs["email"] = "A user with this email address already exists"
 	}
 
-	if exist, _ := u.repository.FindByUsername(c.FormValue("username")); exist != nil {
+	if exist, _ := u.usersRepository.FindByUsername(c.FormValue("username")); exist != nil {
 		errs["username"] = "A user with this username already exists"
 	}
 
@@ -43,7 +43,7 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 	}
 
 	user.Password = model.Hash(user.Password)
-	if err := u.repository.Create(&user); err != nil {
+	if err := u.usersRepository.Create(&user); err != nil {
 		return fiber.ErrInternalServerError
 	}
 

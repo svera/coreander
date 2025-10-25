@@ -13,7 +13,7 @@ import (
 
 // Update gathers information from the edit user form and updates user data
 func (u *Controller) Update(c *fiber.Ctx) error {
-	user, err := u.repository.FindByUsername(c.Params("username"))
+	user, err := u.usersRepository.FindByUsername(c.Params("username"))
 	if err != nil {
 		log.Println(err.Error())
 		return fiber.ErrInternalServerError
@@ -75,7 +75,7 @@ func (u *Controller) updateOptions(c *fiber.Ctx, user *model.User, session model
 
 	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)
 
-	if err := u.repository.Update(user); err != nil {
+	if err := u.usersRepository.Update(user); err != nil {
 		return fiber.ErrInternalServerError
 	}
 
@@ -117,7 +117,7 @@ func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session mode
 		return validationErrs, err
 	}
 
-	if err := u.repository.Update(user); err != nil {
+	if err := u.usersRepository.Update(user); err != nil {
 		return nil, fiber.ErrInternalServerError
 	}
 
@@ -153,7 +153,7 @@ func (u *Controller) validate(c *fiber.Ctx, user *model.User, session model.Sess
 }
 
 func (u *Controller) usernameExists(c *fiber.Ctx, session model.Session) (bool, error) {
-	user, err := u.repository.FindByUsername(c.FormValue("username"))
+	user, err := u.usersRepository.FindByUsername(c.FormValue("username"))
 	if err != nil {
 		return true, err
 	}
@@ -167,7 +167,7 @@ func (u *Controller) usernameExists(c *fiber.Ctx, session model.Session) (bool, 
 }
 
 func (u *Controller) emailExists(c *fiber.Ctx, session model.Session) (bool, error) {
-	user, err := u.repository.FindByEmail(c.FormValue("email"))
+	user, err := u.usersRepository.FindByEmail(c.FormValue("email"))
 	if err != nil {
 		return true, fiber.ErrInternalServerError
 	}
@@ -188,7 +188,7 @@ func (u *Controller) updateUserPassword(c *fiber.Ctx, user model.User, session m
 
 	// Allow admins to change password of other users without entering user's current password
 	if session.Uuid == c.FormValue("id") {
-		user, err := u.repository.FindByEmail(user.Email)
+		user, err := u.usersRepository.FindByEmail(user.Email)
 		if err != nil {
 			return nil, fiber.ErrInternalServerError
 		}
@@ -203,7 +203,7 @@ func (u *Controller) updateUserPassword(c *fiber.Ctx, user model.User, session m
 	}
 
 	user.Password = model.Hash(user.Password)
-	if err := u.repository.Update(&user); err != nil {
+	if err := u.usersRepository.Update(&user); err != nil {
 		return errs, fiber.ErrInternalServerError
 	}
 

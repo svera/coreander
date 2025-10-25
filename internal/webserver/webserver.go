@@ -34,6 +34,7 @@ type Config struct {
 	Version                    string
 	SessionTimeout             time.Duration
 	RecoveryTimeout            time.Duration
+	InvitationTimeout          time.Duration
 	MinPasswordLength          int
 	WordsPerMinute             float64
 	JwtSecret                  []byte

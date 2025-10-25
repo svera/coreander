@@ -119,6 +119,11 @@ func main() {
 		log.Fatal(fmt.Errorf("wrong value for recovery timeout"))
 	}
 
+	webserverConfig.InvitationTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", input.InvitationTimeout))
+	if err != nil {
+		log.Fatal(fmt.Errorf("wrong value for invitation timeout"))
+	}
+
 	if webserverConfig.CacheDir == "" {
 		webserverConfig.CacheDir = homeDir + "/.coreander/cache"
 		if _, err := os.Stat(webserverConfig.CacheDir); os.IsNotExist(err) {

@@ -30,7 +30,7 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 		log.Fatal(err)
 	}
 
-	if err := db.AutoMigrate(&model.User{}, &model.Highlight{}, &model.Reading{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Highlight{}, &model.Reading{}, &model.Invitation{}); err != nil {
 		log.Fatal(err)
 	}
 	addDefaultAdmin(db, wordsPerMinute)

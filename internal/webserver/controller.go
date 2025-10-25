@@ -27,6 +27,7 @@ type Controllers struct {
 
 func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {
 	usersRepository := &model.UserRepository{DB: db}
+	invitationsRepository := &model.InvitationRepository{DB: db}
 	highlightsRepository := &model.HighlightRepository{DB: db}
 	readingRepository := &model.ReadingRepository{DB: db}
 
@@ -43,6 +44,8 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		MinPasswordLength: cfg.MinPasswordLength,
 		WordsPerMinute:    cfg.WordsPerMinute,
 		Secret:            cfg.JwtSecret,
+		InvitationTimeout: cfg.InvitationTimeout,
+		FQDN:              cfg.FQDN,
 	}
 
 	documentsCfg := document.Config{
@@ -77,7 +80,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 
 	return Controllers{
 		Auth:       auth.NewController(usersRepository, sender, authCfg, translator),
-		Users:      user.NewController(usersRepository, usersCfg, sender, translator),
+		Users:      user.NewController(usersRepository, invitationsRepository, usersCfg, sender, translator),
 		Highlights: highlight.NewController(highlightsRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
 		Documents:  document.NewController(highlightsRepository, readingRepository, sender, idx, metadataReaders, appFs, documentsCfg),
 		Home:       home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),

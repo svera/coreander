@@ -7,6 +7,7 @@ type SMTPMock struct {
 	calledSendDocument bool
 	mu                 sync.Mutex
 	Wg                 sync.WaitGroup
+	LastBody           string
 }
 
 func (s *SMTPMock) Send(address, subject, body string) error {
@@ -14,6 +15,7 @@ func (s *SMTPMock) Send(address, subject, body string) error {
 
 	s.mu.Lock()
 	s.calledSend = true
+	s.LastBody = body
 	s.mu.Unlock()
 	return nil
 }

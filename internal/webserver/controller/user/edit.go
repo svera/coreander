@@ -9,7 +9,7 @@ import (
 
 // Edit renders the edit user form
 func (u *Controller) Edit(c *fiber.Ctx) error {
-	user, err := u.repository.FindByUsername(c.Params("username"))
+	user, err := u.usersRepository.FindByUsername(c.Params("username"))
 	if err != nil {
 		log.Println(err.Error())
 		return fiber.ErrInternalServerError
