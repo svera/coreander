@@ -271,7 +271,7 @@ func TestUserInvitation(t *testing.T) {
 		}
 		db.Create(invitation)
 
-		response, err := getRequest(&http.Cookie{}, app, "/users/accept-invite?id=test-uuid-123", t)
+		response, err := getRequest(&http.Cookie{}, app, "/invite?id=test-uuid-123", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -284,7 +284,7 @@ func TestUserInvitation(t *testing.T) {
 		}
 
 		// Check form exists
-		if doc.Find("form[action='/users/accept-invite']").Length() == 0 {
+		if doc.Find("form[action='/invite']").Length() == 0 {
 			t.Error("Expected accept invitation form not found")
 		}
 
@@ -311,7 +311,7 @@ func TestUserInvitation(t *testing.T) {
 	t.Run("Try to access invitation with invalid UUID", func(t *testing.T) {
 		reset()
 
-		response, err := getRequest(&http.Cookie{}, app, "/users/accept-invite?id=invalid-uuid", t)
+		response, err := getRequest(&http.Cookie{}, app, "/invite?id=invalid-uuid", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -330,7 +330,7 @@ func TestUserInvitation(t *testing.T) {
 		}
 		db.Create(invitation)
 
-		response, err := getRequest(&http.Cookie{}, app, "/users/accept-invite?id=expired-uuid", t)
+		response, err := getRequest(&http.Cookie{}, app, "/invite?id=expired-uuid", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -364,7 +364,7 @@ func TestUserInvitation(t *testing.T) {
 			"confirm-password": {"password123"},
 		}
 
-		response, err := postRequest(acceptData, &http.Cookie{}, app, "/users/accept-invite", t)
+		response, err := postRequest(acceptData, &http.Cookie{}, app, "/invite", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -443,7 +443,7 @@ func TestUserInvitation(t *testing.T) {
 			"confirm-password": {"different"},
 		}
 
-		response, err := postRequest(acceptData, &http.Cookie{}, app, "/users/accept-invite", t)
+		response, err := postRequest(acceptData, &http.Cookie{}, app, "/invite", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -483,7 +483,7 @@ func TestUserInvitation(t *testing.T) {
 			"confirm-password": {"password123"},
 		}
 
-		response, err := postRequest(acceptData, &http.Cookie{}, app, "/users/accept-invite", t)
+		response, err := postRequest(acceptData, &http.Cookie{}, app, "/invite", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -514,7 +514,7 @@ func TestUserInvitation(t *testing.T) {
 			"confirm-password": {"password123"},
 		}
 
-		_, err := postRequest(acceptData, &http.Cookie{}, app, "/users/accept-invite", t)
+		_, err := postRequest(acceptData, &http.Cookie{}, app, "/invite", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -543,7 +543,7 @@ func TestUserInvitation(t *testing.T) {
 		db.Create(invitation)
 
 		// Try to access while logged in as admin
-		resp, err := getRequest(adminCookie, app, "/users/accept-invite?id=logged-in-uuid", t)
+		resp, err := getRequest(adminCookie, app, "/invite?id=logged-in-uuid", t)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -600,7 +600,7 @@ func TestInvitationEmailContent(t *testing.T) {
 		db.Where("email = ?", "emailtest@example.com").First(&invitation)
 
 		// The email should contain the invitation link
-		expectedLinkPart := fmt.Sprintf("/users/accept-invite?id=%s", invitation.UUID)
+		expectedLinkPart := fmt.Sprintf("/invite?id=%s", invitation.UUID)
 
 		// Verify invitation has UUID and is valid
 		if invitation.UUID == "" {
@@ -649,7 +649,7 @@ func TestInvitationEmailContent(t *testing.T) {
 		db.Where("email = ?", "protocoltest@example.com").First(&invitation)
 
 		// The email should contain a link with http:// protocol
-		expectedLink := fmt.Sprintf("http://example.com/users/accept-invite?id=%s", invitation.UUID)
+		expectedLink := fmt.Sprintf("http://example.com/invite?id=%s", invitation.UUID)
 
 		// Check if the email body contains the full link with protocol
 		if !strings.Contains(smtpMock.LastBody, expectedLink) {
@@ -657,7 +657,7 @@ func TestInvitationEmailContent(t *testing.T) {
 		}
 
 		// Ensure it doesn't start with just the domain (without protocol)
-		badLink := fmt.Sprintf("example.com/users/accept-invite?id=%s", invitation.UUID)
+		badLink := fmt.Sprintf("example.com/invite?id=%s", invitation.UUID)
 		if strings.Contains(smtpMock.LastBody, badLink) && !strings.Contains(smtpMock.LastBody, "http://"+badLink) {
 			t.Error("Link in email should have protocol prepended")
 		}

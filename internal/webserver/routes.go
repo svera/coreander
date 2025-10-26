@@ -68,8 +68,8 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	app.Delete("/sessions", alwaysRequireAuthentication, controllers.Auth.SignOut)
 
 	// Public routes for invitation acceptance (must be before usersGroup)
-	app.Get("/users/accept-invite", allowIfNotLoggedIn, controllers.Users.AcceptInviteForm)
-	app.Post("/users/accept-invite", allowIfNotLoggedIn, controllers.Users.AcceptInvite)
+	app.Get("/invite", allowIfNotLoggedIn, controllers.Users.AcceptInviteForm)
+	app.Post("/invite", allowIfNotLoggedIn, controllers.Users.AcceptInvite)
 
 	usersGroup := app.Group("/users", alwaysRequireAuthentication)
 

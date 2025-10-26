@@ -68,7 +68,7 @@ func (u *Controller) SendInvite(c *fiber.Ctx) error {
 	}
 
 	invitationLink := fmt.Sprintf(
-		"%s/users/accept-invite?id=%s",
+		"%s/invite?id=%s",
 		fqdn,
 		invitation.UUID,
 	)

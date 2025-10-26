@@ -4,7 +4,7 @@
         <p>{{t .Lang "Create your account"}}</p>
     </div>
 
-    <form method="POST" action="/users/accept-invite" autocomplete="off">
+    <form method="POST" action="/invite" autocomplete="off">
         <input type="hidden" name="invitation_uuid" value="{{.InvitationUUID}}">
 
         <div class="mb-3">
