@@ -24,10 +24,6 @@ func (i *InvitationRepository) FindByUUID(uuid string) (*Invitation, error) {
 	return i.find("uuid", uuid)
 }
 
-func (i *InvitationRepository) FindByEmail(email string) (*Invitation, error) {
-	return i.find("email", email)
-}
-
 func (i *InvitationRepository) Delete(uuid string) error {
 	var invitation Invitation
 

@@ -1,14 +1,15 @@
 <nav class="navbar navbar-expand-lg fixed-top {{if .HomeNavbar}}navbar-home{{end}}">
-    <div class="container">
+    <div class="container flex-nowrap">
         {{if not .HomeNavbar}}
         <span class="navbar-brand mb-0 h1">
             <a class="text-decoration-none" href="/">
                 <img src="/images/coreander-logo-small.png{{versionParam .Version}}" alt="Logo" width="32" height="32" class="d-inline-block align-text-middle color-invertible">
             </a>
         </span>
-        {{if not .HideSearchBar}}
-        <form action="/documents" class="d-flex justify-content-center flex-grow-1 pe-2" roles="search">
-            <div class="input-group input-group-sm">
+        {{end}}
+        {{if and (not .HomeNavbar) (not .HideSearchBar)}}
+        <form action="/documents" class="d-flex justify-content-center flex-fill flex-shrink-1 pe-2" roles="search" style="min-width: 0;">
+            <div class="input-group input-group-sm w-100" style="max-width: 600px;">
                 <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
                 <input type="search" name="search" id="searchbox" class="form-control rounded-start-1" maxlength="255" autofocus value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" id="search-filters-offcanvas-toggle" data-bs-auto-close="outside" aria-expanded="false" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders"></i></button>
@@ -17,10 +18,7 @@
         {{else}}
         <div class="flex-grow-1"></div>
         {{end}}
-        {{else}}
-        <div class="flex-grow-1"></div>
-        {{end}}
-        <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas"
+        <button class="navbar-toggler flex-shrink-0" type="button" data-bs-toggle="offcanvas"
             data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>

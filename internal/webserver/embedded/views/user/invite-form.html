@@ -14,11 +14,10 @@
                 {{t .Lang .Errors.email}}
             </div>
             {{end}}
-            <div class="form-text">{{t .Lang "An invitation email will be sent to this address"}}</div>
         </div>
 
         <div class="d-grid d-sm-block">
-            <button type="submit" class="btn btn-primary">{{t .Lang "Send invitation"}}</button>
+            <button type="submit" class="btn btn-primary mb-2 mb-sm-0">{{t .Lang "Send invitation"}}</button>
             <a href="/users" class="btn btn-secondary">{{t .Lang "Cancel"}}</a>
         </div>
     </form>

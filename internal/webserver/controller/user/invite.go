@@ -235,18 +235,10 @@ func (u *Controller) validateInviteEmail(email, lang string) (map[string]string,
 		errs["email"] = u.translator.T(lang, "A user with this email already exists")
 	}
 
-	// Check if there's already a pending invitation
-	existingInvitation, err := u.invitationsRepository.FindByEmail(email)
-	if err != nil {
-		log.Printf("error checking for existing invitation: %v\n", err)
+	// Delete any existing invitation for this email before creating a new one
+	if err := u.invitationsRepository.DeleteByEmail(email); err != nil {
+		log.Printf("error deleting old invitation: %v\n", err)
 		return nil, fiber.ErrInternalServerError
-	}
-	if existingInvitation != nil {
-		// Delete old invitation before creating a new one
-		if err := u.invitationsRepository.DeleteByEmail(email); err != nil {
-			log.Printf("error deleting old invitation: %v\n", err)
-			return nil, fiber.ErrInternalServerError
-		}
 	}
 
 	return errs, nil
