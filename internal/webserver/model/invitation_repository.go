@@ -24,16 +24,6 @@ func (i *InvitationRepository) FindByUUID(uuid string) (*Invitation, error) {
 	return i.find("uuid", uuid)
 }
 
-func (i *InvitationRepository) Delete(uuid string) error {
-	var invitation Invitation
-
-	result := i.DB.Where("uuid = ?", uuid).Delete(&invitation)
-	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		log.Printf("error deleting invitation: %s\n", result.Error)
-	}
-	return nil
-}
-
 func (i *InvitationRepository) DeleteByEmail(email string) error {
 	var invitation Invitation
 

@@ -20,7 +20,7 @@
                 <label for="name" class="form-label">{{t .Lang "Name"}}</label>
             </div>
             {{if ne (index .Errors "name") ""}}
-            <div class="invalid-feedback">
+            <div class="invalid-feedback d-block">
                 {{t .Lang .Errors.name}}
             </div>
             {{end}}
@@ -32,7 +32,7 @@
                 <label for="username" class="form-label">{{t .Lang "Username"}}</label>
             </div>
             {{if ne (index .Errors "username") ""}}
-            <div class="invalid-feedback">
+            <div class="invalid-feedback d-block">
                 {{t .Lang .Errors.username}}
             </div>
             {{end}}
@@ -45,7 +45,7 @@
                 <label for="password" class="form-label">{{t .Lang "Password"}}</label>
             </div>
             {{if ne (index .Errors "password") ""}}
-            <div class="invalid-feedback">
+            <div class="invalid-feedback d-block">
                 {{t .Lang .Errors.password 5}}
             </div>
             {{end}}
@@ -58,7 +58,7 @@
                 <label for="confirm-password" class="form-label">{{t .Lang "Confirm password"}}</label>
             </div>
             {{if ne (index .Errors "confirmpassword") ""}}
-            <div class="invalid-feedback">
+            <div class="invalid-feedback d-block">
                 {{t .Lang .Errors.confirmpassword}}
             </div>
             {{end}}

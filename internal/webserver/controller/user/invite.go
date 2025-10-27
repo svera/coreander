@@ -108,7 +108,6 @@ func (u *Controller) AcceptInviteForm(c *fiber.Ctx) error {
 		"InvitationUUID":   invitation.UUID,
 		"Email":            invitation.Email,
 		"Errors":           map[string]string{},
-		"HideSearchBar":    true,
 		"DisableLoginLink": true,
 	}, "layout")
 }
@@ -171,7 +170,7 @@ func (u *Controller) AcceptInvite(c *fiber.Ctx) error {
 	}
 
 	// Delete invitation
-	if err := u.invitationsRepository.Delete(invitation.UUID); err != nil {
+	if err := u.invitationsRepository.DeleteByEmail(invitation.Email); err != nil {
 		log.Printf("error deleting invitation: %v\n", err)
 	}
 
@@ -208,7 +207,7 @@ func (u *Controller) validateInvitation(invitationUUID string) (*model.Invitatio
 	}
 
 	// Invitation expired, delete it
-	u.invitationsRepository.Delete(invitationUUID)
+	u.invitationsRepository.DeleteByEmail(invitation.Email)
 	return nil, fiber.NewError(fiber.StatusBadRequest, "This invitation has expired")
 }
 

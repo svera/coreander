@@ -28,7 +28,6 @@ type usersRepository interface {
 type invitationsRepository interface {
 	Create(invitation *model.Invitation) error
 	FindByUUID(uuid string) (*model.Invitation, error)
-	Delete(uuid string) error
 	DeleteByEmail(email string) error
 }
 
