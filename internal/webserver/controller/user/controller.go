@@ -48,9 +48,9 @@ type Controller struct {
 }
 
 // NewController returns a new instance of the users controller
-func NewController(repository usersRepository, invitationsRepository invitationsRepository, usersCfg Config, sender Sender, translator i18n.Translator) *Controller {
+func NewController(usersRepository usersRepository, invitationsRepository invitationsRepository, usersCfg Config, sender Sender, translator i18n.Translator) *Controller {
 	return &Controller{
-		usersRepository:       repository,
+		usersRepository:       usersRepository,
 		invitationsRepository: invitationsRepository,
 		config:                usersCfg,
 		sender:                sender,
