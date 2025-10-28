@@ -1,0 +1,72 @@
+<div class="row mb-3 mt-5">
+    <div class="col mb-3">
+        <h2>{{t .Lang "Welcome to Coreander"}}</h2>
+        <p>{{t .Lang "Create your account"}}</p>
+    </div>
+
+    <form method="POST" action="/invite" autocomplete="off">
+        <input type="hidden" name="invitation_uuid" value="{{.InvitationUUID}}">
+
+        <div class="mb-3">
+            <div class="form-floating">
+                <input type="email" name="email" class='form-control' id="email" value="{{.Email}}" readonly disabled placeholder='{{t .Lang "Email"}}'>
+                <label for="email" class="form-label">{{t .Lang "Email"}}</label>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <div class="form-floating">
+                <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.Name}}" maxlength="50" placeholder='{{t .Lang "Name"}}'>
+                <label for="name" class="form-label">{{t .Lang "Name"}}</label>
+            </div>
+            {{if ne (index .Errors "name") ""}}
+            <div class="invalid-feedback d-block">
+                {{t .Lang .Errors.name}}
+            </div>
+            {{end}}
+        </div>
+
+        <div class="mb-3">
+            <div class="form-floating">
+                <input type="text" name="username" class='form-control {{if ne (index .Errors "username") ""}}is-invalid{{end}}' id="username" required="required" value="{{.Username}}" maxlength="20" pattern="^[A-z0-9_\-.]+$" placeholder='{{t .Lang "Username"}}'>
+                <label for="username" class="form-label">{{t .Lang "Username"}}</label>
+            </div>
+            {{if ne (index .Errors "username") ""}}
+            <div class="invalid-feedback d-block">
+                {{t .Lang .Errors.username}}
+            </div>
+            {{end}}
+        </div>
+
+        <div class="mb-3">
+            <div class="form-floating">
+                <input type="password" name="password" class='form-control {{if ne (index .Errors "password") ""}}is-invalid{{end}}' id="password" required="required"
+                    minlength="5" maxlength="50" autocomplete="new-password" placeholder='{{t .Lang "Password"}}'>
+                <label for="password" class="form-label">{{t .Lang "Password"}}</label>
+            </div>
+            {{if ne (index .Errors "password") ""}}
+            <div class="invalid-feedback d-block">
+                {{t .Lang .Errors.password 5}}
+            </div>
+            {{end}}
+        </div>
+
+        <div class="mb-5">
+            <div class="form-floating">
+                <input type="password" name="confirm-password" class='form-control {{if ne (index .Errors "confirmpassword") ""}}is-invalid{{end}}' id="confirm-password"
+                    required="required" minlength="5" maxlength="50" placeholder='{{t .Lang "Confirm password"}}'>
+                <label for="confirm-password" class="form-label">{{t .Lang "Confirm password"}}</label>
+            </div>
+            {{if ne (index .Errors "confirmpassword") ""}}
+            <div class="invalid-feedback d-block">
+                {{t .Lang .Errors.confirmpassword}}
+            </div>
+            {{end}}
+        </div>
+
+        <div class="d-grid d-sm-block">
+            <button type="submit" class="btn btn-primary">{{t .Lang "Create account"}}</button>
+        </div>
+    </form>
+</div>
+

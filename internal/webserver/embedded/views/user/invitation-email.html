@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<body>
+    <p>
+        {{t .Lang "You have been invited to join Coreander! Click the following link to create your account"}}:
+        <a href="{{.InvitationLink}}">{{.InvitationLink}}</a>
+    </p>
+    <p>{{t .Lang "This invitation will expire after %s hours." .InvitationTimeout}}</p>
+    <p>{{t .Lang "If you didn't expect this invitation, you can safely disregard this email."}}</p>
+</body>
+</html>
+
+
