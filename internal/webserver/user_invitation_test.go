@@ -118,7 +118,7 @@ func TestUserInvitation(t *testing.T) {
 		}
 	})
 
-	t.Run("Try to send invitation without email configured (NoEmail)", func(t *testing.T) {
+	t.Run("Try to access invite form without email configured (NoEmail)", func(t *testing.T) {
 		t.Helper()
 
 		db := infrastructure.Connect(":memory:", 250)
@@ -135,6 +135,101 @@ func TestUserInvitation(t *testing.T) {
 		}
 
 		mustReturnStatus(response, fiber.StatusNotFound, t)
+	})
+
+	t.Run("Try to send invitation without email configured (NoEmail)", func(t *testing.T) {
+		t.Helper()
+
+		db := infrastructure.Connect(":memory:", 250)
+		noEmailApp := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
+
+		cookie, err := login(noEmailApp, "admin@example.com", "admin", t)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		inviteData := url.Values{
+			"email": {"newuser@example.com"},
+		}
+
+		response, err := postRequest(inviteData, cookie, noEmailApp, "/users/invite", t)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnStatus(response, fiber.StatusNotFound, t)
+	})
+
+	t.Run("Invite button is disabled when email server is not configured", func(t *testing.T) {
+		t.Helper()
+
+		db := infrastructure.Connect(":memory:", 250)
+		noEmailApp := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
+
+		cookie, err := login(noEmailApp, "admin@example.com", "admin", t)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		// Request the users list page
+		response, err := getRequest(cookie, noEmailApp, "/users", t)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnStatus(response, fiber.StatusOK, t)
+
+		doc, err := goquery.NewDocumentFromReader(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Check that the invite button exists but is disabled
+		disabledButton := doc.Find("button:contains('Invite user')[disabled]")
+		if disabledButton.Length() == 0 {
+			t.Error("Expected disabled 'Invite user' button not found")
+		}
+
+		// Check that the disabled button is wrapped in a span with a title tooltip
+		span := doc.Find("span[title*='Email server not configured']")
+		if span.Length() == 0 {
+			t.Error("Expected tooltip span with 'Email server not configured' message not found")
+		}
+
+		// Check that there is NO link to /users/invite (only the disabled button)
+		inviteLink := doc.Find("a[href='/users/invite']")
+		if inviteLink.Length() > 0 {
+			t.Error("Expected no active link to /users/invite when email is not configured")
+		}
+	})
+
+	t.Run("Invite button is enabled when email server is configured", func(t *testing.T) {
+		reset()
+
+		// Request the users list page
+		response, err := getRequest(adminCookie, app, "/users", t)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnStatus(response, fiber.StatusOK, t)
+
+		doc, err := goquery.NewDocumentFromReader(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Check that the invite link exists
+		inviteLink := doc.Find("a[href='/users/invite']:contains('Invite user')")
+		if inviteLink.Length() == 0 {
+			t.Error("Expected active 'Invite user' link not found")
+		}
+
+		// Check that there is NO disabled button (only the link)
+		disabledButton := doc.Find("button:contains('Invite user')[disabled]")
+		if disabledButton.Length() > 0 {
+			t.Error("Expected no disabled button when email is configured")
+		}
 	})
 
 	t.Run("Send invitation successfully", func(t *testing.T) {

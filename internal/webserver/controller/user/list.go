@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
@@ -18,12 +19,15 @@ func (u *Controller) List(c *fiber.Ctx) error {
 
 	users, _ := u.usersRepository.List(page, model.ResultsPerPage)
 
+	_, emailConfigured := u.sender.(*infrastructure.NoEmail)
+
 	templateVars := fiber.Map{
-		"Title":     "Users",
-		"Users":     users.Hits(),
-		"Paginator": view.Pagination(model.MaxPagesNavigator, users, c.Queries()),
-		"Admins":    u.usersRepository.Admins(),
-		"URL":       view.URL(c),
+		"Title":           "Users",
+		"Users":           users.Hits(),
+		"Paginator":       view.Pagination(model.MaxPagesNavigator, users, c.Queries()),
+		"Admins":          u.usersRepository.Admins(),
+		"URL":             view.URL(c),
+		"EmailConfigured": !emailConfigured,
 	}
 
 	if c.Get("hx-request") == "true" {

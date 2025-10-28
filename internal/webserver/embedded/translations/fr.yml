@@ -224,4 +224,5 @@
 "This username is already taken": "Ce nom d'utilisateur est déjà pris"
 "Invitation sent successfully to %s": "Invitation envoyée avec succès à %s"
 "Account created successfully. Please log in.": "Compte créé avec succès. Veuillez vous connecter."
+"Email server not configured": "Serveur de messagerie non configuré"
 
