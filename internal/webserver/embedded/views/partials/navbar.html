@@ -7,7 +7,7 @@
             </a>
         </span>
         {{end}}
-        {{if and (not .HomeNavbar) (not .HideSearchBar)}}
+        {{if not .HomeNavbar}}
         <form action="/documents" class="d-flex justify-content-center flex-fill flex-shrink-1 pe-2" roles="search" style="min-width: 0;">
             <div class="input-group input-group-sm w-100">
                 <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
@@ -122,7 +122,7 @@
     </div>
 </nav>
 
-{{if and (not .HomeNavbar) (not .HideSearchBar)}}
+{{if not .HomeNavbar}}
 <div class="offcanvas offcanvas-start" tabindex="-1" id="search-filters-offcanvas" aria-labelledby="search-filters-offcanvas-label">
     <div class="offcanvas-header">
         <h5>{{t .Lang "Advanced search"}}</h5>
