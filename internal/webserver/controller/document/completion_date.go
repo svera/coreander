@@ -2,6 +2,7 @@ package document
 
 import (
 	"log"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/webserver/model"
@@ -30,6 +31,8 @@ func (d *Controller) CompletionDate(c *fiber.Ctx) error {
 
 	return c.Render("partials/completion-date", fiber.Map{
 		"Document": document,
+		"Lang":     c.Locals("Lang"),
+		"Today":    time.Now().Format("2006-01-02"),
 	})
 }
 

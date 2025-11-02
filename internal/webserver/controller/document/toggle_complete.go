@@ -59,6 +59,17 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 					return fiber.ErrBadRequest
 				}
 
+				// Prevent future dates - compare date components only
+				now := time.Now()
+				// Convert both to date-only format for comparison
+				completedDateOnly := time.Date(completedAt.Year(), completedAt.Month(), completedAt.Day(), 0, 0, 0, 0, time.UTC)
+				todayDateOnly := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+
+				if completedDateOnly.After(todayDateOnly) {
+					log.Printf("future date not allowed: %s\n", *req.CompletedAt)
+					return fiber.ErrBadRequest
+				}
+
 				// Update the completion date
 				if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, completedAt); err != nil {
 					log.Printf("error updating completion date: %s\n", err)

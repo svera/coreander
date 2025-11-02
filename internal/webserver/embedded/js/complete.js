@@ -66,7 +66,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Validate date format
         if (!newDate || !/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
-            alert('Invalid date format');
+            console.error('Invalid date format:', newDate);
+            input.value = originalDate;
+            return;
+        }
+
+        // Prevent future dates (compare only date parts)
+        const selectedDate = new Date(newDate + 'T00:00:00');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (selectedDate > today) {
+            console.error('Future dates not allowed:', newDate);
             input.value = originalDate;
             return;
         }
@@ -94,8 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error updating completion date:', error);
-            alert('Failed to update completion date. Please try again.');
-            // Revert to original date
+            // Revert to original date silently
             input.value = originalDate;
         });
     });
