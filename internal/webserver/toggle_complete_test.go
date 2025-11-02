@@ -105,12 +105,8 @@ func TestToggleComplete(t *testing.T) {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
 
-		if !reading.Completed {
-			t.Error("Expected Completed to be true")
-		}
-
 		if reading.CompletedAt == nil {
-			t.Error("Expected CompletedAt to be set")
+			t.Error("Expected CompletedAt to be set (document should be marked as complete)")
 		}
 	})
 
@@ -128,7 +124,7 @@ func TestToggleComplete(t *testing.T) {
 		// Verify it's complete
 		var reading model.Reading
 		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&reading).Error
-		if err != nil || !reading.Completed || reading.CompletedAt == nil {
+		if err != nil || reading.CompletedAt == nil {
 			t.Fatal("Document should be marked as complete")
 		}
 
@@ -151,12 +147,8 @@ func TestToggleComplete(t *testing.T) {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
 
-		if readingAfterToggle.Completed {
-			t.Error("Expected Completed to be false")
-		}
-
 		if readingAfterToggle.CompletedAt != nil {
-			t.Error("Expected CompletedAt to be nil")
+			t.Error("Expected CompletedAt to be nil (document should be marked as incomplete)")
 		}
 	})
 
@@ -176,9 +168,14 @@ func TestToggleComplete(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Check for incomplete icon (bi-circle)
-		if doc.Find("i.bi-circle").Length() == 0 {
-			t.Error("Expected incomplete icon (bi-circle) to be present")
+		// Check for unchecked checkbox
+		checkbox := doc.Find("input[type='checkbox'][id^='complete-checkbox-']")
+		if checkbox.Length() == 0 {
+			t.Error("Expected completion checkbox to be present")
+		}
+
+		if _, exists := checkbox.Attr("checked"); exists {
+			t.Error("Expected checkbox to be unchecked when document is incomplete")
 		}
 
 		// Mark as complete
@@ -202,14 +199,14 @@ func TestToggleComplete(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Check for complete icon (bi-check-circle-fill)
-		if doc.Find("i.bi-check-circle-fill").Length() == 0 {
-			t.Error("Expected complete icon (bi-check-circle-fill) to be present")
+		// Check for checked checkbox
+		completedCheckbox := doc.Find("input[type='checkbox'][id^='complete-checkbox-']")
+		if completedCheckbox.Length() == 0 {
+			t.Error("Expected completion checkbox to be present")
 		}
 
-		// Check for success class on button
-		if doc.Find("button.btn-success").Length() == 0 {
-			t.Error("Expected button to have btn-success class when complete")
+		if _, exists := completedCheckbox.Attr("checked"); !exists {
+			t.Error("Expected checkbox to be checked when document is complete")
 		}
 	})
 
@@ -228,7 +225,7 @@ func TestToggleComplete(t *testing.T) {
 		var reading model.Reading
 		err = db.Where("user_id = ? AND path = ?", 1, "quijote.epub").First(&reading).Error
 		if err != gorm.ErrRecordNotFound {
-			if reading.Completed || reading.CompletedAt != nil {
+			if reading.CompletedAt != nil {
 				t.Error("Admin user should not see document as complete")
 			}
 		}
@@ -267,12 +264,8 @@ func TestToggleComplete(t *testing.T) {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
 
-		if !reading.Completed {
-			t.Fatal("Document should be marked as complete")
-		}
-
 		if reading.CompletedAt == nil {
-			t.Fatal("CompletedAt should be set")
+			t.Fatal("CompletedAt should be set (document should be marked as complete)")
 		}
 
 		originalDate := *reading.CompletedAt
@@ -280,7 +273,7 @@ func TestToggleComplete(t *testing.T) {
 		// Update the completion date to a different date
 		newDate := "2024-01-15"
 		reqBody := fmt.Sprintf(`{"completed_at":"%s"}`, newDate)
-		req, _ = http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete-date", strings.NewReader(reqBody))
+		req, _ = http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", strings.NewReader(reqBody))
 		req.Header.Set("Content-Type", "application/json")
 		req.AddCookie(regularCookie)
 		response, err := app.Test(req)
@@ -299,12 +292,8 @@ func TestToggleComplete(t *testing.T) {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
 
-		if !readingAfterUpdate.Completed {
-			t.Error("Document should still be marked as complete")
-		}
-
 		if readingAfterUpdate.CompletedAt == nil {
-			t.Error("CompletedAt should still be set")
+			t.Error("CompletedAt should still be set (document should be marked as complete)")
 		}
 
 		// Verify the date was actually updated
@@ -323,7 +312,7 @@ func TestToggleComplete(t *testing.T) {
 		reset()
 
 		reqBody := `{"completed_at":"2024-01-15"}`
-		req, _ := http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete-date", strings.NewReader(reqBody))
+		req, _ := http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", strings.NewReader(reqBody))
 		req.Header.Set("Content-Type", "application/json")
 		response, err := app.Test(req)
 		if err != nil {
@@ -348,7 +337,7 @@ func TestToggleComplete(t *testing.T) {
 
 		// Try to update with invalid date format
 		reqBody := `{"completed_at":"invalid-date"}`
-		req, _ = http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete-date", strings.NewReader(reqBody))
+		req, _ = http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", strings.NewReader(reqBody))
 		req.Header.Set("Content-Type", "application/json")
 		req.AddCookie(regularCookie)
 		response, err := app.Test(req)

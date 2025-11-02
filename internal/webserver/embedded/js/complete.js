@@ -1,24 +1,24 @@
 "use strict";
 
-// Control switch state when marking a document as complete/incomplete
+// Control checkbox state when marking a document as complete/incomplete
 document.body.addEventListener('htmx:afterRequest', function(evt) {
-    if (!evt.detail.elt.id || !evt.detail.elt.id.startsWith("complete-switch-")) {
+    if (!evt.detail.elt.id || !evt.detail.elt.id.startsWith("complete-checkbox-")) {
         return
     }
     if (!evt.detail.successful) {
-        // If request failed, revert the switch state
-        const switchEl = evt.detail.elt;
-        switchEl.checked = !switchEl.checked;
+        // If request failed, revert the checkbox state
+        const checkboxEl = evt.detail.elt;
+        checkboxEl.checked = !checkboxEl.checked;
         return
     }
 
-    const switchEl = evt.detail.elt;
+    const checkboxEl = evt.detail.elt;
 
     // Update the title based on the new state
-    if (switchEl.checked) {
-        switchEl.title = switchEl.getAttribute('data-incomplete-title');
+    if (checkboxEl.checked) {
+        checkboxEl.title = checkboxEl.getAttribute('data-incomplete-title');
     } else {
-        switchEl.title = switchEl.getAttribute('data-complete-title');
+        checkboxEl.title = checkboxEl.getAttribute('data-complete-title');
     }
 });
 
@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Send the update request
-        fetch(`/documents/${slug}/complete-date`, {
+        fetch(`/documents/${slug}/complete`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',

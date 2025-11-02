@@ -23,9 +23,9 @@
     {{ end }}
     {{if $session}}
         <dt class="col-8">
-            <div class="form-check form-switch d-inline-block">
-                <input class="form-check-input" type="checkbox" role="switch"
-                       id="complete-switch-{{$document.Slug}}"
+            <div class="form-check d-inline-block">
+                <input class="form-check-input" type="checkbox"
+                       id="complete-checkbox-{{$document.Slug}}"
                        {{if $document.Completed}}checked{{end}}
                        hx-post="/documents/{{$document.Slug}}/complete"
                        hx-swap="none"
@@ -35,7 +35,7 @@
                        data-complete-title='{{t $lang "Mark as complete"}}'
                        data-incomplete-title='{{t $lang "Mark as incomplete"}}'
                        style="cursor: pointer;" />
-                <label class="form-check-label" for="complete-switch-{{$document.Slug}}" style="cursor: pointer;">
+                <label class="form-check-label" for="complete-checkbox-{{$document.Slug}}" style="cursor: pointer;">
                     {{t $lang "Completed"}}
                 </label>
             </div>

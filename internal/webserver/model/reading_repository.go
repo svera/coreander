@@ -67,13 +67,13 @@ func (u *ReadingRepository) MarkComplete(userID int, documentPath string) error 
 	now := time.Now()
 	return u.DB.Model(&Reading{}).
 		Where("user_id = ? AND path = ?", userID, documentPath).
-		Updates(map[string]interface{}{"completed": true, "completed_at": now}).Error
+		Update("completed_at", now).Error
 }
 
 func (u *ReadingRepository) MarkIncomplete(userID int, documentPath string) error {
 	return u.DB.Model(&Reading{}).
 		Where("user_id = ? AND path = ?", userID, documentPath).
-		Updates(map[string]interface{}{"completed": false, "completed_at": nil}).Error
+		Update("completed_at", nil).Error
 }
 
 func (u *ReadingRepository) UpdateCompletionDate(userID int, documentPath string, completedAt time.Time) error {
@@ -84,9 +84,9 @@ func (u *ReadingRepository) UpdateCompletionDate(userID int, documentPath string
 
 func (u *ReadingRepository) Completed(userID int, doc index.Document) index.Document {
 	var reading Reading
-	err := u.DB.Where("user_id = ? AND path = ? AND completed = ?", userID, doc.ID, true).First(&reading).Error
-	doc.Completed = err == nil
-	if err == nil {
+	err := u.DB.Where("user_id = ? AND path = ? AND completed_at IS NOT NULL", userID, doc.ID).First(&reading).Error
+	if err == nil && reading.CompletedAt != nil {
+		doc.Completed = true
 		doc.CompletedAt = reading.CompletedAt
 	}
 	return doc
@@ -102,16 +102,17 @@ func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.
 
 	var readings []Reading
 	u.DB.Where(
-		"user_id = ? AND path IN (?) AND completed = ?",
+		"user_id = ? AND path IN (?) AND completed_at IS NOT NULL",
 		userID,
 		paths,
-		true,
 	).Find(&readings)
 
 	// Create a map for quick lookup
 	readingMap := make(map[string]*time.Time)
 	for _, r := range readings {
-		readingMap[r.Path] = r.CompletedAt
+		if r.CompletedAt != nil {
+			readingMap[r.Path] = r.CompletedAt
+		}
 	}
 
 	for i, doc := range results.Hits() {
