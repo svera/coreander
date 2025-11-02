@@ -1,0 +1,15 @@
+{{$lang := .Lang}}
+{{$document := .Document}}
+
+<dd class="col-4 text-end" id="completion-date-dd-{{$document.Slug}}">
+    {{ if and $document.Completed $document.CompletedAt }}
+        <input type="date" class="border-0 text-end text-muted bg-transparent p-0"
+               id="completion-date-{{$document.Slug}}"
+               value="{{$document.CompletedAt.Format "2006-01-02"}}"
+               data-slug="{{$document.Slug}}"
+               data-original-date="{{$document.CompletedAt.Format "2006-01-02"}}"
+               title='{{t $lang "Edit completion date"}}'
+               style="cursor: pointer; max-width: 100%;" />
+    {{ end }}
+</dd>
+

@@ -1,0 +1,46 @@
+{{$lang := .Lang}}
+{{$document := .Document}}
+{{$session := .Session}}
+
+<dl class="row text-muted mt-3">
+    {{if and $session $session.ShowFileName}}
+        <dt class="col-5">{{t $lang "File name"}}</dt>
+        <dd class="col-7 text-end"><small><i>{{$document.ID}}</i></small></dd>
+    {{end}}
+
+    {{if not (eq $document.Publication.Date 0)}}
+        <dt class="col-8"><i class="bi bi-calendar3 me-2"></i>{{t $lang "Year"}}</dt>
+        <dd class="col-4 text-end"><time>{{$document.Publication.Date.Year}}</time>
+    </dd>
+    {{end}}
+    {{ if gt $document.Words 0.0 }}
+        <dt class="col-8"><i class="bi bi-stopwatch me-2"></i>{{t $lang "Estimated reading time"}}</dt>
+        <dd class="col-4 text-end"><time>{{$document.ReadingTime .WordsPerMinute}}</time></dd>
+    {{ end }}
+    {{ if $document.Pages }}
+        <dt class="col-8">{{t $lang "Pages" }}</dt>
+        <dd class="col-4 text-end">{{$document.Pages}}<dd>
+    {{ end }}
+    {{if $session}}
+        <dt class="col-8">
+            <div class="form-check form-switch d-inline-block">
+                <input class="form-check-input" type="checkbox" role="switch"
+                       id="complete-switch-{{$document.Slug}}"
+                       {{if $document.Completed}}checked{{end}}
+                       hx-post="/documents/{{$document.Slug}}/complete"
+                       hx-swap="none"
+                       hx-trigger="change"
+                       hx-on::after-request="if(event.detail.successful) { htmx.ajax('GET', '/documents/{{$document.Slug}}/completion-date', {target:'#completion-date-dd-{{$document.Slug}}', swap:'outerHTML'}) }"
+                       title='{{if $document.Completed}}{{t $lang "Mark as incomplete"}}{{else}}{{t $lang "Mark as complete"}}{{end}}'
+                       data-complete-title='{{t $lang "Mark as complete"}}'
+                       data-incomplete-title='{{t $lang "Mark as incomplete"}}'
+                       style="cursor: pointer;" />
+                <label class="form-check-label" for="complete-switch-{{$document.Slug}}" style="cursor: pointer;">
+                    {{t $lang "Completed"}}
+                </label>
+            </div>
+        </dt>
+        {{template "partials/completion-date" dict "Lang" $lang "Document" $document}}
+    {{end}}
+</dl>
+

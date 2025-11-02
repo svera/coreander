@@ -1,6 +1,8 @@
 package document
 
 import (
+	"time"
+
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
@@ -41,6 +43,11 @@ type readingRepository interface {
 	Update(userID int, documentPath, position string) error
 	Touch(userID int, documentPath string) error
 	RemoveDocument(documentPath string) error
+	MarkComplete(userID int, documentPath string) error
+	MarkIncomplete(userID int, documentPath string) error
+	UpdateCompletionDate(userID int, documentPath string, completedAt time.Time) error
+	Completed(userID int, doc index.Document) index.Document
+	CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
 }
 
 type Config struct {

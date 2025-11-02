@@ -51,6 +51,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 
 	if session.ID > 0 {
 		document = d.hlRepository.Highlighted(int(session.ID), document)
+		document = d.readingRepository.Completed(int(session.ID), document)
 	}
 
 	return c.Render("document/detail", fiber.Map{

@@ -2,7 +2,9 @@ package model
 
 import (
 	"log"
+	"time"
 
+	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -59,4 +61,71 @@ func (u *ReadingRepository) Touch(userID int, documentPath string) error {
 
 func (u *ReadingRepository) RemoveDocument(documentPath string) error {
 	return u.DB.Where("path = ?", documentPath).Delete(&Reading{}).Error
+}
+
+func (u *ReadingRepository) MarkComplete(userID int, documentPath string) error {
+	now := time.Now()
+	return u.DB.Model(&Reading{}).
+		Where("user_id = ? AND path = ?", userID, documentPath).
+		Updates(map[string]interface{}{"completed": true, "completed_at": now}).Error
+}
+
+func (u *ReadingRepository) MarkIncomplete(userID int, documentPath string) error {
+	return u.DB.Model(&Reading{}).
+		Where("user_id = ? AND path = ?", userID, documentPath).
+		Updates(map[string]interface{}{"completed": false, "completed_at": nil}).Error
+}
+
+func (u *ReadingRepository) UpdateCompletionDate(userID int, documentPath string, completedAt time.Time) error {
+	return u.DB.Model(&Reading{}).
+		Where("user_id = ? AND path = ?", userID, documentPath).
+		Update("completed_at", completedAt).Error
+}
+
+func (u *ReadingRepository) Completed(userID int, doc index.Document) index.Document {
+	var reading Reading
+	err := u.DB.Where("user_id = ? AND path = ? AND completed = ?", userID, doc.ID, true).First(&reading).Error
+	doc.Completed = err == nil
+	if err == nil {
+		doc.CompletedAt = reading.CompletedAt
+	}
+	return doc
+}
+
+func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document] {
+	paths := make([]string, 0, len(results.Hits()))
+	documents := make([]index.Document, len(results.Hits()))
+
+	for _, doc := range results.Hits() {
+		paths = append(paths, doc.ID)
+	}
+
+	var readings []Reading
+	u.DB.Where(
+		"user_id = ? AND path IN (?) AND completed = ?",
+		userID,
+		paths,
+		true,
+	).Find(&readings)
+
+	// Create a map for quick lookup
+	readingMap := make(map[string]*time.Time)
+	for _, r := range readings {
+		readingMap[r.Path] = r.CompletedAt
+	}
+
+	for i, doc := range results.Hits() {
+		documents[i] = doc
+		if completedAt, exists := readingMap[doc.ID]; exists {
+			documents[i].Completed = true
+			documents[i].CompletedAt = completedAt
+		}
+	}
+
+	return result.NewPaginated(
+		ResultsPerPage,
+		results.Page(),
+		results.TotalHits(),
+		documents,
+	)
 }
