@@ -43,8 +43,7 @@ type readingRepository interface {
 	Update(userID int, documentPath, position string) error
 	Touch(userID int, documentPath string) error
 	RemoveDocument(documentPath string) error
-	MarkIncomplete(userID int, documentPath string) error
-	UpdateCompletionDate(userID int, documentPath string, completedAt time.Time) error
+	UpdateCompletionDate(userID int, documentPath string, completedAt *time.Time) error
 	Completed(userID int, doc index.Document) index.Document
 	CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
 }

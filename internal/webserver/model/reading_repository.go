@@ -63,13 +63,7 @@ func (u *ReadingRepository) RemoveDocument(documentPath string) error {
 	return u.DB.Where("path = ?", documentPath).Delete(&Reading{}).Error
 }
 
-func (u *ReadingRepository) MarkIncomplete(userID int, documentPath string) error {
-	return u.DB.Model(&Reading{}).
-		Where("user_id = ? AND path = ?", userID, documentPath).
-		Update("completed_at", nil).Error
-}
-
-func (u *ReadingRepository) UpdateCompletionDate(userID int, documentPath string, completedAt time.Time) error {
+func (u *ReadingRepository) UpdateCompletionDate(userID int, documentPath string, completedAt *time.Time) error {
 	return u.DB.Model(&Reading{}).
 		Where("user_id = ? AND path = ?", userID, documentPath).
 		Update("completed_at", completedAt).Error

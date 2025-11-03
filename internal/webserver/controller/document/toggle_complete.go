@@ -39,7 +39,6 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 	var req updateCompletionDateRequest
 	if c.Body() != nil && len(c.Body()) > 0 {
 		if err := c.BodyParser(&req); err != nil {
-			log.Printf("error parsing request body: %s\n", err)
 			return fiber.ErrBadRequest
 		}
 
@@ -47,7 +46,7 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 		if req.CompletedAt != nil {
 			if *req.CompletedAt == "" {
 				// Empty string means mark as incomplete
-				if err := d.readingRepository.MarkIncomplete(int(session.ID), document.ID); err != nil {
+				if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, nil); err != nil {
 					log.Printf("error marking document as incomplete: %s\n", err)
 					return fiber.ErrInternalServerError
 				}
@@ -55,7 +54,6 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 				// Parse the date string (expecting format: YYYY-MM-DD)
 				completedAt, err := time.Parse("2006-01-02", *req.CompletedAt)
 				if err != nil {
-					log.Printf("error parsing date: %s\n", err)
 					return fiber.ErrBadRequest
 				}
 
@@ -66,12 +64,11 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 				todayDateOnly := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
 				if completedDateOnly.After(todayDateOnly) {
-					log.Printf("future date not allowed: %s\n", *req.CompletedAt)
 					return fiber.ErrBadRequest
 				}
 
 				// Update the completion date
-				if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, completedAt); err != nil {
+				if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, &completedAt); err != nil {
 					log.Printf("error updating completion date: %s\n", err)
 					return fiber.ErrInternalServerError
 				}
@@ -93,18 +90,17 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 	}
 
 	// Toggle completion status based on whether CompletedAt is set
-	if reading.CompletedAt != nil {
-		// Already complete, mark as incomplete
-		if err := d.readingRepository.MarkIncomplete(int(session.ID), document.ID); err != nil {
-			log.Printf("error marking document as incomplete: %s\n", err)
-			return fiber.ErrInternalServerError
-		}
-	} else {
+	var newCompletionDate *time.Time
+	if reading.CompletedAt == nil {
 		// Not complete, mark as complete with current date
-		if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, time.Now()); err != nil {
-			log.Printf("error marking document as complete: %s\n", err)
-			return fiber.ErrInternalServerError
-		}
+		now := time.Now()
+		newCompletionDate = &now
+	}
+	// If reading.CompletedAt != nil, newCompletionDate stays nil (marking as incomplete)
+
+	if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, newCompletionDate); err != nil {
+		log.Printf("error updating completion status: %s\n", err)
+		return fiber.ErrInternalServerError
 	}
 
 	// Reload the document with updated completion status
@@ -114,9 +110,7 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	if session.ID > 0 {
-		document = d.readingRepository.Completed(int(session.ID), document)
-	}
+	document = d.readingRepository.Completed(int(session.ID), document)
 
 	// Return the updated completion date fragment
 	return c.Render("partials/completion-date", fiber.Map{

@@ -50,13 +50,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add hover and focus effects for date inputs
     document.body.addEventListener('mouseover', function(evt) {
         if (evt.target.id && evt.target.id.startsWith("completion-date-")) {
-            evt.target.style.textDecoration = 'underline';
+            const theme = document.documentElement.getAttribute('data-bs-theme');
+            const borderClass = theme === 'dark' ? 'border-light' : 'border-dark';
+            evt.target.classList.add('border-bottom', borderClass);
         }
     });
 
     document.body.addEventListener('mouseout', function(evt) {
         if (evt.target.id && evt.target.id.startsWith("completion-date-")) {
-            evt.target.style.textDecoration = 'none';
+            evt.target.classList.remove('border-bottom', 'border-dark', 'border-light');
         }
     });
 
