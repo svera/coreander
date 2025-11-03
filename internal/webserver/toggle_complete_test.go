@@ -94,8 +94,8 @@ func TestToggleComplete(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if response.StatusCode != fiber.StatusNoContent {
-			t.Errorf("Expected 204 status, got %d", response.StatusCode)
+		if response.StatusCode != fiber.StatusOK {
+			t.Errorf("Expected 200 status, got %d", response.StatusCode)
 		}
 
 		// Verify document is marked as complete in database
@@ -136,8 +136,8 @@ func TestToggleComplete(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if response.StatusCode != fiber.StatusNoContent {
-			t.Errorf("Expected 204 status, got %d", response.StatusCode)
+		if response.StatusCode != fiber.StatusOK {
+			t.Errorf("Expected 200 status, got %d", response.StatusCode)
 		}
 
 		// Verify it's now incomplete

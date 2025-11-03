@@ -27,10 +27,26 @@ document.body.addEventListener('htmx:afterRequest', function(evt) {
     } else {
         checkboxEl.title = checkboxEl.getAttribute('data-complete-title');
     }
+
+    // After htmx loads new date input, set max to today
+    setTimeout(() => {
+        const today = new Date().toISOString().split('T')[0];
+        document.querySelectorAll('input[id^="completion-date-"]').forEach(input => {
+            if (!input.hasAttribute('max')) {
+                input.setAttribute('max', today);
+            }
+        });
+    }, 0);
 });
 
 // Handle completion date changes
 document.addEventListener('DOMContentLoaded', function() {
+    // Set max date to today for all completion date inputs
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('input[id^="completion-date-"]').forEach(input => {
+        input.setAttribute('max', today);
+    });
+
     // Add hover and focus effects for date inputs
     document.body.addEventListener('mouseover', function(evt) {
         if (evt.target.id && evt.target.id.startsWith("completion-date-")) {

@@ -107,6 +107,20 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 		}
 	}
 
-	// Return 204 No Content for successful toggle
-	return c.SendStatus(fiber.StatusNoContent)
+	// Reload the document with updated completion status
+	document, err = d.idx.Document(c.Params("slug"))
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
+	if session.ID > 0 {
+		document = d.readingRepository.Completed(int(session.ID), document)
+	}
+
+	// Return the updated completion date fragment
+	return c.Render("partials/completion-date", fiber.Map{
+		"Document": document,
+		"Lang":     c.Locals("Lang"),
+	})
 }

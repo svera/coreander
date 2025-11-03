@@ -86,7 +86,6 @@ func (u *ReadingRepository) Completed(userID int, doc index.Document) index.Docu
 	var reading Reading
 	err := u.DB.Where("user_id = ? AND path = ? AND completed_at IS NOT NULL", userID, doc.ID).First(&reading).Error
 	if err == nil && reading.CompletedAt != nil {
-		doc.Completed = true
 		doc.CompletedAt = reading.CompletedAt
 	}
 	return doc
@@ -118,7 +117,6 @@ func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.
 	for i, doc := range results.Hits() {
 		documents[i] = doc
 		if completedAt, exists := readingMap[doc.ID]; exists {
-			documents[i].Completed = true
 			documents[i].CompletedAt = completedAt
 		}
 	}

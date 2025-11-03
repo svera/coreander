@@ -26,12 +26,12 @@
             <div class="form-check d-inline-block">
                 <input class="form-check-input" type="checkbox"
                        id="complete-checkbox-{{$document.Slug}}"
-                       {{if $document.Completed}}checked{{end}}
+                       {{if $document.CompletedAt}}checked{{end}}
                        hx-post="/documents/{{$document.Slug}}/complete"
-                       hx-swap="none"
+                       hx-target="#completion-date-dd-{{$document.Slug}}"
+                       hx-swap="outerHTML"
                        hx-trigger="change"
-                       hx-on::after-request="if(event.detail.successful) { htmx.ajax('GET', '/documents/{{$document.Slug}}/completion-date', {target:'#completion-date-dd-{{$document.Slug}}', swap:'outerHTML'}) }"
-                       title='{{if $document.Completed}}{{t $lang "Mark as incomplete"}}{{else}}{{t $lang "Mark as complete"}}{{end}}'
+                       title='{{if $document.CompletedAt}}{{t $lang "Mark as incomplete"}}{{else}}{{t $lang "Mark as complete"}}{{end}}'
                        data-complete-title='{{t $lang "Mark as complete"}}'
                        data-incomplete-title='{{t $lang "Mark as incomplete"}}'
                        style="cursor: pointer;" />
