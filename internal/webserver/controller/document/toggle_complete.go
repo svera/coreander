@@ -100,8 +100,8 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 			return fiber.ErrInternalServerError
 		}
 	} else {
-		// Not complete, mark as complete
-		if err := d.readingRepository.MarkComplete(int(session.ID), document.ID); err != nil {
+		// Not complete, mark as complete with current date
+		if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, time.Now()); err != nil {
 			log.Printf("error marking document as complete: %s\n", err)
 			return fiber.ErrInternalServerError
 		}

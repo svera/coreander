@@ -63,13 +63,6 @@ func (u *ReadingRepository) RemoveDocument(documentPath string) error {
 	return u.DB.Where("path = ?", documentPath).Delete(&Reading{}).Error
 }
 
-func (u *ReadingRepository) MarkComplete(userID int, documentPath string) error {
-	now := time.Now()
-	return u.DB.Model(&Reading{}).
-		Where("user_id = ? AND path = ?", userID, documentPath).
-		Update("completed_at", now).Error
-}
-
 func (u *ReadingRepository) MarkIncomplete(userID int, documentPath string) error {
 	return u.DB.Model(&Reading{}).
 		Where("user_id = ? AND path = ?", userID, documentPath).
