@@ -5,6 +5,13 @@ document.body.addEventListener('htmx:afterRequest', function(evt) {
     if (!evt.detail.elt.id || !evt.detail.elt.id.startsWith("complete-checkbox-")) {
         return
     }
+
+    // Check for 403 Forbidden (session expired)
+    if (evt.detail.xhr && evt.detail.xhr.status === 403) {
+        window.location.reload();
+        return;
+    }
+
     if (!evt.detail.successful) {
         // If request failed, revert the checkbox state
         const checkboxEl = evt.detail.elt;
@@ -39,13 +46,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.body.addEventListener('focus', function(evt) {
         if (evt.target.id && evt.target.id.startsWith("completion-date-")) {
-            evt.target.classList.add('border', 'border-primary', 'px-2', 'rounded');
+            evt.target.classList.add('border', 'border-primary', 'rounded');
         }
     }, true);
 
     document.body.addEventListener('blur', function(evt) {
         if (evt.target.id && evt.target.id.startsWith("completion-date-")) {
-            evt.target.classList.remove('border', 'border-primary', 'px-2', 'rounded');
+            evt.target.classList.remove('border', 'border-primary', 'rounded');
         }
     }, true);
 
@@ -93,11 +100,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response.ok) {
                 // Update the original date to the new value
                 input.dataset.originalDate = newDate;
-                // Show subtle feedback with green border
-                input.classList.add('border', 'border-success', 'px-2', 'rounded');
-                setTimeout(() => {
-                    input.classList.remove('border', 'border-success', 'px-2', 'rounded');
-                }, 1000);
+            } else if (response.status === 403) {
+                // Session expired, reload the page
+                window.location.reload();
             } else {
                 throw new Error('Failed to update date');
             }
