@@ -50,6 +50,10 @@ main .form-control:focus {
     .navbar-home {
         background-color: white !important;
     }
+    .form-check-input:checked {
+        background-color: #6c757d;
+        border-color: #6c757d;
+    }
 }
 
 [data-bs-theme=dark] {
@@ -72,6 +76,10 @@ main .form-control:focus {
     }
     .color-invertible {
       filter: invert(100%);
+    }
+    .form-check-input:checked {
+        background-color: #adb5bd;
+        border-color: #adb5bd;
     }
 }
 
