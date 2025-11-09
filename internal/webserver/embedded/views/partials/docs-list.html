@@ -64,29 +64,54 @@
                             <h5>{{t $lang "Unknown author"}}</h5>
                         {{end}}
 
-                        <dl class="row text-muted">
-                            {{if and $session $session.ShowFileName}}
-                                <dt class="col-5">{{t $lang "File name"}}</dt>
-                                <dd class="col-7"><i>{{$document.ID}}</i></dd>
-                            {{end}}
-
+                        <ul class="row text-muted list-unstyled mt-3">
                             {{if not (eq $document.Publication.Date 0)}}
-                                <dt class="col-5"><i class="bi bi-calendar3 me-2"></i>{{t $lang "Year"}}</dt>
-                                <dd class="col-7"><time>{{$document.Publication.Date.Year}}</time>
+                                <li><i class="bi bi-calendar3 me-2"></i><time>{{$document.Publication.Date.Year}}</time></li>
                             </dd>
                             {{end}}
                             {{ if gt $document.Words 0.0 }}
-                                <dt class="col-5"><i class="bi bi-stopwatch me-2"></i>{{t $lang "Estimated reading time"}}</dt>
-                                <dd class="col-7"><time>{{$document.ReadingTime $wordsPerMinute}}</time></dd>
+                                <li><i class="bi bi-stopwatch me-2"></i><time>{{$document.ReadingTime $wordsPerMinute}}</time></li>
                             {{ end }}
                             {{ if $document.Pages }}
-                                <dt class="col-5">{{t $lang "Pages" }}</dt>
-                                <dd class="col-7">{{$document.Pages}}</dd>
+                                <li><i class="bi bi-book me-2"></i>{{$document.Pages}}</li>
                             {{ end }}
-                        </dl>
+
+                            {{if $session}}
+                                <li>
+                                    <div class="d-inline-block">
+                                        <input class="form-check-input me-1" type="checkbox"
+                                               id="complete-checkbox-{{$document.Slug}}"
+                                               {{if $document.CompletedAt}}checked{{end}}
+                                               title='{{if $document.CompletedAt}}{{t $lang "Mark as incomplete"}}{{else}}{{t $lang "Mark as complete"}}{{end}}'
+                                               data-complete-title='{{t $lang "Mark as complete"}}'
+                                               data-incomplete-title='{{t $lang "Mark as incomplete"}}'
+                                               data-completed-label='{{t $lang "Completed"}}'
+                                               data-uncompleted-label='{{t $lang "Uncompleted"}}'
+                                               data-slug="{{$document.Slug}}" />
+                                        <label class="form-check-label" id="complete-label-{{$document.Slug}}" for="complete-checkbox-{{$document.Slug}}">
+                                            {{if $document.CompletedAt}}{{t $lang "Completed"}}{{else}}{{t $lang "Uncompleted"}}{{end}}
+                                        </label>
+                                        <span id="completion-date-dd-{{$document.Slug}}">
+                                            {{ if $document.CompletedAt }}
+                                                <input type="date" class="border-0 text-muted bg-transparent p-0 ms-1"
+                                                    id="completion-date-{{$document.Slug}}"
+                                                    value="{{$document.CompletedAt.Format "2006-01-02"}}"
+                                                    data-slug="{{$document.Slug}}"
+                                                    data-original-date="{{$document.CompletedAt.Format "2006-01-02"}}"
+                                                    title='{{t $lang "Edit completion date"}}'  />
+                                            {{ end }}
+                                        </span>
+                                    </div>
+                                </li>
+                            {{end}}
+
+                            {{if and $session $session.ShowFileName}}
+                                <li><i class="bi bi-file-earmark-text me-2"></i><i>{{$document.ID}}</i></li>
+                            {{end}}
+                        </ul>
 
                         {{ if $document.Subjects }}
-                        <ul class="list-inline">
+                        <ul class="list-inline mt-3">
                             {{range $i, $subject := $document.Subjects}}
                                 {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
                                 <li class="list-inline-item"><a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?search=SubjectsSlugs&colon;{{index $document.SubjectsSlugs $i}}" title={{$subjectTitle}}>{{$subject}}</a></li>

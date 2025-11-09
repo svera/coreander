@@ -1,42 +1,80 @@
 "use strict";
 
-// Control checkbox state when marking a document as complete/incomplete
-document.body.addEventListener('htmx:afterRequest', function(evt) {
-    if (!evt.detail.elt.id || !evt.detail.elt.id.startsWith("complete-checkbox-")) {
-        return
-    }
-
-    // Check for 403 Forbidden (session expired)
-    if (evt.detail.xhr && evt.detail.xhr.status === 403) {
-        window.location.reload();
+// Handle checkbox change using plain fetch (not htmx to avoid event bubbling issues)
+document.body.addEventListener('change', function(evt) {
+    if (!evt.target.id || !evt.target.id.startsWith('complete-checkbox-')) {
         return;
     }
 
-    if (!evt.detail.successful) {
-        // If request failed, revert the checkbox state
-        const checkboxEl = evt.detail.elt;
-        checkboxEl.checked = !checkboxEl.checked;
-        return
-    }
+    const checkboxEl = evt.target;
+    const slug = checkboxEl.getAttribute('data-slug');
 
-    const checkboxEl = evt.detail.elt;
+    // Send POST request to toggle completion
+    fetch(`/documents/${slug}/complete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        if (response.status === 403) {
+            // Session expired
+            window.location.reload();
+            return;
+        }
 
-    // Update the title based on the new state
-    if (checkboxEl.checked) {
-        checkboxEl.title = checkboxEl.getAttribute('data-incomplete-title');
-    } else {
-        checkboxEl.title = checkboxEl.getAttribute('data-complete-title');
-    }
+        if (!response.ok) {
+            throw new Error('Request failed');
+        }
 
-    // After htmx loads new date input, set max to today
-    setTimeout(() => {
-        const today = new Date().toISOString().split('T')[0];
-        document.querySelectorAll('input[id^="completion-date-"]').forEach(input => {
-            if (!input.hasAttribute('max')) {
-                input.setAttribute('max', today);
+        // Update the UI
+        const dateContainer = document.getElementById(`completion-date-dd-${slug}`);
+        const labelEl = document.getElementById(`complete-label-${slug}`);
+
+        if (checkboxEl.checked) {
+            checkboxEl.title = checkboxEl.getAttribute('data-incomplete-title');
+            if (labelEl) {
+                labelEl.textContent = checkboxEl.getAttribute('data-completed-label');
             }
-        });
-    }, 0);
+
+            // Add date picker if checked
+            if (dateContainer && !dateContainer.querySelector('input[type="date"]')) {
+                const today = new Date().toISOString().split('T')[0];
+                const dateInput = document.createElement('input');
+                dateInput.type = 'date';
+
+                // Check if container is a dd element (document-metadata) or span (docs-list)
+                if (dateContainer.tagName.toLowerCase() === 'dd') {
+                    dateInput.className = 'border-0 text-end text-muted bg-transparent p-0';
+                } else {
+                    dateInput.className = 'border-0 text-muted bg-transparent p-0 ms-1';
+                }
+
+                dateInput.id = `completion-date-${slug}`;
+                dateInput.value = today;
+                dateInput.setAttribute('data-slug', slug);
+                dateInput.setAttribute('data-original-date', today);
+                dateInput.setAttribute('max', today);
+                dateInput.setAttribute('title', 'Edit completion date');
+                dateContainer.appendChild(dateInput);
+            }
+        } else {
+            checkboxEl.title = checkboxEl.getAttribute('data-complete-title');
+            if (labelEl) {
+                labelEl.textContent = checkboxEl.getAttribute('data-uncompleted-label');
+            }
+
+            // Remove date picker if unchecked
+            if (dateContainer) {
+                dateContainer.innerHTML = '';
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling completion status:', error);
+        // Revert checkbox state on error
+        checkboxEl.checked = !checkboxEl.checked;
+    });
 });
 
 // Handle completion date changes
@@ -49,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add hover and focus effects for date inputs
     document.body.addEventListener('mouseover', function(evt) {
-        if (evt.target.id && evt.target.id.startsWith("completion-date-")) {
+        if (evt.target.id && evt.target.id.startsWith("completion-date-") && !evt.target.id.startsWith("completion-date-dd-")) {
             const theme = document.documentElement.getAttribute('data-bs-theme');
             const borderClass = theme === 'dark' ? 'border-light' : 'border-dark';
             evt.target.classList.add('border-bottom', borderClass);
@@ -57,25 +95,25 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.body.addEventListener('mouseout', function(evt) {
-        if (evt.target.id && evt.target.id.startsWith("completion-date-")) {
+        if (evt.target.id && evt.target.id.startsWith("completion-date-") && !evt.target.id.startsWith("completion-date-dd-")) {
             evt.target.classList.remove('border-bottom', 'border-dark', 'border-light');
         }
     });
 
     document.body.addEventListener('focus', function(evt) {
-        if (evt.target.id && evt.target.id.startsWith("completion-date-")) {
+        if (evt.target.id && evt.target.id.startsWith("completion-date-") && !evt.target.id.startsWith("completion-date-dd-")) {
             evt.target.classList.add('border', 'border-primary', 'rounded');
         }
     }, true);
 
     document.body.addEventListener('blur', function(evt) {
-        if (evt.target.id && evt.target.id.startsWith("completion-date-")) {
+        if (evt.target.id && evt.target.id.startsWith("completion-date-") && !evt.target.id.startsWith("completion-date-dd-")) {
             evt.target.classList.remove('border', 'border-primary', 'rounded');
         }
     }, true);
 
     document.body.addEventListener('change', function(evt) {
-        if (!evt.target.id || !evt.target.id.startsWith("completion-date-")) {
+        if (!evt.target.id || !evt.target.id.startsWith("completion-date-") || evt.target.id.startsWith("completion-date-dd-")) {
             return;
         }
 

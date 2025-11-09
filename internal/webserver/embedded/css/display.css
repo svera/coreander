@@ -54,6 +54,9 @@ main .form-control:focus {
         background-color: #6c757d;
         border-color: #6c757d;
     }
+    .form-check-input:focus {
+        box-shadow: none;
+    }
 }
 
 [data-bs-theme=dark] {
@@ -80,6 +83,9 @@ main .form-control:focus {
     .form-check-input:checked {
         background-color: #adb5bd;
         border-color: #adb5bd;
+    }
+    .form-check-input:focus {
+        box-shadow: none;
     }
 }
 
@@ -183,4 +189,10 @@ main .form-control:focus {
 
 #latest-docs .carousel-indicators {
     position: relative;
+}
+
+/* Completion checkbox and date styles */
+input[id^="complete-checkbox-"],
+label[id^="complete-label-"] {
+    cursor: pointer;
 }

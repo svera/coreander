@@ -3,11 +3,6 @@
 {{$session := .Session}}
 
 <dl class="row text-muted mt-3">
-    {{if and $session $session.ShowFileName}}
-        <dt class="col-5">{{t $lang "File name"}}</dt>
-        <dd class="col-7 text-end"><small><i>{{$document.ID}}</i></small></dd>
-    {{end}}
-
     {{if not (eq $document.Publication.Date 0)}}
         <dt class="col-8"><i class="bi bi-calendar3 me-2"></i>{{t $lang "Year"}}</dt>
         <dd class="col-4 text-end"><time>{{$document.Publication.Date.Year}}</time>
@@ -22,25 +17,32 @@
         <dd class="col-4 text-end">{{$document.Pages}}<dd>
     {{ end }}
     {{if $session}}
-        <dt class="col-8">
-            <div class="form-check d-inline-block">
-                <input class="form-check-input" type="checkbox"
-                       id="complete-checkbox-{{$document.Slug}}"
-                       {{if $document.CompletedAt}}checked{{end}}
-                       hx-post="/documents/{{$document.Slug}}/complete"
-                       hx-target="#completion-date-dd-{{$document.Slug}}"
-                       hx-swap="outerHTML"
-                       hx-trigger="change"
-                       title='{{if $document.CompletedAt}}{{t $lang "Mark as incomplete"}}{{else}}{{t $lang "Mark as complete"}}{{end}}'
-                       data-complete-title='{{t $lang "Mark as complete"}}'
-                       data-incomplete-title='{{t $lang "Mark as incomplete"}}'
-                       style="cursor: pointer;" />
-                <label class="form-check-label" for="complete-checkbox-{{$document.Slug}}" style="cursor: pointer;">
-                    {{t $lang "Completed"}}
-                </label>
-            </div>
+        <dt class="col-6">
+            <input class="form-check-input me-2" type="checkbox"
+                   id="complete-checkbox-{{$document.Slug}}"
+                   {{if $document.CompletedAt}}checked{{end}}
+                   title='{{if $document.CompletedAt}}{{t $lang "Mark as incomplete"}}{{else}}{{t $lang "Mark as complete"}}{{end}}'
+                   data-complete-title='{{t $lang "Mark as complete"}}'
+                   data-incomplete-title='{{t $lang "Mark as incomplete"}}'
+                   data-completed-label='{{t $lang "Completed"}}'
+                   data-uncompleted-label='{{t $lang "Uncompleted"}}'
+                   data-slug="{{$document.Slug}}" /><label class="form-check-label" id="complete-label-{{$document.Slug}}" for="complete-checkbox-{{$document.Slug}}">{{if $document.CompletedAt}}{{t $lang "Completed"}}{{else}}{{t $lang "Uncompleted"}}{{end}}</label>
         </dt>
-        {{template "partials/completion-date" dict "Lang" $lang "Document" $document}}
+        <dd class="col-6 text-end" id="completion-date-dd-{{$document.Slug}}">
+            {{ if $document.CompletedAt }}
+                <input type="date" class="border-0 text-muted bg-transparent p-0"
+                       id="completion-date-{{$document.Slug}}"
+                       value="{{$document.CompletedAt.Format "2006-01-02"}}"
+                       data-slug="{{$document.Slug}}"
+                       data-original-date="{{$document.CompletedAt.Format "2006-01-02"}}"
+                       title='{{t $lang "Edit completion date"}}'  />
+            {{ end }}
+        </dd>
+
+        {{if and $session $session.ShowFileName}}
+            <dt class="col-5"><i class="bi bi-file-earmark-text me-2"></i>{{t $lang "File name"}}</dt>
+            <dd class="col-7 text-end"><small><i>{{$document.ID}}</i></small></dd>
+        {{end}}
     {{end}}
 </dl>
 

@@ -19,6 +19,7 @@
 "There was an error sending %s to ${email} please try again later": "Beim Senden von %s an ${email} ist ein Fehler aufgetreten bitte versuchen Sie es später erneut"
 "Read": "Lesen"
 "Completed": "Abgeschlossen"
+"Uncompleted": "Nicht abgeschlossen"
 "Users": "Benutzer"
 "Username": "Benutzername"
 "Password": "Passwort"

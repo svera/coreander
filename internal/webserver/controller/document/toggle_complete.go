@@ -103,18 +103,6 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	// Reload the document with updated completion status
-	document, err = d.idx.Document(c.Params("slug"))
-	if err != nil {
-		log.Println(err)
-		return fiber.ErrInternalServerError
-	}
-
-	document = d.readingRepository.Completed(int(session.ID), document)
-
-	// Return the updated completion date fragment
-	return c.Render("partials/completion-date", fiber.Map{
-		"Document": document,
-		"Lang":     c.Locals("Lang"),
-	})
+	// Return 204 No Content - the client-side JavaScript will handle the UI update
+	return c.SendStatus(fiber.StatusNoContent)
 }
