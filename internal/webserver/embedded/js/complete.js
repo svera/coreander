@@ -44,12 +44,7 @@ document.body.addEventListener('change', function(evt) {
                 const dateInput = document.createElement('input');
                 dateInput.type = 'date';
 
-                // Check if container is a dd element (document-metadata) or span (docs-list)
-                if (dateContainer.tagName.toLowerCase() === 'dd') {
-                    dateInput.className = 'border-0 border-bottom text-end text-muted bg-transparent p-0';
-                } else {
-                    dateInput.className = 'border-0 border-bottom text-muted bg-transparent p-0 ms-1';
-                }
+                dateInput.className = 'border-0 border-bottom text-muted bg-transparent p-0';
 
                 dateInput.value = today;
                 dateInput.setAttribute('data-slug', slug);
