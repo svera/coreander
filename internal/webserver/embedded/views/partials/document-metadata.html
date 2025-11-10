@@ -28,10 +28,9 @@
                    data-uncompleted-label='{{t $lang "Uncompleted"}}'
                    data-slug="{{$document.Slug}}" /><label class="form-check-label" id="complete-label-{{$document.Slug}}" for="complete-checkbox-{{$document.Slug}}">{{if $document.CompletedAt}}{{t $lang "Completed"}}{{else}}{{t $lang "Uncompleted"}}{{end}}</label>
         </dt>
-        <dd class="col-6 text-end" id="completion-date-dd-{{$document.Slug}}">
+        <dd class="col-6 text-end" id="completion-date-{{$document.Slug}}">
             {{ if $document.CompletedAt }}
                 <input type="date" class="border-0 border-bottom text-muted bg-transparent p-0"
-                       id="completion-date-{{$document.Slug}}"
                        value="{{$document.CompletedAt.Format "2006-01-02"}}"
                        data-slug="{{$document.Slug}}"
                        data-original-date="{{$document.CompletedAt.Format "2006-01-02"}}"

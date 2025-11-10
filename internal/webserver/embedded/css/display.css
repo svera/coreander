@@ -194,11 +194,11 @@ main .form-control:focus {
 /* Completion checkbox and date styles */
 input[id^="complete-checkbox-"],
 label[id^="complete-label-"],
-input[id^="completion-date-"] {
+[id^="completion-date-"] input[type="date"] {
     cursor: pointer;
 }
 
-input[id^="completion-date-"]:focus {
+[id^="completion-date-"] input[type="date"]:focus {
     border: 1px solid var(--bs-primary) !important;
     border-radius: 0.25rem;
     outline: 0;

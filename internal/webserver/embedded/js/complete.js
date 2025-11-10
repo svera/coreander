@@ -29,7 +29,7 @@ document.body.addEventListener('change', function(evt) {
         }
 
         // Update the UI
-        const dateContainer = document.getElementById(`completion-date-dd-${slug}`);
+        const dateContainer = document.getElementById(`completion-date-${slug}`);
         const labelEl = document.getElementById(`complete-label-${slug}`);
 
         if (checkboxEl.checked) {
@@ -51,7 +51,6 @@ document.body.addEventListener('change', function(evt) {
                     dateInput.className = 'border-0 border-bottom text-muted bg-transparent p-0 ms-1';
                 }
 
-                dateInput.id = `completion-date-${slug}`;
                 dateInput.value = today;
                 dateInput.setAttribute('data-slug', slug);
                 dateInput.setAttribute('data-original-date', today);
@@ -81,7 +80,7 @@ document.body.addEventListener('change', function(evt) {
 // Function to initialize date inputs
 function initializeDateInputs() {
     const today = new Date().toISOString().split('T')[0];
-    document.querySelectorAll('input[id^="completion-date-"]').forEach(input => {
+    document.querySelectorAll('[id^="completion-date-"] input[type="date"]').forEach(input => {
         if (!input.hasAttribute('data-initialized')) {
             input.setAttribute('max', today);
             input.setAttribute('data-initialized', 'true');
@@ -100,7 +99,14 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeDateInputs();
 
     document.body.addEventListener('change', function(evt) {
-        if (!evt.target.id || !evt.target.id.startsWith("completion-date-") || evt.target.id.startsWith("completion-date-dd-")) {
+        // Check if this is a date input within a completion-date container
+        if (evt.target.type !== 'date' || !evt.target.dataset.slug) {
+            return;
+        }
+
+        // Check if parent has completion-date ID
+        const container = evt.target.parentElement;
+        if (!container || !container.id || !container.id.startsWith('completion-date-')) {
             return;
         }
 
