@@ -14,7 +14,8 @@ document.body.addEventListener('change', function(evt) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-        }
+        },
+        credentials: 'same-origin'
     })
     .then(response => {
         if (response.status === 403) {
@@ -45,9 +46,9 @@ document.body.addEventListener('change', function(evt) {
 
                 // Check if container is a dd element (document-metadata) or span (docs-list)
                 if (dateContainer.tagName.toLowerCase() === 'dd') {
-                    dateInput.className = 'border-0 text-end text-muted bg-transparent p-0';
+                    dateInput.className = 'border-0 border-bottom text-end text-muted bg-transparent p-0';
                 } else {
-                    dateInput.className = 'border-0 text-muted bg-transparent p-0 ms-1';
+                    dateInput.className = 'border-0 border-bottom text-muted bg-transparent p-0 ms-1';
                 }
 
                 dateInput.id = `completion-date-${slug}`;
@@ -77,40 +78,26 @@ document.body.addEventListener('change', function(evt) {
     });
 });
 
+// Function to initialize date inputs
+function initializeDateInputs() {
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('input[id^="completion-date-"]').forEach(input => {
+        if (!input.hasAttribute('data-initialized')) {
+            input.setAttribute('max', today);
+            input.setAttribute('data-initialized', 'true');
+        }
+    });
+}
+
+// Handle htmx content loading
+document.body.addEventListener('htmx:afterSwap', function() {
+    initializeDateInputs();
+});
+
 // Handle completion date changes
 document.addEventListener('DOMContentLoaded', function() {
     // Set max date to today for all completion date inputs
-    const today = new Date().toISOString().split('T')[0];
-    document.querySelectorAll('input[id^="completion-date-"]').forEach(input => {
-        input.setAttribute('max', today);
-    });
-
-    // Add hover and focus effects for date inputs
-    document.body.addEventListener('mouseover', function(evt) {
-        if (evt.target.id && evt.target.id.startsWith("completion-date-") && !evt.target.id.startsWith("completion-date-dd-")) {
-            const theme = document.documentElement.getAttribute('data-bs-theme');
-            const borderClass = theme === 'dark' ? 'border-light' : 'border-dark';
-            evt.target.classList.add('border-bottom', borderClass);
-        }
-    });
-
-    document.body.addEventListener('mouseout', function(evt) {
-        if (evt.target.id && evt.target.id.startsWith("completion-date-") && !evt.target.id.startsWith("completion-date-dd-")) {
-            evt.target.classList.remove('border-bottom', 'border-dark', 'border-light');
-        }
-    });
-
-    document.body.addEventListener('focus', function(evt) {
-        if (evt.target.id && evt.target.id.startsWith("completion-date-") && !evt.target.id.startsWith("completion-date-dd-")) {
-            evt.target.classList.add('border', 'border-primary', 'rounded');
-        }
-    }, true);
-
-    document.body.addEventListener('blur', function(evt) {
-        if (evt.target.id && evt.target.id.startsWith("completion-date-") && !evt.target.id.startsWith("completion-date-dd-")) {
-            evt.target.classList.remove('border', 'border-primary', 'rounded');
-        }
-    }, true);
+    initializeDateInputs();
 
     document.body.addEventListener('change', function(evt) {
         if (!evt.target.id || !evt.target.id.startsWith("completion-date-") || evt.target.id.startsWith("completion-date-dd-")) {
@@ -150,6 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
             headers: {
                 'Content-Type': 'application/json',
             },
+            credentials: 'same-origin',
             body: JSON.stringify({ completed_at: newDate })
         })
         .then(response => {

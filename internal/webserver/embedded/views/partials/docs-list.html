@@ -93,7 +93,7 @@
                                         </label>
                                         <span id="completion-date-dd-{{$document.Slug}}">
                                             {{ if $document.CompletedAt }}
-                                                <input type="date" class="border-0 text-muted bg-transparent p-0 ms-1"
+                                                <input type="date" class="border-0 border-bottom text-muted bg-transparent p-0 ms-1"
                                                     id="completion-date-{{$document.Slug}}"
                                                     value="{{$document.CompletedAt.Format "2006-01-02"}}"
                                                     data-slug="{{$document.Slug}}"
