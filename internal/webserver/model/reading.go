@@ -5,9 +5,10 @@ import (
 )
 
 type Reading struct {
-	CreatedAt time.Time `gorm:"autoCreateTime"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime"`
-	UserID    int       `gorm:"primaryKey"`
-	Path      string    `gorm:"primaryKey"`
-	Position  string    `gorm:"type:text"`
+	CreatedAt   time.Time  `gorm:"autoCreateTime"`
+	UpdatedAt   time.Time  `gorm:"autoUpdateTime"`
+	UserID      int        `gorm:"primaryKey"`
+	Path        string     `gorm:"primaryKey"`
+	Position    string     `gorm:"type:text"`
+	CompletedOn *time.Time `gorm:"default:null"`
 }

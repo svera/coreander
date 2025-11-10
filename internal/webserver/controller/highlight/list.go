@@ -48,6 +48,12 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		if err != nil {
 			return err
 		}
+		// Add completion status for latest highlights
+		if session.ID > 0 {
+			for i := range highlights {
+				highlights[i] = h.readingRepository.Completed(int(session.ID), highlights[i])
+			}
+		}
 		return h.latest(c, highlights, emailSendingConfigured)
 	}
 
@@ -66,6 +72,11 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		totalHits,
 		highlights,
 	)
+
+	// Add completion status for each document
+	if session.ID > 0 {
+		paginatedResults = h.readingRepository.CompletedPaginatedResult(int(session.ID), paginatedResults)
+	}
 
 	layout := "layout"
 	if c.Query("view") == "list" {

@@ -15,6 +15,11 @@ type highlightsRepository interface {
 	Highlighted(userID int, documents index.Document) index.Document
 }
 
+type readingRepository interface {
+	Completed(userID int, doc index.Document) index.Document
+	CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
+}
+
 // IdxReaderWriter defines a set of reading and writing operations over an index
 type IdxReaderWriter interface {
 	Document(Slug string) (index.Document, error)
@@ -32,19 +37,21 @@ type Sender interface {
 }
 
 type Controller struct {
-	hlRepository   highlightsRepository
-	usrRepository  usersRepository
-	idx            IdxReaderWriter
-	sender         Sender
-	wordsPerMinute float64
+	hlRepository      highlightsRepository
+	readingRepository readingRepository
+	usrRepository     usersRepository
+	idx               IdxReaderWriter
+	sender            Sender
+	wordsPerMinute    float64
 }
 
-func NewController(hlRepository highlightsRepository, usrRepository usersRepository, sender Sender, wordsPerMinute float64, idx IdxReaderWriter) *Controller {
+func NewController(hlRepository highlightsRepository, readingRepository readingRepository, usrRepository usersRepository, sender Sender, wordsPerMinute float64, idx IdxReaderWriter) *Controller {
 	return &Controller{
-		hlRepository:   hlRepository,
-		usrRepository:  usrRepository,
-		idx:            idx,
-		sender:         sender,
-		wordsPerMinute: wordsPerMinute,
+		hlRepository:      hlRepository,
+		readingRepository: readingRepository,
+		usrRepository:     usrRepository,
+		idx:               idx,
+		sender:            sender,
+		wordsPerMinute:    wordsPerMinute,
 	}
 }

@@ -29,26 +29,9 @@
         </div>
         {{template "partials/actions" dict "Lang" $lang "Document" .Document "Session" $session "EmailSendingConfigured" .EmailSendingConfigured "EmailFrom" $emailFrom}}
 
-        <dl class="row text-muted mt-3">
-            {{if and $session $session.ShowFileName}}
-                <dt class="col-5">{{t $lang "File name"}}</dt>
-                <dd class="col-7 text-end"><small><i>{{$document.ID}}</i></small></dd>
-            {{end}}
-
-            {{if not (eq .Document.Publication.Date 0)}}
-                <dt class="col-8"><i class="bi bi-calendar3 me-2"></i>{{t $lang "Year"}}</dt>
-                <dd class="col-4 text-end"><time>{{.Document.Publication.Date.Year}}</time>
-            </dd>
-            {{end}}
-            {{ if gt .Document.Words 0.0 }}
-                <dt class="col-8"><i class="bi bi-stopwatch me-2"></i>{{t $lang "Estimated reading time"}}</dt>
-                <dd class="col-4 text-end"><time>{{.Document.ReadingTime .WordsPerMinute}}</time></dd>
-            {{ end }}
-            {{ if .Document.Pages }}
-                <dt class="col-8">{{t $lang "Pages" }}</dt>
-                <dd class="col-4 text-end">{{.Document.Pages}}<dd>
-            {{ end }}
-        </dl>
+        <div id="document-metadata-{{.Document.Slug}}">
+            {{template "partials/document-metadata" dict "Lang" $lang "Document" .Document "Session" $session "WordsPerMinute" .WordsPerMinute}}
+        </div>
 
 
         {{ if .Document.Subjects }}
@@ -153,5 +136,6 @@
 
 <script type="module" src="/js/send-email.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/highlight.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/complete.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/cover.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/datetime.js{{versionParam .Version}}"></script>

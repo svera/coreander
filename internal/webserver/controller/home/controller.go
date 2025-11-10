@@ -23,6 +23,7 @@ type highlightsRepository interface {
 
 type readingRepository interface {
 	Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
+	Completed(userID int, doc index.Document) index.Document
 }
 
 type Config struct {

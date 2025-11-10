@@ -56,6 +56,7 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 
 	if session.ID > 0 {
 		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
+		searchResults = a.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
 	}
 
 	templateVars := fiber.Map{

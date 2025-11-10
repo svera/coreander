@@ -21,6 +21,10 @@ type highlightsRepository interface {
 	HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
 }
 
+type readingRepository interface {
+	CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
+}
+
 type Config struct {
 	WordsPerMinute      float64
 	CacheDir            string
@@ -30,21 +34,23 @@ type Config struct {
 }
 
 type Controller struct {
-	hlRepository highlightsRepository
-	idx          IdxReader
-	sender       Sender
-	config       Config
-	dataSource   DataSource
-	appFs        afero.Fs
+	hlRepository      highlightsRepository
+	readingRepository readingRepository
+	idx               IdxReader
+	sender            Sender
+	config            Config
+	dataSource        DataSource
+	appFs             afero.Fs
 }
 
-func NewController(hlRepository highlightsRepository, sender Sender, idx IdxReader, cfg Config, dataSource DataSource, appFs afero.Fs) *Controller {
+func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReader, cfg Config, dataSource DataSource, appFs afero.Fs) *Controller {
 	return &Controller{
-		hlRepository: hlRepository,
-		idx:          idx,
-		sender:       sender,
-		config:       cfg,
-		dataSource:   dataSource,
-		appFs:        appFs,
+		hlRepository:      hlRepository,
+		readingRepository: readingRepository,
+		idx:               idx,
+		sender:            sender,
+		config:            cfg,
+		dataSource:        dataSource,
+		appFs:             appFs,
 	}
 }

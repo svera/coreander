@@ -50,6 +50,13 @@ main .form-control:focus {
     .navbar-home {
         background-color: white !important;
     }
+    .form-check-input:checked {
+        background-color: #6c757d;
+        border-color: #6c757d;
+    }
+    .form-check-input:focus {
+        box-shadow: none;
+    }
 }
 
 [data-bs-theme=dark] {
@@ -72,6 +79,13 @@ main .form-control:focus {
     }
     .color-invertible {
       filter: invert(100%);
+    }
+    .form-check-input:checked {
+        background-color: #adb5bd;
+        border-color: #adb5bd;
+    }
+    .form-check-input:focus {
+        box-shadow: none;
     }
 }
 
@@ -175,4 +189,21 @@ main .form-control:focus {
 
 #latest-docs .carousel-indicators {
     position: relative;
+}
+
+/* Completion checkbox and date styles */
+input[id^="complete-checkbox-"],
+label[id^="complete-label-"],
+[id^="completion-date-"] input[type="date"]:not(:disabled) {
+    cursor: pointer;
+}
+
+[id^="completion-date-"] input[type="date"]:focus {
+    border: 1px solid var(--bs-primary) !important;
+    border-radius: 0.25rem;
+    outline: 0;
+}
+
+[id^="completion-date-"] input[type="date"]:disabled {
+    cursor: default;
 }
