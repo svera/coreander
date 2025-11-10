@@ -31,6 +31,7 @@ document.body.addEventListener('change', function(evt) {
         // Update the UI
         const dateContainer = document.getElementById(`completion-date-${slug}`);
         const labelEl = document.getElementById(`complete-label-${slug}`);
+        const dateInput = dateContainer?.querySelector('input[type="date"]');
 
         if (checkboxEl.checked) {
             checkboxEl.title = checkboxEl.getAttribute('data-incomplete-title');
@@ -38,20 +39,13 @@ document.body.addEventListener('change', function(evt) {
                 labelEl.textContent = checkboxEl.getAttribute('data-completed-label');
             }
 
-            // Add date picker if checked
-            if (dateContainer && !dateContainer.querySelector('input[type="date"]')) {
+            // Show and enable date picker
+            if (dateInput) {
                 const today = new Date().toISOString().split('T')[0];
-                const dateInput = document.createElement('input');
-                dateInput.type = 'date';
-
-                dateInput.className = 'border-0 border-bottom text-muted bg-transparent p-0';
-
                 dateInput.value = today;
-                dateInput.setAttribute('data-slug', slug);
                 dateInput.setAttribute('data-original-date', today);
-                dateInput.setAttribute('max', today);
-                dateInput.setAttribute('title', 'Edit completion date');
-                dateContainer.appendChild(dateInput);
+                dateInput.classList.remove('d-none');
+                dateInput.disabled = false;
             }
         } else {
             checkboxEl.title = checkboxEl.getAttribute('data-complete-title');
@@ -59,9 +53,12 @@ document.body.addEventListener('change', function(evt) {
                 labelEl.textContent = checkboxEl.getAttribute('data-uncompleted-label');
             }
 
-            // Remove date picker if unchecked
-            if (dateContainer) {
-                dateContainer.innerHTML = '';
+            // Hide and disable date picker
+            if (dateInput) {
+                dateInput.value = '';
+                dateInput.setAttribute('data-original-date', '');
+                dateInput.classList.add('d-none');
+                dateInput.disabled = true;
             }
         }
     })

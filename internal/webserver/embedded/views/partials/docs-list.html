@@ -92,13 +92,12 @@
                                             {{if $document.CompletedAt}}{{t $lang "Completed"}}{{else}}{{t $lang "Uncompleted"}}{{end}}
                                         </label>
                                         <span id="completion-date-{{$document.Slug}}">
-                                            {{ if $document.CompletedAt }}
-                                                <input type="date" class="border-0 border-bottom text-muted bg-transparent p-0 ms-1"
-                                                    value="{{$document.CompletedAt.Format "2006-01-02"}}"
-                                                    data-slug="{{$document.Slug}}"
-                                                    data-original-date="{{$document.CompletedAt.Format "2006-01-02"}}"
-                                                    title='{{t $lang "Edit completion date"}}'  />
-                                            {{ end }}
+                                            <input type="date" class="border-0 border-bottom text-muted bg-transparent p-0 ms-1{{if not $document.CompletedAt}} d-none{{end}}"
+                                                value="{{if $document.CompletedAt}}{{$document.CompletedAt.Format "2006-01-02"}}{{end}}"
+                                                data-slug="{{$document.Slug}}"
+                                                data-original-date="{{if $document.CompletedAt}}{{$document.CompletedAt.Format "2006-01-02"}}{{end}}"
+                                                title='{{t $lang "Edit completion date"}}'
+                                                {{if not $document.CompletedAt}}disabled{{end}} />
                                         </span>
                                     </div>
                                 </li>
