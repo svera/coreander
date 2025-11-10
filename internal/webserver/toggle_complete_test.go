@@ -105,8 +105,8 @@ func TestToggleComplete(t *testing.T) {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
 
-		if reading.CompletedAt == nil {
-			t.Error("Expected CompletedAt to be set (document should be marked as complete)")
+		if reading.CompletedOn == nil {
+			t.Error("Expected CompletedOn to be set (document should be marked as complete)")
 		}
 	})
 
@@ -124,7 +124,7 @@ func TestToggleComplete(t *testing.T) {
 		// Verify it's complete
 		var reading model.Reading
 		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&reading).Error
-		if err != nil || reading.CompletedAt == nil {
+		if err != nil || reading.CompletedOn == nil {
 			t.Fatal("Document should be marked as complete")
 		}
 
@@ -147,8 +147,8 @@ func TestToggleComplete(t *testing.T) {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
 
-		if readingAfterToggle.CompletedAt != nil {
-			t.Error("Expected CompletedAt to be nil (document should be marked as incomplete)")
+		if readingAfterToggle.CompletedOn != nil {
+			t.Error("Expected CompletedOn to be nil (document should be marked as incomplete)")
 		}
 	})
 
@@ -225,7 +225,7 @@ func TestToggleComplete(t *testing.T) {
 		var reading model.Reading
 		err = db.Where("user_id = ? AND path = ?", 1, "quijote.epub").First(&reading).Error
 		if err != gorm.ErrRecordNotFound {
-			if reading.CompletedAt != nil {
+			if reading.CompletedOn != nil {
 				t.Error("Admin user should not see document as complete")
 			}
 		}
@@ -264,15 +264,15 @@ func TestToggleComplete(t *testing.T) {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
 
-		if reading.CompletedAt == nil {
-			t.Fatal("CompletedAt should be set (document should be marked as complete)")
+		if reading.CompletedOn == nil {
+			t.Fatal("CompletedOn should be set (document should be marked as complete)")
 		}
 
-		originalDate := *reading.CompletedAt
+		originalDate := *reading.CompletedOn
 
 		// Update the completion date to a different date
 		newDate := "2024-01-15"
-		reqBody := fmt.Sprintf(`{"completed_at":"%s"}`, newDate)
+		reqBody := fmt.Sprintf(`{"completed_on":"%s"}`, newDate)
 		req, _ = http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", strings.NewReader(reqBody))
 		req.Header.Set("Content-Type", "application/json")
 		req.AddCookie(regularCookie)
@@ -292,18 +292,18 @@ func TestToggleComplete(t *testing.T) {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
 
-		if readingAfterUpdate.CompletedAt == nil {
-			t.Error("CompletedAt should still be set (document should be marked as complete)")
+		if readingAfterUpdate.CompletedOn == nil {
+			t.Error("CompletedOn should still be set (document should be marked as complete)")
 		}
 
 		// Verify the date was actually updated
 		expectedDate, _ := time.Parse("2006-01-02", newDate)
-		if readingAfterUpdate.CompletedAt.Format("2006-01-02") != expectedDate.Format("2006-01-02") {
-			t.Errorf("Expected completion date to be %s, got %s", newDate, readingAfterUpdate.CompletedAt.Format("2006-01-02"))
+		if readingAfterUpdate.CompletedOn.Format("2006-01-02") != expectedDate.Format("2006-01-02") {
+			t.Errorf("Expected completion date to be %s, got %s", newDate, readingAfterUpdate.CompletedOn.Format("2006-01-02"))
 		}
 
 		// Verify it's different from original date
-		if readingAfterUpdate.CompletedAt.Format("2006-01-02") == originalDate.Format("2006-01-02") {
+		if readingAfterUpdate.CompletedOn.Format("2006-01-02") == originalDate.Format("2006-01-02") {
 			t.Error("Completion date should have been updated")
 		}
 	})
@@ -311,7 +311,7 @@ func TestToggleComplete(t *testing.T) {
 	t.Run("Try to update completion date without authentication", func(t *testing.T) {
 		reset()
 
-		reqBody := `{"completed_at":"2024-01-15"}`
+		reqBody := `{"completed_on":"2024-01-15"}`
 		req, _ := http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", strings.NewReader(reqBody))
 		req.Header.Set("Content-Type", "application/json")
 		response, err := app.Test(req)
@@ -336,7 +336,7 @@ func TestToggleComplete(t *testing.T) {
 		}
 
 		// Try to update with invalid date format
-		reqBody := `{"completed_at":"invalid-date"}`
+		reqBody := `{"completed_on":"invalid-date"}`
 		req, _ = http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", strings.NewReader(reqBody))
 		req.Header.Set("Content-Type", "application/json")
 		req.AddCookie(regularCookie)

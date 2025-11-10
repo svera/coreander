@@ -66,14 +66,14 @@ func (u *ReadingRepository) RemoveDocument(documentPath string) error {
 func (u *ReadingRepository) UpdateCompletionDate(userID int, documentPath string, completedAt *time.Time) error {
 	return u.DB.Model(&Reading{}).
 		Where("user_id = ? AND path = ?", userID, documentPath).
-		Update("completed_at", completedAt).Error
+		Update("completed_on", completedAt).Error
 }
 
 func (u *ReadingRepository) Completed(userID int, doc index.Document) index.Document {
 	var reading Reading
-	err := u.DB.Where("user_id = ? AND path = ? AND completed_at IS NOT NULL", userID, doc.ID).First(&reading).Error
-	if err == nil && reading.CompletedAt != nil {
-		doc.CompletedAt = reading.CompletedAt
+	err := u.DB.Where("user_id = ? AND path = ? AND completed_on IS NOT NULL", userID, doc.ID).First(&reading).Error
+	if err == nil && reading.CompletedOn != nil {
+		doc.CompletedOn = reading.CompletedOn
 	}
 	return doc
 }
@@ -88,7 +88,7 @@ func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.
 
 	var readings []Reading
 	u.DB.Where(
-		"user_id = ? AND path IN (?) AND completed_at IS NOT NULL",
+		"user_id = ? AND path IN (?) AND completed_on IS NOT NULL",
 		userID,
 		paths,
 	).Find(&readings)
@@ -96,15 +96,15 @@ func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.
 	// Create a map for quick lookup
 	readingMap := make(map[string]*time.Time)
 	for _, r := range readings {
-		if r.CompletedAt != nil {
-			readingMap[r.Path] = r.CompletedAt
+		if r.CompletedOn != nil {
+			readingMap[r.Path] = r.CompletedOn
 		}
 	}
 
 	for i, doc := range results.Hits() {
 		documents[i] = doc
-		if completedAt, exists := readingMap[doc.ID]; exists {
-			documents[i].CompletedAt = completedAt
+		if completedOn, exists := readingMap[doc.ID]; exists {
+			documents[i].CompletedOn = completedOn
 		}
 	}
 

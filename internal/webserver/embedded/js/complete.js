@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/json',
             },
             credentials: 'same-origin',
-            body: JSON.stringify({ completed_at: newDate })
+            body: JSON.stringify({ completed_on: newDate })
         })
         .then(response => {
             if (response.ok) {

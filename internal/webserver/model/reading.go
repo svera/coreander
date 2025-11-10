@@ -10,5 +10,5 @@ type Reading struct {
 	UserID      int        `gorm:"primaryKey"`
 	Path        string     `gorm:"primaryKey"`
 	Position    string     `gorm:"type:text"`
-	CompletedAt *time.Time `gorm:"default:null"`
+	CompletedOn *time.Time `gorm:"default:null"`
 }

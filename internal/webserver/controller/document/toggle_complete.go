@@ -9,7 +9,7 @@ import (
 )
 
 type updateCompletionDateRequest struct {
-	CompletedAt *string `json:"completed_at"`
+	CompletedOn *string `json:"completed_on"`
 }
 
 // ToggleComplete marks a document as complete or incomplete
@@ -42,9 +42,9 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 			return fiber.ErrBadRequest
 		}
 
-		// If completed_at is provided in the request
-		if req.CompletedAt != nil {
-			if *req.CompletedAt == "" {
+		// If completed_on is provided in the request
+		if req.CompletedOn != nil {
+			if *req.CompletedOn == "" {
 				// Empty string means mark as incomplete
 				if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, nil); err != nil {
 					log.Printf("error marking document as incomplete: %s\n", err)
@@ -52,7 +52,7 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 				}
 			} else {
 				// Parse the date string (expecting format: YYYY-MM-DD)
-				completedAt, err := time.Parse("2006-01-02", *req.CompletedAt)
+				completedOn, err := time.Parse("2006-01-02", *req.CompletedOn)
 				if err != nil {
 					return fiber.ErrBadRequest
 				}
@@ -60,7 +60,7 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 				// Prevent future dates - compare date components only
 				now := time.Now()
 				// Convert both to date-only format for comparison
-				completedDateOnly := time.Date(completedAt.Year(), completedAt.Month(), completedAt.Day(), 0, 0, 0, 0, time.UTC)
+				completedDateOnly := time.Date(completedOn.Year(), completedOn.Month(), completedOn.Day(), 0, 0, 0, 0, time.UTC)
 				todayDateOnly := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 
 				if completedDateOnly.After(todayDateOnly) {
@@ -68,7 +68,7 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 				}
 
 				// Update the completion date
-				if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, &completedAt); err != nil {
+				if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, &completedOn); err != nil {
 					log.Printf("error updating completion date: %s\n", err)
 					return fiber.ErrInternalServerError
 				}
@@ -86,17 +86,17 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 			log.Printf("error creating reading record: %s\n", err)
 			return fiber.ErrInternalServerError
 		}
-		reading.CompletedAt = nil
+		reading.CompletedOn = nil
 	}
 
-	// Toggle completion status based on whether CompletedAt is set
+	// Toggle completion status based on whether CompletedOn is set
 	var newCompletionDate *time.Time
-	if reading.CompletedAt == nil {
+	if reading.CompletedOn == nil {
 		// Not complete, mark as complete with current date
 		now := time.Now()
 		newCompletionDate = &now
 	}
-	// If reading.CompletedAt != nil, newCompletionDate stays nil (marking as incomplete)
+	// If reading.CompletedOn != nil, newCompletionDate stays nil (marking as incomplete)
 
 	if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, newCompletionDate); err != nil {
 		log.Printf("error updating completion status: %s\n", err)

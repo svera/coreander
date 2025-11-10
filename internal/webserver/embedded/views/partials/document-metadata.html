@@ -20,21 +20,21 @@
         <dt class="col-6">
             <input class="form-check-input me-2" type="checkbox"
                    id="complete-checkbox-{{$document.Slug}}"
-                   {{if $document.CompletedAt}}checked{{end}}
-                   title='{{if $document.CompletedAt}}{{t $lang "Mark as incomplete"}}{{else}}{{t $lang "Mark as complete"}}{{end}}'
+                   {{if $document.CompletedOn}}checked{{end}}
+                   title='{{if $document.CompletedOn}}{{t $lang "Mark as incomplete"}}{{else}}{{t $lang "Mark as complete"}}{{end}}'
                    data-complete-title='{{t $lang "Mark as complete"}}'
                    data-incomplete-title='{{t $lang "Mark as incomplete"}}'
                    data-completed-label='{{t $lang "Completed"}}'
                    data-uncompleted-label='{{t $lang "Uncompleted"}}'
-                   data-slug="{{$document.Slug}}" /><label class="form-check-label" id="complete-label-{{$document.Slug}}" for="complete-checkbox-{{$document.Slug}}">{{if $document.CompletedAt}}{{t $lang "Completed"}}{{else}}{{t $lang "Uncompleted"}}{{end}}</label>
+                   data-slug="{{$document.Slug}}" /><label class="form-check-label" id="complete-label-{{$document.Slug}}" for="complete-checkbox-{{$document.Slug}}">{{if $document.CompletedOn}}{{t $lang "Completed"}}{{else}}{{t $lang "Uncompleted"}}{{end}}</label>
         </dt>
         <dd class="col-6 text-end" id="completion-date-{{$document.Slug}}">
-            <input type="date" class="border-0 border-bottom text-muted bg-transparent p-0{{if not $document.CompletedAt}} d-none{{end}}"
-                   value="{{if $document.CompletedAt}}{{$document.CompletedAt.Format "2006-01-02"}}{{end}}"
+            <input type="date" class="border-0 border-bottom text-muted bg-transparent p-0{{if not $document.CompletedOn}} d-none{{end}}"
+                   value="{{if $document.CompletedOn}}{{$document.CompletedOn.Format "2006-01-02"}}{{end}}"
                    data-slug="{{$document.Slug}}"
-                   data-original-date="{{if $document.CompletedAt}}{{$document.CompletedAt.Format "2006-01-02"}}{{end}}"
+                   data-original-date="{{if $document.CompletedOn}}{{$document.CompletedOn.Format "2006-01-02"}}{{end}}"
                    title='{{t $lang "Edit completion date"}}'
-                   {{if not $document.CompletedAt}}disabled{{end}} />
+                   {{if not $document.CompletedOn}}disabled{{end}} />
         </dd>
 
         {{if and $session $session.ShowFileName}}
