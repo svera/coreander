@@ -62,22 +62,7 @@ func (u *Controller) calculateYearlyStats(userID int, wordsPerMinute float64) (i
 		return 0, ""
 	}
 
-	if len(completedPaths) == 0 {
-		return 0, ""
-	}
-
-	totalWords, err := u.indexer.TotalWordCount(completedPaths)
-	if err != nil {
-		log.Printf("error getting total word count for user %d: %s\n", userID, err)
-		return len(completedPaths), ""
-	}
-
-	// Calculate reading time and format it
-	if readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", totalWords/wordsPerMinute)); err == nil {
-		return len(completedPaths), metadata.FmtDuration(readingTime)
-	}
-
-	return len(completedPaths), ""
+	return u.calculateReadingStats(completedPaths, userID, wordsPerMinute)
 }
 
 func (u *Controller) calculateLifetimeStats(userID int, wordsPerMinute float64) (int, string) {
@@ -88,6 +73,10 @@ func (u *Controller) calculateLifetimeStats(userID int, wordsPerMinute float64) 
 		return 0, ""
 	}
 
+	return u.calculateReadingStats(completedPaths, userID, wordsPerMinute)
+}
+
+func (u *Controller) calculateReadingStats(completedPaths []string, userID int, wordsPerMinute float64) (int, string) {
 	if len(completedPaths) == 0 {
 		return 0, ""
 	}
