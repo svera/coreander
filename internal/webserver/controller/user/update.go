@@ -47,14 +47,24 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
+	// Calculate yearly reading statistics
+	yearlyCompletedCount, yearlyReadingTime := u.calculateYearlyStats(int(user.ID), user.WordsPerMinute)
+
+	// Calculate lifetime reading statistics
+	lifetimeCompletedCount, lifetimeReadingTime := u.calculateLifetimeStats(int(user.ID), user.WordsPerMinute)
+
 	vars := fiber.Map{
-		"Title":             "Edit user",
-		"User":              user,
-		"MinPasswordLength": u.config.MinPasswordLength,
-		"UsernamePattern":   model.UsernamePattern,
-		"Errors":            validationErrs,
-		"EmailFrom":         u.sender.From(),
-		"ActiveTab":         c.FormValue("tab"),
+		"Title":                  "Edit user",
+		"User":                   user,
+		"MinPasswordLength":      u.config.MinPasswordLength,
+		"UsernamePattern":        model.UsernamePattern,
+		"Errors":                 validationErrs,
+		"EmailFrom":              u.sender.From(),
+		"ActiveTab":              c.FormValue("tab"),
+		"YearlyCompletedCount":   yearlyCompletedCount,
+		"YearlyReadingTime":      yearlyReadingTime,
+		"LifetimeCompletedCount": lifetimeCompletedCount,
+		"LifetimeReadingTime":    lifetimeReadingTime,
 	}
 
 	if len(validationErrs) > 0 {
@@ -155,12 +165,15 @@ func (u *Controller) validate(c *fiber.Ctx, user *model.User, session model.Sess
 func (u *Controller) usernameExists(c *fiber.Ctx, session model.Session) (bool, error) {
 	user, err := u.usersRepository.FindByUsername(c.FormValue("username"))
 	if err != nil {
-		return true, err
+		return false, err
 	}
-	if user != nil && (session.Role == model.RoleAdmin && user.Uuid == c.FormValue("id")) {
+	if user == nil {
 		return false, nil
 	}
-	if user != nil && (session.Uuid != user.Uuid) {
+	if session.Role == model.RoleAdmin && user.Uuid == c.FormValue("id") {
+		return false, nil
+	}
+	if session.Uuid != user.Uuid {
 		return true, nil
 	}
 	return false, nil
@@ -169,12 +182,15 @@ func (u *Controller) usernameExists(c *fiber.Ctx, session model.Session) (bool, 
 func (u *Controller) emailExists(c *fiber.Ctx, session model.Session) (bool, error) {
 	user, err := u.usersRepository.FindByEmail(c.FormValue("email"))
 	if err != nil {
-		return true, fiber.ErrInternalServerError
+		return false, err
 	}
-	if user != nil && (session.Role == model.RoleAdmin && user.Uuid == c.FormValue("id")) {
+	if user == nil {
 		return false, nil
 	}
-	if user != nil && session.Uuid != user.Uuid {
+	if session.Role == model.RoleAdmin && user.Uuid == c.FormValue("id") {
+		return false, nil
+	}
+	if session.Uuid != user.Uuid {
 		return true, nil
 	}
 	return false, nil
