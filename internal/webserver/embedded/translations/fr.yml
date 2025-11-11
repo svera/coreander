@@ -36,7 +36,6 @@
 "Cancel": "Annuler"
 "Are you sure you want to delete this user?": "Êtes-vous sûr de vouloir supprimer cet utilisateur?"
 "Delete": "Supprimer"
-"Update your profile": "Mettre à jour votre profil"
 "Logout": "Se déconnecter"
 "New user": "Nouvel utilisateur"
 "Name cannot be empty": "Le nom ne peut pas être vide"
@@ -233,4 +232,5 @@
 "Edit completion date": "Modifier la date de lecture"
 "This year you have completed <strong>%d</strong> documents, with a total reading time of <strong>%s</strong>": "Cette année, vous avez terminé <strong>%d</strong> documents, avec un temps de lecture total de <strong>%s</strong>"
 "In total, you have completed <strong>%d</strong> documents, with a total reading time of <strong>%s</strong>": "Au total, vous avez terminé <strong>%d</strong> documents, avec un temps de lecture total de <strong>%s</strong>"
+"You haven't marked any documents as completed yet. Reading statistics will be available once you complete your first document.": "Vous n'avez encore marqué aucun document comme terminé. Les statistiques de lecture seront disponibles une fois que vous aurez terminé votre premier document."
 
