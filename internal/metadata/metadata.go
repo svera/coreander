@@ -27,16 +27,26 @@ func (m Metadata) ReadingTime(wordsPerMinute float64) string {
 		return ""
 	}
 	if readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", m.Words/wordsPerMinute)); err == nil {
-		return fmtDuration(readingTime)
+		return FmtDuration(readingTime)
 	}
 	return ""
 }
 
-func fmtDuration(d time.Duration) string {
+// FmtDuration formats a duration as "Xd Yh Zm" or "Yh Zm" if less than 24 hours
+func FmtDuration(d time.Duration) string {
 	d = d.Round(time.Minute)
+
+	days := d / (24 * time.Hour)
+	d -= days * 24 * time.Hour
+
 	h := d / time.Hour
 	d -= h * time.Hour
+
 	m := d / time.Minute
+
+	if days > 0 {
+		return fmt.Sprintf("%dd %dh %dm", days, h, m)
+	}
 	return fmt.Sprintf("%dh %dm", h, m)
 }
 

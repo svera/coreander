@@ -303,6 +303,36 @@ func (b *BleveIndexer) Documents(IDs []string, sortBy []string) ([]Document, err
 	return docs, nil
 }
 
+// TotalWordCount returns the sum of word counts for the given document IDs
+func (b *BleveIndexer) TotalWordCount(IDs []string) (float64, error) {
+	if len(IDs) == 0 {
+		return 0, nil
+	}
+
+	compoundQuery := bleve.NewConjunctionQuery()
+	query := bleve.NewDocIDQuery(IDs)
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+	compoundQuery.AddQuery(query, typeQuery)
+
+	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions.Fields = []string{"Words"}
+	searchOptions.Size = len(IDs)
+	searchResult, err := b.idx.Search(searchOptions)
+	if err != nil {
+		return 0, err
+	}
+
+	var totalWords float64
+	for _, hit := range searchResult.Hits {
+		if hit.Fields["Words"] != nil {
+			totalWords += hit.Fields["Words"].(float64)
+		}
+	}
+
+	return totalWords, nil
+}
+
 func (b *BleveIndexer) analyzers() ([]string, error) {
 	languages, err := b.idx.GetInternal([]byte("languages"))
 	if err != nil {

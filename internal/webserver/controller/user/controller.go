@@ -31,6 +31,14 @@ type invitationsRepository interface {
 	DeleteByEmail(email string) error
 }
 
+type readingRepository interface {
+	CompletedBetweenDates(userID int, startDate, endDate *time.Time) ([]string, error)
+}
+
+type indexer interface {
+	TotalWordCount(IDs []string) (float64, error)
+}
+
 type Config struct {
 	MinPasswordLength int
 	WordsPerMinute    float64
@@ -42,16 +50,20 @@ type Config struct {
 type Controller struct {
 	usersRepository       usersRepository
 	invitationsRepository invitationsRepository
+	readingRepository     readingRepository
+	indexer               indexer
 	config                Config
 	sender                Sender
 	translator            i18n.Translator
 }
 
 // NewController returns a new instance of the users controller
-func NewController(usersRepository usersRepository, invitationsRepository invitationsRepository, usersCfg Config, sender Sender, translator i18n.Translator) *Controller {
+func NewController(usersRepository usersRepository, invitationsRepository invitationsRepository, readingRepository readingRepository, indexer indexer, usersCfg Config, sender Sender, translator i18n.Translator) *Controller {
 	return &Controller{
 		usersRepository:       usersRepository,
 		invitationsRepository: invitationsRepository,
+		readingRepository:     readingRepository,
+		indexer:               indexer,
 		config:                usersCfg,
 		sender:                sender,
 		translator:            translator,

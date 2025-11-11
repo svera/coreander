@@ -1,6 +1,18 @@
 <div class="row mb-3 mt-5" id="user-edit">
     <div class="col mb-3">
         <h2>{{.User.Name}}</h2>
+        {{if gt .LifetimeCompletedCount 0}}
+        <div class="alert alert-info mt-3" role="alert">
+            {{if gt .YearlyCompletedCount 0}}
+            <div class="mb-2">
+                <i class="bi bi-trophy-fill"></i> {{t .Lang "This year you have completed <strong>%d</strong> documents, with a total reading time of <strong>%s</strong>" .YearlyCompletedCount .YearlyReadingTime}}
+            </div>
+            {{end}}
+            <div>
+                <i class="bi bi-book-fill"></i> {{t .Lang "In total, you have completed <strong>%d</strong> documents, with a total reading time of <strong>%s</strong>" .LifetimeCompletedCount .LifetimeReadingTime}}
+            </div>
+        </div>
+        {{end}}
     </div>
     <ul class="nav nav-tabs" role="tablist">
         <li class="nav-item" role="presentation">

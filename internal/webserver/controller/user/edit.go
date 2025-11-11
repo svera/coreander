@@ -1,9 +1,12 @@
 package user
 
 import (
+	"fmt"
 	"log"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
@@ -27,13 +30,78 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
+	// Calculate yearly reading statistics
+	yearlyCompletedCount, yearlyReadingTime := u.calculateYearlyStats(int(user.ID), user.WordsPerMinute)
+
+	// Calculate lifetime reading statistics
+	lifetimeCompletedCount, lifetimeReadingTime := u.calculateLifetimeStats(int(user.ID), user.WordsPerMinute)
+
 	return c.Render("user/edit", fiber.Map{
-		"Title":             "Edit user",
-		"User":              user,
-		"MinPasswordLength": u.config.MinPasswordLength,
-		"UsernamePattern":   model.UsernamePattern,
-		"Errors":            map[string]string{},
-		"EmailFrom":         u.sender.From(),
-		"ActiveTab":         "options",
+		"Title":                  "Edit user",
+		"User":                   user,
+		"MinPasswordLength":      u.config.MinPasswordLength,
+		"UsernamePattern":        model.UsernamePattern,
+		"Errors":                 map[string]string{},
+		"EmailFrom":              u.sender.From(),
+		"ActiveTab":              "options",
+		"YearlyCompletedCount":   yearlyCompletedCount,
+		"YearlyReadingTime":      yearlyReadingTime,
+		"LifetimeCompletedCount": lifetimeCompletedCount,
+		"LifetimeReadingTime":    lifetimeReadingTime,
 	}, "layout")
+}
+
+func (u *Controller) calculateYearlyStats(userID int, wordsPerMinute float64) (int, string) {
+	now := time.Now()
+	startOfYear := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
+	endOfYear := time.Date(now.Year(), 12, 31, 23, 59, 59, 999999999, now.Location())
+
+	completedPaths, err := u.readingRepository.CompletedBetweenDates(userID, &startOfYear, &endOfYear)
+	if err != nil {
+		log.Printf("error getting completed readings for user %d: %s\n", userID, err)
+		return 0, ""
+	}
+
+	if len(completedPaths) == 0 {
+		return 0, ""
+	}
+
+	totalWords, err := u.indexer.TotalWordCount(completedPaths)
+	if err != nil {
+		log.Printf("error getting total word count for user %d: %s\n", userID, err)
+		return len(completedPaths), ""
+	}
+
+	// Calculate reading time and format it
+	if readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", totalWords/wordsPerMinute)); err == nil {
+		return len(completedPaths), metadata.FmtDuration(readingTime)
+	}
+
+	return len(completedPaths), ""
+}
+
+func (u *Controller) calculateLifetimeStats(userID int, wordsPerMinute float64) (int, string) {
+	// Get all completed documents (no date filtering)
+	completedPaths, err := u.readingRepository.CompletedBetweenDates(userID, nil, nil)
+	if err != nil {
+		log.Printf("error getting lifetime completed readings for user %d: %s\n", userID, err)
+		return 0, ""
+	}
+
+	if len(completedPaths) == 0 {
+		return 0, ""
+	}
+
+	totalWords, err := u.indexer.TotalWordCount(completedPaths)
+	if err != nil {
+		log.Printf("error getting total word count for user %d: %s\n", userID, err)
+		return len(completedPaths), ""
+	}
+
+	// Calculate reading time and format it
+	if readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", totalWords/wordsPerMinute)); err == nil {
+		return len(completedPaths), metadata.FmtDuration(readingTime)
+	}
+
+	return len(completedPaths), ""
 }
