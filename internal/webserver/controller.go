@@ -80,7 +80,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 
 	return Controllers{
 		Auth:       auth.NewController(usersRepository, sender, authCfg, translator),
-		Users:      user.NewController(usersRepository, invitationsRepository, usersCfg, sender, translator),
+		Users:      user.NewController(usersRepository, invitationsRepository, readingRepository, idx, usersCfg, sender, translator),
 		Highlights: highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
 		Documents:  document.NewController(highlightsRepository, readingRepository, sender, idx, metadataReaders, appFs, documentsCfg),
 		Home:       home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),

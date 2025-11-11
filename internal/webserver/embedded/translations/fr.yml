@@ -231,4 +231,6 @@
 "Mark as incomplete": "Marquer comme non lu"
 "Completed on": "Lu le"
 "Edit completion date": "Modifier la date de lecture"
+"This year you have completed <strong>%d</strong> documents, with a total reading time of <strong>%s</strong>": "Cette année, vous avez terminé <strong>%d</strong> documents, avec un temps de lecture total de <strong>%s</strong>"
+"In total, you have completed <strong>%d</strong> documents, with a total reading time of <strong>%s</strong>": "Au total, vous avez terminé <strong>%d</strong> documents, avec un temps de lecture total de <strong>%s</strong>"
 

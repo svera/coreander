@@ -115,3 +115,28 @@ func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.
 		documents,
 	)
 }
+
+// CompletedBetweenDates returns paths of all readings completed by a user.
+// If startDate and endDate are provided, it filters readings completed between those dates (inclusive).
+// If startDate or endDate are nil, they are not used as filters.
+func (u *ReadingRepository) CompletedBetweenDates(userID int, startDate, endDate *time.Time) ([]string, error) {
+	var paths []string
+	query := u.DB.Table("readings").Select("path").Where("user_id = ? AND completed_on IS NOT NULL", userID)
+
+	if startDate != nil {
+		query = query.Where("completed_on >= ?", startDate)
+	}
+
+	if endDate != nil {
+		query = query.Where("completed_on <= ?", endDate)
+	}
+
+	err := query.Order("completed_on DESC").Pluck("path", &paths).Error
+
+	if err != nil {
+		log.Printf("error getting completed readings: %s\n", err)
+		return nil, err
+	}
+
+	return paths, nil
+}

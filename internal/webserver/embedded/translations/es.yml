@@ -229,3 +229,5 @@
 "Mark as incomplete": "Marcar como no leído"
 "Completed on": "Leído el"
 "Edit completion date": "Editar fecha de lectura"
+"This year you have completed <strong>%d</strong> documents, with a total reading time of <strong>%s</strong>": "Este año has completado <strong>%d</strong> documentos, con un tiempo total de lectura de <strong>%s</strong>"
+"In total, you have completed <strong>%d</strong> documents, with a total reading time of <strong>%s</strong>": "En total, has completado <strong>%d</strong> documentos, con un tiempo total de lectura de <strong>%s</strong>"
