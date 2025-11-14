@@ -4,18 +4,15 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 *Coreander home*
 
 ## Features
-* Single binary with all dependencies included.
-* Fast search engine powered by [Bleve](https://github.com/blevesearch/bleve), with support for documents in multiple languages.
+* Single binary with all dependencies included. Just download and run, no installation required.
 * Search by author, title and even document series ([Calibre's](https://calibre-ebook.com/) `series` meta supported)
 * Improved search for documents with metadata in English, Spanish, French, Italian, German and Portuguese, including genre and singular/plural forms of words in the results among others.
 * Estimated reading time calculation.
-* High-performance web server powered by [Fiber](https://github.com/gofiber/fiber).
-* Lightweight, responsive web interface based on [Bootstrap](https://getbootstrap.com/).
-* Web interface available in English, Spanish, German and French, more languages can be easily added.
+* Responsive web interface available in English, Spanish, German and French, more languages can be easily added.
 * New documents added or removed to/from the library folder are automatically indexed (Linux only).
 * [Send to email supported](#send-to-email).
 * Read indexed epubs and PDFs from Coreander's interface thanks to [foliate-js](https://github.com/johnfactotum/foliate-js).
-* Reading progress sync between multiple devices, E.G.: start reading in your cellphone and resume reading from your tablet where you left off (BETA).
+* Reading progress sync between multiple devices, E.G.: start reading in your cellphone and resume reading from your tablet where you left off.
 * Restrictable access only to registered users.
 * Upload documents through the web interface.
 * Download as kepub (epub for Kobo devices) converted on the fly thanks to [Kepubify](https://github.com/pgaskin/kepubify).
