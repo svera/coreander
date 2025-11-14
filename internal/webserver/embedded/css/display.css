@@ -121,8 +121,23 @@ main .form-control:focus {
     transform: scale(1.1);
 }
 
-.zoomable + .card-img-overlay {
+.position-relative.border {
+    container-type: inline-size;
+}
+
+.zoomable + .card-img-overlay,
+[id^="cover-title-"] {
+    top: 50% !important;
     bottom: auto !important;
+    transform: translateY(-50%);
+}
+
+[id^="cover-title-"] .card-title {
+    font-size: clamp(1.25rem, 9cqw, 2.25rem);
+}
+
+[id^="cover-title-"] .card-text {
+    font-size: clamp(1rem, 7cqw, 1.75rem);
 }
 
 .spinner-border {
