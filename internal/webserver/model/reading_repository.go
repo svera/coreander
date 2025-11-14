@@ -50,13 +50,21 @@ func (u *ReadingRepository) Update(userID int, documentPath, position string) er
 
 // Touch creates a reading record if it doesn't exist, but doesn't update it if it does.
 // This is used to track that a document has been opened without overwriting existing positions.
+// Sets updated_at to NULL initially - it will only be set when the reading position is actually updated.
 func (u *ReadingRepository) Touch(userID int, documentPath string) error {
-	progress := Reading{
-		UserID:   userID,
-		Path:     documentPath,
-		Position: "",
+	// Check if record already exists
+	var count int64
+	u.DB.Model(&Reading{}).Where("user_id = ? AND path = ?", userID, documentPath).Count(&count)
+	if count > 0 {
+		return nil // Record already exists, do nothing
 	}
-	return u.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&progress).Error
+
+	// Create new record with updated_at set to NULL
+	now := time.Now()
+	return u.DB.Exec(
+		"INSERT INTO readings (user_id, path, position, created_at, updated_at, completed_on) VALUES (?, ?, ?, ?, ?, ?)",
+		userID, documentPath, "", now, nil, nil,
+	).Error
 }
 
 func (u *ReadingRepository) RemoveDocument(documentPath string) error {
