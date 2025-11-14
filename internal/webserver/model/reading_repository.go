@@ -66,7 +66,7 @@ func (u *ReadingRepository) RemoveDocument(documentPath string) error {
 func (u *ReadingRepository) UpdateCompletionDate(userID int, documentPath string, completedAt *time.Time) error {
 	return u.DB.Model(&Reading{}).
 		Where("user_id = ? AND path = ?", userID, documentPath).
-		Update("completed_on", completedAt).Error
+		UpdateColumn("completed_on", completedAt).Error
 }
 
 func (u *ReadingRepository) Completed(userID int, doc index.Document) index.Document {

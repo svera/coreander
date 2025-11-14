@@ -349,4 +349,98 @@ func TestToggleComplete(t *testing.T) {
 			t.Errorf("Expected 400 status for invalid date, got %d", response.StatusCode)
 		}
 	})
+
+	t.Run("Updating completion status or date does not change updated_at timestamp", func(t *testing.T) {
+		reset()
+
+		// First, update the reading position to establish an updated_at timestamp
+		positionBody := `{"position":"test-position"}`
+		req, _ := http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/position", strings.NewReader(positionBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(regularCookie)
+		_, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		// Get the initial updated_at timestamp
+		var initialReading model.Reading
+		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&initialReading).Error
+		if err != nil {
+			t.Fatalf("Expected reading record to exist: %v", err)
+		}
+		initialUpdatedAt := initialReading.UpdatedAt
+
+		// Wait a bit to ensure time difference would be detectable
+		time.Sleep(10 * time.Millisecond)
+
+		// Mark document as complete
+		req, _ = http.NewRequest(http.MethodPost, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", nil)
+		req.AddCookie(regularCookie)
+		_, err = app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error marking complete: %v", err.Error())
+		}
+
+		// Check that updated_at has NOT changed
+		var afterCompleteReading model.Reading
+		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&afterCompleteReading).Error
+		if err != nil {
+			t.Fatalf("Expected reading record to exist: %v", err)
+		}
+
+		if !afterCompleteReading.UpdatedAt.Equal(initialUpdatedAt) {
+			t.Errorf("UpdatedAt should not change when marking document as complete. Before: %v, After: %v",
+				initialUpdatedAt, afterCompleteReading.UpdatedAt)
+		}
+
+		// Wait again
+		time.Sleep(10 * time.Millisecond)
+
+		// Change the completion date
+		newDate := "2024-01-15"
+		reqBody := fmt.Sprintf(`{"completed_on":"%s"}`, newDate)
+		req, _ = http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(regularCookie)
+		_, err = app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error updating completion date: %v", err.Error())
+		}
+
+		// Check that updated_at STILL has not changed
+		var afterDateUpdateReading model.Reading
+		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&afterDateUpdateReading).Error
+		if err != nil {
+			t.Fatalf("Expected reading record to exist: %v", err)
+		}
+
+		if !afterDateUpdateReading.UpdatedAt.Equal(initialUpdatedAt) {
+			t.Errorf("UpdatedAt should not change when updating completion date. Before: %v, After: %v",
+				initialUpdatedAt, afterDateUpdateReading.UpdatedAt)
+		}
+
+		// Wait again
+		time.Sleep(10 * time.Millisecond)
+
+		// Toggle back to incomplete
+		req, _ = http.NewRequest(http.MethodPost, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", nil)
+		req.AddCookie(regularCookie)
+		_, err = app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error toggling to incomplete: %v", err.Error())
+		}
+
+		// Check that updated_at STILL has not changed
+		var afterIncompleteReading model.Reading
+		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&afterIncompleteReading).Error
+		if err != nil {
+			t.Fatalf("Expected reading record to exist: %v", err)
+		}
+
+		if !afterIncompleteReading.UpdatedAt.Equal(initialUpdatedAt) {
+			t.Errorf("UpdatedAt should not change when marking document as incomplete. Before: %v, After: %v",
+				initialUpdatedAt, afterIncompleteReading.UpdatedAt)
+		}
+	})
 }
