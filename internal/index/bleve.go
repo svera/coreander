@@ -171,6 +171,60 @@ func CreateMapping() mapping.IndexMapping {
 	return indexMapping
 }
 
+// RemoveAllDocuments removes all documents from the index while preserving other data like authors
+func (b *BleveIndexer) RemoveAllDocuments() error {
+	// Create a query to find all documents
+	typeQuery := bleve.NewTermQuery(TypeDocument)
+	typeQuery.SetField("Type")
+
+	searchRequest := bleve.NewSearchRequest(typeQuery)
+	searchRequest.Size = 10000 // Process in batches
+	searchRequest.Fields = []string{} // We only need IDs
+
+	batch := b.idx.NewBatch()
+	batchCount := 0
+
+	for {
+		searchResult, err := b.idx.Search(searchRequest)
+		if err != nil {
+			return err
+		}
+
+		if searchResult.Total == 0 {
+			break
+		}
+
+		// Add deletions to batch
+		for _, hit := range searchResult.Hits {
+			batch.Delete(hit.ID)
+			batchCount++
+
+			// Execute batch every 1000 items
+			if batchCount >= 1000 {
+				if err := b.idx.Batch(batch); err != nil {
+					return err
+				}
+				batch = b.idx.NewBatch()
+				batchCount = 0
+			}
+		}
+
+		// If we got less than requested size, we're done
+		if len(searchResult.Hits) < searchRequest.Size {
+			break
+		}
+	}
+
+	// Execute any remaining deletions
+	if batchCount > 0 {
+		if err := b.idx.Batch(batch); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Close closes the index
 func (b *BleveIndexer) Close() error {
 	return b.idx.Close()

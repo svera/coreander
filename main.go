@@ -169,11 +169,15 @@ func getIndexFile(fs afero.Fs) bleve.Index {
 		log.Fatal(err)
 	}
 	if string(version) == "" || string(version) < index.Version {
-		log.Println("Old version index found, recreating it.")
-		if err = fs.RemoveAll(homeDir + indexPath); err != nil {
+		log.Println("Old version index found, removing documents and updating index.")
+		tempIdx := index.NewBleve(indexFile, fs, input.LibPath, metadataReaders)
+		if err = tempIdx.RemoveAllDocuments(); err != nil {
 			log.Fatal(err)
 		}
-		indexFile = index.Create(homeDir + indexPath)
+		// Update the version after clearing documents
+		if err = indexFile.SetInternal([]byte("version"), []byte(index.Version)); err != nil {
+			log.Fatal(err)
+		}
 	}
 	return indexFile
 }
