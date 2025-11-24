@@ -29,6 +29,7 @@ type IdxReaderWriter interface {
 	AddFile(file string) (string, error)
 	RemoveFile(file string) error
 	Documents(IDs []string, sortBy []string) ([]index.Document, error)
+	Languages() ([]string, error)
 }
 
 type highlightsRepository interface {

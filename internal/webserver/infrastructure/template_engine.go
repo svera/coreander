@@ -69,6 +69,52 @@ func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, er
 		return ""
 	})
 
+	engine.AddFunc("languageName", func(code string) string {
+		languageNames := map[string]string{
+			"en": "English",
+			"es": "Español",
+			"fr": "Français",
+			"de": "Deutsch",
+			"it": "Italiano",
+			"pt": "Português",
+			"nl": "Nederlands",
+			"ru": "Русский",
+			"ja": "日本語",
+			"zh": "中文",
+			"ko": "한국어",
+			"ar": "العربية",
+			"hi": "हिन्दी",
+			"pl": "Polski",
+			"tr": "Türkçe",
+			"sv": "Svenska",
+			"no": "Norsk",
+			"da": "Dansk",
+			"fi": "Suomi",
+			"cs": "Čeština",
+			"ro": "Română",
+			"hu": "Magyar",
+			"el": "Ελληνικά",
+			"he": "עברית",
+			"th": "ไทย",
+			"vi": "Tiếng Việt",
+			"id": "Bahasa Indonesia",
+			"ms": "Bahasa Melayu",
+			"uk": "Українська",
+			"ca": "Català",
+			"bg": "Български",
+			"hr": "Hrvatski",
+			"sk": "Slovenčina",
+			"sl": "Slovenščina",
+			"lt": "Lietuvių",
+			"lv": "Latviešu",
+			"et": "Eesti",
+		}
+		if name, ok := languageNames[code]; ok {
+			return name
+		}
+		return strings.ToUpper(code)
+	})
+
 	return engine, nil
 }
 

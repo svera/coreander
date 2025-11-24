@@ -15,6 +15,7 @@ type IdxReaderWriter interface {
 	DocumentByID(ID string) (index.Document, error)
 	Count(t string) (uint64, error)
 	LatestDocs(limit int) ([]index.Document, error)
+	Languages() ([]string, error)
 }
 
 type highlightsRepository interface {

@@ -73,6 +73,104 @@ func TestIndexAndSearch(t *testing.T) {
 	}
 }
 
+func TestLanguageFilter(t *testing.T) {
+	indexMem, err := bleve.NewMemOnly(index.CreateMapping())
+	if err != nil {
+		t.Fatalf("Error initialising index: %v", err)
+	}
+
+	mockMetadataReaders := map[string]metadata.Reader{
+		".epub": mockLanguageEpubReader{
+			GetMetadataFromFile: func(file string) (*epub.Information, error) {
+				switch file {
+				case "lib/english_book.epub":
+					return &epub.Information{
+						Title:       []string{"English Book"},
+						Creator:     []epub.Author{{FullName: "English Author", Role: "aut"}},
+						Description: []string{"A book in English"},
+						Language:    []string{"en"},
+						Subject:     []string{"Fiction"},
+					}, nil
+				case "lib/spanish_book.epub":
+					return &epub.Information{
+						Title:       []string{"Spanish Book"},
+						Creator:     []epub.Author{{FullName: "Spanish Author", Role: "aut"}},
+						Description: []string{"A book in Spanish"},
+						Language:    []string{"es"},
+						Subject:     []string{"Fiction"},
+					}, nil
+				case "lib/french_book.epub":
+					return &epub.Information{
+						Title:       []string{"French Book"},
+						Creator:     []epub.Author{{FullName: "French Author", Role: "aut"}},
+						Description: []string{"A book in French"},
+						Language:    []string{"fr"},
+						Subject:     []string{"Fiction"},
+					}, nil
+				}
+				return nil, fmt.Errorf("file not found")
+			},
+		},
+	}
+
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+	afero.WriteFile(appFS, "lib/english_book.epub", []byte(""), 0644)
+	afero.WriteFile(appFS, "lib/spanish_book.epub", []byte(""), 0644)
+	afero.WriteFile(appFS, "lib/french_book.epub", []byte(""), 0644)
+
+	idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+
+	if err = idx.AddLibrary(1, true); err != nil {
+		t.Fatalf("Error indexing: %s", err.Error())
+	}
+
+	// Test combining language filter with keyword search - Spanish
+	res, err := idx.Search(index.SearchFields{Keywords: "book", Language: "es"}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 1 {
+		t.Errorf("Expected 1 Spanish document, got %d", res.TotalHits())
+	}
+	if len(res.Hits()) > 0 && res.Hits()[0].Metadata.Language != "es" {
+		t.Errorf("Expected Spanish language, got %s", res.Hits()[0].Metadata.Language)
+	}
+
+	// Test combining language filter with keyword search - English
+	res, err = idx.Search(index.SearchFields{Keywords: "book", Language: "en"}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 1 {
+		t.Errorf("Expected 1 English document, got %d", res.TotalHits())
+	}
+	if len(res.Hits()) > 0 && res.Hits()[0].Metadata.Language != "en" {
+		t.Errorf("Expected English language, got %s", res.Hits()[0].Metadata.Language)
+	}
+
+	// Test searching with keyword but no language filter - should return all matching documents
+	res, err = idx.Search(index.SearchFields{Keywords: "fiction"}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 3 {
+		t.Errorf("Expected 3 documents (all languages with 'fiction' subject), got %d", res.TotalHits())
+	}
+
+	// Test combining language filter with keyword search - French
+	res, err = idx.Search(index.SearchFields{Keywords: "fiction", Language: "fr"}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 1 {
+		t.Errorf("Expected 1 French fiction document, got %d", res.TotalHits())
+	}
+	if len(res.Hits()) > 0 && res.Hits()[0].Metadata.Language != "fr" {
+		t.Errorf("Expected French language, got %s", res.Hits()[0].Metadata.Language)
+	}
+}
+
 func TestSearchResultsSortedByDate(t *testing.T) {
 	indexMem, err := bleve.NewMemOnly(index.CreateMapping())
 	if err != nil {
@@ -294,6 +392,52 @@ func (m mockEpubReader) Metadata(filename string) (metadata.Metadata, error) {
 		Subjects:    meta.Subject,
 		Words:       wordCount,
 	}, nil
+}
+
+type mockLanguageEpubReader struct {
+	GetMetadataFromFile func(file string) (*epub.Information, error)
+}
+
+func (m mockLanguageEpubReader) Metadata(filename string) (metadata.Metadata, error) {
+	meta, err := m.GetMetadataFromFile(filename)
+	if err != nil {
+		return metadata.Metadata{}, err
+	}
+
+	title := meta.Title[0]
+	var authors []string
+	for _, creator := range meta.Creator {
+		if creator.Role == "aut" || creator.Role == "" {
+			authors = append(authors, creator.FullName)
+		}
+	}
+	if len(authors) == 0 {
+		authors = []string{""}
+	}
+
+	description := ""
+	if len(meta.Description) > 0 {
+		description = "<p>" + meta.Description[0] + "</p>"
+	}
+
+	lang := ""
+	if len(meta.Language) > 0 {
+		lang = meta.Language[0]
+	}
+
+	return metadata.Metadata{
+		Title:       title,
+		Authors:     authors,
+		Description: template.HTML(description),
+		Language:    lang,
+		Format:      "EPUB",
+		Subjects:    meta.Subject,
+		Words:       1000,
+	}, nil
+}
+
+func (m mockLanguageEpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
+	return []byte{}, nil
 }
 
 func TestSearchResultsSortedByReadingTime(t *testing.T) {
@@ -1331,6 +1475,55 @@ func testIndexAndSearchCases() []testCase {
 						AuthorsSlugs:  []string{"medium-author"},
 						SeriesSlug:    "",
 						SubjectsSlugs: []string{"fiction"},
+					},
+				},
+			),
+		},
+		{
+			"Test language filter - search for Spanish documents only",
+			"lib/book_spanish.epub",
+			&epub.Information{
+				Title: []string{"Spanish Book"},
+				Creator: []epub.Author{
+					{
+						FullName: "Spanish Author",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"A book in Spanish"},
+				Language:    []string{"es"},
+				Subject:     []string{"Literature"},
+				Date: []epub.Date{
+					{
+						Stamp: "2023-01-01",
+						Event: "publication",
+					},
+				},
+			},
+			index.SearchFields{
+				Keywords: "",
+				Language: "es",
+			},
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book_spanish.epub",
+						Slug: "spanish-author-spanish-book",
+						Metadata: metadata.Metadata{
+							Title:       "Spanish Book",
+							Authors:     []string{"Spanish Author"},
+							Description: "<p>A book in Spanish</p>",
+							Language:    "es",
+							Subjects:    []string{"Literature"},
+							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("2023-01-01T00:00:00Z", precisiondate.PrecisionDay),
+						},
+						AuthorsSlugs:  []string{"spanish-author"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"literature"},
 					},
 				},
 			),

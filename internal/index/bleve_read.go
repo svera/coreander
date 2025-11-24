@@ -98,6 +98,11 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 }
 
 func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
+	if searchFields.Language != "" {
+		q := bleve.NewTermQuery(searchFields.Language)
+		q.SetField("Language")
+		filtersQuery.AddQuery(q)
+	}
 	if searchFields.PubDateFrom != 0 || searchFields.PubDateTo != 0 {
 		minDate := float64(searchFields.PubDateFrom)
 		maxDate := float64(searchFields.PubDateTo)
@@ -341,6 +346,28 @@ func (b *BleveIndexer) analyzers() ([]string, error) {
 	return strings.Split(string(languages), ","), nil
 }
 
+// Languages returns a list of all unique languages in the indexed documents
+func (b *BleveIndexer) Languages() ([]string, error) {
+	languages, err := b.idx.GetInternal([]byte("languages"))
+	if err != nil {
+		return []string{}, err
+	}
+	if len(languages) == 0 {
+		return []string{}, nil
+	}
+
+	allLanguages := strings.Split(string(languages), ",")
+	var filteredLanguages []string
+	for _, lang := range allLanguages {
+		// Filter out empty strings and default_analyzer
+		if lang != "" && lang != "default_analyzer" {
+			filteredLanguages = append(filteredLanguages, lang)
+		}
+	}
+
+	return filteredLanguages, nil
+}
+
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
 	aq := bleve.NewTermQuery(searchFields.Keywords)
 	aq.SetField("AuthorsSlugs")
@@ -454,12 +481,18 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		publication.Precision = match.Fields["Publication.Precision"].(float64)
 	}
 
+	language := ""
+	if match.Fields["Language"] != nil {
+		language = match.Fields["Language"].(string)
+	}
+
 	doc := Document{
 		ID: match.ID,
 		Metadata: metadata.Metadata{
 			Title:       match.Fields["Title"].(string),
 			Authors:     slicer(match.Fields["Authors"]),
 			Description: template.HTML(match.Fields["Description"].(string)),
+			Language:    language,
 			Publication: publication,
 			Words:       match.Fields["Words"].(float64),
 			Series:      match.Fields["Series"].(string),
