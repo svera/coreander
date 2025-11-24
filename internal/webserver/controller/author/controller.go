@@ -15,6 +15,7 @@ type IdxReader interface {
 	SearchByAuthor(searchFields index.SearchFields, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
 	Author(slug, lang string) (index.Author, error)
 	IndexAuthor(author index.Author) error
+	Languages() ([]string, error)
 }
 
 type highlightsRepository interface {

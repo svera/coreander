@@ -54,6 +54,12 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		document = d.readingRepository.Completed(int(session.ID), document)
 	}
 
+	availableLanguages, err := d.idx.Languages()
+	if err != nil {
+		log.Println(err)
+		availableLanguages = []string{}
+	}
+
 	return c.Render("document/detail", fiber.Map{
 		"Title":                  title,
 		"Document":               document,
@@ -63,6 +69,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		"SameAuthors":            sameAuthors,
 		"SameSubjects":           sameSubjects,
 		"WordsPerMinute":         d.config.WordsPerMinute,
+		"AvailableLanguages":     availableLanguages,
 	}, "layout")
 }
 

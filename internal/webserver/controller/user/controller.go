@@ -37,6 +37,7 @@ type readingRepository interface {
 
 type indexer interface {
 	TotalWordCount(IDs []string) (float64, error)
+	Languages() ([]string, error)
 }
 
 type Config struct {

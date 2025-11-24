@@ -21,13 +21,20 @@ func (u *Controller) List(c *fiber.Ctx) error {
 
 	_, emailConfigured := u.sender.(*infrastructure.NoEmail)
 
+	availableLanguages, err := u.indexer.Languages()
+	if err != nil {
+		log.Println(err)
+		availableLanguages = []string{}
+	}
+
 	templateVars := fiber.Map{
-		"Title":           "Users",
-		"Users":           users.Hits(),
-		"Paginator":       view.Pagination(model.MaxPagesNavigator, users, c.Queries()),
-		"Admins":          u.usersRepository.Admins(),
-		"URL":             view.URL(c),
-		"EmailConfigured": !emailConfigured,
+		"Title":              "Users",
+		"Users":              users.Hits(),
+		"Paginator":          view.Pagination(model.MaxPagesNavigator, users, c.Queries()),
+		"Admins":             u.usersRepository.Admins(),
+		"URL":                view.URL(c),
+		"EmailConfigured":    !emailConfigured,
+		"AvailableLanguages": availableLanguages,
 	}
 
 	if c.Get("hx-request") == "true" {
