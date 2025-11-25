@@ -34,8 +34,15 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
 	}
 
-	if err := b.indexAuthors(document, b.idx.Index); err != nil {
+	// Index authors in the separate authors index
+	authorsBatch := b.authorsIdx.NewBatch()
+	if err := b.indexAuthors(document, authorsBatch.Index); err != nil {
 		return document.Slug, err
+	}
+	if authorsBatch.Size() > 0 {
+		if err = b.authorsIdx.Batch(authorsBatch); err != nil {
+			return document.Slug, err
+		}
 	}
 
 	return document.Slug, nil
@@ -55,6 +62,7 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 // haven't been previously indexed or if <forceIndexing> is true
 func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	batch := b.idx.NewBatch()
+	authorsBatch := b.authorsIdx.NewBatch()
 	batchSlugs := make(map[string]struct{}, batchSize)
 	languages := []string{}
 	b.indexStartTime = float64(time.Now().UnixNano())
@@ -85,9 +93,11 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 			return nil
 		}
 
-		if err = b.indexAuthors(document, batch.Index); err != nil {
+		// Add authors to the authors batch
+		if err = b.indexAuthors(document, authorsBatch.Index); err != nil {
 			return err
 		}
+
 		b.indexedEntries += 1
 
 		if batch.Size() >= batchSize {
@@ -97,21 +107,43 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 			batch.Reset()
 			batchSlugs = make(map[string]struct{}, batchSize)
 		}
+
+		// Flush authors batch periodically
+		if authorsBatch.Size() >= batchSize {
+			if err = b.authorsIdx.Batch(authorsBatch); err != nil {
+				return err
+			}
+			authorsBatch.Reset()
+		}
+
 		return nil
 	})
-	if len(languages) > 0 {
-		batch.SetInternal(internalLanguages, []byte(strings.Join(languages, ",")))
-	}
 
+	// Always update languages, even if empty, to ensure consistency
+	languagesStr := ""
+	if len(languages) > 0 {
+		languagesStr = strings.Join(languages, ",")
+	}
+	batch.SetInternal(internalLanguages, []byte(languagesStr))
+
+	// Flush remaining documents batch
 	if err := b.idx.Batch(batch); err != nil {
 		return err
 	}
+
+	// Flush remaining authors batch
+	if authorsBatch.Size() > 0 {
+		if err := b.authorsIdx.Batch(authorsBatch); err != nil {
+			return err
+		}
+	}
+
 	b.indexStartTime = 0
 	b.indexedEntries = 0
 	return e
 }
 
-// indexAuthors indexes authors of a document if they are not already indexed
+// indexAuthors indexes authors of a document if they are not already indexed in the authors index
 func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data any) error) error {
 	for i, name := range document.Authors {
 		// Skip authors with empty names or empty slugs
@@ -119,7 +151,8 @@ func (b *BleveIndexer) indexAuthors(document Document, index func(id string, dat
 			continue
 		}
 
-		indexedAuthor, err := b.idx.Document(document.AuthorsSlugs[i])
+		// Check if author already exists in authors index
+		indexedAuthor, err := b.authorsIdx.Document(document.AuthorsSlugs[i])
 		if err != nil {
 			return err
 		}
@@ -130,7 +163,6 @@ func (b *BleveIndexer) indexAuthors(document Document, index func(id string, dat
 		author := Author{
 			Name:        name,
 			Slug:        document.AuthorsSlugs[i],
-			Type:        TypeAuthor,
 			RetrievedOn: time.Time{},
 		}
 
@@ -143,8 +175,7 @@ func (b *BleveIndexer) indexAuthors(document Document, index func(id string, dat
 }
 
 func (b *BleveIndexer) IndexAuthor(author Author) error {
-	author.Type = TypeAuthor
-	if err := b.idx.Index(author.Slug, author); err != nil {
+	if err := b.authorsIdx.Index(author.Slug, author); err != nil {
 		return err
 	}
 	return nil
@@ -196,7 +227,6 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 		AuthorsSlugs:  make([]string, len(meta.Authors)),
 		SeriesSlug:    slug.Make(meta.Series),
 		SubjectsSlugs: make([]string, len(meta.Subjects)),
-		Type:          TypeDocument,
 	}
 
 	document.Slug = b.Slug(document, batchSlugs)

@@ -13,7 +13,7 @@ import (
 )
 
 func TestSameSubjects(t *testing.T) {
-	indexMem, err := bleve.NewMemOnly(index.CreateMapping())
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Errorf("Error instancing Bleve: %s", err.Error())
 	}
@@ -37,7 +37,8 @@ func TestSameSubjects(t *testing.T) {
 		}
 	}
 
-	idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
 
 	if err = idx.AddLibrary(1, true); err != nil {
 		t.Errorf("Error indexing: %s", err.Error())

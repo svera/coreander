@@ -62,6 +62,7 @@ type Sender interface {
 
 type ProgressInfo interface {
 	IndexingProgress() (index.Progress, error)
+	Languages() ([]string, error)
 }
 
 func init() {
@@ -96,7 +97,7 @@ func init() {
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(cfg Config, controllers Controllers, sender Sender, progress ProgressInfo) *fiber.App {
+func New(cfg Config, controllers Controllers, sender Sender, idx ProgressInfo) *fiber.App {
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {
 		log.Fatal(err)
@@ -120,7 +121,7 @@ func New(cfg Config, controllers Controllers, sender Sender, progress ProgressIn
 
 	app.Use(
 		SetFQDN(cfg),
-		SetProgress(progress),
+		SetProgress(idx),
 		favicon.New(),
 		cache.New(cache.Config{
 			ExpirationGenerator: func(c *fiber.Ctx, cfg *cache.Config) time.Duration {
@@ -132,7 +133,7 @@ func New(cfg Config, controllers Controllers, sender Sender, progress ProgressIn
 		compress.New(),
 	)
 
-	routes(app, controllers, cfg.JwtSecret, sender, translator, cfg)
+	routes(app, controllers, cfg.JwtSecret, sender, translator, cfg, idx)
 	return app
 }
 

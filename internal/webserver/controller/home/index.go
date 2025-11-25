@@ -58,12 +58,6 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 		}
 	}
 
-	availableLanguages, err := d.idx.Languages()
-	if err != nil {
-		log.Println(err)
-		availableLanguages = []string{}
-	}
-
 	return c.Render("index", fiber.Map{
 		"Count":                  totalDocumentsCount,
 		"EmailSendingConfigured": emailSendingConfigured,
@@ -71,6 +65,6 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 		"HomeNavbar":             true,
 		"LatestDocs":             latestDocs,
 		"Reading":                readingDocs,
-		"AvailableLanguages":     availableLanguages,
+		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 	}, "layout")
 }

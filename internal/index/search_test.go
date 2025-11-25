@@ -20,7 +20,7 @@ import (
 func TestIndexAndSearch(t *testing.T) {
 	for _, tcase := range testIndexAndSearchCases() {
 		t.Run(tcase.name, func(t *testing.T) {
-			indexMem, err := bleve.NewMemOnly(index.CreateMapping())
+			indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 			if err != nil {
 				t.Errorf("Error initialising index")
 			}
@@ -57,7 +57,8 @@ func TestIndexAndSearch(t *testing.T) {
 				t.Errorf("Couldn't write file %s", tcase.filename)
 			}
 
-			idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+			authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+			idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
 
 			if err = idx.AddLibrary(1, true); err != nil {
 				t.Errorf("Error indexing: %s", err.Error())
@@ -119,7 +120,8 @@ func TestLanguageFilter(t *testing.T) {
 	afero.WriteFile(appFS, "lib/spanish_book.epub", []byte(""), 0644)
 	afero.WriteFile(appFS, "lib/french_book.epub", []byte(""), 0644)
 
-	idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
 
 	if err = idx.AddLibrary(1, true); err != nil {
 		t.Fatalf("Error indexing: %s", err.Error())
@@ -263,7 +265,8 @@ func TestSearchResultsSortedByDate(t *testing.T) {
 		}
 	}
 
-	idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
 
 	if err = idx.AddLibrary(1, true); err != nil {
 		t.Fatalf("Error indexing: %v", err)
@@ -534,7 +537,8 @@ func TestSearchResultsSortedByReadingTime(t *testing.T) {
 		}
 	}
 
-	idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
 
 	if err = idx.AddLibrary(1, true); err != nil {
 		t.Fatalf("Error indexing: %v", err)

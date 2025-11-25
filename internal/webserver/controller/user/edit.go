@@ -36,12 +36,6 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 	// Calculate lifetime reading statistics
 	lifetimeCompletedCount, lifetimeReadingTime := u.calculateLifetimeStats(int(user.ID), user.WordsPerMinute)
 
-	availableLanguages, err := u.indexer.Languages()
-	if err != nil {
-		log.Println(err)
-		availableLanguages = []string{}
-	}
-
 	return c.Render("user/edit", fiber.Map{
 		"Title":                  "Edit user",
 		"User":                   user,
@@ -54,7 +48,7 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		"YearlyReadingTime":      yearlyReadingTime,
 		"LifetimeCompletedCount": lifetimeCompletedCount,
 		"LifetimeReadingTime":    lifetimeReadingTime,
-		"AvailableLanguages":     availableLanguages,
+		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 	}, "layout")
 }
 

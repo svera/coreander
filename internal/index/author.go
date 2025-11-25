@@ -15,7 +15,6 @@ type Author struct {
 	BirthName       string
 	DataSourceID    string
 	RetrievedOn     time.Time
-	Type            string
 	WikipediaLink   map[string]string
 	InstanceOf      float64
 	Description     map[string]string

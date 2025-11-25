@@ -50,12 +50,6 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		searchResults = d.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
 	}
 
-	availableLanguages, err := d.idx.Languages()
-	if err != nil {
-		log.Println(err)
-		availableLanguages = []string{}
-	}
-
 	templateVars := fiber.Map{
 		"SearchFields":           searchFields,
 		"Results":                searchResults,
@@ -67,7 +61,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		"URL":                    view.URL(c),
 		"SortURL":                view.SortURL(c),
 		"SortBy":                 c.Query("sort-by"),
-		"AvailableLanguages":     availableLanguages,
+		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string

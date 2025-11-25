@@ -60,12 +60,6 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 
 	title := searchResults.Hits()[0].Series
 
-	availableLanguages, err := a.idx.Languages()
-	if err != nil {
-		log.Println(err)
-		availableLanguages = []string{}
-	}
-
 	templateVars := fiber.Map{
 		"Results":                searchResults,
 		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
@@ -76,7 +70,7 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		"URL":                    view.URL(c),
 		"SortURL":                view.SortURL(c),
 		"SortBy":                 c.Query("sort-by"),
-		"AvailableLanguages":     availableLanguages,
+		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string

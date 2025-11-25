@@ -83,12 +83,6 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		layout = ""
 	}
 
-	availableLanguages, err := h.idx.Languages()
-	if err != nil {
-		log.Println(err)
-		availableLanguages = []string{}
-	}
-
 	templateVars := fiber.Map{
 		"Results":                paginatedResults,
 		"Paginator":              view.Pagination(model.MaxPagesNavigator, paginatedResults, c.Queries()),
@@ -99,7 +93,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		"URL":                    view.URL(c),
 		"SortURL":                view.SortURL(c),
 		"SortBy":                 c.Query("sort-by"),
-		"AvailableLanguages":     availableLanguages,
+		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string

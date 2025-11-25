@@ -59,8 +59,10 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		for _, prefix := range []string{"Authors:", "Series:", "Title:", "Subjects:", "\""} {
 			if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
 				query := bleve.NewQueryStringQuery(searchFields.Keywords)
+				filtersQuery.AddQuery(query)
+				addFilters(searchFields, filtersQuery)
 
-				return b.runPaginatedQuery(query, page, resultsPerPage, searchFields.SortBy)
+				return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 			}
 		}
 
@@ -80,7 +82,9 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 				qs.SetField(strings.TrimSuffix(prefix, ":"))
 				qb.AddQuery(qs)
 			}
-			return b.runPaginatedQuery(qb, page, resultsPerPage, searchFields.SortBy)
+			filtersQuery.AddQuery(qb)
+			addFilters(searchFields, filtersQuery)
+			return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 		}
 
 		analyzers, err := b.analyzers()
@@ -231,11 +235,11 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 }
 
 // Count returns the number of indexed documents
+// The t parameter is deprecated (documents and authors are now in separate indexes)
 func (b *BleveIndexer) Count(t string) (uint64, error) {
-	tq := bleve.NewTermQuery(t)
-	tq.SetField("Type")
+	matchAllQuery := bleve.NewMatchAllQuery()
 
-	searchRequest := bleve.NewSearchRequest(tq)
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
 	searchResult, err := b.idx.Search(searchRequest)
 	if err != nil {
 		return 0, err
@@ -244,14 +248,10 @@ func (b *BleveIndexer) Count(t string) (uint64, error) {
 }
 
 func (b *BleveIndexer) Document(slug string) (Document, error) {
-	compoundQuery := bleve.NewConjunctionQuery()
 	query := bleve.NewTermQuery(slug)
 	query.SetField("Slug")
-	typeQuery := bleve.NewTermQuery(TypeDocument)
-	typeQuery.SetField("Type")
-	compoundQuery.AddQuery(query, typeQuery)
 
-	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
@@ -265,14 +265,11 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 }
 
 func (b *BleveIndexer) DocumentByID(ID string) (Document, error) {
-	compoundQuery := bleve.NewConjunctionQuery()
 	query := bleve.NewDocIDQuery([]string{ID})
-	typeQuery := bleve.NewTermQuery(TypeDocument)
-	typeQuery.SetField("Type")
-	compoundQuery.AddQuery(query, typeQuery)
 
-	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
+	searchOptions.Size = 1
 	searchResult, err := b.idx.Search(searchOptions)
 	if err != nil {
 		return Document{}, err
@@ -286,14 +283,10 @@ func (b *BleveIndexer) DocumentByID(ID string) (Document, error) {
 }
 
 func (b *BleveIndexer) Documents(IDs []string, sortBy []string) ([]Document, error) {
-	compoundQuery := bleve.NewConjunctionQuery()
 	var docs []Document
 	query := bleve.NewDocIDQuery(IDs)
-	typeQuery := bleve.NewTermQuery(TypeDocument)
-	typeQuery.SetField("Type")
-	compoundQuery.AddQuery(query, typeQuery)
 
-	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
 	searchOptions.SortBy(sortBy)
 	searchResult, err := b.idx.Search(searchOptions)
@@ -314,13 +307,9 @@ func (b *BleveIndexer) TotalWordCount(IDs []string) (float64, error) {
 		return 0, nil
 	}
 
-	compoundQuery := bleve.NewConjunctionQuery()
 	query := bleve.NewDocIDQuery(IDs)
-	typeQuery := bleve.NewTermQuery(TypeDocument)
-	typeQuery.SetField("Type")
-	compoundQuery.AddQuery(query, typeQuery)
 
-	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"Words"}
 	searchOptions.Size = len(IDs)
 	searchResult, err := b.idx.Search(searchOptions)
@@ -376,19 +365,12 @@ func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPe
 }
 
 func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
-	authorsCompoundQuery := bleve.NewConjunctionQuery()
-
 	aq := bleve.NewTermQuery(slug)
 	aq.SetField("Slug")
-	authorsCompoundQuery.AddQuery(aq)
 
-	tq := bleve.NewTermQuery(TypeAuthor)
-	tq.SetField("Type")
-	authorsCompoundQuery.AddQuery(tq)
-
-	searchOptions := bleve.NewSearchRequest(authorsCompoundQuery)
+	searchOptions := bleve.NewSearchRequest(aq)
 	searchOptions.Fields = []string{"*"}
-	searchResult, err := b.idx.Search(searchOptions)
+	searchResult, err := b.authorsIdx.Search(searchOptions)
 	if err != nil {
 		return Author{}, err
 	}
@@ -449,20 +431,12 @@ func (b *BleveIndexer) SearchBySeries(searchFields SearchFields, page, resultsPe
 }
 
 func (b *BleveIndexer) LatestDocs(limit int) ([]Document, error) {
-	bq := bleve.NewBooleanQuery()
-
-	typeQuery := bleve.NewTermQuery(TypeDocument)
-	typeQuery.SetField("Type")
-
 	falseValue := false
 	trueValue := true
 	dateQuery := bleve.NewDateRangeInclusiveQuery(time.Time{}, time.Now().UTC(), &falseValue, &trueValue)
 	dateQuery.SetField("AddedOn")
 
-	bq.AddMust(typeQuery)
-	bq.AddMust(dateQuery)
-
-	return b.runQuery(bq, limit, []string{"-AddedOn"})
+	return b.runQuery(dateQuery, limit, []string{"-AddedOn"})
 }
 
 func hydrateDocument(match *search.DocumentMatch) Document {
