@@ -222,7 +222,7 @@ func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool) {
 		// Create new index
 		newAuthorsIndex := index.CreateAuthorsIndex(newIndexPath)
 		// Migrate authors from old index to new index
-		if err = index.MigrateAuthors(oldAuthorsIndex, newAuthorsIndex); err != nil {
+		if err = index.MigrateAuthors(oldAuthorsIndex, newAuthorsIndex, false); err != nil {
 			log.Printf("Warning: Could not migrate authors from old index: %v", err)
 			needsReindex = true
 			if err = newAuthorsIndex.Close(); err != nil {
@@ -260,9 +260,45 @@ func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool) {
 }
 
 func migrateLegacyIndex(fs afero.Fs) bool {
-	log.Println("Removing legacy single index. Documents and authors will be reindexed into separate indexes.")
+	log.Println("Detected legacy single index format. Extracting authors before migration...")
+
+	// Open the legacy index
+	legacyIndex, err := bleve.Open(homeDir + legacyIndexPath)
+	if err != nil {
+		log.Printf("Warning: Could not open legacy index: %v. Authors will be reindexed.", err)
+		return true // Force reindexing
+	}
+	defer legacyIndex.Close()
+
+	// Create authors index if it doesn't exist
+	authorsIndexPath := homeDir + authorsIndexPath
+	authorsIndexExists, _ := afero.DirExists(fs, authorsIndexPath)
+	var authorsIndex bleve.Index
+
+	if !authorsIndexExists {
+		log.Println("Creating new authors index for migration...")
+		authorsIndex = index.CreateAuthorsIndex(authorsIndexPath)
+	} else {
+		authorsIndex, err = bleve.Open(authorsIndexPath)
+		if err != nil {
+			log.Printf("Warning: Could not open authors index: %v. Authors will be reindexed.", err)
+			return true // Force reindexing
+		}
+	}
+	defer authorsIndex.Close()
+
+	// Extract authors from legacy index (filterForAuthorsOnly=true to skip documents)
+	if err := index.MigrateAuthors(legacyIndex, authorsIndex, true); err != nil {
+		log.Printf("Warning: Could not migrate authors from legacy index: %v. Authors will be reindexed.", err)
+		return true // Force reindexing
+	}
+
+	log.Println("Successfully extracted authors from legacy index.")
+
+	// Now remove the legacy index
+	log.Println("Removing legacy single index. Documents will be reindexed.")
 	if err := fs.RemoveAll(homeDir + legacyIndexPath); err != nil {
 		log.Printf("Warning: Could not remove legacy index: %v", err)
 	}
-	return true // Force reindexing
+	return true // Force reindexing documents
 }

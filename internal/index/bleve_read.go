@@ -378,41 +378,10 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 		return Author{}, nil
 	}
 
-	retrievedOn := time.Time{}
-	if searchResult.Hits[0].Fields["RetrievedOn"] != nil {
-		retrievedOn, err = time.Parse("2006-01-02T15:04:05Z", searchResult.Hits[0].Fields["RetrievedOn"].(string))
-		if err != nil {
-			return Author{}, err
-		}
-	}
-	dateOfBirth := precisiondate.PrecisionDate{Date: date.Zero}
-	if searchResult.Hits[0].Fields["DateOfBirth.Date"] != nil {
-		dateOfBirth.Date = date.Date(searchResult.Hits[0].Fields["DateOfBirth.Date"].(float64))
-		dateOfBirth.Precision = searchResult.Hits[0].Fields["DateOfBirth.Precision"].(float64)
-	}
-	dateOfDeath := precisiondate.PrecisionDate{Date: date.Zero}
-	if searchResult.Hits[0].Fields["DateOfDeath.Date"] != nil {
-		dateOfDeath.Date = date.Date(searchResult.Hits[0].Fields["DateOfDeath.Date"].(float64))
-		dateOfDeath.Precision = searchResult.Hits[0].Fields["DateOfDeath.Precision"].(float64)
-	}
+	// Use the shared hydrateAuthor function
+	author := hydrateAuthor(searchResult.Hits[0])
 
-	author := Author{
-		Name:            searchResult.Hits[0].Fields["Name"].(string),
-		BirthName:       searchResult.Hits[0].Fields["BirthName"].(string),
-		Slug:            slug,
-		DataSourceID:    searchResult.Hits[0].Fields["DataSourceID"].(string),
-		RetrievedOn:     retrievedOn,
-		WikipediaLink:   make(map[string]string),
-		InstanceOf:      searchResult.Hits[0].Fields["InstanceOf"].(float64),
-		Description:     make(map[string]string),
-		DateOfBirth:     dateOfBirth,
-		DateOfDeath:     dateOfDeath,
-		Website:         searchResult.Hits[0].Fields["Website"].(string),
-		DataSourceImage: searchResult.Hits[0].Fields["DataSourceImage"].(string),
-		Gender:          searchResult.Hits[0].Fields["Gender"].(float64),
-		Pseudonyms:      slicer(searchResult.Hits[0].Fields["Pseudonyms"]),
-	}
-
+	// Override language-specific fields if requested language is available
 	if value, ok := searchResult.Hits[0].Fields["WikipediaLink."+lang].(string); ok {
 		author.WikipediaLink[lang] = value
 	}
@@ -510,12 +479,15 @@ func slicer(val any) []string {
 	return termsStrings
 }
 
-// MigrateAuthors migrates all authors from an old authors index to a new one
-func MigrateAuthors(oldIndex, newIndex bleve.Index) error {
+// MigrateAuthors migrates all authors from an old index to a new one.
+// If filterForAuthorsOnly is true, it will filter out documents (checking for Title field)
+// to only migrate author entries. This is used when migrating from a legacy index that
+// contains both documents and authors.
+func MigrateAuthors(oldIndex, newIndex bleve.Index, filterForAuthorsOnly bool) error {
 	matchAllQuery := bleve.NewMatchAllQuery()
 	searchRequest := bleve.NewSearchRequest(matchAllQuery)
-	searchRequest.Size = 10000 // Process in batches
-	searchRequest.Fields = []string{"*"}
+	searchRequest.Size = 10000           // Process in batches
+	searchRequest.Fields = []string{"*"} // Get all fields
 
 	batch := newIndex.NewBatch()
 	batchCount := 0
@@ -530,8 +502,19 @@ func MigrateAuthors(oldIndex, newIndex bleve.Index) error {
 			break
 		}
 
-		// Migrate each author
+		// Migrate each author from search results
 		for _, hit := range searchResult.Hits {
+			// If filtering is enabled, check if this document is an author
+			if filterForAuthorsOnly {
+				hasName := hit.Fields["Name"] != nil
+				hasTitle := hit.Fields["Title"] != nil
+				// Skip if it's not an author (documents have Title, authors have Name but not Title)
+				if !hasName || hasTitle {
+					continue
+				}
+			}
+
+			// Convert search result to Author
 			author := hydrateAuthor(hit)
 			if author.Slug == "" {
 				continue
@@ -571,68 +554,99 @@ func MigrateAuthors(oldIndex, newIndex bleve.Index) error {
 	return nil
 }
 
-func hydrateAuthor(hit *search.DocumentMatch) Author {
+// hydrateAuthorFromFields converts a fields map to an Author struct
+// This is the shared implementation used by hydrateAuthor
+func hydrateAuthorFromFields(fields map[string]interface{}, docID string) Author {
 	retrievedOn := time.Time{}
-	if hit.Fields["RetrievedOn"] != nil {
-		if t, err := time.Parse("2006-01-02T15:04:05Z", hit.Fields["RetrievedOn"].(string)); err == nil {
-			retrievedOn = t
+	if val, ok := fields["RetrievedOn"]; ok && val != nil {
+		if str, ok := val.(string); ok && str != "" {
+			// Try RFC3339 format first (standard)
+			if t, err := time.Parse(time.RFC3339, str); err == nil {
+				retrievedOn = t
+			} else if t, err := time.Parse("2006-01-02T15:04:05Z", str); err == nil {
+				retrievedOn = t
+			}
 		}
 	}
 
 	dateOfBirth := precisiondate.PrecisionDate{Date: date.Zero}
-	if hit.Fields["DateOfBirth.Date"] != nil {
-		dateOfBirth.Date = date.Date(hit.Fields["DateOfBirth.Date"].(float64))
-		if hit.Fields["DateOfBirth.Precision"] != nil {
-			dateOfBirth.Precision = hit.Fields["DateOfBirth.Precision"].(float64)
+	if val, ok := fields["DateOfBirth.Date"]; ok && val != nil {
+		if dateVal, ok := val.(float64); ok {
+			dateOfBirth.Date = date.Date(dateVal)
+			if precVal, ok := fields["DateOfBirth.Precision"]; ok && precVal != nil {
+				if prec, ok := precVal.(float64); ok {
+					dateOfBirth.Precision = prec
+				}
+			}
 		}
 	}
 
 	dateOfDeath := precisiondate.PrecisionDate{Date: date.Zero}
-	if hit.Fields["DateOfDeath.Date"] != nil {
-		dateOfDeath.Date = date.Date(hit.Fields["DateOfDeath.Date"].(float64))
-		if hit.Fields["DateOfDeath.Precision"] != nil {
-			dateOfDeath.Precision = hit.Fields["DateOfDeath.Precision"].(float64)
+	if val, ok := fields["DateOfDeath.Date"]; ok && val != nil {
+		if dateVal, ok := val.(float64); ok {
+			dateOfDeath.Date = date.Date(dateVal)
+			if precVal, ok := fields["DateOfDeath.Precision"]; ok && precVal != nil {
+				if prec, ok := precVal.(float64); ok {
+					dateOfDeath.Precision = prec
+				}
+			}
 		}
 	}
 
 	name := ""
-	if hit.Fields["Name"] != nil {
-		name = hit.Fields["Name"].(string)
+	if val, ok := fields["Name"]; ok && val != nil {
+		if str, ok := val.(string); ok {
+			name = str
+		}
 	}
 
 	birthName := ""
-	if hit.Fields["BirthName"] != nil {
-		birthName = hit.Fields["BirthName"].(string)
+	if val, ok := fields["BirthName"]; ok && val != nil {
+		if str, ok := val.(string); ok {
+			birthName = str
+		}
 	}
 
-	slug := hit.ID
-	if hit.Fields["Slug"] != nil {
-		slug = hit.Fields["Slug"].(string)
+	slug := docID
+	if val, ok := fields["Slug"]; ok && val != nil {
+		if str, ok := val.(string); ok && str != "" {
+			slug = str
+		}
 	}
 
 	dataSourceID := ""
-	if hit.Fields["DataSourceID"] != nil {
-		dataSourceID = hit.Fields["DataSourceID"].(string)
+	if val, ok := fields["DataSourceID"]; ok && val != nil {
+		if str, ok := val.(string); ok {
+			dataSourceID = str
+		}
 	}
 
 	website := ""
-	if hit.Fields["Website"] != nil {
-		website = hit.Fields["Website"].(string)
+	if val, ok := fields["Website"]; ok && val != nil {
+		if str, ok := val.(string); ok {
+			website = str
+		}
 	}
 
 	dataSourceImage := ""
-	if hit.Fields["DataSourceImage"] != nil {
-		dataSourceImage = hit.Fields["DataSourceImage"].(string)
+	if val, ok := fields["DataSourceImage"]; ok && val != nil {
+		if str, ok := val.(string); ok {
+			dataSourceImage = str
+		}
 	}
 
 	instanceOf := float64(0)
-	if hit.Fields["InstanceOf"] != nil {
-		instanceOf = hit.Fields["InstanceOf"].(float64)
+	if val, ok := fields["InstanceOf"]; ok && val != nil {
+		if num, ok := val.(float64); ok {
+			instanceOf = num
+		}
 	}
 
 	gender := float64(0)
-	if hit.Fields["Gender"] != nil {
-		gender = hit.Fields["Gender"].(float64)
+	if val, ok := fields["Gender"]; ok && val != nil {
+		if num, ok := val.(float64); ok {
+			gender = num
+		}
 	}
 
 	author := Author{
@@ -649,11 +663,11 @@ func hydrateAuthor(hit *search.DocumentMatch) Author {
 		Website:         website,
 		DataSourceImage: dataSourceImage,
 		Gender:          gender,
-		Pseudonyms:      slicer(hit.Fields["Pseudonyms"]),
+		Pseudonyms:      slicer(fields["Pseudonyms"]),
 	}
 
 	// Extract Wikipedia links and descriptions for all languages
-	for key, value := range hit.Fields {
+	for key, value := range fields {
 		if strings.HasPrefix(key, "WikipediaLink.") {
 			lang := strings.TrimPrefix(key, "WikipediaLink.")
 			if str, ok := value.(string); ok {
@@ -669,4 +683,13 @@ func hydrateAuthor(hit *search.DocumentMatch) Author {
 	}
 
 	return author
+}
+
+func hydrateAuthor(hit *search.DocumentMatch) Author {
+	// Convert search.DocumentMatch.Fields (map[string]interface{}) to the format expected by hydrateAuthorFromFields
+	fields := make(map[string]interface{})
+	for k, v := range hit.Fields {
+		fields[k] = v
+	}
+	return hydrateAuthorFromFields(fields, hit.ID)
 }
