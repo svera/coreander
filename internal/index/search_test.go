@@ -75,7 +75,7 @@ func TestIndexAndSearch(t *testing.T) {
 }
 
 func TestLanguageFilter(t *testing.T) {
-	indexMem, err := bleve.NewMemOnly(index.CreateMapping())
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Fatalf("Error initialising index: %v", err)
 	}
@@ -174,7 +174,7 @@ func TestLanguageFilter(t *testing.T) {
 }
 
 func TestSearchResultsSortedByDate(t *testing.T) {
-	indexMem, err := bleve.NewMemOnly(index.CreateMapping())
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Fatalf("Error initialising index: %v", err)
 	}
@@ -444,7 +444,7 @@ func (m mockLanguageEpubReader) Cover(documentFullPath string, coverMaxWidth int
 }
 
 func TestSearchResultsSortedByReadingTime(t *testing.T) {
-	indexMem, err := bleve.NewMemOnly(index.CreateMapping())
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Fatalf("Error initialising index: %v", err)
 	}

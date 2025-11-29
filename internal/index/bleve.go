@@ -88,16 +88,6 @@ func CreateAuthorsIndex(path string) bleve.Index {
 	return indexFile
 }
 
-// Deprecated: Use CreateDocumentsIndex and CreateAuthorsIndex instead
-func Create(path string) bleve.Index {
-	return CreateDocumentsIndex(path)
-}
-
-// Deprecated: Use CreateDocumentsMapping and CreateAuthorsMapping instead
-func CreateMapping() mapping.IndexMapping {
-	return CreateDocumentsMapping()
-}
-
 func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping := bleve.NewIndexMapping()
 
