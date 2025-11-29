@@ -18,6 +18,7 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/token/porter"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
+	index "github.com/blevesearch/bleve_index_api"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/metadata"
 )
@@ -112,6 +113,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
+	simpleTextFieldMapping.Similarity = index.BM25Scoring
 
 	numericFieldMapping := bleve.NewNumericFieldMapping()
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
@@ -119,6 +121,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()
 		textFieldMapping.Analyzer = lang
+		textFieldMapping.Similarity = index.BM25Scoring
 
 		err := addNoStopWordsAnalyzer(lang, indexMapping)
 		if err != nil {
@@ -126,6 +129,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		}
 		noStopWordsTextFieldMapping := bleve.NewTextFieldMapping()
 		noStopWordsTextFieldMapping.Analyzer = lang + "_no_stop_words"
+		noStopWordsTextFieldMapping.Similarity = index.BM25Scoring
 
 		indexMapping.AddDocumentMapping(lang, bleve.NewDocumentMapping())
 		indexMapping.TypeMapping[lang].DefaultAnalyzer = lang
