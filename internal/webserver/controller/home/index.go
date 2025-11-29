@@ -20,7 +20,7 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 		session = val
 	}
 
-	totalDocumentsCount, err := d.idx.Count(index.TypeDocument)
+	totalDocumentsCount, err := d.idx.Count()
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError

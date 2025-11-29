@@ -235,8 +235,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 }
 
 // Count returns the number of indexed documents
-// The t parameter is deprecated (documents and authors are now in separate indexes)
-func (b *BleveIndexer) Count(t string) (uint64, error) {
+func (b *BleveIndexer) Count() (uint64, error) {
 	matchAllQuery := bleve.NewMatchAllQuery()
 
 	searchRequest := bleve.NewSearchRequest(matchAllQuery)

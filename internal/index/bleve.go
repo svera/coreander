@@ -30,13 +30,6 @@ const DocumentVersion = "v9"
 // of version, to signal that a new index needs to be created.
 const AuthorVersion = "1"
 
-const (
-	// Deprecated: Documents and authors are now in separate indexes
-	TypeDocument = "document"
-	// Deprecated: Documents and authors are now in separate indexes
-	TypeAuthor = "author"
-)
-
 // Metadata fields
 var (
 	internalLanguages = []byte("languages")
