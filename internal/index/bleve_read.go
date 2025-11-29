@@ -509,3 +509,164 @@ func slicer(val any) []string {
 
 	return termsStrings
 }
+
+// MigrateAuthors migrates all authors from an old authors index to a new one
+func MigrateAuthors(oldIndex, newIndex bleve.Index) error {
+	matchAllQuery := bleve.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
+	searchRequest.Size = 10000 // Process in batches
+	searchRequest.Fields = []string{"*"}
+
+	batch := newIndex.NewBatch()
+	batchCount := 0
+
+	for {
+		searchResult, err := oldIndex.Search(searchRequest)
+		if err != nil {
+			return err
+		}
+
+		if searchResult.Total == 0 {
+			break
+		}
+
+		// Migrate each author
+		for _, hit := range searchResult.Hits {
+			author := hydrateAuthor(hit)
+			if author.Slug == "" {
+				continue
+			}
+
+			if err := batch.Index(author.Slug, author); err != nil {
+				return err
+			}
+			batchCount++
+
+			// Execute batch every 1000 items
+			if batchCount >= 1000 {
+				if err := newIndex.Batch(batch); err != nil {
+					return err
+				}
+				batch = newIndex.NewBatch()
+				batchCount = 0
+			}
+		}
+
+		// If we got less than requested size, we're done
+		if len(searchResult.Hits) < searchRequest.Size {
+			break
+		}
+
+		// Move to next batch
+		searchRequest.From += searchRequest.Size
+	}
+
+	// Execute any remaining authors
+	if batchCount > 0 {
+		if err := newIndex.Batch(batch); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func hydrateAuthor(hit *search.DocumentMatch) Author {
+	retrievedOn := time.Time{}
+	if hit.Fields["RetrievedOn"] != nil {
+		if t, err := time.Parse("2006-01-02T15:04:05Z", hit.Fields["RetrievedOn"].(string)); err == nil {
+			retrievedOn = t
+		}
+	}
+
+	dateOfBirth := precisiondate.PrecisionDate{Date: date.Zero}
+	if hit.Fields["DateOfBirth.Date"] != nil {
+		dateOfBirth.Date = date.Date(hit.Fields["DateOfBirth.Date"].(float64))
+		if hit.Fields["DateOfBirth.Precision"] != nil {
+			dateOfBirth.Precision = hit.Fields["DateOfBirth.Precision"].(float64)
+		}
+	}
+
+	dateOfDeath := precisiondate.PrecisionDate{Date: date.Zero}
+	if hit.Fields["DateOfDeath.Date"] != nil {
+		dateOfDeath.Date = date.Date(hit.Fields["DateOfDeath.Date"].(float64))
+		if hit.Fields["DateOfDeath.Precision"] != nil {
+			dateOfDeath.Precision = hit.Fields["DateOfDeath.Precision"].(float64)
+		}
+	}
+
+	name := ""
+	if hit.Fields["Name"] != nil {
+		name = hit.Fields["Name"].(string)
+	}
+
+	birthName := ""
+	if hit.Fields["BirthName"] != nil {
+		birthName = hit.Fields["BirthName"].(string)
+	}
+
+	slug := hit.ID
+	if hit.Fields["Slug"] != nil {
+		slug = hit.Fields["Slug"].(string)
+	}
+
+	dataSourceID := ""
+	if hit.Fields["DataSourceID"] != nil {
+		dataSourceID = hit.Fields["DataSourceID"].(string)
+	}
+
+	website := ""
+	if hit.Fields["Website"] != nil {
+		website = hit.Fields["Website"].(string)
+	}
+
+	dataSourceImage := ""
+	if hit.Fields["DataSourceImage"] != nil {
+		dataSourceImage = hit.Fields["DataSourceImage"].(string)
+	}
+
+	instanceOf := float64(0)
+	if hit.Fields["InstanceOf"] != nil {
+		instanceOf = hit.Fields["InstanceOf"].(float64)
+	}
+
+	gender := float64(0)
+	if hit.Fields["Gender"] != nil {
+		gender = hit.Fields["Gender"].(float64)
+	}
+
+	author := Author{
+		Name:            name,
+		BirthName:       birthName,
+		Slug:            slug,
+		DataSourceID:    dataSourceID,
+		RetrievedOn:     retrievedOn,
+		WikipediaLink:   make(map[string]string),
+		InstanceOf:      instanceOf,
+		Description:     make(map[string]string),
+		DateOfBirth:     dateOfBirth,
+		DateOfDeath:     dateOfDeath,
+		Website:         website,
+		DataSourceImage: dataSourceImage,
+		Gender:          gender,
+		Pseudonyms:      slicer(hit.Fields["Pseudonyms"]),
+	}
+
+	// Extract Wikipedia links and descriptions for all languages
+	for key, value := range hit.Fields {
+		if strings.HasPrefix(key, "WikipediaLink.") {
+			lang := strings.TrimPrefix(key, "WikipediaLink.")
+			if str, ok := value.(string); ok {
+				author.WikipediaLink[lang] = str
+			}
+		}
+		if strings.HasPrefix(key, "Description.") {
+			lang := strings.TrimPrefix(key, "Description.")
+			if str, ok := value.(string); ok {
+				author.Description[lang] = str
+			}
+		}
+	}
+
+	return author
+}

@@ -214,15 +214,46 @@ func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool) {
 		log.Fatal(err)
 	}
 	if string(version) == "" || string(version) < index.AuthorVersion {
-		log.Println("Old version authors index found, recreating with new mapping.")
-		if err = authorsIndex.Close(); err != nil {
-			log.Fatal(err)
+		log.Println("Old version authors index found, migrating to new mapping.")
+		oldAuthorsIndex := authorsIndex
+		oldIndexPath := homeDir + authorsIndexPath
+		// Create temporary path for new index
+		newIndexPath := homeDir + authorsIndexPath + "_new"
+		// Create new index
+		newAuthorsIndex := index.CreateAuthorsIndex(newIndexPath)
+		// Migrate authors from old index to new index
+		if err = index.MigrateAuthors(oldAuthorsIndex, newAuthorsIndex); err != nil {
+			log.Printf("Warning: Could not migrate authors from old index: %v", err)
+			needsReindex = true
+			if err = newAuthorsIndex.Close(); err != nil {
+				log.Fatal(err)
+			}
+			if err = fs.RemoveAll(newIndexPath); err != nil {
+				log.Printf("Warning: Could not remove temporary index: %v", err)
+			}
+		} else {
+			log.Println("Successfully migrated authors to new index.")
+			// Close both indexes
+			if err = oldAuthorsIndex.Close(); err != nil {
+				log.Fatal(err)
+			}
+			if err = newAuthorsIndex.Close(); err != nil {
+				log.Fatal(err)
+			}
+			// Remove old index
+			if err = fs.RemoveAll(oldIndexPath); err != nil {
+				log.Fatal(err)
+			}
+			// Rename new index to final path (use os.Rename since we're using OS filesystem)
+			if err = os.Rename(newIndexPath, oldIndexPath); err != nil {
+				log.Fatal(err)
+			}
+			// Reopen the migrated index
+			authorsIndex, err = bleve.Open(oldIndexPath)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
-		if err = fs.RemoveAll(homeDir + authorsIndexPath); err != nil {
-			log.Fatal(err)
-		}
-		authorsIndex = index.CreateAuthorsIndex(homeDir + authorsIndexPath)
-		needsReindex = true
 	}
 
 	return documentsIndex, authorsIndex, needsReindex
