@@ -211,7 +211,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy(sortBy)
 	searchOptions.Fields = []string{"*"}
-	searchResult, err := b.idx.Search(searchOptions)
+	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
 		return result.Paginated[[]Document]{}, err
 	}
@@ -239,7 +239,7 @@ func (b *BleveIndexer) Count() (uint64, error) {
 	matchAllQuery := bleve.NewMatchAllQuery()
 
 	searchRequest := bleve.NewSearchRequest(matchAllQuery)
-	searchResult, err := b.idx.Search(searchRequest)
+	searchResult, err := b.documentsIdx.Search(searchRequest)
 	if err != nil {
 		return 0, err
 	}
@@ -252,7 +252,7 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 
 	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
-	searchResult, err := b.idx.Search(searchOptions)
+	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
 		return Document{}, err
 	}
@@ -269,7 +269,7 @@ func (b *BleveIndexer) DocumentByID(ID string) (Document, error) {
 	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
 	searchOptions.Size = 1
-	searchResult, err := b.idx.Search(searchOptions)
+	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
 		return Document{}, err
 	}
@@ -288,7 +288,7 @@ func (b *BleveIndexer) Documents(IDs []string, sortBy []string) ([]Document, err
 	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
 	searchOptions.SortBy(sortBy)
-	searchResult, err := b.idx.Search(searchOptions)
+	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
 		return docs, err
 	}
@@ -311,7 +311,7 @@ func (b *BleveIndexer) TotalWordCount(IDs []string) (float64, error) {
 	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"Words"}
 	searchOptions.Size = len(IDs)
-	searchResult, err := b.idx.Search(searchOptions)
+	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
 		return 0, err
 	}
@@ -327,7 +327,7 @@ func (b *BleveIndexer) TotalWordCount(IDs []string) (float64, error) {
 }
 
 func (b *BleveIndexer) analyzers() ([]string, error) {
-	languages, err := b.idx.GetInternal([]byte("languages"))
+	languages, err := b.documentsIdx.GetInternal([]byte("languages"))
 	if err != nil {
 		return []string{}, err
 	}
@@ -336,7 +336,7 @@ func (b *BleveIndexer) analyzers() ([]string, error) {
 
 // Languages returns a list of all unique languages in the indexed documents
 func (b *BleveIndexer) Languages() ([]string, error) {
-	languages, err := b.idx.GetInternal([]byte("languages"))
+	languages, err := b.documentsIdx.GetInternal([]byte("languages"))
 	if err != nil {
 		return []string{}, err
 	}

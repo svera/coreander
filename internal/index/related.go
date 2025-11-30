@@ -93,7 +93,7 @@ func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, dateSort strin
 	searchOptions := bleve.NewSearchRequestOptions(query, quantity, 0, false)
 	searchOptions.SortBy([]string{"-_score", dateSort})
 	searchOptions.Fields = []string{"*"}
-	result, err := b.idx.Search(searchOptions)
+	result, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
 		return nil, err
 	}

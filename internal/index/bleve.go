@@ -50,7 +50,7 @@ const defaultAnalyzer = "default_analyzer"
 
 type BleveIndexer struct {
 	fs             afero.Fs
-	idx            bleve.Index // Documents index
+	documentsIdx   bleve.Index // Documents index
 	authorsIdx     bleve.Index // Authors index
 	libraryPath    string
 	reader         map[string]metadata.Reader
@@ -62,7 +62,7 @@ type BleveIndexer struct {
 func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs, libraryPath string, read map[string]metadata.Reader) *BleveIndexer {
 	return &BleveIndexer{
 		fs:             fs,
-		idx:            documentsIndex,
+		documentsIdx:   documentsIndex,
 		authorsIdx:     authorsIndex,
 		libraryPath:    strings.TrimSuffix(libraryPath, string(filepath.Separator)),
 		reader:         read,
@@ -199,7 +199,7 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 
 // Close closes both indexes
 func (b *BleveIndexer) Close() error {
-	if err := b.idx.Close(); err != nil {
+	if err := b.documentsIdx.Close(); err != nil {
 		return err
 	}
 	return b.authorsIdx.Close()

@@ -30,7 +30,7 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 	document := b.createDocument(meta, file, nil)
 	document.AddedOn = time.Now().UTC()
 
-	if err = b.idx.Index(document.ID, document); err != nil {
+	if err = b.documentsIdx.Index(document.ID, document); err != nil {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
 	}
 
@@ -52,7 +52,7 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 func (b *BleveIndexer) RemoveFile(file string) error {
 	file = strings.Replace(file, b.libraryPath, "", 1)
 	file = strings.TrimPrefix(file, string(filepath.Separator))
-	if err := b.idx.Delete(file); err != nil {
+	if err := b.documentsIdx.Delete(file); err != nil {
 		return err
 	}
 	return nil
@@ -61,7 +61,7 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 // AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <batchSize> if they
 // haven't been previously indexed or if <forceIndexing> is true
 func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
-	batch := b.idx.NewBatch()
+	batch := b.documentsIdx.NewBatch()
 	authorsBatch := b.authorsIdx.NewBatch()
 	batchSlugs := make(map[string]struct{}, batchSize)
 	languages := []string{}
@@ -101,7 +101,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 		b.indexedEntries += 1
 
 		if batch.Size() >= batchSize {
-			if err = b.idx.Batch(batch); err != nil {
+			if err = b.documentsIdx.Batch(batch); err != nil {
 				return err
 			}
 			batch.Reset()
@@ -127,7 +127,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	batch.SetInternal(internalLanguages, []byte(languagesStr))
 
 	// Flush remaining documents batch
-	if err := b.idx.Batch(batch); err != nil {
+	if err := b.documentsIdx.Batch(batch); err != nil {
 		return err
 	}
 
@@ -182,7 +182,7 @@ func (b *BleveIndexer) IndexAuthor(author Author) error {
 }
 
 func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {
-	doc, err := b.idx.Document(b.id(fullPath))
+	doc, err := b.documentsIdx.Document(b.id(fullPath))
 	if err != nil {
 		log.Fatalln(err)
 	}
