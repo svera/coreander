@@ -81,35 +81,38 @@ func TestLanguageFilter(t *testing.T) {
 	}
 
 	mockMetadataReaders := map[string]metadata.Reader{
-		".epub": mockLanguageEpubReader{
-			GetMetadataFromFile: func(file string) (*epub.Information, error) {
-				switch file {
-				case "lib/english_book.epub":
-					return &epub.Information{
-						Title:       []string{"English Book"},
-						Creator:     []epub.Author{{FullName: "English Author", Role: "aut"}},
-						Description: []string{"A book in English"},
-						Language:    []string{"en"},
-						Subject:     []string{"Fiction"},
-					}, nil
-				case "lib/spanish_book.epub":
-					return &epub.Information{
-						Title:       []string{"Spanish Book"},
-						Creator:     []epub.Author{{FullName: "Spanish Author", Role: "aut"}},
-						Description: []string{"A book in Spanish"},
-						Language:    []string{"es"},
-						Subject:     []string{"Fiction"},
-					}, nil
-				case "lib/french_book.epub":
-					return &epub.Information{
-						Title:       []string{"French Book"},
-						Creator:     []epub.Author{{FullName: "French Author", Role: "aut"}},
-						Description: []string{"A book in French"},
-						Language:    []string{"fr"},
-						Subject:     []string{"Fiction"},
-					}, nil
-				}
-				return nil, fmt.Errorf("file not found")
+		".epub": mockEpubReader{
+			EpubReader: metadata.EpubReader{
+				GetMetadataFromFile: func(file string) (*epub.Information, error) {
+					switch file {
+					case "lib/english_book.epub":
+						return &epub.Information{
+							Title:       []string{"English Book"},
+							Creator:     []epub.Author{{FullName: "English Author", Role: "aut"}},
+							Description: []string{"A book in English"},
+							Language:    []string{"en"},
+							Subject:     []string{"Fiction"},
+						}, nil
+					case "lib/spanish_book.epub":
+						return &epub.Information{
+							Title:       []string{"Spanish Book"},
+							Creator:     []epub.Author{{FullName: "Spanish Author", Role: "aut"}},
+							Description: []string{"A book in Spanish"},
+							Language:    []string{"es"},
+							Subject:     []string{"Fiction"},
+						}, nil
+					case "lib/french_book.epub":
+						return &epub.Information{
+							Title:       []string{"French Book"},
+							Creator:     []epub.Author{{FullName: "French Author", Role: "aut"}},
+							Description: []string{"A book in French"},
+							Language:    []string{"fr"},
+							Subject:     []string{"Fiction"},
+						}, nil
+					}
+					return nil, fmt.Errorf("file not found")
+				},
+				GetPackageFromFile: epub.GetPackageFromFile,
 			},
 		},
 	}
@@ -347,7 +350,7 @@ func (m mockEpubReader) Metadata(filename string) (metadata.Metadata, error) {
 	case "lib/book19.epub":
 		wordCount = 24000 // 24000 words = 2 hours at 200 wpm
 	default:
-		wordCount = 0
+		wordCount = 1000 // Default to 1000 words for other files
 	}
 
 	// Create the metadata manually
@@ -395,52 +398,6 @@ func (m mockEpubReader) Metadata(filename string) (metadata.Metadata, error) {
 		Subjects:    meta.Subject,
 		Words:       wordCount,
 	}, nil
-}
-
-type mockLanguageEpubReader struct {
-	GetMetadataFromFile func(file string) (*epub.Information, error)
-}
-
-func (m mockLanguageEpubReader) Metadata(filename string) (metadata.Metadata, error) {
-	meta, err := m.GetMetadataFromFile(filename)
-	if err != nil {
-		return metadata.Metadata{}, err
-	}
-
-	title := meta.Title[0]
-	var authors []string
-	for _, creator := range meta.Creator {
-		if creator.Role == "aut" || creator.Role == "" {
-			authors = append(authors, creator.FullName)
-		}
-	}
-	if len(authors) == 0 {
-		authors = []string{""}
-	}
-
-	description := ""
-	if len(meta.Description) > 0 {
-		description = "<p>" + meta.Description[0] + "</p>"
-	}
-
-	lang := ""
-	if len(meta.Language) > 0 {
-		lang = meta.Language[0]
-	}
-
-	return metadata.Metadata{
-		Title:       title,
-		Authors:     authors,
-		Description: template.HTML(description),
-		Language:    lang,
-		Format:      "EPUB",
-		Subjects:    meta.Subject,
-		Words:       1000,
-	}, nil
-}
-
-func (m mockLanguageEpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
-	return []byte{}, nil
 }
 
 func TestSearchResultsSortedByReadingTime(t *testing.T) {
