@@ -13,7 +13,7 @@ import (
 )
 
 func TestSameSubjects(t *testing.T) {
-	indexMem, err := bleve.NewMemOnly(index.CreateMapping())
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Errorf("Error instancing Bleve: %s", err.Error())
 	}
@@ -37,7 +37,8 @@ func TestSameSubjects(t *testing.T) {
 		}
 	}
 
-	idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
 
 	if err = idx.AddLibrary(1, true); err != nil {
 		t.Errorf("Error indexing: %s", err.Error())
@@ -186,6 +187,7 @@ func testSameSubjectsCases() []sameSubjectsTestCase {
 						Title:       "Test A",
 						Authors:     []string{"Pedro Pérez"},
 						Description: "<p>Just test metadata</p>",
+						Language:    "en",
 						Subjects:    []string{"History", "Middle age"},
 						Format:      "EPUB",
 						Publication: precisiondate.NewPrecisionDate("2010-10-01T00:00:00Z", precisiondate.PrecisionDay),
@@ -201,6 +203,7 @@ func testSameSubjectsCases() []sameSubjectsTestCase {
 						Title:       "Test B",
 						Authors:     []string{"John Thompson"},
 						Description: "<p>Just test metadata</p>",
+						Language:    "en",
 						Subjects:    []string{"History", "Middle age"},
 						Format:      "EPUB",
 						Publication: precisiondate.NewPrecisionDate("2014-03-05T00:00:00Z", precisiondate.PrecisionDay),
@@ -216,6 +219,7 @@ func testSameSubjectsCases() []sameSubjectsTestCase {
 						Title:       "Test F",
 						Authors:     []string{"Marco Polo"},
 						Description: "<p>Just test metadata</p>",
+						Language:    "en",
 						Subjects:    []string{"History", "Middle age"},
 						Format:      "EPUB",
 						Publication: precisiondate.NewPrecisionDate("0001-01-01T00:00:00Z", precisiondate.PrecisionDay),
@@ -231,6 +235,7 @@ func testSameSubjectsCases() []sameSubjectsTestCase {
 						Title:       "Test E",
 						Authors:     []string{"Giacomo Leopardi"},
 						Description: "<p>Just test metadata</p>",
+						Language:    "en",
 						Subjects:    []string{"History"},
 						Format:      "EPUB",
 						Publication: precisiondate.NewPrecisionDate("2010-11-05T00:00:00Z", precisiondate.PrecisionDay),
@@ -252,6 +257,7 @@ func testSameSubjectsCases() []sameSubjectsTestCase {
 						Title:       "Test A",
 						Authors:     []string{"Pedro Pérez"},
 						Description: "<p>Just test metadata</p>",
+						Language:    "en",
 						Subjects:    []string{"History", "Middle age"},
 						Format:      "EPUB",
 						Publication: precisiondate.NewPrecisionDate("2010-10-01T00:00:00Z", precisiondate.PrecisionDay),
@@ -267,6 +273,7 @@ func testSameSubjectsCases() []sameSubjectsTestCase {
 						Title:       "Test B",
 						Authors:     []string{"John Thompson"},
 						Description: "<p>Just test metadata</p>",
+						Language:    "en",
 						Subjects:    []string{"History", "Middle age"},
 						Format:      "EPUB",
 						Publication: precisiondate.NewPrecisionDate("2014-03-05T00:00:00Z", precisiondate.PrecisionDay),
@@ -282,6 +289,7 @@ func testSameSubjectsCases() []sameSubjectsTestCase {
 						Title:       "Test C",
 						Authors:     []string{"Isaac Asimov"},
 						Description: "<p>Just test metadata</p>",
+						Language:    "en",
 						Subjects:    []string{"History", "Middle age"},
 						Format:      "EPUB",
 						Publication: precisiondate.NewPrecisionDate("2011-05-14T00:00:00Z", precisiondate.PrecisionDay),
@@ -297,6 +305,7 @@ func testSameSubjectsCases() []sameSubjectsTestCase {
 						Title:       "Test E",
 						Authors:     []string{"Giacomo Leopardi"},
 						Description: "<p>Just test metadata</p>",
+						Language:    "en",
 						Subjects:    []string{"History"},
 						Format:      "EPUB",
 						Publication: precisiondate.NewPrecisionDate("2010-11-05T00:00:00Z", precisiondate.PrecisionDay),

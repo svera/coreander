@@ -20,7 +20,7 @@ import (
 func TestIndexAndSearch(t *testing.T) {
 	for _, tcase := range testIndexAndSearchCases() {
 		t.Run(tcase.name, func(t *testing.T) {
-			indexMem, err := bleve.NewMemOnly(index.CreateMapping())
+			indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 			if err != nil {
 				t.Errorf("Error initialising index")
 			}
@@ -57,7 +57,8 @@ func TestIndexAndSearch(t *testing.T) {
 				t.Errorf("Couldn't write file %s", tcase.filename)
 			}
 
-			idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+			authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+			idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
 
 			if err = idx.AddLibrary(1, true); err != nil {
 				t.Errorf("Error indexing: %s", err.Error())
@@ -73,8 +74,110 @@ func TestIndexAndSearch(t *testing.T) {
 	}
 }
 
+func TestLanguageFilter(t *testing.T) {
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatalf("Error initialising index: %v", err)
+	}
+
+	mockMetadataReaders := map[string]metadata.Reader{
+		".epub": mockEpubReader{
+			EpubReader: metadata.EpubReader{
+				GetMetadataFromFile: func(file string) (*epub.Information, error) {
+					switch file {
+					case "lib/english_book.epub":
+						return &epub.Information{
+							Title:       []string{"English Book"},
+							Creator:     []epub.Author{{FullName: "English Author", Role: "aut"}},
+							Description: []string{"A book in English"},
+							Language:    []string{"en"},
+							Subject:     []string{"Fiction"},
+						}, nil
+					case "lib/spanish_book.epub":
+						return &epub.Information{
+							Title:       []string{"Spanish Book"},
+							Creator:     []epub.Author{{FullName: "Spanish Author", Role: "aut"}},
+							Description: []string{"A book in Spanish"},
+							Language:    []string{"es"},
+							Subject:     []string{"Fiction"},
+						}, nil
+					case "lib/french_book.epub":
+						return &epub.Information{
+							Title:       []string{"French Book"},
+							Creator:     []epub.Author{{FullName: "French Author", Role: "aut"}},
+							Description: []string{"A book in French"},
+							Language:    []string{"fr"},
+							Subject:     []string{"Fiction"},
+						}, nil
+					}
+					return nil, fmt.Errorf("file not found")
+				},
+				GetPackageFromFile: epub.GetPackageFromFile,
+			},
+		},
+	}
+
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+	afero.WriteFile(appFS, "lib/english_book.epub", []byte(""), 0644)
+	afero.WriteFile(appFS, "lib/spanish_book.epub", []byte(""), 0644)
+	afero.WriteFile(appFS, "lib/french_book.epub", []byte(""), 0644)
+
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
+
+	if err = idx.AddLibrary(1, true); err != nil {
+		t.Fatalf("Error indexing: %s", err.Error())
+	}
+
+	// Test combining language filter with keyword search - Spanish
+	res, err := idx.Search(index.SearchFields{Keywords: "book", Language: "es"}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 1 {
+		t.Errorf("Expected 1 Spanish document, got %d", res.TotalHits())
+	}
+	if len(res.Hits()) > 0 && res.Hits()[0].Metadata.Language != "es" {
+		t.Errorf("Expected Spanish language, got %s", res.Hits()[0].Metadata.Language)
+	}
+
+	// Test combining language filter with keyword search - English
+	res, err = idx.Search(index.SearchFields{Keywords: "book", Language: "en"}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 1 {
+		t.Errorf("Expected 1 English document, got %d", res.TotalHits())
+	}
+	if len(res.Hits()) > 0 && res.Hits()[0].Metadata.Language != "en" {
+		t.Errorf("Expected English language, got %s", res.Hits()[0].Metadata.Language)
+	}
+
+	// Test searching with keyword but no language filter - should return all matching documents
+	res, err = idx.Search(index.SearchFields{Keywords: "fiction"}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 3 {
+		t.Errorf("Expected 3 documents (all languages with 'fiction' subject), got %d", res.TotalHits())
+	}
+
+	// Test combining language filter with keyword search - French
+	res, err = idx.Search(index.SearchFields{Keywords: "fiction", Language: "fr"}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 1 {
+		t.Errorf("Expected 1 French fiction document, got %d", res.TotalHits())
+	}
+	if len(res.Hits()) > 0 && res.Hits()[0].Metadata.Language != "fr" {
+		t.Errorf("Expected French language, got %s", res.Hits()[0].Metadata.Language)
+	}
+}
+
 func TestSearchResultsSortedByDate(t *testing.T) {
-	indexMem, err := bleve.NewMemOnly(index.CreateMapping())
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Fatalf("Error initialising index: %v", err)
 	}
@@ -165,7 +268,8 @@ func TestSearchResultsSortedByDate(t *testing.T) {
 		}
 	}
 
-	idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
 
 	if err = idx.AddLibrary(1, true); err != nil {
 		t.Fatalf("Error indexing: %v", err)
@@ -246,7 +350,7 @@ func (m mockEpubReader) Metadata(filename string) (metadata.Metadata, error) {
 	case "lib/book19.epub":
 		wordCount = 24000 // 24000 words = 2 hours at 200 wpm
 	default:
-		wordCount = 0
+		wordCount = 1000 // Default to 1000 words for other files
 	}
 
 	// Create the metadata manually
@@ -297,7 +401,7 @@ func (m mockEpubReader) Metadata(filename string) (metadata.Metadata, error) {
 }
 
 func TestSearchResultsSortedByReadingTime(t *testing.T) {
-	indexMem, err := bleve.NewMemOnly(index.CreateMapping())
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Fatalf("Error initialising index: %v", err)
 	}
@@ -390,7 +494,8 @@ func TestSearchResultsSortedByReadingTime(t *testing.T) {
 		}
 	}
 
-	idx := index.NewBleve(indexMem, appFS, "lib", mockMetadataReaders)
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
 
 	if err = idx.AddLibrary(1, true); err != nil {
 		t.Fatalf("Error indexing: %v", err)
@@ -487,6 +592,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Test A",
 							Authors:     []string{"Pérez"},
 							Description: "<p>Just test metadata</p>",
+							Language:    "es",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
 							Publication: precisiondate.NewPrecisionDate("2023-10-01T00:00:00Z", precisiondate.PrecisionDay),
@@ -532,6 +638,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Test B",
 							Authors:     []string{"Benoît"},
 							Description: "<p>Just test metadata</p>",
+							Language:    "fr",
 							Subjects:    []string{},
 							Format:      "EPUB",
 							Publication: precisiondate.NewPrecisionDate("1974-01-01T00:00:00Z", precisiondate.PrecisionYear),
@@ -577,6 +684,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Test C",
 							Authors:     []string{"Clifford D. Simak"},
 							Description: "<p>Just test metadata</p>",
+							Language:    "en",
 							Subjects:    []string{},
 							Format:      "EPUB",
 							Publication: precisiondate.NewPrecisionDate("1950-11-02T00:00:00Z", precisiondate.PrecisionDay),
@@ -615,6 +723,7 @@ func testIndexAndSearchCases() []testCase {
 						Metadata: metadata.Metadata{Title: "Test D",
 							Authors:     []string{"James Ellroy"},
 							Description: "<p>Just test metadata</p>",
+							Language:    "en",
 							Subjects:    []string{},
 							Format:      "EPUB",
 							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
@@ -653,6 +762,7 @@ func testIndexAndSearchCases() []testCase {
 						Metadata: metadata.Metadata{Title: "Test E",
 							Authors:     []string{"James Ellroy"},
 							Description: "<p>Just test metadata</p>",
+							Language:    "en",
 							Subjects:    []string{},
 							Format:      "EPUB",
 							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
@@ -692,6 +802,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "La Guerrera",
 							Authors:     []string{"Anónimo"},
 							Description: "<p>Just test metadata</p>",
+							Language:    "es",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
 							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
@@ -731,6 +842,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Fratelli",
 							Authors:     []string{"Anónimo"},
 							Description: "<p>Just test metadata</p>",
+							Language:    "it",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
 							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
@@ -770,6 +882,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "El Infinito en un Junco",
 							Authors:     []string{"Irene Vallejo"},
 							Description: "<p>Just test metadata</p>",
+							Language:    "es",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
 							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
@@ -809,6 +922,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Últimos días en Colditz",
 							Authors:     []string{"Patrick R. Reid"},
 							Description: "<p>Just test metadata</p>",
+							Language:    "es",
 							Subjects:    []string{"History", "WWII"},
 							Format:      "EPUB",
 							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
@@ -848,6 +962,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Sin nombre",
 							Authors:     []string{""},
 							Description: "<p>Just test metadata</p>",
+							Language:    "es",
 							Subjects:    []string{},
 							Format:      "EPUB",
 							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
@@ -887,6 +1002,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "El Infinito en un Junco",
 							Authors:     []string{"Irene Vallejo"},
 							Description: "<p>Just test metadata</p>",
+							Language:    "es",
 							Subjects:    []string{"History", "Middle age"},
 							Format:      "EPUB",
 							Publication: precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay},
@@ -936,6 +1052,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Modern History Book",
 							Authors:     []string{"John Smith"},
 							Description: "<p>A book about modern history</p>",
+							Language:    "en",
 							Subjects:    []string{"History", "Modern"},
 							Format:      "EPUB",
 							Publication: precisiondate.NewPrecisionDate("2020-06-15T00:00:00Z", precisiondate.PrecisionDay),
@@ -985,6 +1102,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Ancient History Book",
 							Authors:     []string{"Jane Doe"},
 							Description: "<p>A book about ancient history</p>",
+							Language:    "en",
 							Subjects:    []string{"History", "Ancient"},
 							Format:      "EPUB",
 							Publication: precisiondate.NewPrecisionDate("1975-01-01T00:00:00Z", precisiondate.PrecisionYear),
@@ -1033,6 +1151,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Old Book",
 							Authors:     []string{"Ancient Author"},
 							Description: "<p>An old book</p>",
+							Language:    "en",
 							Subjects:    []string{"History"},
 							Format:      "EPUB",
 							Publication: precisiondate.NewPrecisionDate("1800-01-01T00:00:00Z", precisiondate.PrecisionDay),
@@ -1081,6 +1200,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "New Book",
 							Authors:     []string{"Modern Author"},
 							Description: "<p>A new book</p>",
+							Language:    "en",
 							Subjects:    []string{"Technology"},
 							Format:      "EPUB",
 							Publication: precisiondate.NewPrecisionDate("2023-12-31T00:00:00Z", precisiondate.PrecisionDay),
@@ -1129,6 +1249,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Middle Book",
 							Authors:     []string{"Middle Author"},
 							Description: "<p>A middle-aged book</p>",
+							Language:    "en",
 							Subjects:    []string{"Literature"},
 							Format:      "EPUB",
 							Publication: precisiondate.NewPrecisionDate("1950-06-15T00:00:00Z", precisiondate.PrecisionDay),
@@ -1177,6 +1298,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Decade Book",
 							Authors:     []string{"Decade Author"},
 							Description: "<p>A book from a specific decade</p>",
+							Language:    "en",
 							Subjects:    []string{"History"},
 							Format:      "EPUB",
 							Publication: precisiondate.NewPrecisionDate("1980-01-01T00:00:00Z", precisiondate.PrecisionYear),
@@ -1225,6 +1347,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Short Book",
 							Authors:     []string{"Short Author"},
 							Description: "<p>A short book</p>",
+							Language:    "en",
 							Subjects:    []string{"Short Stories"},
 							Format:      "EPUB",
 							Publication: precisiondate.NewPrecisionDate("2020-01-01T00:00:00Z", precisiondate.PrecisionDay),
@@ -1273,6 +1396,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Long Book",
 							Authors:     []string{"Long Author"},
 							Description: "<p>A long book</p>",
+							Language:    "en",
 							Subjects:    []string{"Novels"},
 							Format:      "EPUB",
 							Publication: precisiondate.NewPrecisionDate("2020-12-31T00:00:00Z", precisiondate.PrecisionDay),
@@ -1323,6 +1447,7 @@ func testIndexAndSearchCases() []testCase {
 							Title:       "Medium Length Book",
 							Authors:     []string{"Medium Author"},
 							Description: "<p>A medium length book</p>",
+							Language:    "en",
 							Subjects:    []string{"Fiction"},
 							Format:      "EPUB",
 							Publication: precisiondate.NewPrecisionDate("2021-06-15T00:00:00Z", precisiondate.PrecisionDay),
@@ -1331,6 +1456,55 @@ func testIndexAndSearchCases() []testCase {
 						AuthorsSlugs:  []string{"medium-author"},
 						SeriesSlug:    "",
 						SubjectsSlugs: []string{"fiction"},
+					},
+				},
+			),
+		},
+		{
+			"Test language filter - search for Spanish documents only",
+			"lib/book_spanish.epub",
+			&epub.Information{
+				Title: []string{"Spanish Book"},
+				Creator: []epub.Author{
+					{
+						FullName: "Spanish Author",
+						Role:     "aut",
+					},
+				},
+				Description: []string{"A book in Spanish"},
+				Language:    []string{"es"},
+				Subject:     []string{"Literature"},
+				Date: []epub.Date{
+					{
+						Stamp: "2023-01-01",
+						Event: "publication",
+					},
+				},
+			},
+			index.SearchFields{
+				Keywords: "",
+				Language: "es",
+			},
+			result.NewPaginated(
+				model.ResultsPerPage,
+				1,
+				1,
+				[]index.Document{
+					{
+						ID:   "book_spanish.epub",
+						Slug: "spanish-author-spanish-book",
+						Metadata: metadata.Metadata{
+							Title:       "Spanish Book",
+							Authors:     []string{"Spanish Author"},
+							Description: "<p>A book in Spanish</p>",
+							Language:    "es",
+							Subjects:    []string{"Literature"},
+							Format:      "EPUB",
+							Publication: precisiondate.NewPrecisionDate("2023-01-01T00:00:00Z", precisiondate.PrecisionDay),
+						},
+						AuthorsSlugs:  []string{"spanish-author"},
+						SeriesSlug:    "",
+						SubjectsSlugs: []string{"literature"},
 					},
 				},
 			),

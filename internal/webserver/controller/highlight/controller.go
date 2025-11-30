@@ -24,6 +24,7 @@ type readingRepository interface {
 type IdxReaderWriter interface {
 	Document(Slug string) (index.Document, error)
 	DocumentByID(ID string) (index.Document, error)
+	Languages() ([]string, error)
 }
 
 type usersRepository interface {

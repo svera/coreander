@@ -18,18 +18,18 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/token/porter"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
+	index "github.com/blevesearch/bleve_index_api"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/metadata"
 )
 
-// Version identifies the mapping used for indexing. Any changes in the mapping requires an increase
+// DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const Version = "v8"
+const DocumentVersion = "v9"
 
-const (
-	TypeDocument = "document"
-	TypeAuthor   = "author"
-)
+// AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
+// of version, to signal that a new index needs to be created.
+const AuthorVersion = "1"
 
 // Metadata fields
 var (
@@ -50,7 +50,8 @@ const defaultAnalyzer = "default_analyzer"
 
 type BleveIndexer struct {
 	fs             afero.Fs
-	idx            bleve.Index
+	documentsIdx   bleve.Index // Documents index
+	authorsIdx     bleve.Index // Authors index
 	libraryPath    string
 	reader         map[string]metadata.Reader
 	indexStartTime float64
@@ -58,27 +59,37 @@ type BleveIndexer struct {
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
-func NewBleve(index bleve.Index, fs afero.Fs, libraryPath string, read map[string]metadata.Reader) *BleveIndexer {
+func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs, libraryPath string, read map[string]metadata.Reader) *BleveIndexer {
 	return &BleveIndexer{
-		fs,
-		index,
-		strings.TrimSuffix(libraryPath, string(filepath.Separator)),
-		read,
-		0,
-		0,
+		fs:             fs,
+		documentsIdx:   documentsIndex,
+		authorsIdx:     authorsIndex,
+		libraryPath:    strings.TrimSuffix(libraryPath, string(filepath.Separator)),
+		reader:         read,
+		indexStartTime: 0,
+		indexedEntries: 0,
 	}
 }
 
-func Create(path string) bleve.Index {
-	indexFile, err := bleve.New(path, CreateMapping())
+func CreateDocumentsIndex(path string) bleve.Index {
+	indexFile, err := bleve.New(path, CreateDocumentsMapping())
 	if err != nil {
 		log.Fatal(err)
 	}
-	indexFile.SetInternal(internalVersion, []byte(Version))
+	indexFile.SetInternal(internalVersion, []byte(DocumentVersion))
 	return indexFile
 }
 
-func CreateMapping() mapping.IndexMapping {
+func CreateAuthorsIndex(path string) bleve.Index {
+	indexFile, err := bleve.New(path, CreateAuthorsMapping())
+	if err != nil {
+		log.Fatal(err)
+	}
+	indexFile.SetInternal(internalVersion, []byte(AuthorVersion))
+	return indexFile
+}
+
+func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping := bleve.NewIndexMapping()
 
 	err := indexMapping.AddCustomAnalyzer(defaultAnalyzer,
@@ -102,6 +113,7 @@ func CreateMapping() mapping.IndexMapping {
 
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
+	simpleTextFieldMapping.Similarity = index.BM25Scoring
 
 	numericFieldMapping := bleve.NewNumericFieldMapping()
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
@@ -109,6 +121,7 @@ func CreateMapping() mapping.IndexMapping {
 	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()
 		textFieldMapping.Analyzer = lang
+		textFieldMapping.Similarity = index.BM25Scoring
 
 		err := addNoStopWordsAnalyzer(lang, indexMapping)
 		if err != nil {
@@ -116,6 +129,7 @@ func CreateMapping() mapping.IndexMapping {
 		}
 		noStopWordsTextFieldMapping := bleve.NewTextFieldMapping()
 		noStopWordsTextFieldMapping.Analyzer = lang + "_no_stop_words"
+		noStopWordsTextFieldMapping.Similarity = index.BM25Scoring
 
 		indexMapping.AddDocumentMapping(lang, bleve.NewDocumentMapping())
 		indexMapping.TypeMapping[lang].DefaultAnalyzer = lang
@@ -128,7 +142,7 @@ func CreateMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("SubjectsSlugs", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Series", noStopWordsTextFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("SeriesSlug", keywordFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Language", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Publication.Date", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Publication.Precision", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Words", numericFieldMapping)
@@ -146,32 +160,47 @@ func CreateMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("SubjectsSlugs", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Series", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("SeriesSlug", keywordFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("Language", keywordFieldMappingNotIndexable)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Language", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Publication.Date", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Publication.Precision", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Words", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Pages", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 
-	indexMapping.AddDocumentMapping(TypeAuthor, bleve.NewDocumentMapping())
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Slug", keywordFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Name", keywordFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("BirthName", keywordFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("RetrievedOn", dateTimeFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DataSourceID", keywordFieldMappingNotIndexable)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DataSourceImage", keywordFieldMappingNotIndexable)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Website", keywordFieldMappingNotIndexable)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfBirth.Date", numericFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfDeath.Date", numericFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("DateOfDeath.Precision", numericFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("InstanceOf", numericFieldMapping)
-	indexMapping.TypeMapping[TypeAuthor].AddFieldMappingsAt("Gender", numericFieldMapping)
+	return indexMapping
+}
+
+func CreateAuthorsMapping() mapping.IndexMapping {
+	indexMapping := bleve.NewIndexMapping()
+
+	keywordFieldMapping := bleve.NewKeywordFieldMapping()
+	keywordFieldMappingNotIndexable := bleve.NewKeywordFieldMapping()
+	keywordFieldMappingNotIndexable.Index = false
+
+	numericFieldMapping := bleve.NewNumericFieldMapping()
+	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
+
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Slug", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Name", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("BirthName", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("RetrievedOn", dateTimeFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceID", keywordFieldMappingNotIndexable)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceImage", keywordFieldMappingNotIndexable)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Website", keywordFieldMappingNotIndexable)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfBirth.Date", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfDeath.Date", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfDeath.Precision", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("InstanceOf", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Gender", numericFieldMapping)
 
 	return indexMapping
 }
 
-// Close closes the index
+// Close closes both indexes
 func (b *BleveIndexer) Close() error {
-	return b.idx.Close()
+	if err := b.documentsIdx.Close(); err != nil {
+		return err
+	}
+	return b.authorsIdx.Close()
 }

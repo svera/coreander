@@ -63,6 +63,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		"SameAuthors":            sameAuthors,
 		"SameSubjects":           sameSubjects,
 		"WordsPerMinute":         d.config.WordsPerMinute,
+		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 	}, "layout")
 }
 

@@ -59,8 +59,10 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		for _, prefix := range []string{"Authors:", "Series:", "Title:", "Subjects:", "\""} {
 			if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
 				query := bleve.NewQueryStringQuery(searchFields.Keywords)
+				filtersQuery.AddQuery(query)
+				addFilters(searchFields, filtersQuery)
 
-				return b.runPaginatedQuery(query, page, resultsPerPage, searchFields.SortBy)
+				return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 			}
 		}
 
@@ -80,7 +82,9 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 				qs.SetField(strings.TrimSuffix(prefix, ":"))
 				qb.AddQuery(qs)
 			}
-			return b.runPaginatedQuery(qb, page, resultsPerPage, searchFields.SortBy)
+			filtersQuery.AddQuery(qb)
+			addFilters(searchFields, filtersQuery)
+			return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 		}
 
 		analyzers, err := b.analyzers()
@@ -98,6 +102,11 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 }
 
 func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
+	if searchFields.Language != "" {
+		q := bleve.NewTermQuery(searchFields.Language)
+		q.SetField("Language")
+		filtersQuery.AddQuery(q)
+	}
 	if searchFields.PubDateFrom != 0 || searchFields.PubDateTo != 0 {
 		minDate := float64(searchFields.PubDateFrom)
 		maxDate := float64(searchFields.PubDateTo)
@@ -202,7 +211,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy(sortBy)
 	searchOptions.Fields = []string{"*"}
-	searchResult, err := b.idx.Search(searchOptions)
+	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
 		return result.Paginated[[]Document]{}, err
 	}
@@ -226,12 +235,11 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 }
 
 // Count returns the number of indexed documents
-func (b *BleveIndexer) Count(t string) (uint64, error) {
-	tq := bleve.NewTermQuery(t)
-	tq.SetField("Type")
+func (b *BleveIndexer) Count() (uint64, error) {
+	matchAllQuery := bleve.NewMatchAllQuery()
 
-	searchRequest := bleve.NewSearchRequest(tq)
-	searchResult, err := b.idx.Search(searchRequest)
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
+	searchResult, err := b.documentsIdx.Search(searchRequest)
 	if err != nil {
 		return 0, err
 	}
@@ -239,16 +247,12 @@ func (b *BleveIndexer) Count(t string) (uint64, error) {
 }
 
 func (b *BleveIndexer) Document(slug string) (Document, error) {
-	compoundQuery := bleve.NewConjunctionQuery()
 	query := bleve.NewTermQuery(slug)
 	query.SetField("Slug")
-	typeQuery := bleve.NewTermQuery(TypeDocument)
-	typeQuery.SetField("Type")
-	compoundQuery.AddQuery(query, typeQuery)
 
-	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
-	searchResult, err := b.idx.Search(searchOptions)
+	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
 		return Document{}, err
 	}
@@ -260,15 +264,12 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 }
 
 func (b *BleveIndexer) DocumentByID(ID string) (Document, error) {
-	compoundQuery := bleve.NewConjunctionQuery()
 	query := bleve.NewDocIDQuery([]string{ID})
-	typeQuery := bleve.NewTermQuery(TypeDocument)
-	typeQuery.SetField("Type")
-	compoundQuery.AddQuery(query, typeQuery)
 
-	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
-	searchResult, err := b.idx.Search(searchOptions)
+	searchOptions.Size = 1
+	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
 		return Document{}, err
 	}
@@ -281,17 +282,13 @@ func (b *BleveIndexer) DocumentByID(ID string) (Document, error) {
 }
 
 func (b *BleveIndexer) Documents(IDs []string, sortBy []string) ([]Document, error) {
-	compoundQuery := bleve.NewConjunctionQuery()
 	var docs []Document
 	query := bleve.NewDocIDQuery(IDs)
-	typeQuery := bleve.NewTermQuery(TypeDocument)
-	typeQuery.SetField("Type")
-	compoundQuery.AddQuery(query, typeQuery)
 
-	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
 	searchOptions.SortBy(sortBy)
-	searchResult, err := b.idx.Search(searchOptions)
+	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
 		return docs, err
 	}
@@ -309,16 +306,12 @@ func (b *BleveIndexer) TotalWordCount(IDs []string) (float64, error) {
 		return 0, nil
 	}
 
-	compoundQuery := bleve.NewConjunctionQuery()
 	query := bleve.NewDocIDQuery(IDs)
-	typeQuery := bleve.NewTermQuery(TypeDocument)
-	typeQuery.SetField("Type")
-	compoundQuery.AddQuery(query, typeQuery)
 
-	searchOptions := bleve.NewSearchRequest(compoundQuery)
+	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"Words"}
 	searchOptions.Size = len(IDs)
-	searchResult, err := b.idx.Search(searchOptions)
+	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
 		return 0, err
 	}
@@ -334,11 +327,33 @@ func (b *BleveIndexer) TotalWordCount(IDs []string) (float64, error) {
 }
 
 func (b *BleveIndexer) analyzers() ([]string, error) {
-	languages, err := b.idx.GetInternal([]byte("languages"))
+	languages, err := b.documentsIdx.GetInternal([]byte("languages"))
 	if err != nil {
 		return []string{}, err
 	}
 	return strings.Split(string(languages), ","), nil
+}
+
+// Languages returns a list of all unique languages in the indexed documents
+func (b *BleveIndexer) Languages() ([]string, error) {
+	languages, err := b.documentsIdx.GetInternal([]byte("languages"))
+	if err != nil {
+		return []string{}, err
+	}
+	if len(languages) == 0 {
+		return []string{}, nil
+	}
+
+	allLanguages := strings.Split(string(languages), ",")
+	var filteredLanguages []string
+	for _, lang := range allLanguages {
+		// Filter out empty strings and default_analyzer
+		if lang != "" && lang != "default_analyzer" {
+			filteredLanguages = append(filteredLanguages, lang)
+		}
+	}
+
+	return filteredLanguages, nil
 }
 
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
@@ -349,19 +364,12 @@ func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPe
 }
 
 func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
-	authorsCompoundQuery := bleve.NewConjunctionQuery()
-
 	aq := bleve.NewTermQuery(slug)
 	aq.SetField("Slug")
-	authorsCompoundQuery.AddQuery(aq)
 
-	tq := bleve.NewTermQuery(TypeAuthor)
-	tq.SetField("Type")
-	authorsCompoundQuery.AddQuery(tq)
-
-	searchOptions := bleve.NewSearchRequest(authorsCompoundQuery)
+	searchOptions := bleve.NewSearchRequest(aq)
 	searchOptions.Fields = []string{"*"}
-	searchResult, err := b.idx.Search(searchOptions)
+	searchResult, err := b.authorsIdx.Search(searchOptions)
 	if err != nil {
 		return Author{}, err
 	}
@@ -369,41 +377,10 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 		return Author{}, nil
 	}
 
-	retrievedOn := time.Time{}
-	if searchResult.Hits[0].Fields["RetrievedOn"] != nil {
-		retrievedOn, err = time.Parse("2006-01-02T15:04:05Z", searchResult.Hits[0].Fields["RetrievedOn"].(string))
-		if err != nil {
-			return Author{}, err
-		}
-	}
-	dateOfBirth := precisiondate.PrecisionDate{Date: date.Zero}
-	if searchResult.Hits[0].Fields["DateOfBirth.Date"] != nil {
-		dateOfBirth.Date = date.Date(searchResult.Hits[0].Fields["DateOfBirth.Date"].(float64))
-		dateOfBirth.Precision = searchResult.Hits[0].Fields["DateOfBirth.Precision"].(float64)
-	}
-	dateOfDeath := precisiondate.PrecisionDate{Date: date.Zero}
-	if searchResult.Hits[0].Fields["DateOfDeath.Date"] != nil {
-		dateOfDeath.Date = date.Date(searchResult.Hits[0].Fields["DateOfDeath.Date"].(float64))
-		dateOfDeath.Precision = searchResult.Hits[0].Fields["DateOfDeath.Precision"].(float64)
-	}
+	// Use the shared hydrateAuthor function
+	author := hydrateAuthor(searchResult.Hits[0])
 
-	author := Author{
-		Name:            searchResult.Hits[0].Fields["Name"].(string),
-		BirthName:       searchResult.Hits[0].Fields["BirthName"].(string),
-		Slug:            slug,
-		DataSourceID:    searchResult.Hits[0].Fields["DataSourceID"].(string),
-		RetrievedOn:     retrievedOn,
-		WikipediaLink:   make(map[string]string),
-		InstanceOf:      searchResult.Hits[0].Fields["InstanceOf"].(float64),
-		Description:     make(map[string]string),
-		DateOfBirth:     dateOfBirth,
-		DateOfDeath:     dateOfDeath,
-		Website:         searchResult.Hits[0].Fields["Website"].(string),
-		DataSourceImage: searchResult.Hits[0].Fields["DataSourceImage"].(string),
-		Gender:          searchResult.Hits[0].Fields["Gender"].(float64),
-		Pseudonyms:      slicer(searchResult.Hits[0].Fields["Pseudonyms"]),
-	}
-
+	// Override language-specific fields if requested language is available
 	if value, ok := searchResult.Hits[0].Fields["WikipediaLink."+lang].(string); ok {
 		author.WikipediaLink[lang] = value
 	}
@@ -422,20 +399,12 @@ func (b *BleveIndexer) SearchBySeries(searchFields SearchFields, page, resultsPe
 }
 
 func (b *BleveIndexer) LatestDocs(limit int) ([]Document, error) {
-	bq := bleve.NewBooleanQuery()
-
-	typeQuery := bleve.NewTermQuery(TypeDocument)
-	typeQuery.SetField("Type")
-
 	falseValue := false
 	trueValue := true
 	dateQuery := bleve.NewDateRangeInclusiveQuery(time.Time{}, time.Now().UTC(), &falseValue, &trueValue)
 	dateQuery.SetField("AddedOn")
 
-	bq.AddMust(typeQuery)
-	bq.AddMust(dateQuery)
-
-	return b.runQuery(bq, limit, []string{"-AddedOn"})
+	return b.runQuery(dateQuery, limit, []string{"-AddedOn"})
 }
 
 func hydrateDocument(match *search.DocumentMatch) Document {
@@ -454,12 +423,18 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		publication.Precision = match.Fields["Publication.Precision"].(float64)
 	}
 
+	language := ""
+	if match.Fields["Language"] != nil {
+		language = match.Fields["Language"].(string)
+	}
+
 	doc := Document{
 		ID: match.ID,
 		Metadata: metadata.Metadata{
 			Title:       match.Fields["Title"].(string),
 			Authors:     slicer(match.Fields["Authors"]),
 			Description: template.HTML(match.Fields["Description"].(string)),
+			Language:    language,
 			Publication: publication,
 			Words:       match.Fields["Words"].(float64),
 			Series:      match.Fields["Series"].(string),
@@ -501,4 +476,219 @@ func slicer(val any) []string {
 	}
 
 	return termsStrings
+}
+
+// MigrateAuthors migrates all authors from an old index to a new one.
+// If filterForAuthorsOnly is true, it will filter out documents (checking for Title field)
+// to only migrate author entries. This is used when migrating from a legacy index that
+// contains both documents and authors.
+func MigrateAuthors(oldIndex, newIndex bleve.Index, filterForAuthorsOnly bool) error {
+	matchAllQuery := bleve.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
+	searchRequest.Size = 10000           // Process in batches
+	searchRequest.Fields = []string{"*"} // Get all fields
+
+	batch := newIndex.NewBatch()
+	batchCount := 0
+
+	for {
+		searchResult, err := oldIndex.Search(searchRequest)
+		if err != nil {
+			return err
+		}
+
+		if searchResult.Total == 0 {
+			break
+		}
+
+		// Migrate each author from search results
+		for _, hit := range searchResult.Hits {
+			// If filtering is enabled, check if this document is an author
+			if filterForAuthorsOnly {
+				hasName := hit.Fields["Name"] != nil
+				hasTitle := hit.Fields["Title"] != nil
+				// Skip if it's not an author (documents have Title, authors have Name but not Title)
+				if !hasName || hasTitle {
+					continue
+				}
+			}
+
+			// Convert search result to Author
+			author := hydrateAuthor(hit)
+			if author.Slug == "" {
+				continue
+			}
+
+			if err := batch.Index(author.Slug, author); err != nil {
+				return err
+			}
+			batchCount++
+
+			// Execute batch every 1000 items
+			if batchCount >= 1000 {
+				if err := newIndex.Batch(batch); err != nil {
+					return err
+				}
+				batch = newIndex.NewBatch()
+				batchCount = 0
+			}
+		}
+
+		// If we got less than requested size, we're done
+		if len(searchResult.Hits) < searchRequest.Size {
+			break
+		}
+
+		// Move to next batch
+		searchRequest.From += searchRequest.Size
+	}
+
+	// Execute any remaining authors
+	if batchCount > 0 {
+		if err := newIndex.Batch(batch); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// hydrateAuthorFromFields converts a fields map to an Author struct
+// This is the shared implementation used by hydrateAuthor
+func hydrateAuthorFromFields(fields map[string]interface{}, docID string) Author {
+	retrievedOn := time.Time{}
+	if val, ok := fields["RetrievedOn"]; ok && val != nil {
+		if str, ok := val.(string); ok && str != "" {
+			// Try RFC3339 format first (standard)
+			if t, err := time.Parse(time.RFC3339, str); err == nil {
+				retrievedOn = t
+			} else if t, err := time.Parse("2006-01-02T15:04:05Z", str); err == nil {
+				retrievedOn = t
+			}
+		}
+	}
+
+	dateOfBirth := precisiondate.PrecisionDate{Date: date.Zero}
+	if val, ok := fields["DateOfBirth.Date"]; ok && val != nil {
+		if dateVal, ok := val.(float64); ok {
+			dateOfBirth.Date = date.Date(dateVal)
+			if precVal, ok := fields["DateOfBirth.Precision"]; ok && precVal != nil {
+				if prec, ok := precVal.(float64); ok {
+					dateOfBirth.Precision = prec
+				}
+			}
+		}
+	}
+
+	dateOfDeath := precisiondate.PrecisionDate{Date: date.Zero}
+	if val, ok := fields["DateOfDeath.Date"]; ok && val != nil {
+		if dateVal, ok := val.(float64); ok {
+			dateOfDeath.Date = date.Date(dateVal)
+			if precVal, ok := fields["DateOfDeath.Precision"]; ok && precVal != nil {
+				if prec, ok := precVal.(float64); ok {
+					dateOfDeath.Precision = prec
+				}
+			}
+		}
+	}
+
+	name := ""
+	if val, ok := fields["Name"]; ok && val != nil {
+		if str, ok := val.(string); ok {
+			name = str
+		}
+	}
+
+	birthName := ""
+	if val, ok := fields["BirthName"]; ok && val != nil {
+		if str, ok := val.(string); ok {
+			birthName = str
+		}
+	}
+
+	slug := docID
+	if val, ok := fields["Slug"]; ok && val != nil {
+		if str, ok := val.(string); ok && str != "" {
+			slug = str
+		}
+	}
+
+	dataSourceID := ""
+	if val, ok := fields["DataSourceID"]; ok && val != nil {
+		if str, ok := val.(string); ok {
+			dataSourceID = str
+		}
+	}
+
+	website := ""
+	if val, ok := fields["Website"]; ok && val != nil {
+		if str, ok := val.(string); ok {
+			website = str
+		}
+	}
+
+	dataSourceImage := ""
+	if val, ok := fields["DataSourceImage"]; ok && val != nil {
+		if str, ok := val.(string); ok {
+			dataSourceImage = str
+		}
+	}
+
+	instanceOf := float64(0)
+	if val, ok := fields["InstanceOf"]; ok && val != nil {
+		if num, ok := val.(float64); ok {
+			instanceOf = num
+		}
+	}
+
+	gender := float64(0)
+	if val, ok := fields["Gender"]; ok && val != nil {
+		if num, ok := val.(float64); ok {
+			gender = num
+		}
+	}
+
+	author := Author{
+		Name:            name,
+		BirthName:       birthName,
+		Slug:            slug,
+		DataSourceID:    dataSourceID,
+		RetrievedOn:     retrievedOn,
+		WikipediaLink:   make(map[string]string),
+		InstanceOf:      instanceOf,
+		Description:     make(map[string]string),
+		DateOfBirth:     dateOfBirth,
+		DateOfDeath:     dateOfDeath,
+		Website:         website,
+		DataSourceImage: dataSourceImage,
+		Gender:          gender,
+		Pseudonyms:      slicer(fields["Pseudonyms"]),
+	}
+
+	// Extract Wikipedia links and descriptions for all languages
+	for key, value := range fields {
+		if strings.HasPrefix(key, "WikipediaLink.") {
+			lang := strings.TrimPrefix(key, "WikipediaLink.")
+			if str, ok := value.(string); ok {
+				author.WikipediaLink[lang] = str
+			}
+		}
+		if strings.HasPrefix(key, "Description.") {
+			lang := strings.TrimPrefix(key, "Description.")
+			if str, ok := value.(string); ok {
+				author.Description[lang] = str
+			}
+		}
+	}
+
+	return author
+}
+
+func hydrateAuthor(hit *search.DocumentMatch) Author {
+	// Convert search.DocumentMatch.Fields (map[string]interface{}) to the format expected by hydrateAuthorFromFields
+	fields := make(map[string]interface{})
+	for k, v := range hit.Fields {
+		fields[k] = v
+	}
+	return hydrateAuthorFromFields(fields, hit.ID)
 }

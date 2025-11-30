@@ -48,6 +48,7 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		"YearlyReadingTime":      yearlyReadingTime,
 		"LifetimeCompletedCount": lifetimeCompletedCount,
 		"LifetimeReadingTime":    lifetimeReadingTime,
+		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 	}, "layout")
 }
 

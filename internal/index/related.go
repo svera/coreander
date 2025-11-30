@@ -74,10 +74,6 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 	}
 	bq.AddMustNot(authorsCompoundQuery)
 
-	typeQuery := bleve.NewTermQuery(TypeDocument)
-	typeQuery.SetField("Type")
-	bq.AddMust(typeQuery)
-
 	return bq
 }
 
@@ -97,7 +93,7 @@ func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, dateSort strin
 	searchOptions := bleve.NewSearchRequestOptions(query, quantity, 0, false)
 	searchOptions.SortBy([]string{"-_score", dateSort})
 	searchOptions.Fields = []string{"*"}
-	result, err := b.idx.Search(searchOptions)
+	result, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -164,10 +160,6 @@ func (b *BleveIndexer) SameAuthors(slugID string, quantity int) ([]Document, err
 		bq.AddMustNot(sq)
 	}
 
-	typeQuery := bleve.NewTermQuery(TypeDocument)
-	typeQuery.SetField("Type")
-	bq.AddMust(typeQuery)
-
 	return b.runQuery(bq, quantity, []string{"-_score", "Series", "SeriesIndex"})
 }
 
@@ -188,10 +180,6 @@ func (b *BleveIndexer) SameSeries(slugID string, quantity int) ([]Document, erro
 	sq := bleve.NewTermQuery(doc.SeriesSlug)
 	sq.SetField("SeriesSlug")
 	bq.AddMust(sq)
-
-	typeQuery := bleve.NewTermQuery(TypeDocument)
-	typeQuery.SetField("Type")
-	bq.AddMust(typeQuery)
 
 	return b.runQuery(bq, quantity, []string{"-_score", "Series", "SeriesIndex"})
 }

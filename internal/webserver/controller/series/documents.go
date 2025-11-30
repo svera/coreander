@@ -70,6 +70,7 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		"URL":                    view.URL(c),
 		"SortURL":                view.SortURL(c),
 		"SortBy":                 c.Query("sort-by"),
+		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string

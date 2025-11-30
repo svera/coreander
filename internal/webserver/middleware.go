@@ -149,3 +149,17 @@ func OneTimeMessages() func(c *fiber.Ctx) error {
 		return c.Next()
 	}
 }
+
+// SetAvailableLanguages retrieves available languages from the index and sets them
+// as a local variable for use in templates
+func SetAvailableLanguages(idx ProgressInfo) func(*fiber.Ctx) error {
+	return func(c *fiber.Ctx) error {
+		availableLanguages, err := idx.Languages()
+		if err != nil {
+			fmt.Println(err)
+			availableLanguages = []string{}
+		}
+		c.Locals("AvailableLanguages", availableLanguages)
+		return c.Next()
+	}
+}

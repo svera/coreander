@@ -135,7 +135,7 @@
                     <input type="search" name="search" id="searchbox-offcanvas" class="form-control" maxlength="255" autofocus value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
                 </div>
             </div>
-            {{template "partials/search-filters" dict "Lang" .Lang "SearchFields" .SearchFields "Version" .Version }}
+            {{template "partials/search-filters" dict "Lang" .Lang "SearchFields" .SearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages }}
         </form>
     </div>
 </div>

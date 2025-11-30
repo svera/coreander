@@ -61,6 +61,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		"URL":                    view.URL(c),
 		"SortURL":                view.SortURL(c),
 		"SortBy":                 c.Query("sort-by"),
+		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
@@ -92,6 +93,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) {
 	searchFields := index.SearchFields{
 		Keywords:        c.Query("search"),
+		Language:        c.Query("language"),
 		SortBy:          d.parseSortBy(c),
 		EstReadTimeFrom: c.QueryFloat("est-read-time-from", 0),
 		EstReadTimeTo:   c.QueryFloat("est-read-time-to", 0),

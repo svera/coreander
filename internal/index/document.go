@@ -9,6 +9,7 @@ import (
 
 type SearchFields struct {
 	Keywords        string
+	Language        string
 	PubDateFrom     date.Date
 	PubDateTo       date.Date
 	EstReadTimeFrom float64
@@ -26,7 +27,6 @@ type Document struct {
 	SubjectsSlugs []string
 	Highlighted   bool
 	CompletedOn   *time.Time
-	Type          string
 	AddedOn       time.Time
 }
 

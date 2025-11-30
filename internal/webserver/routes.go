@@ -10,7 +10,7 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
-func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, translator i18n.Translator, cfg Config) {
+func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, translator i18n.Translator, cfg Config, idx ProgressInfo) {
 	// Middlewares
 	var (
 		allowIfNotLoggedIn          = AllowIfNotLoggedIn(jwtSecret)
@@ -58,6 +58,9 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		c.Locals("QueryString", view.ToQueryString(q))
 		return c.Next()
 	})
+
+	// Set available languages for the language filter
+	app.Use(SetAvailableLanguages(idx))
 
 	app.Get("/sessions/new", allowIfNotLoggedIn, controllers.Auth.Login)
 	app.Post("/sessions", allowIfNotLoggedIn, controllers.Auth.SignIn)

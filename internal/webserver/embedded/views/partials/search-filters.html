@@ -1,4 +1,26 @@
 <div class="row pb-3 card-body" id="search-filters">
+    {{if .AvailableLanguages}}
+    <fieldset class="mt-5">
+        <legend class="fs-5"><i class="bi bi-translate me-3"></i>{{t .Lang "Language"}}</legend>
+        <div class="row">
+            <div class="col-12 mb-3">
+                {{$language := ""}}
+                {{if .SearchFields}}
+                    {{$language = .SearchFields.Language}}
+                {{end}}
+                <div class="form-floating">
+                    <select class="form-select" name="language" id="language">
+                        <option value="">{{t .Lang "All languages"}}</option>
+                        {{range $lang := .AvailableLanguages}}
+                        <option value="{{$lang}}" {{if eq $lang $language}}selected{{end}}>{{languageName $lang}}</option>
+                        {{end}}
+                    </select>
+                    <label class="form-label" for="language">{{t .Lang "Language"}}</label>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+    {{end}}
     <fieldset class="mt-5">
         <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Publishing date"}}</legend>
         <div class="row">
