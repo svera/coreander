@@ -553,6 +553,102 @@ func MigrateAuthors(oldIndex, newIndex bleve.Index, filterForAuthorsOnly bool) e
 	return nil
 }
 
+// MigrateDocuments migrates all documents from a legacy index to a new documents index in batches.
+// After successfully migrating each batch, documents are removed from the legacy index.
+// This allows for incremental migration without losing data if the process is interrupted.
+func MigrateDocuments(oldIndex, newIndex bleve.Index, batchSize int) error {
+	matchAllQuery := bleve.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
+	searchRequest.Size = batchSize
+	searchRequest.Fields = []string{"*"} // Get all fields
+
+	documentsBatch := newIndex.NewBatch()
+	documentsBatchCount := 0
+	documentsToDelete := make([]string, 0, batchSize)
+
+	for {
+		searchResult, err := oldIndex.Search(searchRequest)
+		if err != nil {
+			return err
+		}
+
+		if searchResult.Total == 0 {
+			break
+		}
+
+		// Process each document from search results
+		for _, hit := range searchResult.Hits {
+			// Filter for documents only (documents have Title, authors have Name but not Title)
+			hasTitle := hit.Fields["Title"] != nil
+			hasName := hit.Fields["Name"] != nil
+			if !hasTitle || hasName {
+				continue // Skip authors or entries without Title
+			}
+
+			// Convert search result to Document
+			doc := hydrateDocument(hit)
+			if doc.ID == "" || doc.Slug == "" {
+				continue
+			}
+
+			// Add document to new index batch
+			if err := documentsBatch.Index(doc.ID, doc); err != nil {
+				return err
+			}
+			documentsBatchCount++
+			documentsToDelete = append(documentsToDelete, hit.ID)
+
+			// Execute batch when it reaches the specified size
+			if documentsBatchCount >= batchSize {
+				// Commit documents batch to new index
+				if err := newIndex.Batch(documentsBatch); err != nil {
+					return err
+				}
+				documentsBatch = newIndex.NewBatch()
+				documentsBatchCount = 0
+
+				// Now delete migrated documents from old index
+				deleteBatch := oldIndex.NewBatch()
+				for _, docID := range documentsToDelete {
+					deleteBatch.Delete(docID)
+				}
+				if err := oldIndex.Batch(deleteBatch); err != nil {
+					return err
+				}
+				documentsToDelete = make([]string, 0, batchSize)
+			}
+		}
+
+		// If we got less than requested size, we're done
+		if len(searchResult.Hits) < searchRequest.Size {
+			break
+		}
+
+		// Move to next batch
+		searchRequest.From += searchRequest.Size
+	}
+
+	// Execute any remaining documents
+	if documentsBatchCount > 0 {
+		if err := newIndex.Batch(documentsBatch); err != nil {
+			return err
+		}
+
+		// Delete remaining migrated documents from old index
+		if len(documentsToDelete) > 0 {
+			deleteBatch := oldIndex.NewBatch()
+			for _, docID := range documentsToDelete {
+				deleteBatch.Delete(docID)
+			}
+			if err := oldIndex.Batch(deleteBatch); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // hydrateAuthorFromFields converts a fields map to an Author struct
 // This is the shared implementation used by hydrateAuthor
 func hydrateAuthorFromFields(fields map[string]interface{}, docID string) Author {
