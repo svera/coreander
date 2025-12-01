@@ -1,6 +1,7 @@
 package index
 
 import (
+	"fmt"
 	"html/template"
 	"io/fs"
 	"log"
@@ -555,20 +556,21 @@ func MigrateAuthors(oldIndex, newIndex bleve.Index, filterForAuthorsOnly bool) e
 }
 
 // MigrateDocuments migrates all documents from a legacy index to a new documents index in batches.
-// After successfully migrating each batch, documents are removed from the legacy index.
-// This allows for incremental migration without losing data if the process is interrupted.
+// After successfully migrating all documents, they are removed from the legacy index.
+// This approach avoids pagination issues that occur when deleting documents during migration.
 func MigrateDocuments(oldIndex, newIndex bleve.Index, batchSize int) error {
+	log.Println("Step 1: Collecting all document IDs from legacy index...")
+
+	// First pass: collect all document IDs that need to be migrated
+	// We don't delete during this pass to avoid pagination issues
 	matchAllQuery := bleve.NewMatchAllQuery()
 	searchRequest := bleve.NewSearchRequest(matchAllQuery)
 	searchRequest.Size = batchSize
-	searchRequest.Fields = []string{"*"} // Get all fields
+	searchRequest.Fields = []string{"Title", "Name"} // Only need these fields for filtering
 
-	documentsBatch := newIndex.NewBatch()
-	documentsBatchCount := 0
-	documentsToDelete := make([]string, 0, batchSize)
-	totalProcessed := 0
+	documentIDs := make([]string, 0)
+
 	batchNumber := 0
-
 	for {
 		batchNumber++
 		searchResult, err := oldIndex.Search(searchRequest)
@@ -576,95 +578,121 @@ func MigrateDocuments(oldIndex, newIndex bleve.Index, batchSize int) error {
 			return err
 		}
 
-		if searchResult.Total == 0 {
+		if len(searchResult.Hits) == 0 {
 			break
 		}
 
-		// Process each document from search results
-		documentsInThisBatch := 0
+		// Collect document IDs and data
 		for _, hit := range searchResult.Hits {
 			// Filter for documents only (documents have Title, authors have Name but not Title)
 			hasTitle := hit.Fields["Title"] != nil
 			hasName := hit.Fields["Name"] != nil
-			if !hasTitle || hasName {
-				continue // Skip authors or entries without Title
-			}
-
-			// Convert search result to Document
-			doc := hydrateDocument(hit)
-			if doc.ID == "" || doc.Slug == "" {
-				continue
-			}
-
-			// Add document to new index batch
-			if err := documentsBatch.Index(doc.ID, doc); err != nil {
-				return err
-			}
-			documentsBatchCount++
-			documentsInThisBatch++
-			documentsToDelete = append(documentsToDelete, hit.ID)
-
-			// Execute batch when it reaches the specified size
-			if documentsBatchCount >= batchSize {
-				// Commit documents batch to new index
-				if err := newIndex.Batch(documentsBatch); err != nil {
-					return err
-				}
-				documentsBatch = newIndex.NewBatch()
-				documentsBatchCount = 0
-
-				// Now delete migrated documents from old index
-				deleteBatch := oldIndex.NewBatch()
-				for _, docID := range documentsToDelete {
-					deleteBatch.Delete(docID)
-				}
-				if err := oldIndex.Batch(deleteBatch); err != nil {
-					return err
-				}
-				documentsToDelete = make([]string, 0, batchSize)
+			if hasTitle && !hasName {
+				documentIDs = append(documentIDs, hit.ID)
 			}
 		}
 
-		totalProcessed += documentsInThisBatch
-
-		// Log progress periodically
-		if batchNumber%10 == 0 || documentsInThisBatch > 0 {
-			log.Printf("Migration batch %d: processed %d documents (total: %d), found %d hits",
-				batchNumber, documentsInThisBatch, totalProcessed, len(searchResult.Hits))
+		if batchNumber%10 == 0 {
+			log.Printf("Collection batch %d: found %d documents so far (total hits: %d)",
+				batchNumber, len(documentIDs), len(searchResult.Hits))
 		}
 
-		// Continue searching until we've exhausted all results
-		// We continue until we get 0 hits to ensure we process all documents
-		// even if some batches contain only authors (which we filter out)
-		if len(searchResult.Hits) == 0 {
-			// No more hits at all - we're done
-			log.Printf("Migration complete: processed %d documents total", totalProcessed)
+		// Continue until we get 0 hits
+		if len(searchResult.Hits) < searchRequest.Size {
 			break
 		}
 
-		// Always move to next batch to continue searching
-		// We'll break when we get 0 hits
 		searchRequest.From += searchRequest.Size
+	}
+
+	log.Printf("Step 2: Collected %d documents. Now fetching full document data and migrating...", len(documentIDs))
+
+	// Second pass: fetch full document data and migrate in batches
+	// We need to fetch the full document data now since we only stored Title/Name before
+	searchRequest.Fields = []string{"*"} // Get all fields
+	documentsBatch := newIndex.NewBatch()
+	documentsBatchCount := 0
+	totalMigrated := 0
+
+	for _, docID := range documentIDs {
+		// Fetch the full document
+		docIDQuery := bleve.NewDocIDQuery([]string{docID})
+		fetchRequest := bleve.NewSearchRequest(docIDQuery)
+		fetchRequest.Fields = []string{"*"}
+		fetchRequest.Size = 1
+
+		fetchResult, err := oldIndex.Search(fetchRequest)
+		if err != nil {
+			log.Printf("Warning: Could not fetch document %s: %v", docID, err)
+			continue
+		}
+
+		if len(fetchResult.Hits) == 0 {
+			log.Printf("Warning: Document %s not found in legacy index", docID)
+			continue
+		}
+
+		hit := fetchResult.Hits[0]
+
+		// Convert search result to Document
+		doc := hydrateDocument(hit)
+		if doc.ID == "" || doc.Slug == "" {
+			log.Printf("Warning: Document %s has invalid ID or Slug, skipping", docID)
+			continue
+		}
+
+		// Add document to new index batch
+		if err := documentsBatch.Index(doc.ID, doc); err != nil {
+			return fmt.Errorf("error indexing document %s: %w", docID, err)
+		}
+		documentsBatchCount++
+		totalMigrated++
+
+		// Execute batch when it reaches the specified size
+		if documentsBatchCount >= batchSize {
+			if err := newIndex.Batch(documentsBatch); err != nil {
+				return fmt.Errorf("error committing batch: %w", err)
+			}
+			documentsBatch = newIndex.NewBatch()
+			documentsBatchCount = 0
+			log.Printf("Migrated batch: %d/%d documents", totalMigrated, len(documentIDs))
+		}
 	}
 
 	// Execute any remaining documents
 	if documentsBatchCount > 0 {
 		if err := newIndex.Batch(documentsBatch); err != nil {
-			return err
+			return fmt.Errorf("error committing final batch: %w", err)
 		}
+		log.Printf("Migrated final batch: %d/%d documents", totalMigrated, len(documentIDs))
+	}
 
-		// Delete remaining migrated documents from old index
-		if len(documentsToDelete) > 0 {
-			deleteBatch := oldIndex.NewBatch()
-			for _, docID := range documentsToDelete {
-				deleteBatch.Delete(docID)
-			}
+	log.Printf("Step 3: Migration complete. Migrated %d documents. Now deleting from legacy index...", totalMigrated)
+
+	// Third pass: delete all migrated documents from old index
+	deleteBatch := oldIndex.NewBatch()
+	deleteCount := 0
+	for _, docID := range documentIDs {
+		deleteBatch.Delete(docID)
+		deleteCount++
+
+		if deleteCount >= batchSize {
 			if err := oldIndex.Batch(deleteBatch); err != nil {
-				return err
+				return fmt.Errorf("error deleting batch from legacy index: %w", err)
 			}
+			deleteBatch = oldIndex.NewBatch()
+			deleteCount = 0
 		}
 	}
 
+	// Delete remaining documents
+	if deleteCount > 0 {
+		if err := oldIndex.Batch(deleteBatch); err != nil {
+			return fmt.Errorf("error deleting final batch from legacy index: %w", err)
+		}
+	}
+
+	log.Printf("Step 4: Deleted %d documents from legacy index. Migration fully complete.", len(documentIDs))
 	return nil
 }
 
