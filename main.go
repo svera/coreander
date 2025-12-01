@@ -237,7 +237,12 @@ func migrateLegacyIndex(fs afero.Fs) bool {
 		log.Printf("Warning: Could not open legacy index: %v. Documents will be reindexed.", err)
 		return true // Force reindexing
 	}
-	defer legacyIndex.Close()
+	legacyIndexClosed := false
+	defer func() {
+		if !legacyIndexClosed {
+			legacyIndex.Close()
+		}
+	}()
 
 	// Check the version of the legacy index
 	legacyVersion, err := legacyIndex.GetInternal([]byte("version"))
@@ -333,6 +338,7 @@ func migrateLegacyIndex(fs afero.Fs) bool {
 		if err := legacyIndex.Close(); err != nil {
 			log.Printf("Warning: Could not close legacy index: %v", err)
 		}
+		legacyIndexClosed = true // Mark as closed so defer won't try to close it again
 		if err := fs.RemoveAll(homeDir + legacyIndexPath); err != nil {
 			log.Printf("Warning: Could not remove legacy index: %v", err)
 		}
