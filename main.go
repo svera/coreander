@@ -327,24 +327,44 @@ func migrateLegacyIndex(fs afero.Fs) (bool, bool) {
 	log.Println("Successfully migrated documents from legacy index.")
 
 	// Check if legacy index still has any documents (it might only have authors left)
-	// Search for documents specifically by looking for entries with Title field but no Name field
+	// Search through all results to find any remaining documents
 	matchAllQuery := bleve.NewMatchAllQuery()
 	searchRequest := bleve.NewSearchRequest(matchAllQuery)
-	searchRequest.Size = 100 // Check a reasonable sample to see if any documents remain
+	searchRequest.Size = 1000 // Check in larger batches
 	searchRequest.Fields = []string{"Title", "Name"}
-	searchResult, err := legacyIndex.Search(searchRequest)
-	if err != nil {
-		log.Printf("Warning: Could not check legacy index contents: %v. Legacy index will be kept.", err)
-		return false, true // Migration successful, don't force reindexing, migration happened
-	}
-
-	// Check if there are any documents left (documents have Title field but not Name field)
 	hasDocuments := false
-	for _, hit := range searchResult.Hits {
-		if hit.Fields["Title"] != nil && hit.Fields["Name"] == nil {
-			hasDocuments = true
+
+	// Search through all results to find any remaining documents
+	for {
+		searchResult, err := legacyIndex.Search(searchRequest)
+		if err != nil {
+			log.Printf("Warning: Could not check legacy index contents: %v. Legacy index will be kept.", err)
+			return false, true // Migration successful, don't force reindexing, migration happened
+		}
+
+		if searchResult.Total == 0 {
 			break
 		}
+
+		// Check if there are any documents left (documents have Title field but not Name field)
+		for _, hit := range searchResult.Hits {
+			if hit.Fields["Title"] != nil && hit.Fields["Name"] == nil {
+				hasDocuments = true
+				break
+			}
+		}
+
+		if hasDocuments {
+			break
+		}
+
+		// If we got fewer hits than requested, we've checked all results
+		if len(searchResult.Hits) < searchRequest.Size {
+			break
+		}
+
+		// Move to next batch
+		searchRequest.From += searchRequest.Size
 	}
 
 	// If no documents remain, remove the legacy index

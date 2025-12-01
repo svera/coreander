@@ -3,6 +3,7 @@ package index
 import (
 	"html/template"
 	"io/fs"
+	"log"
 	"math"
 	"net/url"
 	"strings"
@@ -565,8 +566,11 @@ func MigrateDocuments(oldIndex, newIndex bleve.Index, batchSize int) error {
 	documentsBatch := newIndex.NewBatch()
 	documentsBatchCount := 0
 	documentsToDelete := make([]string, 0, batchSize)
+	totalProcessed := 0
+	batchNumber := 0
 
 	for {
+		batchNumber++
 		searchResult, err := oldIndex.Search(searchRequest)
 		if err != nil {
 			return err
@@ -577,6 +581,7 @@ func MigrateDocuments(oldIndex, newIndex bleve.Index, batchSize int) error {
 		}
 
 		// Process each document from search results
+		documentsInThisBatch := 0
 		for _, hit := range searchResult.Hits {
 			// Filter for documents only (documents have Title, authors have Name but not Title)
 			hasTitle := hit.Fields["Title"] != nil
@@ -596,6 +601,7 @@ func MigrateDocuments(oldIndex, newIndex bleve.Index, batchSize int) error {
 				return err
 			}
 			documentsBatchCount++
+			documentsInThisBatch++
 			documentsToDelete = append(documentsToDelete, hit.ID)
 
 			// Execute batch when it reaches the specified size
@@ -619,12 +625,25 @@ func MigrateDocuments(oldIndex, newIndex bleve.Index, batchSize int) error {
 			}
 		}
 
-		// If we got less than requested size, we're done
-		if len(searchResult.Hits) < searchRequest.Size {
+		totalProcessed += documentsInThisBatch
+
+		// Log progress periodically
+		if batchNumber%10 == 0 || documentsInThisBatch > 0 {
+			log.Printf("Migration batch %d: processed %d documents (total: %d), found %d hits",
+				batchNumber, documentsInThisBatch, totalProcessed, len(searchResult.Hits))
+		}
+
+		// Continue searching until we've exhausted all results
+		// We continue until we get 0 hits to ensure we process all documents
+		// even if some batches contain only authors (which we filter out)
+		if len(searchResult.Hits) == 0 {
+			// No more hits at all - we're done
+			log.Printf("Migration complete: processed %d documents total", totalProcessed)
 			break
 		}
 
-		// Move to next batch
+		// Always move to next batch to continue searching
+		// We'll break when we get 0 hits
 		searchRequest.From += searchRequest.Size
 	}
 
