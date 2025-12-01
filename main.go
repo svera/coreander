@@ -71,13 +71,16 @@ func init() {
 
 	appFs = afero.NewOsFs()
 
-	documentsIndex, authorsIndex, needsReindex := getIndexes(appFs)
+	documentsIndex, authorsIndex, needsReindex, migrationSuccessful := getIndexes(appFs)
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders)
 
 	// If index was migrated or newly created, force reindexing
 	if needsReindex {
 		input.ForceIndexing = true
 	}
+
+	// Track if migration was successful to skip library indexing
+	input.MigrationSuccessful = migrationSuccessful
 	db = infrastructure.Connect(homeDir+databasePath, input.WordsPerMinute)
 }
 
@@ -153,6 +156,13 @@ func main() {
 }
 
 func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
+	// Skip indexing if migration was successful - documents are already in the new index
+	if input.MigrationSuccessful {
+		log.Println("Documents were successfully migrated from legacy index. Skipping library indexing.")
+		fileWatcher(idx, libPath)
+		return
+	}
+
 	start := time.Now().Unix()
 	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
 	err := idx.AddLibrary(batchSize, input.ForceIndexing)
@@ -165,14 +175,19 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
 	fileWatcher(idx, libPath)
 }
 
-func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool) {
+func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool, bool) {
 	needsReindex := false
+	migrationSuccessful := false
 
 	// Check if legacy single index exists (migration scenario)
 	legacyExists, _ := afero.DirExists(fs, homeDir+legacyIndexPath)
 	if legacyExists {
 		log.Println("Detected legacy single index format. Migrating to separate indexes...")
-		needsReindex = migrateLegacyIndex(fs)
+		var migrationHappened bool
+		needsReindex, migrationHappened = migrateLegacyIndex(fs)
+		if migrationHappened && !needsReindex {
+			migrationSuccessful = true
+		}
 	}
 
 	// Open or create documents index
@@ -225,17 +240,17 @@ func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool) {
 		needsReindex = true
 	}
 
-	return documentsIndex, authorsIndex, needsReindex
+	return documentsIndex, authorsIndex, needsReindex, migrationSuccessful
 }
 
-func migrateLegacyIndex(fs afero.Fs) bool {
+func migrateLegacyIndex(fs afero.Fs) (bool, bool) {
 	log.Println("Detected legacy single index format. Checking version...")
 
 	// Open the legacy index
 	legacyIndex, err := bleve.Open(homeDir + legacyIndexPath)
 	if err != nil {
 		log.Printf("Warning: Could not open legacy index: %v. Documents will be reindexed.", err)
-		return true // Force reindexing
+		return true, false // Force reindexing, migration did not happen
 	}
 	legacyIndexClosed := false
 	defer func() {
@@ -248,7 +263,7 @@ func migrateLegacyIndex(fs afero.Fs) bool {
 	legacyVersion, err := legacyIndex.GetInternal([]byte("version"))
 	if err != nil {
 		log.Printf("Warning: Could not read legacy index version: %v. Documents will be reindexed.", err)
-		return true // Force reindexing
+		return true, false // Force reindexing, migration did not happen
 	}
 	legacyVersionStr := string(legacyVersion)
 
@@ -268,7 +283,7 @@ func migrateLegacyIndex(fs afero.Fs) bool {
 			authorsIndex, err = bleve.Open(authorsIndexPath)
 			if err != nil {
 				log.Printf("Warning: Could not open authors index: %v. Authors will be reindexed.", err)
-				return true // Force reindexing
+				return true, false // Force reindexing, migration did not happen
 			}
 		}
 		defer authorsIndex.Close()
@@ -276,7 +291,7 @@ func migrateLegacyIndex(fs afero.Fs) bool {
 		// Extract authors from legacy index (filterForAuthorsOnly=true to skip documents)
 		if err := index.MigrateAuthors(legacyIndex, authorsIndex, true); err != nil {
 			log.Printf("Warning: Could not migrate authors from legacy index: %v. Authors will be reindexed.", err)
-			return true // Force reindexing
+			return true, false // Force reindexing, migration did not happen
 		}
 
 		log.Println("Successfully extracted authors from legacy index.")
@@ -296,7 +311,7 @@ func migrateLegacyIndex(fs afero.Fs) bool {
 		documentsIndex, err = bleve.Open(documentsIndexPath)
 		if err != nil {
 			log.Printf("Warning: Could not open documents index: %v. Documents will be reindexed.", err)
-			return true // Force reindexing
+			return true, false // Force reindexing, migration did not happen
 		}
 	}
 	defer documentsIndex.Close()
@@ -306,7 +321,7 @@ func migrateLegacyIndex(fs afero.Fs) bool {
 	batchSize := 1000 // Use a reasonable batch size for migration
 	if err := index.MigrateDocuments(legacyIndex, documentsIndex, batchSize); err != nil {
 		log.Printf("Warning: Could not migrate documents from legacy index: %v. Documents will be reindexed.", err)
-		return true // Force reindexing
+		return true, false // Force reindexing, migration did not happen
 	}
 
 	log.Println("Successfully migrated documents from legacy index.")
@@ -320,7 +335,7 @@ func migrateLegacyIndex(fs afero.Fs) bool {
 	searchResult, err := legacyIndex.Search(searchRequest)
 	if err != nil {
 		log.Printf("Warning: Could not check legacy index contents: %v. Legacy index will be kept.", err)
-		return false // Migration successful, don't force reindexing
+		return false, true // Migration successful, don't force reindexing, migration happened
 	}
 
 	// Check if there are any documents left (documents have Title field but not Name field)
@@ -346,5 +361,5 @@ func migrateLegacyIndex(fs afero.Fs) bool {
 		log.Println("Legacy index still contains documents. They will be migrated on next run.")
 	}
 
-	return false // Migration successful, don't force reindexing
+	return false, true // Migration successful, don't force reindexing, migration happened
 }
