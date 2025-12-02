@@ -1,6 +1,6 @@
 <div class="carousel-item {{if eq .Index 0}}active{{end}}" data-bs-interval="10000">
     <div class="row">
-        <div class="d-none {{if or (eq .UseConditionalClasses false) (eq .ReadingLength 0)}}d-md-block col-md-8{{end}} d-lg-block col-lg-8">
+        <div class="d-none {{if .ShowClasses}}d-md-block col-md-8{{end}} d-lg-block col-lg-8">
             {{ if ne .Document.Series "" }} {{$seriesTitle := t .Lang "Search for more titles belonging to %s" .Document.Series}}
                 <p class="text-start text-muted text-uppercase mb-0">
                     <a href="/series/{{.Document.SeriesSlug}}" title={{$seriesTitle}}>{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</a>
@@ -22,11 +22,11 @@
             {{else}}
                 <h5>{{t .Lang "Unknown author"}}</h5>
             {{end}}
-            <div class="mt-5 d-none {{if or (eq .UseConditionalClasses false) (eq .ReadingLength 0)}}d-md-block{{end}} d-lg-block">
+            <div class="mt-5 d-none {{if .ShowClasses}}d-md-block{{end}} d-lg-block">
                 <div class="clamp">{{.Document.Description}}</div>
             </div>
         </div>
-        <div class="col-12 {{if or (eq .UseConditionalClasses false) (eq .ReadingLength 0)}}col-md-4{{end}} col-lg-4">
+        <div class="col-12 {{if .ShowClasses}}col-md-4{{end}} col-lg-4">
             {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableActions" true "LinkToReader" .LinkToReader "Version" .Version}}
         </div>
     </div>

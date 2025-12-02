@@ -44,7 +44,7 @@
             <div id="resume-reading-docs" class="carousel slide" data-bs-ride="carousel">
                 <div class="carousel-inner">
                     {{range $i, $doc := .Reading}}
-                    {{template "partials/carousel-document-item" dict "Index" $i "Document" $doc "Lang" $lang "Session" $session "LinkToReader" true "Version" $.Version "UseConditionalClasses" false "ReadingLength" 0}}
+                    {{template "partials/carousel-document-item" dict "Index" $i "Document" $doc "Lang" $lang "Session" $session "LinkToReader" true "Version" $.Version "ShowClasses" true}}
                     {{end}}
                 </div>
                 <div class="carousel-indicators">
@@ -64,7 +64,7 @@
         <div id="latest-docs-carousel" class="carousel slide" data-bs-ride="carousel">
             <div class="carousel-inner">
                 {{range $i, $doc := .LatestDocs}}
-                {{template "partials/carousel-document-item" dict "Index" $i "Document" $doc "Lang" $lang "Session" $session "LinkToReader" false "Version" $.Version "UseConditionalClasses" true "ReadingLength" (len $reading)}}
+                {{template "partials/carousel-document-item" dict "Index" $i "Document" $doc "Lang" $lang "Session" $session "LinkToReader" false "Version" $.Version "ShowClasses" (eq (len $reading) 0)}}
                 {{end}}
             </div>
             <div class="carousel-indicators">
