@@ -26,6 +26,12 @@ type Author struct {
 	Pseudonyms      []string
 }
 
+// BleveType is part of the bleve.Classifier interface and its purpose is to tell the indexer
+// the type of the document, which will be used to decide which analyzer will parse it.
+func (a Author) BleveType() string {
+	return "author"
+}
+
 func (a Author) YearOfBirthAbs() int {
 	if a.DateOfBirth.Year() < 0 {
 		return -a.DateOfBirth.Year()
