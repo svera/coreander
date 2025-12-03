@@ -21,8 +21,6 @@ type CLIInput struct {
 	CoverMaxWidth int `env:"COVER_MAX_WIDTH" default:"600" name:"cover-max-width" help:"Maximum horizontal size for documents cover thumbnails in pixels"`
 	// ForceIndexing signals whether to force indexing already indexed documents or not
 	ForceIndexing bool `env:"FORCE_INDEXING" short:"f" default:"false" name:"force-indexing" help:"Force indexing already indexed documents"`
-	// MigrationSuccessful tracks if documents were successfully migrated from legacy index
-	MigrationSuccessful bool
 	// SmtpServer points to the address of the send mail server
 	SmtpServer string `env:"SMTP_SERVER" name:"smtp-server" help:"Address of the send mail server"`
 	// SmtpPort defines the port in which the mail server listens for requests

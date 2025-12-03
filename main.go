@@ -28,14 +28,15 @@ const legacyIndexPath = "/.coreander/index" // Old single index path
 const databasePath = "/.coreander/database.db"
 
 var (
-	input           CLIInput
-	appFs           afero.Fs
-	idx             *index.BleveIndexer
-	db              *gorm.DB
-	homeDir         string
-	err             error
-	metadataReaders map[string]metadata.Reader
-	sender          webserver.Sender
+	input               CLIInput
+	appFs               afero.Fs
+	idx                 *index.BleveIndexer
+	db                  *gorm.DB
+	homeDir             string
+	err                 error
+	metadataReaders     map[string]metadata.Reader
+	sender              webserver.Sender
+	migrationSuccessful bool
 )
 
 func init() {
@@ -71,7 +72,9 @@ func init() {
 
 	appFs = afero.NewOsFs()
 
-	documentsIndex, authorsIndex, needsReindex, migrationSuccessful := getIndexes(appFs)
+	var documentsIndex, authorsIndex bleve.Index
+	var needsReindex bool
+	documentsIndex, authorsIndex, needsReindex, migrationSuccessful = getIndexes(appFs)
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders)
 
 	// If index was migrated or newly created, force reindexing
@@ -79,8 +82,6 @@ func init() {
 		input.ForceIndexing = true
 	}
 
-	// Track if migration was successful to skip library indexing
-	input.MigrationSuccessful = migrationSuccessful
 	db = infrastructure.Connect(homeDir+databasePath, input.WordsPerMinute)
 }
 
@@ -157,7 +158,7 @@ func main() {
 
 func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
 	// Skip indexing if migration was successful - documents are already in the new index
-	if input.MigrationSuccessful {
+	if migrationSuccessful {
 		log.Println("Documents were successfully migrated from legacy index. Skipping library indexing.")
 		fileWatcher(idx, libPath)
 		return
@@ -185,6 +186,7 @@ func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool, bool) {
 		log.Println("Detected legacy single index format. Migrating to separate indexes...")
 		var migrationHappened bool
 		needsReindex, migrationHappened = migrateLegacyIndex(fs)
+		// Migration is successful if it happened and we don't need to reindex
 		if migrationHappened && !needsReindex {
 			migrationSuccessful = true
 		}
