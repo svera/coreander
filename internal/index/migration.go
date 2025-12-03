@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/blevesearch/bleve/v2/search"
 )
 
 // MigrateAuthors migrates all authors from a legacy index to a new index.
@@ -118,34 +117,13 @@ func MigrateDocuments(oldIndex, newIndex bleve.Index, batchSize int) error {
 			break
 		}
 
-		// Filter for documents only (documents have Title, authors have Name but not Title)
-		documentHits := make([]*search.DocumentMatch, 0)
-		for _, hit := range searchResult.Hits {
-			hasTitle := hit.Fields["Title"] != nil
-			hasName := hit.Fields["Name"] != nil
-			if hasTitle && !hasName {
-				documentHits = append(documentHits, hit)
-			}
-		}
-
-		if len(documentHits) == 0 {
-			// No documents in this batch - if we got fewer hits than requested, we're done
-			// Otherwise, there might be more documents after the authors, so continue
-			if len(searchResult.Hits) < batchSize {
-				break
-			}
-			// If we got exactly batchSize hits but all are authors, we need to delete them
-			// to make progress, but the user said only delete documents. So we're stuck.
-			// Actually, let's just break - if all remaining items are authors, migration is done.
-			break
-		}
-
 		// Migrate documents in this batch
+		// After authors are migrated, the legacy index only contains documents
 		documentsBatch := newIndex.NewBatch()
 		deleteBatch := oldIndex.NewBatch()
 		documentIDs := make([]string, 0)
 
-		for _, hit := range documentHits {
+		for _, hit := range searchResult.Hits {
 			// Convert search result to Document
 			doc := hydrateDocument(hit)
 			if doc.ID == "" || doc.Slug == "" {
