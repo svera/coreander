@@ -56,8 +56,9 @@ func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPat
 		}
 		defer authorsIndex.Close()
 
-		// Extract authors from legacy index (filterForAuthorsOnly=true to skip documents)
-		if err := index.MigrateAuthors(legacyIndex, authorsIndex, true); err != nil {
+		// Extract authors from legacy index
+		batchSize := 1000 // Use a reasonable batch size for migration
+		if err := index.MigrateAuthors(legacyIndex, authorsIndex, batchSize); err != nil {
 			log.Printf("Warning: Could not migrate authors from legacy index: %v. Authors will be reindexed.", err)
 			return true // Force reindexing, migration did not happen
 		}

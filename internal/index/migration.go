@@ -8,78 +8,84 @@ import (
 	"github.com/blevesearch/bleve/v2/search"
 )
 
-// MigrateAuthors migrates all authors from an old index to a new one.
-// If filterForAuthorsOnly is true, it will filter out documents (checking for Title field)
-// to only migrate author entries. This is used when migrating from a legacy index that
-// contains both documents and authors.
-func MigrateAuthors(oldIndex, newIndex bleve.Index, filterForAuthorsOnly bool) error {
-	matchAllQuery := bleve.NewMatchAllQuery()
-	searchRequest := bleve.NewSearchRequest(matchAllQuery)
-	searchRequest.Size = 10000           // Process in batches
-	searchRequest.Fields = []string{"*"} // Get all fields
+// MigrateAuthors migrates all authors from a legacy index to a new index.
+// It searches only for items with Type = "author" and deletes them immediately after migration
+// to avoid pagination issues and free up disk space.
+func MigrateAuthors(oldIndex, newIndex bleve.Index, batchSize int) error {
+	log.Println("Migrating authors from legacy index in batches...")
 
-	batch := newIndex.NewBatch()
-	batchCount := 0
+	// Create a query that filters for authors only
+	typeQuery := bleve.NewTermQuery("author")
+	typeQuery.SetField("Type")
+
+	matchAllQuery := bleve.NewMatchAllQuery()
+	conjunctionQuery := bleve.NewConjunctionQuery()
+	conjunctionQuery.AddQuery(matchAllQuery)
+	conjunctionQuery.AddQuery(typeQuery)
+
+	totalMigrated := 0
+	batchNumber := 0
 
 	for {
+		batchNumber++
+
+		// Always query from the beginning (From = 0) to get the first batchSize authors
+		// This avoids pagination issues when authors are deleted
+		searchRequest := bleve.NewSearchRequest(conjunctionQuery)
+		searchRequest.Size = batchSize
+		searchRequest.From = 0
+		searchRequest.Fields = []string{"*"} // Get all fields
+
 		searchResult, err := oldIndex.Search(searchRequest)
 		if err != nil {
 			return err
 		}
 
-		if searchResult.Total == 0 {
+		if len(searchResult.Hits) == 0 {
 			break
 		}
 
-		// Migrate each author from search results
-		for _, hit := range searchResult.Hits {
-			// If filtering is enabled, check if this document is an author
-			if filterForAuthorsOnly {
-				hasName := hit.Fields["Name"] != nil
-				hasTitle := hit.Fields["Title"] != nil
-				// Skip if it's not an author (documents have Title, authors have Name but not Title)
-				if !hasName || hasTitle {
-					continue
-				}
-			}
+		// Migrate authors in this batch
+		authorsBatch := newIndex.NewBatch()
+		deleteBatch := oldIndex.NewBatch()
+		authorIDs := make([]string, 0)
 
+		for _, hit := range searchResult.Hits {
 			// Convert search result to Author
-			author := hydrateAuthor(hit)
+			author := hydrateAuthorFromFields(hit.Fields, hit.ID)
 			if author.Slug == "" {
 				continue
 			}
 
-			if err := batch.Index(author.Slug, author); err != nil {
-				return err
+			// Add author to new index batch
+			if err := authorsBatch.Index(author.Slug, author); err != nil {
+				return fmt.Errorf("error indexing author %s: %w", author.Slug, err)
 			}
-			batchCount++
 
-			// Execute batch every 1000 items
-			if batchCount >= 1000 {
-				if err := newIndex.Batch(batch); err != nil {
-					return err
-				}
-				batch = newIndex.NewBatch()
-				batchCount = 0
+			// Add to delete batch
+			deleteBatch.Delete(hit.ID)
+			authorIDs = append(authorIDs, hit.ID)
+		}
+
+		// Commit authors to new index
+		if authorsBatch.Size() > 0 {
+			if err := newIndex.Batch(authorsBatch); err != nil {
+				return fmt.Errorf("error committing batch: %w", err)
 			}
 		}
 
-		// If we got less than requested size, we're done
-		if len(searchResult.Hits) < searchRequest.Size {
-			break
+		// Delete authors from old index immediately
+		if deleteBatch.Size() > 0 {
+			if err := oldIndex.Batch(deleteBatch); err != nil {
+				return fmt.Errorf("error deleting batch from legacy index: %w", err)
+			}
 		}
 
-		// Move to next batch
-		searchRequest.From += searchRequest.Size
+		totalMigrated += len(authorIDs)
+		log.Printf("Migrated batch %d: %d authors (total migrated: %d)", batchNumber, len(authorIDs), totalMigrated)
 	}
 
-	// Execute any remaining authors
-	if batchCount > 0 {
-		if err := newIndex.Batch(batch); err != nil {
-			return err
-		}
-	}
-
+	log.Printf("Migration complete. Migrated %d authors total.", totalMigrated)
 	return nil
 }
 
