@@ -29,12 +29,3 @@ type Document struct {
 	CompletedOn   *time.Time
 	AddedOn       time.Time
 }
-
-// BleveType is part of the bleve.Classifier interface and its purpose is to tell the indexer
-// the type of the document, which will be used to decide which analyzer will parse it.
-func (d Document) BleveType() string {
-	if d.Language == "" {
-		return ""
-	}
-	return d.Language[:2]
-}
