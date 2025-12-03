@@ -184,10 +184,9 @@ func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool, bool) {
 	legacyExists, _ := afero.DirExists(fs, homeDir+legacyIndexPath)
 	if legacyExists {
 		log.Println("Detected legacy single index format. Migrating to separate indexes...")
-		var migrationHappened bool
-		needsReindex, migrationHappened = migrateLegacyIndex(fs, homeDir, legacyIndexPath, documentsIndexPath, authorsIndexPath)
-		// Migration is successful if it happened and we don't need to reindex
-		if migrationHappened && !needsReindex {
+		needsReindex = migrateLegacyIndex(fs, homeDir, legacyIndexPath, documentsIndexPath, authorsIndexPath)
+		// Migration is successful if we don't need to reindex
+		if !needsReindex {
 			migrationSuccessful = true
 		}
 	}

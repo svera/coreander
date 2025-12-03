@@ -9,17 +9,16 @@ import (
 )
 
 // migrateLegacyIndex migrates all data from a legacy single index to separate documents and authors indexes.
-// Returns (needsReindex, migrationHappened) where:
-// - needsReindex: true if reindexing is required (migration failed or index needs recreation)
-// - migrationHappened: true if migration was attempted (regardless of success)
-func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPath, authorsIndexPath string) (bool, bool) {
+// Returns needsReindex: true if reindexing is required (migration failed or index needs recreation),
+// false if migration was successful and no reindexing is needed.
+func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPath, authorsIndexPath string) bool {
 	log.Println("Detected legacy single index format. Checking version...")
 
 	// Open the legacy index
 	legacyIndex, err := bleve.Open(homeDir + legacyIndexPath)
 	if err != nil {
 		log.Printf("Warning: Could not open legacy index: %v. Documents will be reindexed.", err)
-		return true, false // Force reindexing, migration did not happen
+		return true // Force reindexing, migration did not happen
 	}
 	legacyIndexClosed := false
 	defer func() {
@@ -32,7 +31,7 @@ func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPat
 	legacyVersion, err := legacyIndex.GetInternal([]byte("version"))
 	if err != nil {
 		log.Printf("Warning: Could not read legacy index version: %v. Documents will be reindexed.", err)
-		return true, false // Force reindexing, migration did not happen
+		return true // Force reindexing, migration did not happen
 	}
 	legacyVersionStr := string(legacyVersion)
 
@@ -52,7 +51,7 @@ func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPat
 			authorsIndex, err = bleve.Open(authorsIndexFullPath)
 			if err != nil {
 				log.Printf("Warning: Could not open authors index: %v. Authors will be reindexed.", err)
-				return true, false // Force reindexing, migration did not happen
+				return true // Force reindexing, migration did not happen
 			}
 		}
 		defer authorsIndex.Close()
@@ -60,7 +59,7 @@ func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPat
 		// Extract authors from legacy index (filterForAuthorsOnly=true to skip documents)
 		if err := index.MigrateAuthors(legacyIndex, authorsIndex, true); err != nil {
 			log.Printf("Warning: Could not migrate authors from legacy index: %v. Authors will be reindexed.", err)
-			return true, false // Force reindexing, migration did not happen
+			return true // Force reindexing, migration did not happen
 		}
 
 		log.Println("Successfully extracted authors from legacy index.")
@@ -80,7 +79,7 @@ func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPat
 		documentsIndex, err = bleve.Open(documentsIndexFullPath)
 		if err != nil {
 			log.Printf("Warning: Could not open documents index: %v. Documents will be reindexed.", err)
-			return true, false // Force reindexing, migration did not happen
+			return true // Force reindexing, migration did not happen
 		}
 	}
 	defer documentsIndex.Close()
@@ -90,7 +89,7 @@ func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPat
 	batchSize := 1000 // Use a reasonable batch size for migration
 	if err := index.MigrateDocuments(legacyIndex, documentsIndex, batchSize); err != nil {
 		log.Printf("Warning: Could not migrate documents from legacy index: %v. Documents will be reindexed.", err)
-		return true, false // Force reindexing, migration did not happen
+		return true // Force reindexing, migration did not happen
 	}
 
 	log.Println("Successfully migrated documents from legacy index.")
@@ -108,7 +107,7 @@ func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPat
 		searchResult, err := legacyIndex.Search(searchRequest)
 		if err != nil {
 			log.Printf("Warning: Could not check legacy index contents: %v. Legacy index will be kept.", err)
-			return false, true // Migration successful, don't force reindexing, migration happened
+			return false // Migration successful, don't force reindexing
 		}
 
 		if searchResult.Total == 0 {
@@ -150,6 +149,6 @@ func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPat
 		log.Println("Legacy index still contains documents. They will be migrated on next run.")
 	}
 
-	return false, true // Migration successful, don't force reindexing, migration happened
+	return false // Migration successful, don't force reindexing
 }
 
