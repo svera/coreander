@@ -95,59 +95,15 @@ func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPat
 
 	log.Println("Successfully migrated documents from legacy index.")
 
-	// Check if legacy index still has any documents (it might only have authors left)
-	// Search through all results to find any remaining documents
-	matchAllQuery := bleve.NewMatchAllQuery()
-	searchRequest := bleve.NewSearchRequest(matchAllQuery)
-	searchRequest.Size = 1000 // Check in larger batches
-	searchRequest.Fields = []string{"Title", "Name"}
-	hasDocuments := false
-
-	// Search through all results to find any remaining documents
-	for {
-		searchResult, err := legacyIndex.Search(searchRequest)
-		if err != nil {
-			log.Printf("Warning: Could not check legacy index contents: %v. Legacy index will be kept.", err)
-			return false // Migration successful, don't force reindexing
-		}
-
-		if searchResult.Total == 0 {
-			break
-		}
-
-		// Check if there are any documents left (documents have Title field but not Name field)
-		for _, hit := range searchResult.Hits {
-			if hit.Fields["Title"] != nil && hit.Fields["Name"] == nil {
-				hasDocuments = true
-				break
-			}
-		}
-
-		if hasDocuments {
-			break
-		}
-
-		// If we got fewer hits than requested, we've checked all results
-		if len(searchResult.Hits) < searchRequest.Size {
-			break
-		}
-
-		// Move to next batch
-		searchRequest.From += searchRequest.Size
+	// All documents have been migrated and deleted by MigrateDocuments
+	// Remove the legacy index since migration is complete
+	log.Println("Removing legacy index...")
+	if err := legacyIndex.Close(); err != nil {
+		log.Printf("Warning: Could not close legacy index: %v", err)
 	}
-
-	// If no documents remain, remove the legacy index
-	if !hasDocuments {
-		log.Println("No documents remaining in legacy index. Removing legacy index...")
-		if err := legacyIndex.Close(); err != nil {
-			log.Printf("Warning: Could not close legacy index: %v", err)
-		}
-		legacyIndexClosed = true // Mark as closed so defer won't try to close it again
-		if err := fs.RemoveAll(homeDir + legacyIndexPath); err != nil {
-			log.Printf("Warning: Could not remove legacy index: %v", err)
-		}
-	} else {
-		log.Println("Legacy index still contains documents. They will be migrated on next run.")
+	legacyIndexClosed = true // Mark as closed so defer won't try to close it again
+	if err := fs.RemoveAll(homeDir + legacyIndexPath); err != nil {
+		log.Printf("Warning: Could not remove legacy index: %v", err)
 	}
 
 	return false // Migration successful, don't force reindexing
