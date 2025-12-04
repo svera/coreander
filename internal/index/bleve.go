@@ -215,7 +215,6 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("InstanceOf", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Gender", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Pseudonyms", keywordFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("Subjects", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("SubjectsSlugs", keywordFieldMapping)
 
 	return indexMapping

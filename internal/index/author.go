@@ -24,7 +24,6 @@ type Author struct {
 	DataSourceImage string
 	Gender          float64
 	Pseudonyms      []string
-	Subjects        []string
 	SubjectsSlugs   []string
 }
 

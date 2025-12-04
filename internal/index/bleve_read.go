@@ -592,7 +592,6 @@ func hydrateAuthorFromFields(fields map[string]interface{}, docID string) Author
 		DataSourceImage: dataSourceImage,
 		Gender:          gender,
 		Pseudonyms:      slicer(fields["Pseudonyms"]),
-		Subjects:        slicer(fields["Subjects"]),
 		SubjectsSlugs:   slicer(fields["SubjectsSlugs"]),
 	}
 

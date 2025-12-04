@@ -80,9 +80,8 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 				continue
 			}
 
-			// Re-aggregate subjects from remaining documents
-			subjects, subjectsSlugs := b.aggregateSubjectsForAuthor(authorSlug)
-			existingAuthor.Subjects = subjects
+			// Re-aggregate subject slugs from remaining documents
+			subjectsSlugs := b.aggregateSubjectsForAuthor(authorSlug)
 			existingAuthor.SubjectsSlugs = subjectsSlugs
 
 			if err := authorsBatch.Index(existingAuthor.Slug, existingAuthor); err != nil {
@@ -238,9 +237,8 @@ func (b *BleveIndexer) updateAllAuthorsSubjects() error {
 			continue
 		}
 
-		// Aggregate subjects
-		subjects, subjectsSlugs := b.aggregateSubjectsForAuthor(authorSlug)
-		author.Subjects = subjects
+		// Aggregate subject slugs
+		subjectsSlugs := b.aggregateSubjectsForAuthor(authorSlug)
 		author.SubjectsSlugs = subjectsSlugs
 
 		if err := authorsBatch.Index(author.Slug, author); err != nil {
@@ -256,11 +254,11 @@ func (b *BleveIndexer) updateAllAuthorsSubjects() error {
 	return nil
 }
 
-// aggregateSubjectsForAuthor collects all unique subjects and subject slugs from all documents by an author
+// aggregateSubjectsForAuthor collects all unique subject slugs from all documents by an author
 // using Bleve faceted search for efficient aggregation
-func (b *BleveIndexer) aggregateSubjectsForAuthor(authorSlug string) ([]string, []string) {
+func (b *BleveIndexer) aggregateSubjectsForAuthor(authorSlug string) []string {
 	if b.documentsIdx == nil {
-		return []string{}, []string{}
+		return []string{}
 	}
 
 	query := bleve.NewTermQuery(authorSlug)
@@ -269,30 +267,18 @@ func (b *BleveIndexer) aggregateSubjectsForAuthor(authorSlug string) ([]string, 
 	searchRequest := bleve.NewSearchRequest(query)
 	searchRequest.Size = 0 // We don't need document hits, only facets
 
-	// Add facet requests for Subjects and SubjectsSlugs
+	// Add facet request for SubjectsSlugs
 	// Use a large size to get all unique terms
-	subjectsFacet := bleve.NewFacetRequest("Subjects", 10000)
 	subjectsSlugsFacet := bleve.NewFacetRequest("SubjectsSlugs", 10000)
-	searchRequest.AddFacet("subjects", subjectsFacet)
 	searchRequest.AddFacet("subjectsSlugs", subjectsSlugsFacet)
 
 	searchResult, err := b.documentsIdx.Search(searchRequest)
 	if err != nil {
 		// Silently return empty subjects if query fails
-		return []string{}, []string{}
+		return []string{}
 	}
 
-	subjects := []string{}
 	subjectsSlugs := []string{}
-
-	// Extract subjects from facet results
-	if subjectsFacetResult, ok := searchResult.Facets["subjects"]; ok && subjectsFacetResult.Terms != nil {
-		for _, term := range subjectsFacetResult.Terms.Terms() {
-			if term.Term != "" {
-				subjects = append(subjects, term.Term)
-			}
-		}
-	}
 
 	// Extract subject slugs from facet results
 	if subjectsSlugsFacetResult, ok := searchResult.Facets["subjectsSlugs"]; ok && subjectsSlugsFacetResult.Terms != nil {
@@ -303,10 +289,9 @@ func (b *BleveIndexer) aggregateSubjectsForAuthor(authorSlug string) ([]string, 
 		}
 	}
 
-	slices.Sort(subjects)
 	slices.Sort(subjectsSlugs)
 
-	return subjects, subjectsSlugs
+	return subjectsSlugs
 }
 
 // indexAuthors indexes authors of a document if they are not already indexed in the authors index
@@ -331,7 +316,6 @@ func (b *BleveIndexer) indexAuthors(document Document, index func(id string, dat
 			WikipediaLink: make(map[string]string),
 			Description:   make(map[string]string),
 			Pseudonyms:    []string{},
-			Subjects:      []string{},
 			SubjectsSlugs: []string{},
 		}
 
