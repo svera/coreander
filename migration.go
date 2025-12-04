@@ -36,13 +36,13 @@ func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPat
 	legacyVersionStr := string(legacyVersion)
 
 	// Only migrate authors if the legacy index version is v8
+	var authorsIndex bleve.Index
 	if legacyVersionStr == "v8" {
 		log.Println("Legacy index version is v8. Extracting authors before migration...")
 
 		// Create authors index if it doesn't exist
 		authorsIndexFullPath := homeDir + authorsIndexPath
 		authorsIndexExists, _ := afero.DirExists(fs, authorsIndexFullPath)
-		var authorsIndex bleve.Index
 
 		if !authorsIndexExists {
 			log.Println("Creating new authors index for migration...")
@@ -108,4 +108,3 @@ func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPat
 
 	return false // Migration successful, don't force reindexing
 }
-

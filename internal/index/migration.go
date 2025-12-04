@@ -3,6 +3,7 @@ package index
 import (
 	"fmt"
 	"log"
+	"slices"
 
 	"github.com/blevesearch/bleve/v2"
 )
@@ -55,6 +56,9 @@ func MigrateAuthors(oldIndex, newIndex bleve.Index, batchSize int) error {
 			if author.Slug == "" {
 				continue
 			}
+
+			// Aggregate subject slugs from documents in the legacy index
+			author.SubjectsSlugs = aggregateSubjectsForAuthorFromLegacyIndex(author.Slug, oldIndex)
 
 			// Add author to new index batch
 			if err := authorsBatch.Index(author.Slug, author); err != nil {
@@ -161,4 +165,56 @@ func MigrateDocuments(oldIndex, newIndex bleve.Index, batchSize int) error {
 
 	log.Printf("Migration complete. Migrated %d documents total.", totalMigrated)
 	return nil
+}
+
+// aggregateSubjectsForAuthorFromLegacyIndex collects all unique subject slugs from all documents by an author
+// in the legacy index using Bleve faceted search for efficient aggregation.
+func aggregateSubjectsForAuthorFromLegacyIndex(authorSlug string, legacyIndex bleve.Index) []string {
+	if legacyIndex == nil {
+		return []string{}
+	}
+
+	// Query for documents with this author slug in AuthorsSlugs field
+	// Exclude authors by filtering out Type = "author"
+	authorSlugQuery := bleve.NewTermQuery(authorSlug)
+	authorSlugQuery.SetField("AuthorsSlugs")
+
+	// Exclude authors from the query using a boolean query
+	notAuthorQuery := bleve.NewBooleanQuery()
+	typeQuery := bleve.NewTermQuery("author")
+	typeQuery.SetField("Type")
+	notAuthorQuery.AddMustNot(typeQuery)
+
+	conjunctionQuery := bleve.NewConjunctionQuery()
+	conjunctionQuery.AddQuery(authorSlugQuery)
+	conjunctionQuery.AddQuery(notAuthorQuery)
+
+	searchRequest := bleve.NewSearchRequest(conjunctionQuery)
+	searchRequest.Size = 0 // We don't need document hits, only facets
+
+	// Add facet request for SubjectsSlugs
+	// Use a large size to get all unique terms
+	subjectsSlugsFacet := bleve.NewFacetRequest("SubjectsSlugs", 10000)
+	searchRequest.AddFacet("subjectsSlugs", subjectsSlugsFacet)
+
+	searchResult, err := legacyIndex.Search(searchRequest)
+	if err != nil {
+		// Silently return empty subjects if query fails
+		return []string{}
+	}
+
+	subjectsSlugs := []string{}
+
+	// Extract subject slugs from facet results
+	if subjectsSlugsFacetResult, ok := searchResult.Facets["subjectsSlugs"]; ok && subjectsSlugsFacetResult.Terms != nil {
+		for _, term := range subjectsSlugsFacetResult.Terms.Terms() {
+			if term.Term != "" {
+				subjectsSlugs = append(subjectsSlugs, term.Term)
+			}
+		}
+	}
+
+	slices.Sort(subjectsSlugs)
+
+	return subjectsSlugs
 }
