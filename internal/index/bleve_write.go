@@ -36,13 +36,15 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 	}
 
 	// Index authors in the separate authors index
-	authorsBatch := b.authorsIdx.NewBatch()
-	if err := b.indexAuthors(document, authorsBatch.Index); err != nil {
-		return document.Slug, err
-	}
-	if authorsBatch.Size() > 0 {
-		if err = b.authorsIdx.Batch(authorsBatch); err != nil {
+	if b.authorsIdx != nil {
+		authorsBatch := b.authorsIdx.NewBatch()
+		if err := b.indexAuthors(document, authorsBatch.Index); err != nil {
 			return document.Slug, err
+		}
+		if authorsBatch.Size() > 0 {
+			if err = b.authorsIdx.Batch(authorsBatch); err != nil {
+				return document.Slug, err
+			}
 		}
 	}
 
@@ -66,7 +68,7 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 	}
 
 	// Update authors' subjects after document removal
-	if doc.Slug != "" {
+	if doc.Slug != "" && b.authorsIdx != nil {
 		authorsBatch := b.authorsIdx.NewBatch()
 		for _, authorSlug := range doc.AuthorsSlugs {
 			if authorSlug == "" {
@@ -102,7 +104,8 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 // haven't been previously indexed or if <forceIndexing> is true
 func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	batch := b.documentsIdx.NewBatch()
-	authorsBatch := b.authorsIdx.NewBatch()
+	var authorsBatch *bleve.Batch
+	authorsBatchCreated := false
 	batchSlugs := make(map[string]struct{}, batchSize)
 	languages := []string{}
 	b.indexStartTime = float64(time.Now().UnixNano())
@@ -133,9 +136,17 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 			return nil
 		}
 
+		// Create authors batch lazily when we encounter the first document with authors
+		if b.authorsIdx != nil && len(document.Authors) > 0 && !authorsBatchCreated {
+			authorsBatch = b.authorsIdx.NewBatch()
+			authorsBatchCreated = true
+		}
+
 		// Add authors to the authors batch
-		if err = b.indexAuthors(document, authorsBatch.Index); err != nil {
-			return err
+		if b.authorsIdx != nil && authorsBatch != nil {
+			if err = b.indexAuthors(document, authorsBatch.Index); err != nil {
+				return err
+			}
 		}
 
 		b.indexedEntries += 1
@@ -149,7 +160,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 		}
 
 		// Flush authors batch periodically
-		if authorsBatch.Size() >= batchSize {
+		if b.authorsIdx != nil && authorsBatch != nil && authorsBatch.Size() >= batchSize {
 			if err = b.authorsIdx.Batch(authorsBatch); err != nil {
 				return err
 			}
@@ -172,7 +183,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	}
 
 	// Flush remaining authors batch
-	if authorsBatch.Size() > 0 {
+	if b.authorsIdx != nil && authorsBatch != nil && authorsBatch.Size() > 0 {
 		if err := b.authorsIdx.Batch(authorsBatch); err != nil {
 			return err
 		}
@@ -194,25 +205,18 @@ func (b *BleveIndexer) updateAllAuthorsSubjects() error {
 		return nil
 	}
 
-	// Get all authors with error handling for potential panics
-	var authorsResult *bleve.SearchResult
-	var err error
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("Panic searching authors index: %v\n", r)
-				err = fmt.Errorf("panic searching authors: %v", r)
-			}
-		}()
-		matchAllQuery := bleve.NewMatchAllQuery()
-		searchRequest := bleve.NewSearchRequest(matchAllQuery)
-		searchRequest.Size = 10000 // Adjust if needed
-		searchRequest.Fields = []string{"Slug"}
+	// Get all authors
+	matchAllQuery := bleve.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
+	searchRequest.Size = 10000 // Adjust if needed
+	searchRequest.Fields = []string{"Slug"}
 
-		authorsResult, err = b.authorsIdx.Search(searchRequest)
-	}()
-	if err != nil || authorsResult == nil {
+	authorsResult, err := b.authorsIdx.Search(searchRequest)
+	if err != nil {
 		return err
+	}
+	if authorsResult == nil || authorsResult.Total == 0 {
+		return nil
 	}
 
 	// Update each author's subjects
@@ -343,22 +347,18 @@ func (b *BleveIndexer) indexAuthors(document Document, index func(id string, dat
 			SubjectsSlugs: []string{},
 		}
 
-		// Use a recover to handle potential panics during batch indexing
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("Panic indexing author %s: %v\n", name, r)
-				}
-			}()
-			if err := index(author.Slug, author); err != nil {
-				log.Printf("Error indexing author %s: %s\n", name, err)
-			}
-		}()
+		if err := index(author.Slug, author); err != nil {
+			log.Printf("Error indexing author %s: %s\n", name, err)
+			continue
+		}
 	}
 	return nil
 }
 
 func (b *BleveIndexer) IndexAuthor(author Author) error {
+	if b.authorsIdx == nil {
+		return fmt.Errorf("authors index is not initialized")
+	}
 	if err := b.authorsIdx.Index(author.Slug, author); err != nil {
 		return err
 	}

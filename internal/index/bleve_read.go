@@ -364,6 +364,10 @@ func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPe
 }
 
 func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
+	if b.authorsIdx == nil {
+		return Author{}, nil
+	}
+
 	aq := bleve.NewTermQuery(slug)
 	aq.SetField("Slug")
 
@@ -372,6 +376,9 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 	searchResult, err := b.authorsIdx.Search(searchOptions)
 	if err != nil {
 		return Author{}, err
+	}
+	if searchResult == nil || searchResult.Total == 0 {
+		return Author{}, nil
 	}
 	if searchResult.Total == 0 {
 		return Author{}, nil
