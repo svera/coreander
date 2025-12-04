@@ -177,6 +177,10 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	keywordFieldMappingNotIndexable := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable.Index = false
 
+	simpleTextFieldMapping := bleve.NewTextFieldMapping()
+	simpleTextFieldMapping.Analyzer = defaultAnalyzer
+	simpleTextFieldMapping.Similarity = index.BM25Scoring
+
 	numericFieldMapping := bleve.NewNumericFieldMapping()
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
 
@@ -193,6 +197,8 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfDeath.Precision", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("InstanceOf", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Gender", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Subjects", simpleTextFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("SubjectsSlugs", keywordFieldMapping)
 
 	return indexMapping
 }
