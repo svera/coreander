@@ -173,13 +173,34 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 func CreateAuthorsMapping() mapping.IndexMapping {
 	indexMapping := bleve.NewIndexMapping()
 
+	// Register the default analyzer for text fields
+	err := indexMapping.AddCustomAnalyzer(defaultAnalyzer,
+		map[string]any{
+			"type": custom.Name,
+			"char_filters": []string{
+				asciifolding.Name,
+			},
+			"tokenizer": unicode.Name,
+			"token_filters": []string{
+				lowercase.Name,
+			},
+		})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	keywordFieldMapping := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable.Index = false
 
+	simpleTextFieldMapping := bleve.NewTextFieldMapping()
+	simpleTextFieldMapping.Analyzer = defaultAnalyzer
+	simpleTextFieldMapping.Similarity = index.BM25Scoring
+
 	numericFieldMapping := bleve.NewNumericFieldMapping()
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
 
+	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Slug", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Name", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("BirthName", keywordFieldMapping)
@@ -193,6 +214,8 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfDeath.Precision", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("InstanceOf", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Gender", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Pseudonyms", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("SubjectsSlugs", keywordFieldMapping)
 
 	return indexMapping
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/blevesearch/bleve/v2"
 	index "github.com/blevesearch/bleve_index_api"
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
@@ -35,13 +36,15 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 	}
 
 	// Index authors in the separate authors index
-	authorsBatch := b.authorsIdx.NewBatch()
-	if err := b.indexAuthors(document, authorsBatch.Index); err != nil {
-		return document.Slug, err
-	}
-	if authorsBatch.Size() > 0 {
-		if err = b.authorsIdx.Batch(authorsBatch); err != nil {
+	if b.authorsIdx != nil {
+		authorsBatch := b.authorsIdx.NewBatch()
+		if err := b.indexAuthors(document, authorsBatch.Index); err != nil {
 			return document.Slug, err
+		}
+		if authorsBatch.Size() > 0 {
+			if err = b.authorsIdx.Batch(authorsBatch); err != nil {
+				return document.Slug, err
+			}
 		}
 	}
 
@@ -52,9 +55,47 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 func (b *BleveIndexer) RemoveFile(file string) error {
 	file = strings.Replace(file, b.libraryPath, "", 1)
 	file = strings.TrimPrefix(file, string(filepath.Separator))
+
+	// Get the document before deleting to update authors
+	doc, err := b.DocumentByID(file)
+	if err != nil {
+		return err
+	}
+
+	// Delete the document
 	if err := b.documentsIdx.Delete(file); err != nil {
 		return err
 	}
+
+	// Update authors' subjects after document removal
+	if doc.Slug != "" && b.authorsIdx != nil {
+		authorsBatch := b.authorsIdx.NewBatch()
+		for _, authorSlug := range doc.AuthorsSlugs {
+			if authorSlug == "" {
+				continue
+			}
+
+			existingAuthor, err := b.Author(authorSlug, "")
+			if err != nil || existingAuthor.Slug == "" {
+				continue
+			}
+
+			// Re-aggregate subject slugs from remaining documents
+			subjectsSlugs := b.aggregateSubjectsForAuthor(authorSlug)
+			existingAuthor.SubjectsSlugs = subjectsSlugs
+
+			if err := authorsBatch.Index(existingAuthor.Slug, existingAuthor); err != nil {
+				log.Printf("Error updating author %s after document removal: %s\n", authorSlug, err)
+				continue
+			}
+		}
+		if authorsBatch.Size() > 0 {
+			if err := b.authorsIdx.Batch(authorsBatch); err != nil {
+				log.Printf("Error updating authors batch after document removal: %v\n", err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -62,12 +103,13 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 // haven't been previously indexed or if <forceIndexing> is true
 func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	batch := b.documentsIdx.NewBatch()
-	authorsBatch := b.authorsIdx.NewBatch()
+	var authorsBatch *bleve.Batch
+	authorsBatchCreated := false
 	batchSlugs := make(map[string]struct{}, batchSize)
 	languages := []string{}
 	b.indexStartTime = float64(time.Now().UnixNano())
 
-	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
+	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, walkErr error) error {
 		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed && !forceIndexing {
 			b.indexedEntries += 1
 			languages = addLanguage(lang, languages)
@@ -93,9 +135,17 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 			return nil
 		}
 
+		// Create authors batch lazily when we encounter the first document with authors
+		if b.authorsIdx != nil && len(document.Authors) > 0 && !authorsBatchCreated {
+			authorsBatch = b.authorsIdx.NewBatch()
+			authorsBatchCreated = true
+		}
+
 		// Add authors to the authors batch
-		if err = b.indexAuthors(document, authorsBatch.Index); err != nil {
-			return err
+		if b.authorsIdx != nil && authorsBatch != nil {
+			if err = b.indexAuthors(document, authorsBatch.Index); err != nil {
+				return err
+			}
 		}
 
 		b.indexedEntries += 1
@@ -109,7 +159,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 		}
 
 		// Flush authors batch periodically
-		if authorsBatch.Size() >= batchSize {
+		if b.authorsIdx != nil && authorsBatch != nil && authorsBatch.Size() >= batchSize {
 			if err = b.authorsIdx.Batch(authorsBatch); err != nil {
 				return err
 			}
@@ -132,10 +182,15 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	}
 
 	// Flush remaining authors batch
-	if authorsBatch.Size() > 0 {
+	if b.authorsIdx != nil && authorsBatch != nil && authorsBatch.Size() > 0 {
 		if err := b.authorsIdx.Batch(authorsBatch); err != nil {
 			return err
 		}
+	}
+
+	// Update all authors' subjects now that all documents are committed
+	if err := b.updateAllAuthorsSubjects(); err != nil {
+		log.Printf("Warning: Could not update authors' subjects: %v\n", err)
 	}
 
 	b.indexStartTime = 0
@@ -143,7 +198,105 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	return e
 }
 
+// updateAllAuthorsSubjects updates subjects for all authors based on their documents
+func (b *BleveIndexer) updateAllAuthorsSubjects() error {
+	if b.authorsIdx == nil || b.documentsIdx == nil {
+		return nil
+	}
+
+	// Get all authors
+	matchAllQuery := bleve.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
+	searchRequest.Size = 10000 // Adjust if needed
+	searchRequest.Fields = []string{"Slug"}
+
+	authorsResult, err := b.authorsIdx.Search(searchRequest)
+	if err != nil {
+		return err
+	}
+	if authorsResult == nil || authorsResult.Total == 0 {
+		return nil
+	}
+
+	// Update each author's subjects
+	authorsBatch := b.authorsIdx.NewBatch()
+	for _, hit := range authorsResult.Hits {
+		authorSlug := ""
+		if slugVal, ok := hit.Fields["Slug"]; ok {
+			if slugStr, ok := slugVal.(string); ok {
+				authorSlug = slugStr
+			}
+		}
+		if authorSlug == "" {
+			authorSlug = hit.ID
+		}
+
+		// Get the full author
+		author, err := b.Author(authorSlug, "")
+		if err != nil || author.Slug == "" {
+			continue
+		}
+
+		// Aggregate subject slugs
+		subjectsSlugs := b.aggregateSubjectsForAuthor(authorSlug)
+		author.SubjectsSlugs = subjectsSlugs
+
+		if err := authorsBatch.Index(author.Slug, author); err != nil {
+			log.Printf("Error updating author %s subjects: %v\n", authorSlug, err)
+			continue
+		}
+	}
+
+	if authorsBatch.Size() > 0 {
+		return b.authorsIdx.Batch(authorsBatch)
+	}
+
+	return nil
+}
+
+// aggregateSubjectsForAuthor collects all unique subject slugs from all documents by an author
+// using Bleve faceted search for efficient aggregation
+func (b *BleveIndexer) aggregateSubjectsForAuthor(authorSlug string) []string {
+	if b.documentsIdx == nil {
+		return []string{}
+	}
+
+	query := bleve.NewTermQuery(authorSlug)
+	query.SetField("AuthorsSlugs")
+
+	searchRequest := bleve.NewSearchRequest(query)
+	searchRequest.Size = 0 // We don't need document hits, only facets
+
+	// Add facet request for SubjectsSlugs
+	// Use a large size to get all unique terms
+	subjectsSlugsFacet := bleve.NewFacetRequest("SubjectsSlugs", 10000)
+	searchRequest.AddFacet("subjectsSlugs", subjectsSlugsFacet)
+
+	searchResult, err := b.documentsIdx.Search(searchRequest)
+	if err != nil {
+		// Silently return empty subjects if query fails
+		return []string{}
+	}
+
+	subjectsSlugs := []string{}
+
+	// Extract subject slugs from facet results
+	if subjectsSlugsFacetResult, ok := searchResult.Facets["subjectsSlugs"]; ok && subjectsSlugsFacetResult.Terms != nil {
+		for _, term := range subjectsSlugsFacetResult.Terms.Terms() {
+			if term.Term != "" {
+				subjectsSlugs = append(subjectsSlugs, term.Term)
+			}
+		}
+	}
+
+	slices.Sort(subjectsSlugs)
+
+	return subjectsSlugs
+}
+
 // indexAuthors indexes authors of a document if they are not already indexed in the authors index
+// During batch operations, it creates/updates authors without checking for existing ones to avoid
+// issues with uncommitted batches. Subjects are aggregated from committed documents only.
 func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data any) error) error {
 	for i, name := range document.Authors {
 		// Skip authors with empty names or empty slugs
@@ -151,19 +304,19 @@ func (b *BleveIndexer) indexAuthors(document Document, index func(id string, dat
 			continue
 		}
 
-		// Check if author already exists in authors index
-		indexedAuthor, err := b.authorsIdx.Document(document.AuthorsSlugs[i])
-		if err != nil {
-			return err
-		}
-		if indexedAuthor != nil {
-			continue
-		}
+		authorSlug := document.AuthorsSlugs[i]
 
+		// Create/update author - during batch operations we don't check for existing authors
+		// to avoid issues with uncommitted batches. The index function will handle updates.
+		// Subjects will be populated after batch commit via updateAllAuthorsSubjects()
 		author := Author{
-			Name:        name,
-			Slug:        document.AuthorsSlugs[i],
-			RetrievedOn: time.Time{},
+			Name:          name,
+			Slug:          authorSlug,
+			RetrievedOn:   time.Time{},
+			WikipediaLink: make(map[string]string),
+			Description:   make(map[string]string),
+			Pseudonyms:    []string{},
+			SubjectsSlugs: []string{},
 		}
 
 		if err := index(author.Slug, author); err != nil {
@@ -175,6 +328,9 @@ func (b *BleveIndexer) indexAuthors(document Document, index func(id string, dat
 }
 
 func (b *BleveIndexer) IndexAuthor(author Author) error {
+	if b.authorsIdx == nil {
+		return fmt.Errorf("authors index is not initialized")
+	}
 	if err := b.authorsIdx.Index(author.Slug, author); err != nil {
 		return err
 	}

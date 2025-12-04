@@ -24,12 +24,7 @@ type Author struct {
 	DataSourceImage string
 	Gender          float64
 	Pseudonyms      []string
-}
-
-// BleveType is part of the bleve.Classifier interface and its purpose is to tell the indexer
-// the type of the document, which will be used to decide which analyzer will parse it.
-func (a Author) BleveType() string {
-	return "author"
+	SubjectsSlugs   []string
 }
 
 func (a Author) YearOfBirthAbs() int {
