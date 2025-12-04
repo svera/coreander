@@ -380,9 +380,6 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 	if searchResult == nil || searchResult.Total == 0 {
 		return Author{}, nil
 	}
-	if searchResult.Total == 0 {
-		return Author{}, nil
-	}
 
 	// Use the shared hydrateAuthor function
 	author := hydrateAuthor(searchResult.Hits[0])

@@ -257,6 +257,7 @@ func (b *BleveIndexer) updateAllAuthorsSubjects() error {
 }
 
 // aggregateSubjectsForAuthor collects all unique subjects and subject slugs from all documents by an author
+// using Bleve faceted search for efficient aggregation
 func (b *BleveIndexer) aggregateSubjectsForAuthor(authorSlug string) ([]string, []string) {
 	if b.documentsIdx == nil {
 		return []string{}, []string{}
@@ -266,8 +267,14 @@ func (b *BleveIndexer) aggregateSubjectsForAuthor(authorSlug string) ([]string, 
 	query.SetField("AuthorsSlugs")
 
 	searchRequest := bleve.NewSearchRequest(query)
-	searchRequest.Size = 10000 // Get all documents (adjust if needed for very large libraries)
-	searchRequest.Fields = []string{"Subjects", "SubjectsSlugs"}
+	searchRequest.Size = 0 // We don't need document hits, only facets
+
+	// Add facet requests for Subjects and SubjectsSlugs
+	// Use a large size to get all unique terms
+	subjectsFacet := bleve.NewFacetRequest("Subjects", 10000)
+	subjectsSlugsFacet := bleve.NewFacetRequest("SubjectsSlugs", 10000)
+	searchRequest.AddFacet("subjects", subjectsFacet)
+	searchRequest.AddFacet("subjectsSlugs", subjectsSlugsFacet)
 
 	searchResult, err := b.documentsIdx.Search(searchRequest)
 	if err != nil {
@@ -275,47 +282,28 @@ func (b *BleveIndexer) aggregateSubjectsForAuthor(authorSlug string) ([]string, 
 		return []string{}, []string{}
 	}
 
-	subjectsMap := make(map[string]struct{})
-	subjectsSlugsMap := make(map[string]struct{})
+	subjects := []string{}
+	subjectsSlugs := []string{}
 
-	for _, hit := range searchResult.Hits {
-		if subjects, ok := hit.Fields["Subjects"]; ok && subjects != nil {
-			if subjectsSlice, ok := subjects.([]any); ok {
-				for _, subject := range subjectsSlice {
-					if subjectStr, ok := subject.(string); ok && subjectStr != "" {
-						subjectsMap[subjectStr] = struct{}{}
-					}
-				}
-			} else if subjectStr, ok := subjects.(string); ok && subjectStr != "" {
-				// Handle case where Bleve returns a single string instead of slice
-				subjectsMap[subjectStr] = struct{}{}
-			}
-		}
-
-		if subjectsSlugs, ok := hit.Fields["SubjectsSlugs"]; ok && subjectsSlugs != nil {
-			if slugsSlice, ok := subjectsSlugs.([]any); ok {
-				for _, slug := range slugsSlice {
-					if slugStr, ok := slug.(string); ok && slugStr != "" {
-						subjectsSlugsMap[slugStr] = struct{}{}
-					}
-				}
-			} else if slugStr, ok := subjectsSlugs.(string); ok && slugStr != "" {
-				// Handle case where Bleve returns a single string instead of slice
-				subjectsSlugsMap[slugStr] = struct{}{}
+	// Extract subjects from facet results
+	if subjectsFacetResult, ok := searchResult.Facets["subjects"]; ok && subjectsFacetResult.Terms != nil {
+		for _, term := range subjectsFacetResult.Terms.Terms() {
+			if term.Term != "" {
+				subjects = append(subjects, term.Term)
 			}
 		}
 	}
 
-	subjects := make([]string, 0, len(subjectsMap))
-	for subject := range subjectsMap {
-		subjects = append(subjects, subject)
+	// Extract subject slugs from facet results
+	if subjectsSlugsFacetResult, ok := searchResult.Facets["subjectsSlugs"]; ok && subjectsSlugsFacetResult.Terms != nil {
+		for _, term := range subjectsSlugsFacetResult.Terms.Terms() {
+			if term.Term != "" {
+				subjectsSlugs = append(subjectsSlugs, term.Term)
+			}
+		}
 	}
+
 	slices.Sort(subjects)
-
-	subjectsSlugs := make([]string, 0, len(subjectsSlugsMap))
-	for slug := range subjectsSlugsMap {
-		subjectsSlugs = append(subjectsSlugs, slug)
-	}
 	slices.Sort(subjectsSlugs)
 
 	return subjects, subjectsSlugs

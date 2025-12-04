@@ -29,7 +29,7 @@ const DocumentVersion = "v9"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const AuthorVersion = "2"
+const AuthorVersion = "1"
 
 // Metadata fields
 var (
