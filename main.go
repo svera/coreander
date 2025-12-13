@@ -28,14 +28,15 @@ const legacyIndexPath = "/.coreander/index" // Old single index path
 const databasePath = "/.coreander/database.db"
 
 var (
-	input           CLIInput
-	appFs           afero.Fs
-	idx             *index.BleveIndexer
-	db              *gorm.DB
-	homeDir         string
-	err             error
-	metadataReaders map[string]metadata.Reader
-	sender          webserver.Sender
+	input               CLIInput
+	appFs               afero.Fs
+	idx                 *index.BleveIndexer
+	db                  *gorm.DB
+	homeDir             string
+	err                 error
+	metadataReaders     map[string]metadata.Reader
+	sender              webserver.Sender
+	migrationSuccessful bool
 )
 
 func init() {
@@ -71,13 +72,16 @@ func init() {
 
 	appFs = afero.NewOsFs()
 
-	documentsIndex, authorsIndex, needsReindex := getIndexes(appFs)
+	var documentsIndex, authorsIndex bleve.Index
+	var needsReindex bool
+	documentsIndex, authorsIndex, needsReindex, migrationSuccessful = getIndexes(appFs)
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders)
 
 	// If index was migrated or newly created, force reindexing
 	if needsReindex {
 		input.ForceIndexing = true
 	}
+
 	db = infrastructure.Connect(homeDir+databasePath, input.WordsPerMinute)
 }
 
@@ -153,6 +157,13 @@ func main() {
 }
 
 func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
+	// Skip indexing if migration was successful - documents are already in the new index
+	if migrationSuccessful {
+		log.Println("Documents were successfully migrated from legacy index. Skipping library indexing.")
+		fileWatcher(idx, libPath)
+		return
+	}
+
 	start := time.Now().Unix()
 	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
 	err := idx.AddLibrary(batchSize, input.ForceIndexing)
@@ -165,14 +176,19 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
 	fileWatcher(idx, libPath)
 }
 
-func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool) {
+func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool, bool) {
 	needsReindex := false
+	migrationSuccessful := false
 
 	// Check if legacy single index exists (migration scenario)
 	legacyExists, _ := afero.DirExists(fs, homeDir+legacyIndexPath)
 	if legacyExists {
 		log.Println("Detected legacy single index format. Migrating to separate indexes...")
-		needsReindex = migrateLegacyIndex(fs)
+		needsReindex = migrateLegacyIndex(fs, homeDir, legacyIndexPath, documentsIndexPath, authorsIndexPath)
+		// Migration is successful if we don't need to reindex
+		if !needsReindex {
+			migrationSuccessful = true
+		}
 	}
 
 	// Open or create documents index
@@ -225,64 +241,5 @@ func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool) {
 		needsReindex = true
 	}
 
-	return documentsIndex, authorsIndex, needsReindex
-}
-
-func migrateLegacyIndex(fs afero.Fs) bool {
-	log.Println("Detected legacy single index format. Checking version...")
-
-	// Open the legacy index
-	legacyIndex, err := bleve.Open(homeDir + legacyIndexPath)
-	if err != nil {
-		log.Printf("Warning: Could not open legacy index: %v. Authors will be reindexed.", err)
-		return true // Force reindexing
-	}
-	defer legacyIndex.Close()
-
-	// Check the version of the legacy index
-	legacyVersion, err := legacyIndex.GetInternal([]byte("version"))
-	if err != nil {
-		log.Printf("Warning: Could not read legacy index version: %v. Authors will be reindexed.", err)
-		return true // Force reindexing
-	}
-	legacyVersionStr := string(legacyVersion)
-
-	// Only migrate authors if the legacy index version is v8
-	if legacyVersionStr == "v8" {
-		log.Println("Legacy index version is v8. Extracting authors before migration...")
-
-		// Create authors index if it doesn't exist
-		authorsIndexPath := homeDir + authorsIndexPath
-		authorsIndexExists, _ := afero.DirExists(fs, authorsIndexPath)
-		var authorsIndex bleve.Index
-
-		if !authorsIndexExists {
-			log.Println("Creating new authors index for migration...")
-			authorsIndex = index.CreateAuthorsIndex(authorsIndexPath)
-		} else {
-			authorsIndex, err = bleve.Open(authorsIndexPath)
-			if err != nil {
-				log.Printf("Warning: Could not open authors index: %v. Authors will be reindexed.", err)
-				return true // Force reindexing
-			}
-		}
-		defer authorsIndex.Close()
-
-		// Extract authors from legacy index (filterForAuthorsOnly=true to skip documents)
-		if err := index.MigrateAuthors(legacyIndex, authorsIndex, true); err != nil {
-			log.Printf("Warning: Could not migrate authors from legacy index: %v. Authors will be reindexed.", err)
-			return true // Force reindexing
-		}
-
-		log.Println("Successfully extracted authors from legacy index.")
-	} else {
-		log.Printf("Legacy index version is %s (not v8). Authors will be reindexed.", legacyVersionStr)
-	}
-
-	// Now remove the legacy index
-	log.Println("Removing legacy single index. Documents will be reindexed.")
-	if err := fs.RemoveAll(homeDir + legacyIndexPath); err != nil {
-		log.Printf("Warning: Could not remove legacy index: %v", err)
-	}
-	return true // Force reindexing documents
+	return documentsIndex, authorsIndex, needsReindex, migrationSuccessful
 }

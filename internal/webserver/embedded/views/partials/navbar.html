@@ -11,7 +11,7 @@
         <form action="/documents" class="d-flex justify-content-center flex-fill flex-shrink-1 pe-2" roles="search" style="min-width: 0;">
             <div class="input-group input-group-sm w-100">
                 <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
-                <input type="search" name="search" id="searchbox" class="form-control rounded-start-1" maxlength="255" autofocus value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
+                <input type="search" name="search" id="searchbox" class="form-control rounded-start-1" maxlength="255" value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" id="search-filters-offcanvas-toggle" data-bs-auto-close="outside" aria-expanded="false" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders"></i></button>
             </div>
         </form>
