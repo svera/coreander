@@ -330,7 +330,7 @@ func (b *BleveIndexer) TotalWordCount(IDs []string) (float64, error) {
 }
 
 func (b *BleveIndexer) analyzers() ([]string, error) {
-	// Get all languages from indexed documents
+	// Get all languages from indexed documents (already normalized to two-letter codes)
 	allLanguages, err := b.Languages()
 	if err != nil {
 		return []string{}, err
@@ -338,21 +338,10 @@ func (b *BleveIndexer) analyzers() ([]string, error) {
 
 	// Filter to only include languages that have analyzers configured
 	// This is needed because composeQuery() uses these analyzers to build search queries
-	// Normalize language codes to two letters for analyzer lookup
 	analyzers := []string{}
-	seenAnalyzers := make(map[string]bool)
 	for _, lang := range allLanguages {
-		// Normalize to two-letter code for analyzer lookup
-		normalizedLang := lang
-		if len(lang) >= 2 {
-			normalizedLang = lang[:2]
-		}
-		if _, hasAnalyzer := noStopWordsFilters[normalizedLang]; hasAnalyzer {
-			// Deduplicate normalized analyzers
-			if !seenAnalyzers[normalizedLang] {
-				analyzers = append(analyzers, normalizedLang)
-				seenAnalyzers[normalizedLang] = true
-			}
+		if _, hasAnalyzer := noStopWordsFilters[lang]; hasAnalyzer {
+			analyzers = append(analyzers, lang)
 		}
 	}
 
