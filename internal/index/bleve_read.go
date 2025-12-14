@@ -345,6 +345,11 @@ func (b *BleveIndexer) analyzers() ([]string, error) {
 		}
 	}
 
+	// Always include defaultAnalyzer to ensure documents without language or with unsupported languages are searchable
+	if !slices.Contains(analyzers, defaultAnalyzer) {
+		analyzers = append(analyzers, defaultAnalyzer)
+	}
+
 	return analyzers, nil
 }
 
