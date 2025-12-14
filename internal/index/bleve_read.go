@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"math"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -327,33 +328,72 @@ func (b *BleveIndexer) TotalWordCount(IDs []string) (float64, error) {
 }
 
 func (b *BleveIndexer) analyzers() ([]string, error) {
-	languages, err := b.documentsIdx.GetInternal([]byte("languages"))
+	// Get all languages from indexed documents
+	allLanguages, err := b.Languages()
 	if err != nil {
 		return []string{}, err
 	}
-	return strings.Split(string(languages), ","), nil
-}
 
-// Languages returns a list of all unique languages in the indexed documents
-func (b *BleveIndexer) Languages() ([]string, error) {
-	languages, err := b.documentsIdx.GetInternal([]byte("languages"))
-	if err != nil {
-		return []string{}, err
-	}
-	if len(languages) == 0 {
-		return []string{}, nil
-	}
-
-	allLanguages := strings.Split(string(languages), ",")
-	var filteredLanguages []string
+	// Filter to only include languages that have analyzers configured
+	// This is needed because composeQuery() uses these analyzers to build search queries
+	// Normalize language codes to two letters for analyzer lookup
+	analyzers := []string{}
+	seenAnalyzers := make(map[string]bool)
 	for _, lang := range allLanguages {
-		// Filter out empty strings and default_analyzer
-		if lang != "" && lang != "default_analyzer" {
-			filteredLanguages = append(filteredLanguages, lang)
+		// Normalize to two-letter code for analyzer lookup
+		normalizedLang := lang
+		if len(lang) >= 2 {
+			normalizedLang = lang[:2]
+		}
+		if _, hasAnalyzer := noStopWordsFilters[normalizedLang]; hasAnalyzer {
+			// Deduplicate normalized analyzers
+			if !seenAnalyzers[normalizedLang] {
+				analyzers = append(analyzers, normalizedLang)
+				seenAnalyzers[normalizedLang] = true
+			}
 		}
 	}
 
-	return filteredLanguages, nil
+	return analyzers, nil
+}
+
+// Languages returns a list of all unique languages in the indexed documents using faceted search.
+func (b *BleveIndexer) Languages() ([]string, error) {
+	if b.documentsIdx == nil {
+		return []string{}, nil
+	}
+
+	// Use faceted search to get all unique languages from documents
+	matchAllQuery := bleve.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
+	searchRequest.Size = 0 // We don't need document hits, only facets
+
+	// Add facet request for Language field
+	// Use a large size to get all unique languages
+	languageFacet := bleve.NewFacetRequest("Language", 10000)
+	searchRequest.AddFacet("languages", languageFacet)
+
+	searchResult, err := b.documentsIdx.Search(searchRequest)
+	if err != nil {
+		return []string{}, err
+	}
+
+	languages := []string{}
+
+	// Extract languages from facet results
+	if languageFacetResult, ok := searchResult.Facets["languages"]; ok && languageFacetResult.Terms != nil {
+		for _, term := range languageFacetResult.Terms.Terms() {
+			if term.Term == "" || term.Term == "default_analyzer" {
+				continue
+			}
+			languages = append(languages, term.Term)
+		}
+	}
+
+	// Sort for consistent output
+	slices.Sort(languages)
+
+	return languages, nil
 }
 
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
