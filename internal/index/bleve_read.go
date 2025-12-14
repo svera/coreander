@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"math"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -103,7 +104,9 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 
 func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
 	if searchFields.Language != "" {
-		q := bleve.NewTermQuery(searchFields.Language)
+		// Use prefix query to match all regional variants of the selected language
+		// e.g., selecting "es" will match "es", "es_MX", "es-ES", "es-CL", etc.
+		q := bleve.NewPrefixQuery(searchFields.Language)
 		q.SetField("Language")
 		filtersQuery.AddQuery(q)
 	}
@@ -327,33 +330,77 @@ func (b *BleveIndexer) TotalWordCount(IDs []string) (float64, error) {
 }
 
 func (b *BleveIndexer) analyzers() ([]string, error) {
-	languages, err := b.documentsIdx.GetInternal([]byte("languages"))
+	// Get all languages from indexed documents (already normalized to two-letter codes)
+	allLanguages, err := b.Languages()
 	if err != nil {
 		return []string{}, err
 	}
-	return strings.Split(string(languages), ","), nil
-}
 
-// Languages returns a list of all unique languages in the indexed documents
-func (b *BleveIndexer) Languages() ([]string, error) {
-	languages, err := b.documentsIdx.GetInternal([]byte("languages"))
-	if err != nil {
-		return []string{}, err
-	}
-	if len(languages) == 0 {
-		return []string{}, nil
-	}
-
-	allLanguages := strings.Split(string(languages), ",")
-	var filteredLanguages []string
+	// Filter to only include languages that have analyzers configured
+	// This is needed because composeQuery() uses these analyzers to build search queries
+	analyzers := []string{}
 	for _, lang := range allLanguages {
-		// Filter out empty strings and default_analyzer
-		if lang != "" && lang != "default_analyzer" {
-			filteredLanguages = append(filteredLanguages, lang)
+		if _, hasAnalyzer := noStopWordsFilters[lang]; hasAnalyzer {
+			analyzers = append(analyzers, lang)
 		}
 	}
 
-	return filteredLanguages, nil
+	// Always include defaultAnalyzer to ensure documents without language or with unsupported languages are searchable
+	if !slices.Contains(analyzers, defaultAnalyzer) {
+		analyzers = append(analyzers, defaultAnalyzer)
+	}
+
+	return analyzers, nil
+}
+
+// Languages returns a list of all unique languages in the indexed documents using faceted search.
+func (b *BleveIndexer) Languages() ([]string, error) {
+	if b.documentsIdx == nil {
+		return []string{}, nil
+	}
+
+	// Use faceted search to get all unique languages from documents
+	matchAllQuery := bleve.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
+	searchRequest.Size = 0 // We don't need document hits, only facets
+
+	// Add facet request for Language field
+	// Use a large size to get all unique languages
+	languageFacet := bleve.NewFacetRequest("Language", 10000)
+	searchRequest.AddFacet("languages", languageFacet)
+
+	searchResult, err := b.documentsIdx.Search(searchRequest)
+	if err != nil {
+		return []string{}, err
+	}
+
+	// Use a map to track unique normalized language codes
+	languageMap := make(map[string]bool)
+
+	// Extract and normalize languages from facet results
+	if languageFacetResult, ok := searchResult.Facets["languages"]; ok && languageFacetResult.Terms != nil {
+		for _, term := range languageFacetResult.Terms.Terms() {
+			if term.Term == "" || term.Term == "default_analyzer" {
+				continue
+			}
+			// Normalize to two-letter base language code
+			if len(term.Term) >= 2 {
+				baseLang := term.Term[:2]
+				languageMap[baseLang] = true
+			}
+		}
+	}
+
+	// Convert map to slice
+	languages := make([]string, 0, len(languageMap))
+	for lang := range languageMap {
+		languages = append(languages, lang)
+	}
+
+	// Sort for consistent output
+	slices.Sort(languages)
+
+	return languages, nil
 }
 
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
