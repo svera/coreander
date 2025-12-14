@@ -104,7 +104,9 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 
 func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
 	if searchFields.Language != "" {
-		q := bleve.NewTermQuery(searchFields.Language)
+		// Use prefix query to match all regional variants of the selected language
+		// e.g., selecting "es" will match "es", "es_MX", "es-ES", "es-CL", etc.
+		q := bleve.NewPrefixQuery(searchFields.Language)
 		q.SetField("Language")
 		filtersQuery.AddQuery(q)
 	}
@@ -378,16 +380,27 @@ func (b *BleveIndexer) Languages() ([]string, error) {
 		return []string{}, err
 	}
 
-	languages := []string{}
+	// Use a map to track unique normalized language codes
+	languageMap := make(map[string]bool)
 
-	// Extract languages from facet results
+	// Extract and normalize languages from facet results
 	if languageFacetResult, ok := searchResult.Facets["languages"]; ok && languageFacetResult.Terms != nil {
 		for _, term := range languageFacetResult.Terms.Terms() {
 			if term.Term == "" || term.Term == "default_analyzer" {
 				continue
 			}
-			languages = append(languages, term.Term)
+			// Normalize to two-letter base language code
+			if len(term.Term) >= 2 {
+				baseLang := term.Term[:2]
+				languageMap[baseLang] = true
+			}
 		}
+	}
+
+	// Convert map to slice
+	languages := make([]string, 0, len(languageMap))
+	for lang := range languageMap {
+		languages = append(languages, lang)
 	}
 
 	// Sort for consistent output
