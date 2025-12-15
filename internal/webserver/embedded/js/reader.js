@@ -686,8 +686,19 @@ class Reader {
         }
 
         const k = event.key
-        if (k === 'ArrowLeft' || k === 'h') this.view.goLeft()
-        else if(k === 'ArrowRight' || k === 'l') this.view.goRight()
+        if (k === 'ArrowLeft' || k === 'h') {
+            // Prevent default behavior on buttons to avoid triggering button actions
+            if (target && target.tagName === 'BUTTON') {
+                event.preventDefault()
+            }
+            this.view.goLeft()
+        } else if(k === 'ArrowRight' || k === 'l') {
+            // Prevent default behavior on buttons to avoid triggering button actions
+            if (target && target.tagName === 'BUTTON') {
+                event.preventDefault()
+            }
+            this.view.goRight()
+        }
     }
     #onLoad({ detail: { doc, index } }) {
         doc.addEventListener('keydown', this.#handleKeydown.bind(this))
