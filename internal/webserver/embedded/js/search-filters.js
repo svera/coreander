@@ -20,8 +20,9 @@ function isLeapYear(year) {
  * @param {HTMLElement} monthSelect - The month select element
  * @param {HTMLElement} dayInput - The day input element
  * @param {HTMLElement} yearInput - The year input element
+ * @param {HTMLElement} dateControl - The date-control container element (optional, for updating hidden input)
  */
-function updateMaxDays(monthSelect, dayInput, yearInput) {
+function updateMaxDays(monthSelect, dayInput, yearInput, dateControl = null) {
     const month = parseInt(monthSelect.value)
     const year = parseInt(yearInput.value) || new Date().getFullYear()
 
@@ -46,7 +47,40 @@ function updateMaxDays(monthSelect, dayInput, yearInput) {
     const currentDay = parseInt(dayInput.value)
     if (currentDay > maxDays) {
         dayInput.value = maxDays
+        // Update hidden input if dateControl is provided
+        if (dateControl) {
+            updateHiddenDateInput(dateControl)
+        }
     }
+}
+
+/**
+ * Updates the hidden date input field with the composed date value
+ * @param {HTMLElement} dateControl - The date-control container element
+ */
+function updateHiddenDateInput(dateControl) {
+    const yearInput = dateControl.querySelector('.input-year')
+    const monthSelect = dateControl.querySelector('.input-month')
+    const dayInput = dateControl.querySelector('.input-day')
+    const hiddenDateInput = dateControl.querySelector('.date')
+
+    // Only update if year has a value
+    if (!yearInput.value || yearInput.value === '' || yearInput.value === '0') {
+        hiddenDateInput.value = ''
+        return
+    }
+
+    let year = yearInput.value
+    if (year.startsWith('-') || year.startsWith('+')) {
+        year = year.substring(0, 1) + year.substring(1).padStart(4, '0')
+    } else {
+        year = year.padStart(4, '0')
+    }
+
+    const month = monthSelect.value || '01'
+    const day = (dayInput.value || '1').padStart(2, '0')
+
+    hiddenDateInput.value = year + '-' + month + '-' + day
 }
 
 // Set up event listeners for all month selects
@@ -57,18 +91,36 @@ searchFilters.querySelectorAll('.date-control').forEach(dateControl => {
 
     // Update max days when month changes
     monthSelect.addEventListener('change', () => {
-        updateMaxDays(monthSelect, dayInput, yearInput)
+        updateMaxDays(monthSelect, dayInput, yearInput, dateControl)
+        updateHiddenDateInput(dateControl)
     })
 
     // Update max days when year changes (for February)
     yearInput.addEventListener('change', () => {
         if (parseInt(monthSelect.value) === 2) { // Only update if February is selected
-            updateMaxDays(monthSelect, dayInput, yearInput)
+            updateMaxDays(monthSelect, dayInput, yearInput, dateControl)
         }
+        updateHiddenDateInput(dateControl)
+    })
+
+    // Update hidden date input when year input changes (for text input)
+    yearInput.addEventListener('input', () => {
+        updateHiddenDateInput(dateControl)
+    })
+
+    // Update hidden date input when day changes
+    dayInput.addEventListener('change', () => {
+        updateHiddenDateInput(dateControl)
+    })
+
+    dayInput.addEventListener('input', () => {
+        updateHiddenDateInput(dateControl)
     })
 
     // Initial update of max days
-    updateMaxDays(monthSelect, dayInput, yearInput)
+    updateMaxDays(monthSelect, dayInput, yearInput, dateControl)
+    // Initial update of hidden date input
+    updateHiddenDateInput(dateControl)
 })
 
 searchFiltersForm.addEventListener('submit', event => {
