@@ -95,6 +95,11 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 
 		query := composeQuery(searchFields.Keywords, analyzers)
 		filtersQuery.AddQuery(query)
+	} else {
+		// When no keywords are provided, use MatchAllQuery to return all documents
+		// Filters will still be applied on top of this
+		matchAllQuery := bleve.NewMatchAllQuery()
+		filtersQuery.AddQuery(matchAllQuery)
 	}
 
 	addFilters(searchFields, filtersQuery)
@@ -103,10 +108,11 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 }
 
 func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
-	if searchFields.Language != "" {
+	// Only filter by language if a language is specified
+	if searchFields.Language != "" && strings.TrimSpace(searchFields.Language) != "" {
 		// Use prefix query to match all regional variants of the selected language
 		// e.g., selecting "es" will match "es", "es_MX", "es-ES", "es-CL", etc.
-		q := bleve.NewPrefixQuery(searchFields.Language)
+		q := bleve.NewPrefixQuery(strings.TrimSpace(searchFields.Language))
 		q.SetField("Language")
 		filtersQuery.AddQuery(q)
 	}
