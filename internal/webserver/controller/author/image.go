@@ -12,6 +12,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/kovidgoyal/imaging"
+	"github.com/svera/coreander/v4/internal/datasource/wikidata"
 )
 
 func (a *Controller) Image(c *fiber.Ctx) error {
@@ -37,18 +38,23 @@ func (a *Controller) Image(c *fiber.Ctx) error {
 
 		// Check if author has an image
 		if author.DataSourceImage == "" {
-			log.Printf("author %s has no image", authorSlug)
-			return fiber.ErrNotFound
-		}
+			// Use default image based on gender
+			img, err = a.loadDefaultImage(author.Gender)
+			if err != nil {
+				log.Printf("author %s has no image and failed to load default: %v", authorSlug, err)
+				return fiber.ErrNotFound
+			}
+			// Don't save default images to cache
+		} else {
+			img, err = a.readFromDataSource(author.DataSourceImage)
+			if err != nil {
+				log.Println(fmt.Errorf("error getting image from data source: %w", err))
+				return fiber.ErrInternalServerError
+			}
 
-		img, err = a.readFromDataSource(author.DataSourceImage)
-		if err != nil {
-			log.Println(fmt.Errorf("error getting image from data source: %w", err))
-			return fiber.ErrInternalServerError
-		}
-
-		if err = a.saveImage(img, imageFileName); err != nil {
-			log.Println(fmt.Errorf("error saving image '%s' to cache: %w", imageFileName, err))
+			if err = a.saveImage(img, imageFileName); err != nil {
+				log.Println(fmt.Errorf("error saving image '%s' to cache: %w", imageFileName, err))
+			}
 		}
 	}
 	buf := new(bytes.Buffer)
@@ -123,4 +129,30 @@ func (a *Controller) saveImage(img image.Image, filename string, opts ...imaging
 		err = errc
 	}
 	return err
+}
+
+func (a *Controller) loadDefaultImage(gender float64) (image.Image, error) {
+	var defaultImagePath string
+	switch gender {
+	case wikidata.GenderMale:
+		defaultImagePath = "male.webp"
+	case wikidata.GenderFemale:
+		defaultImagePath = "female.webp"
+	default:
+		// Default to male for unknown gender
+		defaultImagePath = "male.webp"
+	}
+
+	file, err := a.embeddedImagesFS.Open(defaultImagePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open default image %s: %w", defaultImagePath, err)
+	}
+	defer file.Close()
+
+	img, err := imaging.Decode(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode default image %s: %w", defaultImagePath, err)
+	}
+
+	return img, nil
 }

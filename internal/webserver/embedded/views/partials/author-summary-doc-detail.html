@@ -1,5 +1,5 @@
 <div class="mt-3 row ms-0">
-    <div class="{{if .Author.DataSourceImage}}col-9{{end}} ps-0">
+    <div class="col-9 ps-0">
         <div class="d-flex align-items-baseline">
             <h3>{{.Author.Name}}</h3>
             {{if and (ne .Author.BirthName "") (not .Author.BirthNameIncludesName)}}
@@ -86,13 +86,11 @@
         </ul>
         {{end}}
     </div>
-    {{if .Author.DataSourceImage}}
     <div class="col-3 d-flex align-items-start px-0">
         <div class="ratio ratio-1x1">
             <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid object-fit-cover w-100 rounded-circle" alt="{{.Author.Name}}">
         </div>
     </div>
-    {{end}}
 </div>
 {{if eq .Session.Role 2}}
     {{if not .Author.RetrievedOn.IsZero }}

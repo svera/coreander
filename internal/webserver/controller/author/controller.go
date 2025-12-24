@@ -1,6 +1,8 @@
 package author
 
 import (
+	"io/fs"
+
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
@@ -42,16 +44,18 @@ type Controller struct {
 	config            Config
 	dataSource        DataSource
 	appFs             afero.Fs
+	embeddedImagesFS  fs.FS
 }
 
-func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReader, cfg Config, dataSource DataSource, appFs afero.Fs) *Controller {
+func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReader, cfg Config, dataSource DataSource, appFs afero.Fs, embeddedImagesFS fs.FS) *Controller {
 	return &Controller{
-		hlRepository:      hlRepository,
+		hlRepository:     hlRepository,
 		readingRepository: readingRepository,
-		idx:               idx,
-		sender:            sender,
-		config:            cfg,
-		dataSource:        dataSource,
-		appFs:             appFs,
+		idx:              idx,
+		sender:           sender,
+		config:           cfg,
+		dataSource:       dataSource,
+		appFs:            appFs,
+		embeddedImagesFS: embeddedImagesFS,
 	}
 }
