@@ -88,7 +88,7 @@
     </div>
     <div class="col-3 d-flex align-items-start px-0">
         <div class="ratio ratio-1x1">
-            <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid object-fit-cover w-100 rounded-circle" alt="{{.Author.Name}}">
+            <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg{{.ImageVersion}}" class="img-fluid object-fit-cover w-100 rounded-circle{{if and .Session (eq .Session.Role 2)}} author-image-upload cursor-pointer{{end}}" alt="{{.Author.Name}}"{{if and .Session (eq .Session.Role 2)}} data-author-slug="{{.Author.Slug}}" title='{{t .Lang "Click to upload a custom image"}}'{{end}}>
         </div>
     </div>
 </div>

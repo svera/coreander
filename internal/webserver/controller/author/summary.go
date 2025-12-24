@@ -1,14 +1,21 @@
 package author
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/datasource/model"
 	"github.com/svera/coreander/v4/internal/index"
+	webservermodel "github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 func (a *Controller) Summary(c *fiber.Ctx) error {
+	// Set cache headers to prevent caching of author summary HTML
+	// This ensures fresh ImageVersion is always retrieved
+	c.Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Set("Pragma", "no-cache")
+	c.Set("Expires", "0")
 	var (
 		authorDataSource model.Author
 		err              error
@@ -36,9 +43,20 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
+	// Get session and image version (used in both branches)
+	var session webservermodel.Session
+	if val, ok := c.Locals("Session").(webservermodel.Session); ok {
+		session = val
+	}
+
+	// Get image cache version for cache busting
+	imageVersion := a.getImageVersion(author.Slug)
+
 	if !author.RetrievedOn.IsZero() {
 		templateVars := fiber.Map{
-			"Author": author,
+			"Author":       author,
+			"Session":      session,
+			"ImageVersion": imageVersion,
 		}
 
 		if err = c.Render(template, templateVars); err != nil {
@@ -65,7 +83,9 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Author": author,
+		"Author":       author,
+		"Session":      session,
+		"ImageVersion": imageVersion,
 	}
 
 	if err = c.Render(template, templateVars); err != nil {
@@ -99,4 +119,15 @@ func combineWithDataSource(author *index.Author, authorDataSource model.Author, 
 		author.WikipediaLink[lang] = authorDataSource.WikipediaLink(lang)
 		author.Description[lang] = authorDataSource.Description(lang)
 	}
+}
+
+// getImageVersion returns the modification time of the cached image file as a cache-busting version
+// Returns empty string if file doesn't exist
+func (a *Controller) getImageVersion(authorSlug string) string {
+	imageFileName := a.config.CacheDir + "/" + authorSlug + ".jpg"
+	fileInfo, err := a.appFs.Stat(imageFileName)
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("?t=%d", fileInfo.ModTime().Unix())
 }
