@@ -101,3 +101,6 @@
         </div>
     {{end}}
 {{end}}
+{{if and .Session (eq .Session.Role 2)}}
+<script src="/js/author-image-upload.js{{versionParam .Version}}"></script>
+{{end}}
