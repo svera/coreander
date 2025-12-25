@@ -51,14 +51,12 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 
 	// Get image cache version for cache busting
 	imageVersion := a.getImageVersion(author.Slug)
-	version := c.Locals("Version").(string)
 
 	if !author.RetrievedOn.IsZero() {
 		templateVars := fiber.Map{
 			"Author":       author,
 			"Session":      session,
 			"ImageVersion": imageVersion,
-			"Version":      version,
 		}
 
 		if err = c.Render(template, templateVars); err != nil {
@@ -88,7 +86,6 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 		"Author":       author,
 		"Session":      session,
 		"ImageVersion": imageVersion,
-		"Version":      version,
 	}
 
 	if err = c.Render(template, templateVars); err != nil {
