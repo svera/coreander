@@ -19,7 +19,7 @@ document.addEventListener('click', function(e) {
 
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedTypes.includes(file.type)) {
-      alert('Invalid file type. Only JPEG and PNG images are allowed.');
+      showToast(img.dataset.invalidFileType || 'Invalid file type. Only JPEG and PNG images are allowed.', 'danger');
       return;
     }
 
@@ -44,7 +44,7 @@ document.addEventListener('click', function(e) {
       if (data.success) {
         reloadAuthorImage(img);
       } else {
-        alert(data.error || 'Failed to upload image');
+        showToast(data.error || img.dataset.uploadFailed || 'Failed to upload image', 'danger');
       }
     })
     .catch(error => {
@@ -52,7 +52,7 @@ document.addEventListener('click', function(e) {
       img.dataset.uploading = 'false';
       img.style.opacity = '1';
       img.style.cursor = '';
-      alert('An error occurred while uploading the image');
+      showToast(img.dataset.uploadError || 'An error occurred while uploading the image', 'danger');
     });
   });
 
@@ -90,5 +90,15 @@ function reloadAuthorImage(img) {
     target: htmxContainer,
     swap: 'outerHTML'
   });
+}
+
+function showToast(message, type) {
+  const toastId = type === 'danger' ? 'live-toast-danger' : 'live-toast-success';
+  const toast = document.getElementById(toastId);
+  if (!toast) return;
+
+  toast.querySelector('.toast-body').innerHTML = message;
+  const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toast);
+  toastBootstrap.show();
 }
 

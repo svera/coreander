@@ -68,6 +68,23 @@ func (a *Controller) Image(c *fiber.Ctx) error {
 	}
 
 	// Set cache headers based on whether file exists
+	if shouldReturn304 := a.setupClientCache(c, fileInfo); shouldReturn304 {
+		return c.Status(304).Send(nil)
+	}
+
+	buf := new(bytes.Buffer)
+	if err = imaging.Encode(buf, img, imaging.JPEG); err != nil {
+		log.Println(fmt.Errorf("error encoding image to JPEG: %w", err))
+		return fiber.ErrInternalServerError
+	}
+	c.Response().Header.Set(fiber.HeaderContentType, "image/jpeg")
+	c.Response().BodyWriter().Write(buf.Bytes())
+	return nil
+}
+
+// setupClientCache configures cache headers for the image response.
+// Returns true if a 304 Not Modified response should be sent.
+func (a *Controller) setupClientCache(c *fiber.Ctx, fileInfo os.FileInfo) bool {
 	if fileInfo != nil {
 		// If cache-busting query parameter is present, disable caching completely
 		if c.Query("t") != "" {
@@ -82,7 +99,7 @@ func (a *Controller) Image(c *fiber.Ctx) error {
 
 			// Check If-None-Match header for 304 Not Modified
 			if match := c.Get("If-None-Match"); match == etag {
-				return c.Status(304).Send(nil)
+				return true
 			}
 
 			// Set Cache-Control: allow caching but must revalidate when ETag changes
@@ -96,15 +113,7 @@ func (a *Controller) Image(c *fiber.Ctx) error {
 		c.Set("Cache-Control", cacheControl)
 		c.Append("Cache-Time", fmt.Sprintf("%d", a.config.ServerImageCacheTTL))
 	}
-
-	buf := new(bytes.Buffer)
-	if err = imaging.Encode(buf, img, imaging.JPEG); err != nil {
-		log.Println(fmt.Errorf("error encoding image to JPEG: %w", err))
-		return fiber.ErrInternalServerError
-	}
-	c.Response().Header.Set(fiber.HeaderContentType, "image/jpeg")
-	c.Response().BodyWriter().Write(buf.Bytes())
-	return nil
+	return false
 }
 
 func (a *Controller) readFromDataSource(path string) (image.Image, error) {

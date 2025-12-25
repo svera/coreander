@@ -89,7 +89,7 @@
         </div>
         <div class="col-lg-3 col-md-6 col-sm-6 p-3 d-flex align-items-center">
             <div class="ratio ratio-1x1">
-                <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg{{.ImageVersion}}" class="img-fluid object-fit-cover w-100 rounded-circle p-3{{if and .Session (eq .Session.Role 2)}} author-image-upload cursor-pointer{{end}}" alt="{{.Author.Name}}"{{if and .Session (eq .Session.Role 2)}} data-author-slug="{{.Author.Slug}}" title='{{t .Lang "Click to upload a custom image"}}'{{end}}>
+                <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg{{.ImageVersion}}" class="img-fluid object-fit-cover w-100 rounded-circle p-3{{if and .Session (eq .Session.Role 2)}} author-image-upload cursor-pointer{{end}}" alt="{{.Author.Name}}"{{if and .Session (eq .Session.Role 2)}} data-author-slug="{{.Author.Slug}}" data-invalid-file-type='{{t .Lang "Invalid file type. Only JPEG and PNG images are allowed."}}' data-upload-failed='{{t .Lang "Failed to upload image"}}' data-upload-error='{{t .Lang "An error occurred while uploading the image"}}' title='{{t .Lang "Click to upload a custom image"}}'{{end}}>
             </div>
         </div>
     </div>
