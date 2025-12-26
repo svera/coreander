@@ -1,11 +1,8 @@
 package author
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
-	"mime/multipart"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -52,14 +49,15 @@ func (a *Controller) UploadImage(c *fiber.Ctx) error {
 	}
 
 	// Read file
-	fileBytes, err := fileToBytes(file)
+	fileReader, err := file.Open()
 	if err != nil {
 		log.Error(err)
 		return fiber.ErrInternalServerError
 	}
+	defer fileReader.Close()
 
-	// Decode image
-	img, err := imaging.Decode(bytes.NewReader(fileBytes))
+	// Decode image directly from file reader
+	img, err := imaging.Decode(fileReader)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid image file",
@@ -87,19 +85,4 @@ func (a *Controller) UploadImage(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusOK)
-}
-
-func fileToBytes(fileHeader *multipart.FileHeader) ([]byte, error) {
-	f, err := fileHeader.Open()
-	if err != nil {
-		return []byte{}, err
-	}
-	defer f.Close()
-
-	buf := bytes.NewBuffer(nil)
-	if _, err := io.Copy(buf, f); err != nil {
-		return []byte{}, err
-	}
-
-	return buf.Bytes(), nil
 }
