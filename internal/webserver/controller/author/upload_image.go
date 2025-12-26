@@ -84,5 +84,5 @@ func (a *Controller) UploadImage(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	return c.SendStatus(fiber.StatusOK)
+	return nil
 }
