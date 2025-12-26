@@ -86,10 +86,7 @@ func (a *Controller) UploadImage(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	return c.JSON(fiber.Map{
-		"success": true,
-		"message": "Image uploaded successfully",
-	})
+	return c.SendStatus(fiber.StatusOK)
 }
 
 func fileToBytes(fileHeader *multipart.FileHeader) ([]byte, error) {

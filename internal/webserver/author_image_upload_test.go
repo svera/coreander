@@ -155,10 +155,5 @@ func TestAuthorImageUpload(t *testing.T) {
 			body, _ := io.ReadAll(response.Body)
 			t.Errorf("Expected status %d, got %d. Response: %s", expectedStatus, response.StatusCode, string(body))
 		}
-
-		// Verify response is JSON with success message
-		if response.Header.Get("Content-Type") != "application/json" {
-			t.Errorf("Expected Content-Type application/json, got %s", response.Header.Get("Content-Type"))
-		}
 	})
 }
