@@ -7,7 +7,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/datasource/model"
 	"github.com/svera/coreander/v4/internal/index"
-	webservermodel "github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 func (a *Controller) Summary(c *fiber.Ctx) error {
@@ -43,19 +42,12 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	// Get session and image version (used in both branches)
-	var session webservermodel.Session
-	if val, ok := c.Locals("Session").(webservermodel.Session); ok {
-		session = val
-	}
-
 	// Get image cache version for cache busting
 	imageVersion := a.getImageVersion(author.Slug)
 
 	if !author.RetrievedOn.IsZero() {
 		templateVars := fiber.Map{
 			"Author":       author,
-			"Session":      session,
 			"ImageVersion": imageVersion,
 		}
 
@@ -84,7 +76,6 @@ func (a *Controller) Summary(c *fiber.Ctx) error {
 
 	templateVars := fiber.Map{
 		"Author":       author,
-		"Session":      session,
 		"ImageVersion": imageVersion,
 	}
 
