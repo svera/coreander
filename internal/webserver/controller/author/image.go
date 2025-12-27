@@ -85,34 +85,34 @@ func (a *Controller) Image(c *fiber.Ctx) error {
 // setupClientCache configures cache headers for the image response.
 // Returns true if a 304 Not Modified response should be sent.
 func (a *Controller) setupClientCache(c *fiber.Ctx, fileInfo os.FileInfo) bool {
+	// If cache-busting query parameter is present, disable caching completely
+	if c.Query("t") != "" {
+		c.Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		c.Set("Pragma", "no-cache")
+		c.Set("Expires", "0")
+		return false
+	}
+
+	// Set common cache headers
+	c.Append("Cache-Time", fmt.Sprintf("%d", a.config.ServerImageCacheTTL))
+
 	if fileInfo != nil {
-		// If cache-busting query parameter is present, disable caching completely
-		if c.Query("t") != "" {
-			c.Set("Cache-Control", "no-cache, no-store, must-revalidate")
-			c.Set("Pragma", "no-cache")
-			c.Set("Expires", "0")
-		} else {
-			// Cached file exists - use ETag for cache validation
-			etag := fmt.Sprintf(`"%x-%x"`, fileInfo.ModTime().Unix(), fileInfo.Size())
-			c.Set("ETag", etag)
-			c.Set("Last-Modified", fileInfo.ModTime().UTC().Format(http.TimeFormat))
+		// Cached file exists - use ETag for cache validation
+		etag := fmt.Sprintf(`"%x-%x"`, fileInfo.ModTime().Unix(), fileInfo.Size())
+		c.Set("ETag", etag)
+		c.Set("Last-Modified", fileInfo.ModTime().UTC().Format(http.TimeFormat))
 
-			// Check If-None-Match header for 304 Not Modified
-			if match := c.Get("If-None-Match"); match == etag {
-				return true
-			}
-
-			// Set Cache-Control: allow caching but must revalidate when ETag changes
-			cacheControl := fmt.Sprintf("public, max-age=%d, must-revalidate", a.config.ClientImageCacheTTL)
-			c.Set("Cache-Control", cacheControl)
-			c.Append("Cache-Time", fmt.Sprintf("%d", a.config.ServerImageCacheTTL))
+		// Check If-None-Match header for 304 Not Modified
+		if c.Get("If-None-Match") == etag {
+			return true
 		}
+
+		c.Set("Cache-Control", fmt.Sprintf("public, max-age=%d, must-revalidate", a.config.ClientImageCacheTTL))
 	} else {
 		// For default images (not cached), allow short-term caching
-		cacheControl := fmt.Sprintf("public, max-age=%d", a.config.ClientImageCacheTTL)
-		c.Set("Cache-Control", cacheControl)
-		c.Append("Cache-Time", fmt.Sprintf("%d", a.config.ServerImageCacheTTL))
+		c.Set("Cache-Control", fmt.Sprintf("public, max-age=%d", a.config.ClientImageCacheTTL))
 	}
+
 	return false
 }
 
