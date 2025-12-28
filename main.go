@@ -18,7 +18,6 @@ import (
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/webserver"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 var version string = "unknown"
@@ -29,17 +28,15 @@ const legacyIndexPath = "/.coreander/index" // Old single index path
 const databasePath = "/.coreander/database.db"
 
 var (
-	input                CLIInput
-	appFs                afero.Fs
-	idx                  *index.BleveIndexer
-	db                   *gorm.DB
-	highlightsRepository *model.HighlightRepository
-	readingRepository    *model.ReadingRepository
-	homeDir              string
-	err                  error
-	metadataReaders      map[string]metadata.Reader
-	sender               webserver.Sender
-	migrationSuccessful  bool
+	input               CLIInput
+	appFs               afero.Fs
+	idx                 *index.BleveIndexer
+	db                  *gorm.DB
+	homeDir             string
+	err                 error
+	metadataReaders     map[string]metadata.Reader
+	sender              webserver.Sender
+	migrationSuccessful bool
 )
 
 func init() {
@@ -86,14 +83,12 @@ func init() {
 	}
 
 	db = infrastructure.Connect(homeDir+databasePath, input.WordsPerMinute)
-	highlightsRepository = &model.HighlightRepository{DB: db}
-	readingRepository = &model.ReadingRepository{DB: db}
 }
 
 func main() {
 	defer idx.Close()
 
-	go startIndex(idx, input.BatchSize, input.LibPath, highlightsRepository, readingRepository)
+	go startIndex(idx, input.BatchSize, input.LibPath)
 
 	sender = &infrastructure.NoEmail{}
 	if input.SmtpServer != "" && input.SmtpUser != "" && input.SmtpPassword != "" {
@@ -161,11 +156,11 @@ func main() {
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", input.Port)))
 }
 
-func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, hlRepo *model.HighlightRepository, readingRepo *model.ReadingRepository) {
+func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
 	// Skip indexing if migration was successful - documents are already in the new index
 	if migrationSuccessful {
 		log.Println("Documents were successfully migrated from legacy index. Skipping library indexing.")
-		fileWatcher(idx, libPath, hlRepo, readingRepo)
+		fileWatcher(idx, libPath)
 		return
 	}
 
@@ -178,7 +173,7 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, hlRepo *
 	end := time.Now().Unix()
 	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 	log.Printf("Indexing finished, took %d seconds", int(dur.Seconds()))
-	fileWatcher(idx, libPath, hlRepo, readingRepo)
+	fileWatcher(idx, libPath)
 }
 
 func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool, bool) {
