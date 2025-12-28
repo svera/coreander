@@ -62,7 +62,7 @@ function updateHiddenDateInput(dateControl) {
     const yearInput = dateControl.querySelector('.input-year')
     const monthSelect = dateControl.querySelector('.input-month')
     const dayInput = dateControl.querySelector('.input-day')
-    const hiddenDateInput = dateControl.querySelector('.date')
+    const hiddenDateInput = dateControl.parentElement.querySelector('.date')
 
     // Only update if year has a value
     if (!yearInput.value || yearInput.value === '' || yearInput.value === '0') {
@@ -128,7 +128,8 @@ searchFiltersForm.addEventListener('submit', event => {
 
   searchFiltersForm.querySelectorAll('.date-control').forEach(function (el) {
       if (el.getElementsByClassName('input-year')[0].value === '' || el.getElementsByClassName('input-year')[0].value === '0') return
-      let composed = el.getElementsByClassName('date')[0]
+      let composed = el.parentElement.querySelector('.date')
+      if (!composed) return
       let year = el.getElementsByClassName('input-year')[0].value
       if (year.startsWith('-') || year.startsWith('+')) {
         year = year.substring(0, 1) + year.substring(1).padStart(4, '0')
