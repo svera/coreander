@@ -18,6 +18,7 @@ import (
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/webserver"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 var version string = "unknown"
@@ -148,7 +149,8 @@ func main() {
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs, dataSource)
-	app := webserver.New(webserverConfig, controllers, sender, idx)
+	usersRepository := &model.UserRepository{DB: db}
+	app := webserver.New(webserverConfig, controllers, sender, idx, usersRepository)
 	if strings.ToLower(input.FQDN) == "localhost" {
 		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accessible outside this system.\n")
 	}

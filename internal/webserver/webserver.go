@@ -97,7 +97,7 @@ func init() {
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(cfg Config, controllers Controllers, sender Sender, idx ProgressInfo) *fiber.App {
+func New(cfg Config, controllers Controllers, sender Sender, idx ProgressInfo, usersRepository *model.UserRepository) *fiber.App {
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {
 		log.Fatal(err)
@@ -133,7 +133,7 @@ func New(cfg Config, controllers Controllers, sender Sender, idx ProgressInfo) *
 		compress.New(),
 	)
 
-	routes(app, controllers, cfg.JwtSecret, sender, translator, cfg, idx)
+	routes(app, controllers, cfg.JwtSecret, sender, translator, cfg, idx, usersRepository)
 	return app
 }
 
