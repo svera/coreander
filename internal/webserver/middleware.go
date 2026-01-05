@@ -80,7 +80,7 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18
 		SuccessHandler: func(c *fiber.Ctx) error {
 			session := sessionData(c)
 			c.Locals("Session", session)
-			usersRepository.UpdateLastLogin(session.ID)
+			usersRepository.UpdateLastRequest(session.ID)
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -98,7 +98,7 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n
 		SuccessHandler: func(c *fiber.Ctx) error {
 			session := sessionData(c)
 			c.Locals("Session", session)
-			usersRepository.UpdateLastLogin(session.ID)
+			usersRepository.UpdateLastRequest(session.ID)
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {

@@ -38,9 +38,9 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 		}, "layout")
 	}
 
-	user.LastLogin = time.Now().UTC()
+	user.LastRequest = time.Now().UTC()
 	if err := a.repository.Update(user); err != nil {
-		log.Printf("error updating user last login time: %v\n", err)
+		log.Printf("error updating user last request time: %v\n", err)
 		return fiber.ErrInternalServerError
 	}
 

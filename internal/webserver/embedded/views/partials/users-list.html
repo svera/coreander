@@ -20,10 +20,10 @@
                     {{end}}
                 </td>
                 <td>
-                    {{if $user.LastLogin.IsZero }}
+                    {{if $user.LastRequest.IsZero }}
                         {{t $lang "Never"}}
                     {{else}}
-                        <time class="relative capitalize locale" datetime='{{$user.LastLogin.Format "2006-01-02T15:04:05Z"}}'>{{$user.LastLogin.Format "2006-01-02T15:04:05Z"}}</time>
+                        <time class="relative capitalize locale" datetime='{{$user.LastRequest.Format "2006-01-02T15:04:05Z"}}'>{{$user.LastRequest.Format "2006-01-02T15:04:05Z"}}</time>
                     {{end}}
                 </td>
                 <td class="text-end">

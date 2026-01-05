@@ -62,7 +62,7 @@ func (u *UserRepository) Update(user *User) error {
 	return nil
 }
 
-func (u *UserRepository) UpdateLastLogin(userID uint) error {
+func (u *UserRepository) UpdateLastRequest(userID uint) error {
 	if userID == 0 {
 		return nil
 	}
@@ -73,7 +73,7 @@ func (u *UserRepository) UpdateLastLogin(userID uint) error {
 		}
 		return err
 	}
-	user.LastLogin = time.Now()
+	user.LastRequest = time.Now().UTC()
 	return u.Update(&user)
 }
 
