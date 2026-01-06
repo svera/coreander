@@ -49,8 +49,10 @@
       img.style.cursor = '';
 
       if (response.ok) {
-        reloadAuthorImage(img);
-        return; // Success, no need to parse response body
+        // Get timestamp from response header for cache busting
+        const timestamp = response.headers.get('X-Image-Timestamp');
+        reloadAuthorImage(img, timestamp);
+        return;
       }
 
       // Error response - try to parse JSON error message
@@ -92,13 +94,16 @@
     fileInput.click();
   });
 
-  function reloadAuthorImage(img) {
+  function reloadAuthorImage(img, timestamp) {
+    // Use provided timestamp or generate a new one
+    const cacheBuster = timestamp || Date.now();
+
     const htmxContainer = img.closest('[hx-get]');
     if (!htmxContainer?.getAttribute('hx-get')) {
-      // Fallback: update image src directly
+      // Fallback: update image src directly with cache buster
       const currentSrc = img.src.split('?')[0];
       img.src = '';
-      setTimeout(() => img.src = `${currentSrc}?t=${Date.now()}`, 10);
+      setTimeout(() => img.src = `${currentSrc}?t=${cacheBuster}`, 10);
       return;
     }
 
@@ -106,8 +111,12 @@
       if (event.detail.target === htmxContainer) {
         const newImg = htmxContainer.querySelector('img[src*="/authors/"]');
         if (newImg) {
+          // Force reload with cache buster to bypass browser cache
           const imgSrc = newImg.src.split('?')[0];
-          newImg.src = `${imgSrc}?t=${Date.now()}`;
+          newImg.src = '';
+          setTimeout(() => {
+            newImg.src = `${imgSrc}?t=${cacheBuster}`;
+          }, 10);
         }
         document.body.removeEventListener('htmx:afterSwap', handleReload);
       }
@@ -117,7 +126,7 @@
 
     const url = htmxContainer.getAttribute('hx-get');
     const separator = url.includes('?') ? '&' : '?';
-    htmx.ajax('GET', `${url}${separator}_t=${Date.now()}`, {
+    htmx.ajax('GET', `${url}${separator}_t=${cacheBuster}`, {
       target: htmxContainer,
       swap: 'outerHTML'
     });

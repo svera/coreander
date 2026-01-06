@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -82,6 +83,16 @@ func (a *Controller) UploadImage(c *fiber.Ctx) error {
 	if err = a.saveImage(img, imageFileName); err != nil {
 		log.Error(fmt.Errorf("error saving author image '%s': %w", imageFileName, err))
 		return fiber.ErrInternalServerError
+	}
+
+	// Set cache-busting timestamp in response header
+	// Get file info after saving to return the new modification time
+	fileInfo, statErr := a.appFs.Stat(imageFileName)
+	if statErr == nil {
+		c.Set("X-Image-Timestamp", fmt.Sprintf("%d", fileInfo.ModTime().Unix()))
+	} else {
+		// Fallback to current time if stat fails
+		c.Set("X-Image-Timestamp", fmt.Sprintf("%d", time.Now().Unix()))
 	}
 
 	return nil
