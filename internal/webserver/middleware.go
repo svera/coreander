@@ -72,13 +72,15 @@ func AllowIfNotLoggedIn(jwtSecret []byte) func(*fiber.Ctx) error {
 
 // AlwaysRequireAuthentication returns forbidden and renders the login page
 // if the user trying to access has not logged in
-func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator) func(*fiber.Ctx) error {
+func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, usersRepository *model.UserRepository) func(*fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
 		SigningMethod: "HS256",
 		TokenLookup:   "cookie:session",
 		SuccessHandler: func(c *fiber.Ctx) error {
-			c.Locals("Session", sessionData(c))
+			session := sessionData(c)
+			c.Locals("Session", session)
+			usersRepository.UpdateLastRequest(session.ID)
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -88,13 +90,15 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18
 }
 
 // ConfigurableAuthentication allows to enable or disable authentication on routes which may or may not require it
-func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, requireAuth bool) func(*fiber.Ctx) error {
+func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, requireAuth bool, usersRepository *model.UserRepository) func(*fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
 		SigningMethod: "HS256",
 		TokenLookup:   "cookie:session",
 		SuccessHandler: func(c *fiber.Ctx) error {
-			c.Locals("Session", sessionData(c))
+			session := sessionData(c)
+			c.Locals("Session", session)
+			usersRepository.UpdateLastRequest(session.ID)
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {

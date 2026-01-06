@@ -30,7 +30,7 @@ type User struct {
 	RecoveryValidUntil time.Time
 	Highlights         []Highlight `gorm:"constraint:OnDelete:CASCADE"`
 	Readings           []Reading   `gorm:"constraint:OnDelete:CASCADE"`
-	LastLogin          time.Time
+	LastRequest        time.Time
 	ShowFileName       bool   `gorm:"default:false; not null"`
 	PreferredEpubType  string `gorm:"default:'epub'; not null"`
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/svera/coreander/v4/internal/result"
 	"gorm.io/gorm"
@@ -59,6 +60,21 @@ func (u *UserRepository) Update(user *User) error {
 		return result.Error
 	}
 	return nil
+}
+
+func (u *UserRepository) UpdateLastRequest(userID uint) error {
+	if userID == 0 {
+		return nil
+	}
+	var user User
+	if err := u.DB.First(&user, userID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+	user.LastRequest = time.Now().UTC()
+	return u.Update(&user)
 }
 
 func (u *UserRepository) FindByEmail(email string) (*User, error) {

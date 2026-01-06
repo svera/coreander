@@ -21,6 +21,7 @@ import (
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/webserver"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 	"gorm.io/gorm"
 )
 
@@ -87,7 +88,8 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 		log.Fatal(err)
 	}
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs, dataSource)
-	return webserver.New(webserverConfig, controllers, sender, idx)
+	usersRepository := &model.UserRepository{DB: db}
+	return webserver.New(webserverConfig, controllers, sender, idx, usersRepository)
 }
 
 func loadFilesInMemoryFs(files []string) afero.Fs {
