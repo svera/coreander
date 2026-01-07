@@ -24,7 +24,7 @@
             <div class="col-12 mb-3">
                 {{$subject := ""}}
                 {{if .SearchFields}}
-                    {{$subject = .SearchFields.Subject}}
+                    {{$subject = .SearchFields.Subjects}}
                 {{end}}
                 <input type="hidden" name="subject" id="subject-hidden" value="{{$subject}}">
                 <input type="text" id="subject" class="form-control" placeholder='{{t .Lang "Subjects"}}' maxlength="255" list="subjects-list" autocomplete="off">
