@@ -271,15 +271,15 @@ if (subjectsInput && subjectsHiddenInput) {
     const initialValue = subjectsHiddenInput.value
     if (initialValue) {
         const subjects = initialValue.split(',').map(s => s.trim()).filter(s => s)
-        // Remove duplicates (case-insensitive)
-        selectedSubjects = []
-        subjects.forEach(subject => {
-            const isDuplicate = selectedSubjects.some(existing =>
-                existing.toLowerCase() === subject.toLowerCase()
-            )
-            if (!isDuplicate) {
-                selectedSubjects.push(subject)
+        // Remove duplicates (case-insensitive) using a Set
+        const seen = new Set()
+        selectedSubjects = subjects.filter(subject => {
+            const lower = subject.toLowerCase()
+            if (seen.has(lower)) {
+                return false
             }
+            seen.add(lower)
+            return true
         })
     }
 
