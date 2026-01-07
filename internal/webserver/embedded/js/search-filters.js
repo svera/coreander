@@ -160,9 +160,9 @@ window.addEventListener('pageshow', () => {
 
 // Load subjects for autocomplete
 const subjectsList = document.getElementById('subjects-list')
-const subjectInput = document.getElementById('subject')
-const subjectHiddenInput = document.getElementById('subject-hidden')
-const subjectBadgesContainer = document.getElementById('subject-badges-container')
+const subjectsInput = document.getElementById('subject')
+const subjectsHiddenInput = document.getElementById('subject-hidden')
+const subjectsBadgesContainer = document.getElementById('subject-badges-container')
 
 // Array to store selected subjects
 let selectedSubjects = []
@@ -192,19 +192,19 @@ if (subjectsList) {
 
 // Update badges display
 function updateSubjectBadges() {
-    if (!subjectBadgesContainer || !subjectHiddenInput) return
+    if (!subjectsBadgesContainer || !subjectsHiddenInput) return
 
     // Clear existing badges
-    subjectBadgesContainer.innerHTML = ''
+    subjectsBadgesContainer.innerHTML = ''
 
     if (selectedSubjects.length === 0) {
-        subjectBadgesContainer.classList.add('d-none')
-        subjectHiddenInput.value = ''
+        subjectsBadgesContainer.classList.add('d-none')
+        subjectsHiddenInput.value = ''
         return
     }
 
     // Show container
-    subjectBadgesContainer.classList.remove('d-none')
+    subjectsBadgesContainer.classList.remove('d-none')
 
     // Create badge for each selected subject
     selectedSubjects.forEach((subject, index) => {
@@ -229,11 +229,11 @@ function updateSubjectBadges() {
         })
         badge.appendChild(closeBtn)
 
-        subjectBadgesContainer.appendChild(badge)
+        subjectsBadgesContainer.appendChild(badge)
     })
 
     // Update hidden input with comma-separated values
-    subjectHiddenInput.value = selectedSubjects.join(',')
+    subjectsHiddenInput.value = selectedSubjects.join(',')
 }
 
 // Add a subject
@@ -251,10 +251,10 @@ function addSubject(subject) {
     if (!isDuplicate) {
         selectedSubjects.push(trimmedSubject)
         updateSubjectBadges()
-        subjectInput.value = ''
+        subjectsInput.value = ''
     } else {
         // Clear input even if duplicate to provide feedback
-        subjectInput.value = ''
+        subjectsInput.value = ''
     }
 }
 
@@ -262,13 +262,13 @@ function addSubject(subject) {
 function removeSubject(index) {
     selectedSubjects.splice(index, 1)
     updateSubjectBadges()
-    subjectInput.focus()
+    subjectsInput.focus()
 }
 
 // Initialize on page load
-if (subjectInput && subjectHiddenInput) {
+if (subjectsInput && subjectsHiddenInput) {
     // Load initial subjects from hidden input
-    const initialValue = subjectHiddenInput.value
+    const initialValue = subjectsHiddenInput.value
     if (initialValue) {
         const subjects = initialValue.split(',').map(s => s.trim()).filter(s => s)
         // Remove duplicates (case-insensitive)
@@ -291,7 +291,7 @@ if (subjectInput && subjectHiddenInput) {
     }
 
     // Handle input changes
-    subjectInput.addEventListener('input', (e) => {
+    subjectsInput.addEventListener('input', (e) => {
         const value = e.target.value.trim()
 
         // Check if value matches a datalist option
@@ -307,7 +307,7 @@ if (subjectInput && subjectHiddenInput) {
     })
 
     // Handle change event (when autocomplete is used)
-    subjectInput.addEventListener('change', (e) => {
+    subjectsInput.addEventListener('change', (e) => {
         const value = e.target.value.trim()
         if (value) {
             addSubject(value)
@@ -315,14 +315,14 @@ if (subjectInput && subjectHiddenInput) {
     })
 
     // Handle Enter key to add subject
-    subjectInput.addEventListener('keydown', (e) => {
+    subjectsInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault()
-            const value = subjectInput.value.trim()
+            const value = subjectsInput.value.trim()
             if (value) {
                 addSubject(value)
             }
-        } else if (e.key === 'Backspace' && subjectInput.value === '' && selectedSubjects.length > 0) {
+        } else if (e.key === 'Backspace' && subjectsInput.value === '' && selectedSubjects.length > 0) {
             // Remove last subject when backspace is pressed on empty input
             removeSubject(selectedSubjects.length - 1)
         }
