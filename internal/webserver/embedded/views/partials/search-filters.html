@@ -26,7 +26,7 @@
                 {{if .SearchFields}}
                     {{$subject = .SearchFields.Subjects}}
                 {{end}}
-                <input type="hidden" name="subject" id="subject-hidden" value="{{$subject}}">
+                <input type="hidden" name="subjects" id="subject-hidden" value="{{$subject}}">
                 <input type="text" id="subject" class="form-control" placeholder='{{t .Lang "Filter subjects..."}}' maxlength="255" list="subjects-list" autocomplete="off">
                 <datalist id="subjects-list"></datalist>
                 <div id="subject-badges-container" class="d-flex flex-wrap gap-2 mt-2 d-none">

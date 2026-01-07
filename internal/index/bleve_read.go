@@ -68,7 +68,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			}
 		}
 
-		for _, prefix := range []string{"AuthorsSlugs:", "SeriesSlug:", "SubjectsSlugs:"} {
+		for _, prefix := range []string{"AuthorsSlugs:", "SeriesSlug:"} {
 			unescaped, err := url.QueryUnescape(strings.TrimSpace(searchFields.Keywords))
 			if err != nil {
 				break

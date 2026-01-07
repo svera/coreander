@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -113,6 +114,10 @@ func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, er
 			return name
 		}
 		return strings.ToUpper(code)
+	})
+
+	engine.AddFunc("urlquery", func(text string) string {
+		return url.QueryEscape(text)
 	})
 
 	return engine, nil
