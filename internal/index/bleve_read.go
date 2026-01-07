@@ -62,8 +62,9 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
 				query := bleve.NewQueryStringQuery(searchFields.Keywords)
 				filtersQuery.AddQuery(query)
-				analyzers, _ := b.analyzers()
-				if len(analyzers) == 0 {
+				analyzers, err := b.analyzers()
+				if err != nil {
+					// Fallback to default analyzer if analyzers() fails
 					analyzers = []string{defaultAnalyzer}
 				}
 				addFilters(searchFields, filtersQuery, analyzers)
@@ -89,8 +90,8 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 				qb.AddQuery(qs)
 			}
 			filtersQuery.AddQuery(qb)
-			analyzers, _ := b.analyzers()
-			if len(analyzers) == 0 {
+			analyzers, err := b.analyzers()
+			if err != nil {
 				analyzers = []string{defaultAnalyzer}
 			}
 			addFilters(searchFields, filtersQuery, analyzers)
