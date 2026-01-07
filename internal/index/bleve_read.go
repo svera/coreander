@@ -429,8 +429,28 @@ func (b *BleveIndexer) Languages() ([]string, error) {
 	return languages, nil
 }
 
+// normalizeSubjectName normalizes a subject name to have only the first letter capitalized.
+// For example: "Science Fiction" -> "Science fiction", "SCIENCE FICTION" -> "Science fiction"
+func normalizeSubjectName(subject string) string {
+	if subject == "" {
+		return subject
+	}
+	// Convert to lowercase first, then capitalize only the first letter
+	subject = strings.ToLower(subject)
+	if len(subject) > 0 {
+		// Capitalize first letter
+		first := strings.ToUpper(string(subject[0]))
+		if len(subject) > 1 {
+			return first + subject[1:]
+		}
+		return first
+	}
+	return subject
+}
+
 // Subjects returns a list of all unique subjects in the indexed documents using faceted search.
 // Uses Subjects field (now keyword field) for faceting to get complete subject names.
+// Subject names are normalized to have only the first letter capitalized.
 func (b *BleveIndexer) Subjects() ([]string, error) {
 	if b.documentsIdx == nil {
 		return []string{}, nil
@@ -451,16 +471,18 @@ func (b *BleveIndexer) Subjects() ([]string, error) {
 		return []string{}, err
 	}
 
-	// Use a map to track unique subjects
+	// Use a map to track unique normalized subjects
 	subjectsMap := make(map[string]bool)
 
-	// Extract subjects from facet results
+	// Extract subjects from facet results and normalize them
 	if subjectsFacetResult, ok := searchResult.Facets["subjects"]; ok && subjectsFacetResult.Terms != nil {
 		for _, term := range subjectsFacetResult.Terms.Terms() {
 			if term.Term == "" {
 				continue
 			}
-			subjectsMap[term.Term] = true
+			// Normalize subject name (only first letter capitalized)
+			normalized := normalizeSubjectName(term.Term)
+			subjectsMap[normalized] = true
 		}
 	}
 

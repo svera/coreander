@@ -168,7 +168,7 @@ const subjectBadgesContainer = document.getElementById('subject-badges-container
 let selectedSubjects = []
 
 if (subjectsList) {
-    fetch('/documents/subjects/list')
+    fetch('/subjects')
         .then(response => {
             if (!response.ok) {
                 throw new Error('Failed to fetch subjects')
