@@ -160,9 +160,9 @@ window.addEventListener('pageshow', () => {
 
 // Load subjects for autocomplete
 const subjectsList = document.getElementById('subjects-list')
-const subjectsInput = document.getElementById('subject')
-const subjectsHiddenInput = document.getElementById('subject-hidden')
-const subjectsBadgesContainer = document.getElementById('subject-badges-container')
+const subjectsInput = document.getElementById('subjects')
+const subjectsHiddenInput = document.getElementById('subjects-hidden')
+const subjectsBadgesContainer = document.getElementById('subjects-badges-container')
 
 // Array to store selected subjects
 let selectedSubjects = []
