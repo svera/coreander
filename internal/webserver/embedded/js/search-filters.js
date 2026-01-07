@@ -198,13 +198,13 @@ function updateSubjectBadges() {
     subjectBadgesContainer.innerHTML = ''
 
     if (selectedSubjects.length === 0) {
-        subjectBadgesContainer.style.display = 'none'
+        subjectBadgesContainer.classList.add('d-none')
         subjectHiddenInput.value = ''
         return
     }
 
     // Show container
-    subjectBadgesContainer.style.display = 'flex'
+    subjectBadgesContainer.classList.remove('d-none')
 
     // Create badge for each selected subject
     selectedSubjects.forEach((subject, index) => {

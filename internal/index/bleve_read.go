@@ -118,9 +118,9 @@ func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery)
 		filtersQuery.AddQuery(q)
 	}
 	// Only filter by subject if a subject is specified
-	if searchFields.Subject != "" && strings.TrimSpace(searchFields.Subject) != "" {
+	if searchFields.Subjects != "" && strings.TrimSpace(searchFields.Subjects) != "" {
 		// Support multiple subjects (comma-separated)
-		subjectStrings := strings.Split(searchFields.Subject, ",")
+		subjectStrings := strings.Split(searchFields.Subjects, ",")
 		subjectQueries := bleve.NewDisjunctionQuery()
 
 		for _, subjectStr := range subjectStrings {
