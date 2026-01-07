@@ -290,9 +290,13 @@ if (subjectsInput && subjectsHiddenInput) {
         updateSubjectBadges()
     }
 
-    // Handle input changes
+    // Track the last input value to detect when a datalist option is selected
+    let lastInputValue = ''
+
+    // Handle input changes - check if value matches a datalist option
     subjectsInput.addEventListener('input', (e) => {
         const value = e.target.value.trim()
+        lastInputValue = value
 
         // Check if value matches a datalist option
         const datalist = document.getElementById('subjects-list')
@@ -300,17 +304,37 @@ if (subjectsInput && subjectsHiddenInput) {
             const options = Array.from(datalist.options)
             const matchesOption = options.some(option => option.value === value)
             if (matchesOption) {
-                // Subject selected from datalist
-                addSubject(value)
+                // Subject selected from datalist - add it after a short delay
+                // to ensure the value is fully set
+                setTimeout(() => {
+                    if (subjectsInput.value.trim() === value) {
+                        addSubject(value)
+                    }
+                }, 50)
             }
         }
     })
 
-    // Handle change event (when autocomplete is used)
+    // Handle change event (when autocomplete is used or datalist option is selected)
     subjectsInput.addEventListener('change', (e) => {
         const value = e.target.value.trim()
-        if (value) {
+        if (value && value !== lastInputValue) {
             addSubject(value)
+        }
+    })
+
+    // Handle blur event as fallback for datalist selection
+    subjectsInput.addEventListener('blur', (e) => {
+        const value = e.target.value.trim()
+        if (value) {
+            const datalist = document.getElementById('subjects-list')
+            if (datalist) {
+                const options = Array.from(datalist.options)
+                const matchesOption = options.some(option => option.value === value)
+                if (matchesOption && !selectedSubjects.some(s => s.toLowerCase() === value.toLowerCase())) {
+                    addSubject(value)
+                }
+            }
         }
     })
 
