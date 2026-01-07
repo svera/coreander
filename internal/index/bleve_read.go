@@ -62,12 +62,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
 				query := bleve.NewQueryStringQuery(searchFields.Keywords)
 				filtersQuery.AddQuery(query)
-				analyzers, err := b.analyzers()
-				if err != nil {
-					// Fallback to default analyzer if analyzers() fails
-					analyzers = []string{defaultAnalyzer}
-				}
-				addFilters(searchFields, filtersQuery, analyzers)
+				addFilters(searchFields, filtersQuery)
 
 				return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 			}
@@ -90,11 +85,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 				qb.AddQuery(qs)
 			}
 			filtersQuery.AddQuery(qb)
-			analyzers, err := b.analyzers()
-			if err != nil {
-				analyzers = []string{defaultAnalyzer}
-			}
-			addFilters(searchFields, filtersQuery, analyzers)
+			addFilters(searchFields, filtersQuery)
 			return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 		}
 
@@ -112,16 +103,12 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		filtersQuery.AddQuery(matchAllQuery)
 	}
 
-	analyzers, err := b.analyzers()
-	if err != nil {
-		analyzers = []string{defaultAnalyzer}
-	}
-	addFilters(searchFields, filtersQuery, analyzers)
+	addFilters(searchFields, filtersQuery)
 
 	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 }
 
-func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery, analyzers []string) {
+func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
 	// Only filter by language if a language is specified
 	if searchFields.Language != "" && strings.TrimSpace(searchFields.Language) != "" {
 		// Use prefix query to match all regional variants of the selected language
