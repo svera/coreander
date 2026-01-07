@@ -205,17 +205,12 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 		qs.SetField("Series")
 		qs.Operator = query.MatchQueryOperatorAnd
 
-		qu := bleve.NewMatchQuery(keywords)
-		qu.Analyzer = analyzer
-		qu.SetField("Subjects")
-		qu.Operator = query.MatchQueryOperatorAnd
-
 		qd := bleve.NewMatchQuery(keywords)
 		qd.Analyzer = analyzer
 		qd.SetField("Description")
 		qd.Operator = query.MatchQueryOperatorAnd
 
-		langCompoundQuery.AddQuery(qt, qs, qu, qd)
+		langCompoundQuery.AddQuery(qt, qs, qd)
 
 		orTitleQuery := bleve.NewMatchQuery(keywords)
 		orTitleQuery.SetField("Title")
@@ -447,56 +442,39 @@ func (b *BleveIndexer) Languages() ([]string, error) {
 	return languages, nil
 }
 
-// Subjects returns a list of all unique subjects in the indexed documents.
-// Since Subjects is an analyzed field, we retrieve them directly from document fields
-// rather than using faceting (which would return tokens instead of complete names).
+// Subjects returns a list of all unique subjects in the indexed documents using faceted search.
+// Uses Subjects field (now keyword field) for faceting to get complete subject names.
 func (b *BleveIndexer) Subjects() ([]string, error) {
 	if b.documentsIdx == nil {
 		return []string{}, nil
 	}
 
+	// Use faceted search to get all unique subjects from documents
+	matchAllQuery := bleve.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
+	searchRequest.Size = 0 // We don't need document hits, only facets
+
+	// Add facet request for Subjects field (keyword field, not analyzed)
+	// Use a large size to get all unique subjects
+	subjectsFacet := bleve.NewFacetRequest("Subjects", 10000)
+	searchRequest.AddFacet("subjects", subjectsFacet)
+
+	searchResult, err := b.documentsIdx.Search(searchRequest)
+	if err != nil {
+		return []string{}, err
+	}
+
 	// Use a map to track unique subjects
 	subjectsMap := make(map[string]bool)
 
-	// Retrieve subjects by searching all documents in batches
-	// We need to access the actual field values, not faceted tokens
-	batchSize := 1000
-	from := 0
-
-	for {
-		matchAllQuery := bleve.NewMatchAllQuery()
-		searchRequest := bleve.NewSearchRequest(matchAllQuery)
-		searchRequest.Size = batchSize
-		searchRequest.From = from
-		searchRequest.Fields = []string{"Subjects"} // Only fetch Subjects field to reduce memory
-
-		searchResult, err := b.documentsIdx.Search(searchRequest)
-		if err != nil {
-			return []string{}, err
-		}
-
-		if len(searchResult.Hits) == 0 {
-			break
-		}
-
-		// Extract subjects from each document
-		for _, hit := range searchResult.Hits {
-			if hit.Fields["Subjects"] != nil {
-				subjects := slicer(hit.Fields["Subjects"])
-				for _, subject := range subjects {
-					if subject != "" {
-						subjectsMap[subject] = true
-					}
-				}
+	// Extract subjects from facet results
+	if subjectsFacetResult, ok := searchResult.Facets["subjects"]; ok && subjectsFacetResult.Terms != nil {
+		for _, term := range subjectsFacetResult.Terms.Terms() {
+			if term.Term == "" {
+				continue
 			}
+			subjectsMap[term.Term] = true
 		}
-
-		// If we got fewer results than requested, we've reached the end
-		if len(searchResult.Hits) < batchSize {
-			break
-		}
-
-		from += batchSize
 	}
 
 	// Convert map to slice
