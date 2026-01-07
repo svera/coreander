@@ -157,3 +157,174 @@ window.addEventListener('pageshow', () => {
       input.removeAttribute('disabled')
   })
 })
+
+// Load subjects for autocomplete
+const subjectsList = document.getElementById('subjects-list')
+const subjectInput = document.getElementById('subject')
+const subjectHiddenInput = document.getElementById('subject-hidden')
+const subjectBadgesContainer = document.getElementById('subject-badges-container')
+
+// Array to store selected subjects
+let selectedSubjects = []
+
+if (subjectsList) {
+    fetch('/documents/subjects/list')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch subjects')
+            }
+            return response.json()
+        })
+        .then(subjects => {
+            // Clear existing options
+            subjectsList.innerHTML = ''
+            // Add each subject as an option
+            subjects.forEach(subject => {
+                const option = document.createElement('option')
+                option.value = subject
+                subjectsList.appendChild(option)
+            })
+        })
+        .catch(error => {
+            console.error('Error loading subjects:', error)
+        })
+}
+
+// Update badges display
+function updateSubjectBadges() {
+    if (!subjectBadgesContainer || !subjectHiddenInput) return
+
+    // Clear existing badges
+    subjectBadgesContainer.innerHTML = ''
+
+    if (selectedSubjects.length === 0) {
+        subjectBadgesContainer.style.display = 'none'
+        subjectHiddenInput.value = ''
+        return
+    }
+
+    // Show container
+    subjectBadgesContainer.style.display = 'flex'
+
+    // Create badge for each selected subject
+    selectedSubjects.forEach((subject, index) => {
+        const badge = document.createElement('span')
+        badge.className = 'badge rounded-pill text-bg-primary d-inline-flex align-items-center'
+        badge.style.pointerEvents = 'all'
+
+        const badgeText = document.createElement('span')
+        badgeText.textContent = subject
+        badge.appendChild(badgeText)
+
+        const closeBtn = document.createElement('button')
+        closeBtn.type = 'button'
+        closeBtn.className = 'btn-close btn-close-white ms-1'
+        closeBtn.style.fontSize = '0.65em'
+        closeBtn.style.marginTop = '0'
+        closeBtn.setAttribute('aria-label', `Remove subject: ${subject}`)
+        closeBtn.addEventListener('click', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            removeSubject(index)
+        })
+        badge.appendChild(closeBtn)
+
+        subjectBadgesContainer.appendChild(badge)
+    })
+
+    // Update hidden input with comma-separated values
+    subjectHiddenInput.value = selectedSubjects.join(',')
+}
+
+// Add a subject
+function addSubject(subject) {
+    const trimmedSubject = subject.trim()
+    if (!trimmedSubject) {
+        return
+    }
+
+    // Check for duplicates (case-insensitive)
+    const isDuplicate = selectedSubjects.some(existing =>
+        existing.toLowerCase() === trimmedSubject.toLowerCase()
+    )
+
+    if (!isDuplicate) {
+        selectedSubjects.push(trimmedSubject)
+        updateSubjectBadges()
+        subjectInput.value = ''
+    } else {
+        // Clear input even if duplicate to provide feedback
+        subjectInput.value = ''
+    }
+}
+
+// Remove a subject
+function removeSubject(index) {
+    selectedSubjects.splice(index, 1)
+    updateSubjectBadges()
+    subjectInput.focus()
+}
+
+// Initialize on page load
+if (subjectInput && subjectHiddenInput) {
+    // Load initial subjects from hidden input
+    const initialValue = subjectHiddenInput.value
+    if (initialValue) {
+        const subjects = initialValue.split(',').map(s => s.trim()).filter(s => s)
+        // Remove duplicates (case-insensitive)
+        selectedSubjects = []
+        subjects.forEach(subject => {
+            const isDuplicate = selectedSubjects.some(existing =>
+                existing.toLowerCase() === subject.toLowerCase()
+            )
+            if (!isDuplicate) {
+                selectedSubjects.push(subject)
+            }
+        })
+    }
+
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', updateSubjectBadges)
+    } else {
+        updateSubjectBadges()
+    }
+
+    // Handle input changes
+    subjectInput.addEventListener('input', (e) => {
+        const value = e.target.value.trim()
+
+        // Check if value matches a datalist option
+        const datalist = document.getElementById('subjects-list')
+        if (datalist && value) {
+            const options = Array.from(datalist.options)
+            const matchesOption = options.some(option => option.value === value)
+            if (matchesOption) {
+                // Subject selected from datalist
+                addSubject(value)
+            }
+        }
+    })
+
+    // Handle change event (when autocomplete is used)
+    subjectInput.addEventListener('change', (e) => {
+        const value = e.target.value.trim()
+        if (value) {
+            addSubject(value)
+        }
+    })
+
+    // Handle Enter key to add subject
+    subjectInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            const value = subjectInput.value.trim()
+            if (value) {
+                addSubject(value)
+            }
+        } else if (e.key === 'Backspace' && subjectInput.value === '' && selectedSubjects.length > 0) {
+            // Remove last subject when backspace is pressed on empty input
+            removeSubject(selectedSubjects.length - 1)
+        }
+    })
+}

@@ -109,6 +109,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	docsGroup.Post("/:slug/send", alwaysRequireAuthentication, controllers.Documents.Send)
 	docsGroup.Get("/:slug", controllers.Documents.Detail)
 	docsGroup.Get("/", controllers.Documents.Search)
+	docsGroup.Get("/subjects/list", controllers.Documents.Subjects)
 
 	app.Get("/authors/:slug.:extension<regex(jpg)$/i>", controllers.Authors.Image)
 	app.Get("/authors/:slug", controllers.Authors.Documents)

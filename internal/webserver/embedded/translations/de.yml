@@ -175,6 +175,8 @@
 "'From' date must be earlier than 'to' date": "'Von'-Datum muss früher sein als 'Bis'-Datum"
 "Language": "Sprache"
 "All languages": "Alle Sprachen"
+"Subject": "Thema"
+"Subjects": "Themen"
 "relevance": "Relevanz"
 "older": "Ältere"
 "newer": "Neuere"

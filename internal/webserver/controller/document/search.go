@@ -94,6 +94,7 @@ func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) 
 	searchFields := index.SearchFields{
 		Keywords:        c.Query("search"),
 		Language:        c.Query("language"),
+		Subject:         c.Query("subject"),
 		SortBy:          d.parseSortBy(c),
 		EstReadTimeFrom: c.QueryFloat("est-read-time-from", 0),
 		EstReadTimeTo:   c.QueryFloat("est-read-time-to", 0),
@@ -141,4 +142,14 @@ func (d *Controller) parseSortBy(c *fiber.Ctx) []string {
 		}
 	}
 	return []string{"-_score", "Series", "SeriesIndex"}
+}
+
+// Subjects returns all unique subjects from the index as JSON
+func (d *Controller) Subjects(c *fiber.Ctx) error {
+	subjects, err := d.idx.Subjects()
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+	return c.JSON(subjects)
 }

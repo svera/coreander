@@ -12,6 +12,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
+	"github.com/gosimple/slug"
 	"github.com/rickb777/date/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/metadata"
@@ -61,7 +62,11 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
 				query := bleve.NewQueryStringQuery(searchFields.Keywords)
 				filtersQuery.AddQuery(query)
-				addFilters(searchFields, filtersQuery)
+				analyzers, _ := b.analyzers()
+				if len(analyzers) == 0 {
+					analyzers = []string{defaultAnalyzer}
+				}
+				addFilters(searchFields, filtersQuery, analyzers)
 
 				return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 			}
@@ -84,7 +89,11 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 				qb.AddQuery(qs)
 			}
 			filtersQuery.AddQuery(qb)
-			addFilters(searchFields, filtersQuery)
+			analyzers, _ := b.analyzers()
+			if len(analyzers) == 0 {
+				analyzers = []string{defaultAnalyzer}
+			}
+			addFilters(searchFields, filtersQuery, analyzers)
 			return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 		}
 
@@ -102,12 +111,16 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		filtersQuery.AddQuery(matchAllQuery)
 	}
 
-	addFilters(searchFields, filtersQuery)
+	analyzers, err := b.analyzers()
+	if err != nil {
+		analyzers = []string{defaultAnalyzer}
+	}
+	addFilters(searchFields, filtersQuery, analyzers)
 
 	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 }
 
-func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
+func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery, analyzers []string) {
 	// Only filter by language if a language is specified
 	if searchFields.Language != "" && strings.TrimSpace(searchFields.Language) != "" {
 		// Use prefix query to match all regional variants of the selected language
@@ -115,6 +128,30 @@ func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery)
 		q := bleve.NewPrefixQuery(strings.TrimSpace(searchFields.Language))
 		q.SetField("Language")
 		filtersQuery.AddQuery(q)
+	}
+	// Only filter by subject if a subject is specified
+	if searchFields.Subject != "" && strings.TrimSpace(searchFields.Subject) != "" {
+		// Support multiple subjects (comma-separated)
+		subjectStrings := strings.Split(searchFields.Subject, ",")
+		subjectQueries := bleve.NewDisjunctionQuery()
+
+		for _, subjectStr := range subjectStrings {
+			subjectStr = strings.TrimSpace(subjectStr)
+			if subjectStr == "" {
+				continue
+			}
+			// Convert subject to slug for exact matching on SubjectsSlugs field (keyword field)
+			subjectSlug := slug.Make(subjectStr)
+			// Use TermQuery for exact match on SubjectsSlugs (keyword field, not analyzed)
+			q := bleve.NewTermQuery(subjectSlug)
+			q.SetField("SubjectsSlugs")
+			subjectQueries.AddQuery(q)
+		}
+
+		// Only add query if we have at least one valid subject
+		if len(subjectQueries.Disjuncts) > 0 {
+			filtersQuery.AddQuery(subjectQueries)
+		}
 	}
 	if searchFields.PubDateFrom != 0 || searchFields.PubDateTo != 0 {
 		minDate := float64(searchFields.PubDateFrom)
@@ -407,6 +444,70 @@ func (b *BleveIndexer) Languages() ([]string, error) {
 	slices.Sort(languages)
 
 	return languages, nil
+}
+
+// Subjects returns a list of all unique subjects in the indexed documents.
+// Since Subjects is an analyzed field, we retrieve them directly from document fields
+// rather than using faceting (which would return tokens instead of complete names).
+func (b *BleveIndexer) Subjects() ([]string, error) {
+	if b.documentsIdx == nil {
+		return []string{}, nil
+	}
+
+	// Use a map to track unique subjects
+	subjectsMap := make(map[string]bool)
+
+	// Retrieve subjects by searching all documents in batches
+	// We need to access the actual field values, not faceted tokens
+	batchSize := 1000
+	from := 0
+
+	for {
+		matchAllQuery := bleve.NewMatchAllQuery()
+		searchRequest := bleve.NewSearchRequest(matchAllQuery)
+		searchRequest.Size = batchSize
+		searchRequest.From = from
+		searchRequest.Fields = []string{"Subjects"} // Only fetch Subjects field to reduce memory
+
+		searchResult, err := b.documentsIdx.Search(searchRequest)
+		if err != nil {
+			return []string{}, err
+		}
+
+		if len(searchResult.Hits) == 0 {
+			break
+		}
+
+		// Extract subjects from each document
+		for _, hit := range searchResult.Hits {
+			if hit.Fields["Subjects"] != nil {
+				subjects := slicer(hit.Fields["Subjects"])
+				for _, subject := range subjects {
+					if subject != "" {
+						subjectsMap[subject] = true
+					}
+				}
+			}
+		}
+
+		// If we got fewer results than requested, we've reached the end
+		if len(searchResult.Hits) < batchSize {
+			break
+		}
+
+		from += batchSize
+	}
+
+	// Convert map to slice
+	subjects := make([]string, 0, len(subjectsMap))
+	for subject := range subjectsMap {
+		subjects = append(subjects, subject)
+	}
+
+	// Sort for consistent output
+	slices.Sort(subjects)
+
+	return subjects, nil
 }
 
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
