@@ -218,10 +218,7 @@ function updateSubjectBadges() {
         const badge = document.createElement('span')
         badge.className = 'badge rounded-pill text-bg-primary d-inline-flex align-items-center'
         badge.style.pointerEvents = 'all'
-
-        const badgeText = document.createElement('span')
-        badgeText.textContent = subject
-        badge.appendChild(badgeText)
+        badge.textContent = subject
 
         const closeBtn = document.createElement('button')
         closeBtn.type = 'button'
