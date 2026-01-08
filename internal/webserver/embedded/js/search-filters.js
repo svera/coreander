@@ -158,6 +158,13 @@ window.addEventListener('pageshow', () => {
   })
 })
 
+// Load translations
+let translations = {}
+const i18nElement = document.getElementById('i18n')
+if (i18nElement) {
+    translations = JSON.parse(i18nElement.textContent).i18n
+}
+
 // Load subjects for autocomplete
 const subjectsList = document.getElementById('subjects-list')
 const subjectsInput = document.getElementById('subjects')
@@ -219,7 +226,8 @@ function updateSubjectBadges() {
         const closeBtn = document.createElement('button')
         closeBtn.type = 'button'
         closeBtn.className = 'btn-close btn-close-white ms-1 mt-0 small'
-        closeBtn.setAttribute('aria-label', `Remove subject: ${subject}`)
+        const removeSubjectLabel = translations.remove_subject ? translations.remove_subject.replace('%s', subject) : `Remove subject: ${subject}`
+        closeBtn.setAttribute('aria-label', removeSubjectLabel)
         closeBtn.addEventListener('click', (e) => {
             e.preventDefault()
             e.stopPropagation()
