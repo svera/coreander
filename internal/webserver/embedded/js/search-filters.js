@@ -331,7 +331,7 @@ if (subjectsInput && subjectsHiddenInput) {
         if (!value) {
             return
         }
-        if (matchesDatalistOption(value) && !selectedSubjects.some(s => s.toLowerCase() === value.toLowerCase())) {
+        if (matchesDatalistOption(value)) {
             addSubject(value)
         }
     })
