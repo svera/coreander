@@ -218,9 +218,7 @@ function updateSubjectBadges() {
 
         const closeBtn = document.createElement('button')
         closeBtn.type = 'button'
-        closeBtn.className = 'btn-close btn-close-white ms-1'
-        closeBtn.style.fontSize = '0.65em'
-        closeBtn.style.marginTop = '0'
+        closeBtn.className = 'btn-close btn-close-white ms-1 mt-0 small'
         closeBtn.setAttribute('aria-label', `Remove subject: ${subject}`)
         closeBtn.addEventListener('click', (e) => {
             e.preventDefault()
