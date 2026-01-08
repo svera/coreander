@@ -214,7 +214,7 @@ func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool, bool) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if string(version) == "" || string(version) < index.DocumentVersion {
+	if string(version) == "" || string(version) != index.DocumentVersion {
 		log.Println("Old version documents index found, recreating with new mapping.")
 		if err = documentsIndex.Close(); err != nil {
 			log.Fatal(err)
@@ -231,7 +231,7 @@ func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool, bool) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if string(version) == "" || string(version) < index.AuthorVersion {
+	if string(version) == "" || string(version) != index.AuthorVersion {
 		log.Println("Old version authors index found, recreating with new mapping.")
 		if err = authorsIndex.Close(); err != nil {
 			log.Fatal(err)

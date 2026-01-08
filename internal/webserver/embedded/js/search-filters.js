@@ -157,3 +157,190 @@ window.addEventListener('pageshow', () => {
       input.removeAttribute('disabled')
   })
 })
+
+// Load translations
+let translations = {}
+const i18nElement = document.getElementById('i18n')
+if (i18nElement) {
+    translations = JSON.parse(i18nElement.textContent).i18n
+}
+
+// Load subjects for autocomplete
+const subjectsList = document.getElementById('subjects-list')
+const subjectsInput = document.getElementById('subjects')
+const subjectsHiddenInput = document.getElementById('subjects-hidden')
+const subjectsBadgesContainer = document.getElementById('subjects-badges-container')
+
+// Array to store selected subjects
+let selectedSubjects = []
+
+if (subjectsList) {
+    fetch('/subjects')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch subjects')
+            }
+            return response.json()
+        })
+        .then(subjects => {
+            // Clear existing options
+            subjectsList.innerHTML = ''
+            // Add each subject as an option
+            subjects.forEach(subject => {
+                const option = document.createElement('option')
+                option.value = subject
+                subjectsList.appendChild(option)
+            })
+        })
+        .catch(error => {
+            console.error('Error loading subjects:', error)
+        })
+}
+
+// Update badges display
+function updateSubjectBadges() {
+    if (!subjectsBadgesContainer || !subjectsHiddenInput) return
+
+    // Clear existing badges
+    subjectsBadgesContainer.innerHTML = ''
+
+    if (selectedSubjects.length === 0) {
+        subjectsBadgesContainer.classList.add('d-none')
+        subjectsHiddenInput.value = ''
+        return
+    }
+
+    // Show container
+    subjectsBadgesContainer.classList.remove('d-none')
+
+    // Create badge for each selected subject
+    selectedSubjects.forEach((subject, index) => {
+        const badge = document.createElement('span')
+        badge.className = 'badge rounded-pill text-bg-primary d-inline-flex align-items-center'
+        badge.style.pointerEvents = 'all'
+        badge.textContent = subject
+
+        const closeBtn = document.createElement('button')
+        closeBtn.type = 'button'
+        closeBtn.className = 'btn-close btn-close-white ms-1 mt-0 small'
+        const removeSubjectLabel = translations.remove_subject ? translations.remove_subject.replace('%s', subject) : `Remove subject: ${subject}`
+        closeBtn.setAttribute('aria-label', removeSubjectLabel)
+        closeBtn.addEventListener('click', (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            removeSubject(index)
+        })
+        badge.appendChild(closeBtn)
+
+        subjectsBadgesContainer.appendChild(badge)
+    })
+
+    // Update hidden input with comma-separated values
+    subjectsHiddenInput.value = selectedSubjects.join(',')
+}
+
+// Add a subject
+function addSubject(subject) {
+    const trimmedSubject = subject.trim()
+    if (!trimmedSubject) {
+        return
+    }
+
+    // Check for duplicates (case-insensitive)
+    const isDuplicate = selectedSubjects.some(existing =>
+        existing.toLowerCase() === trimmedSubject.toLowerCase()
+    )
+
+    if (!isDuplicate) {
+        selectedSubjects.push(trimmedSubject)
+        updateSubjectBadges()
+    }
+    // Clear input even if duplicate to provide feedback
+    subjectsInput.value = ''
+}
+
+// Remove a subject
+function removeSubject(index) {
+    selectedSubjects.splice(index, 1)
+    updateSubjectBadges()
+    subjectsInput.focus()
+}
+
+// Check if a value matches a datalist option
+function matchesDatalistOption(value) {
+    const options = Array.from(subjectsList.options)
+    return options.some(option => option.value === value)
+}
+
+// Handle when a value might match a datalist option
+function handlePotentialDatalistMatch(value) {
+    if (!value) {
+        return
+    }
+    if (matchesDatalistOption(value)) {
+        addSubject(value)
+    }
+}
+
+// Initialize on page load
+if (subjectsInput && subjectsHiddenInput) {
+    // Load initial subjects from hidden input
+    const initialValue = subjectsHiddenInput.value
+    if (initialValue) {
+        const subjects = initialValue.split(',').map(s => s.trim()).filter(s => s)
+        // Remove duplicates (case-insensitive) using a Set
+        const seen = new Set()
+        selectedSubjects = subjects.filter(subject => {
+            const lower = subject.toLowerCase()
+            if (seen.has(lower)) {
+                return false
+            }
+            seen.add(lower)
+            return true
+        })
+    }
+
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', updateSubjectBadges)
+    } else {
+        updateSubjectBadges()
+    }
+
+    // Track the last input value to detect when a datalist option is selected
+    let lastInputValue = ''
+
+    // Handle input changes - check if value matches a datalist option
+    subjectsInput.addEventListener('input', (e) => {
+        const value = e.target.value.trim()
+        lastInputValue = value
+        handlePotentialDatalistMatch(value)
+    })
+
+    // Handle change event (when autocomplete is used or datalist option is selected)
+    subjectsInput.addEventListener('change', (e) => {
+        const value = e.target.value.trim()
+        if (value && value !== lastInputValue) {
+            addSubject(value)
+        }
+    })
+
+    // Handle blur event as fallback for datalist selection
+    subjectsInput.addEventListener('blur', (e) => {
+        handlePotentialDatalistMatch(e.target.value.trim())
+    })
+
+    // Handle Enter key to add subject
+    subjectsInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            const value = subjectsInput.value.trim()
+            if (value) {
+                addSubject(value)
+            }
+        } else if (e.key === 'Backspace' && subjectsInput.value === '' && selectedSubjects.length > 0) {
+            // Remove last subject when backspace is pressed on empty input
+            removeSubject(selectedSubjects.length - 1)
+        }
+    })
+}

@@ -10,6 +10,7 @@ import (
 type SearchFields struct {
 	Keywords        string
 	Language        string
+	Subjects        string
 	PubDateFrom     date.Date
 	PubDateTo       date.Date
 	EstReadTimeFrom float64

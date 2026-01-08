@@ -8,19 +8,32 @@
                 {{if .SearchFields}}
                     {{$language = .SearchFields.Language}}
                 {{end}}
-                <div class="form-floating">
                     <select class="form-select" name="language" id="language">
                         <option value="">{{t .Lang "All languages"}}</option>
                         {{range $lang := .AvailableLanguages}}
                         <option value="{{$lang}}" {{if eq $lang $language}}selected{{end}}>{{languageName $lang}}</option>
                         {{end}}
                     </select>
-                    <label class="form-label" for="language">{{t .Lang "Language"}}</label>
-                </div>
             </div>
         </div>
     </fieldset>
     {{end}}
+    <fieldset class="mt-5">
+        <legend class="fs-5"><i class="bi bi-tags me-3"></i>{{t .Lang "Subjects"}}</legend>
+        <div class="row">
+            <div class="col-12 mb-3">
+                {{$subject := ""}}
+                {{if .SearchFields}}
+                    {{$subject = .SearchFields.Subjects}}
+                {{end}}
+                <input type="hidden" name="subjects" id="subjects-hidden" value="{{$subject}}">
+                <input type="text" id="subjects" class="form-control" placeholder='{{t .Lang "Filter subjects..."}}' maxlength="255" list="subjects-list" autocomplete="off">
+                <datalist id="subjects-list"></datalist>
+                <div id="subjects-badges-container" class="d-flex flex-wrap gap-2 mt-2 d-none">
+                </div>
+            </div>
+        </div>
+    </fieldset>
     <fieldset class="mt-5">
         <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Publishing date"}}</legend>
         <div class="row">
@@ -85,5 +98,8 @@
     </fieldset>
 </div>
 
+<script id="i18n" type="application/json">{"i18n":{
+    "remove_subject": {{t .Lang "Remove subject: %s" "%s"}}
+}}</script>
 
 <script type="module" src="/js/search-filters.js{{versionParam .Version}}"></script>

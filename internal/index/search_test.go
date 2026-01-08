@@ -154,8 +154,8 @@ func TestLanguageFilter(t *testing.T) {
 		t.Errorf("Expected English language, got %s", res.Hits()[0].Metadata.Language)
 	}
 
-	// Test searching with keyword but no language filter - should return all matching documents
-	res, err = idx.Search(index.SearchFields{Keywords: "fiction"}, 1, 10)
+	// Test searching by subject but no language filter - should return all matching documents
+	res, err = idx.Search(index.SearchFields{Subjects: "Fiction"}, 1, 10)
 	if err != nil {
 		t.Fatalf("Error searching: %s", err.Error())
 	}
@@ -163,8 +163,8 @@ func TestLanguageFilter(t *testing.T) {
 		t.Errorf("Expected 3 documents (all languages with 'fiction' subject), got %d", res.TotalHits())
 	}
 
-	// Test combining language filter with keyword search - French
-	res, err = idx.Search(index.SearchFields{Keywords: "fiction", Language: "fr"}, 1, 10)
+	// Test combining language filter with subject search - French
+	res, err = idx.Search(index.SearchFields{Subjects: "Fiction", Language: "fr"}, 1, 10)
 	if err != nil {
 		t.Fatalf("Error searching: %s", err.Error())
 	}
@@ -277,7 +277,7 @@ func TestSearchResultsSortedByDate(t *testing.T) {
 
 	t.Run("Test search results sorted by publication date older first", func(t *testing.T) {
 		res, err := idx.Search(index.SearchFields{
-			Keywords: "history",
+			Subjects: "History",
 			SortBy:   []string{"Publication.Date"},
 		}, 1, 10)
 
@@ -300,7 +300,7 @@ func TestSearchResultsSortedByDate(t *testing.T) {
 
 	t.Run("Test search results sorted by publication date newer first", func(t *testing.T) {
 		res, err := idx.Search(index.SearchFields{
-			Keywords: "history",
+			Subjects: "History",
 			SortBy:   []string{"-Publication.Date"},
 		}, 1, 10)
 
@@ -1136,7 +1136,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{
-				Keywords: "history",
+				Subjects: "History",
 				SortBy:   []string{"Publication.Date"},
 			},
 			result.NewPaginated(
@@ -1185,7 +1185,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{
-				Keywords: "technology",
+				Subjects: "Technology",
 				SortBy:   []string{"-Publication.Date"},
 			},
 			result.NewPaginated(
@@ -1234,7 +1234,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{
-				Keywords: "literature",
+				Subjects: "Literature",
 				SortBy:   []string{"Publication.Date"},
 			},
 			result.NewPaginated(
@@ -1283,7 +1283,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{
-				Keywords: "history",
+				Subjects: "History",
 				SortBy:   []string{"Publication.Date"},
 			},
 			result.NewPaginated(

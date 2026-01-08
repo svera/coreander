@@ -12,6 +12,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
+	"github.com/gosimple/slug"
 	"github.com/rickb777/date/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/metadata"
@@ -67,7 +68,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			}
 		}
 
-		for _, prefix := range []string{"AuthorsSlugs:", "SeriesSlug:", "SubjectsSlugs:"} {
+		for _, prefix := range []string{"AuthorsSlugs:", "SeriesSlug:"} {
 			unescaped, err := url.QueryUnescape(strings.TrimSpace(searchFields.Keywords))
 			if err != nil {
 				break
@@ -115,6 +116,30 @@ func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery)
 		q := bleve.NewPrefixQuery(strings.TrimSpace(searchFields.Language))
 		q.SetField("Language")
 		filtersQuery.AddQuery(q)
+	}
+	// Only filter by subject if a subject is specified
+	if searchFields.Subjects != "" && strings.TrimSpace(searchFields.Subjects) != "" {
+		// Support multiple subjects (comma-separated)
+		subjectStrings := strings.Split(searchFields.Subjects, ",")
+		subjectQueries := bleve.NewDisjunctionQuery()
+
+		for _, subjectStr := range subjectStrings {
+			subjectStr = strings.TrimSpace(subjectStr)
+			if subjectStr == "" {
+				continue
+			}
+			// Convert subject to slug for exact matching on SubjectsSlugs field (keyword field)
+			subjectSlug := slug.Make(subjectStr)
+			// Use TermQuery for exact match on SubjectsSlugs (keyword field, not analyzed)
+			q := bleve.NewTermQuery(subjectSlug)
+			q.SetField("SubjectsSlugs")
+			subjectQueries.AddQuery(q)
+		}
+
+		// Only add query if we have at least one valid subject
+		if len(subjectQueries.Disjuncts) > 0 {
+			filtersQuery.AddQuery(subjectQueries)
+		}
 	}
 	if searchFields.PubDateFrom != 0 || searchFields.PubDateTo != 0 {
 		minDate := float64(searchFields.PubDateFrom)
@@ -167,17 +192,12 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 		qs.SetField("Series")
 		qs.Operator = query.MatchQueryOperatorAnd
 
-		qu := bleve.NewMatchQuery(keywords)
-		qu.Analyzer = analyzer
-		qu.SetField("Subjects")
-		qu.Operator = query.MatchQueryOperatorAnd
-
 		qd := bleve.NewMatchQuery(keywords)
 		qd.Analyzer = analyzer
 		qd.SetField("Description")
 		qd.Operator = query.MatchQueryOperatorAnd
 
-		langCompoundQuery.AddQuery(qt, qs, qu, qd)
+		langCompoundQuery.AddQuery(qt, qs, qd)
 
 		orTitleQuery := bleve.NewMatchQuery(keywords)
 		orTitleQuery.SetField("Title")
@@ -407,6 +427,75 @@ func (b *BleveIndexer) Languages() ([]string, error) {
 	slices.Sort(languages)
 
 	return languages, nil
+}
+
+// normalizeSubjectName normalizes a subject name to have only the first letter capitalized.
+// For example: "Science Fiction" -> "Science fiction", "SCIENCE FICTION" -> "Science fiction"
+func normalizeSubjectName(subject string) string {
+	if subject == "" {
+		return subject
+	}
+	// Convert to lowercase first, then capitalize only the first letter
+	subject = strings.ToLower(subject)
+	if len(subject) > 0 {
+		// Capitalize first letter
+		first := strings.ToUpper(string(subject[0]))
+		if len(subject) > 1 {
+			return first + subject[1:]
+		}
+		return first
+	}
+	return subject
+}
+
+// Subjects returns a list of all unique subjects in the indexed documents using faceted search.
+// Uses Subjects field (now keyword field) for faceting to get complete subject names.
+// Subject names are normalized to have only the first letter capitalized.
+func (b *BleveIndexer) Subjects() ([]string, error) {
+	if b.documentsIdx == nil {
+		return []string{}, nil
+	}
+
+	// Use faceted search to get all unique subjects from documents
+	matchAllQuery := bleve.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
+	searchRequest.Size = 0 // We don't need document hits, only facets
+
+	// Add facet request for Subjects field (keyword field, not analyzed)
+	// Use a large size to get all unique subjects
+	subjectsFacet := bleve.NewFacetRequest("Subjects", 10000)
+	searchRequest.AddFacet("subjects", subjectsFacet)
+
+	searchResult, err := b.documentsIdx.Search(searchRequest)
+	if err != nil {
+		return []string{}, err
+	}
+
+	// Use a map to track unique normalized subjects
+	subjectsMap := make(map[string]bool)
+
+	// Extract subjects from facet results and normalize them
+	if subjectsFacetResult, ok := searchResult.Facets["subjects"]; ok && subjectsFacetResult.Terms != nil {
+		for _, term := range subjectsFacetResult.Terms.Terms() {
+			if term.Term == "" {
+				continue
+			}
+			// Normalize subject name (only first letter capitalized)
+			normalized := normalizeSubjectName(term.Term)
+			subjectsMap[normalized] = true
+		}
+	}
+
+	// Convert map to slice
+	subjects := make([]string, 0, len(subjectsMap))
+	for subject := range subjectsMap {
+		subjects = append(subjects, subject)
+	}
+
+	// Sort for consistent output
+	slices.Sort(subjects)
+
+	return subjects, nil
 }
 
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
