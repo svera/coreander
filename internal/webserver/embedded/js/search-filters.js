@@ -257,11 +257,9 @@ function addSubject(subject) {
     if (!isDuplicate) {
         selectedSubjects.push(trimmedSubject)
         updateSubjectBadges()
-        subjectsInput.value = ''
-    } else {
-        // Clear input even if duplicate to provide feedback
-        subjectsInput.value = ''
     }
+    // Clear input even if duplicate to provide feedback
+    subjectsInput.value = ''
 }
 
 // Remove a subject
@@ -269,6 +267,12 @@ function removeSubject(index) {
     selectedSubjects.splice(index, 1)
     updateSubjectBadges()
     subjectsInput.focus()
+}
+
+// Check if a value matches a datalist option
+function matchesDatalistOption(value) {
+    const options = Array.from(subjectsList.options)
+    return options.some(option => option.value === value)
 }
 
 // Initialize on page load
@@ -302,22 +306,14 @@ if (subjectsInput && subjectsHiddenInput) {
     // Handle input changes - check if value matches a datalist option
     subjectsInput.addEventListener('input', (e) => {
         const value = e.target.value.trim()
+        if (!value) {
+            return
+        }
         lastInputValue = value
 
         // Check if value matches a datalist option
-        const datalist = document.getElementById('subjects-list')
-        if (datalist && value) {
-            const options = Array.from(datalist.options)
-            const matchesOption = options.some(option => option.value === value)
-            if (matchesOption) {
-                // Subject selected from datalist - add it after a short delay
-                // to ensure the value is fully set
-                setTimeout(() => {
-                    if (subjectsInput.value.trim() === value) {
-                        addSubject(value)
-                    }
-                }, 50)
-            }
+        if (matchesDatalistOption(value)) {
+            addSubject(value)
         }
     })
 
@@ -332,15 +328,11 @@ if (subjectsInput && subjectsHiddenInput) {
     // Handle blur event as fallback for datalist selection
     subjectsInput.addEventListener('blur', (e) => {
         const value = e.target.value.trim()
-        if (value) {
-            const datalist = document.getElementById('subjects-list')
-            if (datalist) {
-                const options = Array.from(datalist.options)
-                const matchesOption = options.some(option => option.value === value)
-                if (matchesOption && !selectedSubjects.some(s => s.toLowerCase() === value.toLowerCase())) {
-                    addSubject(value)
-                }
-            }
+        if (!value) {
+            return
+        }
+        if (matchesDatalistOption(value) && !selectedSubjects.some(s => s.toLowerCase() === value.toLowerCase())) {
+            addSubject(value)
         }
     })
 
