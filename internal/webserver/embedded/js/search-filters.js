@@ -275,6 +275,16 @@ function matchesDatalistOption(value) {
     return options.some(option => option.value === value)
 }
 
+// Handle when a value might match a datalist option
+function handlePotentialDatalistMatch(value) {
+    if (!value) {
+        return
+    }
+    if (matchesDatalistOption(value)) {
+        addSubject(value)
+    }
+}
+
 // Initialize on page load
 if (subjectsInput && subjectsHiddenInput) {
     // Load initial subjects from hidden input
@@ -306,15 +316,8 @@ if (subjectsInput && subjectsHiddenInput) {
     // Handle input changes - check if value matches a datalist option
     subjectsInput.addEventListener('input', (e) => {
         const value = e.target.value.trim()
-        if (!value) {
-            return
-        }
         lastInputValue = value
-
-        // Check if value matches a datalist option
-        if (matchesDatalistOption(value)) {
-            addSubject(value)
-        }
+        handlePotentialDatalistMatch(value)
     })
 
     // Handle change event (when autocomplete is used or datalist option is selected)
@@ -327,13 +330,7 @@ if (subjectsInput && subjectsHiddenInput) {
 
     // Handle blur event as fallback for datalist selection
     subjectsInput.addEventListener('blur', (e) => {
-        const value = e.target.value.trim()
-        if (!value) {
-            return
-        }
-        if (matchesDatalistOption(value)) {
-            addSubject(value)
-        }
+        handlePotentialDatalistMatch(e.target.value.trim())
     })
 
     // Handle Enter key to add subject
