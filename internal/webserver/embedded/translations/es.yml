@@ -218,6 +218,7 @@
 "You are not logged in. Your reading position is saved locally only.": "No has iniciado sesión. Tu posición de lectura solo se guarda localmente. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Iniciar sesión</a>"
 "Invite user": "Invitar usuario"
 "Send invitation": "Enviar invitación"
+"Cancel": "Cancelar"
 "Accept invitation": "Aceptar invitación"
 "Welcome to Coreander": "Bienvenido/a a Coreander"
 "Create your account": "Crea tu cuenta"
