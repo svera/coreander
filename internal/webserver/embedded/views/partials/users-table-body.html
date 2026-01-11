@@ -1,6 +1,37 @@
-{{template "partials/users-table-rows" dict "Lang" .Lang "Users" .Users "Admins" .Admins}}
+{{$lang := .Lang}}
+{{$admins := .Admins}}
+{{range $i, $user := .Users}}
+    <tr>
+        <td>
+            <a href="/users/{{$user.Username}}">{{$user.Name}}</a>
+            ({{$user.Email}})
+
+            {{if eq $user.Role 2}}
+            <span class="badge rounded-pill text-bg-secondary">Admin</span>
+            {{end}}
+        </td>
+        <td>
+            {{if $user.LastRequest.IsZero }}
+                {{t $lang "Never"}}
+            {{else}}
+                <time class="relative capitalize locale" datetime='{{$user.LastRequest.Format "2006-01-02T15:04:05Z"}}'>{{$user.LastRequest.Format "2006-01-02T15:04:05Z"}}</time>
+            {{end}}
+        </td>
+        <td class="text-end">
+            {{ if not (and (eq $admins 1) (eq $user.Role 2)) }}
+            <a href="#" data-bs-toggle="modal" data-bs-target="#delete-modal" data-url="/users/{{$user.Username}}">
+                <i class="bi-trash3-fill"></i>
+            </a>
+            {{end}}
+        </td>
+    </tr>
+{{end}}
+{{if .IsHTMX}}
+{{if .Paginator}}
 <div id="list" hx-swap-oob="innerHTML">
     {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
-    {{template "partials/pagination" dict "Lang" .Lang "Paginator" .Paginator}}
+    {{template "partials/pagination" dict "Lang" $lang "Paginator" .Paginator}}
     {{end}}
 </div>
+{{end}}
+{{end}}

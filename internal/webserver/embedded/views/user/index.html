@@ -49,8 +49,8 @@
             <th colspan="2">{{t .Lang "Last login"}}</th>
         </tr>
     </thead>
-    <tbody id="users-table-body" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" hx-swap="innerHTML">
-        {{template "partials/users-table-rows" dict "Lang" .Lang "Users" .Users "Admins" .Admins}}
+    <tbody id="users-table-body">
+        {{template "partials/users-table-body" dict "Lang" .Lang "Users" .Users "Admins" .Admins "Paginator" .Paginator "IsHTMX" false}}
     </tbody>
 </table>
 

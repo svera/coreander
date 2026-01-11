@@ -23,6 +23,7 @@ func (u *Controller) List(c *fiber.Ctx) error {
 
 	_, emailConfigured := u.sender.(*infrastructure.NoEmail)
 
+	isHTMX := c.Get("hx-request") == "true"
 	templateVars := fiber.Map{
 		"Title":              "Users",
 		"Users":              users.Hits(),
@@ -32,10 +33,12 @@ func (u *Controller) List(c *fiber.Ctx) error {
 		"Filter":             filter,
 		"EmailConfigured":    !emailConfigured,
 		"AvailableLanguages":  c.Locals("AvailableLanguages"),
+		"IsHTMX":             isHTMX,
 	}
 
-	if c.Get("hx-request") == "true" {
-		// Return table body (which includes pagination via out-of-band swap)
+	if isHTMX {
+		// Return table rows and pagination update in one response
+		// HTMX will extract the out-of-band swap element before swapping rows into tbody
 		if err = c.Render("partials/users-table-body", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
