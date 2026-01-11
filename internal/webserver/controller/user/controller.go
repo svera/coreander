@@ -14,8 +14,8 @@ type Sender interface {
 }
 
 type usersRepository interface {
-	List(page int, resultsPerPage int) (result.Paginated[[]model.User], error)
-	Total() int64
+	List(page int, resultsPerPage int, filter string) (result.Paginated[[]model.User], error)
+	Total(filter string) int64
 	FindByUuid(uuid string) (*model.User, error)
 	FindByUsername(username string) (*model.User, error)
 	Create(user *model.User) error

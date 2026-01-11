@@ -1,0 +1,6 @@
+{{template "partials/users-table-rows" dict "Lang" .Lang "Users" .Users "Admins" .Admins}}
+<div id="list" hx-swap-oob="innerHTML">
+    {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
+    {{template "partials/pagination" dict "Lang" .Lang "Paginator" .Paginator}}
+    {{end}}
+</div>

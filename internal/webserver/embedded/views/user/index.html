@@ -25,14 +25,37 @@
     </div>
 </div>
 
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>
+                <div class="d-flex align-items-center gap-2">
+                    <span>{{t .Lang "Name"}}</span>
+                    <input
+                        type="text"
+                        class="form-control form-control-sm"
+                        placeholder='{{t .Lang "Filter by name..."}}'
+                        name="filter"
+                        value="{{.Filter}}"
+                        hx-get="/users"
+                        hx-trigger="input changed delay:300ms"
+                        hx-target="#users-table-body"
+                        hx-indicator="#placeholder-indicator"
+                        hx-params="filter"
+                        hx-vals='{"page": "1"}'
+                        style="max-width: 200px;">
+                </div>
+            </th>
+            <th colspan="2">{{t .Lang "Last login"}}</th>
+        </tr>
+    </thead>
+    <tbody id="users-table-body" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" hx-swap="innerHTML">
+        {{template "partials/users-table-rows" dict "Lang" .Lang "Users" .Users "Admins" .Admins}}
+    </tbody>
+</table>
+
 <div id="placeholder-indicator" class="list-group-placeholder htmx-indicator w-100" aria-hidden="true">
     <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>{{t .Lang "Name"}}</th>
-                <th colspan="2">{{t .Lang "Last login"}}</th>
-            </tr>
-        </thead>
         <tbody>
         {{range .Users}}
             <tr class="placeholder-glow">
@@ -51,8 +74,10 @@
     </table>
 </div>
 
-<div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator">
-    {{template "partials/users-list" dict "Lang" .Lang "URL" .URL "Users" .Users "Admins" .Admins "Paginator" .Paginator}}
+<div id="list">
+    {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
+    {{template "partials/pagination" dict "Lang" .Lang "Paginator" .Paginator}}
+    {{end}}
 </div>
 
 {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/users" "ModalHeader" "Delete user" "ModalBody" "Are you sure you want to delete this user?" "ModalErrorMessage" "There was an error deleting the user, please try again later"}}

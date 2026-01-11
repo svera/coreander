@@ -17,7 +17,9 @@ func (u *Controller) List(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	users, _ := u.usersRepository.List(page, model.ResultsPerPage)
+	filter := c.Query("filter", "")
+
+	users, _ := u.usersRepository.List(page, model.ResultsPerPage, filter)
 
 	_, emailConfigured := u.sender.(*infrastructure.NoEmail)
 
@@ -27,12 +29,14 @@ func (u *Controller) List(c *fiber.Ctx) error {
 		"Paginator":          view.Pagination(model.MaxPagesNavigator, users, c.Queries()),
 		"Admins":             u.usersRepository.Admins(),
 		"URL":                view.URL(c),
+		"Filter":             filter,
 		"EmailConfigured":    !emailConfigured,
-		"AvailableLanguages": c.Locals("AvailableLanguages"),
+		"AvailableLanguages":  c.Locals("AvailableLanguages"),
 	}
 
 	if c.Get("hx-request") == "true" {
-		if err = c.Render("partials/users-list", templateVars); err != nil {
+		// Return table body (which includes pagination via out-of-band swap)
+		if err = c.Render("partials/users-table-body", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
