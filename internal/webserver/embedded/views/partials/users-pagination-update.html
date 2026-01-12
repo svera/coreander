@@ -1,0 +1,7 @@
+{{if .Paginator}}
+<div id="list" hx-swap-oob="innerHTML">
+    {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
+    {{template "partials/pagination" dict "Lang" .Lang "Paginator" .Paginator}}
+    {{end}}
+</div>
+{{end}}

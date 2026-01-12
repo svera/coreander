@@ -26,12 +26,3 @@
         </td>
     </tr>
 {{end}}
-{{if .IsHTMX}}
-{{if .Paginator}}
-<div id="list" hx-swap-oob="innerHTML">
-    {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
-    {{template "partials/pagination" dict "Lang" $lang "Paginator" .Paginator}}
-    {{end}}
-</div>
-{{end}}
-{{end}}

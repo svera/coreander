@@ -23,23 +23,20 @@ func (u *Controller) List(c *fiber.Ctx) error {
 
 	_, emailConfigured := u.sender.(*infrastructure.NoEmail)
 
-	isHTMX := c.Get("hx-request") == "true"
 	templateVars := fiber.Map{
-		"Title":              "Users",
-		"Users":              users.Hits(),
-		"Paginator":          view.Pagination(model.MaxPagesNavigator, users, c.Queries()),
-		"Admins":             u.usersRepository.Admins(),
-		"URL":                view.URL(c),
-		"Filter":             filter,
-		"EmailConfigured":    !emailConfigured,
-		"AvailableLanguages":  c.Locals("AvailableLanguages"),
-		"IsHTMX":             isHTMX,
+		"Title":           "Users",
+		"Users":           users.Hits(),
+		"Paginator":       view.Pagination(model.MaxPagesNavigator, users, c.Queries()),
+		"Admins":          u.usersRepository.Admins(),
+		"URL":             view.URL(c),
+		"Filter":          filter,
+		"EmailConfigured": !emailConfigured,
 	}
 
-	if isHTMX {
-		// Return table rows and pagination update in one response
+	if c.Get("hx-request") == "true" {
+		// Render table rows and pagination update in one response
 		// HTMX will extract the out-of-band swap element before swapping rows into tbody
-		if err = c.Render("partials/users-table-body", templateVars); err != nil {
+		if err = c.Render("partials/users-table-response", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
