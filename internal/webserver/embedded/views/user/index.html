@@ -31,19 +31,20 @@
             <th>
                 <div class="d-flex align-items-center gap-2">
                     <span>{{t .Lang "Name"}}</span>
-                    <input
-                        type="text"
-                        class="form-control form-control-sm"
-                        placeholder='{{t .Lang "Filter by name..."}}'
-                        name="filter"
-                        value="{{.Filter}}"
-                        hx-get="/users"
-                        hx-trigger="input changed delay:300ms"
-                        hx-target="#users-table-body"
-                        hx-indicator="#placeholder-indicator"
-                        hx-params="filter"
-                        hx-vals='{"page": "1"}'
-                        style="max-width: 200px;">
+                    <div class="col-auto">
+                        <input
+                            type="text"
+                            class="form-control form-control-sm"
+                            placeholder='{{t .Lang "Filter by name..."}}'
+                            name="filter"
+                            value="{{.Filter}}"
+                            hx-get="/users"
+                            hx-trigger="input changed delay:300ms"
+                            hx-target="#users-table-body"
+                            hx-indicator="#placeholder-indicator"
+                            hx-params="filter"
+                            hx-vals='{"page": "1"}'>
+                    </div>
                 </div>
             </th>
             <th colspan="2">{{t .Lang "Last login"}}</th>
