@@ -15,10 +15,15 @@ type UserRepository struct {
 	DB *gorm.DB
 }
 
-func (u *UserRepository) List(page int, resultsPerPage int) (result.Paginated[[]User], error) {
+func (u *UserRepository) List(page int, resultsPerPage int, filter string) (result.Paginated[[]User], error) {
 	var users []User
 
-	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Order("email ASC").Find(&users)
+	query := u.DB
+	if filter != "" {
+		query = query.Where("name LIKE ? OR email LIKE ? OR username LIKE ?", "%"+filter+"%", "%"+filter+"%", "%"+filter+"%")
+	}
+
+	res := query.Scopes(Paginate(page, resultsPerPage)).Order("email ASC").Find(&users)
 	if res.Error != nil {
 		log.Printf("error listing users: %s\n", res.Error)
 		return result.Paginated[[]User]{}, res.Error
@@ -27,18 +32,22 @@ func (u *UserRepository) List(page int, resultsPerPage int) (result.Paginated[[]
 	return result.NewPaginated(
 		resultsPerPage,
 		page,
-		int(u.Total()),
+		int(u.Total(filter)),
 		users,
 	), nil
 }
 
-func (u *UserRepository) Total() int64 {
+func (u *UserRepository) Total(filter string) int64 {
 	var (
 		totalRows int64
 		users     []User
 	)
 
-	u.DB.Model(&users).Count(&totalRows)
+	query := u.DB.Model(&users)
+	if filter != "" {
+		query = query.Where("name LIKE ? OR email LIKE ? OR username LIKE ?", "%"+filter+"%", "%"+filter+"%", "%"+filter+"%")
+	}
+	query.Count(&totalRows)
 	return totalRows
 }
 
