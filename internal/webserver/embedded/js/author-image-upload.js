@@ -95,40 +95,71 @@
   });
 
   function reloadAuthorImage(img, timestamp) {
-    // Use provided timestamp or generate a new one
+    // Use provided timestamp from server (file modification time)
+    // This ensures the URL matches what the server will generate
     const cacheBuster = timestamp || Date.now();
 
-    const htmxContainer = img.closest('[hx-get]');
-    if (!htmxContainer?.getAttribute('hx-get')) {
-      // Fallback: update image src directly with cache buster
-      const currentSrc = img.src.split('?')[0];
-      img.src = '';
-      setTimeout(() => img.src = `${currentSrc}?t=${cacheBuster}`, 10);
-      return;
+    // Extract base URL (remove any existing query parameters)
+    // Handle both absolute and relative URLs
+    let baseUrl;
+    try {
+      const urlObj = new URL(img.src, window.location.origin);
+      baseUrl = urlObj.pathname;
+    } catch (e) {
+      // If URL parsing fails (relative URL), extract pathname manually
+      baseUrl = img.src.split('?')[0];
     }
 
-    const handleReload = function(event) {
-      if (event.detail.target === htmxContainer) {
-        const newImg = htmxContainer.querySelector('img[src*="/authors/"]');
-        if (newImg) {
-          // Force reload with cache buster to bypass browser cache
-          const imgSrc = newImg.src.split('?')[0];
-          newImg.src = '';
-          setTimeout(() => {
-            newImg.src = `${imgSrc}?t=${cacheBuster}`;
-          }, 10);
-        }
-        document.body.removeEventListener('htmx:afterSwap', handleReload);
+    const newSrc = baseUrl + '?t=' + cacheBuster;
+
+    // Use fetch with cache: 'no-store' to force a fresh download
+    // This bypasses browser cache completely
+    fetch(newSrc, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
       }
-    };
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to fetch image');
+      }
+      return response.blob();
+    })
+    .then(blob => {
+      // Create object URL from blob to force browser to display new image
+      const objectUrl = URL.createObjectURL(blob);
 
-    document.body.addEventListener('htmx:afterSwap', handleReload);
+      // Clean up old object URL if it exists
+      if (img.dataset.objectUrl) {
+        URL.revokeObjectURL(img.dataset.objectUrl);
+      }
 
-    const url = htmxContainer.getAttribute('hx-get');
-    const separator = url.includes('?') ? '&' : '?';
-    htmx.ajax('GET', `${url}${separator}_t=${cacheBuster}`, {
-      target: htmxContainer,
-      swap: 'outerHTML'
+      // Store object URL for cleanup later
+      img.dataset.objectUrl = objectUrl;
+
+      // Update image src with object URL
+      img.src = objectUrl;
+
+      // After image loads, optionally switch to the regular URL
+      // This allows the browser to cache it normally going forward
+      img.onload = function() {
+        // Small delay to ensure image is displayed
+        setTimeout(() => {
+          if (img.dataset.objectUrl) {
+            URL.revokeObjectURL(img.dataset.objectUrl);
+            delete img.dataset.objectUrl;
+            // Switch to regular URL with cache buster
+            img.src = newSrc;
+          }
+        }, 100);
+      };
+    })
+    .catch(error => {
+      console.error('Error fetching image:', error);
+      // Fallback: try direct assignment
+      img.src = newSrc;
     });
   }
 
