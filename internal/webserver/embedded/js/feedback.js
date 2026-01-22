@@ -78,3 +78,58 @@ const warningsObserver = new MutationObserver(setUpWarningsListener);
 // Start observing the target node for configured mutations
 const node = document.getElementsByTagName('body')[0];
 warningsObserver.observe(node, { attributes: true, childList: false, subtree: true });
+
+document.addEventListener('click', (evt) => {
+    const button = evt.target.closest('[data-copy-target], [data-copy-text]')
+    if (!button) {
+        return
+    }
+    evt.preventDefault()
+    const targetSelector = button.getAttribute('data-copy-target')
+    const directText = button.getAttribute('data-copy-text')
+    let text = ''
+    if (targetSelector) {
+        const input = document.querySelector(targetSelector)
+        if (input) {
+            text = input.value || input.getAttribute('value') || ''
+        }
+    } else if (directText) {
+        text = directText
+    }
+    if (text === '') {
+        return
+    }
+
+    const showCopyToast = () => {
+        const toastSuccess = document.getElementById('live-toast-success')
+        const message = button.getAttribute('data-copy-success')
+        if (toastSuccess && message) {
+            toastSuccess.querySelector(".toast-body").innerHTML = message
+            const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastSuccess)
+            toastBootstrap.show()
+        }
+    }
+
+    const fallbackCopy = () => {
+        const textarea = document.createElement('textarea')
+        textarea.value = text
+        textarea.setAttribute('readonly', '')
+        textarea.style.position = 'absolute'
+        textarea.style.left = '-9999px'
+        document.body.appendChild(textarea)
+        textarea.select()
+        try {
+            document.execCommand('copy')
+        } finally {
+            document.body.removeChild(textarea)
+        }
+        showCopyToast()
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(showCopyToast).catch(fallbackCopy)
+        return
+    }
+
+    fallbackCopy()
+})

@@ -27,7 +27,7 @@
         <div class="mb-3">
             {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true "Version" .Version}}
         </div>
-        {{template "partials/actions" dict "Lang" $lang "Document" .Document "Session" $session "EmailSendingConfigured" .EmailSendingConfigured "EmailFrom" $emailFrom}}
+        {{template "partials/actions" dict "Lang" $lang "Document" .Document "Session" $session "EmailSendingConfigured" .EmailSendingConfigured "EmailFrom" $emailFrom "FQDN" .fqdn}}
 
         <div id="document-metadata-{{.Document.Slug}}">
             {{template "partials/document-metadata" dict "Lang" $lang "Document" .Document "Session" $session "WordsPerMinute" .WordsPerMinute}}

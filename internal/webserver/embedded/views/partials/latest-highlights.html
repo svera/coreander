@@ -9,7 +9,7 @@
         <div class="mb-3">
             {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session "Version" $.Version}}
         </div>
-        {{template "partials/actions" dict "Lang" $lang "Document" $doc "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom}}
+        {{template "partials/actions" dict "Lang" $lang "Document" $doc "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom "FQDN" $.fqdn}}
     </div>
     {{end}}
 {{else}}

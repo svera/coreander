@@ -19,6 +19,13 @@
                 {{if $emailSendingConfigured}}
                     <li><hr class="dropdown-divider"></li>
                     <li>
+                        <button type="button" class="dropdown-item"
+                                data-copy-text="{{.FQDN}}/documents/{{.Document.Slug}}"
+                                data-copy-success='{{t .Lang "Link copied"}}'>
+                            <i class="bi-copy me-2"></i>{{t .Lang "Copy link"}}
+                        </button>
+                    </li>
+                    <li>
                         {{if not $session}}
                             <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
                                 <i class="bi-envelope-fill me-2"></i>{{t .Lang "Send to email"}}
@@ -57,6 +64,13 @@
                 </a>
                 <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Actions"}}'></button>
                 <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
+                    <li>
+                        <button type="button" class="dropdown-item"
+                                data-copy-text="{{.FQDN}}/documents/{{.Document.Slug}}"
+                                data-copy-success='{{t .Lang "Link copied"}}'>
+                            <i class="bi-copy me-2"></i>{{t .Lang "Copy link"}}
+                        </button>
+                    </li>
                     <li>
                         {{if not $session}}
                             <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
@@ -127,7 +141,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{t .Lang "Cancel"}}</button>
-                    <button type="submit" class="btn btn-primary share-submit">{{t .Lang "Send share"}}</button>
+                    <button type="submit" class="btn btn-primary share-submit">{{t .Lang "Share"}}</button>
                 </div>
             </form>
         </div>
