@@ -65,6 +65,7 @@
                 </li>
                 {{end}}
                 {{if $emailSendingConfigured}}
+                    {{if ne $defaultAction "copy"}}
                     <li>
                         <button type="button" class="dropdown-item"
                                 data-copy-text="{{.FQDN}}/documents/{{.Document.Slug}}"
@@ -72,6 +73,8 @@
                             <i class="bi-copy me-2"></i>{{t .Lang "Copy link"}}
                         </button>
                     </li>
+                    {{end}}
+                    {{if ne $defaultAction "send"}}
                     <li>
                         {{if not $session}}
                             <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
@@ -88,6 +91,8 @@
                             </button>
                         {{end}}
                     </li>
+                    {{end}}
+                    {{if ne $defaultAction "share"}}
                     <li>
                         {{if not $session}}
                             <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
@@ -99,6 +104,7 @@
                             </button>
                         {{end}}
                     </li>
+                    {{end}}
                 {{end}}
             </ul>
         </div>
@@ -144,6 +150,7 @@
                 {{end}}
                 <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Actions"}}'></button>
                 <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
+                    {{if ne $defaultAction "copy"}}
                     <li>
                         <button type="button" class="dropdown-item"
                                 data-copy-text="{{.FQDN}}/documents/{{.Document.Slug}}"
@@ -151,6 +158,8 @@
                             <i class="bi-copy me-2"></i>{{t .Lang "Copy link"}}
                         </button>
                     </li>
+                    {{end}}
+                    {{if ne $defaultAction "send"}}
                     <li>
                         {{if not $session}}
                             <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
@@ -167,6 +176,8 @@
                             </button>
                         {{end}}
                     </li>
+                    {{end}}
+                    {{if ne $defaultAction "share"}}
                     <li>
                         {{if not $session}}
                             <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
@@ -178,6 +189,7 @@
                             </button>
                         {{end}}
                     </li>
+                    {{end}}
                 </ul>
             </div>
         {{else}}
