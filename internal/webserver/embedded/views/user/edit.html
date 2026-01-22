@@ -71,6 +71,17 @@
                         <label for="preferred-epub-type" class="form-label">{{t .Lang "Preferred EPUB type for download"}}</label>
                     </div>
                 </div>
+                <div class="mb-5">
+                    <div class="form-floating">
+                        <select class="form-select" aria-label="{{t .Lang "Default action"}}" name="default-action">
+                            <option value="download" {{if or (eq .User.DefaultAction "") (eq .User.DefaultAction "download")}}selected{{end}}>{{t .Lang "Download"}}</option>
+                            <option value="send" {{if eq .User.DefaultAction "send"}}selected{{end}}>{{t .Lang "Send to email"}}</option>
+                            <option value="share" {{if eq .User.DefaultAction "share"}}selected{{end}}>{{t .Lang "Share"}}</option>
+                            <option value="copy" {{if eq .User.DefaultAction "copy"}}selected{{end}}>{{t .Lang "Copy link"}}</option>
+                        </select>
+                        <label for="default-action" class="form-label">{{t .Lang "Default action"}}</label>
+                    </div>
+                </div>
                 <div class="mb-5 form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="show-file-name" name="show-file-name" {{if .User.ShowFileName}}checked{{end}}>
                     <label class="form-check-label" for="show-file-name">{{t .Lang "Show documents file names"}}</label>

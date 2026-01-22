@@ -1,23 +1,70 @@
 {{$emailSendingConfigured := .EmailSendingConfigured}}
 {{$session := .Session}}
+{{$defaultAction := "download"}}
+{{if and $session (ne $session.DefaultAction "")}}
+    {{$defaultAction = $session.DefaultAction}}
+{{end}}
+{{$showDownloadOption := ne $defaultAction "download"}}
+{{$preferredEpub := "epub"}}
+{{if and $session (ne $session.PreferredEpubType "")}}
+    {{$preferredEpub = $session.PreferredEpubType}}
+{{end}}
+{{$altEpub := "kepub"}}
+{{if eq $preferredEpub "kepub"}}
+    {{$altEpub = "epub"}}
+{{end}}
 
 <div class="d-grid gap-1 mx-auto d-flex justify-content-sm-center actions">
     {{if eq .Document.Format "EPUB"}}
         <div class="btn-group flex-fill" role="group" aria-label="Button group with nested dropdown">
-            <a href="/documents/{{.Document.Slug}}/download?format={{if .Session}}{{.Session.PreferredEpubType}}{{else}}epub{{end}}" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" download title='{{t .Lang "Download"}}'>
-                <i class="bi-cloud-download"></i>
-                <span class='badge text-bg-primary'>{{if .Session}}{{uppercase .Session.PreferredEpubType}}{{else}}EPUB{{end}}</span>
-            </a>
+            {{if eq $defaultAction "send"}}
+                {{if not $session}}
+                    <a href="/sessions/new" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
+                        <i class="bi-envelope-fill"></i>
+                    </a>
+                {{else if not $session.SendToEmail}}
+                    <a href="/users/{{$session.Username}}" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
+                        <i class="bi-envelope-fill"></i>
+                    </a>
+                {{else}}
+                    <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" {{if $session.SendToEmail}}title='{{t .Lang "Send to %s" $session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
+                        <span id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator me-2" aria-hidden="true"></span>
+                        <i class="bi-envelope-fill"></i>
+                    </button>
+                {{end}}
+            {{else if eq $defaultAction "share"}}
+                {{if not $session}}
+                    <a href="/sessions/new" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
+                        <i class="bi-share-fill"></i>
+                    </a>
+                {{else}}
+                    <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" data-bs-toggle="modal" data-bs-target="#share-modal-{{.Document.Slug}}">
+                        <i class="bi-share-fill"></i>
+                    </button>
+                {{end}}
+            {{else if eq $defaultAction "copy"}}
+                <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-nowrap"
+                        data-copy-text="{{.FQDN}}/documents/{{.Document.Slug}}"
+                        data-copy-success='{{t .Lang "Link copied"}}'>
+                    <i class="bi-copy"></i>
+                </button>
+            {{else}}
+                <a href="/documents/{{.Document.Slug}}/download?format={{$preferredEpub}}" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" download title='{{t .Lang "Download"}}'>
+                    <i class="bi-cloud-download"></i>
+                    <span class='badge text-bg-primary'>{{uppercase $preferredEpub}}</span>
+                </a>
+            {{end}}
             <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Select download format"}}'></button>
             <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
+                {{if $showDownloadOption}}
                 <li>
-                    <a href='/documents/{{.Document.Slug}}/download?format={{if .Session}}{{if eq .Session.PreferredEpubType "kepub"}}epub{{else}}kepub{{end}}{{else}}kepub{{end}}' class="dropdown-item" download title='{{t .Lang "Download"}}'>
-                        <i class="bi-cloud-download"></i>
-                        <span class='badge text-bg-primary'>{{if .Session}}{{if eq .Session.PreferredEpubType "kepub"}}EPUB{{else}}KEPUB{{end}}{{else}}KEPUB{{end}}</span>
+                    <a href='/documents/{{.Document.Slug}}/download?format={{$preferredEpub}}' class="dropdown-item" download title='{{t .Lang "Download"}}'>
+                        <i class="bi-cloud-download me-2"></i>{{t .Lang "Download"}}
+                        <span class='badge text-bg-primary ms-2'>{{uppercase $preferredEpub}}</span>
                     </a>
                 </li>
+                {{end}}
                 {{if $emailSendingConfigured}}
-                    <li><hr class="dropdown-divider"></li>
                     <li>
                         <button type="button" class="dropdown-item"
                                 data-copy-text="{{.FQDN}}/documents/{{.Document.Slug}}"
@@ -58,10 +105,43 @@
     {{else}}
         {{if $emailSendingConfigured}}
             <div class="btn-group flex-fill" role="group" aria-label="Button group with nested dropdown">
-                <a href="/documents/{{.Document.Slug}}/download" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" download title='{{t .Lang "Download"}}'>
-                    <i class="bi-cloud-download"></i>
-                    <span class='badge text-bg-danger'>{{.Document.Format}}</span>
-                </a>
+                {{if eq $defaultAction "send"}}
+                    {{if not $session}}
+                        <a href="/sessions/new" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
+                            <i class="bi-envelope-fill"></i>
+                        </a>
+                    {{else if not $session.SendToEmail}}
+                        <a href="/users/{{$session.Username}}" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
+                            <i class="bi-envelope-fill"></i>
+                        </a>
+                    {{else}}
+                        <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" {{if $session.SendToEmail}}title='{{t .Lang "Send to %s" $session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
+                            <span id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator me-2" aria-hidden="true"></span>
+                            <i class="bi-envelope-fill"></i>
+                        </button>
+                    {{end}}
+                {{else if eq $defaultAction "share"}}
+                    {{if not $session}}
+                        <a href="/sessions/new" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
+                            <i class="bi-share-fill"></i>
+                        </a>
+                    {{else}}
+                        <button type="button" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" data-bs-toggle="modal" data-bs-target="#share-modal-{{.Document.Slug}}">
+                            <i class="bi-share-fill"></i>
+                        </button>
+                    {{end}}
+                {{else if eq $defaultAction "copy"}}
+                    <button type="button" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap"
+                            data-copy-text="{{.FQDN}}/documents/{{.Document.Slug}}"
+                            data-copy-success='{{t .Lang "Link copied"}}'>
+                        <i class="bi-copy"></i>
+                    </button>
+                {{else}}
+                    <a href="/documents/{{.Document.Slug}}/download" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" download title='{{t .Lang "Download"}}'>
+                        <i class="bi-cloud-download"></i>
+                        <span class='badge text-bg-danger'>{{.Document.Format}}</span>
+                    </a>
+                {{end}}
                 <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Actions"}}'></button>
                 <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
                     <li>

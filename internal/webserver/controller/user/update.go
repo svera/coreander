@@ -78,8 +78,12 @@ func (u *Controller) updateOptions(c *fiber.Ctx, user *model.User, session model
 	user.ShowFileName = c.FormValue("show-file-name") == "on"
 	user.SendToEmail = c.FormValue("send-to-email")
 	user.PreferredEpubType = strings.ToLower(c.FormValue("preferred-epub-type"))
+	user.DefaultAction = strings.ToLower(c.FormValue("default-action"))
 
 	if user.PreferredEpubType != "epub" && user.PreferredEpubType != "kepub" {
+		return fiber.ErrBadRequest
+	}
+	if user.DefaultAction != "" && user.DefaultAction != "download" && user.DefaultAction != "send" && user.DefaultAction != "share" && user.DefaultAction != "copy" {
 		return fiber.ErrBadRequest
 	}
 

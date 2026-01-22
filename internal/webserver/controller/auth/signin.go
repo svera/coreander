@@ -74,6 +74,7 @@ func GenerateToken(c *fiber.Ctx, user *model.User, expiration time.Time, secret 
 			WordsPerMinute:    user.WordsPerMinute,
 			ShowFileName:      user.ShowFileName,
 			PreferredEpubType: user.PreferredEpubType,
+			DefaultAction:     user.DefaultAction,
 		},
 		"exp": jwt.NewNumericDate(expiration),
 	},
