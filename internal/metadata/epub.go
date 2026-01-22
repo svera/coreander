@@ -6,7 +6,9 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -137,28 +139,34 @@ func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, e
 		return nil, err
 	}
 
-	for _, val := range opf.Metadata.Meta {
-		if val.Name != "cover" {
-			continue
-		}
-		for _, item := range opf.Manifest.Items {
-			if item.ID == val.Content {
-				coverFileName = item.Href
-				break
-			}
-		}
-	}
-
-	if coverFileName == "" {
-		return nil, fmt.Errorf("no cover image set in %s", documentFullPath)
-	}
-
 	r, err := zip.OpenReader(documentFullPath)
 	if err != nil {
 		return nil, err
 	}
 	defer r.Close()
-	cover, err = extractCover(r, coverFileName, coverMaxWidth)
+
+	opfPath := findOpfPath(r)
+	opfBaseDir := ""
+	if opfPath != "" {
+		opfBaseDir = path.Dir(opfPath)
+		if opfBaseDir == "." {
+			opfBaseDir = ""
+		}
+	}
+
+	coverFileName = selectCoverFileName(opf)
+	if coverFileName == "" {
+		return nil, fmt.Errorf("no cover image set in %s", documentFullPath)
+	}
+
+	coverFileName = resolveHref(coverFileName, opfBaseDir)
+	if isMarkupFile(coverFileName) {
+		if resolvedCover, err := findCoverImageInMarkup(r, coverFileName); err == nil && resolvedCover != "" {
+			coverFileName = resolvedCover
+		}
+	}
+
+	cover, err = extractCover(r, coverFileName, opfBaseDir, coverMaxWidth)
 	if err != nil {
 		return nil, err
 	}
@@ -203,9 +211,10 @@ func words(documentFullPath string) (int, error) {
 	return count, nil
 }
 
-func extractCover(r *zip.ReadCloser, coverFile string, coverMaxWidth int) ([]byte, error) {
+func extractCover(r *zip.ReadCloser, coverFile, opfBaseDir string, coverMaxWidth int) ([]byte, error) {
+	candidates := coverCandidatePaths(coverFile, opfBaseDir)
 	for _, f := range r.File {
-		if f.Name != fmt.Sprintf("OEBPS/%s", coverFile) && f.Name != fmt.Sprintf("OPS/%s", coverFile) && f.Name != coverFile {
+		if _, ok := candidates[f.Name]; !ok {
 			continue
 		}
 		rc, err := f.Open()
@@ -219,4 +228,143 @@ func extractCover(r *zip.ReadCloser, coverFile string, coverMaxWidth int) ([]byt
 		return resize(src, coverMaxWidth, err)
 	}
 	return nil, fmt.Errorf("no cover image found")
+}
+
+func selectCoverFileName(opf *epub.PackageDocument) string {
+	if opf == nil || opf.Metadata == nil || opf.Manifest == nil {
+		return ""
+	}
+	if coverHref := coverFromProperties(opf); coverHref != "" {
+		return coverHref
+	}
+	if coverHref := coverFromMeta(opf); coverHref != "" {
+		return coverHref
+	}
+	if coverHref := coverFromHeuristics(opf); coverHref != "" {
+		return coverHref
+	}
+	return ""
+}
+
+func coverFromMeta(opf *epub.PackageDocument) string {
+	for _, val := range opf.Metadata.Meta {
+		if !strings.EqualFold(val.Name, "cover") || val.Content == "" {
+			continue
+		}
+		for _, item := range opf.Manifest.Items {
+			if item.ID == val.Content {
+				return item.Href
+			}
+		}
+		if strings.Contains(val.Content, ".") || strings.Contains(val.Content, "/") {
+			return val.Content
+		}
+	}
+	return ""
+}
+
+func coverFromProperties(opf *epub.PackageDocument) string {
+	for _, item := range opf.Manifest.Items {
+		if strings.Contains(strings.ToLower(item.Properties), "cover-image") {
+			return item.Href
+		}
+	}
+	return ""
+}
+
+func coverFromHeuristics(opf *epub.PackageDocument) string {
+	for _, item := range opf.Manifest.Items {
+		if !strings.HasPrefix(item.MediaType, "image/") {
+			continue
+		}
+		id := strings.ToLower(item.ID)
+		href := strings.ToLower(item.Href)
+		if strings.Contains(id, "cover") || strings.Contains(href, "cover") {
+			return item.Href
+		}
+	}
+	return ""
+}
+
+func findOpfPath(r *zip.ReadCloser) string {
+	for _, f := range r.File {
+		if strings.HasSuffix(strings.ToLower(f.Name), ".opf") {
+			return f.Name
+		}
+	}
+	return ""
+}
+
+func resolveHref(href, baseDir string) string {
+	if href == "" {
+		return ""
+	}
+	href = strings.TrimPrefix(href, "/")
+	if baseDir == "" {
+		return path.Clean(href)
+	}
+	return path.Clean(path.Join(baseDir, href))
+}
+
+func coverCandidatePaths(coverFile, opfBaseDir string) map[string]struct{} {
+	candidates := map[string]struct{}{}
+	if coverFile != "" {
+		candidates[coverFile] = struct{}{}
+	}
+	if opfBaseDir != "" && coverFile != "" {
+		candidates[path.Clean(path.Join(opfBaseDir, coverFile))] = struct{}{}
+	}
+	if coverFile != "" && !strings.Contains(coverFile, "/") {
+		candidates[path.Join("OEBPS", coverFile)] = struct{}{}
+		candidates[path.Join("OPS", coverFile)] = struct{}{}
+	}
+	return candidates
+}
+
+func isMarkupFile(href string) bool {
+	ext := strings.ToLower(path.Ext(href))
+	return ext == ".xhtml" || ext == ".html" || ext == ".htm" || ext == ".svg"
+}
+
+func findCoverImageInMarkup(r *zip.ReadCloser, markupPath string) (string, error) {
+	content, err := readZipFile(r, markupPath)
+	if err != nil {
+		return "", err
+	}
+	if len(content) == 0 {
+		return "", nil
+	}
+	baseDir := path.Dir(markupPath)
+	if baseDir == "." {
+		baseDir = ""
+	}
+
+	for _, pattern := range []string{
+		`(?i)<img[^>]+src=["']([^"']+)["']`,
+		`(?i)<image[^>]+xlink:href=["']([^"']+)["']`,
+	} {
+		re := regexp.MustCompile(pattern)
+		if match := re.FindSubmatch(content); len(match) > 1 {
+			src := string(match[1])
+			if !strings.HasPrefix(strings.ToLower(src), "data:") {
+				return resolveHref(src, baseDir), nil
+			}
+		}
+	}
+	return "", nil
+}
+
+func readZipFile(r *zip.ReadCloser, name string) ([]byte, error) {
+	for _, f := range r.File {
+		if f.Name != name {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return nil, err
+		}
+		defer rc.Close()
+		return io.ReadAll(rc)
+	}
+	return nil, nil
 }
