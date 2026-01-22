@@ -1,3 +1,6 @@
+{{$emailSendingConfigured := .EmailSendingConfigured}}
+{{$session := .Session}}
+
 <div class="d-grid gap-1 mx-auto d-flex justify-content-sm-center actions">
     {{if eq .Document.Format "EPUB"}}
         <div class="btn-group flex-fill" role="group" aria-label="Button group with nested dropdown">
@@ -13,32 +16,121 @@
                         <span class='badge text-bg-primary'>{{if .Session}}{{if eq .Session.PreferredEpubType "kepub"}}EPUB{{else}}KEPUB{{end}}{{else}}KEPUB{{end}}</span>
                     </a>
                 </li>
+                {{if $emailSendingConfigured}}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        {{if not $session}}
+                            <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
+                                <i class="bi-envelope-fill me-2"></i>{{t .Lang "Send to email"}}
+                            </a>
+                        {{else if not $session.SendToEmail}}
+                            <a href="/users/{{$session.Username}}" class="dropdown-item" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
+                                <i class="bi-envelope-fill me-2"></i>{{t .Lang "Send to email"}}
+                            </a>
+                        {{else}}
+                            <button type="button" class="dropdown-item" hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" {{if $session.SendToEmail}}title='{{t .Lang "Send to %s" $session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
+                                <span id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator me-2" aria-hidden="true"></span>
+                                <i class="bi-envelope-fill me-2"></i>{{t .Lang "Send to email"}}
+                            </button>
+                        {{end}}
+                    </li>
+                    <li>
+                        {{if not $session}}
+                            <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
+                                <i class="bi-share-fill me-2"></i>{{t .Lang "Share"}}
+                            </a>
+                        {{else}}
+                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#share-modal-{{.Document.Slug}}">
+                                <i class="bi-share-fill me-2"></i>{{t .Lang "Share"}}
+                            </button>
+                        {{end}}
+                    </li>
+                {{end}}
             </ul>
         </div>
     {{else}}
-        <a href="/documents/{{.Document.Slug}}/download" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" download title='{{t .Lang "Download"}}'>
-            <i class="bi-cloud-download"></i>
-            <span class='badge text-bg-danger'>{{.Document.Format}}</span>
-        </a>
-    {{end}}
-
-    {{if .EmailSendingConfigured}}
-        {{if not .Session}}
-            <a href="/sessions/new" class="btn btn-sm btn-outline-secondary flex-fill" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
-                <i class="bi-envelope-fill"></i>
-            </a>
-        {{else if not .Session.SendToEmail}}
-            <a href="/users/{{.Session.Username}}" class="btn btn-sm btn-outline-secondary flex-fill" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
-                <i class="bi-envelope-fill"></i>
-            </a>
+        {{if $emailSendingConfigured}}
+            <div class="btn-group flex-fill" role="group" aria-label="Button group with nested dropdown">
+                <a href="/documents/{{.Document.Slug}}/download" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" download title='{{t .Lang "Download"}}'>
+                    <i class="bi-cloud-download"></i>
+                    <span class='badge text-bg-danger'>{{.Document.Format}}</span>
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Actions"}}'></button>
+                <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
+                    <li>
+                        {{if not $session}}
+                            <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
+                                <i class="bi-envelope-fill me-2"></i>{{t .Lang "Send to email"}}
+                            </a>
+                        {{else if not $session.SendToEmail}}
+                            <a href="/users/{{$session.Username}}" class="dropdown-item" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
+                                <i class="bi-envelope-fill me-2"></i>{{t .Lang "Send to email"}}
+                            </a>
+                        {{else}}
+                            <button type="button" class="dropdown-item" hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" {{if $session.SendToEmail}}title='{{t .Lang "Send to %s" $session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
+                                <span id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator me-2" aria-hidden="true"></span>
+                                <i class="bi-envelope-fill me-2"></i>{{t .Lang "Send to email"}}
+                            </button>
+                        {{end}}
+                    </li>
+                    <li>
+                        {{if not $session}}
+                            <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
+                                <i class="bi-share-fill me-2"></i>{{t .Lang "Share"}}
+                            </a>
+                        {{else}}
+                            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#share-modal-{{.Document.Slug}}">
+                                <i class="bi-share-fill me-2"></i>{{t .Lang "Share"}}
+                            </button>
+                        {{end}}
+                    </li>
+                </ul>
+            </div>
         {{else}}
-            <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="btn btn-sm btn-outline-secondary flex-fill" {{if .Session.SendToEmail}}title='{{t .Lang "Send to %s" .Session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
-                <div id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator" aria-hidden="true"></div>
-                <i class="bi-envelope-fill"></i>
-            </button>
-            <input type="hidden" name="email" id="quick-email-{{.Document.Slug}}" value="{{.Session.SendToEmail}}" />
-            <input type="hidden" name="slug" id="slug-{{.Document.Slug}}" value="{{.Document.Slug}}" />
+            <a href="/documents/{{.Document.Slug}}/download" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" download title='{{t .Lang "Download"}}'>
+                <i class="bi-cloud-download"></i>
+                <span class='badge text-bg-danger'>{{.Document.Format}}</span>
+            </a>
         {{end}}
     {{end}}
 
+    {{if and $emailSendingConfigured $session $session.SendToEmail}}
+        <input type="hidden" name="email" id="quick-email-{{.Document.Slug}}" value="{{$session.SendToEmail}}" />
+        <input type="hidden" name="slug" id="slug-{{.Document.Slug}}" value="{{.Document.Slug}}" />
+    {{end}}
 </div>
+
+{{if $emailSendingConfigured}}
+<div class="modal fade" id="share-modal-{{.Document.Slug}}" tabindex="-1" aria-labelledby="share-modal-label-{{.Document.Slug}}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form hx-post="/documents/{{.Document.Slug}}/share" hx-swap="none" hx-disabled-elt="find .share-submit"
+                  data-close-modal="#share-modal-{{.Document.Slug}}"
+                  data-success-message='{{t .Lang "Share sent"}}'
+                  data-error-message='{{t .Lang "There was an error sending the share, please try again later"}}'>
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="share-modal-label-{{.Document.Slug}}">{{t .Lang "Share document"}}</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{t .Lang "Close"}}"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="share-recipients-{{.Document.Slug}}" class="form-label">{{t .Lang "Share to"}}</label>
+                        <input type="email" class="form-control" id="share-recipients-{{.Document.Slug}}" name="recipients" multiple required
+                               placeholder='{{t .Lang "Add email addresses"}}'>
+                        <div class="form-text">{{t .Lang "Add multiple users separated by commas"}}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="share-comment-{{.Document.Slug}}" class="form-label">{{t .Lang "Comment"}}</label>
+                        <textarea class="form-control" id="share-comment-{{.Document.Slug}}" name="comment" rows="3"
+                                  placeholder='{{t .Lang "Add a comment"}}'></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{t .Lang "Cancel"}}</button>
+                    <button type="submit" class="btn btn-primary share-submit">{{t .Lang "Send share"}}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{{end}}

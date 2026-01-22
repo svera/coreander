@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/result"
@@ -13,6 +14,7 @@ import (
 const relatedDocuments = 4
 
 type Sender interface {
+	Send(address, subject, body string) error
 	SendDocument(address, subject, libraryPath, fileName string) error
 	From() string
 }
@@ -40,6 +42,14 @@ type highlightsRepository interface {
 	RemoveDocument(documentPath string) error
 }
 
+type sharesRepository interface {
+	CreateWithRecipients(share *model.Share, recipientIDs []int) error
+}
+
+type usersRepository interface {
+	FindByEmail(email string) (*model.User, error)
+}
+
 type readingRepository interface {
 	Get(userID int, documentPath string) (model.Reading, error)
 	Update(userID int, documentPath, position string) error
@@ -64,22 +74,28 @@ type Config struct {
 
 type Controller struct {
 	hlRepository      highlightsRepository
+	shareRepository   sharesRepository
+	usersRepository   usersRepository
 	readingRepository readingRepository
 	idx               IdxReaderWriter
 	sender            Sender
 	config            Config
 	metadataReaders   map[string]metadata.Reader
 	appFs             afero.Fs
+	translator        i18n.Translator
 }
 
-func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config) *Controller {
+func NewController(hlRepository highlightsRepository, shareRepository sharesRepository, usersRepository usersRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config, translator i18n.Translator) *Controller {
 	return &Controller{
 		hlRepository:      hlRepository,
+		shareRepository:   shareRepository,
+		usersRepository:   usersRepository,
 		readingRepository: readingRepository,
 		idx:               idx,
 		sender:            sender,
 		config:            cfg,
 		metadataReaders:   metadataReaders,
 		appFs:             appFs,
+		translator:        translator,
 	}
 }

@@ -53,6 +53,16 @@ htmx.on('htmx:afterRequest', (evt) => {
         const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastSuccess)
         toastBootstrap.show()
     }
+
+    if (xhr.status === 200) {
+        const closeTarget = evt.detail.elt.getAttribute("data-close-modal")
+        if (closeTarget) {
+            const modalEl = document.querySelector(closeTarget)
+            if (modalEl) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).hide()
+            }
+        }
+    }
 });
 
 const setUpWarningsListener = () => {

@@ -30,6 +30,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 	invitationsRepository := &model.InvitationRepository{DB: db}
 	highlightsRepository := &model.HighlightRepository{DB: db}
 	readingRepository := &model.ReadingRepository{DB: db}
+	sharesRepository := &model.ShareRepository{DB: db}
 
 	authCfg := auth.Config{
 		MinPasswordLength: cfg.MinPasswordLength,
@@ -82,7 +83,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		Auth:       auth.NewController(usersRepository, sender, authCfg, translator),
 		Users:      user.NewController(usersRepository, invitationsRepository, readingRepository, idx, usersCfg, sender, translator),
 		Highlights: highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
-		Documents:  document.NewController(highlightsRepository, readingRepository, sender, idx, metadataReaders, appFs, documentsCfg),
+		Documents:  document.NewController(highlightsRepository, sharesRepository, usersRepository, readingRepository, sender, idx, metadataReaders, appFs, documentsCfg, translator),
 		Home:       home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),
 		Authors:    author.NewController(highlightsRepository, readingRepository, sender, idx, authorsCfg, dataSource, appFs, imagesFS),
 		Series:     series.NewController(highlightsRepository, readingRepository, sender, idx, seriesCfg, appFs)}
