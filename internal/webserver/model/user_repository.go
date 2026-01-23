@@ -51,16 +51,16 @@ func (u *UserRepository) Total(filter string) int64 {
 	return totalRows
 }
 
-func (u *UserRepository) Usernames() ([]string, error) {
-	var usernames []string
+func (u *UserRepository) UsernamesAndNames() ([]User, error) {
+	var users []User
 
-	result := u.DB.Model(&User{}).Order("username ASC").Pluck("username", &usernames)
+	result := u.DB.Model(&User{}).Select("username", "name").Order("username ASC").Find(&users)
 	if result.Error != nil {
-		log.Printf("error listing usernames: %s\n", result.Error)
+		log.Printf("error listing usernames and names: %s\n", result.Error)
 		return nil, result.Error
 	}
 
-	return usernames, nil
+	return users, nil
 }
 
 func (u *UserRepository) FindByUuid(uuid string) (*User, error) {

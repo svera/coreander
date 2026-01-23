@@ -9,7 +9,7 @@ if (!window.coreanderShareRecipientsInitialized) {
         const usernamesPromises = new Map()
 
         containers.forEach(container => {
-            const endpoint = container.dataset.usersEndpoint || '/users/usernames'
+            const endpoint = container.dataset.usersEndpoint || '/users/share-recipients'
             initShareRecipients(container, endpoint, usernamesCache, usernamesPromises)
         })
     }
@@ -27,16 +27,17 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
     const removeLabelTemplate = container.dataset.removeLabel || 'Remove recipient: %s'
     let selectedRecipients = []
     let lastInputValue = ''
-    let availableUsernames = []
+    let availableUsers = []
     let isRefreshingDatalist = false
+    let optionLookup = new Map()
 
-    function populateDatalist(usernames) {
+    function populateDatalist(values) {
         const listId = datalist.id
         const newDatalist = document.createElement('datalist')
         newDatalist.id = listId
-        usernames.forEach(username => {
+        values.forEach(value => {
             const option = document.createElement('option')
-            option.value = username
+            option.value = value
             newDatalist.appendChild(option)
         })
         datalist.replaceWith(newDatalist)
@@ -47,14 +48,46 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
     function populateDatalistForValue(value) {
         const query = value.trim().toLowerCase()
         if (!query) {
+            optionLookup = new Map()
             datalist.innerHTML = ''
             refreshDatalistDisplay()
             return
         }
-        const matches = availableUsernames.filter(username =>
-            username.toLowerCase().startsWith(query)
-        )
-        populateDatalist(matches)
+        const matches = availableUsers
+            .map(user => buildOptionsForUser(user))
+            .filter(option => option.value)
+            .filter(option => {
+                const keys = option.keys || []
+                return keys.some(key => key.startsWith(query))
+            })
+
+        populateDatalistFromOptions(matches)
+    }
+
+    function populateDatalistFromOptions(options) {
+        optionLookup = new Map()
+        const values = options.map(option => {
+            optionLookup.set(option.value, option.username)
+            return option.value
+        })
+        populateDatalist(values)
+    }
+
+    function buildOptionsForUser(user) {
+        if (!user || !user.username || !user.name) {
+            return {
+                value: '',
+                username: '',
+                keys: [],
+            }
+        }
+        const username = String(user.username)
+        const name = String(user.name)
+        return {
+            value: `${name} (${username})`,
+            username: username,
+            keys: [username.toLowerCase(), name.toLowerCase()],
+        }
     }
 
     function refreshDatalistDisplay() {
@@ -82,8 +115,8 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
 
     function preloadUsernames() {
         if (usernamesCache.has(endpoint)) {
-            availableUsernames = usernamesCache.get(endpoint)
-            return Promise.resolve(availableUsernames)
+            availableUsers = usernamesCache.get(endpoint)
+            return Promise.resolve(availableUsers)
         }
         if (usernamesPromises.has(endpoint)) {
             return usernamesPromises.get(endpoint)
@@ -95,10 +128,10 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
                 }
                 return response.json()
             })
-            .then(usernames => {
-                usernamesCache.set(endpoint, usernames)
-                availableUsernames = usernames
-                return usernames
+            .then(users => {
+                usernamesCache.set(endpoint, users)
+                availableUsers = users
+                return users
             })
             .catch(error => {
                 console.error('Error loading usernames:', error)
@@ -111,7 +144,7 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
     function ensureUsernamesLoaded() {
         return preloadUsernames().then(() => {
             populateDatalistForValue(input.value)
-            return availableUsernames
+            return availableUsers
         })
     }
 
@@ -172,8 +205,7 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
     }
 
     function matchesDatalistOption(value) {
-        const options = Array.from(datalist.options)
-        return options.some(option => option.value === value)
+        return optionLookup.has(value)
     }
 
     function handlePotentialMatch(value) {
@@ -181,7 +213,8 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
             return
         }
         if (matchesDatalistOption(value)) {
-            addRecipient(value)
+            const normalized = optionLookup.get(value) || value
+            addRecipient(normalized)
         }
     }
 
