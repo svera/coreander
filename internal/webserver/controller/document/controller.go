@@ -48,6 +48,7 @@ type sharesRepository interface {
 
 type usersRepository interface {
 	FindByEmail(email string) (*model.User, error)
+	FindByUsername(username string) (*model.User, error)
 }
 
 type readingRepository interface {

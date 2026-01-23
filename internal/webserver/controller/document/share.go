@@ -28,12 +28,6 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	for _, recipient := range recipients {
-		if _, err := mail.ParseAddress(recipient); err != nil {
-			return fiber.ErrBadRequest
-		}
-	}
-
 	document, err := d.idx.Document(slug)
 	if err != nil {
 		return fiber.ErrInternalServerError
@@ -60,7 +54,31 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	subject := d.translator.T(lang, "%s shared \"%s\"", senderName, document.Title)
 	body := shareBody(d.translator, lang, senderName, document.Title, docURL, c.FormValue("comment"))
 
+	recipientUsers := make([]*model.User, 0, len(recipients))
+	recipientUserIDs := make(map[uint]struct{}, len(recipients))
+	recipientEmails := make([]string, 0, len(recipients))
+
 	for _, recipient := range recipients {
+		user, err := d.resolveRecipient(recipient)
+		if err != nil {
+			return fiber.ErrBadRequest
+		}
+		if user == nil {
+			return fiber.ErrBadRequest
+		}
+		if _, seen := recipientUserIDs[user.ID]; seen {
+			continue
+		}
+		recipientUserIDs[user.ID] = struct{}{}
+		recipientUsers = append(recipientUsers, user)
+		recipientEmails = append(recipientEmails, user.Email)
+	}
+
+	if len(recipientUsers) == 0 {
+		return fiber.ErrBadRequest
+	}
+
+	for _, recipient := range recipientEmails {
 		if err := d.sender.Send(recipient, subject, body); err != nil {
 			log.Printf("error sending share to %s: %v\n", recipient, err)
 			return fiber.ErrInternalServerError
@@ -68,16 +86,8 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	}
 
 	if session.ID > 0 {
-		recipientIDs := make([]int, 0, len(recipients))
-		for _, recipient := range recipients {
-			user, err := d.usersRepository.FindByEmail(recipient)
-			if err != nil {
-				log.Printf("error finding share recipient %s: %v\n", recipient, err)
-				return fiber.ErrInternalServerError
-			}
-			if user == nil {
-				return fiber.ErrBadRequest
-			}
+		recipientIDs := make([]int, 0, len(recipientUsers))
+		for _, user := range recipientUsers {
 			recipientIDs = append(recipientIDs, int(user.ID))
 		}
 
@@ -95,6 +105,23 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusOK)
+}
+
+func (d *Controller) resolveRecipient(recipient string) (*model.User, error) {
+	trimmed := strings.TrimSpace(recipient)
+	if trimmed == "" {
+		return nil, nil
+	}
+
+	if strings.Contains(trimmed, "@") {
+		address, err := mail.ParseAddress(trimmed)
+		if err != nil {
+			return nil, err
+		}
+		return d.usersRepository.FindByEmail(strings.TrimSpace(address.Address))
+	}
+
+	return d.usersRepository.FindByUsername(trimmed)
 }
 
 func splitRecipients(raw string) []string {
