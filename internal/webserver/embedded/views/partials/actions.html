@@ -217,7 +217,7 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3" data-share-recipients data-users-endpoint="/users/usernames" data-remove-label='{{t .Lang "Remove recipient: %s" "%s"}}'>
-                        <label for="share-recipients-{{.Document.Slug}}" class="form-label">{{t .Lang "Share to"}}</label>
+                        <label for="share-recipients-{{.Document.Slug}}" class="form-label">{{t .Lang "Share with"}}</label>
                         <input type="hidden" name="recipients" id="share-recipients-hidden-{{.Document.Slug}}">
                         <input type="text" class="form-control share-recipients-input" id="share-recipients-{{.Document.Slug}}" maxlength="255" required
                                placeholder='{{t .Lang "Add usernames..."}}' list="share-recipients-list-{{.Document.Slug}}" autocomplete="off" spellcheck="false">
