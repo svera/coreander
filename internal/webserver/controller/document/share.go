@@ -3,13 +3,11 @@ package document
 import (
 	"errors"
 	"fmt"
-	"html"
 	"log"
 	"net/mail"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
@@ -53,8 +51,8 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	}
 
 	docURL := fmt.Sprintf("%s/documents/%s", c.BaseURL(), document.Slug)
+	highlightsURL := fmt.Sprintf("%s/highlights", c.BaseURL())
 	subject := d.translator.T(lang, "%s shared \"%s\"", senderName, document.Title)
-	body := shareBody(d.translator, lang, senderName, document.Title, docURL, c.FormValue("comment"))
 
 	recipientUsers := make([]*model.User, 0, len(recipients))
 	recipientUserIDs := make(map[uint]struct{}, len(recipients))
@@ -96,6 +94,15 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	}
 
 	if _, ok := d.sender.(*infrastructure.NoEmail); !ok {
+		c.Render("document/share-email", fiber.Map{
+			"Lang":          lang,
+			"SenderName":    senderName,
+			"DocumentTitle": document.Title,
+			"DocumentURL":   docURL,
+			"HighlightsURL": highlightsURL,
+			"Comment":       strings.TrimSpace(c.FormValue("comment")),
+		})
+		body := string(c.Response().Body())
 		for _, recipient := range recipientEmails {
 			if err := d.sender.Send(recipient, subject, body); err != nil {
 				log.Printf("error sending share to %s: %v\n", recipient, err)
@@ -147,34 +154,3 @@ func uniqueRecipients(recipients []string) []string {
 	return result
 }
 
-func shareBody(translator i18n.Translator, lang, senderName, title, url, comment string) string {
-	escapedSender := html.EscapeString(senderName)
-	escapedTitle := html.EscapeString(title)
-	escapedURL := html.EscapeString(url)
-	escapedComment := html.EscapeString(strings.TrimSpace(comment))
-
-	recommendedText := html.EscapeString(translator.T(lang, "shared a document:"))
-	commentLabel := html.EscapeString(translator.T(lang, "Comment"))
-
-	builder := &strings.Builder{}
-	builder.WriteString("<p>")
-	if escapedSender != "" {
-		builder.WriteString(escapedSender)
-		builder.WriteString(" ")
-	}
-	builder.WriteString(recommendedText)
-	builder.WriteString("</p>")
-	builder.WriteString("<p><a href=\"")
-	builder.WriteString(escapedURL)
-	builder.WriteString("\">")
-	builder.WriteString(escapedTitle)
-	builder.WriteString("</a></p>")
-	if escapedComment != "" {
-		builder.WriteString("<p>")
-		builder.WriteString(commentLabel)
-		builder.WriteString(":</p><p>")
-		builder.WriteString(escapedComment)
-		builder.WriteString("</p>")
-	}
-	return builder.String()
-}

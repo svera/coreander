@@ -5,19 +5,34 @@
 {{$wordsPerMinute := .WordsPerMinute}}
 
 <div class="row mt-5 mb-2 d-flex">
-    {{if eq .Results.TotalHits 0}}
-    <div class="col-12 align-content-end">
+    <div class="{{if and .ShowHighlightsFilter (eq .Results.TotalHits 0)}}col-12{{else}}col-6 col-md-8{{end}} align-content-end">
+        {{if .ShowHighlightsFilter}}
+            <div class="form-floating">
+                <select class="form-select form-select-sm" id="highlights-filter" name="filter"
+                        onchange="window.location.href='{{.FilterURL}}filter='+this.value;">
+                    <option value="all" {{if or (eq .HighlightsFilter "") (eq .HighlightsFilter "all")}}selected{{end}}>{{t $lang "All documents (%d)" .HighlightsTotalAll}}</option>
+                    <option value="highlights" {{if eq .HighlightsFilter "highlights"}}selected{{end}}>{{t $lang "Only my highlights"}}</option>
+                    <option value="shared" {{if eq .HighlightsFilter "shared"}}selected{{end}}>{{t $lang "Only shared documents"}}</option>
+                </select>
+                <label for="highlights-filter">{{t $lang "Show"}}</label>
+            </div>
+        {{else if gt .Results.TotalHits 0}}
+            <p class="text-start">{{t .Lang "%d documents found" .Results.TotalHits }}</p>
+        {{end}}
+    </div>
+    <div class="col-6 col-md-4 text-end {{if and .ShowHighlightsFilter (eq .Results.TotalHits 0)}}d-none{{end}}">
+        {{if ne .Results.TotalHits 0}}
+            {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" $lang "AdditionalSortOptions" .AdditionalSortOptions}}
+        {{end}}
+    </div>
+</div>
+{{if and .ShowHighlightsFilter (eq .Results.TotalHits 0)}}
+<div class="row mb-2">
+    <div class="col-12">
         <p class="text-center">{{t .Lang "No documents found" }}</p>
     </div>
-    {{else}}
-    <div class="col-6 col-md-8 align-content-end">
-        <p class="text-start">{{t .Lang "%d documents found" .Results.TotalHits }}</p>
-    </div>
-    <div class="col-6 col-md-4 text-end">
-        {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" $lang "AdditionalSortOptions" .AdditionalSortOptions}}
-    </div>
-    {{end}}
 </div>
+{{end}}
 
 {{if gt .Results.TotalHits 0}}
 <ul class="list-group border-top rounded-0">

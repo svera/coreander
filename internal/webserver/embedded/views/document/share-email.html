@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<body>
+    <p>
+        {{.SenderName}} {{t .Lang "shared a document:"}}
+        <a href="{{.DocumentURL}}">{{.DocumentTitle}}</a>
+    </p>
+    {{if ne .Comment ""}}
+    <p>{{t .Lang "Comment"}}:</p>
+    <blockquote>{{.Comment}}</blockquote>
+    {{end}}
+    <p>{{t .Lang "You can find it in your highlights"}}: <a href="{{.HighlightsURL}}">{{t .Lang "View your highlights"}}</a></p>
+</body>
+</html>

@@ -13,16 +13,24 @@ type HighlightRepository struct {
 	DB *gorm.DB
 }
 
-func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int, sortBy string) (result.Paginated[[]string], error) {
+func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]string], error) {
 	highlights := []string{}
 	var total int64
 
-	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("highlights").Select("path").Where("user_id = ?", userID).Order(sortBy).Pluck("path", &highlights)
+	query := u.DB.Table("highlights").Where("user_id = ?", userID)
+	switch filter {
+	case "highlights":
+		query = query.Where("shared_by_id IS NULL")
+	case "shared":
+		query = query.Where("shared_by_id IS NOT NULL")
+	}
+
+	res := query.Scopes(Paginate(page, resultsPerPage)).Select("path").Order(sortBy).Pluck("path", &highlights)
 	if res.Error != nil {
 		log.Printf("error listing highlights: %s\n", res.Error)
 		return result.Paginated[[]string]{}, res.Error
 	}
-	u.DB.Table("highlights").Where("user_id = ?", userID).Count(&total)
+	query.Count(&total)
 
 	return result.NewPaginated(
 		resultsPerPage,
@@ -30,6 +38,16 @@ func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage in
 		int(total),
 		highlights,
 	), nil
+}
+
+func (u *HighlightRepository) Total(userID int) (int, error) {
+	var total int64
+	res := u.DB.Table("highlights").Where("user_id = ?", userID).Count(&total)
+	if res.Error != nil {
+		log.Printf("error counting highlights: %s\n", res.Error)
+		return 0, res.Error
+	}
+	return int(total), nil
 }
 
 func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document] {

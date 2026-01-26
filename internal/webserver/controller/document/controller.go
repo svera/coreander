@@ -36,7 +36,7 @@ type IdxReaderWriter interface {
 }
 
 type highlightsRepository interface {
-	Highlights(userID int, page int, resultsPerPage int, sortBy string) (result.Paginated[[]string], error)
+	Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]string], error)
 	Highlighted(userID int, doc index.Document) index.Document
 	HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
 	RemoveDocument(documentPath string) error
