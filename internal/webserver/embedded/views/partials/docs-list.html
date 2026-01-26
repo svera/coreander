@@ -26,8 +26,8 @@
         {{end}}
     </div>
 </div>
-{{if and .ShowHighlightsFilter (eq .Results.TotalHits 0)}}
-<div class="row mb-2">
+{{if eq .Results.TotalHits 0}}
+<div class="row mt-5">
     <div class="col-12">
         <p class="text-center">{{t .Lang "No documents found" }}</p>
     </div>
