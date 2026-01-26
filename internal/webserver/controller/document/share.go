@@ -1,6 +1,7 @@
 package document
 
 import (
+	"errors"
 	"fmt"
 	"html"
 	"log"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/i18n"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
@@ -78,29 +80,27 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	for _, recipient := range recipientEmails {
-		if err := d.sender.Send(recipient, subject, body); err != nil {
-			log.Printf("error sending share to %s: %v\n", recipient, err)
-			return fiber.ErrInternalServerError
-		}
-	}
-
 	if session.ID > 0 {
 		recipientIDs := make([]int, 0, len(recipientUsers))
 		for _, user := range recipientUsers {
 			recipientIDs = append(recipientIDs, int(user.ID))
 		}
 
-		userID := int(session.ID)
-		docSlug := document.Slug
-		share := &model.Share{
-			UserID:       &userID,
-			DocumentSlug: &docSlug,
-			Comment:      strings.TrimSpace(c.FormValue("comment")),
-		}
-		if err := d.shareRepository.CreateWithRecipients(share, recipientIDs); err != nil {
+		if err := d.hlRepository.Share(int(session.ID), document.ID, document.Slug, strings.TrimSpace(c.FormValue("comment")), recipientIDs); err != nil {
+			if errors.Is(err, model.ErrShareAlreadyExists) {
+				return fiber.ErrBadRequest
+			}
 			log.Printf("error saving share: %v\n", err)
 			return fiber.ErrInternalServerError
+		}
+	}
+
+	if _, ok := d.sender.(*infrastructure.NoEmail); !ok {
+		for _, recipient := range recipientEmails {
+			if err := d.sender.Send(recipient, subject, body); err != nil {
+				log.Printf("error sending share to %s: %v\n", recipient, err)
+				return fiber.ErrInternalServerError
+			}
 		}
 	}
 

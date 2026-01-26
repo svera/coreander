@@ -40,10 +40,7 @@ type highlightsRepository interface {
 	Highlighted(userID int, doc index.Document) index.Document
 	HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
 	RemoveDocument(documentPath string) error
-}
-
-type sharesRepository interface {
-	CreateWithRecipients(share *model.Share, recipientIDs []int) error
+	Share(senderID int, documentID, documentSlug, comment string, recipientIDs []int) error
 }
 
 type usersRepository interface {
@@ -75,7 +72,6 @@ type Config struct {
 
 type Controller struct {
 	hlRepository      highlightsRepository
-	shareRepository   sharesRepository
 	usersRepository   usersRepository
 	readingRepository readingRepository
 	idx               IdxReaderWriter
@@ -86,10 +82,9 @@ type Controller struct {
 	translator        i18n.Translator
 }
 
-func NewController(hlRepository highlightsRepository, shareRepository sharesRepository, usersRepository usersRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config, translator i18n.Translator) *Controller {
+func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config, translator i18n.Translator) *Controller {
 	return &Controller{
 		hlRepository:      hlRepository,
-		shareRepository:   shareRepository,
 		usersRepository:   usersRepository,
 		readingRepository: readingRepository,
 		idx:               idx,

@@ -5,7 +5,6 @@ import (
 
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
-	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -47,9 +46,15 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 		paths,
 	).Pluck("path", &highlights)
 
+	highlightedPaths := make(map[string]struct{}, len(highlights))
+	for _, path := range highlights {
+		highlightedPaths[path] = struct{}{}
+	}
+
 	for i, doc := range results.Hits() {
 		documents[i] = doc
-		documents[i].Highlighted = slices.Contains(highlights, doc.ID)
+		_, ok := highlightedPaths[doc.ID]
+		documents[i].Highlighted = ok
 	}
 
 	return result.NewPaginated(
@@ -89,6 +94,42 @@ func (u *HighlightRepository) Remove(userID int, documentPath string) error {
 		Path:   documentPath,
 	}
 	return u.DB.Delete(&highlight).Error
+}
+
+func (u *HighlightRepository) Share(senderID int, documentID, documentSlug, comment string, recipientIDs []int) error {
+	if senderID <= 0 || documentID == "" || len(recipientIDs) == 0 {
+		return nil
+	}
+
+	var existing int64
+	u.DB.Table("highlights").Where(
+		"path = ? AND user_id IN (?)",
+		documentID,
+		recipientIDs,
+	).Count(&existing)
+	if existing > 0 {
+		return ErrShareAlreadyExists
+	}
+
+	shares := make([]Highlight, 0, len(recipientIDs))
+	sharedByID := senderID
+	for _, recipientID := range recipientIDs {
+		if recipientID <= 0 {
+			continue
+		}
+		shares = append(shares, Highlight{
+			UserID:     recipientID,
+			Path:       documentID,
+			SharedByID: &sharedByID,
+			Comment:    comment,
+		})
+	}
+
+	if len(shares) == 0 {
+		return nil
+	}
+
+	return u.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&shares).Error
 }
 
 func (u *HighlightRepository) RemoveDocument(documentPath string) error {

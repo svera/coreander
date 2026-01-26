@@ -33,7 +33,7 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 	// Run column rename migration before AutoMigrate to avoid creating duplicate columns
 	migrateLastLoginToLastRequest(db)
 
-	if err := db.AutoMigrate(&model.User{}, &model.Highlight{}, &model.Reading{}, &model.Invitation{}, &model.Share{}, &model.ShareUser{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Highlight{}, &model.Reading{}, &model.Invitation{}); err != nil {
 		log.Fatal(err)
 	}
 	addDefaultAdmin(db, wordsPerMinute)
@@ -62,7 +62,6 @@ func migrateLastLoginToLastRequest(db *gorm.DB) {
 		}
 	}
 }
-
 
 func addDefaultAdmin(db *gorm.DB, wordsPerMinute float64) {
 	var result int64
