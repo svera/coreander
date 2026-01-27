@@ -16,7 +16,7 @@ import (
 
 func TestShareRecipientsExcludesSessionUser(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewOsFs(), webserver.Config{})
 
 	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
@@ -78,7 +78,7 @@ func TestShareRecipientsExcludesSessionUser(t *testing.T) {
 
 func TestShareCommentIsTruncated(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewOsFs(), webserver.Config{})
 
 	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
