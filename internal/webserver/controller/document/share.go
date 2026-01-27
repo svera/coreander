@@ -78,13 +78,18 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
+	comment := strings.TrimSpace(c.FormValue("comment"))
+	if len(comment) > 280 {
+		comment = string([]rune(comment)[:280])
+	}
+
 	if session.ID > 0 {
 		recipientIDs := make([]int, 0, len(recipientUsers))
 		for _, user := range recipientUsers {
 			recipientIDs = append(recipientIDs, int(user.ID))
 		}
 
-		if err := d.hlRepository.Share(int(session.ID), document.ID, document.Slug, strings.TrimSpace(c.FormValue("comment")), recipientIDs); err != nil {
+		if err := d.hlRepository.Share(int(session.ID), document.ID, document.Slug, comment, recipientIDs); err != nil {
 			if errors.Is(err, model.ErrShareAlreadyExists) {
 				return fiber.ErrBadRequest
 			}
@@ -100,7 +105,7 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 			"DocumentTitle": document.Title,
 			"DocumentURL":   docURL,
 			"HighlightsURL": highlightsURL,
-			"Comment":       strings.TrimSpace(c.FormValue("comment")),
+			"Comment":       comment,
 		})
 		body := string(c.Response().Body())
 		for _, recipient := range recipientEmails {

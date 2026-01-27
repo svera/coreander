@@ -3,6 +3,7 @@ package highlight
 import (
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/index"
@@ -72,6 +73,27 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		return err
 	}
 
+	paths := make([]string, 0, len(highlights))
+	for _, doc := range highlights {
+		paths = append(paths, doc.ID)
+	}
+	shareDetails, err := h.hlRepository.ShareDetails(int(user.ID), paths)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+	recommendations := make(map[string]fiber.Map, len(shareDetails))
+	for path, detail := range shareDetails {
+		name := detail.SharedByName
+		if strings.TrimSpace(name) == "" {
+			name = detail.SharedByUsername
+		}
+		recommendations[path] = fiber.Map{
+			"SharedBy": name,
+			"Comment":  detail.Comment,
+		}
+	}
+
 	totalAll, err := h.hlRepository.Total(int(user.ID))
 	if err != nil {
 		log.Println(err)
@@ -108,6 +130,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		"SortBy":                 c.Query("sort-by"),
 		"HighlightsFilter":       filter,
 		"HighlightsTotalAll":     totalAll,
+		"Recommendations":        recommendations,
 		"ShowHighlightsFilter":   true,
 		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 		"AdditionalSortOptions": []struct {
@@ -120,7 +143,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	if c.Get("hx-request") == "true" {
-		if err = c.Render("partials/docs-list", templateVars); err != nil {
+		if err = c.Render("partials/highlights-list", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}

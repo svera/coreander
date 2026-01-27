@@ -13,6 +13,13 @@ type HighlightRepository struct {
 	DB *gorm.DB
 }
 
+type ShareDetail struct {
+	Path             string
+	SharedByName     string
+	SharedByUsername string
+	Comment          string
+}
+
 func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]string], error) {
 	highlights := []string{}
 	var total int64
@@ -48,6 +55,42 @@ func (u *HighlightRepository) Total(userID int) (int, error) {
 		return 0, res.Error
 	}
 	return int(total), nil
+}
+
+func (u *HighlightRepository) ShareDetails(userID int, paths []string) (map[string]ShareDetail, error) {
+	if len(paths) == 0 {
+		return map[string]ShareDetail{}, nil
+	}
+
+	type shareRow struct {
+		Path             string
+		SharedByName     string `gorm:"column:shared_by_name"`
+		SharedByUsername string `gorm:"column:shared_by_username"`
+		Comment          string
+	}
+
+	rows := []shareRow{}
+	res := u.DB.Table("highlights AS h").
+		Select("h.path, u.name AS shared_by_name, u.username AS shared_by_username, h.comment").
+		Joins("LEFT JOIN users u ON u.id = h.shared_by_id").
+		Where("h.user_id = ? AND h.shared_by_id IS NOT NULL AND h.path IN (?)", userID, paths).
+		Scan(&rows)
+	if res.Error != nil {
+		log.Printf("error listing shared highlights: %s\n", res.Error)
+		return nil, res.Error
+	}
+
+	details := make(map[string]ShareDetail, len(rows))
+	for _, row := range rows {
+		details[row.Path] = ShareDetail{
+			Path:             row.Path,
+			SharedByName:     row.SharedByName,
+			SharedByUsername: row.SharedByUsername,
+			Comment:          row.Comment,
+		}
+	}
+
+	return details, nil
 }
 
 func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document] {

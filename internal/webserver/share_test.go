@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -72,5 +73,59 @@ func TestShareRecipientsExcludesSessionUser(t *testing.T) {
 	}
 	if !hasRegular {
 		t.Error("Expected share recipients to include other users")
+	}
+}
+
+func TestShareCommentIsTruncated(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
+
+	adminCookie, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+
+	regularUserData := url.Values{
+		"name":             {"Regular user"},
+		"username":         {"regular"},
+		"email":            {"regular@example.com"},
+		"password":         {"regular"},
+		"confirm-password": {"regular"},
+		"role":             {fmt.Sprint(model.RoleRegular)},
+		"words-per-minute": {"250"},
+	}
+	response, err := postRequest(regularUserData, adminCookie, app, "/users", t)
+	if response == nil || err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+
+	longComment := strings.Repeat("a", 300)
+	shareData := url.Values{
+		"recipients": {"regular"},
+		"comment":    {longComment},
+	}
+	response, err = postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
+	if response == nil || err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+
+	regularUser := model.User{}
+	db.Where("email = ?", "regular@example.com").First(&regularUser)
+
+	highlight := model.Highlight{}
+	db.Where("user_id = ?", regularUser.ID).First(&highlight)
+	if highlight.Path == "" {
+		t.Fatal("Expected share highlight to be created")
+	}
+
+	expected := string([]rune(longComment)[:280])
+	if highlight.Comment != expected {
+		t.Errorf("Expected comment to be %d characters, got %d", len(expected), len(highlight.Comment))
 	}
 }
