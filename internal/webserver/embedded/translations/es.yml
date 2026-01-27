@@ -195,7 +195,7 @@
 "Only shared documents": "Solo documentos compartidos"
 "View your highlights": "Ver tus destacados"
 "Recommended by %s": "Recomendado por %s"
-"<b>%s</b> shared <q>%s</q> with you": "<b>%s</b> compartió <q>%s</q> contigo"
+"<b>%s</b> shared <cite>%s</cite> with you": "<b>%s</b> compartió <cite>%s</cite> contigo"
 "Options": "Opciones"
 "File name": "Nombre de archivo"
 "Preferred EPUB type for download": "Tipo de EPUB preferido para descargar"

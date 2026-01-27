@@ -1,7 +1,7 @@
 {{$lang := .Lang}}
 {{$recommendation := .Recommendation}}
 <div class="alert alert-primary mb-3" role="alert">
-    <p class="text-start text-muted mb-1">{{t $lang "<b>%s</b> shared <q>%s</q> with you" $recommendation.SharedBy .Document.Title}}
+    <p class="text-start text-muted mb-1">{{t $lang "<b>%s</b> shared <cite>%s</cite> with you" $recommendation.SharedBy .Document.Title}}
         {{if $recommendation.Comment}}
             <blockquote class="fst-italic fw-light">{{$recommendation.Comment}}</blockquote>
         {{end}}
