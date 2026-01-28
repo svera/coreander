@@ -1,19 +1,29 @@
 "use strict"
 
-if (!window.coreanderShareRecipientsInitialized) {
-    window.coreanderShareRecipientsInitialized = true
+const usernamesCache = new Map()
+const usernamesPromises = new Map()
 
-    const containers = Array.from(document.querySelectorAll('[data-share-recipients]'))
-    if (containers.length > 0) {
-        const usernamesCache = new Map()
-        const usernamesPromises = new Map()
-
-        containers.forEach(container => {
-            const endpoint = container.dataset.usersEndpoint || '/users/share-recipients'
-            initShareRecipients(container, endpoint, usernamesCache, usernamesPromises)
-        })
+function initAllShareRecipients(root = document) {
+    const containers = Array.from(root.querySelectorAll('[data-share-recipients]'))
+    if (containers.length === 0) {
+        return
     }
+    containers.forEach(container => {
+        if (container.dataset.shareRecipientsInitialized === 'true') {
+            return
+        }
+        container.dataset.shareRecipientsInitialized = 'true'
+        const endpoint = container.dataset.usersEndpoint || '/users/share-recipients'
+        initShareRecipients(container, endpoint, usernamesCache, usernamesPromises)
+    })
 }
+
+initAllShareRecipients()
+document.addEventListener('htmx:afterSwap', event => {
+    if (event && event.target) {
+        initAllShareRecipients(event.target)
+    }
+})
 
 function initShareRecipients(container, endpoint, usernamesCache, usernamesPromises) {
     const input = container.querySelector('.share-recipients-input')
@@ -30,6 +40,7 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
     let availableUsers = []
     let isRefreshingDatalist = false
     let optionLookup = new Map()
+    let datalistLoaded = false
 
     function populateDatalist(values) {
         const listId = datalist.id
@@ -71,6 +82,7 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
             return option.value
         })
         populateDatalist(values)
+        datalistLoaded = true
     }
 
     function buildOptionsForUser(user) {
@@ -98,6 +110,9 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
         input.setAttribute('list', '')
         requestAnimationFrame(() => {
             input.setAttribute('list', listId)
+            if (typeof input.showPicker === 'function' && input.value.trim().length >= 1) {
+                input.showPicker()
+            }
         })
         if (input.value.trim().length >= 1 && !isRefreshingDatalist) {
             isRefreshingDatalist = true
@@ -143,9 +158,21 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
 
     function ensureUsernamesLoaded() {
         return preloadUsernames().then(() => {
-            populateDatalistForValue(input.value)
             return availableUsers
         })
+    }
+
+    function maybePopulateDatalist(value) {
+        if (!value) {
+            populateDatalistForValue('')
+            datalistLoaded = false
+            return
+        }
+        if (value.length === 1 && !datalistLoaded && !isRefreshingDatalist) {
+            ensureUsernamesLoaded().then(() => populateDatalistForValue(input.value.trim()))
+            return
+        }
+        // Do not reload datalist after first character.
     }
 
     function updateBadges() {
@@ -218,6 +245,17 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
         }
     }
 
+    function maybeHandleSelection(value) {
+        if (!value) {
+            return false
+        }
+        if (!matchesDatalistOption(value)) {
+            return false
+        }
+        handlePotentialMatch(value)
+        return true
+    }
+
     const form = container.closest('form')
     const submitButton = form ? form.querySelector('.share-submit') : null
     if (submitButton) {
@@ -269,45 +307,32 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
     input.addEventListener('input', e => {
         const value = e.target.value.trim()
         lastInputValue = value
-        if (value.length >= 1 && !isRefreshingDatalist) {
-            ensureUsernamesLoaded().then(() => populateDatalistForValue(value))
-        } else if (!isRefreshingDatalist) {
-            populateDatalistForValue('')
+        if (maybeHandleSelection(value)) {
+            return
         }
-        handlePotentialMatch(value)
+        maybePopulateDatalist(value)
     })
 
     input.addEventListener('change', e => {
         const value = e.target.value.trim()
-        if (value.length >= 1 && !isRefreshingDatalist) {
-            ensureUsernamesLoaded().then(() => populateDatalistForValue(value))
-        } else if (!isRefreshingDatalist) {
-            populateDatalistForValue('')
+        if (maybeHandleSelection(value)) {
+            return
         }
-        if (value && value !== lastInputValue) {
-            handlePotentialMatch(value)
-        }
+        maybePopulateDatalist(value)
     })
 
     input.addEventListener('blur', e => {
-        if (e.target.value.trim().length >= 1 && !isRefreshingDatalist) {
-            ensureUsernamesLoaded().then(() => populateDatalistForValue(e.target.value))
-        } else if (!isRefreshingDatalist) {
-            populateDatalistForValue('')
+        const value = e.target.value.trim()
+        if (maybeHandleSelection(value)) {
+            return
         }
-        handlePotentialMatch(e.target.value.trim())
-    })
-
-    input.addEventListener('focus', () => {
-        if (!input.value.trim()) {
-            preloadUsernames()
-        }
+        maybePopulateDatalist(value)
     })
 
     input.addEventListener('keydown', e => {
         if (e.key === 'Enter') {
             e.preventDefault()
-            handlePotentialMatch(input.value.trim())
+            maybeHandleSelection(input.value.trim())
         } else if (e.key === 'Backspace' && input.value === '' && selectedRecipients.length > 0) {
             removeRecipient(selectedRecipients.length - 1)
         }
