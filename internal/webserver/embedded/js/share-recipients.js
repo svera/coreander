@@ -1,8 +1,5 @@
 "use strict"
 
-const usernamesCache = new Map()
-const usernamesPromises = new Map()
-
 function initAllShareRecipients(root = document) {
     const containers = Array.from(root.querySelectorAll('[data-share-recipients]'))
     if (containers.length === 0) {
@@ -14,7 +11,7 @@ function initAllShareRecipients(root = document) {
         }
         container.dataset.shareRecipientsInitialized = 'true'
         const endpoint = container.dataset.usersEndpoint || '/users/share-recipients'
-        initShareRecipients(container, endpoint, usernamesCache, usernamesPromises)
+        initShareRecipients(container, endpoint)
     })
 }
 
@@ -25,7 +22,7 @@ document.addEventListener('htmx:afterSwap', event => {
     }
 })
 
-function initShareRecipients(container, endpoint, usernamesCache, usernamesPromises) {
+function initShareRecipients(container, endpoint) {
     const input = container.querySelector('.share-recipients-input')
     const hiddenInput = container.querySelector('input[type="hidden"][name="recipients"]')
     let datalist = container.querySelector('datalist')
@@ -40,7 +37,7 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
     let availableUsers = []
     let isRefreshingDatalist = false
     let optionLookup = new Map()
-    let datalistLoaded = false
+    let activeFetchController = null
 
     function populateDatalist(values) {
         const listId = datalist.id
@@ -128,15 +125,13 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
         }
     }
 
-    function preloadUsernames() {
-        if (usernamesCache.has(endpoint)) {
-            availableUsers = usernamesCache.get(endpoint)
-            return Promise.resolve(availableUsers)
+    function fetchUsernames(query) {
+        if (activeFetchController) {
+            activeFetchController.abort()
         }
-        if (usernamesPromises.has(endpoint)) {
-            return usernamesPromises.get(endpoint)
-        }
-        const promise = fetch(endpoint)
+        activeFetchController = new AbortController()
+        const url = `${endpoint}?q=${encodeURIComponent(query)}`
+        return fetch(url, { signal: activeFetchController.signal })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Failed to fetch usernames')
@@ -144,35 +139,27 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
                 return response.json()
             })
             .then(users => {
-                usernamesCache.set(endpoint, users)
-                availableUsers = users
-                return users
+                availableUsers = Array.isArray(users) ? users : []
+                return availableUsers
             })
             .catch(error => {
+                if (error && error.name === 'AbortError') {
+                    return []
+                }
                 console.error('Error loading usernames:', error)
                 return []
             })
-        usernamesPromises.set(endpoint, promise)
-        return promise
-    }
-
-    function ensureUsernamesLoaded() {
-        return preloadUsernames().then(() => {
-            return availableUsers
-        })
     }
 
     function maybePopulateDatalist(value) {
         if (!value) {
             populateDatalistForValue('')
-            datalistLoaded = false
             return
         }
-        if (value.length === 1 && !datalistLoaded && !isRefreshingDatalist) {
-            ensureUsernamesLoaded().then(() => populateDatalistForValue(input.value.trim()))
+        if (isRefreshingDatalist) {
             return
         }
-        // Do not reload datalist after first character.
+        fetchUsernames(value).then(() => populateDatalistForValue(value))
     }
 
     function updateBadges() {
@@ -318,7 +305,6 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
         if (maybeHandleSelection(value)) {
             return
         }
-        maybePopulateDatalist(value)
     })
 
     input.addEventListener('blur', e => {
@@ -326,7 +312,6 @@ function initShareRecipients(container, endpoint, usernamesCache, usernamesPromi
         if (maybeHandleSelection(value)) {
             return
         }
-        maybePopulateDatalist(value)
     })
 
     input.addEventListener('keydown', e => {

@@ -63,6 +63,22 @@ func (u *UserRepository) UsernamesAndNames() ([]User, error) {
 	return users, nil
 }
 
+func (u *UserRepository) UsernamesAndNamesFiltered(filter string) ([]User, error) {
+	var users []User
+
+	query := u.DB.Model(&User{}).Select("username", "name")
+	if filter != "" {
+		query = query.Where("name LIKE ? OR username LIKE ?", "%"+filter+"%", "%"+filter+"%")
+	}
+	result := query.Order("username ASC").Find(&users)
+	if result.Error != nil {
+		log.Printf("error listing usernames and names: %s\n", result.Error)
+		return nil, result.Error
+	}
+
+	return users, nil
+}
+
 func (u *UserRepository) FindByUuid(uuid string) (*User, error) {
 	return u.find("uuid", uuid)
 }
