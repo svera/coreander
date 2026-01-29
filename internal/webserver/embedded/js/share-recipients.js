@@ -35,9 +35,11 @@ function initShareRecipients(container, endpoint) {
     let selectedRecipients = []
     let lastInputValue = ''
     let availableUsers = []
-    let isRefreshingDatalist = false
     let optionLookup = new Map()
     let activeFetchController = null
+    let debounceTimer = null
+    let lastFetchedQuery = ''
+    let lastFetchedUsers = []
 
     function populateDatalist(values) {
         const listId = datalist.id
@@ -111,18 +113,6 @@ function initShareRecipients(container, endpoint) {
                 input.showPicker()
             }
         })
-        if (input.value.trim().length >= 1 && !isRefreshingDatalist) {
-            isRefreshingDatalist = true
-            setTimeout(() => {
-                const currentValue = input.value
-                input.focus()
-                input.value = currentValue
-                input.setSelectionRange(currentValue.length, currentValue.length)
-                input.dispatchEvent(new Event('input', { bubbles: true }))
-                input.dispatchEvent(new Event('keyup', { bubbles: true }))
-                isRefreshingDatalist = false
-            }, 0)
-        }
     }
 
     function fetchUsernames(query) {
@@ -140,6 +130,8 @@ function initShareRecipients(container, endpoint) {
             })
             .then(users => {
                 availableUsers = Array.isArray(users) ? users : []
+                lastFetchedQuery = query.toLowerCase()
+                lastFetchedUsers = availableUsers
                 return availableUsers
             })
             .catch(error => {
@@ -156,7 +148,10 @@ function initShareRecipients(container, endpoint) {
             populateDatalistForValue('')
             return
         }
-        if (isRefreshingDatalist) {
+        const normalizedValue = value.toLowerCase()
+        if (lastFetchedQuery && normalizedValue.startsWith(lastFetchedQuery)) {
+            availableUsers = lastFetchedUsers
+            populateDatalistForValue(value)
             return
         }
         fetchUsernames(value).then(() => populateDatalistForValue(value))
@@ -293,11 +288,15 @@ function initShareRecipients(container, endpoint) {
 
     input.addEventListener('input', e => {
         const value = e.target.value.trim()
-        lastInputValue = value
         if (maybeHandleSelection(value)) {
             return
         }
-        maybePopulateDatalist(value)
+        if (debounceTimer) {
+            clearTimeout(debounceTimer)
+        }
+        debounceTimer = setTimeout(() => {
+            maybePopulateDatalist(value)
+        }, 200)
     })
 
     input.addEventListener('change', e => {
