@@ -32,7 +32,7 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 	}
 
 	statsYear := u.readingStatsYear(c.QueryInt("stats-year"))
-	statsYears := u.readingStatsYears(int(user.ID))
+	statsYears := u.readingStatsYears(user.ID)
 
 	// Calculate yearly reading statistics
 	yearlyCompletedCount, yearlyReadingTime := u.calculateYearlyStats(int(user.ID), user.WordsPerMinute, statsYear)
@@ -86,7 +86,7 @@ func (u *Controller) readingStatsYear(requestedYear int) int {
 	return nowYear
 }
 
-func (u *Controller) readingStatsYears(userID int) []int {
+func (u *Controller) readingStatsYears(userID uint) []int {
 	nowYear := time.Now().Year()
 	availableYears, err := u.readingRepository.CompletedYears(userID)
 	if err != nil {

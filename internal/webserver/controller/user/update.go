@@ -48,7 +48,7 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 	}
 
 	statsYear := u.readingStatsYear(parseFormYear(c.FormValue("stats-year", "0")))
-	statsYears := u.readingStatsYears(int(user.ID))
+	statsYears := u.readingStatsYears(user.ID)
 
 	// Calculate yearly reading statistics
 	yearlyCompletedCount, yearlyReadingTime := u.calculateYearlyStats(int(user.ID), user.WordsPerMinute, statsYear)
