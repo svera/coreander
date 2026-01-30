@@ -76,6 +76,11 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 
 func (u *Controller) updateOptions(c *fiber.Ctx, user *model.User, session model.Session) error {
 	user.ShowFileName = c.FormValue("show-file-name") == "on"
+	if c.FormValue("private-profile") == "on" {
+		user.PrivateProfile = 1
+	} else {
+		user.PrivateProfile = 0
+	}
 	user.SendToEmail = c.FormValue("send-to-email")
 	user.PreferredEpubType = strings.ToLower(c.FormValue("preferred-epub-type"))
 	user.DefaultAction = strings.ToLower(c.FormValue("default-action"))

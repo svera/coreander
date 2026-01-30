@@ -38,6 +38,9 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	}
 
 	session, _ := c.Locals("Session").(model.Session)
+	if session.PrivateProfile != 0 {
+		return fiber.ErrForbidden
+	}
 	lang, _ := c.Locals("Lang").(string)
 	senderName := strings.TrimSpace(session.Name)
 	if senderName == "" {
@@ -130,10 +133,18 @@ func (d *Controller) resolveRecipient(recipient string) (*model.User, error) {
 		if err != nil {
 			return nil, err
 		}
-		return d.usersRepository.FindByEmail(strings.TrimSpace(address.Address))
+		user, err := d.usersRepository.FindByEmail(strings.TrimSpace(address.Address))
+		if err != nil || user == nil || user.PrivateProfile != 0 {
+			return nil, err
+		}
+		return user, nil
 	}
 
-	return d.usersRepository.FindByUsername(trimmed)
+	user, err := d.usersRepository.FindByUsername(trimmed)
+	if err != nil || user == nil || user.PrivateProfile != 0 {
+		return nil, err
+	}
+	return user, nil
 }
 
 func splitRecipients(raw string) []string {

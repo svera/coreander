@@ -129,3 +129,104 @@ func TestShareCommentIsTruncated(t *testing.T) {
 		t.Errorf("Expected comment to be %d characters, got %d", len(expected), len(highlight.Comment))
 	}
 }
+
+func TestShareFailsWhenSenderIsPrivate(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewOsFs(), webserver.Config{})
+
+	admin := model.User{}
+	db.Where("email = ?", "admin@example.com").First(&admin)
+	admin.PrivateProfile = 1
+	db.Save(&admin)
+
+	adminCookie, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+
+	regularUserData := url.Values{
+		"name":             {"Regular user"},
+		"username":         {"regular"},
+		"email":            {"regular@example.com"},
+		"password":         {"regular"},
+		"confirm-password": {"regular"},
+		"role":             {fmt.Sprint(model.RoleRegular)},
+		"words-per-minute": {"250"},
+	}
+	response, err := postRequest(regularUserData, adminCookie, app, "/users", t)
+	if response == nil || err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+
+	shareData := url.Values{
+		"recipients": {"regular"},
+	}
+	response, err = postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
+	if response == nil || err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if response.StatusCode != http.StatusForbidden {
+		t.Fatalf("Expected status %d, received %d", http.StatusForbidden, response.StatusCode)
+	}
+
+	regularUser := model.User{}
+	db.Where("email = ?", "regular@example.com").First(&regularUser)
+
+	var count int64
+	db.Model(&model.Highlight{}).Where("user_id = ?", regularUser.ID).Count(&count)
+	if count != 0 {
+		t.Fatal("Expected no shares to be created for private sender")
+	}
+}
+
+func TestShareFailsWhenRecipientIsPrivate(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewOsFs(), webserver.Config{})
+
+	adminCookie, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+
+	regularUserData := url.Values{
+		"name":             {"Regular user"},
+		"username":         {"regular"},
+		"email":            {"regular@example.com"},
+		"password":         {"regular"},
+		"confirm-password": {"regular"},
+		"role":             {fmt.Sprint(model.RoleRegular)},
+		"words-per-minute": {"250"},
+	}
+	response, err := postRequest(regularUserData, adminCookie, app, "/users", t)
+	if response == nil || err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+
+	regularUser := model.User{}
+	db.Where("email = ?", "regular@example.com").First(&regularUser)
+	regularUser.PrivateProfile = 1
+	db.Save(&regularUser)
+
+	shareData := url.Values{
+		"recipients": {"regular"},
+	}
+	response, err = postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
+	if response == nil || err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Expected status %d, received %d", http.StatusBadRequest, response.StatusCode)
+	}
+
+	var count int64
+	db.Model(&model.Highlight{}).Where("user_id = ?", regularUser.ID).Count(&count)
+	if count != 0 {
+		t.Fatal("Expected no shares to be created for private recipient")
+	}
+}

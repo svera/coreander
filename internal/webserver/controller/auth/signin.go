@@ -73,6 +73,7 @@ func GenerateToken(c *fiber.Ctx, user *model.User, expiration time.Time, secret 
 			SendToEmail:       user.SendToEmail,
 			WordsPerMinute:    user.WordsPerMinute,
 			ShowFileName:      user.ShowFileName,
+			PrivateProfile:    user.PrivateProfile,
 			PreferredEpubType: user.PreferredEpubType,
 			DefaultAction:     user.DefaultAction,
 		},

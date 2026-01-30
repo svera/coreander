@@ -4,6 +4,10 @@
 {{if and $session (ne $session.DefaultAction "")}}
     {{$defaultAction = $session.DefaultAction}}
 {{end}}
+{{if and $session (ne $session.PrivateProfile 0) (eq $defaultAction "share")}}
+    {{$defaultAction = "download"}}
+{{end}}
+{{$canShare := and $session (eq $session.PrivateProfile 0)}}
 {{$showDownloadOption := ne $defaultAction "download"}}
 {{$preferredEpub := "epub"}}
 {{if and $session (ne $session.PreferredEpubType "")}}
@@ -37,7 +41,7 @@
                     <a href="/sessions/new" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
                         <i class="bi-share-fill"></i>
                     </a>
-                {{else}}
+                {{else if $canShare}}
                     <button type="button" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" data-bs-toggle="modal" data-bs-target="#share-modal-{{.Document.Slug}}">
                         <i class="bi-share-fill"></i>
                     </button>
@@ -91,13 +95,13 @@
                     {{end}}
                 </li>
                 {{end}}
-                {{if ne $defaultAction "share"}}
+                {{if and (ne $defaultAction "share") (or (not $session) $canShare)}}
                 <li>
                     {{if not $session}}
                         <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
                             <i class="bi-share-fill me-2"></i>{{t .Lang "Share"}}
                         </a>
-                    {{else}}
+                    {{else if $canShare}}
                         <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#share-modal-{{.Document.Slug}}">
                             <i class="bi-share-fill me-2"></i>{{t .Lang "Share"}}
                         </button>
@@ -128,7 +132,7 @@
                         <a href="/sessions/new" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
                             <i class="bi-share-fill"></i>
                         </a>
-                    {{else}}
+                    {{else if $canShare}}
                         <button type="button" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" data-bs-toggle="modal" data-bs-target="#share-modal-{{.Document.Slug}}">
                             <i class="bi-share-fill"></i>
                         </button>
@@ -174,13 +178,13 @@
                         {{end}}
                     </li>
                     {{end}}
-                    {{if ne $defaultAction "share"}}
+                    {{if and (ne $defaultAction "share") (or (not $session) $canShare)}}
                     <li>
                         {{if not $session}}
                             <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
                                 <i class="bi-share-fill me-2"></i>{{t .Lang "Share"}}
                             </a>
-                        {{else}}
+                        {{else if $canShare}}
                             <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#share-modal-{{.Document.Slug}}">
                                 <i class="bi-share-fill me-2"></i>{{t .Lang "Share"}}
                             </button>
@@ -197,6 +201,7 @@
     {{end}}
 </div>
 
+{{if $canShare}}
 <div class="modal fade" id="share-modal-{{.Document.Slug}}" tabindex="-1" aria-labelledby="share-modal-label-{{.Document.Slug}}" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -233,5 +238,6 @@
         </div>
     </div>
 </div>
+{{end}}
 
 <script type="module" src="/js/share-recipients.js{{versionParam .Version}}"></script>

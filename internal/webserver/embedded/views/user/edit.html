@@ -86,6 +86,10 @@
                     <input class="form-check-input" type="checkbox" role="switch" id="show-file-name" name="show-file-name" {{if .User.ShowFileName}}checked{{end}}>
                     <label class="form-check-label" for="show-file-name">{{t .Lang "Show documents file names"}}</label>
                 </div>
+                <div class="mb-5 form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="private-profile" name="private-profile" {{if ne .User.PrivateProfile 0}}checked{{end}}>
+                    <label class="form-check-label" for="private-profile">{{t .Lang "Private profile (disable document sharing)"}}</label>
+                </div>
                 <input type="hidden" name="tab" value="options">
 
                 <div class="d-grid d-sm-block">

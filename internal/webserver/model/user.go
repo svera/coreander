@@ -32,6 +32,7 @@ type User struct {
 	Readings           []Reading   `gorm:"constraint:OnDelete:CASCADE"`
 	LastRequest        time.Time
 	ShowFileName       bool   `gorm:"default:false; not null"`
+	PrivateProfile     int    `gorm:"default:0; not null"`
 	PreferredEpubType  string `gorm:"default:'epub'; not null"`
 	DefaultAction      string `gorm:"default:'download'; not null"`
 }
