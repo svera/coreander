@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -32,7 +31,8 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
-	statsYear, statsYears := u.readingStatsYears(int(user.ID), c.Query("stats-year"))
+	statsYear := u.readingStatsYear(c.QueryInt("stats-year"))
+	statsYears := u.readingStatsYears(int(user.ID))
 
 	// Calculate yearly reading statistics
 	yearlyCompletedCount, yearlyReadingTime := u.calculateYearlyStats(int(user.ID), user.WordsPerMinute, statsYear)
@@ -78,15 +78,16 @@ func (u *Controller) calculateYearlyStats(userID int, wordsPerMinute float64, ye
 	return u.calculateReadingStats(completedPaths, userID, wordsPerMinute)
 }
 
-func (u *Controller) readingStatsYears(userID int, requestedYear string) (int, []int) {
+func (u *Controller) readingStatsYear(requestedYear int) int {
 	nowYear := time.Now().Year()
-	selectedYear := nowYear
-	if requestedYear != "" {
-		if year, err := strconv.Atoi(requestedYear); err == nil {
-			selectedYear = year
-		}
+	if requestedYear > 0 {
+		return requestedYear
 	}
+	return nowYear
+}
 
+func (u *Controller) readingStatsYears(userID int) []int {
+	nowYear := time.Now().Year()
 	availableYears, err := u.readingRepository.CompletedYears(userID)
 	if err != nil {
 		log.Printf("error getting completed years for user %d: %s\n", userID, err)
@@ -98,7 +99,7 @@ func (u *Controller) readingStatsYears(userID int, requestedYear string) (int, [
 		return availableYears[i] > availableYears[j]
 	})
 
-	return selectedYear, availableYears
+	return availableYears
 }
 
 func (u *Controller) calculateLifetimeStats(userID int, wordsPerMinute float64) (int, string) {

@@ -47,7 +47,8 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	statsYear, statsYears := u.readingStatsYears(int(user.ID), c.FormValue("stats-year"))
+	statsYear := u.readingStatsYear(parseFormYear(c.FormValue("stats-year")))
+	statsYears := u.readingStatsYears(int(user.ID))
 
 	// Calculate yearly reading statistics
 	yearlyCompletedCount, yearlyReadingTime := u.calculateYearlyStats(int(user.ID), user.WordsPerMinute, statsYear)
@@ -98,6 +99,17 @@ func (u *Controller) updateOptions(c *fiber.Ctx, user *model.User, session model
 	}
 
 	return nil
+}
+
+func parseFormYear(value string) int {
+	if value == "" {
+		return 0
+	}
+	year, err := strconv.Atoi(value)
+	if err != nil {
+		return 0
+	}
+	return year
 }
 
 func (u *Controller) refreshSession(session model.Session, user *model.User, c *fiber.Ctx) error {
