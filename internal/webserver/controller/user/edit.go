@@ -94,25 +94,11 @@ func (u *Controller) readingStatsYears(userID int, requestedYear string) (int, [
 	}
 
 	availableYears = append(availableYears, nowYear)
-	if selectedYear != nowYear {
-		availableYears = append(availableYears, selectedYear)
-	}
-
-	uniqueYears := make([]int, 0, len(availableYears))
-	seen := map[int]struct{}{}
-	for _, year := range availableYears {
-		if _, exists := seen[year]; exists {
-			continue
-		}
-		seen[year] = struct{}{}
-		uniqueYears = append(uniqueYears, year)
-	}
-
-	sort.Slice(uniqueYears, func(i, j int) bool {
-		return uniqueYears[i] > uniqueYears[j]
+	sort.Slice(availableYears, func(i, j int) bool {
+		return availableYears[i] > availableYears[j]
 	})
 
-	return selectedYear, uniqueYears
+	return selectedYear, availableYears
 }
 
 func (u *Controller) calculateLifetimeStats(userID int, wordsPerMinute float64) (int, string) {

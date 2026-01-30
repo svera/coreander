@@ -154,7 +154,7 @@ func (u *ReadingRepository) CompletedBetweenDates(userID int, startDate, endDate
 func (u *ReadingRepository) CompletedYears(userID int) ([]int, error) {
 	var yearStrings []string
 	err := u.DB.Raw(
-		"SELECT DISTINCT strftime('%Y', completed_on) AS year FROM readings WHERE user_id = ? AND completed_on IS NOT NULL ORDER BY year DESC",
+		"SELECT DISTINCT strftime('%Y', completed_on) AS year FROM readings WHERE user_id = ? AND completed_on IS NOT NULL AND strftime('%Y', completed_on) <> strftime('%Y', 'now') ORDER BY year DESC",
 		userID,
 	).Scan(&yearStrings).Error
 	if err != nil {
