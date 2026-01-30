@@ -2,6 +2,7 @@ package model
 
 import (
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/svera/coreander/v4/internal/index"
@@ -147,4 +148,26 @@ func (u *ReadingRepository) CompletedBetweenDates(userID int, startDate, endDate
 	}
 
 	return paths, nil
+}
+
+// CompletedYears returns the years with completed readings for a user.
+func (u *ReadingRepository) CompletedYears(userID uint) ([]int, error) {
+	var yearStrings []string
+	err := u.DB.Raw(
+		"SELECT DISTINCT strftime('%Y', completed_on) AS year FROM readings WHERE user_id = ? AND completed_on IS NOT NULL AND strftime('%Y', completed_on) <> strftime('%Y', 'now') ORDER BY year DESC",
+		userID,
+	).Scan(&yearStrings).Error
+	if err != nil {
+		log.Printf("error getting completed years: %s\n", err)
+		return nil, err
+	}
+
+	years := make([]int, 0, len(yearStrings))
+	for _, yearString := range yearStrings {
+		if year, convErr := strconv.Atoi(yearString); convErr == nil {
+			years = append(years, year)
+		}
+	}
+
+	return years, nil
 }
