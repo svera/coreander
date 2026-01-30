@@ -3,6 +3,8 @@ package user
 import (
 	"fmt"
 	"log"
+	"sort"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -30,13 +32,15 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
+	statsYear, statsYears := u.readingStatsYears(int(user.ID), c.Query("stats-year"))
+
 	// Calculate yearly reading statistics
-	yearlyCompletedCount, yearlyReadingTime := u.calculateYearlyStats(int(user.ID), user.WordsPerMinute)
+	yearlyCompletedCount, yearlyReadingTime := u.calculateYearlyStats(int(user.ID), user.WordsPerMinute, statsYear)
 
 	// Calculate lifetime reading statistics
 	lifetimeCompletedCount, lifetimeReadingTime := u.calculateLifetimeStats(int(user.ID), user.WordsPerMinute)
 
-	return c.Render("user/edit", fiber.Map{
+	vars := fiber.Map{
 		"Title":                  "Edit user",
 		"User":                   user,
 		"MinPasswordLength":      u.config.MinPasswordLength,
@@ -44,18 +48,26 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		"Errors":                 map[string]string{},
 		"EmailFrom":              u.sender.From(),
 		"ActiveTab":              "options",
+		"StatsYear":              statsYear,
+		"StatsYears":             statsYears,
 		"YearlyCompletedCount":   yearlyCompletedCount,
 		"YearlyReadingTime":      yearlyReadingTime,
 		"LifetimeCompletedCount": lifetimeCompletedCount,
 		"LifetimeReadingTime":    lifetimeReadingTime,
 		"AvailableLanguages":     c.Locals("AvailableLanguages"),
-	}, "layout")
+	}
+
+	if c.Get("HX-Request") == "true" {
+		return c.Render("user/edit", vars)
+	}
+
+	return c.Render("user/edit", vars, "layout")
 }
 
-func (u *Controller) calculateYearlyStats(userID int, wordsPerMinute float64) (int, string) {
+func (u *Controller) calculateYearlyStats(userID int, wordsPerMinute float64, year int) (int, string) {
 	now := time.Now()
-	startOfYear := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
-	endOfYear := time.Date(now.Year(), 12, 31, 23, 59, 59, 999999999, now.Location())
+	startOfYear := time.Date(year, 1, 1, 0, 0, 0, 0, now.Location())
+	endOfYear := time.Date(year, 12, 31, 23, 59, 59, 999999999, now.Location())
 
 	completedPaths, err := u.readingRepository.CompletedBetweenDates(userID, &startOfYear, &endOfYear)
 	if err != nil {
@@ -64,6 +76,43 @@ func (u *Controller) calculateYearlyStats(userID int, wordsPerMinute float64) (i
 	}
 
 	return u.calculateReadingStats(completedPaths, userID, wordsPerMinute)
+}
+
+func (u *Controller) readingStatsYears(userID int, requestedYear string) (int, []int) {
+	nowYear := time.Now().Year()
+	selectedYear := nowYear
+	if requestedYear != "" {
+		if year, err := strconv.Atoi(requestedYear); err == nil {
+			selectedYear = year
+		}
+	}
+
+	availableYears, err := u.readingRepository.CompletedYears(userID)
+	if err != nil {
+		log.Printf("error getting completed years for user %d: %s\n", userID, err)
+		availableYears = []int{}
+	}
+
+	availableYears = append(availableYears, nowYear)
+	if selectedYear != nowYear {
+		availableYears = append(availableYears, selectedYear)
+	}
+
+	uniqueYears := make([]int, 0, len(availableYears))
+	seen := map[int]struct{}{}
+	for _, year := range availableYears {
+		if _, exists := seen[year]; exists {
+			continue
+		}
+		seen[year] = struct{}{}
+		uniqueYears = append(uniqueYears, year)
+	}
+
+	sort.Slice(uniqueYears, func(i, j int) bool {
+		return uniqueYears[i] > uniqueYears[j]
+	})
+
+	return selectedYear, uniqueYears
 }
 
 func (u *Controller) calculateLifetimeStats(userID int, wordsPerMinute float64) (int, string) {

@@ -47,8 +47,10 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
+	statsYear, statsYears := u.readingStatsYears(int(user.ID), c.FormValue("stats-year"))
+
 	// Calculate yearly reading statistics
-	yearlyCompletedCount, yearlyReadingTime := u.calculateYearlyStats(int(user.ID), user.WordsPerMinute)
+	yearlyCompletedCount, yearlyReadingTime := u.calculateYearlyStats(int(user.ID), user.WordsPerMinute, statsYear)
 
 	// Calculate lifetime reading statistics
 	lifetimeCompletedCount, lifetimeReadingTime := u.calculateLifetimeStats(int(user.ID), user.WordsPerMinute)
@@ -61,6 +63,8 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 		"Errors":                 validationErrs,
 		"EmailFrom":              u.sender.From(),
 		"ActiveTab":              c.FormValue("tab"),
+		"StatsYear":              statsYear,
+		"StatsYears":             statsYears,
 		"YearlyCompletedCount":   yearlyCompletedCount,
 		"YearlyReadingTime":      yearlyReadingTime,
 		"LifetimeCompletedCount": lifetimeCompletedCount,

@@ -33,6 +33,7 @@ type invitationsRepository interface {
 
 type readingRepository interface {
 	CompletedBetweenDates(userID int, startDate, endDate *time.Time) ([]string, error)
+	CompletedYears(userID int) ([]int, error)
 }
 
 type indexer interface {
