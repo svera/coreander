@@ -5,7 +5,6 @@ import (
 
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
-	"golang.org/x/exp/slices"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -14,16 +13,31 @@ type HighlightRepository struct {
 	DB *gorm.DB
 }
 
-func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int, sortBy string) (result.Paginated[[]string], error) {
+type ShareDetail struct {
+	Path             string
+	SharedByName     string
+	SharedByUsername string
+	Comment          string
+}
+
+func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]string], error) {
 	highlights := []string{}
 	var total int64
 
-	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("highlights").Select("path").Where("user_id = ?", userID).Order(sortBy).Pluck("path", &highlights)
+	query := u.DB.Table("highlights").Where("user_id = ?", userID)
+	switch filter {
+	case "highlights":
+		query = query.Where("shared_by_id IS NULL")
+	case "shared":
+		query = query.Where("shared_by_id IS NOT NULL")
+	}
+
+	res := query.Scopes(Paginate(page, resultsPerPage)).Select("path").Order(sortBy).Pluck("path", &highlights)
 	if res.Error != nil {
 		log.Printf("error listing highlights: %s\n", res.Error)
 		return result.Paginated[[]string]{}, res.Error
 	}
-	u.DB.Table("highlights").Where("user_id = ?", userID).Count(&total)
+	query.Count(&total)
 
 	return result.NewPaginated(
 		resultsPerPage,
@@ -31,6 +45,52 @@ func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage in
 		int(total),
 		highlights,
 	), nil
+}
+
+func (u *HighlightRepository) Total(userID int) (int, error) {
+	var total int64
+	res := u.DB.Table("highlights").Where("user_id = ?", userID).Count(&total)
+	if res.Error != nil {
+		log.Printf("error counting highlights: %s\n", res.Error)
+		return 0, res.Error
+	}
+	return int(total), nil
+}
+
+func (u *HighlightRepository) ShareDetails(userID int, paths []string) (map[string]ShareDetail, error) {
+	if len(paths) == 0 {
+		return map[string]ShareDetail{}, nil
+	}
+
+	type shareRow struct {
+		Path             string
+		SharedByName     string `gorm:"column:shared_by_name"`
+		SharedByUsername string `gorm:"column:shared_by_username"`
+		Comment          string
+	}
+
+	rows := []shareRow{}
+	res := u.DB.Table("highlights AS h").
+		Select("h.path, u.name AS shared_by_name, u.username AS shared_by_username, h.comment").
+		Joins("LEFT JOIN users u ON u.id = h.shared_by_id").
+		Where("h.user_id = ? AND h.shared_by_id IS NOT NULL AND h.path IN (?)", userID, paths).
+		Scan(&rows)
+	if res.Error != nil {
+		log.Printf("error listing shared highlights: %s\n", res.Error)
+		return nil, res.Error
+	}
+
+	details := make(map[string]ShareDetail, len(rows))
+	for _, row := range rows {
+		details[row.Path] = ShareDetail{
+			Path:             row.Path,
+			SharedByName:     row.SharedByName,
+			SharedByUsername: row.SharedByUsername,
+			Comment:          row.Comment,
+		}
+	}
+
+	return details, nil
 }
 
 func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document] {
@@ -47,9 +107,15 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 		paths,
 	).Pluck("path", &highlights)
 
+	highlightedPaths := make(map[string]struct{}, len(highlights))
+	for _, path := range highlights {
+		highlightedPaths[path] = struct{}{}
+	}
+
 	for i, doc := range results.Hits() {
 		documents[i] = doc
-		documents[i].Highlighted = slices.Contains(highlights, doc.ID)
+		_, ok := highlightedPaths[doc.ID]
+		documents[i].Highlighted = ok
 	}
 
 	return result.NewPaginated(
@@ -89,6 +155,42 @@ func (u *HighlightRepository) Remove(userID int, documentPath string) error {
 		Path:   documentPath,
 	}
 	return u.DB.Delete(&highlight).Error
+}
+
+func (u *HighlightRepository) Share(senderID int, documentID, documentSlug, comment string, recipientIDs []int) error {
+	if senderID <= 0 || documentID == "" || len(recipientIDs) == 0 {
+		return nil
+	}
+
+	var existing int64
+	u.DB.Table("highlights").Where(
+		"path = ? AND user_id IN (?)",
+		documentID,
+		recipientIDs,
+	).Count(&existing)
+	if existing > 0 {
+		return ErrShareAlreadyExists
+	}
+
+	shares := make([]Highlight, 0, len(recipientIDs))
+	sharedByID := senderID
+	for _, recipientID := range recipientIDs {
+		if recipientID <= 0 {
+			continue
+		}
+		shares = append(shares, Highlight{
+			UserID:     recipientID,
+			Path:       documentID,
+			SharedByID: &sharedByID,
+			Comment:    comment,
+		})
+	}
+
+	if len(shares) == 0 {
+		return nil
+	}
+
+	return u.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&shares).Error
 }
 
 func (u *HighlightRepository) RemoveDocument(documentPath string) error {

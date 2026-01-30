@@ -3,6 +3,7 @@ package highlight
 import (
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/index"
@@ -44,7 +45,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	if c.Query("view") == "latest" {
-		highlights, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "created_at DESC")
+		highlights, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "created_at DESC", "all")
 		if err != nil {
 			return err
 		}
@@ -61,9 +62,42 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	if c.Query("sort-by") == "highlighted-older-first" {
 		sortBy = "created_at ASC"
 	}
-	highlights, totalHits, err := h.sortedHighlights(page, user, model.ResultsPerPage, sortBy)
+	filter := c.Query("filter")
+	switch filter {
+	case "highlights", "shared":
+	default:
+		filter = "all"
+	}
+	highlights, totalHits, err := h.sortedHighlights(page, user, model.ResultsPerPage, sortBy, filter)
 	if err != nil {
 		return err
+	}
+
+	paths := make([]string, 0, len(highlights))
+	for _, doc := range highlights {
+		paths = append(paths, doc.ID)
+	}
+	shareDetails, err := h.hlRepository.ShareDetails(int(user.ID), paths)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+	recommendations := make(map[string]fiber.Map, len(shareDetails))
+	for path, detail := range shareDetails {
+		name := detail.SharedByName
+		if strings.TrimSpace(name) == "" {
+			name = detail.SharedByUsername
+		}
+		recommendations[path] = fiber.Map{
+			"SharedBy": name,
+			"Comment":  detail.Comment,
+		}
+	}
+
+	totalAll, err := h.hlRepository.Total(int(user.ID))
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
 	}
 
 	paginatedResults := result.NewPaginated(
@@ -92,7 +126,12 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		"WordsPerMinute":         h.wordsPerMinute,
 		"URL":                    view.URL(c),
 		"SortURL":                view.SortURL(c),
+		"FilterURL":              view.FilterURL(c),
 		"SortBy":                 c.Query("sort-by"),
+		"HighlightsFilter":       filter,
+		"HighlightsTotalAll":     totalAll,
+		"Recommendations":        recommendations,
+		"ShowHighlightsFilter":   true,
 		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 		"AdditionalSortOptions": []struct {
 			Key   string
@@ -104,7 +143,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	if c.Get("hx-request") == "true" {
-		if err = c.Render("partials/docs-list", templateVars); err != nil {
+		if err = c.Render("partials/highlights-list", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
@@ -118,8 +157,8 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	return nil
 }
 
-func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmount int, sortBy string) ([]index.Document, int, error) {
-	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy)
+func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmount int, sortBy, filter string) ([]index.Document, int, error) {
+	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
 	if err != nil {
 		log.Println(err)
 		return nil, 0, fiber.ErrInternalServerError
@@ -127,7 +166,7 @@ func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmou
 
 	if docsSortedByHighlightedDate.TotalPages() < page {
 		page = docsSortedByHighlightedDate.TotalPages()
-		docsSortedByHighlightedDate, err = h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy)
+		docsSortedByHighlightedDate, err = h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
 		if err != nil {
 			log.Println(err)
 			return nil, 0, fiber.ErrInternalServerError

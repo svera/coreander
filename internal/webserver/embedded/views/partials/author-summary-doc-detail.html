@@ -3,7 +3,7 @@
         <div class="d-flex align-items-baseline">
             <h3>{{.Author.Name}}</h3>
             {{if and (ne .Author.BirthName "") (not .Author.BirthNameIncludesName)}}
-                <p class="opacity-50 ms-3 float-start">&nbsp;{{.Author.BirthName}}</p>
+                <p class="opacity-50 ms-3 float-start">{{.Author.BirthName}}</p>
             {{end}}
         </div>
         {{if eq .Author.DataSourceID ""}}

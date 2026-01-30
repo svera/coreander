@@ -32,7 +32,9 @@ type User struct {
 	Readings           []Reading   `gorm:"constraint:OnDelete:CASCADE"`
 	LastRequest        time.Time
 	ShowFileName       bool   `gorm:"default:false; not null"`
+	PrivateProfile     int    `gorm:"default:0; not null"`
 	PreferredEpubType  string `gorm:"default:'epub'; not null"`
+	DefaultAction      string `gorm:"default:'download'; not null"`
 }
 
 // Validate checks all user's fields to ensure they are in the required format
@@ -81,6 +83,10 @@ func (u User) Validate(minPasswordLength int) map[string]string {
 
 	if u.Role < RoleRegular || u.Role > RoleAdmin {
 		errs["role"] = "Incorrect role"
+	}
+
+	if u.DefaultAction != "" && u.DefaultAction != "download" && u.DefaultAction != "send" && u.DefaultAction != "share" && u.DefaultAction != "copy" {
+		errs["defaultaction"] = "Incorrect default action"
 	}
 
 	if len(u.Password) < minPasswordLength {
