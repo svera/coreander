@@ -219,6 +219,7 @@
 "Session expired. Your reading position is still saved locally.": "Sitzung abgelaufen. Ihre Leseposition ist weiterhin lokal gespeichert. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Anmelden</a>"
 "Reading position updated from another device.": "Leseposition von einem anderen Gerät aktualisiert."
 "You are not logged in. Your reading position is saved locally only.": "Sie sind nicht angemeldet. Ihre Leseposition wird nur lokal gespeichert. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Anmelden</a>"
+"Your saved reading position was reset because this document changed.": "Ihre gespeicherte Leseposition wurde zurückgesetzt, weil sich dieses Dokument geändert hat."
 "Invite user": "Benutzer einladen"
 "Send invitation": "Einladung senden"
 "Cancel": "Abbrechen"

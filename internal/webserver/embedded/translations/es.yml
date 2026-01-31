@@ -216,6 +216,7 @@
 "Sans-serif": "Sans-serif"
 "Session expired. Your reading position is still saved locally.": "Sesión expirada. Tu posición de lectura sigue guardada localmente. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Iniciar sesión</a>"
 "Reading position updated from another device.": "Posición de lectura actualizada desde otro dispositivo."
+"Your saved reading position was reset because this document changed.": "Tu posición de lectura guardada se restableció porque este documento cambió."
 "You are not logged in. Your reading position is saved locally only.": "No has iniciado sesión. Tu posición de lectura solo se guarda localmente. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Iniciar sesión</a>"
 "Invite user": "Invitar usuario"
 "Send invitation": "Enviar invitación"
