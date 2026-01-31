@@ -218,6 +218,7 @@
 "Session expired. Your reading position is still saved locally.": "Сессия истекла. Ваша позиция чтения сохранена локально. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Войти</a>"
 "Reading position updated from another device.": "Позиция чтения обновлена с другого устройства."
 "You are not logged in. Your reading position is saved locally only.": "Вы не вошли в систему. Ваша позиция чтения сохраняется только локально. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Войти</a>"
+"Your saved reading position was reset because this document changed.": "Сохраненная позиция чтения была сброшена, потому что документ изменился."
 "Invite user": "Пригласить пользователя"
 "Send invitation": "Отправить приглашение"
 "Cancel": "Отмена"

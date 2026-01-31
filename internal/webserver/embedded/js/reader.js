@@ -552,7 +552,29 @@ class Reader {
             }
         }
 
-        await this.view.init({lastLocation})
+        try {
+            await this.view.init({lastLocation})
+        } catch (e) {
+            storage.removeItem(slug)
+            if (this.sync.isAuthenticated) {
+                await this.sync.syncPositionToServer(slug, '')
+            }
+            this.#toast.show('warning', this.translations.position_reset_reading)
+            try {
+                await this.view.init({showTextStart: true})
+            } catch (retryError) {
+                const spinner = $('#spinner-container')
+                if (spinner) {
+                    document.body.removeChild(spinner)
+                }
+                const errorIcon = $('#error-icon-container')
+                if (errorIcon) {
+                    errorIcon.classList.remove('d-none')
+                }
+                console.error(retryError)
+                throw retryError
+            }
+        }
 
         // Set view in sync helper after initialization
         this.sync.setView(this.view)
