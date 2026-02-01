@@ -19,12 +19,12 @@ func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (re
 	docs := []string{}
 	var total int64
 
-	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("readings").Select("path").Where("user_id = ?", userID).Order("updated_at DESC").Pluck("path", &docs)
+	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("readings").Select("path").Where("user_id = ? AND completed_on IS NULL", userID).Order("updated_at DESC").Pluck("path", &docs)
 	if res.Error != nil {
 		log.Printf("error listing documents in progress: %s\n", res.Error)
 		return result.Paginated[[]string]{}, res.Error
 	}
-	u.DB.Table("readings").Where("user_id = ?", userID).Count(&total)
+	u.DB.Table("readings").Where("user_id = ? AND completed_on IS NULL", userID).Count(&total)
 
 	return result.NewPaginated(
 		resultsPerPage,
