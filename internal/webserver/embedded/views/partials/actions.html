@@ -3,6 +3,8 @@
 {{$defaultAction := "download"}}
 {{if and $session (ne $session.DefaultAction "")}}
     {{$defaultAction = $session.DefaultAction}}
+{{else if and $session $session.SendToEmail $emailSendingConfigured}}
+    {{$defaultAction = "send"}}
 {{end}}
 {{if and $session (ne $session.PrivateProfile 0) (eq $defaultAction "share")}}
     {{$defaultAction = "download"}}
@@ -241,7 +243,7 @@
                     <button type="button" class="btn btn-primary share-submit"
                             data-share-url="/documents/{{.Document.Slug}}/share"
                             data-close-modal="#share-modal-{{.Document.Slug}}"
-                            data-success-message='{{t .Lang "Share sent"}}'
+                            data-success-message='{{t .Lang "%s shared" .Document.Title}}'
                             data-error-message='{{t .Lang "There was an error sending the share, please try again later"}}'>{{t .Lang "Share"}}</button>
                 </div>
             </form>

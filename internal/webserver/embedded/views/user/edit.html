@@ -74,12 +74,20 @@
                 <div class="mb-5">
                     <div class="form-floating">
                         <select class="form-select" aria-label="{{t .Lang "Default action"}}" name="default-action">
-                            <option value="download" {{if or (eq .User.DefaultAction "") (eq .User.DefaultAction "download")}}selected{{end}}>{{t .Lang "Download"}}</option>
-                            {{if .EmailSendingConfigured}}
-                            <option value="send" {{if eq .User.DefaultAction "send"}}selected{{end}}>{{t .Lang "Send to email"}}</option>
-                            <option value="share" {{if eq .User.DefaultAction "share"}}selected{{end}}>{{t .Lang "Share"}}</option>
+                            {{$defaultAction := .User.DefaultAction}}
+                            {{if eq $defaultAction ""}}
+                                {{if and .User.SendToEmail .EmailSendingConfigured}}
+                                    {{$defaultAction = "send"}}
+                                {{else}}
+                                    {{$defaultAction = "download"}}
+                                {{end}}
                             {{end}}
-                            <option value="copy" {{if eq .User.DefaultAction "copy"}}selected{{end}}>{{t .Lang "Copy link"}}</option>
+                            <option value="download" {{if eq $defaultAction "download"}}selected{{end}}>{{t .Lang "Download"}}</option>
+                            {{if .EmailSendingConfigured}}
+                            <option value="send" {{if eq $defaultAction "send"}}selected{{end}}>{{t .Lang "Send to email"}}</option>
+                            <option value="share" {{if eq $defaultAction "share"}}selected{{end}}>{{t .Lang "Share"}}</option>
+                            {{end}}
+                            <option value="copy" {{if eq $defaultAction "copy"}}selected{{end}}>{{t .Lang "Copy link"}}</option>
                         </select>
                         <label for="default-action" class="form-label">{{t .Lang "Default action"}}</label>
                     </div>
