@@ -8,6 +8,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/webserver/controller/auth"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
@@ -90,6 +91,13 @@ func (u *Controller) updateOptions(c *fiber.Ctx, user *model.User, session model
 	}
 	if user.DefaultAction != "" && user.DefaultAction != "download" && user.DefaultAction != "send" && user.DefaultAction != "share" && user.DefaultAction != "copy" {
 		return fiber.ErrBadRequest
+	}
+
+	// Validate that share and send actions are only allowed if email sending is configured
+	if user.DefaultAction == "share" || user.DefaultAction == "send" {
+		if _, ok := u.sender.(*infrastructure.NoEmail); ok {
+			return fiber.ErrBadRequest
+		}
 	}
 
 	user.WordsPerMinute, _ = strconv.ParseFloat(c.FormValue("words-per-minute"), 64)

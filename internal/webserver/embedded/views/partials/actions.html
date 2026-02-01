@@ -7,8 +7,18 @@
 {{if and $session (ne $session.PrivateProfile 0) (eq $defaultAction "share")}}
     {{$defaultAction = "download"}}
 {{end}}
-{{$canShare := and $session (eq $session.PrivateProfile 0)}}
-{{$showDownloadOption := ne $defaultAction "download"}}
+{{$canShare := and $session (eq $session.PrivateProfile 0) $emailSendingConfigured}}
+{{$actualAction := $defaultAction}}
+{{if eq $defaultAction "send"}}
+    {{if or (not $session) (not $session.SendToEmail) (not $emailSendingConfigured)}}
+        {{$actualAction = "download"}}
+    {{end}}
+{{else if eq $defaultAction "share"}}
+    {{if or (not $emailSendingConfigured) (not $canShare)}}
+        {{$actualAction = "download"}}
+    {{end}}
+{{end}}
+{{$showDownloadOption := ne $actualAction "download"}}
 {{$preferredEpub := "epub"}}
 {{if and $session (ne $session.PreferredEpubType "")}}
     {{$preferredEpub = $session.PreferredEpubType}}
@@ -36,7 +46,7 @@
                         <i class="bi-envelope-fill"></i>
                     </button>
                 {{end}}
-            {{else if eq $defaultAction "share"}}
+            {{else if and $emailSendingConfigured (eq $defaultAction "share")}}
                 {{if not $session}}
                     <a href="/sessions/new" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
                         <i class="bi-share-fill"></i>
@@ -95,7 +105,7 @@
                     {{end}}
                 </li>
                 {{end}}
-                {{if and (ne $defaultAction "share") (or (not $session) $canShare)}}
+                {{if and $emailSendingConfigured (ne $defaultAction "share") (or (not $session) $canShare)}}
                 <li>
                     {{if not $session}}
                         <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
@@ -127,7 +137,7 @@
                             <i class="bi-envelope-fill"></i>
                         </button>
                     {{end}}
-                {{else if eq $defaultAction "share"}}
+                {{else if and $emailSendingConfigured (eq $defaultAction "share")}}
                     {{if not $session}}
                         <a href="/sessions/new" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
                             <i class="bi-share-fill"></i>
@@ -178,7 +188,7 @@
                         {{end}}
                     </li>
                     {{end}}
-                    {{if and (ne $defaultAction "share") (or (not $session) $canShare)}}
+                    {{if and $emailSendingConfigured (ne $defaultAction "share") (or (not $session) $canShare)}}
                     <li>
                         {{if not $session}}
                             <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>

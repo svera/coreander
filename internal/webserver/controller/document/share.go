@@ -13,6 +13,11 @@ import (
 )
 
 func (d *Controller) Share(c *fiber.Ctx) error {
+	// Check if email sending is configured
+	if _, ok := d.sender.(*infrastructure.NoEmail); ok {
+		return fiber.ErrNotFound
+	}
+
 	slug := strings.TrimSpace(c.Params("slug"))
 	if slug == "" {
 		return fiber.ErrBadRequest
@@ -169,4 +174,3 @@ func uniqueRecipients(recipients []string) []string {
 	}
 	return result
 }
-

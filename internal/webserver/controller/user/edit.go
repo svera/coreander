@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
@@ -36,6 +37,11 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 	// Calculate lifetime reading statistics
 	lifetimeCompletedCount, lifetimeReadingTime := u.calculateLifetimeStats(int(user.ID), user.WordsPerMinute)
 
+	emailSendingConfigured := true
+	if _, ok := u.sender.(*infrastructure.NoEmail); ok {
+		emailSendingConfigured = false
+	}
+
 	return c.Render("user/edit", fiber.Map{
 		"Title":                  "Edit user",
 		"User":                   user,
@@ -43,6 +49,7 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		"UsernamePattern":        model.UsernamePattern,
 		"Errors":                 map[string]string{},
 		"EmailFrom":              u.sender.From(),
+		"EmailSendingConfigured": emailSendingConfigured,
 		"ActiveTab":              "options",
 		"YearlyCompletedCount":   yearlyCompletedCount,
 		"YearlyReadingTime":      yearlyReadingTime,
