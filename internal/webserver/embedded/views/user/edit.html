@@ -1,6 +1,7 @@
 <div class="row mb-3 mt-5" id="user-edit">
     <div class="col mb-3">
         <h2>{{.User.Name}}</h2>
+        {{if and .Session (eq .Session.Username .User.Username)}}
         <div id="reading-stats">
         {{if gt .LifetimeCompletedCount 0}}
         <div class="alert alert-info mt-3" role="alert">
@@ -29,6 +30,7 @@
         </div>
         {{end}}
         </div>
+        {{end}}
     </div>
     <ul class="nav nav-tabs" role="tablist">
         <li class="nav-item" role="presentation">
