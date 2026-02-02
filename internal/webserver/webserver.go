@@ -96,6 +96,11 @@ func init() {
 	supportedLanguages = translator.SupportedLanguages()
 }
 
+// getSupportedLanguages returns the list of supported languages
+func getSupportedLanguages() []string {
+	return supportedLanguages
+}
+
 // New builds a new Fiber application and set up the required routes
 func New(cfg Config, controllers Controllers, sender Sender, idx ProgressInfo, usersRepository *model.UserRepository) *fiber.App {
 	viewsFS, err := fs.Sub(embedded, "embedded/views")

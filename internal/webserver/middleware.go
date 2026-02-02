@@ -9,6 +9,7 @@ import (
 	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
+	"golang.org/x/exp/slices"
 )
 
 // RequireAdmin returns HTTP forbidden if the user requesting access
@@ -167,3 +168,38 @@ func SetAvailableLanguages(idx ProgressInfo) func(*fiber.Ctx) error {
 		return c.Next()
 	}
 }
+
+// UpdateUserLanguage updates the authenticated user's language preference in the database
+// when the language query parameter (?l=) is present
+func UpdateUserLanguage(usersRepository *model.UserRepository) func(*fiber.Ctx) error {
+	return func(c *fiber.Ctx) error {
+		// Early return if user is not authenticated
+		session, ok := c.Locals("Session").(model.Session)
+		if !ok || session.ID == 0 {
+			return c.Next()
+		}
+
+		// Early return if language query parameter is not present
+		lang := c.Query("l")
+		if lang == "" {
+			return c.Next()
+		}
+
+		// Early return if language is not supported
+		if !slices.Contains(getSupportedLanguages(), lang) {
+			return c.Next()
+		}
+
+		// Get user and update language preference
+		user, err := usersRepository.FindByUuid(session.Uuid)
+		if err != nil || user == nil {
+			return c.Next()
+		}
+
+		user.Language = lang
+		usersRepository.Update(user)
+
+		return c.Next()
+	}
+}
+

@@ -35,6 +35,7 @@ type User struct {
 	PrivateProfile     int    `gorm:"default:0; not null"`
 	PreferredEpubType  string `gorm:"default:'epub'; not null"`
 	DefaultAction      string `gorm:"default:'download'; not null"`
+	Language           string
 }
 
 // Validate checks all user's fields to ensure they are in the required format
