@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
+	"golang.org/x/exp/slices"
 )
 
 func (d *Controller) Share(c *fiber.Ctx) error {
@@ -60,11 +61,9 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 
 	docURL := fmt.Sprintf("%s/documents/%s", c.BaseURL(), document.Slug)
 	highlightsURL := fmt.Sprintf("%s/highlights", c.BaseURL())
-	subject := d.translator.T(lang, "%s shared \"%s\"", senderName, document.Title)
 
 	recipientUsers := make([]*model.User, 0, len(recipients))
 	recipientUserIDs := make(map[uint]struct{}, len(recipients))
-	recipientEmails := make([]string, 0, len(recipients))
 
 	for _, recipient := range recipients {
 		user, err := d.resolveRecipient(recipient)
@@ -79,7 +78,6 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 		}
 		recipientUserIDs[user.ID] = struct{}{}
 		recipientUsers = append(recipientUsers, user)
-		recipientEmails = append(recipientEmails, user.Email)
 	}
 
 	if len(recipientUsers) == 0 {
@@ -107,18 +105,32 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	}
 
 	if _, ok := d.sender.(*infrastructure.NoEmail); !ok {
-		c.Render("document/share-email", fiber.Map{
-			"Lang":          lang,
-			"SenderName":    senderName,
-			"DocumentTitle": document.Title,
-			"DocumentURL":   docURL,
-			"HighlightsURL": highlightsURL,
-			"Comment":       comment,
-		})
-		body := string(c.Response().Body())
-		for _, recipient := range recipientEmails {
-			if err := d.sender.Send(recipient, subject, body); err != nil {
-				log.Printf("error sending share to %s: %v\n", recipient, err)
+		supportedLanguages := d.translator.SupportedLanguages()
+		for _, recipientUser := range recipientUsers {
+			// Use recipient's language preference, fallback to "en" if not set or not supported
+			recipientLang := recipientUser.Language
+			if recipientLang == "" || !slices.Contains(supportedLanguages, recipientLang) {
+				recipientLang = "en"
+			}
+
+			subject := d.translator.T(recipientLang, "%s shared \"%s\"", senderName, document.Title)
+
+			// Render email template in recipient's language
+			if err := c.Render("document/share-email", fiber.Map{
+				"Lang":          recipientLang,
+				"SenderName":    senderName,
+				"DocumentTitle": document.Title,
+				"DocumentURL":   docURL,
+				"HighlightsURL": highlightsURL,
+				"Comment":       comment,
+			}); err != nil {
+				log.Printf("error rendering email for %s: %v\n", recipientUser.Email, err)
+				return fiber.ErrInternalServerError
+			}
+
+			body := string(c.Response().Body())
+			if err := d.sender.Send(recipientUser.Email, subject, body); err != nil {
+				log.Printf("error sending share to %s: %v\n", recipientUser.Email, err)
 				return fiber.ErrInternalServerError
 			}
 		}

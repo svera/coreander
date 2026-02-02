@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -82,6 +83,7 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18
 			session := sessionData(c)
 			c.Locals("Session", session)
 			usersRepository.UpdateLastRequest(session.ID)
+			updateUserLanguage(c, usersRepository, session)
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -100,6 +102,7 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n
 			session := sessionData(c)
 			c.Locals("Session", session)
 			usersRepository.UpdateLastRequest(session.ID)
+			updateUserLanguage(c, usersRepository, session)
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -169,37 +172,36 @@ func SetAvailableLanguages(idx ProgressInfo) func(*fiber.Ctx) error {
 	}
 }
 
-// UpdateUserLanguage updates the authenticated user's language preference in the database
+// updateUserLanguage updates the authenticated user's language preference in the database
 // when the language query parameter (?l=) is present
-func UpdateUserLanguage(usersRepository *model.UserRepository) func(*fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
-		// Early return if user is not authenticated
-		session, ok := c.Locals("Session").(model.Session)
-		if !ok || session.ID == 0 {
-			return c.Next()
-		}
+func updateUserLanguage(c *fiber.Ctx, usersRepository *model.UserRepository, session model.Session) {
+	// Early return if language query parameter is not present
+	lang := c.Query("l")
+	if lang == "" {
+		return
+	}
 
-		// Early return if language query parameter is not present
-		lang := c.Query("l")
-		if lang == "" {
-			return c.Next()
-		}
+	// Early return if language is not supported
+	if !slices.Contains(getSupportedLanguages(), lang) {
+		return
+	}
 
-		// Early return if language is not supported
-		if !slices.Contains(getSupportedLanguages(), lang) {
-			return c.Next()
-		}
+	// Get user and update language preference
+	user, err := usersRepository.FindByUuid(session.Uuid)
+	if err != nil || user == nil {
+		return
+	}
 
-		// Get user and update language preference
-		user, err := usersRepository.FindByUuid(session.Uuid)
-		if err != nil || user == nil {
-			return c.Next()
-		}
+	// Only update if language has changed
+	if user.Language == lang {
+		return
+	}
 
-		user.Language = lang
-		usersRepository.Update(user)
-
-		return c.Next()
+	// Update language field explicitly using Model().Update() to ensure it's saved
+	result := usersRepository.DB.Model(user).Update("language", lang)
+	if result.Error != nil {
+		log.Printf("error updating user language for user %s: %v\n", session.Uuid, result.Error)
+		// Continue anyway, don't fail the request
 	}
 }
 

@@ -63,9 +63,6 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	// Set available languages for the language filter
 	app.Use(SetAvailableLanguages(idx))
 
-	// Update user's language preference when language changes (runs after authentication)
-	app.Use(UpdateUserLanguage(usersRepository))
-
 	app.Get("/sessions/new", allowIfNotLoggedIn, controllers.Auth.Login)
 	app.Post("/sessions", allowIfNotLoggedIn, controllers.Auth.SignIn)
 	app.Get("/recover", allowIfNotLoggedIn, controllers.Auth.Recover)
