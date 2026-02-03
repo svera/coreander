@@ -47,16 +47,9 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	if session.PrivateProfile != 0 {
 		return fiber.ErrForbidden
 	}
-	lang, _ := c.Locals("Lang").(string)
 	senderName := strings.TrimSpace(session.Name)
 	if senderName == "" {
 		senderName = strings.TrimSpace(session.Username)
-	}
-	if senderName == "" {
-		senderName = strings.TrimSpace(session.Email)
-	}
-	if senderName == "" {
-		senderName = d.translator.T(lang, "Someone")
 	}
 
 	docURL := fmt.Sprintf("%s/documents/%s", c.BaseURL(), document.Slug)
@@ -107,52 +100,62 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	}
 
 	if !shareAlreadyExists {
-		if _, ok := d.sender.(*infrastructure.NoEmail); !ok {
-			supportedLanguages := d.translator.SupportedLanguages()
-			// Group recipients by language
-			recipientsByLang := make(map[string][]*model.User)
-			for _, recipientUser := range recipientUsers {
-				// Use recipient's language preference, fallback to "en" if not set or not supported
-				recipientLang := recipientUser.Language
-				if recipientLang == "" || !slices.Contains(supportedLanguages, recipientLang) {
-					recipientLang = "en"
-				}
-				recipientsByLang[recipientLang] = append(recipientsByLang[recipientLang], recipientUser)
-			}
-
-			// Send one BCC email per language group
-			for recipientLang, langRecipients := range recipientsByLang {
-				subject := d.translator.T(recipientLang, "%s shared \"%s\"", senderName, document.Title)
-
-				// Render email template in this language
-				if err := c.Render("document/share-email", fiber.Map{
-					"Lang":          recipientLang,
-					"SenderName":    senderName,
-					"DocumentTitle": document.Title,
-					"DocumentURL":   docURL,
-					"HighlightsURL": highlightsURL,
-					"Comment":       comment,
-				}); err != nil {
-					log.Printf("error rendering email: %v\n", err)
-					return fiber.ErrInternalServerError
-				}
-
-				body := string(c.Response().Body())
-				// Collect all email addresses for this language group
-				addresses := make([]string, 0, len(langRecipients))
-				for _, recipientUser := range langRecipients {
-					addresses = append(addresses, recipientUser.Email)
-				}
-
-				if err := d.sender.SendBCC(addresses, subject, body); err != nil {
-					log.Printf("error sending share email: %v\n", err)
-					return fiber.ErrInternalServerError
-				}
-			}
+		if err := d.sendShareEmails(c, recipientUsers, senderName, document.Title, docURL, highlightsURL, comment); err != nil {
+			return err
 		}
 	}
 
-	return c.SendStatus(fiber.StatusOK)
+	return nil
+}
+
+func (d *Controller) sendShareEmails(c *fiber.Ctx, recipientUsers []*model.User, senderName, documentTitle, docURL, highlightsURL, comment string) error {
+	if _, ok := d.sender.(*infrastructure.NoEmail); ok {
+		return nil
+	}
+
+	supportedLanguages := d.translator.SupportedLanguages()
+	// Group recipients by language
+	recipientsByLang := make(map[string][]*model.User)
+	for _, recipientUser := range recipientUsers {
+		// Use recipient's language preference, fallback to "en" if not set or not supported
+		recipientLang := recipientUser.Language
+		if recipientLang == "" || !slices.Contains(supportedLanguages, recipientLang) {
+			recipientLang = "en"
+		}
+		recipientsByLang[recipientLang] = append(recipientsByLang[recipientLang], recipientUser)
+	}
+
+	// Send one BCC email per language group
+	for recipientLang, langRecipients := range recipientsByLang {
+		subject := d.translator.T(recipientLang, "%s shared \"%s\"", senderName, documentTitle)
+
+		// Render email template in this language
+		if err := c.Render("document/share-email", fiber.Map{
+			"Lang":          recipientLang,
+			"SenderName":    senderName,
+			"DocumentTitle": documentTitle,
+			"DocumentURL":   docURL,
+			"HighlightsURL": highlightsURL,
+			"Comment":       comment,
+		}); err != nil {
+			log.Printf("error rendering email: %v\n", err)
+			return fiber.ErrInternalServerError
+		}
+
+		body := string(c.Response().Body())
+		// Collect all email addresses for this language group
+		addresses := make([]string, 0, len(langRecipients))
+		for _, recipientUser := range langRecipients {
+			addresses = append(addresses, recipientUser.Email)
+		}
+
+		if err := d.sender.SendBCC(addresses, subject, body); err != nil {
+			log.Printf("error sending share email: %v\n", err)
+			return fiber.ErrInternalServerError
+		}
+	}
+
+	return nil
 }
 
 func (d *Controller) resolveRecipient(recipient string) (*model.User, error) {
