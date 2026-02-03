@@ -15,6 +15,7 @@ const relatedDocuments = 4
 
 type Sender interface {
 	Send(address, subject, body string) error
+	SendBCC(addresses []string, subject, body string) error
 	SendDocument(address, subject, libraryPath, fileName string) error
 	From() string
 }
