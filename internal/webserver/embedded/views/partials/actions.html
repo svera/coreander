@@ -245,7 +245,6 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{t .Lang "Cancel"}}</button>
                     <button type="button" class="btn btn-primary share-submit"
                             data-share-url="/documents/{{.Document.Slug}}/share"
-                            data-close-modal="#share-modal-{{.Document.Slug}}"
                             data-success-message-selector="[data-success-message]"
                             data-error-message='{{t .Lang "There was an error sending the share, please try again later"}}'>{{t .Lang "Share"}}</button>
                 </div>

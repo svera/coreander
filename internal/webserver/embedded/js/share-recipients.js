@@ -280,7 +280,10 @@ function initShareRecipients(container, endpoint) {
 
             showShareSuccess(submitButton)
             submitButton.removeAttribute('disabled')
-            closeShareModal(submitButton)
+            const modalEl = submitButton.closest('.modal')
+            if (modalEl) {
+                bootstrap.Modal.getOrCreateInstance(modalEl).hide()
+            }
         })
     }
 
@@ -340,16 +343,4 @@ function showShareError(button) {
     if (message) {
         showToast(message, 'danger')
     }
-}
-
-function closeShareModal(button) {
-    const closeTarget = button.getAttribute('data-close-modal')
-    if (!closeTarget) {
-        return
-    }
-    const modalEl = document.querySelector(closeTarget)
-    if (!modalEl) {
-        return
-    }
-    bootstrap.Modal.getOrCreateInstance(modalEl).hide()
 }
