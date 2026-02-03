@@ -44,17 +44,20 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	if c.Query("view") == "latest" {
-		highlights, _, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "created_at DESC", "all")
+		highlightsWithDocs, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "created_at DESC", "all")
 		if err != nil {
 			return err
 		}
-		// Add completion status for latest highlights
-		if session.ID > 0 {
-			for i := range highlights {
-				highlights[i] = h.readingRepository.Completed(int(session.ID), highlights[i])
+		// Extract documents and add completion status for latest highlights
+		documents := make([]index.Document, 0, len(highlightsWithDocs))
+		for _, highlight := range highlightsWithDocs {
+			doc := highlight.Document
+			if session.ID > 0 {
+				doc = h.readingRepository.Completed(int(session.ID), doc)
 			}
+			documents = append(documents, doc)
 		}
-		return h.latest(c, highlights, emailSendingConfigured)
+		return h.latest(c, documents, emailSendingConfigured)
 	}
 
 	sortBy := "created_at DESC"
@@ -67,9 +70,15 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	default:
 		filter = "all"
 	}
-	highlights, highlightsMap, totalHits, err := h.sortedHighlights(page, user, model.ResultsPerPage, sortBy, filter)
+	highlights, totalHits, err := h.sortedHighlights(page, user, model.ResultsPerPage, sortBy, filter)
 	if err != nil {
 		return err
+	}
+
+	// Extract documents from highlights for pagination
+	documents := make([]index.Document, 0, len(highlights))
+	for _, highlight := range highlights {
+		documents = append(documents, highlight.Document)
 	}
 
 	totalAll, err := h.hlRepository.Total(int(user.ID))
@@ -82,7 +91,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		model.ResultsPerPage,
 		page,
 		totalHits,
-		highlights,
+		documents,
 	)
 
 	// Add completion status for each document
@@ -93,6 +102,12 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	layout := "layout"
 	if c.Query("view") == "list" {
 		layout = ""
+	}
+
+	// Build highlights map for template lookup by document ID
+	highlightsMap := make(map[string]model.Highlight, len(highlights))
+	for _, highlight := range highlights {
+		highlightsMap[highlight.Document.ID] = highlight
 	}
 
 	templateVars := fiber.Map{
@@ -135,11 +150,11 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	return nil
 }
 
-func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmount int, sortBy, filter string) ([]index.Document, map[string]model.Highlight, int, error) {
+func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmount int, sortBy, filter string) ([]model.Highlight, int, error) {
 	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
 	if err != nil {
 		log.Println(err)
-		return nil, nil, 0, fiber.ErrInternalServerError
+		return nil, 0, fiber.ErrInternalServerError
 	}
 
 	if docsSortedByHighlightedDate.TotalPages() < page {
@@ -147,27 +162,26 @@ func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmou
 		docsSortedByHighlightedDate, err = h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
 		if err != nil {
 			log.Println(err)
-			return nil, nil, 0, fiber.ErrInternalServerError
+			return nil, 0, fiber.ErrInternalServerError
 		}
 	}
 
-	highlights := make([]index.Document, 0, len(docsSortedByHighlightedDate.Hits()))
-	highlightsMap := make(map[string]model.Highlight)
+	highlights := make([]model.Highlight, 0, len(docsSortedByHighlightedDate.Hits()))
 	for _, highlight := range docsSortedByHighlightedDate.Hits() {
 		doc, err := h.idx.DocumentByID(highlight.Path)
 		if err != nil {
 			log.Println(err)
-			return nil, nil, 0, fiber.ErrInternalServerError
+			return nil, 0, fiber.ErrInternalServerError
 		}
 		if doc.ID == "" {
 			continue
 		}
 		doc.Highlighted = true
-		highlights = append(highlights, doc)
-		highlightsMap[highlight.Path] = highlight
+		highlight.Document = doc
+		highlights = append(highlights, highlight)
 	}
 
-	return highlights, highlightsMap, docsSortedByHighlightedDate.TotalHits(), nil
+	return highlights, docsSortedByHighlightedDate.TotalHits(), nil
 }
 
 func (h *Controller) latest(c *fiber.Ctx, highlights []index.Document, emailSendingConfigured bool) error {
