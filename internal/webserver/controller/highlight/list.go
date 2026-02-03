@@ -44,17 +44,17 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	if c.Query("view") == "latest" {
-		highlightsWithDocs, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "created_at DESC", "all")
+		highlights, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "created_at DESC", "all")
 		if err != nil {
 			return err
 		}
 		// Add completion status directly to embedded documents
 		if session.ID > 0 {
-			for i := range highlightsWithDocs {
-				highlightsWithDocs[i].Document = h.readingRepository.Completed(int(session.ID), highlightsWithDocs[i].Document)
+			for i := range highlights {
+				highlights[i].Document = h.readingRepository.Completed(int(session.ID), highlights[i].Document)
 			}
 		}
-		return h.latest(c, highlightsWithDocs, emailSendingConfigured)
+		return h.latest(c, highlights, emailSendingConfigured)
 	}
 
 	sortBy := "created_at DESC"
