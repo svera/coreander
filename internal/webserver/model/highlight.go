@@ -1,11 +1,8 @@
 package model
 
 import (
-	"errors"
 	"time"
 )
-
-var ErrShareAlreadyExists = errors.New("share already exists")
 
 type Highlight struct {
 	CreatedAt  time.Time

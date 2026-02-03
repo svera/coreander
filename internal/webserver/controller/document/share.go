@@ -1,13 +1,13 @@
 package document
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/mail"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"golang.org/x/exp/slices"
@@ -55,22 +55,9 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	docURL := fmt.Sprintf("%s/documents/%s", c.BaseURL(), document.Slug)
 	highlightsURL := fmt.Sprintf("%s/highlights", c.BaseURL())
 
-	recipientUsers := make([]*model.User, 0, len(recipients))
-	recipientUserIDs := make(map[uint]struct{}, len(recipients))
-
-	for _, recipient := range recipients {
-		user, err := d.resolveRecipient(recipient)
-		if err != nil {
-			return fiber.ErrBadRequest
-		}
-		if user == nil {
-			return fiber.ErrBadRequest
-		}
-		if _, seen := recipientUserIDs[user.ID]; seen {
-			continue
-		}
-		recipientUserIDs[user.ID] = struct{}{}
-		recipientUsers = append(recipientUsers, user)
+	recipientUsers, err := d.resolveRecipients(recipients)
+	if err != nil {
+		return err
 	}
 
 	if len(recipientUsers) == 0 {
@@ -82,25 +69,31 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 		comment = string([]rune(comment)[:280])
 	}
 
-	shareAlreadyExists := false
+	newRecipients := recipientUsers
 	if session.ID > 0 {
 		recipientIDs := make([]int, 0, len(recipientUsers))
 		for _, user := range recipientUsers {
 			recipientIDs = append(recipientIDs, int(user.ID))
 		}
 
-		if err := d.hlRepository.Share(int(session.ID), document.ID, document.Slug, comment, recipientIDs); err != nil {
-			if errors.Is(err, model.ErrShareAlreadyExists) {
-				shareAlreadyExists = true
-			} else {
+		// Filter out recipients who already have the document
+		newRecipients = d.filterNewRecipients(recipientUsers, document.ID)
+		if len(newRecipients) > 0 {
+			newRecipientIDs := make([]int, 0, len(newRecipients))
+			for _, user := range newRecipients {
+				newRecipientIDs = append(newRecipientIDs, int(user.ID))
+			}
+
+			if err := d.hlRepository.Share(int(session.ID), document.ID, document.Slug, comment, newRecipientIDs); err != nil {
 				log.Printf("error saving share: %v\n", err)
 				return fiber.ErrInternalServerError
 			}
 		}
 	}
 
-	if !shareAlreadyExists {
-		if err := d.sendShareEmails(c, recipientUsers, senderName, document.Title, docURL, highlightsURL, comment); err != nil {
+	// Only send emails to recipients who actually received a new share
+	if len(newRecipients) > 0 {
+		if err := d.sendShareEmails(c, newRecipients, senderName, document.Title, docURL, highlightsURL, comment); err != nil {
 			return err
 		}
 	}
@@ -156,6 +149,45 @@ func (d *Controller) sendShareEmails(c *fiber.Ctx, recipientUsers []*model.User,
 	}
 
 	return nil
+}
+
+func (d *Controller) resolveRecipients(recipients []string) ([]*model.User, error) {
+	recipientUsers := make([]*model.User, 0, len(recipients))
+	recipientUserIDs := make(map[uint]struct{}, len(recipients))
+
+	for _, recipient := range recipients {
+		user, err := d.resolveRecipient(recipient)
+		if err != nil {
+			return nil, fiber.ErrBadRequest
+		}
+		if user == nil {
+			return nil, fiber.ErrBadRequest
+		}
+		if _, seen := recipientUserIDs[user.ID]; seen {
+			continue
+		}
+		recipientUserIDs[user.ID] = struct{}{}
+		recipientUsers = append(recipientUsers, user)
+	}
+
+	return recipientUsers, nil
+}
+
+func (d *Controller) filterNewRecipients(recipientUsers []*model.User, documentID string) []*model.User {
+	if len(recipientUsers) == 0 {
+		return recipientUsers
+	}
+
+	newRecipients := make([]*model.User, 0, len(recipientUsers))
+	for _, user := range recipientUsers {
+		// Check if user already has this document highlighted
+		checkedDoc := d.hlRepository.Highlighted(int(user.ID), index.Document{ID: documentID})
+		if !checkedDoc.Highlighted {
+			newRecipients = append(newRecipients, user)
+		}
+	}
+
+	return newRecipients
 }
 
 func (d *Controller) resolveRecipient(recipient string) (*model.User, error) {

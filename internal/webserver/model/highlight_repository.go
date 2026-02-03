@@ -162,16 +162,6 @@ func (u *HighlightRepository) Share(senderID int, documentID, documentSlug, comm
 		return nil
 	}
 
-	var existing int64
-	u.DB.Table("highlights").Where(
-		"path = ? AND user_id IN (?)",
-		documentID,
-		recipientIDs,
-	).Count(&existing)
-	if existing > 0 {
-		return ErrShareAlreadyExists
-	}
-
 	shares := make([]Highlight, 0, len(recipientIDs))
 	sharedByID := senderID
 	for _, recipientID := range recipientIDs {
@@ -190,6 +180,7 @@ func (u *HighlightRepository) Share(senderID int, documentID, documentSlug, comm
 		return nil
 	}
 
+	// OnConflict{DoNothing: true} handles duplicates silently
 	return u.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&shares).Error
 }
 
