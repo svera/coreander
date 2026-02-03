@@ -113,33 +113,12 @@ document.addEventListener('click', (evt) => {
         return
     }
 
-    const showCopyToast = () => {
-        const message = button.getAttribute('data-copy-success')
-        if (message) {
-            showToast(message, 'success')
-        }
-    }
-
-    const fallbackCopy = () => {
-        const textarea = document.createElement('textarea')
-        textarea.value = text
-        textarea.setAttribute('readonly', '')
-        textarea.style.position = 'absolute'
-        textarea.style.left = '-9999px'
-        document.body.appendChild(textarea)
-        textarea.select()
-        try {
-            document.execCommand('copy')
-        } finally {
-            document.body.removeChild(textarea)
-        }
-        showCopyToast()
-    }
-
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(showCopyToast).catch(fallbackCopy)
-        return
+        navigator.clipboard.writeText(text).then(() => {
+            const message = button.getAttribute('data-copy-success')
+            if (message) {
+                showToast(message, 'success')
+            }
+        })
     }
-
-    fallbackCopy()
 })

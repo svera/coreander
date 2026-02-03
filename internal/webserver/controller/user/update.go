@@ -95,15 +95,12 @@ func (u *Controller) updateOptions(c *fiber.Ctx, user *model.User, session model
 		user.DefaultAction = defaultActionFromForm
 	} else {
 		// Set based on SendToEmail status
+		// Default to "download", only set to "send" if SendToEmail is set and email is configured
+		user.DefaultAction = "download"
 		if user.SendToEmail != "" {
-			// Check if email sending is configured before setting to "send"
 			if _, ok := u.sender.(*infrastructure.NoEmail); !ok {
 				user.DefaultAction = "send"
-			} else {
-				user.DefaultAction = "download"
 			}
-		} else {
-			user.DefaultAction = "download"
 		}
 	}
 
