@@ -38,11 +38,11 @@
 <ul class="list-group border-top rounded-0">
     {{range $i, $document := .Results.Hits}}
     <li class="list-group-item border border-0 px-0 mt-5">
-        {{$recommendation := index $.Recommendations $document.ID}}
-        {{if $recommendation}}
-            {{template "partials/highlights-list-shared-item" dict "Lang" $lang "Document" $document "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute "Recommendations" $.Recommendations "Recommendation" $recommendation}}
+        {{$highlight := index $.Highlights $document.ID}}
+        {{if and $highlight $highlight.SharedByID}}
+            {{template "partials/highlights-list-shared-item" dict "Lang" $lang "Document" $document "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute "Highlight" $highlight}}
         {{else}}
-            {{template "partials/docs-list-item" dict "Lang" $lang "Document" $document "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute "Recommendations" $.Recommendations}}
+            {{template "partials/docs-list-item" dict "Lang" $lang "Document" $document "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute}}
         {{end}}
     </li>
     {{end}}

@@ -3,7 +3,6 @@ package highlight
 import (
 	"log"
 	"strconv"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/index"
@@ -45,7 +44,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	if c.Query("view") == "latest" {
-		highlights, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "created_at DESC", "all")
+		highlights, _, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "created_at DESC", "all")
 		if err != nil {
 			return err
 		}
@@ -68,30 +67,9 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	default:
 		filter = "all"
 	}
-	highlights, totalHits, err := h.sortedHighlights(page, user, model.ResultsPerPage, sortBy, filter)
+	highlights, highlightsMap, totalHits, err := h.sortedHighlights(page, user, model.ResultsPerPage, sortBy, filter)
 	if err != nil {
 		return err
-	}
-
-	paths := make([]string, 0, len(highlights))
-	for _, doc := range highlights {
-		paths = append(paths, doc.ID)
-	}
-	shareDetails, err := h.hlRepository.ShareDetails(int(user.ID), paths)
-	if err != nil {
-		log.Println(err)
-		return fiber.ErrInternalServerError
-	}
-	recommendations := make(map[string]fiber.Map, len(shareDetails))
-	for path, detail := range shareDetails {
-		name := detail.SharedByName
-		if strings.TrimSpace(name) == "" {
-			name = detail.SharedByUsername
-		}
-		recommendations[path] = fiber.Map{
-			"SharedBy": name,
-			"Comment":  detail.Comment,
-		}
 	}
 
 	totalAll, err := h.hlRepository.Total(int(user.ID))
@@ -130,7 +108,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		"SortBy":                 c.Query("sort-by"),
 		"HighlightsFilter":       filter,
 		"HighlightsTotalAll":     totalAll,
-		"Recommendations":        recommendations,
+		"Highlights":             highlightsMap,
 		"ShowHighlightsFilter":   true,
 		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 		"AdditionalSortOptions": []struct {
@@ -157,11 +135,11 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	return nil
 }
 
-func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmount int, sortBy, filter string) ([]index.Document, int, error) {
+func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmount int, sortBy, filter string) ([]index.Document, map[string]model.Highlight, int, error) {
 	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
 	if err != nil {
 		log.Println(err)
-		return nil, 0, fiber.ErrInternalServerError
+		return nil, nil, 0, fiber.ErrInternalServerError
 	}
 
 	if docsSortedByHighlightedDate.TotalPages() < page {
@@ -169,25 +147,27 @@ func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmou
 		docsSortedByHighlightedDate, err = h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
 		if err != nil {
 			log.Println(err)
-			return nil, 0, fiber.ErrInternalServerError
+			return nil, nil, 0, fiber.ErrInternalServerError
 		}
 	}
 
 	highlights := make([]index.Document, 0, len(docsSortedByHighlightedDate.Hits()))
-	for _, path := range docsSortedByHighlightedDate.Hits() {
-		doc, err := h.idx.DocumentByID(path)
+	highlightsMap := make(map[string]model.Highlight)
+	for _, highlight := range docsSortedByHighlightedDate.Hits() {
+		doc, err := h.idx.DocumentByID(highlight.Path)
 		if err != nil {
 			log.Println(err)
-			return nil, 0, fiber.ErrInternalServerError
+			return nil, nil, 0, fiber.ErrInternalServerError
 		}
 		if doc.ID == "" {
 			continue
 		}
 		doc.Highlighted = true
 		highlights = append(highlights, doc)
+		highlightsMap[highlight.Path] = highlight
 	}
 
-	return highlights, docsSortedByHighlightedDate.TotalHits(), nil
+	return highlights, highlightsMap, docsSortedByHighlightedDate.TotalHits(), nil
 }
 
 func (h *Controller) latest(c *fiber.Ctx, highlights []index.Document, emailSendingConfigured bool) error {

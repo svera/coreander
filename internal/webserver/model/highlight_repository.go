@@ -2,6 +2,7 @@ package model
 
 import (
 	"log"
+	"strings"
 
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
@@ -9,35 +10,71 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+func replaceColumnNames(orderBy string) string {
+	// Prefix column names with table alias to avoid ambiguity after JOIN
+	// Since we control the sortBy values, we can safely replace known column names
+	orderBy = strings.ReplaceAll(orderBy, "created_at", "h.created_at")
+	orderBy = strings.ReplaceAll(orderBy, "updated_at", "h.updated_at")
+	orderBy = strings.ReplaceAll(orderBy, "path", "h.path")
+	return orderBy
+}
+
 type HighlightRepository struct {
 	DB *gorm.DB
 }
 
-type ShareDetail struct {
-	Path             string
-	SharedByName     string
-	SharedByUsername string
-	Comment          string
-}
+func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]Highlight], error) {
+	type highlightRow struct {
+		UserID          int
+		Path            string
+		SharedByID      *int
+		Comment         string
+		SharedByName    string `gorm:"column:shared_by_name"`
+		SharedByUsername string `gorm:"column:shared_by_username"`
+	}
 
-func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]string], error) {
-	highlights := []string{}
+	rows := []highlightRow{}
 	var total int64
 
-	query := u.DB.Table("highlights").Where("user_id = ?", userID)
+	query := u.DB.Table("highlights AS h").
+		Select("h.user_id, h.path, h.shared_by_id, h.comment, u.name AS shared_by_name, u.username AS shared_by_username").
+		Joins("LEFT JOIN users u ON u.id = h.shared_by_id").
+		Where("h.user_id = ?", userID)
+
 	switch filter {
 	case "highlights":
-		query = query.Where("shared_by_id IS NULL")
+		query = query.Where("h.shared_by_id IS NULL")
 	case "shared":
-		query = query.Where("shared_by_id IS NOT NULL")
+		query = query.Where("h.shared_by_id IS NOT NULL")
 	}
 
-	res := query.Scopes(Paginate(page, resultsPerPage)).Select("path").Order(sortBy).Pluck("path", &highlights)
+	countQuery := query
+	countQuery.Count(&total)
+
+	// Prefix column names with table alias to avoid ambiguity after JOIN
+	orderBy := sortBy
+	if orderBy != "" {
+		// Replace column names with table-prefixed versions
+		orderBy = replaceColumnNames(orderBy)
+	}
+
+	res := query.Scopes(Paginate(page, resultsPerPage)).Order(orderBy).Scan(&rows)
 	if res.Error != nil {
 		log.Printf("error listing highlights: %s\n", res.Error)
-		return result.Paginated[[]string]{}, res.Error
+		return result.Paginated[[]Highlight]{}, res.Error
 	}
-	query.Count(&total)
+
+	highlights := make([]Highlight, len(rows))
+	for i, row := range rows {
+		highlights[i] = Highlight{
+			UserID:          row.UserID,
+			Path:            row.Path,
+			SharedByID:      row.SharedByID,
+			Comment:         row.Comment,
+			SharedByName:    row.SharedByName,
+			SharedByUsername: row.SharedByUsername,
+		}
+	}
 
 	return result.NewPaginated(
 		resultsPerPage,
@@ -57,41 +94,6 @@ func (u *HighlightRepository) Total(userID int) (int, error) {
 	return int(total), nil
 }
 
-func (u *HighlightRepository) ShareDetails(userID int, paths []string) (map[string]ShareDetail, error) {
-	if len(paths) == 0 {
-		return map[string]ShareDetail{}, nil
-	}
-
-	type shareRow struct {
-		Path             string
-		SharedByName     string `gorm:"column:shared_by_name"`
-		SharedByUsername string `gorm:"column:shared_by_username"`
-		Comment          string
-	}
-
-	rows := []shareRow{}
-	res := u.DB.Table("highlights AS h").
-		Select("h.path, u.name AS shared_by_name, u.username AS shared_by_username, h.comment").
-		Joins("LEFT JOIN users u ON u.id = h.shared_by_id").
-		Where("h.user_id = ? AND h.shared_by_id IS NOT NULL AND h.path IN (?)", userID, paths).
-		Scan(&rows)
-	if res.Error != nil {
-		log.Printf("error listing shared highlights: %s\n", res.Error)
-		return nil, res.Error
-	}
-
-	details := make(map[string]ShareDetail, len(rows))
-	for _, row := range rows {
-		details[row.Path] = ShareDetail{
-			Path:             row.Path,
-			SharedByName:     row.SharedByName,
-			SharedByUsername: row.SharedByUsername,
-			Comment:          row.Comment,
-		}
-	}
-
-	return details, nil
-}
 
 func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document] {
 	highlights := make([]string, 0, len(results.Hits()))

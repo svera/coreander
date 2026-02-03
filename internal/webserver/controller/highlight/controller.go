@@ -9,9 +9,8 @@ import (
 const latestHighlightsAmount = 6
 
 type highlightsRepository interface {
-	Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]string], error)
+	Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]model.Highlight], error)
 	Total(userID int) (int, error)
-	ShareDetails(userID int, paths []string) (map[string]model.ShareDetail, error)
 	Highlight(userID int, documentPath string) error
 	Remove(userID int, documentPath string) error
 	Highlighted(userID int, documents index.Document) index.Document
