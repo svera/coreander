@@ -434,6 +434,11 @@ class Reader {
         // The separator is the element right before the lineHeight menu item
         this.lineHeightSeparator = this.lineHeightMenuItem?.previousElementSibling
 
+        // Store references to font family elements for later removal if needed
+        this.fontFamilyMenuItem = menu.groups.fontFamily?.element
+        // The separator is the element right before the fontFamily menu item
+        this.fontFamilySeparator = this.fontFamilyMenuItem?.previousElementSibling
+
         $('#menu-button').append(menu.element)
         $('#menu-button > button').addEventListener('click', () => {
             const wasOpen = menu.element.classList.contains('show')
@@ -580,15 +585,17 @@ class Reader {
         this.sync.setView(this.view)
 
         // Check if it's pre-paginated content (PDF or fixed-layout) after the book is opened
-        // Font size and line height controls don't work for pre-paginated content
+        // Font size, line height, and font family controls don't work for pre-paginated content
         const { book } = this.view
         const isPrePaginated = book?.rendition?.layout === 'pre-paginated'
         if (isPrePaginated) {
-            // Remove font size and line height controls and their separators from the menu
+            // Remove font size, line height, and font family controls and their separators from the menu
             this.fontSizeMenuItem?.remove()
             this.fontSizeSeparator?.remove()
             this.lineHeightMenuItem?.remove()
             this.lineHeightSeparator?.remove()
+            this.fontFamilyMenuItem?.remove()
+            this.fontFamilySeparator?.remove()
         }
         this.view.addEventListener('load', this.#onLoad.bind(this))
         this.view.addEventListener('relocate', this.#onRelocate.bind(this))
