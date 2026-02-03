@@ -213,36 +213,36 @@ function initShareRecipients(container, endpoint) {
         input.focus()
     }
 
-    function matchesDatalistOption(value) {
-        return optionLookup.has(value)
+    function handleSelection(value) {
+        if (!value || !optionLookup.has(value)) {
+            return false
+        }
+        const normalized = optionLookup.get(value) || value
+        addRecipient(normalized)
+        return true
     }
 
-    function handlePotentialMatch(value) {
-        if (!value) {
-            return
+    function tryAddRecipient(value) {
+        const trimmed = value.trim()
+        if (!trimmed) {
+            return false
         }
-        if (matchesDatalistOption(value)) {
-            const normalized = optionLookup.get(value) || value
+        // If it matches a datalist option, use the normalized username
+        if (optionLookup.has(trimmed)) {
+            const normalized = optionLookup.get(trimmed)
             addRecipient(normalized)
+            return true
         }
-    }
-
-    function maybeHandleSelection(value) {
-        if (!value) {
-            return false
-        }
-        if (!matchesDatalistOption(value)) {
-            return false
-        }
-        handlePotentialMatch(value)
+        // Otherwise, try to add as-is (for submit button when user typed something)
+        addRecipient(trimmed)
         return true
     }
 
     const form = container.closest('form')
-    const submitButton = form ? form.querySelector('.share-submit') : null
+    const submitButton = form?.querySelector('.share-submit')
     if (submitButton) {
         submitButton.addEventListener('click', async event => {
-            handlePotentialMatch(input.value.trim())
+            tryAddRecipient(input.value.trim())
             if (!hiddenInput.value) {
                 input.required = true
                 input.reportValidity()
@@ -288,9 +288,8 @@ function initShareRecipients(container, endpoint) {
 
     input.addEventListener('input', e => {
         const value = e.target.value.trim()
-        if (maybeHandleSelection(value)) {
-            return
-        }
+        // Only check for exact matches on input - don't prevent datalist population
+        // The datalist should populate to show suggestions as user types
         if (debounceTimer) {
             clearTimeout(debounceTimer)
         }
@@ -301,14 +300,14 @@ function initShareRecipients(container, endpoint) {
 
     input.addEventListener('change', e => {
         const value = e.target.value.trim()
-        if (maybeHandleSelection(value)) {
+        if (handleSelection(value)) {
             return
         }
     })
 
     input.addEventListener('blur', e => {
         const value = e.target.value.trim()
-        if (maybeHandleSelection(value)) {
+        if (handleSelection(value)) {
             return
         }
     })
@@ -316,7 +315,7 @@ function initShareRecipients(container, endpoint) {
     input.addEventListener('keydown', e => {
         if (e.key === 'Enter') {
             e.preventDefault()
-            maybeHandleSelection(input.value.trim())
+            handleSelection(input.value.trim())
         } else if (e.key === 'Backspace' && input.value === '' && selectedRecipients.length > 0) {
             removeRecipient(selectedRecipients.length - 1)
         }
