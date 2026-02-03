@@ -120,10 +120,6 @@ func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, er
 		return url.QueryEscape(text)
 	})
 
-	engine.AddFunc("sprintf", func(format string, values ...any) string {
-		return fmt.Sprintf(format, values...)
-	})
-
 	engine.AddFunc("sprintfHTML", func(format string, values ...any) template.HTML {
 		return template.HTML(fmt.Sprintf(format, values...))
 	})

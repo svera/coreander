@@ -9,8 +9,8 @@
 </head>
 <body>
     <p>
-        {{$docLink := sprintf "<a href=\"%s\">%s</a>" .DocumentURL .DocumentTitle}}
-        {{$boldSender := sprintf "<b>%s</b>" .SenderName}}
+        {{$docLink := sprintfHTML "<a href=\"%s\">%s</a>" .DocumentURL .DocumentTitle}}
+        {{$boldSender := sprintfHTML "<b>%s</b>" .SenderName}}
         {{t .Lang "%s shared %s with you" $boldSender $docLink}}
     </p>
     {{if ne .Comment ""}}
