@@ -1,5 +1,24 @@
 "use strict"
 
+/**
+ * Shows a toast notification
+ * @param {string} message - The message to display (can be HTML)
+ * @param {'success'|'danger'} type - The toast type
+ */
+function showToast(message, type = 'success') {
+    const toastId = type === 'danger' ? 'live-toast-danger' : 'live-toast-success'
+    const toast = document.getElementById(toastId)
+    if (!toast || !message) {
+        return
+    }
+    toast.querySelector(".toast-body").innerHTML = message
+    const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toast)
+    toastBootstrap.show()
+}
+
+// Make showToast available globally for non-module scripts
+window.showToast = showToast
+
 htmx.on("htmx:beforeSwap", (evt) => {
     // Allow 422 and 400 responses to swap
     // We treat these as form validation errors
@@ -34,24 +53,18 @@ htmx.on('htmx:afterRequest', (evt) => {
 
         if (xhr.status >= 500) {
             console.warn("Server error", evt.detail)
-            toastDanger.querySelector(".toast-body").innerHTML = unexpectedServerErrorText + `${xhr.status} - ${xhr.statusText}`
-            const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastDanger)
-            toastBootstrap.show()
+            showToast(unexpectedServerErrorText + `${xhr.status} - ${xhr.statusText}`, 'danger')
             return
         }
 
         if (dataErrorMessage !== null) {
-            toastDanger.querySelector(".toast-body").innerHTML = dataErrorMessage
-            const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastDanger)
-            toastBootstrap.show()
+            showToast(dataErrorMessage, 'danger')
             return
         }
     }
 
     if (xhr.status === 200 && dataSuccessMessage !== null && dataSuccessMessage !== undefined) {
-        toastSuccess.querySelector(".toast-body").innerHTML = dataSuccessMessage
-        const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastSuccess)
-        toastBootstrap.show()
+        showToast(dataSuccessMessage, 'success')
     }
 
     if (xhr.status === 200) {
@@ -101,12 +114,9 @@ document.addEventListener('click', (evt) => {
     }
 
     const showCopyToast = () => {
-        const toastSuccess = document.getElementById('live-toast-success')
         const message = button.getAttribute('data-copy-success')
-        if (toastSuccess && message) {
-            toastSuccess.querySelector(".toast-body").innerHTML = message
-            const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastSuccess)
-            toastBootstrap.show()
+        if (message) {
+            showToast(message, 'success')
         }
     }
 

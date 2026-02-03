@@ -324,25 +324,23 @@ function initShareRecipients(container, endpoint) {
 }
 
 function showShareSuccess(button) {
-    const toastSuccess = document.getElementById('live-toast-success')
-    const message = button.getAttribute('data-success-message')
-    if (!toastSuccess || !message) {
+    const messageSelector = button.getAttribute('data-success-message-selector')
+    if (!messageSelector) {
         return
     }
-    toastSuccess.querySelector(".toast-body").innerHTML = message
-    const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastSuccess)
-    toastBootstrap.show()
+    const messageElement = button.closest('.modal').querySelector(messageSelector)
+    if (!messageElement) {
+        return
+    }
+    const message = messageElement.innerHTML
+    showToast(message, 'success')
 }
 
 function showShareError(button) {
-    const toastDanger = document.getElementById('live-toast-danger')
     const message = button.getAttribute('data-error-message')
-    if (!toastDanger || !message) {
-        return
+    if (message) {
+        showToast(message, 'danger')
     }
-    toastDanger.querySelector(".toast-body").innerHTML = message
-    const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastDanger)
-    toastBootstrap.show()
 }
 
 function closeShareModal(button) {

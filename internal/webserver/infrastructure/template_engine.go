@@ -124,6 +124,10 @@ func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, er
 		return fmt.Sprintf(format, values...)
 	})
 
+	engine.AddFunc("sprintfHTML", func(format string, values ...any) template.HTML {
+		return template.HTML(fmt.Sprintf(format, values...))
+	})
+
 	return engine, nil
 }
 
