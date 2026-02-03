@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
@@ -169,13 +168,8 @@ func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmou
 }
 
 func (h *Controller) latest(c *fiber.Ctx, highlights []model.Highlight, emailSendingConfigured bool) error {
-	// Extract documents from highlights for template
-	documents := make([]index.Document, 0, len(highlights))
-	for _, highlight := range highlights {
-		documents = append(documents, highlight.Document)
-	}
 	err := c.Render("partials/latest-highlights", fiber.Map{
-		"Highlights":             documents,
+		"Highlights":             highlights,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              h.sender.From(),
 		"WordsPerMinute":         h.wordsPerMinute,
