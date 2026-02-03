@@ -48,16 +48,13 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		if err != nil {
 			return err
 		}
-		// Extract documents and add completion status for latest highlights
-		documents := make([]index.Document, 0, len(highlightsWithDocs))
-		for _, highlight := range highlightsWithDocs {
-			doc := highlight.Document
-			if session.ID > 0 {
-				doc = h.readingRepository.Completed(int(session.ID), doc)
+		// Add completion status directly to embedded documents
+		if session.ID > 0 {
+			for i := range highlightsWithDocs {
+				highlightsWithDocs[i].Document = h.readingRepository.Completed(int(session.ID), highlightsWithDocs[i].Document)
 			}
-			documents = append(documents, doc)
 		}
-		return h.latest(c, documents, emailSendingConfigured)
+		return h.latest(c, highlightsWithDocs, emailSendingConfigured)
 	}
 
 	sortBy := "created_at DESC"
@@ -75,16 +72,16 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		return err
 	}
 
-	// Extract documents from highlights for pagination
-	documents := make([]index.Document, 0, len(highlights))
-	for _, highlight := range highlights {
-		documents = append(documents, highlight.Document)
-	}
-
 	totalAll, err := h.hlRepository.Total(int(user.ID))
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
+	}
+
+	// Extract documents from highlights for pagination
+	documents := make([]index.Document, 0, len(highlights))
+	for _, highlight := range highlights {
+		documents = append(documents, highlight.Document)
 	}
 
 	paginatedResults := result.NewPaginated(
@@ -97,6 +94,16 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	// Add completion status for each document
 	if session.ID > 0 {
 		paginatedResults = h.readingRepository.CompletedPaginatedResult(int(session.ID), paginatedResults)
+		// Update embedded documents in highlights to match paginated results
+		completedDocs := make(map[string]index.Document, len(paginatedResults.Hits()))
+		for _, doc := range paginatedResults.Hits() {
+			completedDocs[doc.ID] = doc
+		}
+		for i := range highlights {
+			if doc, ok := completedDocs[highlights[i].Document.ID]; ok {
+				highlights[i].Document = doc
+			}
+		}
 	}
 
 	layout := "layout"
@@ -184,9 +191,14 @@ func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmou
 	return highlights, docsSortedByHighlightedDate.TotalHits(), nil
 }
 
-func (h *Controller) latest(c *fiber.Ctx, highlights []index.Document, emailSendingConfigured bool) error {
+func (h *Controller) latest(c *fiber.Ctx, highlights []model.Highlight, emailSendingConfigured bool) error {
+	// Extract documents from highlights for template
+	documents := make([]index.Document, 0, len(highlights))
+	for _, highlight := range highlights {
+		documents = append(documents, highlight.Document)
+	}
 	err := c.Render("partials/latest-highlights", fiber.Map{
-		"Highlights":             highlights,
+		"Highlights":             documents,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              h.sender.From(),
 		"WordsPerMinute":         h.wordsPerMinute,
