@@ -19,6 +19,7 @@ type highlightsRepository interface {
 type readingRepository interface {
 	Completed(userID int, doc index.Document) index.Document
 	CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
+	CompletedHighlights(userID int, highlights []model.Highlight)
 }
 
 // IdxReaderWriter defines a set of reading and writing operations over an index

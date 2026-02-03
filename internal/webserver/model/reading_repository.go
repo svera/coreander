@@ -86,6 +86,38 @@ func (u *ReadingRepository) Completed(userID int, doc index.Document) index.Docu
 	return doc
 }
 
+// CompletedHighlights adds completion status to embedded documents in highlights
+func (u *ReadingRepository) CompletedHighlights(userID int, highlights []Highlight) {
+	if len(highlights) == 0 {
+		return
+	}
+	paths := make([]string, 0, len(highlights))
+	for _, highlight := range highlights {
+		paths = append(paths, highlight.Document.ID)
+	}
+
+	var readings []Reading
+	u.DB.Where(
+		"user_id = ? AND path IN (?) AND completed_on IS NOT NULL",
+		userID,
+		paths,
+	).Find(&readings)
+
+	// Create a map for quick lookup
+	readingMap := make(map[string]*time.Time)
+	for _, r := range readings {
+		if r.CompletedOn != nil {
+			readingMap[r.Path] = r.CompletedOn
+		}
+	}
+
+	for i := range highlights {
+		if completedOn, exists := readingMap[highlights[i].Document.ID]; exists {
+			highlights[i].Document.CompletedOn = completedOn
+		}
+	}
+}
+
 func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document] {
 	paths := make([]string, 0, len(results.Hits()))
 	documents := make([]index.Document, len(results.Hits()))

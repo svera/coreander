@@ -78,6 +78,11 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
+	// Add completion status directly to embedded documents in highlights
+	if session.ID > 0 {
+		h.readingRepository.CompletedHighlights(int(session.ID), highlights)
+	}
+
 	// Extract documents from highlights for pagination
 	documents := make([]index.Document, 0, len(highlights))
 	for _, highlight := range highlights {
@@ -90,21 +95,6 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		totalHits,
 		documents,
 	)
-
-	// Add completion status for each document
-	if session.ID > 0 {
-		paginatedResults = h.readingRepository.CompletedPaginatedResult(int(session.ID), paginatedResults)
-		// Update embedded documents in highlights to match paginated results
-		completedDocs := make(map[string]index.Document, len(paginatedResults.Hits()))
-		for _, doc := range paginatedResults.Hits() {
-			completedDocs[doc.ID] = doc
-		}
-		for i := range highlights {
-			if doc, ok := completedDocs[highlights[i].Document.ID]; ok {
-				highlights[i].Document = doc
-			}
-		}
-	}
 
 	layout := "layout"
 	if c.Query("view") == "list" {
