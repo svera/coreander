@@ -83,28 +83,16 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		h.readingRepository.CompletedHighlights(int(session.ID), highlights)
 	}
 
-	// Extract documents from highlights for pagination
-	documents := make([]index.Document, 0, len(highlights))
-	for _, highlight := range highlights {
-		documents = append(documents, highlight.Document)
-	}
-
 	paginatedResults := result.NewPaginated(
 		model.ResultsPerPage,
 		page,
 		totalHits,
-		documents,
+		highlights,
 	)
 
 	layout := "layout"
 	if c.Query("view") == "list" {
 		layout = ""
-	}
-
-	// Build highlights map for template lookup by document ID
-	highlightsMap := make(map[string]model.Highlight, len(highlights))
-	for _, highlight := range highlights {
-		highlightsMap[highlight.Document.ID] = highlight
 	}
 
 	templateVars := fiber.Map{
@@ -120,7 +108,6 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		"SortBy":                 c.Query("sort-by"),
 		"HighlightsFilter":       filter,
 		"HighlightsTotalAll":     totalAll,
-		"Highlights":             highlightsMap,
 		"ShowHighlightsFilter":   true,
 		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 		"AdditionalSortOptions": []struct {
