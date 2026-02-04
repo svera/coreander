@@ -6,7 +6,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
@@ -37,11 +36,6 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	emailSendingConfigured := true
-	if _, ok := h.sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
 	if c.Query("view") == "latest" {
 		highlights, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "created_at DESC", "all")
 		if err != nil {
@@ -53,7 +47,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 				highlights[i].Document = h.readingRepository.Completed(int(session.ID), highlights[i].Document)
 			}
 		}
-		return h.latest(c, highlights, emailSendingConfigured)
+		return h.latest(c, highlights)
 	}
 
 	sortBy := "created_at DESC"
@@ -95,20 +89,18 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Results":                paginatedResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, paginatedResults, c.Queries()),
-		"Title":                  "Highlights",
-		"EmailSendingConfigured": emailSendingConfigured,
-		"EmailFrom":              h.sender.From(),
-		"WordsPerMinute":         h.wordsPerMinute,
-		"URL":                    view.URL(c),
-		"SortURL":                view.SortURL(c),
-		"FilterURL":              view.FilterURL(c),
-		"SortBy":                 c.Query("sort-by"),
-		"HighlightsFilter":       filter,
-		"HighlightsTotalAll":     totalAll,
-		"ShowHighlightsFilter":   true,
-		"AvailableLanguages":     c.Locals("AvailableLanguages"),
+		"Results":              paginatedResults,
+		"Paginator":            view.Pagination(model.MaxPagesNavigator, paginatedResults, c.Queries()),
+		"Title":                "Highlights",
+		"EmailFrom":            h.sender.From(),
+		"WordsPerMinute":       h.wordsPerMinute,
+		"URL":                  view.URL(c),
+		"SortURL":              view.SortURL(c),
+		"FilterURL":            view.FilterURL(c),
+		"SortBy":               c.Query("sort-by"),
+		"HighlightsFilter":     filter,
+		"HighlightsTotalAll":   totalAll,
+		"ShowHighlightsFilter": true,
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
@@ -167,13 +159,12 @@ func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmou
 	return highlights, docsSortedByHighlightedDate.TotalHits(), nil
 }
 
-func (h *Controller) latest(c *fiber.Ctx, highlights []model.Highlight, emailSendingConfigured bool) error {
+func (h *Controller) latest(c *fiber.Ctx, highlights []model.Highlight) error {
 	err := c.Render("partials/latest-highlights", fiber.Map{
-		"Highlights":             highlights,
-		"EmailSendingConfigured": emailSendingConfigured,
-		"EmailFrom":              h.sender.From(),
-		"WordsPerMinute":         h.wordsPerMinute,
-		"Amount":                 c.QueryInt("amount", latestHighlightsAmount),
+		"Highlights":     highlights,
+		"EmailFrom":      h.sender.From(),
+		"WordsPerMinute": h.wordsPerMinute,
+		"Amount":         c.QueryInt("amount", latestHighlightsAmount),
 	})
 	if err != nil {
 		log.Println(err)

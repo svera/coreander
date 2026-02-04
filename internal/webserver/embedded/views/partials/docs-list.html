@@ -3,6 +3,10 @@
 {{$session := .Session}}
 {{$emailFrom := .EmailFrom}}
 {{$wordsPerMinute := .WordsPerMinute}}
+{{$defaultAction := .DefaultAction}}
+{{$canShare := .CanShare}}
+{{$showDownloadOption := .ShowDownloadOption}}
+{{$preferredEpub := .PreferredEpub}}
 
 <div class="row mt-5 mb-2 d-flex">
     <div class="col-6 col-md-8 align-content-end">
@@ -28,7 +32,7 @@
 <ul class="list-group border-top rounded-0">
     {{range $i, $document := .Results.Hits}}
     <li class="list-group-item border border-0 px-0 mt-5">
-        {{template "partials/docs-list-item" dict "Lang" $lang "Document" $document "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute}}
+        {{template "partials/docs-list-item" dict "Lang" $lang "Document" $document "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute "DefaultAction" $defaultAction "CanShare" $canShare "ShowDownloadOption" $showDownloadOption "PreferredEpub" $preferredEpub}}
     </li>
     {{end}}
 </ul>

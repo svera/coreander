@@ -1,34 +1,9 @@
 {{$emailSendingConfigured := .EmailSendingConfigured}}
 {{$session := .Session}}
-{{$defaultAction := "download"}}
-{{if and $session (ne $session.DefaultAction "")}}
-    {{$defaultAction = $session.DefaultAction}}
-{{else if and $session $session.SendToEmail $emailSendingConfigured}}
-    {{$defaultAction = "send"}}
-{{end}}
-{{if and $session (ne $session.PrivateProfile 0) (eq $defaultAction "share")}}
-    {{$defaultAction = "download"}}
-{{end}}
-{{$canShare := and $session (eq $session.PrivateProfile 0) $emailSendingConfigured}}
-{{$actualAction := $defaultAction}}
-{{if eq $defaultAction "send"}}
-    {{if or (not $session) (not $session.SendToEmail) (not $emailSendingConfigured)}}
-        {{$actualAction = "download"}}
-    {{end}}
-{{else if eq $defaultAction "share"}}
-    {{if or (not $emailSendingConfigured) (not $canShare)}}
-        {{$actualAction = "download"}}
-    {{end}}
-{{end}}
-{{$showDownloadOption := ne $actualAction "download"}}
-{{$preferredEpub := "epub"}}
-{{if and $session (ne $session.PreferredEpubType "")}}
-    {{$preferredEpub = $session.PreferredEpubType}}
-{{end}}
-{{$altEpub := "kepub"}}
-{{if eq $preferredEpub "kepub"}}
-    {{$altEpub = "epub"}}
-{{end}}
+{{$defaultAction := .DefaultAction}}
+{{$canShare := .CanShare}}
+{{$showDownloadOption := .ShowDownloadOption}}
+{{$preferredEpub := .PreferredEpub}}
 
 <div class="d-grid gap-1 mx-auto d-flex justify-content-sm-center actions">
     {{if eq .Document.Format "EPUB"}}

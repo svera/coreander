@@ -8,17 +8,11 @@ import (
 	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
 func (d *Controller) Search(c *fiber.Ctx) error {
-	emailSendingConfigured := true
-	if _, ok := d.sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
@@ -51,17 +45,15 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"SearchFields":           searchFields,
+		"SearchFields":          searchFields,
 		"Results":                searchResults,
 		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
 		"Title":                  "Search results",
-		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),
 		"WordsPerMinute":         d.config.WordsPerMinute,
 		"URL":                    view.URL(c),
 		"SortURL":                view.SortURL(c),
 		"SortBy":                 c.Query("sort-by"),
-		"AvailableLanguages":     c.Locals("AvailableLanguages"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string

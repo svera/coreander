@@ -9,16 +9,10 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 func (d *Controller) Detail(c *fiber.Ctx) error {
-	emailSendingConfigured := true
-	if _, ok := d.sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
@@ -55,15 +49,13 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 	}
 
 	return c.Render("document/detail", fiber.Map{
-		"Title":                  title,
-		"Document":               document,
-		"EmailSendingConfigured": emailSendingConfigured,
-		"EmailFrom":              d.sender.From(),
-		"SameSeries":             sameSeries,
-		"SameAuthors":            sameAuthors,
-		"SameSubjects":           sameSubjects,
-		"WordsPerMinute":         d.config.WordsPerMinute,
-		"AvailableLanguages":     c.Locals("AvailableLanguages"),
+		"Title":              title,
+		"Document":            document,
+		"EmailFrom":           d.sender.From(),
+		"SameSeries":          sameSeries,
+		"SameAuthors":         sameAuthors,
+		"SameSubjects":        sameSubjects,
+		"WordsPerMinute":      d.config.WordsPerMinute,
 	}, "layout")
 }
 

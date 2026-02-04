@@ -63,6 +63,9 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	// Set available languages for the language filter
 	app.Use(SetAvailableLanguages(idx))
 
+	// Set email sending configuration (must be early so it's available in all routes)
+	app.Use(SetEmailSendingConfigured(sender))
+
 	app.Get("/sessions/new", allowIfNotLoggedIn, controllers.Auth.Login)
 	app.Post("/sessions", allowIfNotLoggedIn, controllers.Auth.SignIn)
 	app.Get("/recover", allowIfNotLoggedIn, controllers.Auth.Recover)
@@ -87,11 +90,6 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	usersGroup.Put("/:username", controllers.Users.Update)
 	usersGroup.Delete("/:username", RequireAdmin, controllers.Users.Delete)
 
-	highlightsGroup := app.Group("/highlights", alwaysRequireAuthentication)
-	highlightsGroup.Get("/", controllers.Highlights.List)
-	highlightsGroup.Post("/:slug", controllers.Highlights.Create)
-	highlightsGroup.Delete("/:slug", controllers.Highlights.Delete)
-
 	docsGroup := app.Group("/documents")
 	app.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
 	docsGroup.Post("/", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)
@@ -99,6 +97,14 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	// Authentication requirement is configurable for all routes below this middleware
 	app.Use(configurableAuthentication)
+
+	// Set action preferences for templates (after authentication so Session is available)
+	app.Use(SetActionPreferences(sender))
+
+	highlightsGroup := app.Group("/highlights", alwaysRequireAuthentication, SetActionPreferences(sender))
+	highlightsGroup.Get("/", controllers.Highlights.List)
+	highlightsGroup.Post("/:slug", controllers.Highlights.Create)
+	highlightsGroup.Delete("/:slug", controllers.Highlights.Delete)
 
 	docsGroup.Get("/:slug/cover", controllers.Documents.Cover)
 	docsGroup.Get("/:slug/read", controllers.Documents.Reader)

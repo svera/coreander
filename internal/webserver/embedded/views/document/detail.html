@@ -1,8 +1,6 @@
 {{$lang := .Lang}}
-{{$emailSendingConfigured := .EmailSendingConfigured}}
-{{$session := .Session}}
-{{$emailFrom := .EmailFrom}}
 {{$document := .Document}}
+{{$session := .Session}}
 
 <div class="row mt-5">
     <div class="col-12">
@@ -27,7 +25,7 @@
         <div class="mb-3">
             {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true "Version" .Version}}
         </div>
-        {{template "partials/actions" dict "Lang" $lang "Document" .Document "Session" $session "EmailSendingConfigured" .EmailSendingConfigured "EmailFrom" $emailFrom "FQDN" .fqdn "Version" .Version}}
+        {{template "partials/actions" dict "Lang" .Lang "Document" $document "Session" .Session "FQDN" .fqdn "Version" .Version "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "ShowDownloadOption" .ShowDownloadOption "PreferredEpub" .PreferredEpub "EmailFrom" .EmailFrom}}
 
         <div id="document-metadata-{{.Document.Slug}}">
             {{template "partials/document-metadata" dict "Lang" $lang "Document" .Document "Session" $session "WordsPerMinute" .WordsPerMinute}}

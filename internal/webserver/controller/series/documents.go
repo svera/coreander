@@ -7,17 +7,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
 func (a *Controller) Documents(c *fiber.Ctx) error {
-	emailSendingConfigured := true
-	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
@@ -61,16 +55,14 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 	title := searchResults.Hits()[0].Series
 
 	templateVars := fiber.Map{
-		"Results":                searchResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":                  title,
-		"EmailSendingConfigured": emailSendingConfigured,
-		"EmailFrom":              a.sender.From(),
-		"WordsPerMinute":         a.config.WordsPerMinute,
-		"URL":                    view.URL(c),
-		"SortURL":                view.SortURL(c),
-		"SortBy":                 c.Query("sort-by"),
-		"AvailableLanguages":     c.Locals("AvailableLanguages"),
+		"Results":            searchResults,
+		"Paginator":          view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":              title,
+		"EmailFrom":          a.sender.From(),
+		"WordsPerMinute":     a.config.WordsPerMinute,
+		"URL":                view.URL(c),
+		"SortURL":            view.SortURL(c),
+		"SortBy":             c.Query("sort-by"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string

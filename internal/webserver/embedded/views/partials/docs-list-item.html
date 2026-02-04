@@ -5,7 +5,7 @@
         <div class="mb-3">
             {{template "partials/cover" dict "Lang" .Lang "Document" $document "Session" .Session "Version" .Version}}
         </div>
-        {{template "partials/actions" dict "Lang" .Lang "Document" $document "Session" .Session "EmailSendingConfigured" .EmailSendingConfigured "EmailFrom" .EmailFrom "FQDN" .FQDN "Version" .Version}}
+        {{template "partials/actions" dict "Lang" .Lang "Document" $document "Session" .Session "FQDN" .FQDN "Version" .Version "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "ShowDownloadOption" .ShowDownloadOption "PreferredEpub" .PreferredEpub}}
     </div>
     <div class="col-12 col-md-8 col-lg-9">
         <div class="row">
