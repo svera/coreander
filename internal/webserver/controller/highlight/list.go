@@ -42,10 +42,8 @@ func (h *Controller) List(c *fiber.Ctx) error {
 			return err
 		}
 		// Add completion status directly to embedded documents
-		if session.ID > 0 {
-			for i := range highlights {
-				highlights[i].Document = h.readingRepository.Completed(int(session.ID), highlights[i].Document)
-			}
+		for i := range highlights {
+			highlights[i].Document = h.readingRepository.Completed(int(user.ID), highlights[i].Document)
 		}
 		return h.latest(c, highlights)
 	}
@@ -72,9 +70,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	// Add completion status directly to embedded documents in highlights
-	if session.ID > 0 {
-		h.readingRepository.CompletedHighlights(int(session.ID), highlights)
-	}
+	h.readingRepository.CompletedHighlights(int(user.ID), highlights)
 
 	paginatedResults := result.NewPaginated(
 		model.ResultsPerPage,
