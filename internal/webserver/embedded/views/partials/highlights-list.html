@@ -5,7 +5,6 @@
 {{$emailFrom := .EmailFrom}}
 {{$defaultAction := .DefaultAction}}
 {{$canShare := .CanShare}}
-{{$showDownloadOption := .ShowDownloadOption}}
 {{$preferredEpub := .PreferredEpub}}
 
 <div class="row mt-5 mb-2 d-flex">
@@ -43,9 +42,9 @@
     {{range $i, $highlight := .Results.Hits}}
     <li class="list-group-item border border-0 px-0 mt-5">
         {{if and $highlight $highlight.SharedByID}}
-            {{template "partials/highlights-list-shared-item" dict "Lang" $lang "Document" $highlight.Document "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute "Highlight" $highlight "DefaultAction" $defaultAction "CanShare" $canShare "ShowDownloadOption" $showDownloadOption "PreferredEpub" $preferredEpub}}
+            {{template "partials/highlights-list-shared-item" dict "Lang" $lang "Document" $highlight.Document "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute "Highlight" $highlight "DefaultAction" $defaultAction "CanShare" $canShare "PreferredEpub" $preferredEpub}}
         {{else}}
-            {{template "partials/docs-list-item" dict "Lang" $lang "Document" $highlight.Document "Session" $session "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute "EmailSendingConfigured" $emailSendingConfigured "DefaultAction" $defaultAction "CanShare" $canShare "ShowDownloadOption" $showDownloadOption "PreferredEpub" $preferredEpub}}
+            {{template "partials/docs-list-item" dict "Lang" $lang "Document" $highlight.Document "Session" $session "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute "EmailSendingConfigured" $emailSendingConfigured "DefaultAction" $defaultAction "CanShare" $canShare "PreferredEpub" $preferredEpub}}
         {{end}}
     </li>
     {{end}}

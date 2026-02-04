@@ -191,7 +191,7 @@ func SetActionPreferences(sender Sender) func(*fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		emailSendingConfigured, ok := c.Locals("EmailSendingConfigured").(bool)
 		if !ok {
-			emailSendingConfigured = true // Default to true if not set
+			emailSendingConfigured = false // Default to false if not set
 		}
 
 		var session model.Session
@@ -228,9 +228,6 @@ func SetActionPreferences(sender Sender) func(*fiber.Ctx) error {
 			}
 		}
 
-		// Compute showDownloadOption
-		showDownloadOption := actualAction != "download"
-
 		// Compute preferred EPUB type
 		preferredEpub := "epub"
 		if session.ID > 0 && session.PreferredEpubType != "" {
@@ -240,7 +237,6 @@ func SetActionPreferences(sender Sender) func(*fiber.Ctx) error {
 		// Store computed values in locals for template access
 		c.Locals("DefaultAction", actualAction)
 		c.Locals("CanShare", canShare)
-		c.Locals("ShowDownloadOption", showDownloadOption)
 		c.Locals("PreferredEpub", preferredEpub)
 
 		return c.Next()

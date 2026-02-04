@@ -4,7 +4,6 @@
     {{$emailSendingConfigured := .EmailSendingConfigured}}
     {{$defaultAction := .DefaultAction}}
     {{$canShare := .CanShare}}
-    {{$showDownloadOption := .ShowDownloadOption}}
     {{$preferredEpub := .PreferredEpub}}
 
     {{range $i, $highlight := .Highlights}}
@@ -12,7 +11,7 @@
         <div class="mb-3">
             {{template "partials/cover" dict "Lang" $lang "Document" $highlight.Document "Session" $session "Version" $.Version}}
         </div>
-        {{template "partials/actions" dict "Lang" $lang "Document" $highlight.Document "Session" $session "FQDN" $.fqdn "Version" $.Version "EmailSendingConfigured" $emailSendingConfigured "DefaultAction" $defaultAction "CanShare" $canShare "ShowDownloadOption" $showDownloadOption "PreferredEpub" $preferredEpub}}
+        {{template "partials/actions" dict "Lang" $lang "Document" $highlight.Document "Session" $session "FQDN" $.fqdn "Version" $.Version "EmailSendingConfigured" $emailSendingConfigured "DefaultAction" $defaultAction "CanShare" $canShare "PreferredEpub" $preferredEpub}}
     </div>
     {{end}}
 {{else}}

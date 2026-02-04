@@ -2,7 +2,6 @@
 {{$session := .Session}}
 {{$defaultAction := .DefaultAction}}
 {{$canShare := .CanShare}}
-{{$showDownloadOption := .ShowDownloadOption}}
 {{$preferredEpub := .PreferredEpub}}
 
 <div class="d-grid gap-1 mx-auto d-flex justify-content-sm-center actions">
@@ -47,7 +46,7 @@
             {{end}}
             <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Select download format"}}'></button>
             <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
-                {{if $showDownloadOption}}
+                {{if ne $defaultAction "download"}}
                 <li>
                     <a href='/documents/{{.Document.Slug}}/download?format={{$preferredEpub}}' class="dropdown-item" download title='{{t .Lang "Download"}}'>
                         <i class="bi-cloud-download me-2"></i>{{t .Lang "Download"}}
