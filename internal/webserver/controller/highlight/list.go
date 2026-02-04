@@ -41,10 +41,6 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		if err != nil {
 			return err
 		}
-		// Add completion status directly to embedded documents
-		for i := range highlights {
-			highlights[i].Document = h.readingRepository.Completed(int(user.ID), highlights[i].Document)
-		}
 		return h.latest(c, highlights)
 	}
 
@@ -68,9 +64,6 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
-
-	// Add completion status directly to embedded documents in highlights
-	h.readingRepository.CompletedHighlights(int(user.ID), highlights)
 
 	paginatedResults := result.NewPaginated(
 		model.ResultsPerPage,
@@ -151,6 +144,9 @@ func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmou
 		highlight.Document = doc
 		highlights = append(highlights, highlight)
 	}
+
+	// Add completion status directly to embedded documents in highlights
+	h.readingRepository.CompletedHighlights(int(user.ID), highlights)
 
 	return highlights, docsSortedByHighlightedDate.TotalHits(), nil
 }
