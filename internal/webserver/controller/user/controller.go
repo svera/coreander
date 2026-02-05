@@ -18,8 +18,7 @@ type usersRepository interface {
 	Total(filter string) int64
 	FindByUuid(uuid string) (*model.User, error)
 	FindByUsername(username string) (*model.User, error)
-	UsernamesAndNames() ([]model.User, error)
-	UsernamesAndNamesFiltered(filter string) ([]model.User, error)
+	UsernamesAndNames(filter string) ([]model.User, error)
 	Create(user *model.User) error
 	Update(user *model.User) error
 	FindByEmail(email string) (*model.User, error)

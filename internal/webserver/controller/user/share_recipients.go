@@ -11,15 +11,7 @@ import (
 // ShareRecipients returns usernames and names for autocomplete.
 func (u *Controller) ShareRecipients(c *fiber.Ctx) error {
 	query := strings.TrimSpace(c.Query("q"))
-	var (
-		users []model.User
-		err   error
-	)
-	if query == "" {
-		users, err = u.usersRepository.UsernamesAndNames()
-	} else {
-		users, err = u.usersRepository.UsernamesAndNamesFiltered(query)
-	}
+	users, err := u.usersRepository.UsernamesAndNames(query)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError

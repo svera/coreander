@@ -51,23 +51,7 @@ func (u *UserRepository) Total(filter string) int64 {
 	return totalRows
 }
 
-func (u *UserRepository) UsernamesAndNames() ([]User, error) {
-	var users []User
-
-	result := u.DB.Model(&User{}).
-		Select("username", "name").
-		Where("private_profile = ?", 0).
-		Order("username ASC").
-		Find(&users)
-	if result.Error != nil {
-		log.Printf("error listing usernames and names: %s\n", result.Error)
-		return nil, result.Error
-	}
-
-	return users, nil
-}
-
-func (u *UserRepository) UsernamesAndNamesFiltered(filter string) ([]User, error) {
+func (u *UserRepository) UsernamesAndNames(filter string) ([]User, error) {
 	var users []User
 
 	query := u.DB.Model(&User{}).Select("username", "name").Where("private_profile = ?", 0)
