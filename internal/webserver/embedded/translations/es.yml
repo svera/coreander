@@ -261,6 +261,7 @@
 "Add usernames...": "Añadir nombres de usuario..."
 "Select one or more usernames": "Selecciona uno o más nombres de usuario"
 "Remove recipient: %s": "Eliminar destinatario: %s"
+"Maximum %d recipients allowed": "Se permiten máximo %d destinatarios"
 "Send share": "Compartir"
 "Share sent": "Compartido enviado"
 "%s shared": "%s compartido"

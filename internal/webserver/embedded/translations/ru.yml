@@ -266,6 +266,7 @@
 "Select one or more usernames": "Выберите одно или несколько имён пользователей"
 "%s shared": "%s поделился"
 "Remove recipient: %s": "Убрать получателя: %s"
+"Maximum %d recipients allowed": "Разрешено максимум %d получателей"
 "Send recommendation": "Отправить рекомендацию"
 "Recommendation sent": "Рекомендация отправлена"
 "There was an error sending the recommendation, please try again later": "Произошла ошибка при отправке рекомендации, попробуйте позже"

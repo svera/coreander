@@ -35,6 +35,11 @@ function initShareRecipients(container, endpoint) {
     const maxRecipients = parseInt(container.dataset.maxRecipients || '10', 10)
     const maxRecipientsErrorTemplate = container.dataset.maxRecipientsError || `Maximum ${maxRecipients} recipients allowed`
     const errorContainer = container.querySelector('.share-recipients-error')
+    
+    // Store original placeholder
+    const originalPlaceholder = input.placeholder || 'Add usernames...'
+    input.setAttribute('data-original-placeholder', originalPlaceholder)
+    
     let selectedRecipients = []
     let lastInputValue = ''
     let availableUsers = []
@@ -43,7 +48,17 @@ function initShareRecipients(container, endpoint) {
     let debounceTimer = null
     let lastFetchedQuery = ''
     let lastFetchedUsers = []
-
+    let isAddingRecipient = false // Lock to prevent concurrent additions
+    
+    // Getter function that always returns trimmed array (defensive)
+    // Note: Does NOT call updateBadges to avoid circular dependency
+    function getSelectedRecipients() {
+        if (selectedRecipients.length > maxRecipients) {
+            selectedRecipients = selectedRecipients.slice(0, maxRecipients)
+        }
+        return selectedRecipients
+    }
+    
     function populateDatalist(values) {
         const listId = datalist.id
         const newDatalist = document.createElement('datalist')
@@ -84,7 +99,6 @@ function initShareRecipients(container, endpoint) {
             return option.value
         })
         populateDatalist(values)
-        datalistLoaded = true
     }
 
     function buildOptionsForUser(user) {
@@ -174,28 +188,60 @@ function initShareRecipients(container, endpoint) {
         }
     }
 
+    function isAtLimit() {
+        if (selectedRecipients.length >= maxRecipients) {
+            showError(maxRecipientsErrorTemplate)
+            return true
+        }
+        return false
+    }
+
     function updateBadges() {
         badgesContainer.innerHTML = ''
 
-        if (selectedRecipients.length === 0) {
+        const currentLength = selectedRecipients.length
+        const recipients = getSelectedRecipients()
+
+        if (currentLength === 0) {
             badgesContainer.classList.add('d-none')
             hiddenInput.value = ''
             input.required = true
+            input.disabled = false
+            input.readOnly = false
+            input.removeAttribute('aria-disabled')
+            input.style.cursor = ''
+            input.style.opacity = ''
+            input.placeholder = originalPlaceholder
             hideError()
             return
         }
 
         badgesContainer.classList.remove('d-none')
         input.required = false
-
-        // Check if limit is exceeded
-        if (selectedRecipients.length > maxRecipients) {
-            showError(maxRecipientsErrorTemplate)
+        
+        // Disable input when at limit to prevent adding more
+        const atLimit = currentLength >= maxRecipients
+        if (atLimit) {
+            input.disabled = true
+            input.readOnly = true
+            input.placeholder = maxRecipientsErrorTemplate
+            input.setAttribute('aria-disabled', 'true')
+            input.style.cursor = 'not-allowed'
+            input.style.opacity = '0.6'
         } else {
+            input.disabled = false
+            input.readOnly = false
+            input.placeholder = originalPlaceholder
+            input.removeAttribute('aria-disabled')
+            input.style.cursor = ''
+            input.style.opacity = ''
+            // Hide error when below limit
             hideError()
         }
 
-        selectedRecipients.forEach((recipient, index) => {
+        // Render badges - CRITICAL: Only render up to maxRecipients
+        // Use the getter which ensures we never exceed the limit
+        recipients.forEach((recipient, index) => {
             const badge = document.createElement('span')
             badge.className = 'badge rounded-pill text-bg-primary d-inline-flex align-items-center'
             badge.style.pointerEvents = 'all'
@@ -215,32 +261,52 @@ function initShareRecipients(container, endpoint) {
             badgesContainer.appendChild(badge)
         })
 
-        hiddenInput.value = selectedRecipients.join(',')
+        // Use getter to ensure we have the correct array (already trimmed)
+        hiddenInput.value = getSelectedRecipients().join(',')
     }
 
     function addRecipient(value) {
+        // Prevent concurrent additions
+        if (isAddingRecipient) {
+            return false
+        }
+        
         const trimmed = value.trim()
         if (!trimmed) {
             return false
         }
 
-        const isDuplicate = selectedRecipients.some(existing => existing.toLowerCase() === trimmed.toLowerCase())
+        // Check limit FIRST before any other checks
+        if (isAtLimit()) {
+            input.value = ''
+            return false
+        }
+
+        const recipients = getSelectedRecipients()
+        const isDuplicate = recipients.some(existing => existing.toLowerCase() === trimmed.toLowerCase())
         if (isDuplicate) {
             input.value = ''
             return false
         }
 
-        // Check if adding would exceed the limit
-        if (selectedRecipients.length >= maxRecipients) {
-            showError(maxRecipientsErrorTemplate)
+        // Set lock
+        isAddingRecipient = true
+        
+        try {
+            // One more check after lock is set - CRITICAL CHECK
+            if (isAtLimit()) {
+                input.value = ''
+                return false
+            }
+            
+            selectedRecipients.push(trimmed)
+            updateBadges()
             input.value = ''
-            return false
+            return true
+        } finally {
+            // Always release lock
+            isAddingRecipient = false
         }
-
-        selectedRecipients.push(trimmed)
-        updateBadges()
-        input.value = ''
-        return true
     }
 
     function removeRecipient(index) {
@@ -253,9 +319,12 @@ function initShareRecipients(container, endpoint) {
         if (!value || !optionLookup.has(value)) {
             return false
         }
+        // Check limit before adding
+        if (isAtLimit()) {
+            return false
+        }
         const normalized = optionLookup.get(value) || value
-        addRecipient(normalized)
-        return true
+        return addRecipient(normalized)
     }
 
     function tryAddRecipient(value) {
@@ -263,32 +332,82 @@ function initShareRecipients(container, endpoint) {
         if (!trimmed) {
             return false
         }
-        // If it matches a datalist option, use the normalized username
-        if (optionLookup.has(trimmed)) {
-            const normalized = optionLookup.get(trimmed)
-            addRecipient(normalized)
-            return true
+        
+        // Split on common separators (comma, semicolon, newline, tab)
+        const recipients = trimmed.split(/[,;\n\r\t]+/).map(r => r.trim()).filter(r => r.length > 0)
+        
+        if (recipients.length === 0) {
+            return false
         }
-        // Otherwise, try to add as-is (for submit button when user typed something)
-        addRecipient(trimmed)
-        return true
+        
+        // Check if we're already at the limit
+        if (isAtLimit()) {
+            return false
+        }
+        
+        let added = false
+        for (const recipient of recipients) {
+            // CRITICAL: Check limit BEFORE each addition
+            if (isAtLimit()) {
+                break
+            }
+            
+            // If it matches a datalist option, use the normalized username
+            if (optionLookup.has(recipient)) {
+                const normalized = optionLookup.get(recipient)
+                // Verify limit again right before calling
+                if (selectedRecipients.length < maxRecipients) {
+                    if (addRecipient(normalized)) {
+                        added = true
+                    }
+                    // Check again after addRecipient returns
+                    if (isAtLimit()) {
+                        break
+                    }
+                } else {
+                    break
+                }
+            } else {
+                // Otherwise, try to add as-is
+                // Verify limit again right before calling
+                if (selectedRecipients.length < maxRecipients) {
+                    if (addRecipient(recipient)) {
+                        added = true
+                    }
+                    // Check again after addRecipient returns
+                    if (isAtLimit()) {
+                        break
+                    }
+                } else {
+                    break
+                }
+            }
+        }
+        
+        return added
     }
 
     const form = container.closest('form')
     const submitButton = form?.querySelector('.share-submit')
-    if (submitButton) {
+    if (submitButton && !submitButton.dataset.shareSubmitInitialized) {
+        submitButton.dataset.shareSubmitInitialized = 'true'
         submitButton.addEventListener('click', async event => {
+            // Try to add any recipient from the input field
             tryAddRecipient(input.value.trim())
-            if (!hiddenInput.value) {
+            
+            // Ensure recipients are trimmed before submit check
+            if (!hiddenInput.value || selectedRecipients.length === 0) {
                 input.required = true
                 input.reportValidity()
                 event.preventDefault()
                 event.stopPropagation()
                 return
             }
-
-            // Check if limit is exceeded before submitting
+            
+            // Final check before submitting
             if (selectedRecipients.length > maxRecipients) {
+                selectedRecipients = getSelectedRecipients().slice(0, maxRecipients)
+                updateBadges()
                 showError(maxRecipientsErrorTemplate)
                 event.preventDefault()
                 event.stopPropagation()
@@ -334,37 +453,81 @@ function initShareRecipients(container, endpoint) {
     updateBadges()
 
     input.addEventListener('input', e => {
+        // Prevent input when disabled or at limit
+        if (input.disabled || isAtLimit()) {
+            e.preventDefault()
+            e.stopPropagation()
+            input.value = ''
+            showError(maxRecipientsErrorTemplate)
+            return
+        }
         const value = e.target.value.trim()
         // Only check for exact matches on input - don't prevent datalist population
         // The datalist should populate to show suggestions as user types
         if (debounceTimer) {
             clearTimeout(debounceTimer)
         }
-        debounceTimer = setTimeout(() => {
-            maybePopulateDatalist(value)
+            debounceTimer = setTimeout(() => {
+            if (!input.disabled && selectedRecipients.length < maxRecipients) {
+                maybePopulateDatalist(value)
+            }
         }, 200)
     })
 
     input.addEventListener('change', e => {
-        const value = e.target.value.trim()
-        if (handleSelection(value)) {
+        // Don't process if input is disabled
+        if (input.disabled || isAtLimit()) {
             return
+        }
+        const value = e.target.value.trim()
+        if (!handleSelection(value)) {
+            // If handleSelection didn't add it (not in datalist), try adding as raw value
+            // but only if we're not at the limit
+            if (value && selectedRecipients.length < maxRecipients) {
+                addRecipient(value)
+            } else {
+                showError(maxRecipientsErrorTemplate)
+            }
         }
     })
 
     input.addEventListener('blur', e => {
-        const value = e.target.value.trim()
-        if (handleSelection(value)) {
+        // Don't process if input is disabled
+        if (input.disabled || isAtLimit()) {
             return
+        }
+        const value = e.target.value.trim()
+        if (!handleSelection(value)) {
+            // If handleSelection didn't add it (not in datalist), try adding as raw value
+            // but only if we're not at the limit
+            if (value && selectedRecipients.length < maxRecipients) {
+                addRecipient(value)
+            } else {
+                showError(maxRecipientsErrorTemplate)
+            }
         }
     })
 
     input.addEventListener('keydown', e => {
+        // Don't process Enter if input is disabled or at limit
         if (e.key === 'Enter') {
             e.preventDefault()
-            handleSelection(input.value.trim())
+            if (input.disabled || isAtLimit()) {
+                return
+            }
+            const value = input.value.trim()
+            if (!handleSelection(value)) {
+                // If handleSelection didn't add it (not in datalist), try adding as raw value
+                // but only if we're not at the limit
+                if (selectedRecipients.length < maxRecipients) {
+                    addRecipient(value)
+                } else {
+                    showError(maxRecipientsErrorTemplate)
+                }
+            }
         } else if (e.key === 'Backspace' && input.value === '' && selectedRecipients.length > 0) {
-            removeRecipient(selectedRecipients.length - 1)
+            const recipients = getSelectedRecipients()
+            removeRecipient(recipients.length - 1)
         }
     })
 }
