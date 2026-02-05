@@ -70,6 +70,7 @@ type Config struct {
 	ClientImageCacheTTL   int
 	ServerImageCacheTTL   int
 	ShareCommentMaxSize   int
+	ShareMaxRecipients    int
 }
 
 type Controller struct {

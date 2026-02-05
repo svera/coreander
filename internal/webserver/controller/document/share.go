@@ -34,6 +34,10 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
+	if len(recipients) > d.config.ShareMaxRecipients {
+		return fiber.ErrBadRequest
+	}
+
 	document, err := d.idx.Document(slug)
 	if err != nil {
 		return fiber.ErrInternalServerError

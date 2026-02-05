@@ -53,6 +53,7 @@ type Config struct {
 	ServerStaticCacheTTL       int
 	ServerDynamicImageCacheTTL int
 	ShareCommentMaxSize        int
+	ShareMaxRecipients         int
 }
 
 type Sender interface {

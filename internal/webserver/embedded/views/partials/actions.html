@@ -197,7 +197,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{t .Lang "Close"}}"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3" data-share-recipients data-users-endpoint="/users/share-recipients" data-remove-label='{{t .Lang "Remove recipient: %s" "%s"}}'>
+                    <div class="mb-3" data-share-recipients data-users-endpoint="/users/share-recipients" data-remove-label='{{t .Lang "Remove recipient: %s" "%s"}}' data-max-recipients="{{.ShareMaxRecipients}}" data-max-recipients-error='{{t .Lang "Maximum %d recipients allowed" .ShareMaxRecipients}}'>
                         <label for="share-recipients-{{.Document.Slug}}" class="form-label">{{t .Lang "Share with"}}</label>
                         <input type="hidden" name="recipients" id="share-recipients-hidden-{{.Document.Slug}}">
                         <input type="text" class="form-control share-recipients-input" id="share-recipients-{{.Document.Slug}}" maxlength="255" required
@@ -205,6 +205,7 @@
                         <datalist id="share-recipients-list-{{.Document.Slug}}"></datalist>
                         <div class="share-recipients-badges d-flex flex-wrap gap-2 mt-2 d-none"></div>
                         <div class="form-text">{{t .Lang "Select one or more usernames"}}</div>
+                        <div class="share-recipients-error text-danger mt-1 d-none"></div>
                     </div>
                     <div class="mb-3">
                         <label for="share-comment-{{.Document.Slug}}" class="form-label">{{t .Lang "Comment"}}</label>

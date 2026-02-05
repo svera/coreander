@@ -32,6 +32,9 @@ function initShareRecipients(container, endpoint) {
     }
 
     const removeLabelTemplate = container.dataset.removeLabel || 'Remove recipient: %s'
+    const maxRecipients = parseInt(container.dataset.maxRecipients || '10', 10)
+    const maxRecipientsErrorTemplate = container.dataset.maxRecipientsError || `Maximum ${maxRecipients} recipients allowed`
+    const errorContainer = container.querySelector('.share-recipients-error')
     let selectedRecipients = []
     let lastInputValue = ''
     let availableUsers = []
@@ -157,6 +160,20 @@ function initShareRecipients(container, endpoint) {
         fetchUsernames(value).then(() => populateDatalistForValue(value))
     }
 
+    function showError(message) {
+        if (errorContainer) {
+            errorContainer.textContent = message
+            errorContainer.classList.remove('d-none')
+        }
+    }
+
+    function hideError() {
+        if (errorContainer) {
+            errorContainer.classList.add('d-none')
+            errorContainer.textContent = ''
+        }
+    }
+
     function updateBadges() {
         badgesContainer.innerHTML = ''
 
@@ -164,11 +181,19 @@ function initShareRecipients(container, endpoint) {
             badgesContainer.classList.add('d-none')
             hiddenInput.value = ''
             input.required = true
+            hideError()
             return
         }
 
         badgesContainer.classList.remove('d-none')
         input.required = false
+
+        // Check if limit is exceeded
+        if (selectedRecipients.length > maxRecipients) {
+            showError(maxRecipientsErrorTemplate)
+        } else {
+            hideError()
+        }
 
         selectedRecipients.forEach((recipient, index) => {
             const badge = document.createElement('span')
@@ -196,15 +221,26 @@ function initShareRecipients(container, endpoint) {
     function addRecipient(value) {
         const trimmed = value.trim()
         if (!trimmed) {
-            return
+            return false
         }
 
         const isDuplicate = selectedRecipients.some(existing => existing.toLowerCase() === trimmed.toLowerCase())
-        if (!isDuplicate) {
-            selectedRecipients.push(trimmed)
-            updateBadges()
+        if (isDuplicate) {
+            input.value = ''
+            return false
         }
+
+        // Check if adding would exceed the limit
+        if (selectedRecipients.length >= maxRecipients) {
+            showError(maxRecipientsErrorTemplate)
+            input.value = ''
+            return false
+        }
+
+        selectedRecipients.push(trimmed)
+        updateBadges()
         input.value = ''
+        return true
     }
 
     function removeRecipient(index) {
@@ -246,6 +282,14 @@ function initShareRecipients(container, endpoint) {
             if (!hiddenInput.value) {
                 input.required = true
                 input.reportValidity()
+                event.preventDefault()
+                event.stopPropagation()
+                return
+            }
+
+            // Check if limit is exceeded before submitting
+            if (selectedRecipients.length > maxRecipients) {
+                showError(maxRecipientsErrorTemplate)
                 event.preventDefault()
                 event.stopPropagation()
                 return

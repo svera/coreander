@@ -56,4 +56,6 @@ type CLIInput struct {
 	ServerDynamicImageCacheTTL int `env:"SERVER_DYNAMIC_IMAGE_CACHE_TTL" default:"86400" name:"server-dynamic-image-cache-ttl" help:"Server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours (86400 seconds)."`
 	// ShareCommentMaxSize defines the maximum length for share comments in characters. Defaults to 280.
 	ShareCommentMaxSize int `env:"SHARE_COMMENT_MAX_SIZE" short:"m" default:"280" name:"share-comment-max-size" help:"Maximum length for share comments in characters. Defaults to 280."`
+	// ShareMaxRecipients defines the maximum number of recipients allowed when sharing a document. Defaults to 10.
+	ShareMaxRecipients int `env:"SHARE_MAX_RECIPIENTS" default:"10" name:"share-max-recipients" help:"Maximum number of recipients allowed when sharing a document. Defaults to 10."`
 }
