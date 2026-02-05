@@ -79,7 +79,10 @@ func TestShareRecipientsExcludesSessionUser(t *testing.T) {
 
 func TestShareCommentIsTruncated(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewOsFs(), webserver.Config{})
+	webserverConfig := webserver.Config{
+		ShareCommentMaxSize: 280, // Use default value
+	}
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewOsFs(), webserverConfig)
 
 	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
@@ -125,7 +128,7 @@ func TestShareCommentIsTruncated(t *testing.T) {
 		t.Fatal("Expected share highlight to be created")
 	}
 
-	expected := string([]rune(longComment)[:280])
+	expected := string([]rune(longComment)[:webserverConfig.ShareCommentMaxSize])
 	if highlight.Comment != expected {
 		t.Errorf("Expected comment to be %d characters, got %d", len(expected), len(highlight.Comment))
 	}

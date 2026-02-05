@@ -69,6 +69,7 @@ type Config struct {
 	UploadDocumentMaxSize int
 	ClientImageCacheTTL   int
 	ServerImageCacheTTL   int
+	ShareCommentMaxSize   int
 }
 
 type Controller struct {

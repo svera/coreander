@@ -65,8 +65,8 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	}
 
 	comment := strings.TrimSpace(c.FormValue("comment"))
-	if len(comment) > 280 {
-		comment = string([]rune(comment)[:280])
+	if len(comment) > d.config.ShareCommentMaxSize {
+		comment = string([]rune(comment)[:d.config.ShareCommentMaxSize])
 	}
 
 	newRecipients := recipientUsers

@@ -53,6 +53,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		c.Locals("Version", c.App().Config().AppName)
 		c.Locals("SupportedLanguages", supportedLanguages)
 		c.Locals("Lang", chooseBestLanguage(c))
+		c.Locals("ShareCommentMaxSize", cfg.ShareCommentMaxSize)
 		q := c.Queries()
 		delete(q, "l")
 		c.Locals("URLPath", c.Path())

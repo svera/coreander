@@ -58,6 +58,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
 		ClientImageCacheTTL:   cfg.ClientDynamicImageCacheTTL,
 		ServerImageCacheTTL:   cfg.ServerDynamicImageCacheTTL,
+		ShareCommentMaxSize:   cfg.ShareCommentMaxSize,
 	}
 
 	authorsCfg := author.Config{

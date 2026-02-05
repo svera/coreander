@@ -208,7 +208,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="share-comment-{{.Document.Slug}}" class="form-label">{{t .Lang "Comment"}}</label>
-                        <textarea class="form-control" id="share-comment-{{.Document.Slug}}" name="comment" rows="3" maxlength="280"
+                        <textarea class="form-control" id="share-comment-{{.Document.Slug}}" name="comment" rows="3" maxlength="{{.ShareCommentMaxSize}}"
                                   placeholder='{{t .Lang "Add a comment"}}'></textarea>
                     </div>
                 </div>

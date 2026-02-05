@@ -119,6 +119,7 @@ func main() {
 		ClientDynamicImageCacheTTL: input.ClientDynamicImageCacheTTL,
 		ServerStaticCacheTTL:       input.ServerStaticCacheTTL,
 		ServerDynamicImageCacheTTL: input.ServerDynamicImageCacheTTL,
+		ShareCommentMaxSize:        input.ShareCommentMaxSize,
 	}
 
 	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", input.SessionTimeout))
