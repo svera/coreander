@@ -19,10 +19,7 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	slug := strings.TrimSpace(c.Params("slug"))
-	if slug == "" {
-		return fiber.ErrBadRequest
-	}
+	slug := c.Params("slug")
 
 	recipientsRaw := strings.TrimSpace(c.FormValue("recipients"))
 	if recipientsRaw == "" {
