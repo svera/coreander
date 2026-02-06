@@ -16,15 +16,7 @@ func URL(c *fiber.Ctx) template.URL {
 	return template.URL(url)
 }
 
-func SortURL(c *fiber.Ctx) template.URL {
-	return baseURLWithout(c, "sort-by", "page")
-}
-
-func FilterURL(c *fiber.Ctx) template.URL {
-	return baseURLWithout(c, "filter", "page")
-}
-
-func baseURLWithout(c *fiber.Ctx, keys ...string) template.URL {
+func BaseURLWithout(c *fiber.Ctx, keys ...string) template.URL {
 	url := c.Path()
 	queries := c.Queries()
 	for _, key := range keys {

@@ -52,7 +52,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		"EmailFrom":      d.sender.From(),
 		"WordsPerMinute": d.config.WordsPerMinute,
 		"URL":            view.URL(c),
-		"SortURL":        view.SortURL(c),
+		"SortURL":        view.BaseURLWithout(c, "sort-by", "page"),
 		"SortBy":         c.Query("sort-by"),
 		"AdditionalSortOptions": []struct {
 			Key   string
