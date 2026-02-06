@@ -10,40 +10,25 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/webserver"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
+	"gorm.io/gorm"
 )
 
 func TestShareRecipientsExcludesSessionUser(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewOsFs(), webserver.Config{})
+	_, app, adminCookie := setupShareTest(t, webserver.Config{}, &infrastructure.NoEmail{})
 
-	adminCookie, err := login(app, "admin@example.com", "admin", t)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
+	createUser(t, app, adminCookie, userFixture{
+		name:     "Regular user",
+		username: "regular",
+		email:    "regular@example.com",
+		password: "regular",
+	})
 
-	regularUserData := url.Values{
-		"name":             {"Regular user"},
-		"username":         {"regular"},
-		"email":            {"regular@example.com"},
-		"password":         {"regular"},
-		"confirm-password": {"regular"},
-		"role":             {fmt.Sprint(model.RoleRegular)},
-		"words-per-minute": {"250"},
-	}
-
-	response, err := postRequest(regularUserData, adminCookie, app, "/users", t)
-	if response == nil || err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
-	}
-
-	response, err = getRequest(adminCookie, app, "/users/share-recipients", t)
+	response, err := getRequest(adminCookie, app, "/users/share-recipients", t)
 	if response == nil || err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -79,7 +64,6 @@ func TestShareRecipientsExcludesSessionUser(t *testing.T) {
 }
 
 func TestShareCommentIsTruncated(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250)
 	webserverConfig := webserver.Config{
 		ShareCommentMaxSize: 280, // Use default value
 		ShareMaxRecipients:  10,
@@ -89,30 +73,13 @@ func TestShareCommentIsTruncated(t *testing.T) {
 		RecoveryTimeout:     2 * time.Hour,
 		MinPasswordLength:  5,
 	}
-	smtpMock := &infrastructure.SMTPMock{}
-	app := bootstrapApp(db, smtpMock, afero.NewOsFs(), webserverConfig)
-
-	adminCookie, err := login(app, "admin@example.com", "admin", t)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-
-	regularUserData := url.Values{
-		"name":             {"Regular user"},
-		"username":         {"regular"},
-		"email":            {"regular@example.com"},
-		"password":         {"regular"},
-		"confirm-password": {"regular"},
-		"role":             {fmt.Sprint(model.RoleRegular)},
-		"words-per-minute": {"250"},
-	}
-	response, err := postRequest(regularUserData, adminCookie, app, "/users", t)
-	if response == nil || err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
-	}
+	db, app, adminCookie, smtpMock := setupShareTestWithSMTP(t, webserverConfig)
+	createUser(t, app, adminCookie, userFixture{
+		name:     "Regular user",
+		username: "regular",
+		email:    "regular@example.com",
+		password: "regular",
+	})
 
 	longComment := strings.Repeat("a", 300)
 	shareData := url.Values{
@@ -120,7 +87,7 @@ func TestShareCommentIsTruncated(t *testing.T) {
 		"comment":    {longComment},
 	}
 	smtpMock.Wg.Add(1)
-	response, err = postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
+	response, err := postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
 	if response == nil || err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -144,7 +111,6 @@ func TestShareCommentIsTruncated(t *testing.T) {
 }
 
 func TestShareFailsWhenSenderIsPrivate(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250)
 	webserverConfig := webserver.Config{
 		ShareMaxRecipients: 10,
 		LibraryPath:        "fixtures/library",
@@ -153,41 +119,20 @@ func TestShareFailsWhenSenderIsPrivate(t *testing.T) {
 		RecoveryTimeout:    2 * time.Hour,
 		MinPasswordLength:  5,
 	}
-	smtpMock := &infrastructure.SMTPMock{}
-	app := bootstrapApp(db, smtpMock, afero.NewOsFs(), webserverConfig)
-
-	admin := model.User{}
-	db.Where("email = ?", "admin@example.com").First(&admin)
-	admin.PrivateProfile = 1
-	db.Save(&admin)
-
-	adminCookie, err := login(app, "admin@example.com", "admin", t)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-
-	regularUserData := url.Values{
-		"name":             {"Regular user"},
-		"username":         {"regular"},
-		"email":            {"regular@example.com"},
-		"password":         {"regular"},
-		"confirm-password": {"regular"},
-		"role":             {fmt.Sprint(model.RoleRegular)},
-		"words-per-minute": {"250"},
-	}
-	response, err := postRequest(regularUserData, adminCookie, app, "/users", t)
-	if response == nil || err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
-	}
+	db, app, adminCookie, smtpMock := setupShareTestWithSMTP(t, webserverConfig)
+	setPrivateProfile(t, db, "admin@example.com", true)
+	createUser(t, app, adminCookie, userFixture{
+		name:     "Regular user",
+		username: "regular",
+		email:    "regular@example.com",
+		password: "regular",
+	})
 
 	shareData := url.Values{
 		"recipients": {"regular"},
 	}
 	smtpMock.Wg.Add(1)
-	response, err = postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
+	response, err := postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
 	if response == nil || err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -206,7 +151,6 @@ func TestShareFailsWhenSenderIsPrivate(t *testing.T) {
 }
 
 func TestShareFailsWhenRecipientIsPrivate(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250)
 	webserverConfig := webserver.Config{
 		ShareMaxRecipients: 10,
 		LibraryPath:        "fixtures/library",
@@ -215,41 +159,20 @@ func TestShareFailsWhenRecipientIsPrivate(t *testing.T) {
 		RecoveryTimeout:    2 * time.Hour,
 		MinPasswordLength:  5,
 	}
-	smtpMock := &infrastructure.SMTPMock{}
-	app := bootstrapApp(db, smtpMock, afero.NewOsFs(), webserverConfig)
-
-	adminCookie, err := login(app, "admin@example.com", "admin", t)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-
-	regularUserData := url.Values{
-		"name":             {"Regular user"},
-		"username":         {"regular"},
-		"email":            {"regular@example.com"},
-		"password":         {"regular"},
-		"confirm-password": {"regular"},
-		"role":             {fmt.Sprint(model.RoleRegular)},
-		"words-per-minute": {"250"},
-	}
-	response, err := postRequest(regularUserData, adminCookie, app, "/users", t)
-	if response == nil || err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
-	}
-
-	regularUser := model.User{}
-	db.Where("email = ?", "regular@example.com").First(&regularUser)
-	regularUser.PrivateProfile = 1
-	db.Save(&regularUser)
+	db, app, adminCookie, smtpMock := setupShareTestWithSMTP(t, webserverConfig)
+	createUser(t, app, adminCookie, userFixture{
+		name:     "Regular user",
+		username: "regular",
+		email:    "regular@example.com",
+		password: "regular",
+	})
+	setPrivateProfile(t, db, "regular@example.com", true)
 
 	shareData := url.Values{
 		"recipients": {"regular"},
 	}
 	smtpMock.Wg.Add(1)
-	response, err = postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
+	response, err := postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
 	if response == nil || err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -257,6 +180,7 @@ func TestShareFailsWhenRecipientIsPrivate(t *testing.T) {
 		t.Fatalf("Expected status %d, received %d", http.StatusBadRequest, response.StatusCode)
 	}
 
+	regularUser := fetchUserByEmail(t, db, "regular@example.com")
 	var count int64
 	db.Model(&model.Highlight{}).Where("user_id = ?", regularUser.ID).Count(&count)
 	if count != 0 {
@@ -265,36 +189,19 @@ func TestShareFailsWhenRecipientIsPrivate(t *testing.T) {
 }
 
 func TestShareNotAvailableWhenEmailServiceNotConfigured(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewOsFs(), webserver.Config{})
-
-	adminCookie, err := login(app, "admin@example.com", "admin", t)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-
-	regularUserData := url.Values{
-		"name":             {"Regular user"},
-		"username":         {"regular"},
-		"email":            {"regular@example.com"},
-		"password":         {"regular"},
-		"confirm-password": {"regular"},
-		"role":             {fmt.Sprint(model.RoleRegular)},
-		"words-per-minute": {"250"},
-	}
-	response, err := postRequest(regularUserData, adminCookie, app, "/users", t)
-	if response == nil || err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
-	}
+	_, app, adminCookie := setupShareTest(t, webserver.Config{}, &infrastructure.NoEmail{})
+	createUser(t, app, adminCookie, userFixture{
+		name:     "Regular user",
+		username: "regular",
+		email:    "regular@example.com",
+		password: "regular",
+	})
 
 	// Test that share endpoint returns 404 when email service is not configured
 	shareData := url.Values{
 		"recipients": {"regular"},
 	}
-	response, err = postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
+	response, err := postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
 	if response == nil || err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -329,7 +236,6 @@ func TestShareNotAvailableWhenEmailServiceNotConfigured(t *testing.T) {
 }
 
 func TestShareFailsWhenRecipientLimitExceeded(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250)
 	webserverConfig := webserver.Config{
 		ShareMaxRecipients: 3,
 		LibraryPath:        "fixtures/library",
@@ -338,13 +244,7 @@ func TestShareFailsWhenRecipientLimitExceeded(t *testing.T) {
 		RecoveryTimeout:    2 * time.Hour,
 		MinPasswordLength: 5,
 	}
-	smtpMock := &infrastructure.SMTPMock{}
-	app := bootstrapApp(db, smtpMock, afero.NewOsFs(), webserverConfig)
-
-	adminCookie, err := login(app, "admin@example.com", "admin", t)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
+	_, app, adminCookie, smtpMock := setupShareTestWithSMTP(t, webserverConfig)
 
 	// Create multiple users
 	users := []struct {
@@ -358,23 +258,13 @@ func TestShareFailsWhenRecipientLimitExceeded(t *testing.T) {
 		{"User 4", "user4", "user4@example.com"},
 	}
 
-	for _, userData := range users {
-		regularUserData := url.Values{
-			"name":             {userData.name},
-			"username":         {userData.username},
-			"email":            {userData.email},
-			"password":         {"password"},
-			"confirm-password": {"password"},
-			"role":             {fmt.Sprint(model.RoleRegular)},
-			"words-per-minute": {"250"},
-		}
-		response, err := postRequest(regularUserData, adminCookie, app, "/users", t)
-		if response == nil || err != nil {
-			t.Fatalf("Unexpected error creating user %s: %v", userData.username, err)
-		}
-		if response.StatusCode != http.StatusOK {
-			t.Fatalf("Expected status %d, received %d for user %s", http.StatusOK, response.StatusCode, userData.username)
-		}
+	for _, user := range users {
+		createUser(t, app, adminCookie, userFixture{
+			name:     user.name,
+			username: user.username,
+			email:    user.email,
+			password: "password",
+		})
 	}
 
 	// Test sharing with exactly the limit (should succeed)
@@ -405,7 +295,6 @@ func TestShareFailsWhenRecipientLimitExceeded(t *testing.T) {
 }
 
 func TestShareCommentSizeLimit(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250)
 	webserverConfig := webserver.Config{
 		ShareCommentMaxSize: 100,
 		ShareMaxRecipients:  10,
@@ -415,48 +304,21 @@ func TestShareCommentSizeLimit(t *testing.T) {
 		RecoveryTimeout:     2 * time.Hour,
 		MinPasswordLength:  5,
 	}
-	smtpMock := &infrastructure.SMTPMock{}
-	app := bootstrapApp(db, smtpMock, afero.NewOsFs(), webserverConfig)
-
-	adminCookie, err := login(app, "admin@example.com", "admin", t)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err.Error())
-	}
-
-	regularUserData := url.Values{
-		"name":             {"Regular user"},
-		"username":         {"regular"},
-		"email":            {"regular@example.com"},
-		"password":         {"regular"},
-		"confirm-password": {"regular"},
-		"role":             {fmt.Sprint(model.RoleRegular)},
-		"words-per-minute": {"250"},
-	}
-	response, err := postRequest(regularUserData, adminCookie, app, "/users", t)
-	if response == nil || err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
-	}
+	db, app, adminCookie, smtpMock := setupShareTestWithSMTP(t, webserverConfig)
+	createUser(t, app, adminCookie, userFixture{
+		name:     "Regular user",
+		username: "regular",
+		email:    "regular@example.com",
+		password: "regular",
+	})
 
 	// Create a second user for the second test
-	secondUserData := url.Values{
-		"name":             {"Second user"},
-		"username":         {"second"},
-		"email":            {"second@example.com"},
-		"password":         {"second"},
-		"confirm-password": {"second"},
-		"role":             {fmt.Sprint(model.RoleRegular)},
-		"words-per-minute": {"250"},
-	}
-	response, err = postRequest(secondUserData, adminCookie, app, "/users", t)
-	if response == nil || err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
-	}
+	createUser(t, app, adminCookie, userFixture{
+		name:     "Second user",
+		username: "second",
+		email:    "second@example.com",
+		password: "second",
+	})
 
 	// Test with comment exactly at limit
 	exactLimitComment := strings.Repeat("a", webserverConfig.ShareCommentMaxSize)
@@ -465,7 +327,7 @@ func TestShareCommentSizeLimit(t *testing.T) {
 		"comment":    {exactLimitComment},
 	}
 	smtpMock.Wg.Add(1)
-	response, err = postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
+	response, err := postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
 	if response == nil || err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -509,4 +371,70 @@ func TestShareCommentSizeLimit(t *testing.T) {
 	if len(highlight.Comment) != webserverConfig.ShareCommentMaxSize {
 		t.Errorf("Expected comment length to be %d, got %d", webserverConfig.ShareCommentMaxSize, len(highlight.Comment))
 	}
+}
+
+type userFixture struct {
+	name     string
+	username string
+	email    string
+	password string
+}
+
+func setupShareTest(t *testing.T, config webserver.Config, sender webserver.Sender) (*gorm.DB, *fiber.App, *http.Cookie) {
+	t.Helper()
+	db := infrastructure.Connect(":memory:", 250)
+	app := bootstrapApp(db, sender, afero.NewOsFs(), config)
+	adminCookie, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	return db, app, adminCookie
+}
+
+func setupShareTestWithSMTP(t *testing.T, config webserver.Config) (*gorm.DB, *fiber.App, *http.Cookie, *infrastructure.SMTPMock) {
+	t.Helper()
+	smtpMock := &infrastructure.SMTPMock{}
+	db, app, adminCookie := setupShareTest(t, config, smtpMock)
+	return db, app, adminCookie, smtpMock
+}
+
+func createUser(t *testing.T, app *fiber.App, adminCookie *http.Cookie, user userFixture) {
+	t.Helper()
+	regularUserData := url.Values{
+		"name":             {user.name},
+		"username":         {user.username},
+		"email":            {user.email},
+		"password":         {user.password},
+		"confirm-password": {user.password},
+		"role":             {fmt.Sprint(model.RoleRegular)},
+		"words-per-minute": {"250"},
+	}
+	response, err := postRequest(regularUserData, adminCookie, app, "/users", t)
+	if response == nil || err != nil {
+		t.Fatalf("Unexpected error creating user %s: %v", user.username, err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, received %d for user %s", http.StatusOK, response.StatusCode, user.username)
+	}
+}
+
+func setPrivateProfile(t *testing.T, db *gorm.DB, email string, private bool) {
+	t.Helper()
+	user := fetchUserByEmail(t, db, email)
+	if private {
+		user.PrivateProfile = 1
+	} else {
+		user.PrivateProfile = 0
+	}
+	db.Save(&user)
+}
+
+func fetchUserByEmail(t *testing.T, db *gorm.DB, email string) model.User {
+	t.Helper()
+	user := model.User{}
+	db.Where("email = ?", email).First(&user)
+	if user.ID == 0 {
+		t.Fatalf("Expected user with email %s to exist", email)
+	}
+	return user
 }
