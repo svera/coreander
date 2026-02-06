@@ -55,14 +55,14 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 	title := searchResults.Hits()[0].Series
 
 	templateVars := fiber.Map{
-		"Results":            searchResults,
-		"Paginator":          view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":              title,
-		"EmailFrom":          a.sender.From(),
-		"WordsPerMinute":     a.config.WordsPerMinute,
-		"URL":                view.URL(c),
-		"SortURL":            view.SortURL(c),
-		"SortBy":             c.Query("sort-by"),
+		"Results":        searchResults,
+		"Paginator":      view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":          title,
+		"EmailFrom":      a.sender.From(),
+		"WordsPerMinute": a.config.WordsPerMinute,
+		"URL":            view.URL(c),
+		"SortURL":        view.SortURL(c),
+		"SortBy":         c.Query("sort-by"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string

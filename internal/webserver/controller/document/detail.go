@@ -49,13 +49,13 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 	}
 
 	return c.Render("document/detail", fiber.Map{
-		"Title":              title,
-		"Document":            document,
-		"EmailFrom":           d.sender.From(),
-		"SameSeries":          sameSeries,
-		"SameAuthors":         sameAuthors,
-		"SameSubjects":        sameSubjects,
-		"WordsPerMinute":      d.config.WordsPerMinute,
+		"Title":          title,
+		"Document":       document,
+		"EmailFrom":      d.sender.From(),
+		"SameSeries":     sameSeries,
+		"SameAuthors":    sameAuthors,
+		"SameSubjects":   sameSubjects,
+		"WordsPerMinute": d.config.WordsPerMinute,
 	}, "layout")
 }
 

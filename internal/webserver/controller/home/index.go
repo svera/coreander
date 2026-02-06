@@ -53,10 +53,10 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 	}
 
 	return c.Render("index", fiber.Map{
-		"Count":              totalDocumentsCount,
-		"EmailFrom":          d.sender.From(),
-		"HomeNavbar":         true,
-		"LatestDocs":         latestDocs,
-		"Reading":             readingDocs,
+		"Count":      totalDocumentsCount,
+		"EmailFrom":  d.sender.From(),
+		"HomeNavbar": true,
+		"LatestDocs": latestDocs,
+		"Reading":    readingDocs,
 	}, "layout")
 }

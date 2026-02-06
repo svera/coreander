@@ -2,6 +2,7 @@ package user
 
 import (
 	"log"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -107,7 +108,7 @@ func (u *Controller) updateOptions(c *fiber.Ctx, user *model.User, session model
 	if user.PreferredEpubType != "epub" && user.PreferredEpubType != "kepub" {
 		return fiber.ErrBadRequest
 	}
-	if user.DefaultAction != "" && user.DefaultAction != "download" && user.DefaultAction != "send" && user.DefaultAction != "share" && user.DefaultAction != "copy" {
+	if !slices.Contains(model.AllowedDefaultActions, user.DefaultAction) {
 		return fiber.ErrBadRequest
 	}
 

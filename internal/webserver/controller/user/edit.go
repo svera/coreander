@@ -37,17 +37,17 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 	lifetimeCompletedCount, lifetimeReadingTime := u.calculateLifetimeStats(int(user.ID), user.WordsPerMinute)
 
 	return c.Render("user/edit", fiber.Map{
-		"Title":                "Edit user",
-		"User":                 user,
-		"MinPasswordLength":    u.config.MinPasswordLength,
-		"UsernamePattern":      model.UsernamePattern,
-		"Errors":               map[string]string{},
-		"EmailFrom":            u.sender.From(),
-		"ActiveTab":            "options",
-		"YearlyCompletedCount": yearlyCompletedCount,
-		"YearlyReadingTime":    yearlyReadingTime,
+		"Title":                  "Edit user",
+		"User":                   user,
+		"MinPasswordLength":      u.config.MinPasswordLength,
+		"UsernamePattern":        model.UsernamePattern,
+		"Errors":                 map[string]string{},
+		"EmailFrom":              u.sender.From(),
+		"ActiveTab":              "options",
+		"YearlyCompletedCount":   yearlyCompletedCount,
+		"YearlyReadingTime":      yearlyReadingTime,
 		"LifetimeCompletedCount": lifetimeCompletedCount,
-		"LifetimeReadingTime":  lifetimeReadingTime,
+		"LifetimeReadingTime":    lifetimeReadingTime,
 	}, "layout")
 }
 

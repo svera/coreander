@@ -3,6 +3,7 @@ package model
 import (
 	"net/mail"
 	"regexp"
+	"slices"
 	"time"
 )
 
@@ -13,6 +14,8 @@ const (
 )
 
 const UsernamePattern = `^[A-z0-9_\-.]+$`
+
+var AllowedDefaultActions = []string{"download", "send", "share", "copy"}
 
 type User struct {
 	ID                 uint `gorm:"primarykey"`
@@ -86,7 +89,7 @@ func (u User) Validate(minPasswordLength int) map[string]string {
 		errs["role"] = "Incorrect role"
 	}
 
-	if u.DefaultAction != "" && u.DefaultAction != "download" && u.DefaultAction != "send" && u.DefaultAction != "share" && u.DefaultAction != "copy" {
+	if !slices.Contains(AllowedDefaultActions, u.DefaultAction) {
 		errs["defaultaction"] = "Incorrect default action"
 	}
 
