@@ -5,11 +5,11 @@
 {{$preferredEpub := .PreferredEpub}}
 {{$buttonSize := "btn-sm"}}
 {{if .ButtonSize}}
-    {{$buttonSize = printf "btn-%s" .ButtonSize}}
+    {{$buttonSize = .ButtonSize}}
 {{end}}
 {{$buttonStyle := "btn-outline-secondary"}}
 {{if .ButtonStyle}}
-    {{$buttonStyle = printf "btn-%s" .ButtonStyle}}
+    {{$buttonStyle = .ButtonStyle}}
 {{end}}
 
 {{define "partials/action-send"}}
