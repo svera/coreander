@@ -200,7 +200,7 @@
 "Recommended by %s": "Рекомендовано %s"
 "<b>%s</b> shared <cite>%s</cite> with you": "<b>%s</b> поделился(лась) <cite>%s</cite> с вами"
 "shared %s with you": "поделился(лась) %s с вами"
-"%s shared %s with you": "%s поделился(лась) %s с вами"
+"%s shared %s with you.": "%s поделился(лась) %s с вами."
 "shared": "поделился(лась)"
 "with you": "с вами"
 "Options": "Параметры"

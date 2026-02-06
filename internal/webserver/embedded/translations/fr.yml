@@ -272,7 +272,7 @@
 "%s shared \"%s\"": "%s a partagé « %s »"
 "shared a document:": "a partagé un document :"
 "shared %s with you": "a partagé %s avec vous"
-"%s shared %s with you": "%s a partagé %s avec vous"
+"%s shared %s with you.": "%s a partagé %s avec vous."
 "shared": "a partagé"
 "with you": "avec vous"
 "Share link": "Lien de partage"

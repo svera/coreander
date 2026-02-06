@@ -271,7 +271,7 @@
 "%s shared \"%s\"": "%s hat \"%s\" geteilt"
 "shared a document:": "hat ein Dokument geteilt:"
 "shared %s with you": "hat %s mit dir geteilt"
-"%s shared %s with you": "%s hat %s mit dir geteilt"
+"%s shared %s with you.": "%s hat %s mit dir geteilt."
 "shared": "hat geteilt"
 "with you": "mit dir"
 "Share link": "Freigabelink"

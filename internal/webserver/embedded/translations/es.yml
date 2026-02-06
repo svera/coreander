@@ -269,7 +269,7 @@
 "%s shared \"%s\"": "%s compartió \"%s\""
 "shared a document:": "compartió un documento:"
 "shared %s with you": "compartió %s contigo"
-"%s shared %s with you": "%s compartió %s contigo"
+"%s shared %s with you.": "%s compartió %s contigo."
 "shared": "compartió"
 "with you": "contigo"
 "Share link": "Enlace para compartir"
