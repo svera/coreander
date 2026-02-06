@@ -22,7 +22,7 @@
                         <i class="bi-envelope"></i>
                     </button>
                 {{end}}
-            {{else if and $emailSendingConfigured (eq $defaultAction "share")}}
+            {{else if eq $defaultAction "share"}}
                 {{if not $session}}
                     <a href="/sessions/new" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
                         <i class="bi-share-fill"></i>
@@ -113,7 +113,7 @@
                             <i class="bi-envelope"></i>
                         </button>
                     {{end}}
-                {{else if and $emailSendingConfigured (eq $defaultAction "share")}}
+                {{else if eq $defaultAction "share"}}
                     {{if not $session}}
                         <a href="/sessions/new" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
                             <i class="bi-share-fill"></i>
