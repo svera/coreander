@@ -10,16 +10,16 @@
             {{if eq $defaultAction "send"}}
                 {{if not $session}}
                     <a href="/sessions/new" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
-                        <i class="bi-envelope-fill"></i>
+                        <i class="bi-envelope"></i>
                     </a>
                 {{else if not $session.SendToEmail}}
                     <a href="/users/{{$session.Username}}" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
-                        <i class="bi-envelope-fill"></i>
+                        <i class="bi-envelope"></i>
                     </a>
                 {{else}}
                     <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" {{if $session.SendToEmail}}title='{{t .Lang "Send to %s" $session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
                         <span id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator me-2" aria-hidden="true"></span>
-                        <i class="bi-envelope-fill"></i>
+                        <i class="bi-envelope"></i>
                     </button>
                 {{end}}
             {{else if and $emailSendingConfigured (eq $defaultAction "share")}}
@@ -67,16 +67,16 @@
                 <li>
                     {{if not $session}}
                         <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
-                            <i class="bi-envelope-fill me-2"></i>{{t .Lang "Send to email"}}
+                            <i class="bi-envelope me-2"></i>{{t .Lang "Send to email"}}
                         </a>
                     {{else if not $session.SendToEmail}}
                         <a href="/users/{{$session.Username}}" class="dropdown-item" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
-                            <i class="bi-envelope-fill me-2"></i>{{t .Lang "Send to email"}}
+                            <i class="bi-envelope me-2"></i>{{t .Lang "Send to email"}}
                         </a>
                     {{else}}
                         <button type="button" class="dropdown-item" hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" {{if $session.SendToEmail}}title='{{t .Lang "Send to %s" $session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
                             <span id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator me-2" aria-hidden="true"></span>
-                            <i class="bi-envelope-fill me-2"></i>{{t .Lang "Send to email"}}
+                            <i class="bi-envelope me-2"></i>{{t .Lang "Send to email"}}
                         </button>
                     {{end}}
                 </li>
@@ -101,16 +101,16 @@
                 {{if and $emailSendingConfigured (eq $defaultAction "send")}}
                     {{if not $session}}
                         <a href="/sessions/new" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
-                            <i class="bi-envelope-fill"></i>
+                            <i class="bi-envelope"></i>
                         </a>
                     {{else if not $session.SendToEmail}}
                         <a href="/users/{{$session.Username}}" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
-                            <i class="bi-envelope-fill"></i>
+                            <i class="bi-envelope"></i>
                         </a>
                     {{else}}
                         <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" {{if $session.SendToEmail}}title='{{t .Lang "Send to %s" $session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
                             <span id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator me-2" aria-hidden="true"></span>
-                            <i class="bi-envelope-fill"></i>
+                            <i class="bi-envelope"></i>
                         </button>
                     {{end}}
                 {{else if and $emailSendingConfigured (eq $defaultAction "share")}}
@@ -150,16 +150,16 @@
                     <li>
                         {{if not $session}}
                             <a href="/sessions/new" class="dropdown-item" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
-                                <i class="bi-envelope-fill me-2"></i>{{t .Lang "Send to email"}}
+                                <i class="bi-envelope me-2"></i>{{t .Lang "Send to email"}}
                             </a>
                         {{else if not $session.SendToEmail}}
                             <a href="/users/{{$session.Username}}" class="dropdown-item" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
-                                <i class="bi-envelope-fill me-2"></i>{{t .Lang "Send to email"}}
+                                <i class="bi-envelope me-2"></i>{{t .Lang "Send to email"}}
                             </a>
                         {{else}}
                             <button type="button" class="dropdown-item" hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" {{if $session.SendToEmail}}title='{{t .Lang "Send to %s" $session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
                                 <span id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator me-2" aria-hidden="true"></span>
-                                <i class="bi-envelope-fill me-2"></i>{{t .Lang "Send to email"}}
+                                <i class="bi-envelope me-2"></i>{{t .Lang "Send to email"}}
                             </button>
                         {{end}}
                     </li>
