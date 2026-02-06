@@ -15,10 +15,59 @@ function initAllShareRecipients(root = document) {
     })
 }
 
+function initShareModal(root = document) {
+    const modal = root.querySelector('#share-modal')
+    if (!modal || modal.dataset.shareModalInitialized === 'true') {
+        return
+    }
+    modal.dataset.shareModalInitialized = 'true'
+
+    modal.addEventListener('show.bs.modal', event => {
+        const trigger = event.relatedTarget
+        if (!trigger) {
+            return
+        }
+        const shareUrl = trigger.getAttribute('data-share-url') || ''
+        const successTemplate = trigger.getAttribute('data-share-success-message-template') || ''
+        const documentTitle = trigger.getAttribute('data-share-document-title') || ''
+        const shareSubmit = modal.querySelector('.share-submit')
+        const successMessageElement = modal.querySelector('[data-success-message]')
+        if (shareSubmit) {
+            if (shareUrl) {
+                shareSubmit.dataset.shareUrl = shareUrl
+            } else {
+                shareSubmit.removeAttribute('data-share-url')
+            }
+        }
+        if (successMessageElement) {
+            if (successTemplate && documentTitle) {
+                const cite = document.createElement('cite')
+                cite.textContent = documentTitle
+                successMessageElement.innerHTML = successTemplate.replace('%s', cite.outerHTML)
+            } else {
+                successMessageElement.innerHTML = ''
+            }
+        }
+    })
+
+    modal.addEventListener('hidden.bs.modal', () => {
+        const shareSubmit = modal.querySelector('.share-submit')
+        const successMessageElement = modal.querySelector('[data-success-message]')
+        if (shareSubmit) {
+            shareSubmit.removeAttribute('data-share-url')
+        }
+        if (successMessageElement) {
+            successMessageElement.innerHTML = ''
+        }
+    })
+}
+
 initAllShareRecipients()
+initShareModal()
 document.addEventListener('htmx:afterSwap', event => {
     if (event && event.target) {
         initAllShareRecipients(event.target)
+        initShareModal(event.target)
     }
 })
 
@@ -48,6 +97,18 @@ function initShareRecipients(container, endpoint) {
     let lastFetchedQuery = ''
     let lastFetchedUsers = []
     let isAddingRecipient = false // Lock to prevent concurrent additions
+
+    const modal = container.closest('.modal')
+    if (modal && modal.dataset.shareRecipientsModalInitialized !== 'true') {
+        modal.dataset.shareRecipientsModalInitialized = 'true'
+        modal.addEventListener('hidden.bs.modal', () => {
+            selectedRecipients = []
+            input.value = ''
+            hiddenInput.value = ''
+            populateDatalistForValue('')
+            updateBadges()
+        })
+    }
     
     // Getter function that always returns trimmed array (defensive)
     // Note: Does NOT call updateBadges to avoid circular dependency

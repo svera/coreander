@@ -29,7 +29,10 @@
             <i class="{{.IconClass}}"></i>{{if .Label}}{{.Label}}{{end}}
         </a>
     {{else if .CanShare}}
-        <button type="button" class="{{.ButtonClass}}" data-bs-toggle="modal" data-bs-target="#share-modal-{{.Document.Slug}}">
+        <button type="button" class="{{.ButtonClass}}" data-bs-toggle="modal" data-bs-target="#share-modal"
+                data-share-url="/documents/{{.Document.Slug}}/share"
+                data-share-document-title="{{.Document.Title}}"
+                data-share-success-message-template='{{t .Lang "%s shared" "%s"}}'>
             <i class="{{.IconClass}}"></i>{{if .Label}}{{.Label}}{{end}}
         </button>
     {{end}}
@@ -123,46 +126,3 @@
         <input type="hidden" name="slug" id="slug-{{.Document.Slug}}" value="{{.Document.Slug}}" />
     {{end}}
 </div>
-
-{{if $canShare}}
-<div class="modal fade" id="share-modal-{{.Document.Slug}}" tabindex="-1" aria-labelledby="share-modal-label-{{.Document.Slug}}" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form>
-                <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="share-modal-label-{{.Document.Slug}}">{{t .Lang "Share document"}}</h1>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{t .Lang "Close"}}"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3" data-share-recipients data-users-endpoint="/users/share-recipients" data-remove-label='{{t .Lang "Remove recipient: %s" "%s"}}' data-max-recipients="{{.ShareMaxRecipients}}" data-max-recipients-error='{{t .Lang "Maximum %d recipients allowed" .ShareMaxRecipients}}'>
-                        <label for="share-recipients-{{.Document.Slug}}" class="form-label">{{t .Lang "Share with"}}</label>
-                        <input type="hidden" name="recipients" id="share-recipients-hidden-{{.Document.Slug}}">
-                        <input type="text" class="form-control share-recipients-input" id="share-recipients-{{.Document.Slug}}" maxlength="255" required
-                               placeholder='{{t .Lang "Add usernames..."}}' list="share-recipients-list-{{.Document.Slug}}" autocomplete="off" spellcheck="false">
-                        <datalist id="share-recipients-list-{{.Document.Slug}}"></datalist>
-                        <div class="share-recipients-badges d-flex flex-wrap gap-2 mt-2 d-none"></div>
-                        <div class="form-text">{{t .Lang "Select one or more usernames"}}</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="share-comment-{{.Document.Slug}}" class="form-label">{{t .Lang "Comment"}}</label>
-                        <textarea class="form-control" id="share-comment-{{.Document.Slug}}" name="comment" rows="3" maxlength="{{.ShareCommentMaxSize}}"
-                                  placeholder='{{t .Lang "Add a comment"}}'></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    {{$citeTitle := sprintfHTML "<cite>%s</cite>" .Document.Title}}
-                    {{$successMessage := sprintfHTML (t .Lang "%s shared" "%s") $citeTitle}}
-                    <span class="d-none" data-success-message>{{$successMessage}}</span>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{t .Lang "Cancel"}}</button>
-                    <button type="button" class="btn btn-primary share-submit"
-                            data-share-url="/documents/{{.Document.Slug}}/share"
-                            data-success-message-selector="[data-success-message]"
-                            data-error-message='{{t .Lang "There was an error sending the share, please try again later"}}'>{{t .Lang "Share"}}</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{{end}}
-
-<script type="module" src="/js/share-recipients.js{{versionParam .Version}}"></script>

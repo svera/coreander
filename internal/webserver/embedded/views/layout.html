@@ -29,6 +29,7 @@
     <main class="mt-5" data-unexpected-server-error='{{t .Lang "Unexpected server error"}}'>
         {{template "partials/main" dict "Lang" .Lang "RemainingIndexingTime" .RemainingIndexingTime "IndexingProgressPercentage" .IndexingProgressPercentage "Error" .Error "Warning" .Warning "Success" .Success "Embed" .Embed}}
     </main>
+    {{template "partials/share-modal" .}}
     <footer class="footer mt-auto py-5">
         <div class="container">
             <span class="text-muted"><small>{{t .Lang "Made with words by Sergio Vera"}} - <a
@@ -38,6 +39,7 @@
     </footer>
     <script src="/js/bootstrap.bundle.min.js{{versionParam .Version}}"></script>
     <script src="/js/htmx.min.js{{versionParam .Version}}"></script>
+    <script type="module" src="/js/share-recipients.js{{versionParam .Version}}"></script>
     <script type="module" src="/js/feedback.js{{versionParam .Version}}"></script>
     <link rel="preload" href="/css/bootstrap-icons.min.css{{versionParam .Version}}" as="style" onload="this.onload=null;this.rel='stylesheet'">
 
