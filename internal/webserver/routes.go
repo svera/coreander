@@ -103,7 +103,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	// Set action preferences for templates (after authentication so Session is available)
 	app.Use(SetActionPreferences(sender))
 
-	highlightsGroup := app.Group("/highlights", alwaysRequireAuthentication, SetActionPreferences(sender))
+	highlightsGroup := app.Group("/highlights", alwaysRequireAuthentication)
 	highlightsGroup.Get("/", controllers.Highlights.List)
 	highlightsGroup.Post("/:slug", controllers.Highlights.Create)
 	highlightsGroup.Delete("/:slug", controllers.Highlights.Delete)
