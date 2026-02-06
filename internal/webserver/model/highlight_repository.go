@@ -2,7 +2,6 @@ package model
 
 import (
 	"log"
-	"strings"
 
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
@@ -42,16 +41,7 @@ func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage in
 	countQuery := query
 	countQuery.Count(&total)
 
-	// Use table alias directly in ORDER BY to avoid ambiguity after JOIN
-	orderBy := sortBy
-	if orderBy != "" && !strings.Contains(orderBy, ".") {
-		// Replace column name with table-prefixed version
-		orderBy = strings.Replace(orderBy, "created_at", "h.created_at", 1)
-		orderBy = strings.Replace(orderBy, "updated_at", "h.updated_at", 1)
-		orderBy = strings.Replace(orderBy, "path", "h.path", 1)
-	}
-
-	res := query.Scopes(Paginate(page, resultsPerPage)).Order(orderBy).Scan(&rows)
+	res := query.Scopes(Paginate(page, resultsPerPage)).Order(sortBy).Scan(&rows)
 	if res.Error != nil {
 		log.Printf("error listing highlights: %s\n", res.Error)
 		return result.Paginated[[]Highlight]{}, res.Error
