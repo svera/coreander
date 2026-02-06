@@ -25,7 +25,7 @@
         <div class="mb-3">
             {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true "Version" .Version}}
         </div>
-        {{template "partials/actions" dict "Lang" .Lang "Document" $document "Session" .Session "FQDN" .fqdn "Version" .Version "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "EmailFrom" .EmailFrom "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize}}
+        {{template "partials/actions" dict "Lang" .Lang "Document" $document "Session" .Session "FQDN" .fqdn "Version" .Version "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "EmailFrom" .EmailFrom "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize "ButtonSize" "lg" "ButtonStyle" "primary"}}
 
         <div id="document-metadata-{{.Document.Slug}}">
             {{template "partials/document-metadata" dict "Lang" $lang "Document" .Document "Session" $session "WordsPerMinute" .WordsPerMinute}}

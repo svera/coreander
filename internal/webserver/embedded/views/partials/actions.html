@@ -3,6 +3,14 @@
 {{$defaultAction := .DefaultAction}}
 {{$canShare := .CanShare}}
 {{$preferredEpub := .PreferredEpub}}
+{{$buttonSize := "btn-sm"}}
+{{if .ButtonSize}}
+    {{$buttonSize = printf "btn-%s" .ButtonSize}}
+{{end}}
+{{$buttonStyle := "btn-outline-secondary"}}
+{{if .ButtonStyle}}
+    {{$buttonStyle = printf "btn-%s" .ButtonStyle}}
+{{end}}
 
 {{define "partials/action-send"}}
     {{if not .Session}}
@@ -57,15 +65,15 @@
     {{if eq .Document.Format "EPUB"}}
         <div class="btn-group flex-fill" role="group" aria-label="Button group with nested dropdown">
             {{if eq $defaultAction "send"}}
-                {{template "partials/action-send" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" "btn btn-sm btn-outline-secondary w-100 text-nowrap" "Label" "" "IconClass" "bi-envelope" "IncludeSpinner" true}}
+                {{template "partials/action-send" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-envelope" "IncludeSpinner" true}}
             {{else if eq $defaultAction "share"}}
-                {{template "partials/action-share" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" "btn btn-sm btn-outline-secondary w-100 text-nowrap" "Label" "" "IconClass" "bi-share-fill" "CanShare" $canShare}}
+                {{template "partials/action-share" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-share-fill" "CanShare" $canShare}}
             {{else if eq $defaultAction "copy"}}
-                {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" "btn btn-sm btn-outline-secondary w-100 text-nowrap" "Label" "" "IconClass" "bi-copy"}}
+                {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-copy"}}
             {{else}}
-                {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" "btn btn-sm btn-outline-secondary w-100 text-nowrap" "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download?format=%s" .Document.Slug $preferredEpub) "BadgeText" (uppercase $preferredEpub) "BadgeClass" "badge text-bg-primary"}}
+                {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download?format=%s" .Document.Slug $preferredEpub) "BadgeText" (uppercase $preferredEpub) "BadgeClass" "badge text-bg-primary"}}
             {{end}}
-            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Select download format"}}'></button>
+            <button type="button" class="btn {{ $buttonSize }} {{ $buttonStyle }} dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Select download format"}}'></button>
             <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
                 {{if ne $defaultAction "download"}}
                 <li>
@@ -92,15 +100,15 @@
     {{else}}
         <div class="btn-group flex-fill" role="group" aria-label="Button group with nested dropdown">
                 {{if and $emailSendingConfigured (eq $defaultAction "send")}}
-                    {{template "partials/action-send" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" "btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" "Label" "" "IconClass" "bi-envelope" "IncludeSpinner" true}}
+                    {{template "partials/action-send" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" (printf "btn %s %s flex-sm-fill text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-envelope" "IncludeSpinner" true}}
                 {{else if eq $defaultAction "share"}}
-                    {{template "partials/action-share" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" "btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" "Label" "" "IconClass" "bi-share-fill" "CanShare" $canShare}}
+                    {{template "partials/action-share" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" (printf "btn %s %s flex-sm-fill text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-share-fill" "CanShare" $canShare}}
                 {{else if eq $defaultAction "copy"}}
-                    {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" "btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" "Label" "" "IconClass" "bi-copy"}}
+                    {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" (printf "btn %s %s flex-sm-fill text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-copy"}}
                 {{else}}
-                    {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" "btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download" .Document.Slug) "BadgeText" .Document.Format "BadgeClass" "badge text-bg-danger"}}
+                    {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" (printf "btn %s %s flex-sm-fill text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download" .Document.Slug) "BadgeText" .Document.Format "BadgeClass" "badge text-bg-danger"}}
                 {{end}}
-                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Actions"}}'></button>
+                <button type="button" class="btn {{ $buttonSize }} {{ $buttonStyle }} dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Actions"}}'></button>
                 <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
                     {{if ne $defaultAction "copy"}}
                     <li>
