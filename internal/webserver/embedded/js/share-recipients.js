@@ -379,11 +379,6 @@ function initShareRecipients(container, endpoint) {
             return false
         }
         
-        // Check if we're already at the limit
-        if (isAtLimit()) {
-            return false
-        }
-        
         let added = false
         for (const recipient of recipients) {
             // CRITICAL: Check limit BEFORE each addition
@@ -392,34 +387,18 @@ function initShareRecipients(container, endpoint) {
             }
             
             // If it matches a datalist option, use the normalized username
-            if (optionLookup.has(recipient)) {
-                const normalized = optionLookup.get(recipient)
-                // Verify limit again right before calling
-                if (selectedRecipients.length < maxRecipients) {
-                    if (addRecipient(normalized)) {
-                        added = true
-                    }
-                    // Check again after addRecipient returns
-                    if (isAtLimit()) {
-                        break
-                    }
-                } else {
+            const normalized = optionLookup.get(recipient) || recipient
+            // Verify limit again right before calling
+            if (selectedRecipients.length < maxRecipients) {
+                if (addRecipient(normalized)) {
+                    added = true
+                }
+                // Check again after addRecipient returns
+                if (isAtLimit()) {
                     break
                 }
             } else {
-                // Otherwise, try to add as-is
-                // Verify limit again right before calling
-                if (selectedRecipients.length < maxRecipients) {
-                    if (addRecipient(recipient)) {
-                        added = true
-                    }
-                    // Check again after addRecipient returns
-                    if (isAtLimit()) {
-                        break
-                    }
-                } else {
-                    break
-                }
+                break
             }
         }
         
