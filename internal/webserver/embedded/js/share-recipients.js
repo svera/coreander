@@ -490,60 +490,37 @@ function initShareRecipients(container, endpoint) {
         }, 200)
     })
 
-    input.addEventListener('change', e => {
+    function handleInputCommit(value) {
         // Don't process if input is disabled
         if (input.disabled || isAtLimit()) {
             return
         }
-        const value = e.target.value.trim()
-        if (!value) {
+        const trimmed = value.trim()
+        if (!trimmed) {
             return
         }
-        if (!handleSelection(value)) {
+        if (!handleSelection(trimmed)) {
             // If handleSelection didn't add it (not in datalist), try adding as raw value
             // but only if we're not at the limit
-            if (value && selectedRecipients.length < maxRecipients) {
-                addRecipient(value)
-            } else {
+            if (selectedRecipients.length < maxRecipients) {
+                addRecipient(trimmed)
             }
         }
+    }
+
+    input.addEventListener('change', e => {
+        handleInputCommit(e.target.value)
     })
 
     input.addEventListener('blur', e => {
-        // Don't process if input is disabled
-        if (input.disabled || isAtLimit()) {
-            return
-        }
-        const value = e.target.value.trim()
-        if (!value) {
-            return
-        }
-        if (!handleSelection(value)) {
-            // If handleSelection didn't add it (not in datalist), try adding as raw value
-            // but only if we're not at the limit
-            if (value && selectedRecipients.length < maxRecipients) {
-                addRecipient(value)
-            } else {
-            }
-        }
+        handleInputCommit(e.target.value)
     })
 
     input.addEventListener('keydown', e => {
         // Don't process Enter if input is disabled or at limit
         if (e.key === 'Enter') {
             e.preventDefault()
-            if (input.disabled || isAtLimit()) {
-                return
-            }
-            const value = input.value.trim()
-            if (!handleSelection(value)) {
-                // If handleSelection didn't add it (not in datalist), try adding as raw value
-                // but only if we're not at the limit
-                if (selectedRecipients.length < maxRecipients) {
-                    addRecipient(value)
-                } else {
-                }
-            }
+            handleInputCommit(input.value)
         } else if (e.key === 'Backspace' && input.value === '' && selectedRecipients.length > 0) {
             const recipients = getSelectedRecipients()
             removeRecipient(recipients.length - 1)
