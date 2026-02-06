@@ -34,7 +34,6 @@ function initShareRecipients(container, endpoint) {
     const removeLabelTemplate = container.dataset.removeLabel || 'Remove recipient: %s'
     const maxRecipients = parseInt(container.dataset.maxRecipients || '10', 10)
     const maxRecipientsErrorTemplate = container.dataset.maxRecipientsError || `Maximum ${maxRecipients} recipients allowed`
-    const errorContainer = container.querySelector('.share-recipients-error')
     
     // Store original placeholder
     const originalPlaceholder = input.placeholder || 'Add usernames...'
@@ -174,26 +173,8 @@ function initShareRecipients(container, endpoint) {
         fetchUsernames(value).then(() => populateDatalistForValue(value))
     }
 
-    function showError(message) {
-        if (errorContainer) {
-            errorContainer.textContent = message
-            errorContainer.classList.remove('d-none')
-        }
-    }
-
-    function hideError() {
-        if (errorContainer) {
-            errorContainer.classList.add('d-none')
-            errorContainer.textContent = ''
-        }
-    }
-
     function isAtLimit() {
-        if (selectedRecipients.length >= maxRecipients) {
-            showError(maxRecipientsErrorTemplate)
-            return true
-        }
-        return false
+        return selectedRecipients.length >= maxRecipients
     }
 
     function updateBadges() {
@@ -212,7 +193,6 @@ function initShareRecipients(container, endpoint) {
             input.style.cursor = ''
             input.style.opacity = ''
             input.placeholder = originalPlaceholder
-            hideError()
             return
         }
 
@@ -235,8 +215,6 @@ function initShareRecipients(container, endpoint) {
             input.removeAttribute('aria-disabled')
             input.style.cursor = ''
             input.style.opacity = ''
-            // Hide error when below limit
-            hideError()
         }
 
         // Render badges - CRITICAL: Only render up to maxRecipients
@@ -408,7 +386,6 @@ function initShareRecipients(container, endpoint) {
             if (selectedRecipients.length > maxRecipients) {
                 selectedRecipients = getSelectedRecipients().slice(0, maxRecipients)
                 updateBadges()
-                showError(maxRecipientsErrorTemplate)
                 event.preventDefault()
                 event.stopPropagation()
                 return
@@ -458,7 +435,6 @@ function initShareRecipients(container, endpoint) {
             e.preventDefault()
             e.stopPropagation()
             input.value = ''
-            showError(maxRecipientsErrorTemplate)
             return
         }
         const value = e.target.value.trim()
@@ -480,13 +456,15 @@ function initShareRecipients(container, endpoint) {
             return
         }
         const value = e.target.value.trim()
+        if (!value) {
+            return
+        }
         if (!handleSelection(value)) {
             // If handleSelection didn't add it (not in datalist), try adding as raw value
             // but only if we're not at the limit
             if (value && selectedRecipients.length < maxRecipients) {
                 addRecipient(value)
             } else {
-                showError(maxRecipientsErrorTemplate)
             }
         }
     })
@@ -497,13 +475,15 @@ function initShareRecipients(container, endpoint) {
             return
         }
         const value = e.target.value.trim()
+        if (!value) {
+            return
+        }
         if (!handleSelection(value)) {
             // If handleSelection didn't add it (not in datalist), try adding as raw value
             // but only if we're not at the limit
             if (value && selectedRecipients.length < maxRecipients) {
                 addRecipient(value)
             } else {
-                showError(maxRecipientsErrorTemplate)
             }
         }
     })
@@ -522,7 +502,6 @@ function initShareRecipients(container, endpoint) {
                 if (selectedRecipients.length < maxRecipients) {
                     addRecipient(value)
                 } else {
-                    showError(maxRecipientsErrorTemplate)
                 }
             }
         } else if (e.key === 'Backspace' && input.value === '' && selectedRecipients.length > 0) {
