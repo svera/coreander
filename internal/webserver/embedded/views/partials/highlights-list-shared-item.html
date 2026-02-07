@@ -4,6 +4,9 @@
 {{if eq $sharedByName ""}}
     {{$sharedByName = $highlight.SharedByUsername}}
 {{end}}
+{{if eq $sharedByName ""}}
+    {{$sharedByName = t $lang "Deleted user"}}
+{{end}}
 <div class="alert alert-primary mb-3" role="alert">
     <p class="text-start text-muted mb-1">{{t $lang "<b>%s</b> shared <cite>%s</cite> with you" $sharedByName .Document.Title}}
         {{if $highlight.Comment}}
