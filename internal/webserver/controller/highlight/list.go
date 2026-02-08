@@ -37,16 +37,16 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	if c.Query("view") == "latest" {
-		highlights, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "h.created_at DESC", "all")
+		highlights, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "created_at DESC", "all")
 		if err != nil {
 			return err
 		}
 		return h.latest(c, highlights)
 	}
 
-	sortBy := "h.created_at DESC"
+	sortBy := "created_at DESC"
 	if c.Query("sort-by") == "highlighted-older-first" {
-		sortBy = "h.created_at ASC"
+		sortBy = "created_at ASC"
 	}
 	filter := c.Query("filter")
 	switch filter {

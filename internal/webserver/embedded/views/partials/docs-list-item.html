@@ -1,5 +1,27 @@
 {{$lang := .Lang}}
 {{$document := .Document}}
+{{$highlight := .Highlight}}
+{{if and $highlight $highlight.SharedByID}}
+    {{$sharedByName := ""}}
+    {{if $highlight.SharedBy}}
+        {{$sharedByName = $highlight.SharedBy.Name}}
+    {{end}}
+    {{if eq $sharedByName ""}}
+        {{if $highlight.SharedBy}}
+            {{$sharedByName = $highlight.SharedBy.Username}}
+        {{end}}
+    {{end}}
+    {{if eq $sharedByName ""}}
+        {{$sharedByName = t $lang "Deleted user"}}
+    {{end}}
+    <div class="alert alert-primary mb-3" role="alert">
+        <p class="text-start text-muted mb-1">{{t $lang "<b>%s</b> shared <cite>%s</cite> with you" $sharedByName $document.Title}}
+            {{if $highlight.Comment}}
+                <blockquote class="fst-italic fw-light">{{$highlight.Comment}}</blockquote>
+            {{end}}
+        </p>
+    </div>
+{{end}}
 <div class="row">
     <div class="col-12 col-md-4 col-lg-3 mb-3">
         <div class="mb-3">

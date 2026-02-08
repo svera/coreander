@@ -14,22 +14,10 @@ type HighlightRepository struct {
 }
 
 func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]Highlight], error) {
-	type highlightRow struct {
-		UserID          int
-		Path            string
-		SharedByID      *int
-		Comment         string
-		SharedByName    string `gorm:"column:shared_by_name"`
-		SharedByUsername string `gorm:"column:shared_by_username"`
-	}
-
-	rows := []highlightRow{}
 	var total int64
 
-	query := u.DB.Table("highlights AS h").
-		Select("h.user_id, h.path, h.shared_by_id, h.comment, u.name AS shared_by_name, u.username AS shared_by_username").
-		Joins("LEFT JOIN users u ON u.id = h.shared_by_id").
-		Where("h.user_id = ?", userID)
+	query := u.DB.Model(&Highlight{}).
+		Where("user_id = ?", userID)
 
 	switch filter {
 	case "highlights":
@@ -41,22 +29,11 @@ func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage in
 	countQuery := query
 	countQuery.Count(&total)
 
-	res := query.Scopes(Paginate(page, resultsPerPage)).Order(sortBy).Scan(&rows)
+	highlights := []Highlight{}
+	res := query.Preload("SharedBy").Scopes(Paginate(page, resultsPerPage)).Order(sortBy).Find(&highlights)
 	if res.Error != nil {
 		log.Printf("error listing highlights: %s\n", res.Error)
 		return result.Paginated[[]Highlight]{}, res.Error
-	}
-
-	highlights := make([]Highlight, len(rows))
-	for i, row := range rows {
-		highlights[i] = Highlight{
-			UserID:          row.UserID,
-			Path:            row.Path,
-			SharedByID:      row.SharedByID,
-			Comment:         row.Comment,
-			SharedByName:    row.SharedByName,
-			SharedByUsername: row.SharedByUsername,
-		}
 	}
 
 	return result.NewPaginated(
@@ -78,36 +55,49 @@ func (u *HighlightRepository) Total(userID int) (int, error) {
 }
 
 
-func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document] {
-	highlights := make([]string, 0, len(results.Hits()))
+func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]SearchResult] {
+	highlightsByPath := map[string]Highlight{}
 	paths := make([]string, 0, len(results.Hits()))
-	documents := make([]index.Document, len(results.Hits()))
+	searchResults := make([]SearchResult, len(results.Hits()))
 
 	for _, path := range results.Hits() {
 		paths = append(paths, path.ID)
 	}
-	u.DB.Table("highlights").Where(
-		"user_id = ? AND path IN (?)",
-		userID,
-		paths,
-	).Pluck("path", &highlights)
-
-	highlightedPaths := make(map[string]struct{}, len(highlights))
-	for _, path := range highlights {
-		highlightedPaths[path] = struct{}{}
+	if len(paths) > 0 && userID > 0 {
+		highlights := []Highlight{}
+		res := u.DB.Model(&Highlight{}).
+			Where("user_id = ? AND path IN (?)", userID, paths).
+			Preload("SharedBy").
+			Find(&highlights)
+		if res.Error != nil {
+			log.Printf("error listing highlight details: %s\n", res.Error)
+		} else {
+			for _, highlight := range highlights {
+				highlightsByPath[highlight.Path] = highlight
+			}
+		}
 	}
 
 	for i, doc := range results.Hits() {
-		documents[i] = doc
-		_, ok := highlightedPaths[doc.ID]
-		documents[i].Highlighted = ok
+		highlight, ok := highlightsByPath[doc.ID]
+		doc.Highlighted = ok
+		if !ok {
+			highlight = Highlight{
+				UserID: userID,
+				Path:   doc.ID,
+			}
+		}
+		searchResults[i] = SearchResult{
+			Document: doc,
+			Highlight: highlight,
+		}
 	}
 
 	return result.NewPaginated(
 		ResultsPerPage,
 		results.Page(),
 		results.TotalHits(),
-		documents,
+		searchResults,
 	)
 }
 

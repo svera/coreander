@@ -49,14 +49,14 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 	}
 
 	if session.ID > 0 {
-		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 		searchResults = a.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
 	}
+	highlightedResults := a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 
 	templateVars := fiber.Map{
 		"Author":         author,
-		"Results":        searchResults,
-		"Paginator":      view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Results":        highlightedResults,
+		"Paginator":      view.Pagination(model.MaxPagesNavigator, highlightedResults, c.Queries()),
 		"Title":          author.Name,
 		"EmailFrom":      a.sender.From(),
 		"WordsPerMinute": a.config.WordsPerMinute,

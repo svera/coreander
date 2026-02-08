@@ -13,7 +13,11 @@ type Highlight struct {
 	Path            string `gorm:"primaryKey;index;not null"`
 	SharedByID      *int   `gorm:"index"`
 	Comment         string `gorm:"type:text"`
-	SharedByName    string `gorm:"-"`
-	SharedByUsername string `gorm:"-"`
 	Document        index.Document `gorm:"-"` // Embedded document for template access
+	SharedBy        *User          `gorm:"foreignKey:SharedByID"`
+}
+
+type SearchResult struct {
+	Document index.Document
+	Highlight Highlight
 }
