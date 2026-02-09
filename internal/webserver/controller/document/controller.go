@@ -37,8 +37,8 @@ type IdxReaderWriter interface {
 
 type highlightsRepository interface {
 	Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]model.Highlight], error)
-	Highlighted(userID int, doc index.Document) index.Document
-	HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]model.SearchResult]
+	Highlighted(userID int, doc model.SearchResult) model.SearchResult
+	HighlightedPaginatedResult(userID int, results result.Paginated[[]model.SearchResult]) result.Paginated[[]model.SearchResult]
 	RemoveDocument(documentPath string) error
 	Share(senderID int, documentID, documentSlug, comment string, recipientIDs []int) error
 }
@@ -54,8 +54,8 @@ type readingRepository interface {
 	Touch(userID int, documentPath string) error
 	RemoveDocument(documentPath string) error
 	UpdateCompletionDate(userID int, documentPath string, completedAt *time.Time) error
-	Completed(userID int, doc index.Document) index.Document
-	CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
+	CompletedOn(userID int, documentID string) (*time.Time, error)
+	CompletedPaginatedResult(userID int, results result.Paginated[[]model.SearchResult]) result.Paginated[[]model.SearchResult]
 }
 
 type Config struct {

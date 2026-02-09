@@ -27,7 +27,6 @@ type Document struct {
 	SeriesSlug    string
 	SubjectsSlugs []string
 	Highlighted   bool
-	CompletedOn   *time.Time
 	AddedOn       time.Time
 }
 

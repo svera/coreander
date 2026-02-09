@@ -4,7 +4,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -77,53 +76,25 @@ func (u *ReadingRepository) UpdateCompletionDate(userID int, documentPath string
 		UpdateColumn("completed_on", completedAt).Error
 }
 
-func (u *ReadingRepository) Completed(userID int, doc index.Document) index.Document {
+func (u *ReadingRepository) CompletedOn(userID int, documentID string) (*time.Time, error) {
 	var reading Reading
-	err := u.DB.Where("user_id = ? AND path = ? AND completed_on IS NOT NULL", userID, doc.ID).First(&reading).Error
-	if err == nil && reading.CompletedOn != nil {
-		doc.CompletedOn = reading.CompletedOn
+	err := u.DB.Where("user_id = ? AND path = ? AND completed_on IS NOT NULL", userID, documentID).First(&reading).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
 	}
-	return doc
+	return reading.CompletedOn, nil
 }
 
-// CompletedHighlights adds completion status to embedded documents in highlights
-func (u *ReadingRepository) CompletedHighlights(userID int, highlights []Highlight) {
-	if len(highlights) == 0 {
-		return
-	}
-	paths := make([]string, 0, len(highlights))
-	for _, highlight := range highlights {
-		paths = append(paths, highlight.Document.ID)
-	}
 
-	var readings []Reading
-	u.DB.Where(
-		"user_id = ? AND path IN (?) AND completed_on IS NOT NULL",
-		userID,
-		paths,
-	).Find(&readings)
-
-	// Create a map for quick lookup
-	readingMap := make(map[string]*time.Time)
-	for _, r := range readings {
-		if r.CompletedOn != nil {
-			readingMap[r.Path] = r.CompletedOn
-		}
-	}
-
-	for i := range highlights {
-		if completedOn, exists := readingMap[highlights[i].Document.ID]; exists {
-			highlights[i].Document.CompletedOn = completedOn
-		}
-	}
-}
-
-func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document] {
+func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.Paginated[[]SearchResult]) result.Paginated[[]SearchResult] {
 	paths := make([]string, 0, len(results.Hits()))
-	documents := make([]index.Document, len(results.Hits()))
+	searchResults := make([]SearchResult, len(results.Hits()))
 
-	for _, doc := range results.Hits() {
-		paths = append(paths, doc.ID)
+	for _, searchResult := range results.Hits() {
+		paths = append(paths, searchResult.Document.ID)
 	}
 
 	var readings []Reading
@@ -141,18 +112,18 @@ func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.
 		}
 	}
 
-	for i, doc := range results.Hits() {
-		documents[i] = doc
-		if completedOn, exists := readingMap[doc.ID]; exists {
-			documents[i].CompletedOn = completedOn
+	for i, searchResult := range results.Hits() {
+		if completedOn, exists := readingMap[searchResult.Document.ID]; exists {
+			searchResult.CompletedOn = completedOn
 		}
+		searchResults[i] = searchResult
 	}
 
 	return result.NewPaginated(
 		ResultsPerPage,
 		results.Page(),
 		results.TotalHits(),
-		documents,
+		searchResults,
 	)
 }
 

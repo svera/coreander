@@ -3,6 +3,7 @@ package home
 import (
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 type Sender interface {
@@ -19,12 +20,11 @@ type IdxReaderWriter interface {
 }
 
 type highlightsRepository interface {
-	Highlighted(userID int, doc index.Document) index.Document
+	Highlighted(userID int, doc model.SearchResult) model.SearchResult
 }
 
 type readingRepository interface {
 	Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
-	Completed(userID int, doc index.Document) index.Document
 }
 
 type Config struct {

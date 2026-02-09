@@ -39,9 +39,9 @@
 
 {{if gt .Results.TotalHits 0}}
 <ul class="list-group border-top rounded-0">
-    {{range $i, $highlight := .Results.Hits}}
+    {{range $i, $result := .Results.Hits}}
     <li class="list-group-item border border-0 px-0 mt-5">
-        {{template "partials/docs-list-item" dict "Lang" $lang "Document" $highlight.Document "Session" $session "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute "EmailSendingConfigured" $emailSendingConfigured "DefaultAction" $defaultAction "CanShare" $canShare "PreferredEpub" $preferredEpub "Highlight" $highlight}}
+        {{template "partials/docs-list-item" dict "Lang" $lang "Document" $result.Document "Session" $session "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute "EmailSendingConfigured" $emailSendingConfigured "DefaultAction" $defaultAction "CanShare" $canShare "PreferredEpub" $preferredEpub "Highlight" $result.Highlight "CompletedOn" $result.CompletedOn}}
     </li>
     {{end}}
 </ul>

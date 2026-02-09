@@ -37,7 +37,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	if c.Query("view") == "latest" {
-		highlights, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "created_at DESC", "all")
+		highlights, err := h.latestHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount))
 		if err != nil {
 			return err
 		}
@@ -54,7 +54,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	default:
 		filter = "all"
 	}
-	highlights, totalHits, err := h.sortedHighlights(page, user, model.ResultsPerPage, sortBy, filter)
+	paginatedResults, err := h.sortedHighlightResults(page, user, model.ResultsPerPage, sortBy, filter)
 	if err != nil {
 		return err
 	}
@@ -64,13 +64,6 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
-
-	paginatedResults := result.NewPaginated(
-		model.ResultsPerPage,
-		page,
-		totalHits,
-		highlights,
-	)
 
 	layout := "layout"
 	if c.Query("view") == "list" {
@@ -114,11 +107,11 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	return nil
 }
 
-func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmount int, sortBy, filter string) ([]model.Highlight, int, error) {
+func (h *Controller) sortedHighlightResults(page int, user *model.User, highlightsAmount int, sortBy, filter string) (result.Paginated[[]model.SearchResult], error) {
 	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
 	if err != nil {
 		log.Println(err)
-		return nil, 0, fiber.ErrInternalServerError
+		return result.Paginated[[]model.SearchResult]{}, fiber.ErrInternalServerError
 	}
 
 	if docsSortedByHighlightedDate.TotalPages() < page {
@@ -126,8 +119,44 @@ func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmou
 		docsSortedByHighlightedDate, err = h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
 		if err != nil {
 			log.Println(err)
-			return nil, 0, fiber.ErrInternalServerError
+			return result.Paginated[[]model.SearchResult]{}, fiber.ErrInternalServerError
 		}
+	}
+
+	searchResults := make([]model.SearchResult, 0, len(docsSortedByHighlightedDate.Hits()))
+	for _, highlight := range docsSortedByHighlightedDate.Hits() {
+		doc, err := h.idx.DocumentByID(highlight.Path)
+		if err != nil {
+			log.Println(err)
+			return result.Paginated[[]model.SearchResult]{}, fiber.ErrInternalServerError
+		}
+		if doc.ID == "" {
+			continue
+		}
+		doc.Highlighted = true
+		searchResults = append(searchResults, model.SearchResult{
+			Document:  doc,
+			Highlight: highlight,
+		})
+	}
+
+	paginatedResults := result.NewPaginated(
+		model.ResultsPerPage,
+		page,
+		docsSortedByHighlightedDate.TotalHits(),
+		searchResults,
+	)
+
+	paginatedResults = h.readingRepository.CompletedPaginatedResult(int(user.ID), paginatedResults)
+
+	return paginatedResults, nil
+}
+
+func (h *Controller) latestHighlights(page int, user *model.User, highlightsAmount int) ([]model.Highlight, error) {
+	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, "created_at DESC", "all")
+	if err != nil {
+		log.Println(err)
+		return nil, fiber.ErrInternalServerError
 	}
 
 	highlights := make([]model.Highlight, 0, len(docsSortedByHighlightedDate.Hits()))
@@ -135,7 +164,7 @@ func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmou
 		doc, err := h.idx.DocumentByID(highlight.Path)
 		if err != nil {
 			log.Println(err)
-			return nil, 0, fiber.ErrInternalServerError
+			return nil, fiber.ErrInternalServerError
 		}
 		if doc.ID == "" {
 			continue
@@ -145,10 +174,7 @@ func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmou
 		highlights = append(highlights, highlight)
 	}
 
-	// Add completion status directly to embedded documents in highlights
-	h.readingRepository.CompletedHighlights(int(user.ID), highlights)
-
-	return highlights, docsSortedByHighlightedDate.TotalHits(), nil
+	return highlights, nil
 }
 
 func (h *Controller) latest(c *fiber.Ctx, highlights []model.Highlight) error {

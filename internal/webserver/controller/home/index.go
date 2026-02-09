@@ -29,8 +29,9 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 	var readingDocs []index.Document
 	if session.ID > 0 {
 		for i := range latestDocs {
-			latestDocs[i] = d.hlRepository.Highlighted(int(session.ID), latestDocs[i])
-			latestDocs[i] = d.readingRepository.Completed(int(session.ID), latestDocs[i])
+			result := model.SearchResult{Document: latestDocs[i]}
+			result = d.hlRepository.Highlighted(int(session.ID), result)
+			latestDocs[i] = result.Document
 		}
 
 		readingList, err := d.readingRepository.Latest(int(session.ID), 1, d.config.LatestDocsLimit)
@@ -47,8 +48,9 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 			if doc.ID == "" {
 				continue
 			}
-			doc = d.readingRepository.Completed(int(session.ID), doc)
-			readingDocs = append(readingDocs, doc)
+			result := model.SearchResult{Document: doc}
+			result = d.hlRepository.Highlighted(int(session.ID), result)
+			readingDocs = append(readingDocs, result.Document)
 		}
 	}
 

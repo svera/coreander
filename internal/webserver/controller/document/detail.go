@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/index"
@@ -43,14 +44,20 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 
 	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, (int(session.ID)))
 
+	var completedOn *time.Time
+	result := model.SearchResult{Document: document}
 	if session.ID > 0 {
-		document = d.hlRepository.Highlighted(int(session.ID), document)
-		document = d.readingRepository.Completed(int(session.ID), document)
+		result = d.hlRepository.Highlighted(int(session.ID), result)
+		completedOn, err = d.readingRepository.CompletedOn(int(session.ID), result.Document.ID)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
+	result.CompletedOn = completedOn
 	return c.Render("document/detail", fiber.Map{
 		"Title":          title,
-		"Document":       document,
+		"Document":       result,
 		"EmailFrom":      d.sender.From(),
 		"SameSeries":     sameSeries,
 		"SameAuthors":    sameAuthors,
@@ -65,21 +72,27 @@ func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuth
 		fmt.Println(err)
 	}
 	for i := range sameSubjects {
-		sameSubjects[i] = d.hlRepository.Highlighted(sessionID, sameSubjects[i])
+		result := model.SearchResult{Document: sameSubjects[i]}
+		result = d.hlRepository.Highlighted(sessionID, result)
+		sameSubjects[i] = result.Document
 	}
 
 	if sameAuthors, err = d.idx.SameAuthors(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
 	for i := range sameAuthors {
-		sameAuthors[i] = d.hlRepository.Highlighted(sessionID, sameAuthors[i])
+		result := model.SearchResult{Document: sameAuthors[i]}
+		result = d.hlRepository.Highlighted(sessionID, result)
+		sameAuthors[i] = result.Document
 	}
 
 	if sameSeries, err = d.idx.SameSeries(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
 	for i := range sameSeries {
-		sameSeries[i] = d.hlRepository.Highlighted(sessionID, sameSeries[i])
+		result := model.SearchResult{Document: sameSeries[i]}
+		result = d.hlRepository.Highlighted(sessionID, result)
+		sameSeries[i] = result.Document
 	}
 	return sameSubjects, sameAuthors, sameSeries
 }

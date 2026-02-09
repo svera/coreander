@@ -3,7 +3,6 @@ package model
 import (
 	"log"
 
-	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -55,13 +54,13 @@ func (u *HighlightRepository) Total(userID int) (int, error) {
 }
 
 
-func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]SearchResult] {
+func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]SearchResult]) result.Paginated[[]SearchResult] {
 	highlightsByPath := map[string]Highlight{}
 	paths := make([]string, 0, len(results.Hits()))
 	searchResults := make([]SearchResult, len(results.Hits()))
 
-	for _, path := range results.Hits() {
-		paths = append(paths, path.ID)
+	for _, searchResult := range results.Hits() {
+		paths = append(paths, searchResult.Document.ID)
 	}
 	if len(paths) > 0 && userID > 0 {
 		highlights := []Highlight{}
@@ -78,18 +77,19 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 		}
 	}
 
-	for i, doc := range results.Hits() {
-		highlight, ok := highlightsByPath[doc.ID]
-		doc.Highlighted = ok
+	for i, searchResult := range results.Hits() {
+		highlight, ok := highlightsByPath[searchResult.Document.ID]
+		searchResult.Document.Highlighted = ok
 		if !ok {
 			highlight = Highlight{
 				UserID: userID,
-				Path:   doc.ID,
+				Path:   searchResult.Document.ID,
 			}
 		}
 		searchResults[i] = SearchResult{
-			Document: doc,
+			Document:   searchResult.Document,
 			Highlight: highlight,
+			CompletedOn: searchResult.CompletedOn,
 		}
 	}
 
@@ -101,17 +101,17 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 	)
 }
 
-func (u *HighlightRepository) Highlighted(userID int, doc index.Document) index.Document {
+func (u *HighlightRepository) Highlighted(userID int, doc SearchResult) SearchResult {
 	var count int64
 
 	u.DB.Table("highlights").Where(
 		"user_id = ? AND path = ?",
 		userID,
-		doc.ID,
+		doc.Document.ID,
 	).Count(&count)
 
 	if count == 1 {
-		doc.Highlighted = true
+		doc.Document.Highlighted = true
 	}
 	return doc
 }

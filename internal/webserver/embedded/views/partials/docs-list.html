@@ -32,7 +32,7 @@
     {{range $i, $result := .Results.Hits}}
     <li class="list-group-item border border-0 px-0 mt-5">
         {{$document := $result.Document}}
-        {{template "partials/docs-list-item" dict "Lang" $lang "Document" $document "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute "DefaultAction" $defaultAction "CanShare" $canShare "PreferredEpub" $preferredEpub "Highlight" $result.Highlight}}
+        {{template "partials/docs-list-item" dict "Lang" $lang "Document" $document "Session" $session "EmailSendingConfigured" $emailSendingConfigured "EmailFrom" $emailFrom "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute "DefaultAction" $defaultAction "CanShare" $canShare "PreferredEpub" $preferredEpub "Highlight" $result.Highlight "CompletedOn" $result.CompletedOn}}
     </li>
     {{end}}
 </ul>

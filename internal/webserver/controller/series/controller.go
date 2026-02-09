@@ -18,11 +18,11 @@ type IdxReader interface {
 }
 
 type highlightsRepository interface {
-	HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]model.SearchResult]
+	HighlightedPaginatedResult(userID int, results result.Paginated[[]model.SearchResult]) result.Paginated[[]model.SearchResult]
 }
 
 type readingRepository interface {
-	CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
+	CompletedPaginatedResult(userID int, results result.Paginated[[]model.SearchResult]) result.Paginated[[]model.SearchResult]
 }
 
 type Config struct {

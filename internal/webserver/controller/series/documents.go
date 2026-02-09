@@ -21,7 +21,7 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		a.config.WordsPerMinute = session.WordsPerMinute
 	}
 
-	var searchResults result.Paginated[[]index.Document]
+	var documentResults result.Paginated[[]index.Document]
 	seriesSlug := c.Params("slug")
 
 	if seriesSlug == "" {
@@ -38,25 +38,26 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		SortBy:   a.parseSortBy(c),
 	}
 
-	if searchResults, err = a.idx.SearchBySeries(searchFields, page, model.ResultsPerPage); err != nil {
+	if documentResults, err = a.idx.SearchBySeries(searchFields, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	if searchResults.TotalHits() == 0 {
+	if documentResults.TotalHits() == 0 {
 		return fiber.ErrNotFound
 	}
 
+	searchResults := model.SearchResultsFromDocuments(documentResults)
 	if session.ID > 0 {
 		searchResults = a.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
+		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
-	highlightedResults := a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 
-	title := searchResults.Hits()[0].Series
+	title := documentResults.Hits()[0].Series
 
 	templateVars := fiber.Map{
-		"Results":        highlightedResults,
-		"Paginator":      view.Pagination(model.MaxPagesNavigator, highlightedResults, c.Queries()),
+		"Results":        searchResults,
+		"Paginator":      view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
 		"Title":          title,
 		"EmailFrom":      a.sender.From(),
 		"WordsPerMinute": a.config.WordsPerMinute,

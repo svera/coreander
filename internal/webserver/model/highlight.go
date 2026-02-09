@@ -17,7 +17,3 @@ type Highlight struct {
 	SharedBy        *User          `gorm:"foreignKey:SharedByID"`
 }
 
-type SearchResult struct {
-	Document index.Document
-	Highlight Highlight
-}

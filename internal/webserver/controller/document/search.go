@@ -22,7 +22,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		d.config.WordsPerMinute = session.WordsPerMinute
 	}
 
-	var searchResults result.Paginated[[]index.Document]
+	var documentResults result.Paginated[[]index.Document]
 	searchFields, err := d.parseSearchQuery(c)
 	if err != nil {
 		log.Println(err)
@@ -34,20 +34,21 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	if searchResults, err = d.idx.Search(searchFields, page, model.ResultsPerPage); err != nil {
+	if documentResults, err = d.idx.Search(searchFields, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
+	searchResults := model.SearchResultsFromDocuments(documentResults)
 	if session.ID > 0 {
 		searchResults = d.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
+		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
-	highlightedResults := d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 
 	templateVars := fiber.Map{
 		"SearchFields":   searchFields,
-		"Results":        highlightedResults,
-		"Paginator":      view.Pagination(model.MaxPagesNavigator, highlightedResults, c.Queries()),
+		"Results":        searchResults,
+		"Paginator":      view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
 		"Title":          "Search results",
 		"EmailFrom":      d.sender.From(),
 		"WordsPerMinute": d.config.WordsPerMinute,
