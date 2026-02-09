@@ -42,7 +42,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		title = fmt.Sprintf("%s - %s", strings.Join(document.Authors, ", "), document.Title)
 	}
 
-	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, (int(session.ID)))
+	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, int(session.ID))
 
 	var completedOn *time.Time
 	result := model.SearchResult{Document: document}
@@ -66,33 +66,36 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 	}, "layout")
 }
 
-func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuthors, sameSeries []index.Document) {
+func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuthors, sameSeries []model.SearchResult) {
 	var err error
-	if sameSubjects, err = d.idx.SameSubjects(slug, relatedDocuments); err != nil {
+	var subjects []index.Document
+	if subjects, err = d.idx.SameSubjects(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
-	for i := range sameSubjects {
-		result := model.SearchResult{Document: sameSubjects[i]}
+	for i := range subjects {
+		result := model.SearchResult{Document: subjects[i]}
 		result = d.hlRepository.Highlighted(sessionID, result)
-		sameSubjects[i] = result.Document
+		sameSubjects = append(sameSubjects, result)
 	}
 
-	if sameAuthors, err = d.idx.SameAuthors(slug, relatedDocuments); err != nil {
+	var authors []index.Document
+	if authors, err = d.idx.SameAuthors(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
-	for i := range sameAuthors {
-		result := model.SearchResult{Document: sameAuthors[i]}
+	for i := range authors {
+		result := model.SearchResult{Document: authors[i]}
 		result = d.hlRepository.Highlighted(sessionID, result)
-		sameAuthors[i] = result.Document
+		sameAuthors = append(sameAuthors, result)
 	}
 
-	if sameSeries, err = d.idx.SameSeries(slug, relatedDocuments); err != nil {
+	var series []index.Document
+	if series, err = d.idx.SameSeries(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
-	for i := range sameSeries {
-		result := model.SearchResult{Document: sameSeries[i]}
+	for i := range series {
+		result := model.SearchResult{Document: series[i]}
 		result = d.hlRepository.Highlighted(sessionID, result)
-		sameSeries[i] = result.Document
+		sameSeries = append(sameSeries, result)
 	}
 	return sameSubjects, sameAuthors, sameSeries
 }

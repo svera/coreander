@@ -79,16 +79,12 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 
 	for i, searchResult := range results.Hits() {
 		highlight, ok := highlightsByPath[searchResult.Document.ID]
-		searchResult.Document.Highlighted = ok
 		if !ok {
-			highlight = Highlight{
-				UserID: userID,
-				Path:   searchResult.Document.ID,
-			}
+			highlight = Highlight{}
 		}
 		searchResults[i] = SearchResult{
-			Document:   searchResult.Document,
-			Highlight: highlight,
+			Document:    searchResult.Document,
+			Highlight:   highlight,
 			CompletedOn: searchResult.CompletedOn,
 		}
 	}
@@ -111,7 +107,10 @@ func (u *HighlightRepository) Highlighted(userID int, doc SearchResult) SearchRe
 	).Count(&count)
 
 	if count == 1 {
-		doc.Document.Highlighted = true
+		doc.Highlight = Highlight{
+			UserID: userID,
+			Path:   doc.Document.ID,
+		}
 	}
 	return doc
 }

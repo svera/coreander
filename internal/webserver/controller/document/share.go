@@ -183,7 +183,7 @@ func (d *Controller) filterNewRecipients(recipientUsers []*model.User, documentI
 	for _, user := range recipientUsers {
 		// Check if user already has this document highlighted
 		checkedResult := d.hlRepository.Highlighted(int(user.ID), model.SearchResult{Document: index.Document{ID: documentID}})
-		if !checkedResult.Document.Highlighted {
+		if checkedResult.Highlight.Path == "" {
 			newRecipients = append(newRecipients, user)
 		}
 	}

@@ -16,7 +16,7 @@
     {{if not .DisableCoverMainLink}}</a>{{end}}
 
     {{if and (.Session) (ne .Session.Name "") (not .DisableActions)}}
-        {{template "partials/highlight-toggle" dict "Lang" .Lang "Document" .Document "Version" .Version}}
+        {{template "partials/highlight-toggle" dict "Lang" .Lang "Document" .Document "Highlight" .Highlight "Version" .Version}}
     {{end}}
 
     {{if not .DisableActions}}

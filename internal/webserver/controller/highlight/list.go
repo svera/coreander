@@ -133,7 +133,6 @@ func (h *Controller) sortedHighlightResults(page int, user *model.User, highligh
 		if doc.ID == "" {
 			continue
 		}
-		doc.Highlighted = true
 		searchResults = append(searchResults, model.SearchResult{
 			Document:  doc,
 			Highlight: highlight,
@@ -169,7 +168,6 @@ func (h *Controller) latestHighlights(page int, user *model.User, highlightsAmou
 		if doc.ID == "" {
 			continue
 		}
-		doc.Highlighted = true
 		highlight.Document = doc
 		highlights = append(highlights, highlight)
 	}

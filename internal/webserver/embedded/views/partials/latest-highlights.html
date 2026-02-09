@@ -9,7 +9,7 @@
     {{range $i, $highlight := .Highlights}}
     <div class="col-6 col-md-3 col-xl-2 pe-0 {{if gt $i 3}}d-none d-xl-block{{end}} mt-3">
         <div class="mb-3">
-            {{template "partials/cover" dict "Lang" $lang "Document" $highlight.Document "Session" $session "Version" $.Version}}
+            {{template "partials/cover" dict "Lang" $lang "Document" $highlight.Document "Highlight" $highlight "Session" $session "Version" $.Version}}
         </div>
         {{template "partials/actions" dict "Lang" $lang "Document" $highlight.Document "Session" $session "FQDN" $.fqdn "Version" $.Version "EmailSendingConfigured" $emailSendingConfigured "DefaultAction" $defaultAction "CanShare" $canShare "PreferredEpub" $preferredEpub "ShareMaxRecipients" $.ShareMaxRecipients "ShareCommentMaxSize" $.ShareCommentMaxSize}}
     </div>
