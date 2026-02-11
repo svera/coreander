@@ -49,16 +49,6 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	if session.Username != "" {
-		user, err := d.usersRepository.FindByUsername(session.Username)
-		if err != nil {
-			log.Println(err)
-			return fiber.ErrInternalServerError
-		}
-		if user != nil && user.PrivateProfile != 0 {
-			return fiber.ErrForbidden
-		}
-	}
 	senderName := strings.TrimSpace(session.Name)
 	if senderName == "" {
 		senderName = strings.TrimSpace(session.Username)

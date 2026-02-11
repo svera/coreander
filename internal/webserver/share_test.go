@@ -121,6 +121,10 @@ func TestShareFailsWhenSenderIsPrivate(t *testing.T) {
 	}
 	db, app, adminCookie, smtpMock := setupShareTestWithSMTP(t, webserverConfig)
 	setPrivateProfile(t, db, "admin@example.com", true)
+	adminCookie, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
 	createUser(t, app, adminCookie, userFixture{
 		name:     "Regular user",
 		username: "regular",
