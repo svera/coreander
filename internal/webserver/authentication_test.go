@@ -360,7 +360,7 @@ func TestRecover(t *testing.T) {
 }
 
 func TestDeletedUserSessionIsRejected(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250)
+	db := infrastructure.Connect(":memory:?cache=shared", 250)
 	app := bootstrapApp(db, &infrastructure.SMTP{}, afero.NewMemMapFs(), webserver.Config{})
 
 	cookie, err := login(app, "admin@example.com", "admin", t)
@@ -379,4 +379,18 @@ func TestDeletedUserSessionIsRejected(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
 	mustReturnForbiddenAndShowLogin(response, t)
+}
+
+func fetchUserByEmail(t *testing.T, db *gorm.DB, email string) *model.User {
+	t.Helper()
+
+	usersRepository := &model.UserRepository{DB: db}
+	user, err := usersRepository.FindByEmail(email)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if user == nil {
+		t.Fatalf("Expected user with email %s", email)
+	}
+	return user
 }

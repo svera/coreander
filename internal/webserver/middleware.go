@@ -3,6 +3,7 @@ package webserver
 import (
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
