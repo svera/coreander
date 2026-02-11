@@ -19,7 +19,7 @@ import (
 )
 
 func TestAuthentication(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250)
+	db := infrastructure.Connect(":memory:?cache=shared", 250)
 	app := bootstrapApp(db, &infrastructure.SMTP{}, afero.NewMemMapFs(), webserver.Config{})
 
 	data := url.Values{
@@ -357,4 +357,26 @@ func TestRecover(t *testing.T) {
 			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 		}
 	})
+}
+
+func TestDeletedUserSessionIsRejected(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	app := bootstrapApp(db, &infrastructure.SMTP{}, afero.NewMemMapFs(), webserver.Config{})
+
+	cookie, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+
+	admin := fetchUserByEmail(t, db, "admin@example.com")
+	usersRepository := &model.UserRepository{DB: db}
+	if err := usersRepository.Delete(admin.Uuid); err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+
+	response, err := getRequest(cookie, app, "/users", t)
+	if response == nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	mustReturnForbiddenAndShowLogin(response, t)
 }
