@@ -54,10 +54,10 @@ func (u *HighlightRepository) Total(userID int) (int, error) {
 }
 
 
-func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]SearchResult]) result.Paginated[[]SearchResult] {
+func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]AugmentedDocument]) result.Paginated[[]AugmentedDocument] {
 	highlightsByPath := map[string]Highlight{}
 	paths := make([]string, 0, len(results.Hits()))
-	searchResults := make([]SearchResult, len(results.Hits()))
+	searchResults := make([]AugmentedDocument, len(results.Hits()))
 
 	for _, searchResult := range results.Hits() {
 		paths = append(paths, searchResult.Document.ID)
@@ -82,7 +82,7 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 		if !ok {
 			highlight = Highlight{}
 		}
-		searchResults[i] = SearchResult{
+		searchResults[i] = AugmentedDocument{
 			Document:    searchResult.Document,
 			Highlight:   highlight,
 			CompletedOn: searchResult.CompletedOn,
@@ -97,7 +97,7 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 	)
 }
 
-func (u *HighlightRepository) Highlighted(userID int, doc SearchResult) SearchResult {
+func (u *HighlightRepository) Highlighted(userID int, doc AugmentedDocument) AugmentedDocument {
 	var count int64
 
 	u.DB.Table("highlights").Where(

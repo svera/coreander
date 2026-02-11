@@ -47,7 +47,7 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	searchResults := model.SearchResultsFromDocuments(documentResults)
+	searchResults := model.AugmentedDocumentsFromDocuments(documentResults)
 	if session.ID > 0 {
 		searchResults = a.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
 		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)

@@ -20,7 +20,7 @@ type IdxReaderWriter interface {
 }
 
 type highlightsRepository interface {
-	Highlighted(userID int, doc model.SearchResult) model.SearchResult
+	Highlighted(userID int, doc model.AugmentedDocument) model.AugmentedDocument
 }
 
 type readingRepository interface {

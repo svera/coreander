@@ -89,9 +89,9 @@ func (u *ReadingRepository) CompletedOn(userID int, documentID string) (*time.Ti
 }
 
 
-func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.Paginated[[]SearchResult]) result.Paginated[[]SearchResult] {
+func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.Paginated[[]AugmentedDocument]) result.Paginated[[]AugmentedDocument] {
 	paths := make([]string, 0, len(results.Hits()))
-	searchResults := make([]SearchResult, len(results.Hits()))
+	searchResults := make([]AugmentedDocument, len(results.Hits()))
 
 	for _, searchResult := range results.Hits() {
 		paths = append(paths, searchResult.Document.ID)

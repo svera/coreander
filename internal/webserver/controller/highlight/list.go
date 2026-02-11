@@ -107,11 +107,11 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	return nil
 }
 
-func (h *Controller) sortedHighlightResults(page int, user *model.User, highlightsAmount int, sortBy, filter string) (result.Paginated[[]model.SearchResult], error) {
+func (h *Controller) sortedHighlightResults(page int, user *model.User, highlightsAmount int, sortBy, filter string) (result.Paginated[[]model.AugmentedDocument], error) {
 	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
 	if err != nil {
 		log.Println(err)
-		return result.Paginated[[]model.SearchResult]{}, fiber.ErrInternalServerError
+		return result.Paginated[[]model.AugmentedDocument]{}, fiber.ErrInternalServerError
 	}
 
 	if docsSortedByHighlightedDate.TotalPages() < page {
@@ -119,21 +119,21 @@ func (h *Controller) sortedHighlightResults(page int, user *model.User, highligh
 		docsSortedByHighlightedDate, err = h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
 		if err != nil {
 			log.Println(err)
-			return result.Paginated[[]model.SearchResult]{}, fiber.ErrInternalServerError
+			return result.Paginated[[]model.AugmentedDocument]{}, fiber.ErrInternalServerError
 		}
 	}
 
-	searchResults := make([]model.SearchResult, 0, len(docsSortedByHighlightedDate.Hits()))
+	searchResults := make([]model.AugmentedDocument, 0, len(docsSortedByHighlightedDate.Hits()))
 	for _, highlight := range docsSortedByHighlightedDate.Hits() {
 		doc, err := h.idx.DocumentByID(highlight.Path)
 		if err != nil {
 			log.Println(err)
-			return result.Paginated[[]model.SearchResult]{}, fiber.ErrInternalServerError
+			return result.Paginated[[]model.AugmentedDocument]{}, fiber.ErrInternalServerError
 		}
 		if doc.ID == "" {
 			continue
 		}
-		searchResults = append(searchResults, model.SearchResult{
+		searchResults = append(searchResults, model.AugmentedDocument{
 			Document:  doc,
 			Highlight: highlight,
 		})

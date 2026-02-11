@@ -13,11 +13,11 @@ type highlightsRepository interface {
 	Total(userID int) (int, error)
 	Highlight(userID int, documentPath string) error
 	Remove(userID int, documentPath string) error
-	Highlighted(userID int, documents model.SearchResult) model.SearchResult
+	Highlighted(userID int, documents model.AugmentedDocument) model.AugmentedDocument
 }
 
 type readingRepository interface {
-	CompletedPaginatedResult(userID int, results result.Paginated[[]model.SearchResult]) result.Paginated[[]model.SearchResult]
+	CompletedPaginatedResult(userID int, results result.Paginated[[]model.AugmentedDocument]) result.Paginated[[]model.AugmentedDocument]
 }
 
 // IdxReaderWriter defines a set of reading and writing operations over an index

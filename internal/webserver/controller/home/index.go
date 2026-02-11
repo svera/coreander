@@ -29,7 +29,7 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 	var readingDocs []index.Document
 	if session.ID > 0 {
 		for i := range latestDocs {
-			result := model.SearchResult{Document: latestDocs[i]}
+			result := model.AugmentedDocument{Document: latestDocs[i]}
 			result = d.hlRepository.Highlighted(int(session.ID), result)
 			latestDocs[i] = result.Document
 		}
@@ -48,7 +48,7 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 			if doc.ID == "" {
 				continue
 			}
-			result := model.SearchResult{Document: doc}
+			result := model.AugmentedDocument{Document: doc}
 			result = d.hlRepository.Highlighted(int(session.ID), result)
 			readingDocs = append(readingDocs, result.Document)
 		}

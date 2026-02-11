@@ -48,6 +48,16 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	if session.PrivateProfile != 0 {
 		return fiber.ErrForbidden
 	}
+	if session.Username != "" {
+		user, err := d.usersRepository.FindByUsername(session.Username)
+		if err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
+		if user != nil && user.PrivateProfile != 0 {
+			return fiber.ErrForbidden
+		}
+	}
 	senderName := strings.TrimSpace(session.Name)
 	if senderName == "" {
 		senderName = strings.TrimSpace(session.Username)
@@ -182,7 +192,7 @@ func (d *Controller) filterNewRecipients(recipientUsers []*model.User, documentI
 	newRecipients := make([]*model.User, 0, len(recipientUsers))
 	for _, user := range recipientUsers {
 		// Check if user already has this document highlighted
-		checkedResult := d.hlRepository.Highlighted(int(user.ID), model.SearchResult{Document: index.Document{ID: documentID}})
+		checkedResult := d.hlRepository.Highlighted(int(user.ID), model.AugmentedDocument{Document: index.Document{ID: documentID}})
 		if checkedResult.Highlight.Path == "" {
 			newRecipients = append(newRecipients, user)
 		}

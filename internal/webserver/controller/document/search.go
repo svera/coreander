@@ -39,7 +39,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	searchResults := model.SearchResultsFromDocuments(documentResults)
+	searchResults := model.AugmentedDocumentsFromDocuments(documentResults)
 	if session.ID > 0 {
 		searchResults = d.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
 		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)

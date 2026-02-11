@@ -45,7 +45,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, int(session.ID))
 
 	var completedOn *time.Time
-	result := model.SearchResult{Document: document}
+	result := model.AugmentedDocument{Document: document}
 	if session.ID > 0 {
 		result = d.hlRepository.Highlighted(int(session.ID), result)
 		completedOn, err = d.readingRepository.CompletedOn(int(session.ID), result.Document.ID)
@@ -66,14 +66,14 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 	}, "layout")
 }
 
-func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuthors, sameSeries []model.SearchResult) {
+func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuthors, sameSeries []model.AugmentedDocument) {
 	var err error
 	var subjects []index.Document
 	if subjects, err = d.idx.SameSubjects(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
 	for i := range subjects {
-		result := model.SearchResult{Document: subjects[i]}
+		result := model.AugmentedDocument{Document: subjects[i]}
 		result = d.hlRepository.Highlighted(sessionID, result)
 		sameSubjects = append(sameSubjects, result)
 	}
@@ -83,7 +83,7 @@ func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuth
 		fmt.Println(err)
 	}
 	for i := range authors {
-		result := model.SearchResult{Document: authors[i]}
+		result := model.AugmentedDocument{Document: authors[i]}
 		result = d.hlRepository.Highlighted(sessionID, result)
 		sameAuthors = append(sameAuthors, result)
 	}
@@ -93,7 +93,7 @@ func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuth
 		fmt.Println(err)
 	}
 	for i := range series {
-		result := model.SearchResult{Document: series[i]}
+		result := model.AugmentedDocument{Document: series[i]}
 		result = d.hlRepository.Highlighted(sessionID, result)
 		sameSeries = append(sameSeries, result)
 	}

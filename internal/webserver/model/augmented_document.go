@@ -7,17 +7,17 @@ import (
 	"github.com/svera/coreander/v4/internal/result"
 )
 
-type SearchResult struct {
+type AugmentedDocument struct {
 	Document    index.Document
 	Highlight   Highlight
 	CompletedOn *time.Time
 }
 
-func SearchResultsFromDocuments(results result.Paginated[[]index.Document]) result.Paginated[[]SearchResult] {
-	searchResults := make([]SearchResult, len(results.Hits()))
+func AugmentedDocumentsFromDocuments(results result.Paginated[[]index.Document]) result.Paginated[[]AugmentedDocument] {
+	documents := make([]AugmentedDocument, len(results.Hits()))
 	for i, doc := range results.Hits() {
-		searchResults[i] = SearchResult{
-			Document: doc,
+		documents[i] = AugmentedDocument{
+			Document:  doc,
 			Highlight: Highlight{},
 		}
 	}
@@ -26,6 +26,6 @@ func SearchResultsFromDocuments(results result.Paginated[[]index.Document]) resu
 		ResultsPerPage,
 		results.Page(),
 		results.TotalHits(),
-		searchResults,
+		documents,
 	)
 }
