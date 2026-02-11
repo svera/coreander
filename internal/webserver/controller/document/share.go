@@ -72,29 +72,24 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	}
 
 	newRecipients := recipientUsers
-	if session.ID > 0 {
-		recipientIDs := make([]int, 0, len(recipientUsers))
-		for _, user := range recipientUsers {
-			recipientIDs = append(recipientIDs, int(user.ID))
-		}
-
-		// Filter out recipients who already have the document
-		newRecipients = d.filterNewRecipients(recipientUsers, document.ID)
-		if len(newRecipients) > 0 {
-			newRecipientIDs := make([]int, 0, len(newRecipients))
-			for _, user := range newRecipients {
-				newRecipientIDs = append(newRecipientIDs, int(user.ID))
-			}
-
-			if err := d.hlRepository.Share(int(session.ID), document.ID, document.Slug, comment, newRecipientIDs); err != nil {
-				log.Printf("error saving share: %v\n", err)
-				return fiber.ErrInternalServerError
-			}
-		}
+	recipientIDs := make([]int, 0, len(recipientUsers))
+	for _, user := range recipientUsers {
+		recipientIDs = append(recipientIDs, int(user.ID))
 	}
 
-	// Only send emails to recipients who actually received a new share
+	// Filter out recipients who already have the document
+	newRecipients = d.filterNewRecipients(recipientUsers, document.ID)
 	if len(newRecipients) > 0 {
+		newRecipientIDs := make([]int, 0, len(newRecipients))
+		for _, user := range newRecipients {
+			newRecipientIDs = append(newRecipientIDs, int(user.ID))
+		}
+
+		if err := d.hlRepository.Share(int(session.ID), document.ID, document.Slug, comment, newRecipientIDs); err != nil {
+			log.Printf("error saving share: %v\n", err)
+			return fiber.ErrInternalServerError
+		}
+
 		if err := d.sendShareEmails(c, newRecipients, senderName, document.Title, docURL, highlightsURL, comment); err != nil {
 			return err
 		}
