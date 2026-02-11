@@ -14,6 +14,11 @@ import (
 )
 
 func (d *Controller) Share(c *fiber.Ctx) error {
+	session, _ := c.Locals("Session").(model.Session)
+	if session.PrivateProfile != 0 {
+		return fiber.ErrForbidden
+	}
+
 	// Check if email sending is configured
 	if _, ok := d.sender.(*infrastructure.NoEmail); ok {
 		return fiber.ErrNotFound
@@ -44,10 +49,6 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	session, _ := c.Locals("Session").(model.Session)
-	if session.PrivateProfile != 0 {
-		return fiber.ErrForbidden
-	}
 	if session.Username != "" {
 		user, err := d.usersRepository.FindByUsername(session.Username)
 		if err != nil {
