@@ -31,7 +31,7 @@
         {{ if .Document.Subjects }}
         <ul class="list-inline">
             {{range $i, $subject := .Document.Subjects}}
-            {{$subjectTitle := t .Lang "Search for more titles in %s" $subject}}
+            {{$subjectTitle := t $.Lang "Search for more titles in %s" $subject}}
             <li class="list-inline-item"><a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?subjects={{urlquery $subject}}"
                 title={{$subjectTitle}}>{{$subject}}</a></li>
             {{end}}
