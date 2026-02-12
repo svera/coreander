@@ -1,9 +1,6 @@
-{{$lang := .Lang}}
-{{$session := .Session}}
-
 <div class="row mt-5">
     <div class="col-12">
-        {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s" .Document.Series}}
+        {{ if ne .Document.Series "" }} {{$seriesTitle := t .Lang "Search for more titles belonging to %s" .Document.Series}}
             <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</p>
         {{ end }}
         <header>
@@ -16,7 +13,7 @@
                     {{join .Document.Authors ", "}}
                 </h2>
             {{else}}
-                <h2>{{t $lang "Unknown author"}}</h2>
+                <h2>{{t .Lang "Unknown author"}}</h2>
             {{end}}
         </header>
     </div>
@@ -27,14 +24,14 @@
         {{template "partials/actions" dict "Lang" .Lang "Document" .Document "Session" .Session "FQDN" .fqdn "Version" .Version "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "EmailFrom" .EmailFrom "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize "ButtonSize" "btn-lg" "ButtonStyle" "btn-primary"}}
 
         <div id="document-metadata-{{.Document.Slug}}">
-            {{template "partials/document-metadata" dict "Lang" $lang "Document" .Document "Session" $session "WordsPerMinute" .WordsPerMinute}}
+            {{template "partials/document-metadata" dict "Lang" .Lang "Document" .Document "Session" .Session "WordsPerMinute" .WordsPerMinute}}
         </div>
 
 
         {{ if .Document.Subjects }}
         <ul class="list-inline">
             {{range $i, $subject := .Document.Subjects}}
-            {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
+            {{$subjectTitle := t .Lang "Search for more titles in %s" $subject}}
             <li class="list-inline-item"><a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?subjects={{urlquery $subject}}"
                 title={{$subjectTitle}}>{{$subject}}</a></li>
             {{end}}
@@ -47,7 +44,7 @@
                 {{if .Document.Description}}
                 <div class="mb-1 mt-3 lead">{{.Document.Description}}</div>
                 {{else}}
-                <div class="mb-1"><p><i>{{t $lang "No description available"}}</i></p></div>
+                <div class="mb-1"><p><i>{{t .Lang "No description available"}}</i></p></div>
                 {{end}}
             </div>
         </div>
@@ -64,11 +61,11 @@
         {{ $length := len .SameSeries }} {{ if gt $length 0 }}
         <section class="row mt-5">
             <div class="col-9">
-                <h3>{{t $lang "Other titles in collection \"%s\"" .Document.Series}}</h3>
+                <h3>{{t .Lang "Other titles in collection \"%s\"" .Document.Series}}</h3>
             </div>
             <div class="col-3 text-end">
                 <a  href="/series/{{.Document.SeriesSlug}}">
-                        {{t $lang "See all" }}</a>
+                        {{t .Lang "See all" }}</a>
             </div>
 
             <div class="row pe-0 align-items-end">
@@ -85,17 +82,17 @@
         <section class="row mt-5">
             <div class="col-9">
                 <h3>
-                    {{t $lang "Also by"}}
+                    {{t .Lang "Also by"}}
                     {{join .Document.Authors ", "}}
                 </h3>
             </div>
             <div class="col-3 text-end">
                 {{if gt (len .Document.Authors) 1}}
                 <a  href='/documents?search=AuthorsSlugs&colon;{{join .Document.AuthorsSlugs ","}}'>
-                        {{t $lang "See all" }}</a>
+                        {{t .Lang "See all" }}</a>
                 {{else}}
                 <a  href='/authors/{{index .Document.AuthorsSlugs 0}}'>
-                    {{t $lang "See all" }}</a>
+                    {{t .Lang "See all" }}</a>
                 {{end}}
             </div>
 
@@ -112,11 +109,11 @@
         {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
         <section class="row mt-5">
             <div class="col-9">
-                <h3>{{t $lang "With similar subjects"}}</h3>
+                <h3>{{t .Lang "With similar subjects"}}</h3>
             </div>
             <div class="col-3 text-end">
                 <a  href='/documents?subjects={{range $i, $s := .Document.Subjects}}{{if $i}},{{end}}{{urlquery $s}}{{end}}'>
-                        {{t $lang "See all" }}</a>
+                        {{t .Lang "See all" }}</a>
             </div>
 
             <div class="row pe-0 align-items-end">
