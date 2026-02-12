@@ -74,7 +74,7 @@
             <div class="row pe-0 align-items-end">
                 {{range $i, $result := .SameSeries}}
                     <div class="col-6 col-lg-3 pe-0 mt-3">
-                        {{template "partials/cover" dict "Lang" $lang "Result" $result "Session" $session "Version" $.Version}}
+                        {{template "partials/cover" dict "Lang" $lang "Document" $result "Session" $session "Version" $.Version}}
                     </div>
                 {{end}}
             </div>
@@ -102,7 +102,7 @@
             <div class="row pe-0 align-items-end">
                 {{range $i, $result := .SameAuthors}}
                 <div class="col-6 col-lg-3 pe-0 mt-3">
-                    {{template "partials/cover" dict "Lang" $lang "Result" $result "Session" $session "Version" $.Version}}
+                    {{template "partials/cover" dict "Lang" $lang "Document" $result "Session" $session "Version" $.Version}}
                 </div>
                 {{end}}
             </div>
@@ -122,7 +122,7 @@
             <div class="row pe-0 align-items-end">
                 {{range $i, $result := .SameSubjects}}
                 <div class="col-6 col-lg-3 pe-0 mt-3">
-                    {{template "partials/cover" dict "Lang" $lang "Result" $result "Session" $session "Version" $.Version}}
+                    {{template "partials/cover" dict "Lang" $lang "Document" $result "Session" $session "Version" $.Version}}
                 </div>
                 {{end}}
             </div>
