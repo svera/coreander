@@ -60,7 +60,7 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 	searchResults := make([]AugmentedDocument, len(results.Hits()))
 
 	for _, searchResult := range results.Hits() {
-		paths = append(paths, searchResult.Document.ID)
+		paths = append(paths, searchResult.ID)
 	}
 	if len(paths) > 0 && userID > 0 {
 		highlights := []Highlight{}
@@ -78,7 +78,7 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 	}
 
 	for i, searchResult := range results.Hits() {
-		highlight, ok := highlightsByPath[searchResult.Document.ID]
+		highlight, ok := highlightsByPath[searchResult.ID]
 		if !ok {
 			highlight = Highlight{}
 		}
@@ -103,13 +103,13 @@ func (u *HighlightRepository) Highlighted(userID int, doc AugmentedDocument) Aug
 	u.DB.Table("highlights").Where(
 		"user_id = ? AND path = ?",
 		userID,
-		doc.Document.ID,
+		doc.ID,
 	).Count(&count)
 
 	if count == 1 {
 		doc.Highlight = Highlight{
 			UserID: userID,
-			Path:   doc.Document.ID,
+			Path:   doc.ID,
 		}
 	}
 	return doc

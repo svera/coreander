@@ -94,7 +94,7 @@ func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.
 	searchResults := make([]AugmentedDocument, len(results.Hits()))
 
 	for _, searchResult := range results.Hits() {
-		paths = append(paths, searchResult.Document.ID)
+		paths = append(paths, searchResult.ID)
 	}
 
 	var readings []Reading
@@ -113,7 +113,7 @@ func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.
 	}
 
 	for i, searchResult := range results.Hits() {
-		if completedOn, exists := readingMap[searchResult.Document.ID]; exists {
+		if completedOn, exists := readingMap[searchResult.ID]; exists {
 			searchResult.CompletedOn = completedOn
 		}
 		searchResults[i] = searchResult

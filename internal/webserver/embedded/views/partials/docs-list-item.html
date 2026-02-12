@@ -1,8 +1,6 @@
 {{$lang := .Lang}}
-{{$result := .Document}}
-{{$document := $result.Document}}
-{{$completedOn := $result.CompletedOn}}
-{{$highlight := $result.Highlight}}
+{{$completedOn := .Document.CompletedOn}}
+{{$highlight := .Document.Highlight}}
 {{if and $highlight $highlight.SharedByID}}
     {{$sharedByName := ""}}
     {{if $highlight.SharedBy}}
@@ -17,7 +15,7 @@
         {{$sharedByName = t $lang "Deleted user"}}
     {{end}}
     <div class="alert alert-primary mb-3" role="alert">
-        <p class="text-start text-muted mb-1">{{t $lang "<b>%s</b> shared <cite>%s</cite> with you" $sharedByName $document.Title}}
+        <p class="text-start text-muted mb-1">{{t $lang "<b>%s</b> shared <cite>%s</cite> with you" $sharedByName .Document.Title}}
             {{if $highlight.Comment}}
                 <blockquote class="fst-italic fw-light">{{$highlight.Comment}}</blockquote>
             {{end}}
@@ -27,26 +25,26 @@
 <div class="row">
     <div class="col-12 col-md-4 col-lg-3 mb-3">
         <div class="mb-3">
-            {{template "partials/cover" dict "Lang" .Lang "Document" $result "Session" .Session "Version" .Version}}
+            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "Version" .Version}}
         </div>
-        {{template "partials/actions" dict "Lang" .Lang "Document" $document "Session" .Session "FQDN" .FQDN "Version" .Version "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize}}
+        {{template "partials/actions" dict "Lang" .Lang "Document" .Document "Session" .Session "FQDN" .FQDN "Version" .Version "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize}}
     </div>
     <div class="col-12 col-md-8 col-lg-9">
         <div class="row">
             <div class="col-7">
-                {{ if ne $document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
-                $document.Series}}
+                {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s"
+                .Document.Series}}
                 <p class="text-start text-muted text-uppercase mb-0"><a
-                        href="/series/{{$document.SeriesSlug}}"
-                        title={{$seriesTitle}}>{{$document.Series}}{{ if ne $document.SeriesIndex 0.0 }} {{$document.SeriesIndex}}{{end}}</a></p>
+                        href="/series/{{.Document.SeriesSlug}}"
+                        title={{$seriesTitle}}>{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</a></p>
                 {{ end }}
                 <h4 class="text-start">
-                    <a href="/documents/{{$document.Slug}}">{{$document.Title}}</a>
+                    <a href="/documents/{{.Document.Slug}}">{{.Document.Title}}</a>
                 </h4>
             </div>
             {{if and .Session (eq .Session.Role 2)}}
             <div class="col-5 text-end">
-                <button href="#" data-bs-toggle="modal" data-bs-target="#delete-modal" data-url="/documents/{{$document.Slug}}" class="btn btn-sm btn-danger" title="{{$document.ID}}">
+                <button href="#" data-bs-toggle="modal" data-bs-target="#delete-modal" data-url="/documents/{{.Document.Slug}}" class="btn btn-sm btn-danger" title="{{.Document.ID}}">
                     <i class="bi-trash3-fill"></i>
                 </button>
             </div>
@@ -54,7 +52,8 @@
         </div>
         <div class="row">
             <div class="col-12 text-start">
-                {{if $document.Authors}}
+                {{if .Document.Authors}}
+                {{$document := .Document}}
                 <h5>
                     {{range $i, $author := $document.Authors}}
                     {{$authorTitle := t $lang "Search for more titles by %s" $author}}
@@ -66,36 +65,36 @@
                 {{end}}
 
                 <ul class="row text-muted list-unstyled mt-3">
-                    {{if not (eq $document.Publication.Date 0)}}
-                        <li><i class="bi bi-calendar3 me-2"></i><time>{{$document.Publication.Date.Year}}</time></li>
+                    {{if not (eq .Document.Publication.Date 0)}}
+                        <li><i class="bi bi-calendar3 me-2"></i><time>{{.Document.Publication.Date.Year}}</time></li>
                     </dd>
                     {{end}}
-                    {{ if gt $document.Words 0.0 }}
-                        <li><i class="bi bi-stopwatch me-2"></i><time>{{$document.ReadingTime .WordsPerMinute}}</time></li>
+                    {{ if gt .Document.Words 0.0 }}
+                        <li><i class="bi bi-stopwatch me-2"></i><time>{{.Document.ReadingTime .WordsPerMinute}}</time></li>
                     {{ end }}
-                    {{ if $document.Pages }}
-                        <li><i class="bi bi-book me-2"></i>{{$document.Pages}}</li>
+                    {{ if .Document.Pages }}
+                        <li><i class="bi bi-book me-2"></i>{{.Document.Pages}}</li>
                     {{ end }}
 
                     {{if .Session}}
                         <li>
                             <div class="d-inline-block">
                                 <input class="form-check-input me-1" type="checkbox"
-                                       id="complete-checkbox-{{$document.Slug}}"
+                                       id="complete-checkbox-{{.Document.Slug}}"
                                        {{if $completedOn}}checked{{end}}
                                        title='{{if $completedOn}}{{t $lang "Mark as incomplete"}}{{else}}{{t $lang "Mark as complete"}}{{end}}'
                                        data-complete-title='{{t $lang "Mark as complete"}}'
                                        data-incomplete-title='{{t $lang "Mark as incomplete"}}'
                                        data-completed-label='{{t $lang "Completed"}}'
                                        data-uncompleted-label='{{t $lang "Uncompleted"}}'
-                                       data-slug="{{$document.Slug}}" />
-                                <label class="form-check-label" id="complete-label-{{$document.Slug}}" for="complete-checkbox-{{$document.Slug}}">
+                                       data-slug="{{.Document.Slug}}" />
+                                <label class="form-check-label" id="complete-label-{{.Document.Slug}}" for="complete-checkbox-{{.Document.Slug}}">
                                     {{if $completedOn}}{{t $lang "Completed"}}{{else}}{{t $lang "Uncompleted"}}{{end}}
                                 </label>
-                                <span id="completion-date-{{$document.Slug}}">
+                                <span id="completion-date-{{.Document.Slug}}">
                                     <input type="date" class="border-0 border-bottom text-muted bg-transparent p-0 ms-1{{if not $completedOn}} d-none{{end}}"
                                         value="{{if $completedOn}}{{$completedOn.Format "2006-01-02"}}{{end}}"
-                                        data-slug="{{$document.Slug}}"
+                                        data-slug="{{.Document.Slug}}"
                                         data-original-date="{{if $completedOn}}{{$completedOn.Format "2006-01-02"}}{{end}}"
                                         title='{{t $lang "Edit completion date"}}'
                                         {{if not $completedOn}}disabled{{end}} />
@@ -105,21 +104,21 @@
                     {{end}}
 
                     {{if and .Session .Session.ShowFileName}}
-                        <li><i class="bi bi-file-earmark-text me-2"></i><i>{{$document.ID}}</i></li>
+                        <li><i class="bi bi-file-earmark-text me-2"></i><i>{{.Document.ID}}</i></li>
                     {{end}}
                 </ul>
 
-                {{ if $document.Subjects }}
+                {{ if .Document.Subjects }}
                 <ul class="list-inline mt-3">
-                    {{range $i, $subject := $document.Subjects}}
+                    {{range $i, $subject := .Document.Subjects}}
                         {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
                         <li class="list-inline-item"><a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?subjects={{urlquery $subject}}" title={{$subjectTitle}}>{{$subject}}</a></li>
                     {{end}}
                 </ul>
                 {{ end }}
 
-                {{if $document.Description}}
-                <div class="mb-1 mt-3 clamp">{{$document.Description}}</div>
+                {{if .Document.Description}}
+                <div class="mb-1 mt-3 clamp">{{.Document.Description}}</div>
                 {{else}}
                 <div class="mb-1 mt-3"><em>{{t $lang "No description available"}}</em></div>
                 {{end}}

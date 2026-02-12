@@ -1,39 +1,37 @@
 {{$lang := .Lang}}
-{{$result := .Document}}
-{{$document := $result.Document}}
 {{$session := .Session}}
-{{$completedOn := $result.CompletedOn}}
+{{$completedOn := .Document.CompletedOn}}
 
 <dl class="row text-muted mt-3">
-    {{if not (eq $document.Publication.Date 0)}}
+    {{if not (eq .Document.Publication.Date 0)}}
         <dt class="col-8"><i class="bi bi-calendar3 me-2"></i>{{t $lang "Year"}}</dt>
-        <dd class="col-4 text-end"><time>{{$document.Publication.Date.Year}}</time>
+        <dd class="col-4 text-end"><time>{{.Document.Publication.Date.Year}}</time>
     </dd>
     {{end}}
-    {{ if gt $document.Words 0.0 }}
+    {{ if gt .Document.Words 0.0 }}
         <dt class="col-8"><i class="bi bi-stopwatch me-2"></i>{{t $lang "Estimated reading time"}}</dt>
-        <dd class="col-4 text-end"><time>{{$document.ReadingTime .WordsPerMinute}}</time></dd>
+        <dd class="col-4 text-end"><time>{{.Document.ReadingTime .WordsPerMinute}}</time></dd>
     {{ end }}
-    {{ if $document.Pages }}
+    {{ if .Document.Pages }}
         <dt class="col-8">{{t $lang "Pages" }}</dt>
-        <dd class="col-4 text-end">{{$document.Pages}}<dd>
+        <dd class="col-4 text-end">{{.Document.Pages}}<dd>
     {{ end }}
     {{if $session}}
         <dt class="col-6">
             <input class="form-check-input me-2" type="checkbox"
-                   id="complete-checkbox-{{$document.Slug}}"
+                   id="complete-checkbox-{{.Document.Slug}}"
                    {{if $completedOn}}checked{{end}}
                    title='{{if $completedOn}}{{t $lang "Mark as incomplete"}}{{else}}{{t $lang "Mark as complete"}}{{end}}'
                    data-complete-title='{{t $lang "Mark as complete"}}'
                    data-incomplete-title='{{t $lang "Mark as incomplete"}}'
                    data-completed-label='{{t $lang "Completed"}}'
                    data-uncompleted-label='{{t $lang "Uncompleted"}}'
-                   data-slug="{{$document.Slug}}" /><label class="form-check-label" id="complete-label-{{$document.Slug}}" for="complete-checkbox-{{$document.Slug}}">{{if $completedOn}}{{t $lang "Completed"}}{{else}}{{t $lang "Uncompleted"}}{{end}}</label>
+                   data-slug="{{.Document.Slug}}" /><label class="form-check-label" id="complete-label-{{.Document.Slug}}" for="complete-checkbox-{{.Document.Slug}}">{{if $completedOn}}{{t $lang "Completed"}}{{else}}{{t $lang "Uncompleted"}}{{end}}</label>
         </dt>
-        <dd class="col-6 text-end" id="completion-date-{{$document.Slug}}">
+        <dd class="col-6 text-end" id="completion-date-{{.Document.Slug}}">
             <input type="date" class="border-0 border-bottom text-muted bg-transparent p-0{{if not $completedOn}} d-none{{end}}"
                    value="{{if $completedOn}}{{$completedOn.Format "2006-01-02"}}{{end}}"
-                   data-slug="{{$document.Slug}}"
+                   data-slug="{{.Document.Slug}}"
                    data-original-date="{{if $completedOn}}{{$completedOn.Format "2006-01-02"}}{{end}}"
                    title='{{t $lang "Edit completion date"}}'
                    {{if not $completedOn}}disabled{{end}} />
@@ -41,7 +39,7 @@
 
         {{if and $session $session.ShowFileName}}
             <dt class="col-5"><i class="bi bi-file-earmark-text me-2"></i>{{t $lang "File name"}}</dt>
-            <dd class="col-7 text-end"><small><i>{{$document.ID}}</i></small></dd>
+            <dd class="col-7 text-end"><small><i>{{.Document.ID}}</i></small></dd>
         {{end}}
     {{end}}
 </dl>

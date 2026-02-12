@@ -8,7 +8,7 @@ import (
 )
 
 type AugmentedDocument struct {
-	Document    index.Document
+	index.Document
 	Highlight   Highlight
 	CompletedOn *time.Time
 }

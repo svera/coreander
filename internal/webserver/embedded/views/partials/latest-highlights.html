@@ -11,7 +11,7 @@
         <div class="mb-3">
             {{template "partials/cover" dict "Lang" $lang "Document" $result "Session" $session "Version" $.Version}}
         </div>
-        {{template "partials/actions" dict "Lang" $lang "Document" $result.Document "Session" $session "FQDN" $.fqdn "Version" $.Version "EmailSendingConfigured" $emailSendingConfigured "DefaultAction" $defaultAction "CanShare" $canShare "PreferredEpub" $preferredEpub "ShareMaxRecipients" $.ShareMaxRecipients "ShareCommentMaxSize" $.ShareCommentMaxSize}}
+        {{template "partials/actions" dict "Lang" $lang "Document" $result "Session" $session "FQDN" $.fqdn "Version" $.Version "EmailSendingConfigured" $emailSendingConfigured "DefaultAction" $defaultAction "CanShare" $canShare "PreferredEpub" $preferredEpub "ShareMaxRecipients" $.ShareMaxRecipients "ShareCommentMaxSize" $.ShareCommentMaxSize}}
     </div>
     {{end}}
 {{else}}
