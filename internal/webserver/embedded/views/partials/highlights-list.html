@@ -1,23 +1,14 @@
-{{$lang := .Lang}}
-{{$session := .Session}}
-{{$wordsPerMinute := .WordsPerMinute}}
-{{$emailSendingConfigured := .EmailSendingConfigured}}
-{{$emailFrom := .EmailFrom}}
-{{$defaultAction := .DefaultAction}}
-{{$canShare := .CanShare}}
-{{$preferredEpub := .PreferredEpub}}
-
 <div class="row mt-5 mb-2 d-flex">
     <div class="{{if and .ShowHighlightsFilter (eq .Results.TotalHits 0)}}col-12{{else}}col-6 col-md-8{{end}} align-content-end">
         {{if .ShowHighlightsFilter}}
             <div class="form-floating">
                 <select class="form-select form-select-sm" id="highlights-filter" name="filter"
                         onchange="window.location.href='{{.FilterURL}}filter='+this.value;">
-                    <option value="all" {{if or (eq .HighlightsFilter "") (eq .HighlightsFilter "all")}}selected{{end}}>{{t $lang "All documents (%d)" .HighlightsTotalAll}}</option>
-                    <option value="highlights" {{if eq .HighlightsFilter "highlights"}}selected{{end}}>{{t $lang "Only my highlights"}}</option>
-                    <option value="shared" {{if eq .HighlightsFilter "shared"}}selected{{end}}>{{t $lang "Only shared documents"}}</option>
+                    <option value="all" {{if or (eq .HighlightsFilter "") (eq .HighlightsFilter "all")}}selected{{end}}>{{t .Lang "All documents (%d)" .HighlightsTotalAll}}</option>
+                    <option value="highlights" {{if eq .HighlightsFilter "highlights"}}selected{{end}}>{{t .Lang "Only my highlights"}}</option>
+                    <option value="shared" {{if eq .HighlightsFilter "shared"}}selected{{end}}>{{t .Lang "Only shared documents"}}</option>
                 </select>
-                <label for="highlights-filter">{{t $lang "Show"}}</label>
+                <label for="highlights-filter">{{t .Lang "Show"}}</label>
             </div>
         {{else if gt .Results.TotalHits 0}}
             <p class="text-start">{{t .Lang "%d documents found" .Results.TotalHits }}</p>
@@ -25,7 +16,7 @@
     </div>
     <div class="col-6 col-md-4 text-end {{if and .ShowHighlightsFilter (eq .Results.TotalHits 0)}}d-none{{end}}">
         {{if ne .Results.TotalHits 0}}
-            {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" $lang "AdditionalSortOptions" .AdditionalSortOptions}}
+            {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "AdditionalSortOptions" .AdditionalSortOptions}}
         {{end}}
     </div>
 </div>
@@ -41,7 +32,7 @@
 <ul class="list-group border-top rounded-0">
     {{range $i, $result := .Results.Hits}}
     <li class="list-group-item border border-0 px-0 mt-5">
-        {{template "partials/docs-list-item" dict "Lang" $lang "Document" $result "Session" $session "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $wordsPerMinute "EmailSendingConfigured" $emailSendingConfigured "DefaultAction" $defaultAction "CanShare" $canShare "PreferredEpub" $preferredEpub}}
+        {{template "partials/docs-list-item" dict "Lang" $.Lang "Document" $result "Session" $.Session "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $.WordsPerMinute "EmailSendingConfigured" $.EmailSendingConfigured "DefaultAction" $.DefaultAction "CanShare" $.CanShare "PreferredEpub" $.PreferredEpub}}
     </li>
     {{end}}
 </ul>

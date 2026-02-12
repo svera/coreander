@@ -1,44 +1,40 @@
-{{$lang := .Lang}}
-{{$session := .Session}}
-{{$completedOn := .Document.CompletedOn}}
-
 <dl class="row text-muted mt-3">
     {{if not (eq .Document.Publication.Date 0)}}
-        <dt class="col-8"><i class="bi bi-calendar3 me-2"></i>{{t $lang "Year"}}</dt>
+        <dt class="col-8"><i class="bi bi-calendar3 me-2"></i>{{t .Lang "Year"}}</dt>
         <dd class="col-4 text-end"><time>{{.Document.Publication.Date.Year}}</time>
     </dd>
     {{end}}
     {{ if gt .Document.Words 0.0 }}
-        <dt class="col-8"><i class="bi bi-stopwatch me-2"></i>{{t $lang "Estimated reading time"}}</dt>
+        <dt class="col-8"><i class="bi bi-stopwatch me-2"></i>{{t .Lang "Estimated reading time"}}</dt>
         <dd class="col-4 text-end"><time>{{.Document.ReadingTime .WordsPerMinute}}</time></dd>
     {{ end }}
     {{ if .Document.Pages }}
-        <dt class="col-8">{{t $lang "Pages" }}</dt>
+        <dt class="col-8">{{t .Lang "Pages" }}</dt>
         <dd class="col-4 text-end">{{.Document.Pages}}<dd>
     {{ end }}
-    {{if $session}}
+    {{if .Session}}
         <dt class="col-6">
             <input class="form-check-input me-2" type="checkbox"
                    id="complete-checkbox-{{.Document.Slug}}"
-                   {{if $completedOn}}checked{{end}}
-                   title='{{if $completedOn}}{{t $lang "Mark as incomplete"}}{{else}}{{t $lang "Mark as complete"}}{{end}}'
-                   data-complete-title='{{t $lang "Mark as complete"}}'
-                   data-incomplete-title='{{t $lang "Mark as incomplete"}}'
-                   data-completed-label='{{t $lang "Completed"}}'
-                   data-uncompleted-label='{{t $lang "Uncompleted"}}'
-                   data-slug="{{.Document.Slug}}" /><label class="form-check-label" id="complete-label-{{.Document.Slug}}" for="complete-checkbox-{{.Document.Slug}}">{{if $completedOn}}{{t $lang "Completed"}}{{else}}{{t $lang "Uncompleted"}}{{end}}</label>
+                   {{if .Document.CompletedOn}}checked{{end}}
+                   title='{{if .Document.CompletedOn}}{{t .Lang "Mark as incomplete"}}{{else}}{{t .Lang "Mark as complete"}}{{end}}'
+                   data-complete-title='{{t .Lang "Mark as complete"}}'
+                   data-incomplete-title='{{t .Lang "Mark as incomplete"}}'
+                   data-completed-label='{{t .Lang "Completed"}}'
+                   data-uncompleted-label='{{t .Lang "Uncompleted"}}'
+                   data-slug="{{.Document.Slug}}" /><label class="form-check-label" id="complete-label-{{.Document.Slug}}" for="complete-checkbox-{{.Document.Slug}}">{{if .Document.CompletedOn}}{{t .Lang "Completed"}}{{else}}{{t .Lang "Uncompleted"}}{{end}}</label>
         </dt>
         <dd class="col-6 text-end" id="completion-date-{{.Document.Slug}}">
-            <input type="date" class="border-0 border-bottom text-muted bg-transparent p-0{{if not $completedOn}} d-none{{end}}"
-                   value="{{if $completedOn}}{{$completedOn.Format "2006-01-02"}}{{end}}"
+            <input type="date" class="border-0 border-bottom text-muted bg-transparent p-0{{if not .Document.CompletedOn}} d-none{{end}}"
+                   value="{{if .Document.CompletedOn}}{{.Document.CompletedOn.Format "2006-01-02"}}{{end}}"
                    data-slug="{{.Document.Slug}}"
-                   data-original-date="{{if $completedOn}}{{$completedOn.Format "2006-01-02"}}{{end}}"
-                   title='{{t $lang "Edit completion date"}}'
-                   {{if not $completedOn}}disabled{{end}} />
+                   data-original-date="{{if .Document.CompletedOn}}{{.Document.CompletedOn.Format "2006-01-02"}}{{end}}"
+                   title='{{t .Lang "Edit completion date"}}'
+                   {{if not .Document.CompletedOn}}disabled{{end}} />
         </dd>
 
-        {{if and $session $session.ShowFileName}}
-            <dt class="col-5"><i class="bi bi-file-earmark-text me-2"></i>{{t $lang "File name"}}</dt>
+        {{if and .Session .Session.ShowFileName}}
+            <dt class="col-5"><i class="bi bi-file-earmark-text me-2"></i>{{t .Lang "File name"}}</dt>
             <dd class="col-7 text-end"><small><i>{{.Document.ID}}</i></small></dd>
         {{end}}
     {{end}}

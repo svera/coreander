@@ -1,17 +1,10 @@
 {{if gt (len .Highlights) 0}}
-    {{$lang := .Lang}}
-    {{$session := .Session}}
-    {{$emailSendingConfigured := .EmailSendingConfigured}}
-    {{$defaultAction := .DefaultAction}}
-    {{$canShare := .CanShare}}
-    {{$preferredEpub := .PreferredEpub}}
-
     {{range $i, $result := .Highlights}}
     <div class="col-6 col-md-3 col-xl-2 pe-0 {{if gt $i 3}}d-none d-xl-block{{end}} mt-3">
         <div class="mb-3">
-            {{template "partials/cover" dict "Lang" $lang "Document" $result "Session" $session "Version" $.Version}}
+            {{template "partials/cover" dict "Lang" $.Lang "Document" $result "Session" $.Session "Version" $.Version}}
         </div>
-        {{template "partials/actions" dict "Lang" $lang "Document" $result "Session" $session "FQDN" $.fqdn "Version" $.Version "EmailSendingConfigured" $emailSendingConfigured "DefaultAction" $defaultAction "CanShare" $canShare "PreferredEpub" $preferredEpub "ShareMaxRecipients" $.ShareMaxRecipients "ShareCommentMaxSize" $.ShareCommentMaxSize}}
+        {{template "partials/actions" dict "Lang" $.Lang "Document" $result "Session" $.Session "FQDN" $.fqdn "Version" $.Version "EmailSendingConfigured" $.EmailSendingConfigured "DefaultAction" $.DefaultAction "CanShare" $.CanShare "PreferredEpub" $.PreferredEpub "ShareMaxRecipients" $.ShareMaxRecipients "ShareCommentMaxSize" $.ShareCommentMaxSize}}
     </div>
     {{end}}
 {{else}}
