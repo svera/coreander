@@ -151,14 +151,14 @@ func (h *Controller) sortedHighlightResults(page int, user *model.User, highligh
 	return paginatedResults, nil
 }
 
-func (h *Controller) latestHighlights(page int, user *model.User, highlightsAmount int) ([]model.Highlight, error) {
+func (h *Controller) latestHighlights(page int, user *model.User, highlightsAmount int) ([]model.AugmentedDocument, error) {
 	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, "created_at DESC", "all")
 	if err != nil {
 		log.Println(err)
 		return nil, fiber.ErrInternalServerError
 	}
 
-	highlights := make([]model.Highlight, 0, len(docsSortedByHighlightedDate.Hits()))
+	highlights := make([]model.AugmentedDocument, 0, len(docsSortedByHighlightedDate.Hits()))
 	for _, highlight := range docsSortedByHighlightedDate.Hits() {
 		doc, err := h.idx.DocumentByID(highlight.Path)
 		if err != nil {
@@ -168,14 +168,16 @@ func (h *Controller) latestHighlights(page int, user *model.User, highlightsAmou
 		if doc.ID == "" {
 			continue
 		}
-		highlight.Document = doc
-		highlights = append(highlights, highlight)
+		highlights = append(highlights, model.AugmentedDocument{
+			Document:  doc,
+			Highlight: highlight,
+		})
 	}
 
 	return highlights, nil
 }
 
-func (h *Controller) latest(c *fiber.Ctx, highlights []model.Highlight) error {
+func (h *Controller) latest(c *fiber.Ctx, highlights []model.AugmentedDocument) error {
 	err := c.Render("partials/latest-highlights", fiber.Map{
 		"Highlights":     highlights,
 		"EmailFrom":      h.sender.From(),

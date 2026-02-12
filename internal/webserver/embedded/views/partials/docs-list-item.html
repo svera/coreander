@@ -1,7 +1,8 @@
 {{$lang := .Lang}}
-{{$document := .Document}}
-{{$completedOn := .CompletedOn}}
-{{$highlight := .Highlight}}
+{{$result := .Document}}
+{{$document := $result.Document}}
+{{$completedOn := $result.CompletedOn}}
+{{$highlight := $result.Highlight}}
 {{if and $highlight $highlight.SharedByID}}
     {{$sharedByName := ""}}
     {{if $highlight.SharedBy}}
@@ -26,7 +27,7 @@
 <div class="row">
     <div class="col-12 col-md-4 col-lg-3 mb-3">
         <div class="mb-3">
-            {{template "partials/cover" dict "Lang" .Lang "Document" $document "Highlight" $highlight "Session" .Session "Version" .Version}}
+            {{template "partials/cover" dict "Lang" .Lang "Document" $result "Session" .Session "Version" .Version}}
         </div>
         {{template "partials/actions" dict "Lang" .Lang "Document" $document "Session" .Session "FQDN" .FQDN "Version" .Version "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize}}
     </div>

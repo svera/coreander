@@ -4,7 +4,6 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
@@ -20,18 +19,23 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	latestDocs, err := d.idx.LatestDocs(d.config.LatestDocsLimit)
+	latestDocsRaw, err := d.idx.LatestDocs(d.config.LatestDocsLimit)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	var readingDocs []index.Document
+	latestDocs := make([]model.AugmentedDocument, 0, len(latestDocsRaw))
+	for _, doc := range latestDocsRaw {
+		latestDocs = append(latestDocs, model.AugmentedDocument{Document: doc})
+	}
+
+	var readingDocs []model.AugmentedDocument
 	if session.ID > 0 {
 		for i := range latestDocs {
-			result := model.AugmentedDocument{Document: latestDocs[i]}
+			result := model.AugmentedDocument{Document: latestDocs[i].Document}
 			result = d.hlRepository.Highlighted(int(session.ID), result)
-			latestDocs[i] = result.Document
+			latestDocs[i] = result
 		}
 
 		readingList, err := d.readingRepository.Latest(int(session.ID), 1, d.config.LatestDocsLimit)
@@ -50,7 +54,7 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 			}
 			result := model.AugmentedDocument{Document: doc}
 			result = d.hlRepository.Highlighted(int(session.ID), result)
-			readingDocs = append(readingDocs, result.Document)
+			readingDocs = append(readingDocs, result)
 		}
 	}
 

@@ -24,7 +24,7 @@
     </div>
     <div class="col-12 col-md-4 mt-3 pe-3">
         <div class="mb-3">
-            {{template "partials/cover" dict "Lang" .Lang "Document" $document "Highlight" $result.Highlight "Session" .Session "DisableCoverMainLink" true "Version" .Version}}
+            {{template "partials/cover" dict "Lang" .Lang "Document" $result "Session" .Session "DisableCoverMainLink" true "Version" .Version}}
         </div>
         {{template "partials/actions" dict "Lang" .Lang "Document" $document "Session" .Session "FQDN" .fqdn "Version" .Version "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "EmailFrom" .EmailFrom "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize "ButtonSize" "btn-lg" "ButtonStyle" "btn-primary"}}
 
@@ -76,7 +76,7 @@
             <div class="row pe-0 align-items-end">
                 {{range $i, $result := .SameSeries}}
                     <div class="col-6 col-lg-3 pe-0 mt-3">
-                        {{template "partials/cover" dict "Lang" $lang "Document" $result.Document "Highlight" $result.Highlight "Session" $session "Version" $.Version}}
+                        {{template "partials/cover" dict "Lang" $lang "Document" $result "Session" $session "Version" $.Version}}
                     </div>
                 {{end}}
             </div>
@@ -104,7 +104,7 @@
             <div class="row pe-0 align-items-end">
                 {{range $i, $result := .SameAuthors}}
                 <div class="col-6 col-lg-3 pe-0 mt-3">
-                    {{template "partials/cover" dict "Lang" $lang "Document" $result.Document "Highlight" $result.Highlight "Session" $session "Version" $.Version}}
+                    {{template "partials/cover" dict "Lang" $lang "Document" $result "Session" $session "Version" $.Version}}
                 </div>
                 {{end}}
             </div>
@@ -124,7 +124,7 @@
             <div class="row pe-0 align-items-end">
                 {{range $i, $result := .SameSubjects}}
                 <div class="col-6 col-lg-3 pe-0 mt-3">
-                    {{template "partials/cover" dict "Lang" $lang "Document" $result.Document "Highlight" $result.Highlight "Session" $session "Version" $.Version}}
+                    {{template "partials/cover" dict "Lang" $lang "Document" $result "Session" $session "Version" $.Version}}
                 </div>
                 {{end}}
             </div>
