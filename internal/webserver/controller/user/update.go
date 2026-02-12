@@ -86,16 +86,10 @@ func (u *Controller) updateOptions(c *fiber.Ctx, user *model.User, session model
 	user.SendToEmail = c.FormValue("send-to-email")
 	user.PreferredEpubType = strings.ToLower(c.FormValue("preferred-epub-type"))
 	defaultActionFromForm := strings.ToLower(c.FormValue("default-action"))
-	
-	// Set default action based on SendToEmail
-	// If SendToEmail is set and email sending is configured, default to "send"
-	// Otherwise default to "download"
-	// Only preserve explicit selections of "share" or "copy", otherwise set based on SendToEmail
-	if defaultActionFromForm == "share" || defaultActionFromForm == "copy" {
-		// User explicitly selected share or copy, preserve it
+
+	if defaultActionFromForm != "" {
 		user.DefaultAction = defaultActionFromForm
 	} else {
-		// Set based on SendToEmail status
 		// Default to "download", only set to "send" if SendToEmail is set and email is configured
 		user.DefaultAction = "download"
 		if user.SendToEmail != "" {

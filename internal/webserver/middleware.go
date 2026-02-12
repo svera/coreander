@@ -114,6 +114,7 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n
 	})
 }
 
+
 func forbidden(c *fiber.Ctx, sender Sender, translator i18n.Translator, err error) error {
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
