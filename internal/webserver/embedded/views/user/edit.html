@@ -1,13 +1,25 @@
 <div class="row mb-3 mt-5" id="user-edit">
     <div class="col mb-3">
         <h2>{{.User.Name}}</h2>
+        {{if and .Session (eq .Session.Username .User.Username)}}
+        <div id="reading-stats">
         {{if gt .LifetimeCompletedCount 0}}
         <div class="alert alert-info mt-3" role="alert">
-            {{if gt .YearlyCompletedCount 0}}
-            <div class="mb-2">
-                <i class="bi bi-trophy-fill"></i> {{t .Lang "This year you have completed <strong>%d</strong> documents, with a total reading time of <strong>%s</strong>" .YearlyCompletedCount .YearlyReadingTime}}
+            <div class="mb-2 d-flex flex-wrap align-items-center gap-2">
+                <i class="bi bi-trophy-fill"></i>
+                <span>{{t .Lang "In"}}</span>
+                <select class="form-select form-select-sm w-auto" id="stats-year" name="stats-year"
+                    hx-get="/users/{{.User.Username}}" hx-trigger="change" hx-target="#reading-stats" hx-select="#reading-stats" hx-swap="outerHTML">
+                    {{range .StatsYears}}
+                        <option value="{{.}}" {{if eq . $.StatsYear}}selected{{end}}>{{.}}</option>
+                    {{end}}
+                </select>
+                {{if gt .YearlyCompletedCount 0}}
+                    {{t .Lang "you have completed <strong>%d</strong> documents, with a total reading time of <strong>%s</strong>" .YearlyCompletedCount .YearlyReadingTime}}
+                {{else}}
+                    {{t .Lang "you have not completed any documents yet."}}
+                {{end}}
             </div>
-            {{end}}
             <div>
                 <i class="bi bi-book-fill"></i> {{t .Lang "In total, you have completed <strong>%d</strong> documents, with a total reading time of <strong>%s</strong>" .LifetimeCompletedCount .LifetimeReadingTime}}
             </div>
@@ -15,6 +27,8 @@
         {{else}}
         <div class="alert alert-warning mt-3" role="alert">
             <i class="bi bi-info-circle"></i> {{t .Lang "You haven't marked any documents as completed yet. Reading statistics will be available once you complete your first document."}}
+        </div>
+        {{end}}
         </div>
         {{end}}
     </div>
@@ -36,6 +50,7 @@
         <div class='tab-pane fade {{if eq .ActiveTab "options"}}show active{{end}}' id="options-tab-pane" role="tabpanel" aria-labelledby="options-tab"
             tabindex="0">
             <form hx-put="/users/{{.User.Username}}" hx-swap="outerHTML" hx-target="#user-edit" data-success-message='{{t .Lang "Profile updated"}}'>
+                <input type="hidden" name="stats-year" value="{{.StatsYear}}">
                 <div class="my-5">
                     <div class="form-floating">
                         <input type="email" name="send-to-email" class='form-control {{if ne (index .Errors "sendtoemail") ""}}is-invalid{{end}}' id="send-to-email" {{if .User.SendToEmail}}value="{{.User.SendToEmail}}"{{end}} maxlength="100" aria-describedby="send-to-email-help" placeholder='{{t .Lang "Send to email address"}}'>
@@ -110,6 +125,7 @@
         <div class='tab-pane fade {{if eq .ActiveTab "profile"}}show active{{end}}' id="profile-tab-pane" role="tabpanel" aria-labelledby="profile-tab"
             tabindex="0">
             <form hx-put="/users/{{.User.Username}}" hx-swap="outerHTML" hx-target="#user-edit" data-success-message='{{t .Lang "Profile updated"}}'>
+                <input type="hidden" name="stats-year" value="{{.StatsYear}}">
                 <div class="my-5">
                     <div class="form-floating">
                         <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="50" placeholder='{{t .Lang "Name"}}'>
@@ -154,6 +170,7 @@
         <div class='tab-pane fade {{if eq .ActiveTab "password"}}show active{{end}}' id="password-tab-pane" role="tabpanel" aria-labelledby="password-tab"
             tabindex="0">
             <form hx-put="/users/{{.User.Username}}" hx-swap="outerHTML" hx-target="#user-edit" data-success-message='{{t .Lang "Password updated"}}'>
+                <input type="hidden" name="stats-year" value="{{.StatsYear}}">
                 {{if eq .Session.Uuid .User.Uuid}}
                 <div class="my-5">
                     <div class="form-floating">

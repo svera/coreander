@@ -16,6 +16,13 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	testDocSlug = "miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha"
+	testDocPath = "quijote.epub"
+	regularUserID = 2
+	adminUserID   = 1
+)
+
 func TestToggleComplete(t *testing.T) {
 	var (
 		db            *gorm.DB
@@ -70,10 +77,45 @@ func TestToggleComplete(t *testing.T) {
 		}
 	}
 
+	// Helper functions
+	markComplete := func(cookie *http.Cookie) (*http.Response, error) {
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/documents/%s/complete", testDocSlug), nil)
+		req.AddCookie(cookie)
+		return app.Test(req)
+	}
+
+	getReading := func(userID int) (model.Reading, error) {
+		var reading model.Reading
+		err := db.Where("user_id = ? AND path = ?", userID, testDocPath).First(&reading).Error
+		return reading, err
+	}
+
+	verifyComplete := func(t *testing.T, userID int, shouldBeComplete bool) {
+		t.Helper()
+		reading, err := getReading(userID)
+		if err != nil {
+			t.Fatalf("Expected reading record to exist: %v", err)
+		}
+		if shouldBeComplete && reading.CompletedOn == nil {
+			t.Error("Expected document to be marked as complete")
+		}
+		if !shouldBeComplete && reading.CompletedOn != nil {
+			t.Error("Expected document to be marked as incomplete")
+		}
+	}
+
+	updateCompletionDate := func(cookie *http.Cookie, date string) (*http.Response, error) {
+		reqBody := fmt.Sprintf(`{"completed_on":"%s"}`, date)
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/documents/%s/complete", testDocSlug), strings.NewReader(reqBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(cookie)
+		return app.Test(req)
+	}
+
 	t.Run("Try to mark document as complete without authentication", func(t *testing.T) {
 		reset()
 
-		req, _ := http.NewRequest(http.MethodPost, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", nil)
+		req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("/documents/%s/complete", testDocSlug), nil)
 		response, err := app.Test(req)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
@@ -87,9 +129,7 @@ func TestToggleComplete(t *testing.T) {
 	t.Run("Mark document as complete successfully", func(t *testing.T) {
 		reset()
 
-		req, _ := http.NewRequest(http.MethodPost, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", nil)
-		req.AddCookie(regularCookie)
-		response, err := app.Test(req)
+		response, err := markComplete(regularCookie)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -98,40 +138,22 @@ func TestToggleComplete(t *testing.T) {
 			t.Errorf("Expected 204 status, got %d", response.StatusCode)
 		}
 
-		// Verify document is marked as complete in database
-		var reading model.Reading
-		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&reading).Error
-		if err != nil {
-			t.Fatalf("Expected reading record to exist: %v", err)
-		}
-
-		if reading.CompletedOn == nil {
-			t.Error("Expected CompletedOn to be set (document should be marked as complete)")
-		}
+		verifyComplete(t, regularUserID, true)
 	})
 
 	t.Run("Toggle document from complete to incomplete", func(t *testing.T) {
 		reset()
 
 		// First mark as complete
-		req, _ := http.NewRequest(http.MethodPost, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", nil)
-		req.AddCookie(regularCookie)
-		_, err := app.Test(req)
+		_, err := markComplete(regularCookie)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		// Verify it's complete
-		var reading model.Reading
-		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&reading).Error
-		if err != nil || reading.CompletedOn == nil {
-			t.Fatal("Document should be marked as complete")
-		}
+		verifyComplete(t, regularUserID, true)
 
 		// Toggle to incomplete
-		req, _ = http.NewRequest(http.MethodPost, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", nil)
-		req.AddCookie(regularCookie)
-		response, err := app.Test(req)
+		response, err := markComplete(regularCookie)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -140,23 +162,14 @@ func TestToggleComplete(t *testing.T) {
 			t.Errorf("Expected 204 status, got %d", response.StatusCode)
 		}
 
-		// Verify it's now incomplete
-		var readingAfterToggle model.Reading
-		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&readingAfterToggle).Error
-		if err != nil {
-			t.Fatalf("Expected reading record to exist: %v", err)
-		}
-
-		if readingAfterToggle.CompletedOn != nil {
-			t.Error("Expected CompletedOn to be nil (document should be marked as incomplete)")
-		}
+		verifyComplete(t, regularUserID, false)
 	})
 
 	t.Run("Complete button shows correct state in UI", func(t *testing.T) {
 		reset()
 
 		// Get document detail page - should show incomplete
-		req, _ := http.NewRequest(http.MethodGet, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", nil)
+		req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("/documents/%s", testDocSlug), nil)
 		req.AddCookie(regularCookie)
 		response, err := app.Test(req)
 		if err != nil {
@@ -179,15 +192,13 @@ func TestToggleComplete(t *testing.T) {
 		}
 
 		// Mark as complete
-		req, _ = http.NewRequest(http.MethodPost, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", nil)
-		req.AddCookie(regularCookie)
-		_, err = app.Test(req)
+		_, err = markComplete(regularCookie)
 		if err != nil {
 			t.Fatalf("Unexpected error marking complete: %v", err.Error())
 		}
 
 		// Get document detail page again - should show complete
-		req, _ = http.NewRequest(http.MethodGet, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", nil)
+		req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("/documents/%s", testDocSlug), nil)
 		req.AddCookie(regularCookie)
 		response, err = app.Test(req)
 		if err != nil {
@@ -214,16 +225,13 @@ func TestToggleComplete(t *testing.T) {
 		reset()
 
 		// Regular user marks as complete
-		req, _ := http.NewRequest(http.MethodPost, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", nil)
-		req.AddCookie(regularCookie)
-		_, err := app.Test(req)
+		_, err := markComplete(regularCookie)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
 		// Check admin user sees it as incomplete
-		var reading model.Reading
-		err = db.Where("user_id = ? AND path = ?", 1, "quijote.epub").First(&reading).Error
+		reading, err := getReading(adminUserID)
 		if err != gorm.ErrRecordNotFound {
 			if reading.CompletedOn != nil {
 				t.Error("Admin user should not see document as complete")
@@ -250,33 +258,24 @@ func TestToggleComplete(t *testing.T) {
 		reset()
 
 		// First mark as complete
-		req, _ := http.NewRequest(http.MethodPost, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", nil)
-		req.AddCookie(regularCookie)
-		_, err := app.Test(req)
+		_, err := markComplete(regularCookie)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		// Verify it's complete with a date
-		var reading model.Reading
-		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&reading).Error
+		// Get original date
+		reading, err := getReading(regularUserID)
 		if err != nil {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
-
 		if reading.CompletedOn == nil {
 			t.Fatal("CompletedOn should be set (document should be marked as complete)")
 		}
-
 		originalDate := *reading.CompletedOn
 
 		// Update the completion date to a different date
 		newDate := "2024-01-15"
-		reqBody := fmt.Sprintf(`{"completed_on":"%s"}`, newDate)
-		req, _ = http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", strings.NewReader(reqBody))
-		req.Header.Set("Content-Type", "application/json")
-		req.AddCookie(regularCookie)
-		response, err := app.Test(req)
+		response, err := updateCompletionDate(regularCookie, newDate)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -286,8 +285,7 @@ func TestToggleComplete(t *testing.T) {
 		}
 
 		// Verify it's still complete but with the new date
-		var readingAfterUpdate model.Reading
-		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&readingAfterUpdate).Error
+		readingAfterUpdate, err := getReading(regularUserID)
 		if err != nil {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
@@ -312,7 +310,7 @@ func TestToggleComplete(t *testing.T) {
 		reset()
 
 		reqBody := `{"completed_on":"2024-01-15"}`
-		req, _ := http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", strings.NewReader(reqBody))
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/documents/%s/complete", testDocSlug), strings.NewReader(reqBody))
 		req.Header.Set("Content-Type", "application/json")
 		response, err := app.Test(req)
 		if err != nil {
@@ -328,16 +326,14 @@ func TestToggleComplete(t *testing.T) {
 		reset()
 
 		// First mark as complete
-		req, _ := http.NewRequest(http.MethodPost, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", nil)
-		req.AddCookie(regularCookie)
-		_, err := app.Test(req)
+		_, err := markComplete(regularCookie)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
 		// Try to update with invalid date format
 		reqBody := `{"completed_on":"invalid-date"}`
-		req, _ = http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", strings.NewReader(reqBody))
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/documents/%s/complete", testDocSlug), strings.NewReader(reqBody))
 		req.Header.Set("Content-Type", "application/json")
 		req.AddCookie(regularCookie)
 		response, err := app.Test(req)
@@ -355,7 +351,7 @@ func TestToggleComplete(t *testing.T) {
 
 		// First, update the reading position to establish an updated_at timestamp
 		positionBody := `{"position":"test-position"}`
-		req, _ := http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/position", strings.NewReader(positionBody))
+		req, _ := http.NewRequest(http.MethodPut, fmt.Sprintf("/documents/%s/position", testDocSlug), strings.NewReader(positionBody))
 		req.Header.Set("Content-Type", "application/json")
 		req.AddCookie(regularCookie)
 		_, err := app.Test(req)
@@ -364,8 +360,7 @@ func TestToggleComplete(t *testing.T) {
 		}
 
 		// Get the initial updated_at timestamp
-		var initialReading model.Reading
-		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&initialReading).Error
+		initialReading, err := getReading(regularUserID)
 		if err != nil {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
@@ -375,16 +370,13 @@ func TestToggleComplete(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Mark document as complete
-		req, _ = http.NewRequest(http.MethodPost, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", nil)
-		req.AddCookie(regularCookie)
-		_, err = app.Test(req)
+		_, err = markComplete(regularCookie)
 		if err != nil {
 			t.Fatalf("Unexpected error marking complete: %v", err.Error())
 		}
 
 		// Check that updated_at has NOT changed
-		var afterCompleteReading model.Reading
-		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&afterCompleteReading).Error
+		afterCompleteReading, err := getReading(regularUserID)
 		if err != nil {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
@@ -398,19 +390,13 @@ func TestToggleComplete(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Change the completion date
-		newDate := "2024-01-15"
-		reqBody := fmt.Sprintf(`{"completed_on":"%s"}`, newDate)
-		req, _ = http.NewRequest(http.MethodPut, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", strings.NewReader(reqBody))
-		req.Header.Set("Content-Type", "application/json")
-		req.AddCookie(regularCookie)
-		_, err = app.Test(req)
+		_, err = updateCompletionDate(regularCookie, "2024-01-15")
 		if err != nil {
 			t.Fatalf("Unexpected error updating completion date: %v", err.Error())
 		}
 
 		// Check that updated_at STILL has not changed
-		var afterDateUpdateReading model.Reading
-		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&afterDateUpdateReading).Error
+		afterDateUpdateReading, err := getReading(regularUserID)
 		if err != nil {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
@@ -424,16 +410,13 @@ func TestToggleComplete(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 
 		// Toggle back to incomplete
-		req, _ = http.NewRequest(http.MethodPost, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", nil)
-		req.AddCookie(regularCookie)
-		_, err = app.Test(req)
+		_, err = markComplete(regularCookie)
 		if err != nil {
 			t.Fatalf("Unexpected error toggling to incomplete: %v", err.Error())
 		}
 
 		// Check that updated_at STILL has not changed
-		var afterIncompleteReading model.Reading
-		err = db.Where("user_id = ? AND path = ?", 2, "quijote.epub").First(&afterIncompleteReading).Error
+		afterIncompleteReading, err := getReading(regularUserID)
 		if err != nil {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
@@ -449,14 +432,14 @@ func TestToggleComplete(t *testing.T) {
 
 		// Create a reading record with null updated_at using Touch
 		readingRepo := &model.ReadingRepository{DB: db}
-		err := readingRepo.Touch(2, "quijote.epub")
+		err := readingRepo.Touch(regularUserID, testDocPath)
 		if err != nil {
 			t.Fatalf("Unexpected error creating reading record: %v", err)
 		}
 
 		// Verify updated_at is null in the database
 		var initialReading model.Reading
-		err = db.Raw("SELECT user_id, path, position, created_at, updated_at, completed_on FROM readings WHERE user_id = ? AND path = ?", 2, "quijote.epub").Scan(&initialReading).Error
+		err = db.Raw("SELECT user_id, path, position, created_at, updated_at, completed_on FROM readings WHERE user_id = ? AND path = ?", regularUserID, testDocPath).Scan(&initialReading).Error
 		if err != nil {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
@@ -467,9 +450,7 @@ func TestToggleComplete(t *testing.T) {
 		}
 
 		// Mark document as complete
-		req, _ := http.NewRequest(http.MethodPost, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/complete", nil)
-		req.AddCookie(regularCookie)
-		response, err := app.Test(req)
+		response, err := markComplete(regularCookie)
 		if err != nil {
 			t.Fatalf("Unexpected error marking complete: %v", err.Error())
 		}
@@ -480,7 +461,7 @@ func TestToggleComplete(t *testing.T) {
 
 		// Verify updated_at is still null in the database
 		var afterCompleteReading model.Reading
-		err = db.Raw("SELECT user_id, path, position, created_at, updated_at, completed_on FROM readings WHERE user_id = ? AND path = ?", 2, "quijote.epub").Scan(&afterCompleteReading).Error
+		err = db.Raw("SELECT user_id, path, position, created_at, updated_at, completed_on FROM readings WHERE user_id = ? AND path = ?", regularUserID, testDocPath).Scan(&afterCompleteReading).Error
 		if err != nil {
 			t.Fatalf("Expected reading record to exist: %v", err)
 		}
@@ -493,6 +474,89 @@ func TestToggleComplete(t *testing.T) {
 		// Verify the document was actually marked as complete
 		if afterCompleteReading.CompletedOn == nil {
 			t.Error("Expected CompletedOn to be set (document should be marked as complete)")
+		}
+	})
+
+	t.Run("Completed document not shown in resume reading", func(t *testing.T) {
+		reset()
+
+		// Open the document to create a reading record
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/documents/%s/read", testDocSlug), nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		req.AddCookie(regularCookie)
+		response, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if response.StatusCode != http.StatusOK {
+			t.Errorf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+		}
+
+		// Verify the document appears in the resume reading section
+		if !isProgressSectionShownInHome(t, app, regularCookie) {
+			t.Errorf("Expected to have a resume reading section in home after opening document")
+		}
+
+		// Verify the document is in the carousel
+		req, err = http.NewRequest(http.MethodGet, "/", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		req.AddCookie(regularCookie)
+		response, err = app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		doc, err := goquery.NewDocumentFromReader(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Check that the document slug appears in the resume reading carousel
+		resumeReadingDocs := doc.Find("#resume-reading-docs")
+		if resumeReadingDocs.Length() == 0 {
+			t.Fatalf("Expected resume reading carousel to exist")
+		}
+		if resumeReadingDocs.Find(fmt.Sprintf(`a[href*="%s"]`, testDocSlug)).Length() == 0 {
+			t.Errorf("Expected document to appear in resume reading carousel")
+		}
+
+		// Mark the document as complete
+		response, err = markComplete(regularCookie)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if response.StatusCode != http.StatusNoContent {
+			t.Errorf("Expected status %d, received %d", http.StatusNoContent, response.StatusCode)
+		}
+
+		// Verify the document no longer appears in the resume reading section
+		req, err = http.NewRequest(http.MethodGet, "/", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		req.AddCookie(regularCookie)
+		response, err = app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		doc, err = goquery.NewDocumentFromReader(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Check that the document slug no longer appears in the resume reading carousel
+		// The carousel might not exist if there are no documents, or it might exist but be empty
+		resumeReadingDocsAfter := doc.Find("#resume-reading-docs")
+		if resumeReadingDocsAfter.Length() > 0 {
+			// If carousel exists, verify the document is not in it
+			if resumeReadingDocsAfter.Find(fmt.Sprintf(`a[href*="%s"]`, testDocSlug)).Length() > 0 {
+				t.Errorf("Expected document to not appear in resume reading carousel after marking as complete")
+			}
+		}
+		// Also verify the resume reading section is not shown (since this is the only document)
+		if isProgressSectionShownInHome(t, app, regularCookie) {
+			t.Errorf("Expected resume reading section to not be shown after marking the only document as complete")
 		}
 	})
 }

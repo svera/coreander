@@ -109,6 +109,8 @@ func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, er
 			"lt": "Lietuvių",
 			"lv": "Latviešu",
 			"et": "Eesti",
+			"eu": "Euskera",
+			"gl": "Galego",
 		}
 		if name, ok := languageNames[code]; ok {
 			return name

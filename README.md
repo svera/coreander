@@ -8,7 +8,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Search by author, title and even document series ([Calibre's](https://calibre-ebook.com/) `series` meta supported)
 * Improved search for documents with metadata in English, Spanish, French, Italian, German and Portuguese, including genre and singular/plural forms of words in the results among others.
 * Estimated reading time calculation.
-* Responsive web interface available in English, Spanish, German and French, more languages can be easily added.
+* Responsive web interface available in English, Spanish, German, Russian and French, more languages can be easily added.
 * New documents added or removed to/from the library folder are automatically indexed (Linux only).
 * [Send to email supported](#send-to-email).
 * Read indexed epubs and PDFs from Coreander's interface thanks to [foliate-js](https://github.com/johnfactotum/foliate-js).

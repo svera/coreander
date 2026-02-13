@@ -1,6 +1,7 @@
 package webserver
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -81,6 +82,12 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18
 		TokenLookup:   "cookie:session",
 		SuccessHandler: func(c *fiber.Ctx) error {
 			session := sessionData(c)
+			if err := ensureSessionUser(c, usersRepository, session, true, sender, translator); err != nil {
+				if errors.Is(err, errSessionRejected) {
+					return nil
+				}
+				return err
+			}
 			c.Locals("Session", session)
 			usersRepository.UpdateLastRequest(session.ID)
 			updateUserLanguage(c, usersRepository, session)
@@ -100,6 +107,15 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n
 		TokenLookup:   "cookie:session",
 		SuccessHandler: func(c *fiber.Ctx) error {
 			session := sessionData(c)
+			if err := ensureSessionUser(c, usersRepository, session, requireAuth, sender, translator); err != nil {
+				if errors.Is(err, errSessionCleared) {
+					return c.Next()
+				}
+				if errors.Is(err, errSessionRejected) {
+					return nil
+				}
+				return err
+			}
 			c.Locals("Session", session)
 			usersRepository.UpdateLastRequest(session.ID)
 			updateUserLanguage(c, usersRepository, session)
@@ -114,6 +130,46 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n
 	})
 }
 
+var errSessionRejected = errors.New("session rejected")
+var errSessionCleared = errors.New("session cleared")
+
+func ensureSessionUser(c *fiber.Ctx, usersRepository *model.UserRepository, session model.Session, requireAuth bool, sender Sender, translator i18n.Translator) error {
+	if session.Uuid == "" {
+		if requireAuth {
+			clearSessionCookie(c)
+			_ = forbidden(c, sender, translator, fiber.ErrForbidden)
+			return errSessionRejected
+		}
+		return errSessionCleared
+	}
+
+	user, err := usersRepository.FindByUuid(session.Uuid)
+	if err != nil {
+		log.Println(err)
+		if requireAuth {
+			clearSessionCookie(c)
+			_ = forbidden(c, sender, translator, fiber.ErrForbidden)
+			return errSessionRejected
+		}
+		return errSessionCleared
+	}
+	if user == nil {
+		clearSessionCookie(c)
+		if requireAuth {
+			_ = forbidden(c, sender, translator, fiber.ErrForbidden)
+			return errSessionRejected
+		}
+		return errSessionCleared
+	}
+	return nil
+}
+
+func clearSessionCookie(c *fiber.Ctx) {
+	c.Cookie(&fiber.Cookie{
+		Name:    "session",
+		Expires: time.Now().Add(-(time.Hour * 2)),
+	})
+}
 
 func forbidden(c *fiber.Ctx, sender Sender, translator i18n.Translator, err error) error {
 	emailSendingConfigured := true

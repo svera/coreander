@@ -184,7 +184,7 @@ func TestShareFailsWhenRecipientIsPrivate(t *testing.T) {
 		t.Fatalf("Expected status %d, received %d", http.StatusBadRequest, response.StatusCode)
 	}
 
-	regularUser := fetchUserByEmail(t, db, "regular@example.com")
+	regularUser := fetchShareUserByEmail(t, db, "regular@example.com")
 	var count int64
 	db.Model(&model.Highlight{}).Where("user_id = ?", regularUser.ID).Count(&count)
 	if count != 0 {
@@ -424,7 +424,7 @@ func createUser(t *testing.T, app *fiber.App, adminCookie *http.Cookie, user use
 
 func setPrivateProfile(t *testing.T, db *gorm.DB, email string, private bool) {
 	t.Helper()
-	user := fetchUserByEmail(t, db, email)
+	user := fetchShareUserByEmail(t, db, email)
 	if private {
 		user.PrivateProfile = 1
 	} else {
@@ -433,7 +433,7 @@ func setPrivateProfile(t *testing.T, db *gorm.DB, email string, private bool) {
 	db.Save(&user)
 }
 
-func fetchUserByEmail(t *testing.T, db *gorm.DB, email string) model.User {
+func fetchShareUserByEmail(t *testing.T, db *gorm.DB, email string) model.User {
 	t.Helper()
 	user := model.User{}
 	db.Where("email = ?", email).First(&user)

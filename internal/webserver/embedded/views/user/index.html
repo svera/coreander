@@ -29,12 +29,12 @@
     <thead>
         <tr>
             <th>
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
                     <span>{{t .Lang "Name"}}</span>
-                    <div class="col-auto">
+                    <div class="col-12 col-sm-auto">
                         <input
                             type="text"
-                            class="form-control form-control-sm"
+                            class="form-control form-control-sm w-100"
                             placeholder='{{t .Lang "Filter by name..."}}'
                             name="filter"
                             value="{{.Filter}}"
