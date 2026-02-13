@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+    <style>
+        blockquote {
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <p>
+        {{$docLink := sprintfHTML "<a href=\"%s\">%s</a>" .DocumentURL .DocumentTitle}}
+        {{$boldSender := sprintfHTML "<b>%s</b>" .SenderName}}
+        {{t .Lang "%s shared %s with you." $boldSender $docLink}}
+    </p>
+    {{if ne .Comment ""}}
+    <blockquote>{{.Comment}}</blockquote>
+    {{end}}
+    <p>{{t .Lang "You can find it in your highlights"}}: <a href="{{.HighlightsURL}}">{{t .Lang "View your highlights"}}</a></p>
+</body>
+</html>

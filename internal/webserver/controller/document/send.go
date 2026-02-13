@@ -5,16 +5,12 @@ import (
 	"net/mail"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func (d *Controller) Send(c *fiber.Ctx) error {
-	slug := ""
-	if slug = strings.Trim(c.Params("slug"), " "); slug == "" {
-		return fiber.ErrBadRequest
-	}
+	slug := c.Params("slug")
 
 	if _, err := mail.ParseAddress(c.FormValue("email")); err != nil {
 		return fiber.ErrBadRequest

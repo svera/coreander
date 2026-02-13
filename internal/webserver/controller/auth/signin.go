@@ -6,7 +6,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
@@ -24,16 +23,10 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 	}
 
 	if user == nil || user.Password != model.Hash(c.FormValue("password")) {
-		emailSendingConfigured := true
-		if _, ok := a.sender.(*infrastructure.NoEmail); ok {
-			emailSendingConfigured = false
-		}
-
 		return c.Status(fiber.StatusUnauthorized).Render("auth/login", fiber.Map{
-			"Title":                  "Login",
-			"Error":                  "Wrong email or password",
-			"EmailSendingConfigured": emailSendingConfigured,
-			"DisableLoginLink":       true,
+			"Title":            "Login",
+			"Error":            "Wrong email or password",
+			"DisableLoginLink": true,
 		}, "layout")
 	}
 
@@ -73,7 +66,9 @@ func GenerateToken(c *fiber.Ctx, user *model.User, expiration time.Time, secret 
 			SendToEmail:       user.SendToEmail,
 			WordsPerMinute:    user.WordsPerMinute,
 			ShowFileName:      user.ShowFileName,
+			PrivateProfile:    user.PrivateProfile,
 			PreferredEpubType: user.PreferredEpubType,
+			DefaultAction:     user.DefaultAction,
 		},
 		"exp": jwt.NewNumericDate(expiration),
 	},

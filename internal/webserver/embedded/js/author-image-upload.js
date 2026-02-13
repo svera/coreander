@@ -162,14 +162,4 @@
       img.src = newSrc;
     });
   }
-
-  function showToast(message, type) {
-    const toastId = type === 'danger' ? 'live-toast-danger' : 'live-toast-success';
-    const toast = document.getElementById(toastId);
-    if (!toast) return;
-
-    toast.querySelector('.toast-body').innerHTML = message;
-    const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toast);
-    toastBootstrap.show();
-  }
 })();

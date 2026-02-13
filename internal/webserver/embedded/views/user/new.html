@@ -4,6 +4,7 @@
     </div>
 
     <form hx-post="/users" hx-swap="outerHTML" hx-target="closest div" autocomplete="off">
+        <input type="hidden" name="language" value="{{.Lang}}">
         <div class="mb-3">
             <div class="form-floating">
                 <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="50" placeholder='{{t .Lang "Name"}}'>

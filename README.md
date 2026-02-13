@@ -144,6 +144,8 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`--recovery-timeout`                 |`RECOVERY_TIMEOUT`        | Specifies the maximum time a user recovery link may last, in hours. Floating-point values are allowed. Defaults to 2 hours.
 |`--invitation-timeout`               |`INVITATION_TIMEOUT`      | Specifies the maximum time a user invitation link may last, in hours. Floating-point values are allowed. Defaults to 72 hours.
 |`-u` or `--upload-document-max-size` |`UPLOAD_DOCUMENT_MAX_SIZE`| Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
+|`-m` or `--share-comment-max-size`   |`SHARE_COMMENT_MAX_SIZE`  | Maximum length for share comments in characters. Defaults to 280.
+|`--share-max-recipients`             |`SHARE_MAX_RECIPIENTS`    | Maximum number of recipients allowed when sharing a document. Defaults to 10.
 |`-d` or `--fqdn`                     |`FQDN`                    | Domain name of the server. If Coreander is listening to a non-standard HTTP / HTTPS port, include it using a colon (e. g. example.com:3000). Defaults to `localhost`.
 |`-v` or `--version`                  |                          | Show version number.
 

@@ -53,6 +53,8 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		c.Locals("Version", c.App().Config().AppName)
 		c.Locals("SupportedLanguages", supportedLanguages)
 		c.Locals("Lang", chooseBestLanguage(c))
+		c.Locals("ShareCommentMaxSize", cfg.ShareCommentMaxSize)
+		c.Locals("ShareMaxRecipients", cfg.ShareMaxRecipients)
 		q := c.Queries()
 		delete(q, "l")
 		c.Locals("URLPath", c.Path())
@@ -62,6 +64,9 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	// Set available languages for the language filter
 	app.Use(SetAvailableLanguages(idx))
+
+	// Set email sending configuration (must be early so it's available in all routes)
+	app.Use(SetEmailSendingConfigured(sender))
 
 	app.Get("/sessions/new", allowIfNotLoggedIn, controllers.Auth.Login)
 	app.Post("/sessions", allowIfNotLoggedIn, controllers.Auth.SignIn)
@@ -82,14 +87,10 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	usersGroup.Post("/", RequireAdmin, controllers.Users.Create)
 	usersGroup.Get("/invite", RequireAdmin, controllers.Users.InviteForm)
 	usersGroup.Post("/invite", RequireAdmin, controllers.Users.SendInvite)
+	usersGroup.Get("/share-recipients", controllers.Users.ShareRecipients)
 	usersGroup.Get("/:username", controllers.Users.Edit)
 	usersGroup.Put("/:username", controllers.Users.Update)
 	usersGroup.Delete("/:username", RequireAdmin, controllers.Users.Delete)
-
-	highlightsGroup := app.Group("/highlights", alwaysRequireAuthentication)
-	highlightsGroup.Get("/", controllers.Highlights.List)
-	highlightsGroup.Post("/:slug", controllers.Highlights.Create)
-	highlightsGroup.Delete("/:slug", controllers.Highlights.Delete)
 
 	docsGroup := app.Group("/documents")
 	app.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
@@ -99,6 +100,14 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	// Authentication requirement is configurable for all routes below this middleware
 	app.Use(configurableAuthentication)
 
+	// Set action preferences for templates (after authentication so Session is available)
+	app.Use(SetActionPreferences(sender))
+
+	highlightsGroup := app.Group("/highlights", alwaysRequireAuthentication)
+	highlightsGroup.Get("/", controllers.Highlights.List)
+	highlightsGroup.Post("/:slug", controllers.Highlights.Create)
+	highlightsGroup.Delete("/:slug", controllers.Highlights.Delete)
+
 	docsGroup.Get("/:slug/cover", controllers.Documents.Cover)
 	docsGroup.Get("/:slug/read", controllers.Documents.Reader)
 	docsGroup.Get("/:slug/position", alwaysRequireAuthentication, controllers.Documents.GetPosition)
@@ -107,6 +116,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	docsGroup.Put("/:slug/complete", alwaysRequireAuthentication, controllers.Documents.ToggleComplete)
 	docsGroup.Get("/:slug/download", controllers.Documents.Download)
 	docsGroup.Post("/:slug/send", alwaysRequireAuthentication, controllers.Documents.Send)
+	docsGroup.Post("/:slug/share", alwaysRequireAuthentication, controllers.Documents.Share)
 	docsGroup.Get("/:slug", controllers.Documents.Detail)
 	docsGroup.Get("/", controllers.Documents.Search)
 

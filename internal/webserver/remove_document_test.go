@@ -20,7 +20,7 @@ func TestRemoveDocument(t *testing.T) {
 	appFS := loadDirInMemoryFs("fixtures/library")
 	app := bootstrapApp(db, smtpMock, appFS, webserver.Config{})
 
-	assertSearchResults(app, t, "john+doe", 4)
+	assertDocumentResults(app, t, "john+doe", 4)
 
 	user := &model.User{
 		Uuid:           uuid.NewString(),
@@ -70,7 +70,7 @@ func TestRemoveDocument(t *testing.T) {
 					t.Errorf("Expected 'file not exist' error when trying to access a file that should have been removed")
 				}
 
-				assertSearchResults(app, t, "john+doe", 3)
+				assertDocumentResults(app, t, "john+doe", 3)
 			}
 
 			if response.StatusCode != tcase.expectedHTTPStatus {

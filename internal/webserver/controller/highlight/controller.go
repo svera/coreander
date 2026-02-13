@@ -9,15 +9,15 @@ import (
 const latestHighlightsAmount = 6
 
 type highlightsRepository interface {
-	Highlights(userID int, page int, resultsPerPage int, sortBy string) (result.Paginated[[]string], error)
+	Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]model.Highlight], error)
+	Total(userID int) (int, error)
 	Highlight(userID int, documentPath string) error
 	Remove(userID int, documentPath string) error
-	Highlighted(userID int, documents index.Document) index.Document
+	Highlighted(userID int, documents model.AugmentedDocument) model.AugmentedDocument
 }
 
 type readingRepository interface {
-	Completed(userID int, doc index.Document) index.Document
-	CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
+	CompletedPaginatedResult(userID int, results result.Paginated[[]model.AugmentedDocument]) result.Paginated[[]model.AugmentedDocument]
 }
 
 // IdxReaderWriter defines a set of reading and writing operations over an index

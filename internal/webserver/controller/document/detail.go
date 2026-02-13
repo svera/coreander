@@ -6,19 +6,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 func (d *Controller) Detail(c *fiber.Ctx) error {
-	emailSendingConfigured := true
-	if _, ok := d.sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
@@ -47,47 +42,60 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		title = fmt.Sprintf("%s - %s", strings.Join(document.Authors, ", "), document.Title)
 	}
 
-	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, (int(session.ID)))
+	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, int(session.ID))
 
+	var completedOn *time.Time
+	result := model.AugmentedDocument{Document: document}
 	if session.ID > 0 {
-		document = d.hlRepository.Highlighted(int(session.ID), document)
-		document = d.readingRepository.Completed(int(session.ID), document)
+		result = d.hlRepository.Highlighted(int(session.ID), result)
+			completedOn, err = d.readingRepository.CompletedOn(int(session.ID), result.ID)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
+	result.CompletedOn = completedOn
 	return c.Render("document/detail", fiber.Map{
-		"Title":                  title,
-		"Document":               document,
-		"EmailSendingConfigured": emailSendingConfigured,
-		"EmailFrom":              d.sender.From(),
-		"SameSeries":             sameSeries,
-		"SameAuthors":            sameAuthors,
-		"SameSubjects":           sameSubjects,
-		"WordsPerMinute":         d.config.WordsPerMinute,
-		"AvailableLanguages":     c.Locals("AvailableLanguages"),
+		"Title":          title,
+		"Document":       result,
+		"EmailFrom":      d.sender.From(),
+		"SameSeries":     sameSeries,
+		"SameAuthors":    sameAuthors,
+		"SameSubjects":   sameSubjects,
+		"WordsPerMinute": d.config.WordsPerMinute,
 	}, "layout")
 }
 
-func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuthors, sameSeries []index.Document) {
+func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuthors, sameSeries []model.AugmentedDocument) {
 	var err error
-	if sameSubjects, err = d.idx.SameSubjects(slug, relatedDocuments); err != nil {
+	var subjects []index.Document
+	if subjects, err = d.idx.SameSubjects(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
-	for i := range sameSubjects {
-		sameSubjects[i] = d.hlRepository.Highlighted(sessionID, sameSubjects[i])
+	for i := range subjects {
+		result := model.AugmentedDocument{Document: subjects[i]}
+		result = d.hlRepository.Highlighted(sessionID, result)
+		sameSubjects = append(sameSubjects, result)
 	}
 
-	if sameAuthors, err = d.idx.SameAuthors(slug, relatedDocuments); err != nil {
+	var authors []index.Document
+	if authors, err = d.idx.SameAuthors(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
-	for i := range sameAuthors {
-		sameAuthors[i] = d.hlRepository.Highlighted(sessionID, sameAuthors[i])
+	for i := range authors {
+		result := model.AugmentedDocument{Document: authors[i]}
+		result = d.hlRepository.Highlighted(sessionID, result)
+		sameAuthors = append(sameAuthors, result)
 	}
 
-	if sameSeries, err = d.idx.SameSeries(slug, relatedDocuments); err != nil {
+	var series []index.Document
+	if series, err = d.idx.SameSeries(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
-	for i := range sameSeries {
-		sameSeries[i] = d.hlRepository.Highlighted(sessionID, sameSeries[i])
+	for i := range series {
+		result := model.AugmentedDocument{Document: series[i]}
+		result = d.hlRepository.Highlighted(sessionID, result)
+		sameSeries = append(sameSeries, result)
 	}
 	return sameSubjects, sameAuthors, sameSeries
 }

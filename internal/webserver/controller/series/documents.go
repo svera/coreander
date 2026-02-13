@@ -7,17 +7,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
 func (a *Controller) Documents(c *fiber.Ctx) error {
-	emailSendingConfigured := true
-	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
@@ -27,7 +21,7 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		a.config.WordsPerMinute = session.WordsPerMinute
 	}
 
-	var searchResults result.Paginated[[]index.Document]
+	var documentResults result.Paginated[[]index.Document]
 	seriesSlug := c.Params("slug")
 
 	if seriesSlug == "" {
@@ -44,33 +38,32 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		SortBy:   a.parseSortBy(c),
 	}
 
-	if searchResults, err = a.idx.SearchBySeries(searchFields, page, model.ResultsPerPage); err != nil {
+	if documentResults, err = a.idx.SearchBySeries(searchFields, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	if searchResults.TotalHits() == 0 {
+	if documentResults.TotalHits() == 0 {
 		return fiber.ErrNotFound
 	}
 
+	searchResults := model.AugmentedDocumentsFromDocuments(documentResults)
 	if session.ID > 0 {
-		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 		searchResults = a.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
+		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
-	title := searchResults.Hits()[0].Series
+	title := documentResults.Hits()[0].Series
 
 	templateVars := fiber.Map{
-		"Results":                searchResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":                  title,
-		"EmailSendingConfigured": emailSendingConfigured,
-		"EmailFrom":              a.sender.From(),
-		"WordsPerMinute":         a.config.WordsPerMinute,
-		"URL":                    view.URL(c),
-		"SortURL":                view.SortURL(c),
-		"SortBy":                 c.Query("sort-by"),
-		"AvailableLanguages":     c.Locals("AvailableLanguages"),
+		"Results":        searchResults,
+		"Paginator":      view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":          title,
+		"EmailFrom":      a.sender.From(),
+		"WordsPerMinute": a.config.WordsPerMinute,
+		"URL":            view.URL(c),
+		"SortURL":        view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":         c.Query("sort-by"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
