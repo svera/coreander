@@ -22,14 +22,14 @@
                     <div class="col-12">
                         <div id="resume-reading-docs" class="carousel slide" data-bs-ride="carousel">
                             <div class="carousel-inner">
-                                {{range $i, $result := .Reading}}
+                                {{range $i, $document := .Reading}}
                                 <div class="carousel-item {{if eq $i 0}}active{{end}}">
-                                {{template "partials/cover" dict "Lang" $lang "Document" $result "Session" $session "DisableActions" true "LinkToReader" true "Version" $.Version}}
+                                {{template "partials/cover" dict "Lang" $lang "Document" $document "Session" $session "DisableActions" true "LinkToReader" true "Version" $.Version}}
                                 </div>
                                 {{end}}
                             </div>
                             <div class="carousel-indicators position-relative pt-3">
-                                {{range $i, $result := .Reading}}
+                                {{range $i, $document := .Reading}}
                                 <button type="button" data-bs-target="#resume-reading-docs" data-bs-slide-to="{{$i}}" class="{{if eq $i 0}}active{{end}}" aria-current="{{if eq $i 0}}true{{end}}" aria-label="Slide {{$i}}"></button>
                                 {{end}}
                             </div>
@@ -43,12 +43,12 @@
             <h2 class="border-bottom mb-3 pb-2">{{ t .Lang "Resume reading" }}</h2>
             <div id="resume-reading-docs" class="carousel slide" data-bs-ride="carousel">
                 <div class="carousel-inner">
-                    {{range $i, $result := .Reading}}
-                    {{template "partials/carousel-document-item" dict "Index" $i "Document" $result "Lang" $lang "Session" $session "LinkToReader" true "Version" $.Version "ShowClasses" true}}
+                    {{range $i, $document := .Reading}}
+                    {{template "partials/carousel-document-item" dict "Index" $i "Document" $document "Lang" $lang "Session" $session "LinkToReader" true "Version" $.Version "ShowClasses" true}}
                     {{end}}
                 </div>
                 <div class="carousel-indicators">
-                    {{range $i, $result := .Reading}}
+                    {{range $i, $document := .Reading}}
                     <button type="button" data-bs-target="#resume-reading-docs" data-bs-slide-to="{{$i}}" class="{{if eq $i 0}}active{{end}}" aria-current="{{if eq $i 0}}true{{end}}" aria-label="Slide {{$i}}"></button>
                     {{end}}
                 </div>
@@ -63,12 +63,12 @@
         <h2 class="border-bottom mb-3 pb-2">{{ t .Lang "Latest additions" }}</h2>
         <div id="latest-docs-carousel" class="carousel slide" data-bs-ride="carousel">
             <div class="carousel-inner">
-                {{range $i, $result := .LatestDocs}}
-                {{template "partials/carousel-document-item" dict "Index" $i "Document" $result "Lang" $lang "Session" $session "LinkToReader" false "Version" $.Version "ShowClasses" (eq (len $reading) 0)}}
+                {{range $i, $document := .LatestDocs}}
+                {{template "partials/carousel-document-item" dict "Index" $i "Document" $document "Lang" $lang "Session" $session "LinkToReader" false "Version" $.Version "ShowClasses" (eq (len $reading) 0)}}
                 {{end}}
             </div>
             <div class="carousel-indicators">
-                {{range $i, $result := .LatestDocs}}
+                {{range $i, $document := .LatestDocs}}
                 <button type="button" data-bs-target="#latest-docs-carousel" data-bs-slide-to="{{$i}}" class="{{if eq $i 0}}active{{end}}" aria-current="{{if eq $i 0}}true{{end}}" aria-label="Slide {{$i}}"></button>
                 {{end}}
             </div>
