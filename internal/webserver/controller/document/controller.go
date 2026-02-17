@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/result"
@@ -13,6 +14,7 @@ import (
 const relatedDocuments = 4
 
 type Sender interface {
+	SendBCC(addresses []string, subject, body string) error
 	SendDocument(address, subject, libraryPath, fileName string) error
 	From() string
 }
@@ -34,10 +36,16 @@ type IdxReaderWriter interface {
 }
 
 type highlightsRepository interface {
-	Highlights(userID int, page int, resultsPerPage int, sortBy string) (result.Paginated[[]string], error)
-	Highlighted(userID int, doc index.Document) index.Document
-	HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
+	Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]model.Highlight], error)
+	Highlighted(userID int, doc model.AugmentedDocument) model.AugmentedDocument
+	HighlightedPaginatedResult(userID int, results result.Paginated[[]model.AugmentedDocument]) result.Paginated[[]model.AugmentedDocument]
 	RemoveDocument(documentPath string) error
+	Share(senderID int, documentID, documentSlug, comment string, recipientIDs []int) error
+}
+
+type usersRepository interface {
+	FindByEmail(email string) (*model.User, error)
+	FindByUsername(username string) (*model.User, error)
 }
 
 type readingRepository interface {
@@ -46,8 +54,8 @@ type readingRepository interface {
 	Touch(userID int, documentPath string) error
 	RemoveDocument(documentPath string) error
 	UpdateCompletionDate(userID int, documentPath string, completedAt *time.Time) error
-	Completed(userID int, doc index.Document) index.Document
-	CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
+	CompletedOn(userID int, documentID string) (*time.Time, error)
+	CompletedPaginatedResult(userID int, results result.Paginated[[]model.AugmentedDocument]) result.Paginated[[]model.AugmentedDocument]
 }
 
 type Config struct {
@@ -60,26 +68,32 @@ type Config struct {
 	UploadDocumentMaxSize int
 	ClientImageCacheTTL   int
 	ServerImageCacheTTL   int
+	ShareCommentMaxSize   int
+	ShareMaxRecipients    int
 }
 
 type Controller struct {
 	hlRepository      highlightsRepository
+	usersRepository   usersRepository
 	readingRepository readingRepository
 	idx               IdxReaderWriter
 	sender            Sender
 	config            Config
 	metadataReaders   map[string]metadata.Reader
 	appFs             afero.Fs
+	translator        i18n.Translator
 }
 
-func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config) *Controller {
+func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config, translator i18n.Translator) *Controller {
 	return &Controller{
 		hlRepository:      hlRepository,
+		usersRepository:   usersRepository,
 		readingRepository: readingRepository,
 		idx:               idx,
 		sender:            sender,
 		config:            cfg,
 		metadataReaders:   metadataReaders,
 		appFs:             appFs,
+		translator:        translator,
 	}
 }

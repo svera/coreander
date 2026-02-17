@@ -52,10 +52,13 @@ type Config struct {
 	ClientDynamicImageCacheTTL int
 	ServerStaticCacheTTL       int
 	ServerDynamicImageCacheTTL int
+	ShareCommentMaxSize        int
+	ShareMaxRecipients         int
 }
 
 type Sender interface {
 	Send(address, subject, body string) error
+	SendBCC(addresses []string, subject, body string) error
 	SendDocument(address, subject, libraryPath, fileName string) error
 	From() string
 }
@@ -94,6 +97,11 @@ func init() {
 	}
 
 	supportedLanguages = translator.SupportedLanguages()
+}
+
+// getSupportedLanguages returns the list of supported languages
+func getSupportedLanguages() []string {
+	return supportedLanguages
 }
 
 // New builds a new Fiber application and set up the required routes

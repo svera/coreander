@@ -12,10 +12,9 @@
             </h4>
 
             {{if .Document.Authors}}
-            {{$lang := .Lang}}
             <h5>
                 {{range $i, $author := .Document.Authors}}
-                {{$authorTitle := t $lang "Search for more titles by %s" $author}}
+                {{$authorTitle := t $.Lang "Search for more titles by %s" $author}}
                 <a href="/authors/{{index $.Document.AuthorsSlugs $i}}" title={{$authorTitle}}>{{$author}}</a>{{if notLast $.Document.Authors $i}}, {{end}}
                 {{end}}
             </h5>

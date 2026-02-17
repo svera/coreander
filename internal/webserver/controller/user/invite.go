@@ -131,6 +131,7 @@ func (u *Controller) AcceptInvite(c *fiber.Ctx) error {
 		Password:          c.FormValue("password"),
 		Role:              model.RoleRegular, // Invited users can only be regular users
 		PreferredEpubType: "epub",            // Default to epub
+		DefaultAction:     "download",
 		WordsPerMinute:    u.config.WordsPerMinute,
 	}
 
