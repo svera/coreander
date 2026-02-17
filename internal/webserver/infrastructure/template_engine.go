@@ -122,6 +122,19 @@ func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, er
 		return url.QueryEscape(text)
 	})
 
+	engine.AddFunc("sprintfHTML", func(format interface{}, values ...any) template.HTML {
+		formatStr := ""
+		switch v := format.(type) {
+		case string:
+			formatStr = v
+		case template.HTML:
+			formatStr = string(v)
+		default:
+			formatStr = fmt.Sprintf("%v", v)
+		}
+		return template.HTML(fmt.Sprintf(formatStr, values...))
+	})
+
 	return engine, nil
 }
 

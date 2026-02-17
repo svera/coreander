@@ -11,6 +11,7 @@ import (
 	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
+	"golang.org/x/exp/slices"
 )
 
 // RequireAdmin returns HTTP forbidden if the user requesting access
@@ -89,6 +90,7 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18
 			}
 			c.Locals("Session", session)
 			usersRepository.UpdateLastRequest(session.ID)
+			updateUserLanguage(c, usersRepository, session)
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -116,6 +118,7 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n
 			}
 			c.Locals("Session", session)
 			usersRepository.UpdateLastRequest(session.ID)
+			updateUserLanguage(c, usersRepository, session)
 			return c.Next()
 		},
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -225,3 +228,108 @@ func SetAvailableLanguages(idx ProgressInfo) func(*fiber.Ctx) error {
 		return c.Next()
 	}
 }
+
+// SetEmailSendingConfigured sets EmailSendingConfigured in c.Locals() based on the sender type
+// This should be run early in the middleware chain so it's available in all routes
+func SetEmailSendingConfigured(sender Sender) func(*fiber.Ctx) error {
+	return func(c *fiber.Ctx) error {
+		emailSendingConfigured := true
+		if _, ok := sender.(*infrastructure.NoEmail); ok {
+			emailSendingConfigured = false
+		}
+		c.Locals("EmailSendingConfigured", emailSendingConfigured)
+		return c.Next()
+	}
+}
+
+// SetActionPreferences computes and sets action-related preferences based on session and email configuration
+// These values are used in templates to determine default actions, available options, and EPUB preferences
+func SetActionPreferences(sender Sender) func(*fiber.Ctx) error {
+	return func(c *fiber.Ctx) error {
+		emailSendingConfigured, ok := c.Locals("EmailSendingConfigured").(bool)
+		if !ok {
+			emailSendingConfigured = false // Default to false if not set
+		}
+
+		var session model.Session
+		if val, ok := c.Locals("Session").(model.Session); ok {
+			session = val
+		}
+
+		// Compute default action
+		defaultAction := "download"
+		if session.ID > 0 && session.DefaultAction != "" {
+			defaultAction = session.DefaultAction
+		} else if session.ID > 0 && session.SendToEmail != "" && emailSendingConfigured {
+			defaultAction = "send"
+		}
+
+		// Override to download if user has private profile and default action is share
+		if session.ID > 0 && session.PrivateProfile != 0 && defaultAction == "share" {
+			defaultAction = "download"
+		}
+
+		// Compute canShare
+		canShare := session.ID > 0 && session.PrivateProfile == 0 && emailSendingConfigured
+
+		// Compute actual action (may be overridden based on availability)
+		actualAction := defaultAction
+		switch defaultAction {
+		case "send":
+			if session.ID == 0 || session.SendToEmail == "" || !emailSendingConfigured {
+				actualAction = "download"
+			}
+		case "share":
+			if !emailSendingConfigured || !canShare {
+				actualAction = "download"
+			}
+		}
+
+		// Compute preferred EPUB type
+		preferredEpub := "epub"
+		if session.ID > 0 && session.PreferredEpubType != "" {
+			preferredEpub = session.PreferredEpubType
+		}
+
+		// Store computed values in locals for template access
+		c.Locals("DefaultAction", actualAction)
+		c.Locals("CanShare", canShare)
+		c.Locals("PreferredEpub", preferredEpub)
+
+		return c.Next()
+	}
+}
+
+// updateUserLanguage updates the authenticated user's language preference in the database
+// when the language query parameter (?l=) is present
+func updateUserLanguage(c *fiber.Ctx, usersRepository *model.UserRepository, session model.Session) {
+	// Early return if language query parameter is not present
+	lang := c.Query("l")
+	if lang == "" {
+		return
+	}
+
+	// Early return if language is not supported
+	if !slices.Contains(getSupportedLanguages(), lang) {
+		return
+	}
+
+	// Get user and update language preference
+	user, err := usersRepository.FindByUuid(session.Uuid)
+	if err != nil || user == nil {
+		return
+	}
+
+	// Only update if language has changed
+	if user.Language == lang {
+		return
+	}
+
+	// Update language field explicitly using Model().Update() to ensure it's saved
+	result := usersRepository.DB.Model(user).Update("language", lang)
+	if result.Error != nil {
+		log.Printf("error updating user language for user %s: %v\n", session.Uuid, result.Error)
+		// Continue anyway, don't fail the request
+	}
+}
+
