@@ -42,4 +42,4 @@
 {{end}}
 </div>
 
-<input type="hidden" id="{{.Name}}" name="{{.Name}}" class="date">
+<input type="hidden" id="{{if .IdPrefix}}{{.IdPrefix}}-{{end}}{{.Name}}" name="{{.Name}}" class="date">

@@ -55,6 +55,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		"Results":                searchResults,
 		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
 		"Title":                  "Search results",
+		"DocumentsSearchPage":    true,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),
 		"WordsPerMinute":         d.config.WordsPerMinute,
@@ -75,7 +76,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	}
 
 	if c.Get("hx-request") == "true" {
-		if err = c.Render("partials/docs-list", templateVars); err != nil {
+		if err = c.Render("partials/docs-list-fragments", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}

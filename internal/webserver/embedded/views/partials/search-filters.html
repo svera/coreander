@@ -1,4 +1,23 @@
-<div class="row pb-3 card-body" id="search-filters">
+{{$idPrefix := or .FilterIdPrefix ""}}
+<div class="row pb-3 card-body" id="search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
+    {{if $idPrefix}}
+    <fieldset class="mb-3">
+        <legend class="fs-5"><i class="bi bi-search me-3"></i>{{t .Lang "Search"}}</legend>
+        <div class="row">
+            <div class="col-12 mb-3">
+                {{$keywords := ""}}
+                {{if .SearchFields}}
+                    {{$keywords = .SearchFields.Keywords}}
+                {{end}}
+                <label for="{{$idPrefix}}-search" class="visually-hidden">{{t .Lang "search"}}</label>
+                <div class="input-group input-group-sm">
+                    <input type="search" name="search" id="{{$idPrefix}}-search" class="form-control" maxlength="255" value="{{$keywords}}" placeholder="{{t .Lang "Search"}}..." aria-label="{{t .Lang "Search"}}">
+                    <button type="submit" class="btn btn-outline-secondary" aria-label='{{t .Lang "Search"}}'><i class="bi bi-search"></i></button>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+    {{end}}
     {{if .AvailableLanguages}}
     <fieldset class="mt-5">
         <legend class="fs-5"><i class="bi bi-translate me-3"></i>{{t .Lang "Language"}}</legend>
@@ -8,7 +27,7 @@
                 {{if .SearchFields}}
                     {{$language = .SearchFields.Language}}
                 {{end}}
-                    <select class="form-select" name="language" id="language">
+                    <select class="form-select" name="language" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}language">
                         <option value="">{{t .Lang "All languages"}}</option>
                         {{range $lang := .AvailableLanguages}}
                         <option value="{{$lang}}" {{if eq $lang $language}}selected{{end}}>{{languageName $lang}}</option>
@@ -26,10 +45,10 @@
                 {{if .SearchFields}}
                     {{$subject = .SearchFields.Subjects}}
                 {{end}}
-                <input type="hidden" name="subjects" id="subjects-hidden" value="{{$subject}}">
-                <input type="text" id="subjects" class="form-control" placeholder='{{t .Lang "Filter subjects..."}}' maxlength="255" list="subjects-list" autocomplete="off">
-                <datalist id="subjects-list"></datalist>
-                <div id="subjects-badges-container" class="d-flex flex-wrap gap-2 mt-2 d-none">
+                <input type="hidden" name="subjects" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}subjects-hidden" value="{{$subject}}">
+                <input type="text" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}subjects" class="form-control" placeholder='{{t .Lang "Filter subjects..."}}' maxlength="255" list="{{if $idPrefix}}{{$idPrefix}}-{{end}}subjects-list" autocomplete="off">
+                <datalist id="{{if $idPrefix}}{{$idPrefix}}-{{end}}subjects-list"></datalist>
+                <div id="{{if $idPrefix}}{{$idPrefix}}-{{end}}subjects-badges-container" class="d-flex flex-wrap gap-2 mt-2 d-none">
                 </div>
             </div>
         </div>
@@ -42,14 +61,14 @@
                 {{if .SearchFields}}
                     {{$pubDateFrom = .SearchFields.PubDateFrom}}
                 {{end}}
-                {{template "partials/date-control" dict "Name" "pub-date-from" "Lang" .Lang "Date" $pubDateFrom "Label" "From" }}
+                {{template "partials/date-control" dict "Name" "pub-date-from" "Lang" .Lang "Date" $pubDateFrom "Label" "From" "IdPrefix" $idPrefix }}
             </div>
             <div class="col-12 {{if .Responsive}}col-xl-6{{end}}">
                 {{$pubDateTo := ""}}
                 {{if .SearchFields}}
                     {{$pubDateTo = .SearchFields.PubDateTo}}
                 {{end}}
-                {{template "partials/date-control" dict "Name" "pub-date-to" "Lang" .Lang "Date" $pubDateTo "Label" "To" }}
+                {{template "partials/date-control" dict "Name" "pub-date-to" "Lang" .Lang "Date" $pubDateTo "Label" "To" "IdPrefix" $idPrefix }}
             </div>
         </div>
     </fieldset>
@@ -64,8 +83,8 @@
                 <div class="row">
                     <div class="input-group input-group-sm">
                         <div class="form-floating">
-                            <input class="col-9 col-sm-10 form-control" type="number" value="{{if $estReadTimeFrom}}{{$estReadTimeFrom}}{{end}}" min="0" max="1000" step="1" name="est-read-time-from" id="est-read-time-from" placeholder='{{t .Lang "From"}}'>
-                            <label class="form-label" for="est-read-time-from">{{t .Lang "From"}}</label>
+                            <input class="col-9 col-sm-10 form-control" type="number" value="{{if $estReadTimeFrom}}{{$estReadTimeFrom}}{{end}}" min="0" max="1000" step="1" name="est-read-time-from" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}est-read-time-from" placeholder='{{t .Lang "From"}}'>
+                            <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}est-read-time-from">{{t .Lang "From"}}</label>
                         </div>
                         <span class="input-group-text">{{t .Lang "Hours"}}</span>
                     </div>
@@ -80,8 +99,8 @@
                 <div class="row">
                     <div class="input-group input-group-sm">
                         <div class="form-floating">
-                            <input class="col-9 col-sm-10 form-control" type="number" value="{{if $estReadTimeTo}}{{$estReadTimeTo}}{{end}}" min="0" max="1000" step="1" name="est-read-time-to" id="est-read-time-to" placeholder='{{t .Lang "To"}}'>
-                            <label class="form-label" for="est-read-time-to">{{t .Lang "To"}}</label>
+                            <input class="col-9 col-sm-10 form-control" type="number" value="{{if $estReadTimeTo}}{{$estReadTimeTo}}{{end}}" min="0" max="1000" step="1" name="est-read-time-to" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}est-read-time-to" placeholder='{{t .Lang "To"}}'>
+                            <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}est-read-time-to">{{t .Lang "To"}}</label>
                         </div>
                         <span class="input-group-text">{{t .Lang "Hours"}}</span>
                     </div>
@@ -98,8 +117,11 @@
     </fieldset>
 </div>
 
+{{/* Include script and i18n from sidebar when on documents search page (so script runs after sidebar is in DOM); otherwise include from offcanvas. */}}
+{{if or $idPrefix (not .DocumentsSearchPage)}}
 <script id="i18n" type="application/json">{"i18n":{
     "remove_subject": {{t .Lang "Remove subject: %s" "%s"}}
 }}</script>
 
 <script type="module" src="/js/search-filters.js{{versionParam .Version}}"></script>
+{{end}}
