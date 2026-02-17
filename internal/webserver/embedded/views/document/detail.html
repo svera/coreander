@@ -6,6 +6,12 @@
 
 <div class="row mt-5">
     <div class="col-12">
+        {{if .BackLink}}
+            <div class="mb-2">
+                <a href="{{.BackLink}}" class="text-decoration-none">&larr; {{t $lang "Back to results"}}</a>
+            </div>
+            <hr />
+        {{end}}
         {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s" .Document.Series}}
             <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</p>
         {{ end }}

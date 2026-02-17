@@ -1,7 +1,30 @@
 {{template "partials/docs-list-placeholder" .}}
 
-<div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
-    {{ template "partials/docs-list" . }}
+<div id="list">
+    <div id="search-results-header">
+        {{template "partials/docs-list-header" .}}
+    </div>
+    <div class="row">
+        <aside class="col-xl-3 d-none d-xl-block">
+            <div class="card search-filters-sidebar">
+                <div class="card-body">
+                    <form action="/documents" roles="search">
+                        <div class="row">
+                            <div class="col-12">
+                                <input type="search" name="search" id="searchbox-sidebar" class="form-control" maxlength="255" value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
+                            </div>
+                        </div>
+                        {{template "partials/search-filters" dict "Lang" .Lang "SearchFields" .SearchFields "Responsive" true "NoScripts" true "Version" .Version "AvailableLanguages" .AvailableLanguages}}
+                    </form>
+                </div>
+            </div>
+        </aside>
+        <div class="col-12 col-xl-9">
+            <div id="list-results" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
+                {{ template "partials/docs-list" . }}
+            </div>
+        </div>
+    </div>
 </div>
 
 {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}

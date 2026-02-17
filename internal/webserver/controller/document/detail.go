@@ -3,6 +3,7 @@ package document
 import (
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -47,6 +48,26 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		title = fmt.Sprintf("%s - %s", strings.Join(document.Authors, ", "), document.Title)
 	}
 
+	backLink := ""
+	if referer := string(c.Context().Referer()); referer != "" {
+		if parsed, err := url.Parse(referer); err == nil {
+			switch {
+			case parsed.Path == "/documents" && parsed.RawQuery != "":
+				backLink = parsed.Path + "?" + parsed.RawQuery
+			case strings.HasPrefix(parsed.Path, "/authors"):
+				backLink = parsed.Path
+				if parsed.RawQuery != "" {
+					backLink += "?" + parsed.RawQuery
+				}
+			case strings.HasPrefix(parsed.Path, "/highlights"):
+				backLink = parsed.Path
+				if parsed.RawQuery != "" {
+					backLink += "?" + parsed.RawQuery
+				}
+			}
+		}
+	}
+
 	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, (int(session.ID)))
 
 	if session.ID > 0 {
@@ -56,6 +77,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 
 	return c.Render("document/detail", fiber.Map{
 		"Title":                  title,
+		"BackLink":               backLink,
 		"Document":               document,
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),

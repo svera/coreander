@@ -98,8 +98,10 @@
     </fieldset>
 </div>
 
+{{if not .NoScripts}}
 <script id="i18n" type="application/json">{"i18n":{
     "remove_subject": {{t .Lang "Remove subject: %s" "%s"}}
 }}</script>
 
 <script type="module" src="/js/search-filters.js{{versionParam .Version}}"></script>
+{{end}}

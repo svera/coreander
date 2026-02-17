@@ -55,6 +55,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		"Results":                searchResults,
 		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
 		"Title":                  "Search results",
+		"Htmx":                   c.Get("hx-request") == "true",
 		"EmailSendingConfigured": emailSendingConfigured,
 		"EmailFrom":              d.sender.From(),
 		"WordsPerMinute":         d.config.WordsPerMinute,
