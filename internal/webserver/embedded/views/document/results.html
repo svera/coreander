@@ -7,10 +7,12 @@
 </div>
 
 <div class="row">
-    <div class="col-12 col-xl-3 mt-5 d-none d-xl-block pe-xl-4">
+    <div class="col-12 col-xl-3 mt-5 d-none d-xl-block p-0">
+        <div class="border rounded-4 p-3">
         <form action="/documents" method="get" role="search">
             {{template "partials/search-filters" dict "Lang" .Lang "FilterIdPrefix" "sidebar" "SearchFields" .SearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "DocumentsSearchPage" .DocumentsSearchPage}}
         </form>
+    </div>
     </div>
     <div class="col-12 col-xl-9">
         <div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
