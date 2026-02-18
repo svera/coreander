@@ -1,28 +1,25 @@
 {{$idPrefix := or .FilterIdPrefix ""}}
-<div class="row pb-3 card-body" id="search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
+<div class="row card-body" id="search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
     {{if $idPrefix}}
-    <fieldset class="mb-3">
+    <fieldset>
         <legend class="fs-5"><i class="bi bi-search me-3"></i>{{t .Lang "Search"}}</legend>
         <div class="row">
-            <div class="col-12 mb-3">
+            <div class="col-12">
                 {{$keywords := ""}}
                 {{if .SearchFields}}
                     {{$keywords = .SearchFields.Keywords}}
                 {{end}}
                 <label for="{{$idPrefix}}-search" class="visually-hidden">{{t .Lang "search"}}</label>
-                <div class="input-group input-group-sm">
-                    <input type="search" name="search" id="{{$idPrefix}}-search" class="form-control" maxlength="255" value="{{$keywords}}" placeholder="{{t .Lang "Search"}}..." aria-label="{{t .Lang "Search"}}">
-                    <button type="submit" class="btn btn-outline-secondary" aria-label='{{t .Lang "Search"}}'><i class="bi bi-search"></i></button>
-                </div>
+                <input type="search" name="search" id="{{$idPrefix}}-search" class="form-control form-control-sm" maxlength="255" value="{{$keywords}}" placeholder="{{t .Lang "Search"}}..." aria-label="{{t .Lang "Search"}}">
             </div>
         </div>
     </fieldset>
     {{end}}
     {{if .AvailableLanguages}}
-    <fieldset>
+    <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-translate me-3"></i>{{t .Lang "Language"}}</legend>
         <div class="row">
-            <div class="col-12 mb-3">
+            <div class="col-12">
                 {{$language := ""}}
                 {{if .SearchFields}}
                     {{$language = .SearchFields.Language}}
@@ -37,10 +34,10 @@
         </div>
     </fieldset>
     {{end}}
-    <fieldset class="mt-5">
+    <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-tags me-3"></i>{{t .Lang "Subjects"}}</legend>
         <div class="row">
-            <div class="col-12 mb-3">
+            <div class="col-12">
                 {{$subject := ""}}
                 {{if .SearchFields}}
                     {{$subject = .SearchFields.Subjects}}
@@ -53,7 +50,7 @@
             </div>
         </div>
     </fieldset>
-    <fieldset class="mt-5">
+    <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Publishing date"}}</legend>
         <div class="row">
             <div class="col-12 {{if .Responsive}}col-xl-6{{end}} mb-3">
@@ -72,7 +69,7 @@
             </div>
         </div>
     </fieldset>
-    <fieldset class="mt-5">
+    <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-stopwatch me-3"></i>{{t .Lang "Estimated reading time"}}</legend>
         <div class="row">
             <div class="col-12 {{if .Responsive}}col-xl-6{{end}} mb-3">
@@ -107,14 +104,12 @@
                 </div>
             </div>
         </div>
-        <div class="row mt-5">
-            <div class="col-12 text-end">
-                <div class="d-grid d-block">
-                    <button class="btn btn-primary" type="submit">{{t .Lang "Search"}}</button>
-                </div>
-            </div>
-        </div>
     </fieldset>
+    <div class="row mt-4 g-0 w-100 px-2">
+        <div class="col-12">
+            <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
+        </div>
+    </div>
 </div>
 
 {{/* Include script and i18n from sidebar when on documents search page (so script runs after sidebar is in DOM); otherwise include from offcanvas. */}}

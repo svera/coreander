@@ -2,7 +2,7 @@
 {{$session := .Session}}
 {{$defaultAction := .DefaultAction}}
 {{$canShare := .CanShare}}
-{{$preferredEpub := .PreferredEpub}}
+{{$preferredEpub := or .PreferredEpub "epub"}}
 {{$buttonSize := "btn-sm"}}
 {{if .ButtonSize}}
     {{$buttonSize = .ButtonSize}}
