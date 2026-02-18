@@ -56,7 +56,6 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		"URL":                     view.URL(c),
 		"SortURL":                 view.BaseURLWithout(c, "sort-by", "page"),
 		"SortBy":                  c.Query("sort-by"),
-		"AvailableLanguages":      c.Locals("AvailableLanguages"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
