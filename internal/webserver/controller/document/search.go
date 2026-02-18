@@ -8,7 +8,6 @@ import (
 	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
@@ -46,19 +45,13 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
-	emailSendingConfigured := true
-	if _, ok := d.sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
 	templateVars := fiber.Map{
-		"SearchFields":           searchFields,
-		"Results":                 searchResults,
-		"Paginator":               view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":                   "Search results",
-		"DocumentsSearchPage":     true,
-		"EmailSendingConfigured": emailSendingConfigured,
-		"EmailFrom":               d.sender.From(),
+		"SearchFields":       searchFields,
+		"Results":            searchResults,
+		"Paginator":          view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":              "Search results",
+		"DocumentsSearchPage": true,
+		"EmailFrom":          d.sender.From(),
 		"WordsPerMinute":          d.config.WordsPerMinute,
 		"URL":                     view.URL(c),
 		"SortURL":                 view.BaseURLWithout(c, "sort-by", "page"),
