@@ -46,16 +46,16 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"SearchFields":       searchFields,
-		"Results":            searchResults,
-		"Paginator":          view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":              "Search results",
+		"SearchFields":        searchFields,
+		"Results":             searchResults,
+		"Paginator":           view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":               "Search results",
 		"DocumentsSearchPage": true,
-		"EmailFrom":          d.sender.From(),
-		"WordsPerMinute":          d.config.WordsPerMinute,
-		"URL":                     view.URL(c),
-		"SortURL":                 view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":                  c.Query("sort-by"),
+		"EmailFrom":           d.sender.From(),
+		"WordsPerMinute":      d.config.WordsPerMinute,
+		"URL":                 view.URL(c),
+		"SortURL":             view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":              c.Query("sort-by"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
