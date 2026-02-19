@@ -105,6 +105,20 @@ main .form-control:focus {
     white-space: nowrap;
 }
 
+/* Visible divider between main action and dropdown toggle (same-color buttons e.g. document detail) */
+.actions .btn-group .btn-primary + .dropdown-toggle-split,
+.actions .btn-group .btn-primary + .dropdown-toggle {
+    border-left: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+.actions .btn-group .btn-outline-secondary + .dropdown-toggle-split,
+.actions .btn-group .btn-outline-secondary + .dropdown-toggle {
+    border-left: 1px solid rgba(0, 0, 0, 0.12) !important;
+}
+[data-bs-theme=dark] .actions .btn-group .btn-outline-secondary + .dropdown-toggle-split,
+[data-bs-theme=dark] .actions .btn-group .btn-outline-secondary + .dropdown-toggle {
+    border-left-color: rgba(255, 255, 255, 0.2) !important;
+}
+
 .capitalize::first-letter {
     text-transform: capitalize;
 }
