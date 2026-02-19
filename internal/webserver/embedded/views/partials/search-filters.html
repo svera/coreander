@@ -1,7 +1,7 @@
 {{$idPrefix := or .FilterIdPrefix ""}}
 <div class="row card-body" id="search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
     {{if $idPrefix}}
-    <fieldset>
+    <fieldset class="mb-4">
         <legend class="fs-5"><i class="bi bi-search me-3"></i>{{t .Lang "Search"}}</legend>
         <div class="row">
             <div class="col-12">
@@ -16,7 +16,7 @@
     </fieldset>
     {{end}}
     {{if .AvailableLanguages}}
-    <fieldset class="mt-4">
+    <fieldset>
         <legend class="fs-5"><i class="bi bi-translate me-3"></i>{{t .Lang "Language"}}</legend>
         <div class="row">
             <div class="col-12">
