@@ -105,6 +105,19 @@ main .form-control:focus {
     white-space: nowrap;
 }
 
+.search-filters-sidebar-sticky {
+    position: sticky;
+    top: 5rem; /* clear fixed-top navbar */
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
+}
+
+.search-filters-sidebar-sticky.is-pinned {
+    position: fixed;
+    /* top, left, width set by script (6rem clearance) so box stays below navbar */
+    z-index: 1030; /* above Bootstrap fixed navbar (1030) content */
+}
+
 /* Visible divider between main action and dropdown toggle (same-color buttons e.g. document detail) */
 .actions .btn-group .btn-primary + .dropdown-toggle-split,
 .actions .btn-group .btn-primary + .dropdown-toggle {

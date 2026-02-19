@@ -10,7 +10,7 @@
                     {{$keywords = .SearchFields.Keywords}}
                 {{end}}
                 <label for="{{$idPrefix}}-search" class="visually-hidden">{{t .Lang "search"}}</label>
-                <input type="search" name="search" id="{{$idPrefix}}-search" class="form-control form-control-sm" maxlength="255" value="{{$keywords}}" placeholder="{{t .Lang "Search"}}..." aria-label="{{t .Lang "Search"}}">
+                <input type="search" name="search" id="{{$idPrefix}}-search" class="form-control" maxlength="255" value="{{$keywords}}" placeholder="{{t .Lang "Search"}}..." aria-label="{{t .Lang "Search"}}">
             </div>
         </div>
     </fieldset>
