@@ -8,10 +8,11 @@ require (
 	github.com/blevesearch/bleve/v2 v2.5.2
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/glebarez/sqlite v1.11.0
+	github.com/gofiber/contrib/v3/jwt v1.0.0
 	github.com/gofiber/fiber/v3 v3.0.0
-	github.com/gofiber/jwt/v3 v3.3.10
 	github.com/gofiber/template/html/v3 v3.0.0
 	github.com/golang-jwt/jwt/v4 v4.5.2
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/hhrutter/tiff v1.0.2
 	github.com/kovidgoyal/imaging v1.6.4
@@ -28,6 +29,7 @@ require (
 )
 
 require (
+	github.com/MicahParks/keyfunc/v2 v2.1.0 // indirect
 	github.com/RoaringBitmap/roaring/v2 v2.6.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/beevik/etree v1.5.1 // indirect
@@ -35,11 +37,10 @@ require (
 	github.com/blevesearch/zapx/v16 v16.2.4 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/glebarez/go-sqlite v1.22.0 // indirect
-	github.com/gofiber/fiber/v2 v2.45.0 // indirect
-	github.com/gofiber/schema v1.6.0 // indirect
+	github.com/gofiber/schema v1.7.0 // indirect
 	github.com/gofiber/template/v2 v2.0.0 // indirect
 	github.com/gofiber/utils v1.2.0 // indirect
-	github.com/gofiber/utils/v2 v2.0.0 // indirect
+	github.com/gofiber/utils/v2 v2.0.1 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/govalues/decimal v0.1.36 // indirect
 	github.com/hhrutter/lzw v1.0.0 // indirect
@@ -56,14 +57,11 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rickb777/period v1.0.15 // indirect
 	github.com/rickb777/plural v1.4.4 // indirect
-	github.com/savsgio/dictpool v0.0.0-20221023140959-7bf2e61cea94 // indirect
-	github.com/savsgio/gotils v0.0.0-20230208104028-c358bd845dee // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/tinylib/msgp v1.6.3 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
-	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	modernc.org/libc v1.66.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

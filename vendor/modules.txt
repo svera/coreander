@@ -1,3 +1,6 @@
+# github.com/MicahParks/keyfunc/v2 v2.1.0
+## explicit; go 1.18
+github.com/MicahParks/keyfunc/v2
 # github.com/Navid2zp/go-wikidata v1.0.1 => github.com/svera/go-wikidata v1.0.3
 ## explicit; go 1.16
 github.com/Navid2zp/go-wikidata
@@ -157,11 +160,9 @@ github.com/glebarez/go-sqlite
 # github.com/glebarez/sqlite v1.11.0
 ## explicit; go 1.18
 github.com/glebarez/sqlite
-# github.com/gofiber/fiber/v2 v2.45.0
-## explicit; go 1.20
-github.com/gofiber/fiber/v2
-github.com/gofiber/fiber/v2/internal/schema
-github.com/gofiber/fiber/v2/utils
+# github.com/gofiber/contrib/v3/jwt v1.0.0
+## explicit; go 1.25.0
+github.com/gofiber/contrib/v3/jwt
 # github.com/gofiber/fiber/v3 v3.0.0
 ## explicit; go 1.25.0
 github.com/gofiber/fiber/v3
@@ -174,11 +175,8 @@ github.com/gofiber/fiber/v3/middleware/compress
 github.com/gofiber/fiber/v3/middleware/etag
 github.com/gofiber/fiber/v3/middleware/favicon
 github.com/gofiber/fiber/v3/middleware/static
-# github.com/gofiber/jwt/v3 v3.3.10
-## explicit; go 1.16
-github.com/gofiber/jwt/v3
-# github.com/gofiber/schema v1.6.0
-## explicit; go 1.24
+# github.com/gofiber/schema v1.7.0
+## explicit; go 1.25
 github.com/gofiber/schema
 # github.com/gofiber/template/html/v3 v3.0.0
 ## explicit; go 1.25
@@ -189,12 +187,15 @@ github.com/gofiber/template/v2
 # github.com/gofiber/utils v1.2.0
 ## explicit; go 1.17
 github.com/gofiber/utils
-# github.com/gofiber/utils/v2 v2.0.0
+# github.com/gofiber/utils/v2 v2.0.1
 ## explicit; go 1.24.0
 github.com/gofiber/utils/v2
 # github.com/golang-jwt/jwt/v4 v4.5.2
 ## explicit; go 1.16
 github.com/golang-jwt/jwt/v4
+# github.com/golang-jwt/jwt/v5 v5.3.1
+## explicit; go 1.21
+github.com/golang-jwt/jwt/v5
 # github.com/golang/protobuf v1.5.4
 ## explicit; go 1.17
 github.com/golang/protobuf/proto
@@ -347,12 +348,6 @@ github.com/rivo/uniseg
 # github.com/rjeczalik/notify v0.9.3
 ## explicit; go 1.11
 github.com/rjeczalik/notify
-# github.com/savsgio/dictpool v0.0.0-20221023140959-7bf2e61cea94
-## explicit; go 1.13
-github.com/savsgio/dictpool
-# github.com/savsgio/gotils v0.0.0-20230208104028-c358bd845dee
-## explicit; go 1.20
-github.com/savsgio/gotils/strconv
 # github.com/sirupsen/logrus v1.9.3
 ## explicit; go 1.13
 github.com/sirupsen/logrus
@@ -482,8 +477,6 @@ google.golang.org/protobuf/types/gofeaturespb
 # gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc
 ## explicit
 gopkg.in/alexcesaro/quotedprintable.v3
-# gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
-## explicit; go 1.11
 # gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 ## explicit
 gopkg.in/gomail.v2

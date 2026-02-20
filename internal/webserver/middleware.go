@@ -9,7 +9,7 @@ import (
 	"github.com/gofiber/fiber/v3/extractors"
 
 	"github.com/gofiber/fiber/v3"
-	jwtware "github.com/gofiber/jwt/v3"
+	jwtware "github.com/gofiber/contrib/v3/jwt"
 	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
@@ -63,9 +63,8 @@ func SetProgress(progress ProgressInfo) func(fiber.Ctx) error {
 // AllowIfNotLoggedIn only allows processing the request if there is no session
 func AllowIfNotLoggedIn(jwtSecret []byte) func(fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
-		SigningKey:    jwtSecret,
-		SigningMethod: "HS256",
-		Extractor:     extractors.FromCookie("session"),
+		SigningKey: jwtware.SigningKey{JWTAlg: "HS256", Key: jwtSecret},
+		Extractor:  extractors.FromCookie("session"),
 		SuccessHandler: func(c fiber.Ctx) error {
 			return fiber.ErrForbidden
 		},
@@ -79,9 +78,8 @@ func AllowIfNotLoggedIn(jwtSecret []byte) func(fiber.Ctx) error {
 // if the user trying to access has not logged in
 func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, usersRepository *model.UserRepository) func(fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
-		SigningKey:    jwtSecret,
-		SigningMethod: "HS256",
-		TokenLookup:   "cookie:session",
+		SigningKey: jwtware.SigningKey{JWTAlg: "HS256", Key: jwtSecret},
+		Extractor:  extractors.FromCookie("session"),
 		SuccessHandler: func(c fiber.Ctx) error {
 			session := sessionData(c)
 			if err := ensureSessionUser(c, usersRepository, session, true, sender, translator); err != nil {
@@ -104,9 +102,8 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18
 // ConfigurableAuthentication allows to enable or disable authentication on routes which may or may not require it
 func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, requireAuth bool, usersRepository *model.UserRepository) func(fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
-		SigningKey:    jwtSecret,
-		SigningMethod: "HS256",
-		TokenLookup:   "cookie:session",
+		SigningKey: jwtware.SigningKey{JWTAlg: "HS256", Key: jwtSecret},
+		Extractor:  extractors.FromCookie("session"),
 		SuccessHandler: func(c fiber.Ctx) error {
 			session := sessionData(c)
 			if err := ensureSessionUser(c, usersRepository, session, requireAuth, sender, translator); err != nil {

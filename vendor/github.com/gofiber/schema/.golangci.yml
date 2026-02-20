@@ -1,0 +1,9 @@
+# Created based on v2.6.2
+# NOTE: Keep this in sync with the version in .github/workflows/linter.yml
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+  go: "1.24"
+

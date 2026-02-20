@@ -7,6 +7,8 @@ package schema
 import (
 	"reflect"
 	"strconv"
+
+	utils "github.com/gofiber/utils/v2"
 )
 
 type Converter func(string) reflect.Value
@@ -57,49 +59,49 @@ func convertBool(value string) reflect.Value {
 }
 
 func convertFloat32(value string) reflect.Value {
-	if v, err := strconv.ParseFloat(value, 32); err == nil {
-		return reflect.ValueOf(float32(v))
+	if v, err := utils.ParseFloat32(value); err == nil {
+		return reflect.ValueOf(v)
 	}
 	return invalidValue
 }
 
 func convertFloat64(value string) reflect.Value {
-	if v, err := strconv.ParseFloat(value, 64); err == nil {
+	if v, err := utils.ParseFloat64(value); err == nil {
 		return reflect.ValueOf(v)
 	}
 	return invalidValue
 }
 
 func convertInt(value string) reflect.Value {
-	if v, err := strconv.ParseInt(value, 10, 0); err == nil {
+	if v, err := utils.ParseInt(value); err == nil {
 		return reflect.ValueOf(int(v))
 	}
 	return invalidValue
 }
 
 func convertInt8(value string) reflect.Value {
-	if v, err := strconv.ParseInt(value, 10, 8); err == nil {
-		return reflect.ValueOf(int8(v))
+	if v, err := utils.ParseInt8(value); err == nil {
+		return reflect.ValueOf(v)
 	}
 	return invalidValue
 }
 
 func convertInt16(value string) reflect.Value {
-	if v, err := strconv.ParseInt(value, 10, 16); err == nil {
-		return reflect.ValueOf(int16(v))
+	if v, err := utils.ParseInt16(value); err == nil {
+		return reflect.ValueOf(v)
 	}
 	return invalidValue
 }
 
 func convertInt32(value string) reflect.Value {
-	if v, err := strconv.ParseInt(value, 10, 32); err == nil {
-		return reflect.ValueOf(int32(v))
+	if v, err := utils.ParseInt32(value); err == nil {
+		return reflect.ValueOf(v)
 	}
 	return invalidValue
 }
 
 func convertInt64(value string) reflect.Value {
-	if v, err := strconv.ParseInt(value, 10, 64); err == nil {
+	if v, err := utils.ParseInt(value); err == nil {
 		return reflect.ValueOf(v)
 	}
 	return invalidValue
@@ -110,35 +112,35 @@ func convertString(value string) reflect.Value {
 }
 
 func convertUint(value string) reflect.Value {
-	if v, err := strconv.ParseUint(value, 10, 0); err == nil {
+	if v, err := utils.ParseUint(value); err == nil {
 		return reflect.ValueOf(uint(v))
 	}
 	return invalidValue
 }
 
 func convertUint8(value string) reflect.Value {
-	if v, err := strconv.ParseUint(value, 10, 8); err == nil {
-		return reflect.ValueOf(uint8(v))
+	if v, err := utils.ParseUint8(value); err == nil {
+		return reflect.ValueOf(v)
 	}
 	return invalidValue
 }
 
 func convertUint16(value string) reflect.Value {
-	if v, err := strconv.ParseUint(value, 10, 16); err == nil {
-		return reflect.ValueOf(uint16(v))
+	if v, err := utils.ParseUint16(value); err == nil {
+		return reflect.ValueOf(v)
 	}
 	return invalidValue
 }
 
 func convertUint32(value string) reflect.Value {
-	if v, err := strconv.ParseUint(value, 10, 32); err == nil {
-		return reflect.ValueOf(uint32(v))
+	if v, err := utils.ParseUint32(value); err == nil {
+		return reflect.ValueOf(v)
 	}
 	return invalidValue
 }
 
 func convertUint64(value string) reflect.Value {
-	if v, err := strconv.ParseUint(value, 10, 64); err == nil {
+	if v, err := utils.ParseUint(value); err == nil {
 		return reflect.ValueOf(v)
 	}
 	return invalidValue

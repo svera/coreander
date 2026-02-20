@@ -115,9 +115,9 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 		Description:      template.HTML(description),
 		Language:         lang,
 		Publication:      publication,
-		Series:           meta.Series,
-		SeriesIndexNames: []string{seriesIndex},
-		Format:           "EPUB",
+		Series:      meta.Series,
+		SeriesIndex: seriesIndex,
+		Format:      "EPUB",
 		Subjects:         subjects,
 	}
 	w, err := words(filename)
