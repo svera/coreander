@@ -9,13 +9,13 @@
 <div class="row">
     <div id="search-filters-sidebar-col" class="col-12 col-xl-3 mt-5 d-none d-xl-block p-0">
         <div class="border rounded-4 p-3 pb-3 search-filters-sidebar-sticky">
-            <form action="/documents" method="get" role="search">
+            <form id="search-filters-form" action="/documents" method="get" role="search">
                 {{template "partials/search-filters" dict "Lang" .Lang "FilterIdPrefix" "sidebar" "SearchFields" .SearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "DocumentsSearchPage" .DocumentsSearchPage}}
             </form>
         </div>
     </div>
     <div class="col-12 col-xl-9">
-        <div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
+        <div id="list" hx-get="/documents" hx-include="#search-filters-form" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
             {{ template "partials/docs-list-content" . }}
         </div>
     </div>

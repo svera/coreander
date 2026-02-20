@@ -134,30 +134,86 @@ function initSearchFilters(searchFilters) {
         updateHiddenDateInput(dateControl)
     })
 
-    searchFiltersForm.addEventListener('submit', event => {
-        event.preventDefault()
-
+    function composeDateControls() {
         searchFiltersForm.querySelectorAll('.date-control').forEach(function (el) {
-            if (el.getElementsByClassName('input-year')[0].value === '' || el.getElementsByClassName('input-year')[0].value === '0') return
-            let composed = el.parentElement.querySelector('.date')
+            const yearEl = el.querySelector('.input-year')
+            if (!yearEl || (yearEl.value === '' || yearEl.value === '0')) return
+            const composed = el.parentElement.querySelector('.date')
             if (!composed) return
-            let year = el.getElementsByClassName('input-year')[0].value
+            let year = yearEl.value
             if (year.startsWith('-') || year.startsWith('+')) {
                 year = year.substring(0, 1) + year.substring(1).padStart(4, '0')
             } else {
                 year = year.padStart(4, '0')
             }
-            composed.value = year + '-' + el.getElementsByClassName('input-month')[0].value + '-' + el.getElementsByClassName('input-day')[0].value.padStart(2, '0')
+            const month = el.querySelector('.input-month').value || '01'
+            const day = (el.querySelector('.input-day').value || '1').padStart(2, '0')
+            composed.value = year + '-' + month + '-' + day
         })
+    }
 
-        searchFilters.querySelectorAll('input').forEach(input => {
-            if (input.value === '' || input.value === '0') {
-                input.setAttribute('disabled', 'disabled')
+    const isDocumentsPage = window.location.pathname === '/documents'
+
+    let applyingFilters = false
+
+    function applyFilters() {
+        applyingFilters = true
+        composeDateControls()
+        const list = document.getElementById('list')
+        const sidebarForm = document.getElementById('search-filters-form')
+        if (list && sidebarForm && isDocumentsPage) {
+            if (searchFiltersForm !== sidebarForm) {
+                const formData = new FormData(searchFiltersForm)
+                for (const [k, v] of formData.entries()) {
+                    const el = sidebarForm.elements[k]
+                    if (el) el.value = v
+                }
+                const sidebarContainer = document.getElementById('search-filters-sidebar')
+                if (sidebarContainer) sidebarContainer.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
             }
+            document.body.dispatchEvent(new CustomEvent('update'))
+            const formData = new FormData(sidebarForm)
+            const params = new URLSearchParams()
+            for (const [k, v] of formData.entries()) {
+                if (v != null && String(v).trim() !== '') params.append(k, v)
+            }
+            const queryString = params.toString()
+            const url = '/documents' + (queryString ? '?' + queryString : '')
+            history.replaceState(null, '', url)
+            syncSidebarFormToOffcanvas()
+        } else {
+            const params = new URLSearchParams(new FormData(searchFiltersForm))
+            window.location.href = '/documents?' + params.toString()
+        }
+        setTimeout(() => { applyingFilters = false }, 0)
+    }
+
+    let triggerSearchUpdate = null
+    if (isDocumentsPage) {
+        const FILTER_DEBOUNCE_MS = 600
+        let applyFiltersDebounced
+        function scheduleApplyFilters() {
+            if (applyingFilters) return
+            if (applyFiltersDebounced) clearTimeout(applyFiltersDebounced)
+            applyFiltersDebounced = setTimeout(applyFilters, FILTER_DEBOUNCE_MS)
+        }
+        triggerSearchUpdate = scheduleApplyFilters
+
+        searchFiltersForm.addEventListener('submit', (e) => {
+            e.preventDefault()
+            if (applyFiltersDebounced) clearTimeout(applyFiltersDebounced)
+            applyFilters()
         })
 
-        searchFiltersForm.submit()
-    })
+        searchFiltersForm.addEventListener('input', () => scheduleApplyFilters())
+    } else {
+        searchFiltersForm.addEventListener('submit', () => {
+            composeDateControls()
+            searchFilters.querySelectorAll('input').forEach(input => {
+                if (input.value === '' || input.value === '0') input.setAttribute('disabled', 'disabled')
+            })
+        })
+    }
 
     // Subjects (scoped to this container)
     const subjectsList = document.getElementById(idPrefix + 'subjects-list')
@@ -226,6 +282,7 @@ function initSearchFilters(searchFilters) {
         if (!isDuplicate) {
             selectedSubjects.push(trimmedSubject)
             updateSubjectBadges()
+            if (triggerSearchUpdate) triggerSearchUpdate()
         }
         if (subjectsInput) subjectsInput.value = ''
     }
@@ -233,6 +290,7 @@ function initSearchFilters(searchFilters) {
     function removeSubject(index) {
         selectedSubjects.splice(index, 1)
         updateSubjectBadges()
+        if (triggerSearchUpdate) triggerSearchUpdate()
         if (subjectsInput) subjectsInput.focus()
     }
 
@@ -266,6 +324,21 @@ function initSearchFilters(searchFilters) {
         } else {
             updateSubjectBadges()
         }
+        searchFilters.addEventListener('syncSubjectsFromHiddenInput', () => {
+            if (!subjectsHiddenInput) return
+            const value = subjectsHiddenInput.value
+            const parsed = value ? value.split(',').map(s => s.trim()).filter(s => s) : []
+            const seen = new Set()
+            selectedSubjects.length = 0
+            parsed.forEach(subject => {
+                const lower = subject.toLowerCase()
+                if (!seen.has(lower)) {
+                    seen.add(lower)
+                    selectedSubjects.push(subject)
+                }
+            })
+            updateSubjectBadges()
+        })
         let lastInputValue = ''
         subjectsInput.addEventListener('input', (e) => {
             const value = e.target.value.trim()
@@ -305,6 +378,73 @@ window.addEventListener('pageshow', () => {
     })
 })
 
+/**
+ * Copy form values from source to target form (by field name).
+ */
+function copyFormValues(sourceForm, targetForm) {
+    for (const el of sourceForm.elements) {
+        if (!el.name) continue
+        const target = targetForm.elements[el.name]
+        if (target && target !== el) {
+            if (target.type === 'checkbox' || target.type === 'radio') {
+                target.checked = el.checked
+            } else {
+                target.value = el.value
+            }
+        }
+    }
+}
+
+/**
+ * Apply hidden date input values (YYYY-MM-DD) to the visible year/month/day inputs in each .date-control.
+ */
+function applyHiddenDatesToVisible(container) {
+    if (!container) return
+    container.querySelectorAll('.date-control').forEach(dateControl => {
+        const hiddenInput = dateControl.parentElement.querySelector('input.date')
+        if (!hiddenInput || !hiddenInput.value) return
+        const parts = hiddenInput.value.split('-')
+        if (parts.length < 3) return
+        const yearInput = dateControl.querySelector('.input-year')
+        const monthSelect = dateControl.querySelector('.input-month')
+        const dayInput = dateControl.querySelector('.input-day')
+        if (yearInput) yearInput.value = parts[0]
+        if (monthSelect) monthSelect.value = parts[1]
+        if (dayInput) dayInput.value = String(parseInt(parts[2], 10))
+    })
+}
+
+/**
+ * Sync sidebar filter form state to the offcanvas form and navbar searchbox.
+ */
+function syncSidebarFormToOffcanvas() {
+    const sidebarForm = document.getElementById('search-filters-form')
+    const offcanvasContainer = document.getElementById('search-filters')
+    if (!sidebarForm) return
+    const searchValue = sidebarForm.elements['search'] ? sidebarForm.elements['search'].value : ''
+    const navSearchbox = document.getElementById('searchbox')
+    if (navSearchbox) navSearchbox.value = searchValue
+    if (!offcanvasContainer) return
+    const offcanvasForm = offcanvasContainer.closest('form')
+    if (!offcanvasForm) return
+    copyFormValues(sidebarForm, offcanvasForm)
+    const sidebarSubjectsHidden = document.getElementById('sidebar-subjects-hidden')
+    const offcanvasSubjectsHidden = document.getElementById('subjects-hidden')
+    if (sidebarSubjectsHidden && offcanvasSubjectsHidden) {
+        offcanvasSubjectsHidden.value = sidebarSubjectsHidden.value
+    }
+    applyHiddenDatesToVisible(offcanvasContainer)
+    offcanvasContainer.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
+}
+
 // Initialize all filter containers on the page
 initSearchFilters(document.getElementById('search-filters'))
 initSearchFilters(document.getElementById('search-filters-sidebar'))
+
+// Keep sidebar and offcanvas filters in sync on the documents page
+if (document.getElementById('search-filters-form') && document.getElementById('search-filters')) {
+    const offcanvasEl = document.getElementById('search-filters-offcanvas')
+    if (offcanvasEl) {
+        offcanvasEl.addEventListener('shown.bs.offcanvas', () => syncSidebarFormToOffcanvas())
+    }
+}
