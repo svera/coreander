@@ -1,12 +1,12 @@
 package webserver
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
-func sessionData(c *fiber.Ctx) model.Session {
+func sessionData(c fiber.Ctx) model.Session {
 	var session model.Session
 
 	if t, ok := c.Locals("user").(*jwt.Token); ok {

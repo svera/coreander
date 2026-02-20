@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
-func (d *Controller) Detail(c *fiber.Ctx) error {
+func (d *Controller) Detail(c fiber.Ctx) error {
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
@@ -48,7 +48,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 	result := model.AugmentedDocument{Document: document}
 	if session.ID > 0 {
 		result = d.hlRepository.Highlighted(int(session.ID), result)
-			completedOn, err = d.readingRepository.CompletedOn(int(session.ID), result.ID)
+		completedOn, err = d.readingRepository.CompletedOn(int(session.ID), result.ID)
 		if err != nil {
 			log.Println(err)
 		}

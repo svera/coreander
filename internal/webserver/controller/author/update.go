@@ -5,11 +5,11 @@ import (
 	"log"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/index"
 )
 
-func (a *Controller) Update(c *fiber.Ctx) error {
+func (a *Controller) Update(c fiber.Ctx) error {
 	authorSlug := c.Params("slug")
 	supportedLanguages := c.Locals("SupportedLanguages").([]string)
 	lang := c.Locals("Lang").(string)

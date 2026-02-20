@@ -1,12 +1,12 @@
 package user
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // New renders the new user form
-func (u *Controller) New(c *fiber.Ctx) error {
+func (u *Controller) New(c fiber.Ctx) error {
 	user := model.User{
 		WordsPerMinute: u.config.WordsPerMinute,
 	}

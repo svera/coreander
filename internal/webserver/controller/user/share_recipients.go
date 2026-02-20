@@ -4,12 +4,12 @@ import (
 	"log"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // ShareRecipients returns usernames and names for autocomplete.
-func (u *Controller) ShareRecipients(c *fiber.Ctx) error {
+func (u *Controller) ShareRecipients(c fiber.Ctx) error {
 	query := strings.TrimSpace(c.Query("q"))
 	users, err := u.usersRepository.UsernamesAndNames(query)
 	if err != nil {

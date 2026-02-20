@@ -8,14 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/log"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/log"
 	"github.com/kovidgoyal/imaging"
 	"github.com/spf13/afero"
 	"github.com/valyala/fasthttp"
 )
 
-func (a *Controller) UploadImage(c *fiber.Ctx) error {
+func (a *Controller) UploadImage(c fiber.Ctx) error {
 	authorSlug := c.Params("slug")
 	if authorSlug == "" {
 		return fiber.ErrBadRequest

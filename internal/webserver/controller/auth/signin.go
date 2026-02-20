@@ -4,13 +4,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // Signs in a user and gives them a JWT.
-func (a *Controller) SignIn(c *fiber.Ctx) error {
+func (a *Controller) SignIn(c fiber.Ctx) error {
 	var (
 		user *model.User
 		err  error
@@ -46,15 +46,15 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 		HTTPOnly: true,
 	})
 
-	referer := string(c.Context().Referer())
+	referer := string(c.RequestCtx().Referer())
 	if referer != "" && !strings.Contains(referer, "/sessions") {
-		return c.Redirect(referer)
+		return c.Redirect().To(referer)
 	}
 
-	return c.Redirect("/")
+	return c.Redirect().To("/")
 }
 
-func GenerateToken(c *fiber.Ctx, user *model.User, expiration time.Time, secret []byte) (string, error) {
+func GenerateToken(c fiber.Ctx, user *model.User, expiration time.Time, secret []byte) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userdata": model.User{
 			ID:                user.ID,
@@ -76,3 +76,5 @@ func GenerateToken(c *fiber.Ctx, user *model.User, expiration time.Time, secret 
 
 	return token.SignedString(secret)
 }
+
+// fiber:context-methods migrated

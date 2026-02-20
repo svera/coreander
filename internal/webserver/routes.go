@@ -2,10 +2,9 @@ package webserver
 
 import (
 	"fmt"
-	"net/http"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
@@ -22,34 +21,34 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	staticCacheControl := fmt.Sprintf("public, max-age=%d, immutable", cfg.ClientStaticCacheTTL)
 	staticCacheTime := fmt.Sprintf("%d", cfg.ServerStaticCacheTTL)
 
-	app.Use("/css", func(c *fiber.Ctx) error {
+	app.Use("/css", func(c fiber.Ctx) error {
 		// Set cache control headers for CSS and font files
 		c.Set("Cache-Control", staticCacheControl)
 		c.Append("Cache-Time", staticCacheTime)
 		return c.Next()
-	}, filesystem.New(filesystem.Config{
-		Root: http.FS(cssFS),
+	}, static.New("", static.Config{
+		FS: cssFS,
 	}))
 
-	app.Use("/js", func(c *fiber.Ctx) error {
+	app.Use("/js", func(c fiber.Ctx) error {
 		// Set cache control headers for JS files
 		c.Set("Cache-Control", staticCacheControl)
 		c.Append("Cache-Time", staticCacheTime)
 		return c.Next()
-	}, filesystem.New(filesystem.Config{
-		Root: http.FS(jsFS),
+	}, static.New("", static.Config{
+		FS: jsFS,
 	}))
 
-	app.Use("/images", func(c *fiber.Ctx) error {
+	app.Use("/images", func(c fiber.Ctx) error {
 		// Set cache control headers for image files
 		c.Set("Cache-Control", staticCacheControl)
 		c.Append("Cache-Time", staticCacheTime)
 		return c.Next()
-	}, filesystem.New(filesystem.Config{
-		Root: http.FS(imagesFS),
+	}, static.New("", static.Config{
+		FS: imagesFS,
 	}))
 
-	app.Use(func(c *fiber.Ctx) error {
+	app.Use(func(c fiber.Ctx) error {
 		c.Locals("Version", c.App().Config().AppName)
 		c.Locals("SupportedLanguages", supportedLanguages)
 		c.Locals("Lang", chooseBestLanguage(c))

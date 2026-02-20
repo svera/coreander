@@ -6,7 +6,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3/extractors"
+
+	"github.com/gofiber/fiber/v3"
 	jwtware "github.com/gofiber/jwt/v3"
 	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
@@ -16,7 +18,7 @@ import (
 
 // RequireAdmin returns HTTP forbidden if the user requesting access
 // is not an admin
-func RequireAdmin(c *fiber.Ctx) error {
+func RequireAdmin(c fiber.Ctx) error {
 	if c.Locals("Session") == nil {
 		return fiber.ErrForbidden
 	}
@@ -32,8 +34,8 @@ func RequireAdmin(c *fiber.Ctx) error {
 
 // SetFQDN composes the Fully Qualified Domain Name of the host running the app and sets it
 // as a local variable of the request
-func SetFQDN(cfg Config) func(*fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
+func SetFQDN(cfg Config) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		c.Locals("fqdn", fmt.Sprintf("%s://%s",
 			c.Protocol(),
 			cfg.FQDN,
@@ -44,8 +46,8 @@ func SetFQDN(cfg Config) func(*fiber.Ctx) error {
 
 // SetProgress retrieves indexing progress information from the index and sets it
 // as a local variable of the request
-func SetProgress(progress ProgressInfo) func(*fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
+func SetProgress(progress ProgressInfo) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		progress, err := progress.IndexingProgress()
 		if err != nil {
 			fmt.Println(err)
@@ -59,15 +61,15 @@ func SetProgress(progress ProgressInfo) func(*fiber.Ctx) error {
 }
 
 // AllowIfNotLoggedIn only allows processing the request if there is no session
-func AllowIfNotLoggedIn(jwtSecret []byte) func(*fiber.Ctx) error {
+func AllowIfNotLoggedIn(jwtSecret []byte) func(fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
 		SigningMethod: "HS256",
-		TokenLookup:   "cookie:session",
-		SuccessHandler: func(c *fiber.Ctx) error {
+		Extractor:     extractors.FromCookie("session"),
+		SuccessHandler: func(c fiber.Ctx) error {
 			return fiber.ErrForbidden
 		},
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
+		ErrorHandler: func(c fiber.Ctx, err error) error {
 			return c.Next()
 		},
 	})
@@ -75,12 +77,12 @@ func AllowIfNotLoggedIn(jwtSecret []byte) func(*fiber.Ctx) error {
 
 // AlwaysRequireAuthentication returns forbidden and renders the login page
 // if the user trying to access has not logged in
-func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, usersRepository *model.UserRepository) func(*fiber.Ctx) error {
+func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, usersRepository *model.UserRepository) func(fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
 		SigningMethod: "HS256",
 		TokenLookup:   "cookie:session",
-		SuccessHandler: func(c *fiber.Ctx) error {
+		SuccessHandler: func(c fiber.Ctx) error {
 			session := sessionData(c)
 			if err := ensureSessionUser(c, usersRepository, session, true, sender, translator); err != nil {
 				if errors.Is(err, errSessionRejected) {
@@ -93,19 +95,19 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18
 			updateUserLanguage(c, usersRepository, session)
 			return c.Next()
 		},
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
+		ErrorHandler: func(c fiber.Ctx, err error) error {
 			return forbidden(c, sender, translator, err)
 		},
 	})
 }
 
 // ConfigurableAuthentication allows to enable or disable authentication on routes which may or may not require it
-func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, requireAuth bool, usersRepository *model.UserRepository) func(*fiber.Ctx) error {
+func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, requireAuth bool, usersRepository *model.UserRepository) func(fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey:    jwtSecret,
 		SigningMethod: "HS256",
 		TokenLookup:   "cookie:session",
-		SuccessHandler: func(c *fiber.Ctx) error {
+		SuccessHandler: func(c fiber.Ctx) error {
 			session := sessionData(c)
 			if err := ensureSessionUser(c, usersRepository, session, requireAuth, sender, translator); err != nil {
 				if errors.Is(err, errSessionCleared) {
@@ -121,7 +123,7 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n
 			updateUserLanguage(c, usersRepository, session)
 			return c.Next()
 		},
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
+		ErrorHandler: func(c fiber.Ctx, err error) error {
 			if requireAuth {
 				return forbidden(c, sender, translator, err)
 			}
@@ -133,7 +135,7 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n
 var errSessionRejected = errors.New("session rejected")
 var errSessionCleared = errors.New("session cleared")
 
-func ensureSessionUser(c *fiber.Ctx, usersRepository *model.UserRepository, session model.Session, requireAuth bool, sender Sender, translator i18n.Translator) error {
+func ensureSessionUser(c fiber.Ctx, usersRepository *model.UserRepository, session model.Session, requireAuth bool, sender Sender, translator i18n.Translator) error {
 	if session.Uuid == "" {
 		if requireAuth {
 			clearSessionCookie(c)
@@ -164,14 +166,14 @@ func ensureSessionUser(c *fiber.Ctx, usersRepository *model.UserRepository, sess
 	return nil
 }
 
-func clearSessionCookie(c *fiber.Ctx) {
+func clearSessionCookie(c fiber.Ctx) {
 	c.Cookie(&fiber.Cookie{
 		Name:    "session",
 		Expires: time.Now().Add(-(time.Hour * 2)),
 	})
 }
 
-func forbidden(c *fiber.Ctx, sender Sender, translator i18n.Translator, err error) error {
+func forbidden(c fiber.Ctx, sender Sender, translator i18n.Translator, err error) error {
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -189,8 +191,8 @@ func forbidden(c *fiber.Ctx, sender Sender, translator i18n.Translator, err erro
 	}, "layout")
 }
 
-func OneTimeMessages() func(c *fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
+func OneTimeMessages() func(c fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		msg := ""
 		if c.Cookies("warning-once") != "" {
 			msg = c.Cookies("warning-once")
@@ -217,8 +219,8 @@ func OneTimeMessages() func(c *fiber.Ctx) error {
 
 // SetAvailableLanguages retrieves available languages from the index and sets them
 // as a local variable for use in templates
-func SetAvailableLanguages(idx ProgressInfo) func(*fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
+func SetAvailableLanguages(idx ProgressInfo) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		availableLanguages, err := idx.Languages()
 		if err != nil {
 			fmt.Println(err)
@@ -231,8 +233,8 @@ func SetAvailableLanguages(idx ProgressInfo) func(*fiber.Ctx) error {
 
 // SetEmailSendingConfigured sets EmailSendingConfigured in c.Locals() based on the sender type
 // This should be run early in the middleware chain so it's available in all routes
-func SetEmailSendingConfigured(sender Sender) func(*fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
+func SetEmailSendingConfigured(sender Sender) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		emailSendingConfigured := true
 		if _, ok := sender.(*infrastructure.NoEmail); ok {
 			emailSendingConfigured = false
@@ -244,8 +246,8 @@ func SetEmailSendingConfigured(sender Sender) func(*fiber.Ctx) error {
 
 // SetActionPreferences computes and sets action-related preferences based on session and email configuration
 // These values are used in templates to determine default actions, available options, and EPUB preferences
-func SetActionPreferences(sender Sender) func(*fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
+func SetActionPreferences(sender Sender) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		emailSendingConfigured, ok := c.Locals("EmailSendingConfigured").(bool)
 		if !ok {
 			emailSendingConfigured = false // Default to false if not set
@@ -302,7 +304,7 @@ func SetActionPreferences(sender Sender) func(*fiber.Ctx) error {
 
 // updateUserLanguage updates the authenticated user's language preference in the database
 // when the language query parameter (?l=) is present
-func updateUserLanguage(c *fiber.Ctx, usersRepository *model.UserRepository, session model.Session) {
+func updateUserLanguage(c fiber.Ctx, usersRepository *model.UserRepository, session model.Session) {
 	// Early return if language query parameter is not present
 	lang := c.Query("l")
 	if lang == "" {
@@ -332,4 +334,3 @@ func updateUserLanguage(c *fiber.Ctx, usersRepository *model.UserRepository, ses
 		// Continue anyway, don't fail the request
 	}
 }
-

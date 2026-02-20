@@ -3,12 +3,12 @@ package auth
 import (
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
-func (a *Controller) EditPassword(c *fiber.Ctx) error {
+func (a *Controller) EditPassword(c fiber.Ctx) error {
 	if _, err := a.validateRecoveryAccess(c.Query("id")); err != nil {
 		return err
 	}
@@ -20,7 +20,7 @@ func (a *Controller) EditPassword(c *fiber.Ctx) error {
 	}, "layout")
 }
 
-func (a *Controller) UpdatePassword(c *fiber.Ctx) error {
+func (a *Controller) UpdatePassword(c fiber.Ctx) error {
 	user, err := a.validateRecoveryAccess(c.FormValue("id"))
 	if err != nil {
 		return err
@@ -50,7 +50,7 @@ func (a *Controller) UpdatePassword(c *fiber.Ctx) error {
 		Expires: time.Now().Add(24 * time.Hour),
 	})
 
-	return c.Redirect("/sessions/new")
+	return c.Redirect().To("/sessions/new")
 }
 
 func (a *Controller) validateRecoveryAccess(recoveryUuid string) (*model.User, error) {

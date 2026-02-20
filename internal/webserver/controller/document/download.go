@@ -11,11 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/pgaskin/kepubify/v4/kepub"
 )
 
-func (d *Controller) Download(c *fiber.Ctx) error {
+func (d *Controller) Download(c fiber.Ctx) error {
 	var (
 		output   []byte
 		err      error

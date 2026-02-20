@@ -4,14 +4,14 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
 // List list all users registered in the database
-func (u *Controller) List(c *fiber.Ctx) error {
+func (u *Controller) List(c fiber.Ctx) error {
 	page, err := strconv.Atoi(c.Query("page"))
 	if err != nil {
 		page = 1

@@ -5,13 +5,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // Create gathers information coming from the new user form and creates a new user
-func (u *Controller) Create(c *fiber.Ctx) error {
+func (u *Controller) Create(c fiber.Ctx) error {
 	role, _ := strconv.Atoi(c.FormValue("role"))
 	user := model.User{
 		Name:           strings.TrimSpace(c.FormValue("name")),
