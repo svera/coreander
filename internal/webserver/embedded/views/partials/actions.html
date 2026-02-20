@@ -2,7 +2,7 @@
 {{$session := .Session}}
 {{$defaultAction := .DefaultAction}}
 {{$canShare := .CanShare}}
-{{$preferredEpub := .PreferredEpub}}
+{{$preferredEpub := or .PreferredEpub "epub"}}
 {{$buttonSize := "btn-sm"}}
 {{if .ButtonSize}}
     {{$buttonSize = .ButtonSize}}
@@ -73,7 +73,7 @@
             {{else}}
                 {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download?format=%s" .Document.Slug $preferredEpub) "BadgeText" (uppercase $preferredEpub) "BadgeClass" "badge text-bg-primary"}}
             {{end}}
-            <button type="button" class="btn {{ $buttonSize }} {{ $buttonStyle }} dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Select download format"}}'></button>
+            <button type="button" class="btn {{ $buttonSize }} {{ $buttonStyle }} dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Select download format"}}'></button>
             <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
                 {{if ne $defaultAction "download"}}
                 <li>
@@ -108,7 +108,7 @@
                 {{else}}
                     {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" (printf "btn %s %s flex-sm-fill text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download" .Document.Slug) "BadgeText" .Document.Format "BadgeClass" "badge text-bg-danger"}}
                 {{end}}
-                <button type="button" class="btn {{ $buttonSize }} {{ $buttonStyle }} dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Actions"}}'></button>
+                <button type="button" class="btn {{ $buttonSize }} {{ $buttonStyle }} dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Actions"}}'></button>
                 <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
                     {{if ne $defaultAction "copy"}}
                     <li>
