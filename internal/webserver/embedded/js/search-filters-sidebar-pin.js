@@ -15,20 +15,23 @@
 
   let ticking = false;
 
+  function clearPin() {
+    sticky.classList.remove("is-pinned");
+    sticky.style.top = "";
+    sticky.style.left = "";
+    sticky.style.width = "";
+    column.style.minHeight = "";
+  }
+
   function updatePin() {
     if (window.getComputedStyle(column).display === "none") {
-      sticky.classList.remove("is-pinned");
-      sticky.style.top = "";
-      sticky.style.left = "";
-      sticky.style.width = "";
-      column.style.minHeight = "";
+      clearPin();
       ticking = false;
       return;
     }
     const colRect = column.getBoundingClientRect();
     const stickyRect = sticky.getBoundingClientRect();
 
-    // Pin when column top would go under the navbar (pin proactively)
     if (colRect.top < NAVBAR_CLEARANCE_PX) {
       if (!sticky.classList.contains("is-pinned")) {
         sticky.classList.add("is-pinned");
@@ -38,13 +41,7 @@
       sticky.style.left = `${colRect.left}px`;
       sticky.style.width = `${colRect.width}px`;
     } else {
-      if (sticky.classList.contains("is-pinned")) {
-        sticky.classList.remove("is-pinned");
-        sticky.style.top = "";
-        sticky.style.left = "";
-        sticky.style.width = "";
-        column.style.minHeight = "";
-      }
+      if (sticky.classList.contains("is-pinned")) clearPin();
     }
     ticking = false;
   }
