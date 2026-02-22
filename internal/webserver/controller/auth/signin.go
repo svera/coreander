@@ -6,9 +6,12 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
+
+// guestOnlyPathPrefixes are URL path prefixes for routes that use AllowIfNotLoggedIn.
+// After login we must not redirect here or the user gets Forbidden.
+var guestOnlyPathPrefixes = []string{"/sessions", "/recover", "/reset-password", "/invite"}
 
 // Signs in a user and gives them a JWT.
 func (a *Controller) SignIn(c *fiber.Ctx) error {
@@ -24,16 +27,10 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 	}
 
 	if user == nil || user.Password != model.Hash(c.FormValue("password")) {
-		emailSendingConfigured := true
-		if _, ok := a.sender.(*infrastructure.NoEmail); ok {
-			emailSendingConfigured = false
-		}
-
 		return c.Status(fiber.StatusUnauthorized).Render("auth/login", fiber.Map{
-			"Title":                  "Login",
-			"Error":                  "Wrong email or password",
-			"EmailSendingConfigured": emailSendingConfigured,
-			"DisableLoginLink":       true,
+			"Title":            "Login",
+			"Error":            "Wrong email or password",
+			"DisableLoginLink": true,
 		}, "layout")
 	}
 
@@ -53,12 +50,23 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 		HTTPOnly: true,
 	})
 
+	// Redirect back to the page they came from, but never to guest-only routes:
+	// those use AllowIfNotLoggedIn and would return Forbidden for a logged-in user.
 	referer := string(c.Context().Referer())
-	if referer != "" && !strings.Contains(referer, "/sessions") {
+	if referer != "" && !isGuestOnlyReferer(referer) {
 		return c.Redirect(referer)
 	}
 
 	return c.Redirect("/")
+}
+
+func isGuestOnlyReferer(referer string) bool {
+	for _, prefix := range guestOnlyPathPrefixes {
+		if strings.Contains(referer, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func GenerateToken(c *fiber.Ctx, user *model.User, expiration time.Time, secret []byte) (string, error) {
@@ -73,7 +81,9 @@ func GenerateToken(c *fiber.Ctx, user *model.User, expiration time.Time, secret 
 			SendToEmail:       user.SendToEmail,
 			WordsPerMinute:    user.WordsPerMinute,
 			ShowFileName:      user.ShowFileName,
+			PrivateProfile:    user.PrivateProfile,
 			PreferredEpubType: user.PreferredEpubType,
+			DefaultAction:     user.DefaultAction,
 		},
 		"exp": jwt.NewNumericDate(expiration),
 	},

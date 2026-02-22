@@ -1,28 +1,22 @@
 {{template "partials/docs-list-placeholder" .}}
 
-<div id="list">
-    <div id="search-results-header">
+<div class="row">
+    <div id="list-header" class="col-12">
         {{template "partials/docs-list-header" .}}
     </div>
-    <div class="row">
-        <aside class="col-xl-3 d-none d-xl-block">
-            <div class="card search-filters-sidebar">
-                <div class="card-body">
-                    <form action="/documents" roles="search">
-                        <div class="row">
-                            <div class="col-12">
-                                <input type="search" name="search" id="searchbox-sidebar" class="form-control" maxlength="255" value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
-                            </div>
-                        </div>
-                        {{template "partials/search-filters" dict "Lang" .Lang "SearchFields" .SearchFields "Responsive" true "NoScripts" true "Version" .Version "AvailableLanguages" .AvailableLanguages}}
-                    </form>
-                </div>
-            </div>
-        </aside>
-        <div class="col-12 col-xl-9">
-            <div id="list-results" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
-                {{ template "partials/docs-list" . }}
-            </div>
+</div>
+
+<div class="row">
+    <div id="search-filters-sidebar-col" class="col-12 col-xl-3 mt-5 d-none d-xl-block p-0">
+        <div class="border rounded-4 p-3 pb-3 search-filters-sidebar-sticky">
+            <form id="search-filters-form" action="/documents" method="get" role="search">
+                {{template "partials/search-filters" dict "Lang" .Lang "FilterIdPrefix" "sidebar" "SearchFields" .SearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "DocumentsSearchPage" .DocumentsSearchPage}}
+            </form>
+        </div>
+    </div>
+    <div class="col-12 col-xl-9">
+        <div id="list" hx-get="/documents" hx-include="#search-filters-form" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
+            {{ template "partials/docs-list-content" . }}
         </div>
     </div>
 </div>
@@ -34,3 +28,4 @@
 <script type="module" src="/js/highlight.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/complete.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/cover.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/search-filters-sidebar-pin.js{{versionParam .Version}}"></script>

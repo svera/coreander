@@ -20,6 +20,16 @@ func (s *SMTPMock) Send(address, subject, body string) error {
 	return nil
 }
 
+func (s *SMTPMock) SendBCC(addresses []string, subject, body string) error {
+	defer s.Wg.Done()
+
+	s.mu.Lock()
+	s.calledSend = true
+	s.LastBody = body
+	s.mu.Unlock()
+	return nil
+}
+
 func (s *SMTPMock) SendDocument(address, subject, libraryPath, fileName string) error {
 	defer s.Wg.Done()
 

@@ -21,6 +21,8 @@ func (u *Controller) Create(c *fiber.Ctx) error {
 		Role:           role,
 		Uuid:           uuid.NewString(),
 		WordsPerMinute: u.config.WordsPerMinute,
+		DefaultAction:  "download",
+		Language:       c.FormValue("language"),
 	}
 
 	errs := user.Validate(u.config.MinPasswordLength)

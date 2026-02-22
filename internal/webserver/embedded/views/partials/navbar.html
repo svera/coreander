@@ -8,13 +8,15 @@
         </span>
         {{end}}
         {{if not .HomeNavbar}}
-        <form action="/documents" class="d-flex justify-content-center flex-fill flex-shrink-1 pe-2" roles="search" style="min-width: 0;">
-            <div class="input-group input-group-sm w-100">
-                <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
-                <input type="search" name="search" id="searchbox" class="form-control rounded-start-1" maxlength="255" value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
-                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" id="search-filters-offcanvas-toggle" data-bs-auto-close="outside" aria-expanded="false" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders"></i></button>
-            </div>
-        </form>
+        <div class="d-flex justify-content-center flex-fill flex-shrink-1 pe-2 {{if .DocumentsSearchPage}}d-xl-none{{end}}" style="min-width: 0;">
+            <form action="/documents" class="w-100" roles="search">
+                <div class="input-group input-group-sm w-100">
+                    <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
+                    <input type="search" name="search" id="searchbox" class="form-control rounded-start-1" maxlength="255" value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" id="search-filters-offcanvas-toggle" data-bs-auto-close="outside" aria-expanded="false" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders"></i></button>
+                </div>
+            </form>
+        </div>
         {{else}}
         <div class="flex-grow-1"></div>
         {{end}}
@@ -130,12 +132,12 @@
     </div>
     <div class="offcanvas-body">
         <form action="/documents" roles="search">
-            <div class="row">
+            <div class="row mb-5">
                 <div class="col-12">
                     <input type="search" name="search" id="searchbox-offcanvas" class="form-control" maxlength="255" value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
                 </div>
             </div>
-            {{template "partials/search-filters" dict "Lang" .Lang "SearchFields" .SearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages }}
+            {{template "partials/search-filters" dict "Lang" .Lang "SearchFields" .SearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "DocumentsSearchPage" .DocumentsSearchPage }}
         </form>
     </div>
 </div>

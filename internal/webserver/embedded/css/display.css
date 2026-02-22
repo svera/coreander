@@ -105,6 +105,33 @@ main .form-control:focus {
     white-space: nowrap;
 }
 
+.search-filters-sidebar-sticky {
+    position: sticky;
+    top: 5rem; /* clear fixed-top navbar */
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
+}
+
+.search-filters-sidebar-sticky.is-pinned {
+    position: fixed;
+    /* top, left, width set by script (6rem clearance) so box stays below navbar */
+    z-index: 1030; /* above Bootstrap fixed navbar (1030) content */
+}
+
+/* Visible divider between main action and dropdown toggle (same-color buttons e.g. document detail) */
+.actions .btn-group .btn-primary + .dropdown-toggle-split,
+.actions .btn-group .btn-primary + .dropdown-toggle {
+    border-left: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+.actions .btn-group .btn-outline-secondary + .dropdown-toggle-split,
+.actions .btn-group .btn-outline-secondary + .dropdown-toggle {
+    border-left: 1px solid rgba(0, 0, 0, 0.12) !important;
+}
+[data-bs-theme=dark] .actions .btn-group .btn-outline-secondary + .dropdown-toggle-split,
+[data-bs-theme=dark] .actions .btn-group .btn-outline-secondary + .dropdown-toggle {
+    border-left-color: rgba(255, 255, 255, 0.2) !important;
+}
+
 .capitalize::first-letter {
     text-transform: capitalize;
 }

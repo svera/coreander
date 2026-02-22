@@ -54,7 +54,7 @@ func TestSearch(t *testing.T) {
 	}
 }
 
-func assertSearchResults(app *fiber.App, t *testing.T, search string, expectedResults int) {
+func assertDocumentResults(app *fiber.App, t *testing.T, search string, expectedResults int) {
 	t.Helper()
 
 	req, err := http.NewRequest(http.MethodGet, "/documents?search="+search, nil)

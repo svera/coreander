@@ -8,17 +8,11 @@ import (
 	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
 func (d *Controller) Search(c *fiber.Ctx) error {
-	emailSendingConfigured := true
-	if _, ok := d.sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
@@ -28,7 +22,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		d.config.WordsPerMinute = session.WordsPerMinute
 	}
 
-	var searchResults result.Paginated[[]index.Document]
+	var documentResults result.Paginated[[]index.Document]
 	searchFields, err := d.parseSearchQuery(c)
 	if err != nil {
 		log.Println(err)
@@ -40,29 +34,28 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		page = 1
 	}
 
-	if searchResults, err = d.idx.Search(searchFields, page, model.ResultsPerPage); err != nil {
+	if documentResults, err = d.idx.Search(searchFields, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
+	searchResults := model.AugmentedDocumentsFromDocuments(documentResults)
 	if session.ID > 0 {
-		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 		searchResults = d.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
+		searchResults = d.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
 	templateVars := fiber.Map{
-		"SearchFields":           searchFields,
-		"Results":                searchResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":                  "Search results",
-		"Htmx":                   c.Get("hx-request") == "true",
-		"EmailSendingConfigured": emailSendingConfigured,
-		"EmailFrom":              d.sender.From(),
-		"WordsPerMinute":         d.config.WordsPerMinute,
-		"URL":                    view.URL(c),
-		"SortURL":                view.SortURL(c),
-		"SortBy":                 c.Query("sort-by"),
-		"AvailableLanguages":     c.Locals("AvailableLanguages"),
+		"SearchFields":        searchFields,
+		"Results":             searchResults,
+		"Paginator":           view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":               "Search results",
+		"DocumentsSearchPage": true,
+		"EmailFrom":           d.sender.From(),
+		"WordsPerMinute":      d.config.WordsPerMinute,
+		"URL":                 view.URL(c),
+		"SortURL":             view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":              c.Query("sort-by"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
@@ -76,7 +69,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	}
 
 	if c.Get("hx-request") == "true" {
-		if err = c.Render("partials/docs-list", templateVars); err != nil {
+		if err = c.Render("partials/docs-list-fragments", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}

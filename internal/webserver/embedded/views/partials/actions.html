@@ -1,44 +1,136 @@
+{{$emailSendingConfigured := .EmailSendingConfigured}}
+{{$session := .Session}}
+{{$defaultAction := .DefaultAction}}
+{{$canShare := .CanShare}}
+{{$preferredEpub := or .PreferredEpub "epub"}}
+{{$buttonSize := "btn-sm"}}
+{{if .ButtonSize}}
+    {{$buttonSize = .ButtonSize}}
+{{end}}
+{{$buttonStyle := "btn-outline-secondary"}}
+{{if .ButtonStyle}}
+    {{$buttonStyle = .ButtonStyle}}
+{{end}}
+
+{{define "partials/action-send"}}
+    {{if not .Session}}
+        <a href="/sessions/new" class="{{.ButtonClass}}" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
+            <i class="{{.IconClass}}"></i>{{if .Label}}{{.Label}}{{end}}
+        </a>
+    {{else if not .Session.SendToEmail}}
+        <a href="/users/{{.Session.Username}}" class="{{.ButtonClass}}" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
+            <i class="{{.IconClass}}"></i>{{if .Label}}{{.Label}}{{end}}
+        </a>
+    {{else}}
+        <button type="button" hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="{{.ButtonClass}}" {{if .Session.SendToEmail}}title='{{t .Lang "Send to %s" .Session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
+            {{if .IncludeSpinner}}
+                <span id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator me-2" aria-hidden="true"></span>
+            {{end}}
+            <i class="{{.IconClass}}"></i>{{if .Label}}{{.Label}}{{end}}
+        </button>
+    {{end}}
+{{end}}
+
+{{define "partials/action-share"}}
+    {{if not .Session}}
+        <a href="/sessions/new" class="{{.ButtonClass}}" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
+            <i class="{{.IconClass}}"></i>{{if .Label}}{{.Label}}{{end}}
+        </a>
+    {{else if .CanShare}}
+        <button type="button" class="{{.ButtonClass}}" data-bs-toggle="modal" data-bs-target="#share-modal"
+                data-share-url="/documents/{{.Document.Slug}}/share"
+                data-share-document-title="{{.Document.Title}}"
+                data-share-success-message-template='{{t .Lang "%s shared" "%s"}}'>
+            <i class="{{.IconClass}}"></i>{{if .Label}}{{.Label}}{{end}}
+        </button>
+    {{end}}
+{{end}}
+
+{{define "partials/action-copy"}}
+    <button type="button" class="{{.ButtonClass}}"
+            data-copy-text="{{.FQDN}}/documents/{{.Document.Slug}}"
+            data-copy-success='{{t .Lang "Link copied"}}'>
+        <i class="{{.IconClass}}"></i>{{if .Label}}{{.Label}}{{end}}
+    </button>
+{{end}}
+
+{{define "partials/action-download"}}
+    <a href="{{.Href}}" class="{{.ButtonClass}}" download title='{{t .Lang "Download"}}'>
+        <i class="{{.IconClass}}"></i>{{if .Label}}{{.Label}}{{end}}
+        {{if .BadgeText}}<span class="{{.BadgeClass}}">{{.BadgeText}}</span>{{end}}
+    </a>
+{{end}}
+
 <div class="d-grid gap-1 mx-auto d-flex justify-content-sm-center actions">
     {{if eq .Document.Format "EPUB"}}
         <div class="btn-group flex-fill" role="group" aria-label="Button group with nested dropdown">
-            <a href="/documents/{{.Document.Slug}}/download?format={{if .Session}}{{.Session.PreferredEpubType}}{{else}}epub{{end}}" class="btn btn-sm btn-outline-secondary w-100 text-nowrap" download title='{{t .Lang "Download"}}'>
-                <i class="bi-cloud-download"></i>
-                <span class='badge text-bg-primary'>{{if .Session}}{{uppercase .Session.PreferredEpubType}}{{else}}EPUB{{end}}</span>
-            </a>
-            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Select download format"}}'></button>
+            {{if eq $defaultAction "send"}}
+                {{template "partials/action-send" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-envelope" "IncludeSpinner" true}}
+            {{else if eq $defaultAction "share"}}
+                {{template "partials/action-share" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-share-fill" "CanShare" $canShare}}
+            {{else if eq $defaultAction "copy"}}
+                {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-copy"}}
+            {{else}}
+                {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download?format=%s" .Document.Slug $preferredEpub) "BadgeText" (uppercase $preferredEpub) "BadgeClass" "badge text-bg-primary"}}
+            {{end}}
+            <button type="button" class="btn {{ $buttonSize }} {{ $buttonStyle }} dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Select download format"}}'></button>
             <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
+                {{if ne $defaultAction "download"}}
                 <li>
-                    <a href='/documents/{{.Document.Slug}}/download?format={{if .Session}}{{if eq .Session.PreferredEpubType "kepub"}}epub{{else}}kepub{{end}}{{else}}kepub{{end}}' class="dropdown-item" download title='{{t .Lang "Download"}}'>
-                        <i class="bi-cloud-download"></i>
-                        <span class='badge text-bg-primary'>{{if .Session}}{{if eq .Session.PreferredEpubType "kepub"}}EPUB{{else}}KEPUB{{end}}{{else}}KEPUB{{end}}</span>
-                    </a>
+                    {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" "dropdown-item" "Label" (t .Lang "Download") "IconClass" "bi-cloud-download me-2" "Href" (printf "/documents/%s/download?format=%s" .Document.Slug $preferredEpub) "BadgeText" (uppercase $preferredEpub) "BadgeClass" "badge text-bg-primary ms-2"}}
                 </li>
+                {{end}}
+                {{if ne $defaultAction "copy"}}
+                <li>
+                    {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" "dropdown-item" "Label" (t .Lang "Copy link") "IconClass" "bi-copy me-2"}}
+                </li>
+                {{end}}
+                {{if and $emailSendingConfigured (ne $defaultAction "send")}}
+                <li>
+                    {{template "partials/action-send" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" "dropdown-item" "Label" (t .Lang "Send to email") "IconClass" "bi-envelope me-2" "IncludeSpinner" true}}
+                </li>
+                {{end}}
+                {{if and $emailSendingConfigured (ne $defaultAction "share") (or (not $session) $canShare)}}
+                <li>
+                    {{template "partials/action-share" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" "dropdown-item" "Label" (t .Lang "Share") "IconClass" "bi-share-fill me-2" "CanShare" $canShare}}
+                </li>
+                {{end}}
             </ul>
         </div>
     {{else}}
-        <a href="/documents/{{.Document.Slug}}/download" class="btn btn-sm btn-outline-secondary flex-sm-fill text-nowrap" download title='{{t .Lang "Download"}}'>
-            <i class="bi-cloud-download"></i>
-            <span class='badge text-bg-danger'>{{.Document.Format}}</span>
-        </a>
+        <div class="btn-group flex-fill" role="group" aria-label="Button group with nested dropdown">
+                {{if and $emailSendingConfigured (eq $defaultAction "send")}}
+                    {{template "partials/action-send" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" (printf "btn %s %s flex-sm-fill text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-envelope" "IncludeSpinner" true}}
+                {{else if eq $defaultAction "share"}}
+                    {{template "partials/action-share" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" (printf "btn %s %s flex-sm-fill text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-share-fill" "CanShare" $canShare}}
+                {{else if eq $defaultAction "copy"}}
+                    {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" (printf "btn %s %s flex-sm-fill text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-copy"}}
+                {{else}}
+                    {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" (printf "btn %s %s flex-sm-fill text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download" .Document.Slug) "BadgeText" .Document.Format "BadgeClass" "badge text-bg-danger"}}
+                {{end}}
+                <button type="button" class="btn {{ $buttonSize }} {{ $buttonStyle }} dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Actions"}}'></button>
+                <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
+                    {{if ne $defaultAction "copy"}}
+                    <li>
+                        {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" "dropdown-item" "Label" (t .Lang "Copy link") "IconClass" "bi-copy me-2"}}
+                    </li>
+                    {{end}}
+                    {{if and $emailSendingConfigured (ne $defaultAction "send")}}
+                    <li>
+                        {{template "partials/action-send" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" "dropdown-item" "Label" (t .Lang "Send to email") "IconClass" "bi-envelope me-2" "IncludeSpinner" true}}
+                    </li>
+                    {{end}}
+                    {{if and $emailSendingConfigured (ne $defaultAction "share") (or (not $session) $canShare)}}
+                    <li>
+                        {{template "partials/action-share" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" "dropdown-item" "Label" (t .Lang "Share") "IconClass" "bi-share-fill me-2" "CanShare" $canShare}}
+                    </li>
+                    {{end}}
+                </ul>
+        </div>
     {{end}}
 
-    {{if .EmailSendingConfigured}}
-        {{if not .Session}}
-            <a href="/sessions/new" class="btn btn-sm btn-outline-secondary flex-fill" data-warning-once='{{t .Lang "Please login to use this feature"}}'>
-                <i class="bi-envelope-fill"></i>
-            </a>
-        {{else if not .Session.SendToEmail}}
-            <a href="/users/{{.Session.Username}}" class="btn btn-sm btn-outline-secondary flex-fill" data-warning-once='{{t .Lang "Please set your send to email address to use this feature"}}'>
-                <i class="bi-envelope-fill"></i>
-            </a>
-        {{else}}
-            <button hx-post="/documents/{{.Document.Slug}}/send" hx-swap="none" hx-include="[id='quick-email-{{.Document.Slug}}'], [id='slug-{{.Document.Slug}}']" hx-indicator="#hx-spinner-{{.Document.Slug}}" class="btn btn-sm btn-outline-secondary flex-fill" {{if .Session.SendToEmail}}title='{{t .Lang "Send to %s" .Session.SendToEmail}}'{{end}} data-error-message='{{t .Lang "There was an error sending %s to ${email}, please try again later" .Document.Title}}' data-success-message='{{t .Lang "%s sent to ${email}" .Document.Title}}'>
-                <div id="hx-spinner-{{.Document.Slug}}" class="spinner-border spinner-border-sm htmx-indicator" aria-hidden="true"></div>
-                <i class="bi-envelope-fill"></i>
-            </button>
-            <input type="hidden" name="email" id="quick-email-{{.Document.Slug}}" value="{{.Session.SendToEmail}}" />
-            <input type="hidden" name="slug" id="slug-{{.Document.Slug}}" value="{{.Document.Slug}}" />
-        {{end}}
+    {{if and $emailSendingConfigured $session $session.SendToEmail}}
+        <input type="hidden" name="email" id="quick-email-{{.Document.Slug}}" value="{{$session.SendToEmail}}" />
+        <input type="hidden" name="slug" id="slug-{{.Document.Slug}}" value="{{.Document.Slug}}" />
     {{end}}
-
 </div>

@@ -5,9 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
@@ -38,44 +36,33 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	emailSendingConfigured := true
-	if _, ok := h.sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
 	if c.Query("view") == "latest" {
-		highlights, _, err := h.sortedHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount), "created_at DESC")
+		highlights, err := h.latestHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount))
 		if err != nil {
 			return err
 		}
-		// Add completion status for latest highlights
-		if session.ID > 0 {
-			for i := range highlights {
-				highlights[i] = h.readingRepository.Completed(int(session.ID), highlights[i])
-			}
-		}
-		return h.latest(c, highlights, emailSendingConfigured)
+		return h.latest(c, highlights)
 	}
 
 	sortBy := "created_at DESC"
 	if c.Query("sort-by") == "highlighted-older-first" {
 		sortBy = "created_at ASC"
 	}
-	highlights, totalHits, err := h.sortedHighlights(page, user, model.ResultsPerPage, sortBy)
+	filter := c.Query("filter")
+	switch filter {
+	case "highlights", "shared":
+	default:
+		filter = "all"
+	}
+	paginatedResults, err := h.sortedHighlightResults(page, user, model.ResultsPerPage, sortBy, filter)
 	if err != nil {
 		return err
 	}
 
-	paginatedResults := result.NewPaginated(
-		model.ResultsPerPage,
-		page,
-		totalHits,
-		highlights,
-	)
-
-	// Add completion status for each document
-	if session.ID > 0 {
-		paginatedResults = h.readingRepository.CompletedPaginatedResult(int(session.ID), paginatedResults)
+	totalAll, err := h.hlRepository.Total(int(user.ID))
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
 	}
 
 	layout := "layout"
@@ -84,16 +71,18 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Results":                paginatedResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, paginatedResults, c.Queries()),
-		"Title":                  "Highlights",
-		"EmailSendingConfigured": emailSendingConfigured,
-		"EmailFrom":              h.sender.From(),
-		"WordsPerMinute":         h.wordsPerMinute,
-		"URL":                    view.URL(c),
-		"SortURL":                view.SortURL(c),
-		"SortBy":                 c.Query("sort-by"),
-		"AvailableLanguages":     c.Locals("AvailableLanguages"),
+		"Results":              paginatedResults,
+		"Paginator":            view.Pagination(model.MaxPagesNavigator, paginatedResults, c.Queries()),
+		"Title":                "Highlights",
+		"EmailFrom":            h.sender.From(),
+		"WordsPerMinute":       h.wordsPerMinute,
+		"URL":                  view.URL(c),
+		"SortURL":              view.BaseURLWithout(c, "sort-by", "page"),
+		"FilterURL":            view.BaseURLWithout(c, "filter", "page"),
+		"SortBy":               c.Query("sort-by"),
+		"HighlightsFilter":     filter,
+		"HighlightsTotalAll":   totalAll,
+		"ShowHighlightsFilter": true,
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
@@ -104,7 +93,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	if c.Get("hx-request") == "true" {
-		if err = c.Render("partials/docs-list", templateVars); err != nil {
+		if err = c.Render("partials/highlights-list", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
@@ -118,46 +107,82 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	return nil
 }
 
-func (h *Controller) sortedHighlights(page int, user *model.User, highlightsAmount int, sortBy string) ([]index.Document, int, error) {
-	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy)
+func (h *Controller) sortedHighlightResults(page int, user *model.User, highlightsAmount int, sortBy, filter string) (result.Paginated[[]model.AugmentedDocument], error) {
+	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
 	if err != nil {
 		log.Println(err)
-		return nil, 0, fiber.ErrInternalServerError
+		return result.Paginated[[]model.AugmentedDocument]{}, fiber.ErrInternalServerError
 	}
 
 	if docsSortedByHighlightedDate.TotalPages() < page {
 		page = docsSortedByHighlightedDate.TotalPages()
-		docsSortedByHighlightedDate, err = h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy)
+		docsSortedByHighlightedDate, err = h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
 		if err != nil {
 			log.Println(err)
-			return nil, 0, fiber.ErrInternalServerError
+			return result.Paginated[[]model.AugmentedDocument]{}, fiber.ErrInternalServerError
 		}
 	}
 
-	highlights := make([]index.Document, 0, len(docsSortedByHighlightedDate.Hits()))
-	for _, path := range docsSortedByHighlightedDate.Hits() {
-		doc, err := h.idx.DocumentByID(path)
+	searchResults := make([]model.AugmentedDocument, 0, len(docsSortedByHighlightedDate.Hits()))
+	for _, highlight := range docsSortedByHighlightedDate.Hits() {
+		doc, err := h.idx.DocumentByID(highlight.Path)
 		if err != nil {
 			log.Println(err)
-			return nil, 0, fiber.ErrInternalServerError
+			return result.Paginated[[]model.AugmentedDocument]{}, fiber.ErrInternalServerError
 		}
 		if doc.ID == "" {
 			continue
 		}
-		doc.Highlighted = true
-		highlights = append(highlights, doc)
+		searchResults = append(searchResults, model.AugmentedDocument{
+			Document:  doc,
+			Highlight: highlight,
+		})
 	}
 
-	return highlights, docsSortedByHighlightedDate.TotalHits(), nil
+	paginatedResults := result.NewPaginated(
+		model.ResultsPerPage,
+		page,
+		docsSortedByHighlightedDate.TotalHits(),
+		searchResults,
+	)
+
+	paginatedResults = h.readingRepository.CompletedPaginatedResult(int(user.ID), paginatedResults)
+
+	return paginatedResults, nil
 }
 
-func (h *Controller) latest(c *fiber.Ctx, highlights []index.Document, emailSendingConfigured bool) error {
+func (h *Controller) latestHighlights(page int, user *model.User, highlightsAmount int) ([]model.AugmentedDocument, error) {
+	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, "created_at DESC", "all")
+	if err != nil {
+		log.Println(err)
+		return nil, fiber.ErrInternalServerError
+	}
+
+	highlights := make([]model.AugmentedDocument, 0, len(docsSortedByHighlightedDate.Hits()))
+	for _, highlight := range docsSortedByHighlightedDate.Hits() {
+		doc, err := h.idx.DocumentByID(highlight.Path)
+		if err != nil {
+			log.Println(err)
+			return nil, fiber.ErrInternalServerError
+		}
+		if doc.ID == "" {
+			continue
+		}
+		highlights = append(highlights, model.AugmentedDocument{
+			Document:  doc,
+			Highlight: highlight,
+		})
+	}
+
+	return highlights, nil
+}
+
+func (h *Controller) latest(c *fiber.Ctx, highlights []model.AugmentedDocument) error {
 	err := c.Render("partials/latest-highlights", fiber.Map{
-		"Highlights":             highlights,
-		"EmailSendingConfigured": emailSendingConfigured,
-		"EmailFrom":              h.sender.From(),
-		"WordsPerMinute":         h.wordsPerMinute,
-		"Amount":                 c.QueryInt("amount", latestHighlightsAmount),
+		"Highlights":     highlights,
+		"EmailFrom":      h.sender.From(),
+		"WordsPerMinute": h.wordsPerMinute,
+		"Amount":         c.QueryInt("amount", latestHighlightsAmount),
 	})
 	if err != nil {
 		log.Println(err)
