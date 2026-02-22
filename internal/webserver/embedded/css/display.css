@@ -233,15 +233,6 @@ main .form-control:focus {
     position: relative;
 }
 
-@media (min-width: 1200px) {
-    .search-filters-sidebar {
-        position: sticky;
-        top: 5rem;
-        max-height: calc(100vh - 6rem);
-        overflow-y: auto;
-    }
-}
-
 /* Completion checkbox and date styles */
 input[id^="complete-checkbox-"],
 label[id^="complete-label-"],
