@@ -171,7 +171,6 @@ function initSearchFilters(searchFilters) {
                 const sidebarContainer = document.getElementById('search-filters-sidebar')
                 if (sidebarContainer) sidebarContainer.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
             }
-            document.body.dispatchEvent(new CustomEvent('update'))
             const formData = new FormData(sidebarForm)
             const params = new URLSearchParams()
             for (const [k, v] of formData.entries()) {
@@ -179,6 +178,25 @@ function initSearchFilters(searchFilters) {
             }
             const queryString = params.toString()
             const url = '/documents' + (queryString ? '?' + queryString : '')
+            list.classList.add('htmx-request')
+            fetch(url, { headers: { 'HX-Request': 'true' } })
+                .then((res) => res.text())
+                .then((html) => {
+                    const doc = new DOMParser().parseFromString(html, 'text/html')
+                    const oob = doc.getElementById('list-header')
+                    const listHeaderTarget = document.getElementById('list-header')
+                    if (oob && listHeaderTarget) {
+                        listHeaderTarget.innerHTML = oob.innerHTML
+                    }
+                    const fragment = document.createDocumentFragment()
+                    for (const child of doc.body.children) {
+                        if (child.id !== 'list-header') fragment.appendChild(child)
+                    }
+                    list.innerHTML = ''
+                    list.appendChild(fragment)
+                })
+                .catch(() => {})
+                .finally(() => list.classList.remove('htmx-request'))
             history.replaceState(null, '', url)
             syncSidebarFormToOffcanvas()
         } else {
@@ -396,7 +414,20 @@ function copyFormValues(sourceForm, targetForm) {
 }
 
 /**
+ * Year string for display: strip leading zeros so the input shows e.g. "25" not "0025".
+ * Preserves a leading minus for BC years (e.g. "-500").
+ */
+function yearForDisplay(isoYear) {
+    if (!isoYear) return ''
+    const sign = (isoYear.startsWith('-') || isoYear.startsWith('+')) ? isoYear.slice(0, 1) : ''
+    const digits = sign ? isoYear.slice(1) : isoYear
+    const trimmed = digits.replace(/^0+/, '') || '0'
+    return sign + trimmed
+}
+
+/**
  * Apply hidden date input values (YYYY-MM-DD) to the visible year/month/day inputs in each .date-control.
+ * Year is shown without leading zeros in the input box; the hidden value stays zero-padded for ISO.
  */
 function applyHiddenDatesToVisible(container) {
     if (!container) return
@@ -408,7 +439,7 @@ function applyHiddenDatesToVisible(container) {
         const yearInput = dateControl.querySelector('.input-year')
         const monthSelect = dateControl.querySelector('.input-month')
         const dayInput = dateControl.querySelector('.input-day')
-        if (yearInput) yearInput.value = parts[0]
+        if (yearInput) yearInput.value = yearForDisplay(parts[0])
         if (monthSelect) monthSelect.value = parts[1]
         if (dayInput) dayInput.value = String(parseInt(parts[2], 10))
     })
