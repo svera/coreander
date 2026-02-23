@@ -14,6 +14,10 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
+// Path prefixes for referers that get a "Return" back link on document detail.
+// For "/documents" we only show the link when the referer has a query string (e.g. filters applied).
+var backLinkPathPrefixes = []string{"/authors", "/documents", "/highlights", "/series"}
+
 func (d *Controller) Detail(c *fiber.Ctx) error {
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
@@ -46,23 +50,22 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 	backLink := ""
 	if referer := string(c.Context().Referer()); referer != "" {
 		if parsed, err := url.Parse(referer); err == nil {
-			switch {
-			case parsed.Path == "/documents" && parsed.RawQuery != "":
-				backLink = parsed.Path + "?" + parsed.RawQuery
-			case strings.HasPrefix(parsed.Path, "/authors"):
-				backLink = parsed.Path
-				if parsed.RawQuery != "" {
-					backLink += "?" + parsed.RawQuery
+			path := parsed.Path
+			query := parsed.RawQuery
+			showBack := false
+			for _, prefix := range backLinkPathPrefixes {
+				if strings.HasPrefix(path, prefix) {
+					showBack = true
+					break
 				}
-			case strings.HasPrefix(parsed.Path, "/highlights"):
-				backLink = parsed.Path
-				if parsed.RawQuery != "" {
-					backLink += "?" + parsed.RawQuery
-				}
-			case strings.HasPrefix(parsed.Path, "/series"):
-				backLink = parsed.Path
-				if parsed.RawQuery != "" {
-					backLink += "?" + parsed.RawQuery
+			}
+			if showBack && path == "/documents" && query == "" {
+				showBack = false // documents without query (e.g. plain /documents) — no back link
+			}
+			if showBack {
+				backLink = path
+				if query != "" {
+					backLink += "?" + query
 				}
 			}
 		}
