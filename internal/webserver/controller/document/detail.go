@@ -59,6 +59,11 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 				if parsed.RawQuery != "" {
 					backLink += "?" + parsed.RawQuery
 				}
+			case strings.HasPrefix(parsed.Path, "/series"):
+				backLink = parsed.Path
+				if parsed.RawQuery != "" {
+					backLink += "?" + parsed.RawQuery
+				}
 			}
 		}
 	}
