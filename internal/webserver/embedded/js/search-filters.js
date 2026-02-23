@@ -171,7 +171,6 @@ function initSearchFilters(searchFilters) {
                 const sidebarContainer = document.getElementById('search-filters-sidebar')
                 if (sidebarContainer) sidebarContainer.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
             }
-            document.body.dispatchEvent(new CustomEvent('update'))
             const formData = new FormData(sidebarForm)
             const params = new URLSearchParams()
             for (const [k, v] of formData.entries()) {
@@ -179,6 +178,23 @@ function initSearchFilters(searchFilters) {
             }
             const queryString = params.toString()
             const url = '/documents' + (queryString ? '?' + queryString : '')
+            list.classList.add('htmx-request')
+            fetch(url, { headers: { 'HX-Request': 'true' } })
+                .then((res) => res.text())
+                .then((html) => {
+                    const doc = new DOMParser().parseFromString(html, 'text/html')
+                    const oob = doc.getElementById('list-header')
+                    const listHeaderTarget = document.getElementById('list-header')
+                    if (oob && listHeaderTarget) {
+                        listHeaderTarget.innerHTML = oob.innerHTML
+                    }
+                    const body = doc.getElementById('list-fragment-body')
+                    if (body) {
+                        list.innerHTML = body.innerHTML
+                    }
+                })
+                .catch(() => {})
+                .finally(() => list.classList.remove('htmx-request'))
             history.replaceState(null, '', url)
             syncSidebarFormToOffcanvas()
         } else {
