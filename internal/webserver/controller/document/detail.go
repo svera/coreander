@@ -3,6 +3,7 @@ package document
 import (
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,41 @@ import (
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
+
+// Path prefixes for referers that get a "Return" back link on document detail.
+// For "/documents" we only show the link when the referer has a query string (e.g. filters applied).
+var backLinkPathPrefixes = []string{"/authors", "/documents", "/highlights", "/series"}
+
+// backLinkFromReferer returns a URL path (and optional query) for the "Return" link when the
+// referer is one of the allowed routes; otherwise it returns an empty string.
+func backLinkFromReferer(referer string) string {
+	if referer == "" {
+		return ""
+	}
+	parsed, err := url.Parse(referer)
+	if err != nil {
+		return ""
+	}
+	path := parsed.Path
+	query := parsed.RawQuery
+	showBack := false
+	for _, prefix := range backLinkPathPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			showBack = true
+			break
+		}
+	}
+	if showBack && path == "/documents" && query == "" {
+		showBack = false
+	}
+	if !showBack {
+		return ""
+	}
+	if query != "" {
+		return path + "?" + query
+	}
+	return path
+}
 
 func (d *Controller) Detail(c *fiber.Ctx) error {
 	var session model.Session
@@ -42,6 +78,8 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		title = fmt.Sprintf("%s - %s", strings.Join(document.Authors, ", "), document.Title)
 	}
 
+	backLink := backLinkFromReferer(string(c.Context().Referer()))
+
 	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, int(session.ID))
 
 	var completedOn *time.Time
@@ -57,6 +95,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 	result.CompletedOn = completedOn
 	return c.Render("document/detail", fiber.Map{
 		"Title":          title,
+		"BackLink":       backLink,
 		"Document":       result,
 		"EmailFrom":      d.sender.From(),
 		"SameSeries":     sameSeries,
