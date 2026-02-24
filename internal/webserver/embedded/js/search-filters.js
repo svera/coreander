@@ -159,9 +159,8 @@ function initSearchFilters(searchFilters) {
     function applyFilters() {
         applyingFilters = true
         composeDateControls()
-        const list = document.getElementById('list')
         const sidebarForm = document.getElementById('search-filters-form')
-        if (list && sidebarForm && isDocumentsPage) {
+        if (sidebarForm && isDocumentsPage) {
             if (searchFiltersForm !== sidebarForm) {
                 const formData = new FormData(searchFiltersForm)
                 for (const [k, v] of formData.entries()) {
@@ -178,23 +177,7 @@ function initSearchFilters(searchFilters) {
             }
             const queryString = params.toString()
             const url = '/documents' + (queryString ? '?' + queryString : '')
-            list.classList.add('htmx-request')
-            fetch(url, { headers: { 'HX-Request': 'true' } })
-                .then((res) => res.text())
-                .then((html) => {
-                    const doc = new DOMParser().parseFromString(html, 'text/html')
-                    const oob = doc.getElementById('list-header')
-                    const listHeaderTarget = document.getElementById('list-header')
-                    if (oob && listHeaderTarget) {
-                        listHeaderTarget.innerHTML = oob.innerHTML
-                    }
-                    const body = doc.getElementById('list-fragment-body')
-                    if (body) {
-                        list.innerHTML = body.innerHTML
-                    }
-                })
-                .catch(() => {})
-                .finally(() => list.classList.remove('htmx-request'))
+            window.htmx.trigger(document.body, 'update')
             history.replaceState(null, '', url)
             syncSidebarFormToOffcanvas()
         } else {

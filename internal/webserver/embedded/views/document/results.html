@@ -1,5 +1,3 @@
-{{template "partials/docs-list-placeholder" .}}
-
 <div class="row">
     <div id="list-header" class="col-12">
         {{template "partials/docs-list-header" .}}
@@ -15,6 +13,7 @@
         </div>
     </div>
     <div class="col-12 col-xl-9">
+        {{template "partials/docs-list-placeholder" .}}
         <div id="list" hx-get="/documents" hx-include="#search-filters-form" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
             {{ template "partials/docs-list-content" . }}
         </div>

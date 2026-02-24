@@ -195,7 +195,7 @@ main .form-control:focus {
     display: inline-block;
 }
 
-.htmx-request.list-group-placeholder ~ div {
+.htmx-request.list-group-placeholder ~ #list {
     display: none;
 }
 
