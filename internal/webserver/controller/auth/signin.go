@@ -9,6 +9,10 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
+// guestOnlyPathPrefixes are URL path prefixes for routes that use AllowIfNotLoggedIn.
+// After login we must not redirect here or the user gets Forbidden.
+var guestOnlyPathPrefixes = []string{"/sessions", "/recover", "/reset-password", "/invite"}
+
 // Signs in a user and gives them a JWT.
 func (a *Controller) SignIn(c fiber.Ctx) error {
 	var (
@@ -46,12 +50,23 @@ func (a *Controller) SignIn(c fiber.Ctx) error {
 		HTTPOnly: true,
 	})
 
+	// Redirect back to the page they came from, but never to guest-only routes:
+	// those use AllowIfNotLoggedIn and would return Forbidden for a logged-in user.
 	referer := string(c.RequestCtx().Referer())
-	if referer != "" && !strings.Contains(referer, "/sessions") {
+	if referer != "" && !isGuestOnlyReferer(referer) {
 		return c.Redirect().To(referer)
 	}
 
 	return c.Redirect().To("/")
+}
+
+func isGuestOnlyReferer(referer string) bool {
+	for _, prefix := range guestOnlyPathPrefixes {
+		if strings.Contains(referer, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func GenerateToken(c fiber.Ctx, user *model.User, expiration time.Time, secret []byte) (string, error) {

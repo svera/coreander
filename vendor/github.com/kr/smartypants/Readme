@@ -1,4 +1,0 @@
-Package smartypants is an implementation of John Gruber’s SmartyPants in Go.
-See http://daringfireball.net/projects/smartypants/. This code was taken
-from https://github.com/russross/blackfriday and modified into a standalone
-package.

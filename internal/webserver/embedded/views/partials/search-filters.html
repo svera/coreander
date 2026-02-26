@@ -105,11 +105,13 @@
             </div>
         </div>
     </fieldset>
+    {{if not .DocumentsSearchPage}}
     <div class="row mt-4 g-0 w-100 px-2">
         <div class="col-12">
             <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
         </div>
     </div>
+    {{end}}
 </div>
 
 {{/* Include script and i18n from sidebar when on documents search page (so script runs after sidebar is in DOM); otherwise include from offcanvas. */}}
