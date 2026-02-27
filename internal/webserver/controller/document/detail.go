@@ -40,6 +40,10 @@ func backLinkFromReferer(referer string) string {
 	if showBack && path == "/documents" && query == "" {
 		showBack = false
 	}
+	// Do not show back link when coming from the document reader
+	if showBack && strings.HasPrefix(path, "/documents/") && strings.HasSuffix(path, "/read") {
+		showBack = false
+	}
 	if !showBack {
 		return ""
 	}
