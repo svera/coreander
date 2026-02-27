@@ -53,4 +53,6 @@ func FmtDuration(d time.Duration) string {
 type Reader interface {
 	Metadata(file string) (Metadata, error)
 	Cover(documentFullPath string, coverMaxWidth int) ([]byte, error)
+	// Illustrations returns the number of images that count as illustrations (excluding cover, size >= minMegapixels).
+	Illustrations(documentFullPath string, minMegapixels float64) (int, error)
 }

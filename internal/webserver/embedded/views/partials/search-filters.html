@@ -105,6 +105,21 @@
             </div>
         </div>
     </fieldset>
+    <fieldset class="mt-4">
+        <legend class="fs-5"><i class="bi bi-images me-3"></i>{{t .Lang "Illustrations"}}</legend>
+        <div class="row">
+            <div class="col-12">
+                {{$illustratedOnly := false}}
+                {{if .SearchFields}}
+                    {{$illustratedOnly = .SearchFields.IllustratedOnly}}
+                {{end}}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="illustrated-only" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}illustrated-only" value="on" {{if $illustratedOnly}}checked{{end}}>
+                    <label class="form-check-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}illustrated-only">{{t .Lang "Only illustrated"}}</label>
+                </div>
+            </div>
+        </div>
+    </fieldset>
     {{if not .DocumentsSearchPage}}
     <div class="row mt-4 g-0 w-100 px-2">
         <div class="col-12">

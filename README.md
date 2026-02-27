@@ -126,6 +126,8 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`-b` or `--batch-size`               |`BATCH_SIZE`              | Number of documents persisted by the indexer in one write operation. Defaults to 100.
 |`--cover-max-width`                  |`COVER_MAX_WIDTH`         | Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 600.
 |`--author-image-max-width`           |`AUTHOR_IMAGE_MAX_WIDTH`  | Maximum horizontal size for author images in pixels. Set to 0 to keep original image size. Defaults to 600.
+|`--illustrated-min-amount`           |`ILLUSTRATED_MIN_AMOUNT`  | Minimum number of illustrations (excluding cover) for a document to be considered illustrated. Defaults to 2.
+|`--illustrated-min-size`             |`ILLUSTRATED_MIN_SIZE`    | Minimum size in megapixels for an image to count as an illustration. Defaults to 0.25.
 |`-c` or `--cache-dir`                |`CACHE_DIR`                       | Directory where to store cache files. Defaults to `~/.coreander/cache`.
 |`--client-static-cache-ttl`          |`CLIENT_STATIC_CACHE_TTL`         | Client-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 31536000 (1 year).
 |`--client-dynamic-image-cache-ttl`   |`CLIENT_DYNAMIC_IMAGE_CACHE_TTL`  | Client-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 86400 (24 hours).

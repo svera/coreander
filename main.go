@@ -75,8 +75,11 @@ func init() {
 
 	var documentsIndex, authorsIndex bleve.Index
 	var needsReindex bool
-	documentsIndex, authorsIndex, needsReindex, migrationSuccessful = getIndexes(appFs)
-	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders)
+	documentsIndex, authorsIndex, needsReindex, migrationSuccessful = getIndexes(appFs, input.IllustratedMinSize)
+	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
+		IllustratedMinAmount: input.IllustratedMinAmount,
+		IllustratedMinSize:   input.IllustratedMinSize,
+	})
 
 	// If index was migrated or newly created, force reindexing
 	if needsReindex {
@@ -180,7 +183,7 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
 	fileWatcher(idx, libPath)
 }
 
-func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool, bool) {
+func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Index, bool, bool) {
 	needsReindex := false
 	migrationSuccessful := false
 
@@ -226,6 +229,25 @@ func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool, bool) {
 		}
 		documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)
 		needsReindex = true
+	}
+
+	// Rebuild index if illustrated-min-size config changed (stored in index metadata)
+	if !needsReindex {
+		reindexForConfig, err := index.NeedsReindexForIllustratedConfig(documentsIndex, illustratedMinSize)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if reindexForConfig {
+			log.Println("Illustrated min size config changed, recreating documents index.")
+			if err = documentsIndex.Close(); err != nil {
+				log.Fatal(err)
+			}
+			if err = fs.RemoveAll(homeDir + documentsIndexPath); err != nil {
+				log.Fatal(err)
+			}
+			documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)
+			needsReindex = true
+		}
 	}
 
 	// Check authors index version

@@ -92,6 +92,11 @@ func (p PdfReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, er
 	return resize(src, coverMaxWidth, err)
 }
 
+// Illustrations returns the number of illustrations; PDFs are not counted for now.
+func (p PdfReader) Illustrations(documentFullPath string, minMegapixels float64) (int, error) {
+	return 0, nil
+}
+
 func decodePDF(r io.Reader) (io.Reader, error) {
 	conf := model.NewDefaultConfiguration()
 	conf.ValidationMode = model.ValidationRelaxed

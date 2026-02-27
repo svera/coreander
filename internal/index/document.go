@@ -16,6 +16,7 @@ type SearchFields struct {
 	EstReadTimeFrom float64
 	EstReadTimeTo   float64
 	WordsPerMinute  float64
+	IllustratedOnly bool
 	SortBy          []string
 }
 
@@ -26,6 +27,7 @@ type Document struct {
 	AuthorsSlugs  []string
 	SeriesSlug    string
 	SubjectsSlugs []string
+	Illustrations int
 	AddedOn       time.Time
 }
 

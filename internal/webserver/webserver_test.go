@@ -80,7 +80,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 	indexFile, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err == nil {
 		authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
-		idx = index.NewBleve(indexFile, authorsIndexMem, appFs, webserverConfig.LibraryPath, metadataReaders)
+		idx = index.NewBleve(indexFile, authorsIndexMem, appFs, webserverConfig.LibraryPath, metadataReaders, index.Config{})
 	}
 
 	err = idx.AddLibrary(100, true)
