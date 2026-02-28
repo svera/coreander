@@ -91,5 +91,3 @@ func GenerateToken(c fiber.Ctx, user *model.User, expiration time.Time, secret [
 
 	return token.SignedString(secret)
 }
-
-// fiber:context-methods migrated
