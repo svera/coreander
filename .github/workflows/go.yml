@@ -22,5 +22,5 @@ jobs:
       run: go build .
 
     - name: Test
-      run: go test -v ./... --cover
+      run: go test -v -coverprofile=coverage.out ./...
 
