@@ -12,6 +12,9 @@
         <dt class="col-8">{{t .Lang "Pages" }}</dt>
         <dd class="col-4 text-end">{{.Document.Pages}}<dd>
     {{ end }}
+    {{ if and .IllustratedMinAmount (ge .Document.Illustrations .IllustratedMinAmount) }}
+        <dt class="col-12"><i class="bi bi-images me-2"></i>{{t .Lang "Illustrated"}}</dt>
+    {{ end }}
     {{if .Session}}
         <dt class="col-6">
             <input class="form-check-input me-2" type="checkbox"

@@ -31,7 +31,7 @@
         {{template "partials/actions" dict "Lang" .Lang "Document" .Document "Session" .Session "FQDN" .fqdn "Version" .Version "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "EmailFrom" .EmailFrom "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize "ButtonSize" "btn-lg" "ButtonStyle" "btn-primary"}}
 
         <div id="document-metadata-{{.Document.Slug}}">
-            {{template "partials/document-metadata" dict "Lang" .Lang "Document" .Document "Session" .Session "WordsPerMinute" .WordsPerMinute}}
+            {{template "partials/document-metadata" dict "Lang" .Lang "Document" .Document "Session" .Session "WordsPerMinute" .WordsPerMinute "IllustratedMinAmount" .IllustratedMinAmount}}
         </div>
 
 

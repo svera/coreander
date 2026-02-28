@@ -75,7 +75,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 		"Paginator":            view.Pagination(model.MaxPagesNavigator, paginatedResults, c.Queries()),
 		"Title":                "Highlights",
 		"EmailFrom":            h.sender.From(),
-		"WordsPerMinute":       h.wordsPerMinute,
+		"WordsPerMinute": h.wordsPerMinute,
 		"URL":                  view.URL(c),
 		"SortURL":              view.BaseURLWithout(c, "sort-by", "page"),
 		"FilterURL":            view.BaseURLWithout(c, "filter", "page"),

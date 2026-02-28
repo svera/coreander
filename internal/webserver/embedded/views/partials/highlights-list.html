@@ -32,7 +32,7 @@
 <ul class="list-group border-top rounded-0">
     {{range $i, $result := .Results.Hits}}
     <li class="list-group-item border border-0 px-0 mt-5">
-        {{template "partials/docs-list-item" dict "Lang" $.Lang "Document" $result "Session" $.Session "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $.WordsPerMinute "EmailSendingConfigured" $.EmailSendingConfigured "DefaultAction" $.DefaultAction "CanShare" $.CanShare "PreferredEpub" $.PreferredEpub}}
+        {{template "partials/docs-list-item" dict "Lang" $.Lang "Document" $result "Session" $.Session "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $.WordsPerMinute "IllustratedMinAmount" $.IllustratedMinAmount "EmailSendingConfigured" $.EmailSendingConfigured "DefaultAction" $.DefaultAction "CanShare" $.CanShare "PreferredEpub" $.PreferredEpub}}
     </li>
     {{end}}
 </ul>

@@ -71,6 +71,9 @@
                     {{ if .Document.Pages }}
                         <li><i class="bi bi-book me-2"></i>{{.Document.Pages}}</li>
                     {{ end }}
+                    {{ if and .IllustratedMinAmount (ge .Document.Illustrations .IllustratedMinAmount) }}
+                        <li><i class="bi bi-images me-2"></i>{{t .Lang "Illustrated"}}</li>
+                    {{ end }}
 
                     {{if .Session}}
                         <li>

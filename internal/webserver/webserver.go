@@ -54,6 +54,7 @@ type Config struct {
 	ServerDynamicImageCacheTTL int
 	ShareCommentMaxSize        int
 	ShareMaxRecipients         int
+	IllustratedMinAmount       int
 }
 
 type Sender interface {

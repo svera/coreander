@@ -55,11 +55,11 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Author":         author,
-		"Results":        searchResults,
-		"Paginator":      view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":          author.Name,
-		"EmailFrom":      a.sender.From(),
+		"Author":              author,
+		"Results":             searchResults,
+		"Paginator":           view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":               author.Name,
+		"EmailFrom":            a.sender.From(),
 		"WordsPerMinute": a.config.WordsPerMinute,
 		"URL":            view.URL(c),
 		"SortURL":        view.BaseURLWithout(c, "sort-by", "page"),

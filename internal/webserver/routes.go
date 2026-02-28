@@ -53,14 +53,14 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		c.Locals("Version", c.App().Config().AppName)
 		c.Locals("SupportedLanguages", supportedLanguages)
 		c.Locals("Lang", chooseBestLanguage(c))
-		c.Locals("ShareCommentMaxSize", cfg.ShareCommentMaxSize)
-		c.Locals("ShareMaxRecipients", cfg.ShareMaxRecipients)
 		q := c.Queries()
 		delete(q, "l")
 		c.Locals("URLPath", c.Path())
 		c.Locals("QueryString", view.ToQueryString(q))
 		return c.Next()
 	})
+
+	app.Use(SetConfigLocals(cfg))
 
 	// Set available languages for the language filter
 	app.Use(SetAvailableLanguages(idx))

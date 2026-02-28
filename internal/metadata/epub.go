@@ -5,6 +5,10 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"log"
 	"path"
@@ -204,28 +208,38 @@ func (e EpubReader) Illustrations(documentFullPath string, minMegapixels float64
 	}
 	coverPaths := coverCandidatePaths(coverFileName, opfBaseDir)
 
-	var count int
 	if opf.Manifest == nil {
 		return 0, nil
 	}
+	zipByName := make(map[string]*zip.File, len(r.File))
+	for _, f := range r.File {
+		zipByName[f.Name] = f
+	}
+	// Count each distinct image file only once (manifest may reference the same file multiple times)
+	seen := make(map[string]struct{})
+	var count int
 	for _, item := range opf.Manifest.Items {
 		if !strings.HasPrefix(item.MediaType, "image/") {
 			continue
 		}
 		resolved := resolveHref(item.Href, opfBaseDir)
 		candidates := imageCandidatePaths(resolved)
-		zipPath := findZipEntryPath(r, candidates)
+		zipPath := findZipEntryPathFromMap(zipByName, candidates)
 		if zipPath == "" {
 			continue
 		}
 		if _, isCover := coverPaths[zipPath]; isCover {
 			continue
 		}
-		mp, err := imageMegapixels(r, zipPath)
+		if _, alreadyCounted := seen[zipPath]; alreadyCounted {
+			continue
+		}
+		mp, err := imageMegapixelsFromZip(zipByName, zipPath)
 		if err != nil {
 			continue
 		}
 		if mp >= minMegapixels {
+			seen[zipPath] = struct{}{}
 			count++
 		}
 	}
@@ -254,12 +268,60 @@ func findZipEntryPath(r *zip.ReadCloser, candidates map[string]struct{}) string 
 	return ""
 }
 
+func findZipEntryPathFromMap(zipByName map[string]*zip.File, candidates map[string]struct{}) string {
+	for name := range candidates {
+		if _, ok := zipByName[name]; ok {
+			return name
+		}
+	}
+	return ""
+}
+
 func imageMegapixels(r *zip.ReadCloser, zipPath string) (float64, error) {
 	rc, err := readZipFileReader(r, zipPath)
 	if err != nil || rc == nil {
 		return 0, err
 	}
-	defer rc.Close()
+	cfg, _, err := image.DecodeConfig(rc)
+	rc.Close()
+	if err == nil {
+		return float64(cfg.Width*cfg.Height) / 1e6, nil
+	}
+	rc2, _ := readZipFileReader(r, zipPath)
+	if rc2 != nil {
+		defer rc2.Close()
+		return imageMegapixelsFromReader(rc2)
+	}
+	return 0, err
+}
+
+// imageMegapixelsFromZip gets dimensions from the zip entry using a pre-built map (avoids repeated zip scans).
+// Tries image.DecodeConfig first (header-only for JPEG/PNG/GIF); only reads and decodes the full file when needed.
+func imageMegapixelsFromZip(zipByName map[string]*zip.File, zipPath string) (float64, error) {
+	f, ok := zipByName[zipPath]
+	if !ok {
+		return 0, fmt.Errorf("epub: no zip entry %q", zipPath)
+	}
+	rc, err := f.Open()
+	if err != nil {
+		return 0, err
+	}
+	cfg, _, err := image.DecodeConfig(rc)
+	rc.Close()
+	if err == nil {
+		return float64(cfg.Width*cfg.Height) / 1e6, nil
+	}
+	// Fallback: full read and decode for WebP, malformed headers, etc.
+	rc2, err := f.Open()
+	if err != nil {
+		return 0, err
+	}
+	defer rc2.Close()
+	return imageMegapixelsFromReader(rc2)
+}
+
+// imageMegapixelsFromReader returns megapixels by full decode (used when DecodeConfig is not enough).
+func imageMegapixelsFromReader(rc io.Reader) (float64, error) {
 	data, err := io.ReadAll(rc)
 	if err != nil {
 		return 0, err
