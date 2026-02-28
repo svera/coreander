@@ -8,8 +8,8 @@ import (
 
 	"github.com/gofiber/fiber/v3/extractors"
 
-	"github.com/gofiber/fiber/v3"
 	jwtware "github.com/gofiber/contrib/v3/jwt"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
