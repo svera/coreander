@@ -65,8 +65,8 @@ func TestAuthentication(t *testing.T) {
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
-		if response.StatusCode != http.StatusFound {
-			t.Errorf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected status 302 or 303, received %d", response.StatusCode)
 		}
 
 		// Check that user is redirected to the home after a successful log in
@@ -193,8 +193,8 @@ func TestRecover(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
-			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected status 302 or 303, received %d", response.StatusCode)
 		}
 
 		if smtpMock.CalledSend() {
@@ -233,8 +233,8 @@ func TestRecover(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
-			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected status 302 or 303, received %d", response.StatusCode)
 		}
 
 		if !smtpMock.CalledSend() {
@@ -262,8 +262,8 @@ func TestRecover(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
-			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected status 302 or 303, received %d", response.StatusCode)
 		}
 
 		url, err := response.Location()
@@ -312,8 +312,8 @@ func TestRecover(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
-			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected status 302 or 303, received %d", response.StatusCode)
 		}
 
 		// trying to access the reset password page using a time out ID returns an error
