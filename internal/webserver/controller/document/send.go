@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func (d *Controller) Send(c *fiber.Ctx) error {
+func (d *Controller) Send(c fiber.Ctx) error {
 	slug := c.Params("slug")
 
 	if _, err := mail.ParseAddress(c.FormValue("email")); err != nil {

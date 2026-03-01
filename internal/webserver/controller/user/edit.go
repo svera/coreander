@@ -6,13 +6,13 @@ import (
 	"sort"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // Edit renders the edit user form
-func (u *Controller) Edit(c *fiber.Ctx) error {
+func (u *Controller) Edit(c fiber.Ctx) error {
 	user, err := u.usersRepository.FindByUsername(c.Params("username"))
 	if err != nil {
 		log.Println(err.Error())
@@ -31,7 +31,7 @@ func (u *Controller) Edit(c *fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
-	statsYear := u.readingStatsYear(c.QueryInt("stats-year"))
+	statsYear := u.readingStatsYear(fiber.Query[int](c, "stats-year"))
 	statsYears := u.readingStatsYears(user.ID)
 
 	// Calculate yearly reading statistics

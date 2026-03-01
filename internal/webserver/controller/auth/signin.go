@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
@@ -14,7 +14,7 @@ import (
 var guestOnlyPathPrefixes = []string{"/sessions", "/recover", "/reset-password", "/invite"}
 
 // Signs in a user and gives them a JWT.
-func (a *Controller) SignIn(c *fiber.Ctx) error {
+func (a *Controller) SignIn(c fiber.Ctx) error {
 	var (
 		user *model.User
 		err  error
@@ -52,12 +52,12 @@ func (a *Controller) SignIn(c *fiber.Ctx) error {
 
 	// Redirect back to the page they came from, but never to guest-only routes:
 	// those use AllowIfNotLoggedIn and would return Forbidden for a logged-in user.
-	referer := string(c.Context().Referer())
+	referer := string(c.RequestCtx().Referer())
 	if referer != "" && !isGuestOnlyReferer(referer) {
-		return c.Redirect(referer)
+		return c.Redirect().To(referer)
 	}
 
-	return c.Redirect("/")
+	return c.Redirect().To("/")
 }
 
 func isGuestOnlyReferer(referer string) bool {
@@ -69,7 +69,7 @@ func isGuestOnlyReferer(referer string) bool {
 	return false
 }
 
-func GenerateToken(c *fiber.Ctx, user *model.User, expiration time.Time, secret []byte) (string, error) {
+func GenerateToken(c fiber.Ctx, user *model.User, expiration time.Time, secret []byte) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userdata": model.User{
 			ID:                user.ID,

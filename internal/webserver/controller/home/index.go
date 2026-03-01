@@ -3,11 +3,11 @@ package home
 import (
 	"log"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
-func (d *Controller) Index(c *fiber.Ctx) error {
+func (d *Controller) Index(c fiber.Ctx) error {
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val

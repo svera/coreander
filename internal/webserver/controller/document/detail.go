@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
@@ -40,6 +40,10 @@ func backLinkFromReferer(referer string) string {
 	if showBack && path == "/documents" && query == "" {
 		showBack = false
 	}
+	// Do not show back link when coming from the document reader
+	if showBack && strings.HasPrefix(path, "/documents/") && strings.HasSuffix(path, "/read") {
+		showBack = false
+	}
 	if !showBack {
 		return ""
 	}
@@ -49,7 +53,7 @@ func backLinkFromReferer(referer string) string {
 	return path
 }
 
-func (d *Controller) Detail(c *fiber.Ctx) error {
+func (d *Controller) Detail(c fiber.Ctx) error {
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
@@ -78,7 +82,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 		title = fmt.Sprintf("%s - %s", strings.Join(document.Authors, ", "), document.Title)
 	}
 
-	backLink := backLinkFromReferer(string(c.Context().Referer()))
+	backLink := backLinkFromReferer(string(c.RequestCtx().Referer()))
 
 	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, int(session.ID))
 
@@ -86,7 +90,7 @@ func (d *Controller) Detail(c *fiber.Ctx) error {
 	result := model.AugmentedDocument{Document: document}
 	if session.ID > 0 {
 		result = d.hlRepository.Highlighted(int(session.ID), result)
-			completedOn, err = d.readingRepository.CompletedOn(int(session.ID), result.ID)
+		completedOn, err = d.readingRepository.CompletedOn(int(session.ID), result.ID)
 		if err != nil {
 			log.Println(err)
 		}

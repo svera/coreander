@@ -108,4 +108,3 @@ func migrateLegacyIndex(fs afero.Fs, homeDir, legacyIndexPath, documentsIndexPat
 
 	return false // Migration successful, don't force reindexing
 }
-

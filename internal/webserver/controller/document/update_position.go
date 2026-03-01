@@ -3,11 +3,11 @@ package document
 import (
 	"log"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
-func (d *Controller) UpdatePosition(c *fiber.Ctx) error {
+func (d *Controller) UpdatePosition(c fiber.Ctx) error {
 	document, err := d.idx.Document(c.Params("slug"))
 	if err != nil {
 		log.Println(err)
@@ -31,7 +31,7 @@ func (d *Controller) UpdatePosition(c *fiber.Ctx) error {
 		Position string `json:"position"`
 	}
 
-	if err := c.BodyParser(&body); err != nil {
+	if err := c.Bind().Body(&body); err != nil {
 		return fiber.ErrBadRequest
 	}
 

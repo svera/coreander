@@ -89,7 +89,6 @@ func (u *ReadingRepository) CompletedOn(userID int, documentID string) (*time.Ti
 	return reading.CompletedOn, nil
 }
 
-
 func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.Paginated[[]AugmentedDocument]) result.Paginated[[]AugmentedDocument] {
 	paths := make([]string, 0, len(results.Hits()))
 	searchResults := make([]AugmentedDocument, len(results.Hits()))

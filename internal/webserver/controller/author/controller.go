@@ -50,13 +50,13 @@ type Controller struct {
 
 func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReader, cfg Config, dataSource DataSource, appFs afero.Fs, embeddedImagesFS fs.FS) *Controller {
 	return &Controller{
-		hlRepository:     hlRepository,
+		hlRepository:      hlRepository,
 		readingRepository: readingRepository,
-		idx:              idx,
-		sender:           sender,
-		config:           cfg,
-		dataSource:       dataSource,
-		appFs:            appFs,
-		embeddedImagesFS: embeddedImagesFS,
+		idx:               idx,
+		sender:            sender,
+		config:            cfg,
+		dataSource:        dataSource,
+		appFs:             appFs,
+		embeddedImagesFS:  embeddedImagesFS,
 	}
 }

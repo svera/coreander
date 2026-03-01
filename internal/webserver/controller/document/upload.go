@@ -10,19 +10,19 @@ import (
 	"slices"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/log"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/log"
 	"github.com/valyala/fasthttp"
 )
 
-func (d *Controller) UploadForm(c *fiber.Ctx) error {
+func (d *Controller) UploadForm(c fiber.Ctx) error {
 	return c.Render("document/upload", fiber.Map{
 		"Title":   "Upload document",
 		"MaxSize": d.config.UploadDocumentMaxSize,
 	}, "layout")
 }
 
-func (d *Controller) Upload(c *fiber.Ctx) error {
+func (d *Controller) Upload(c fiber.Ctx) error {
 	templateVars := fiber.Map{
 		"Title":   "Upload document",
 		"MaxSize": d.config.UploadDocumentMaxSize,
@@ -83,7 +83,7 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 		Value:   "Document uploaded successfully.",
 		Expires: time.Now().Add(24 * time.Hour),
 	})
-	return c.Redirect(fmt.Sprintf("/documents/%s", slug))
+	return c.Redirect().To(fmt.Sprintf("/documents/%s", slug))
 }
 
 func fileToBytes(fileHeader *multipart.FileHeader) ([]byte, error) {

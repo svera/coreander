@@ -5,10 +5,10 @@ import (
 	"log"
 	"path/filepath"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func (d *Controller) Cover(c *fiber.Ctx) error {
+func (d *Controller) Cover(c fiber.Ctx) error {
 	// Set cache control headers
 	cacheControl := fmt.Sprintf("public, max-age=%d", d.config.ClientImageCacheTTL)
 	c.Set("Cache-Control", cacheControl)

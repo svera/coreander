@@ -1,5 +1,7 @@
 A personal documents server, Coreander indexes the documents (EPUBs and PDFs with no DRM) that it finds in the passed folder, and provides a web interface to search and access them.
 
+[![Follow us on Bluesky](https://img.shields.io/badge/Bluesky-0285FF?logo=bluesky&logoColor=fff&label=Follow%20me%20on&color=0285FF)](https://bsky.app/profile/coreanderapp.bsky.social)
+
 ![Coreander home](assets/home.png)
 *Coreander home*
 

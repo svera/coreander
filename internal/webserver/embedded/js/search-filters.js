@@ -395,6 +395,20 @@ function copyFormValues(sourceForm, targetForm) {
 }
 
 /**
+ * Strip leading zeroes from a year string so "0000" / "0001" become "" / "1", and "2024" stays "2024".
+ * Preserves negative years (e.g. "-0500" -> "-500").
+ */
+function yearForDisplay(yearStr) {
+    if (!yearStr) return ''
+    if (yearStr.startsWith('-')) {
+        const rest = yearStr.slice(1).replace(/^0+/, '')
+        return rest === '' ? '' : '-' + rest
+    }
+    const stripped = yearStr.replace(/^0+/, '')
+    return stripped === '' ? '' : stripped
+}
+
+/**
  * Apply hidden date input values (YYYY-MM-DD) to the visible year/month/day inputs in each .date-control.
  */
 function applyHiddenDatesToVisible(container) {
@@ -407,7 +421,7 @@ function applyHiddenDatesToVisible(container) {
         const yearInput = dateControl.querySelector('.input-year')
         const monthSelect = dateControl.querySelector('.input-month')
         const dayInput = dateControl.querySelector('.input-day')
-        if (yearInput) yearInput.value = parts[0]
+        if (yearInput) yearInput.value = yearForDisplay(parts[0])
         if (monthSelect) monthSelect.value = parts[1]
         if (dayInput) dayInput.value = String(parseInt(parts[2], 10))
     })

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/webserver"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	testDocSlug = "miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha"
-	testDocPath = "quijote.epub"
+	testDocSlug   = "miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha"
+	testDocPath   = "quijote.epub"
 	regularUserID = 2
 	adminUserID   = 1
 )
