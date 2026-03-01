@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gofiber/template/html/v2"
+	"github.com/gofiber/template/html/v3"
 	"github.com/gosimple/slug"
 	"github.com/svera/coreander/v4/internal/i18n"
 )

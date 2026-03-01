@@ -4,7 +4,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
@@ -12,7 +12,7 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
-func (d *Controller) Search(c *fiber.Ctx) error {
+func (d *Controller) Search(c fiber.Ctx) error {
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
@@ -84,14 +84,14 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 	return nil
 }
 
-func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) {
+func (d *Controller) parseSearchQuery(c fiber.Ctx) (index.SearchFields, error) {
 	searchFields := index.SearchFields{
 		Keywords:        c.Query("search"),
 		Language:        c.Query("language"),
 		Subjects:        c.Query("subjects"),
 		SortBy:          d.parseSortBy(c),
-		EstReadTimeFrom: c.QueryFloat("est-read-time-from", 0),
-		EstReadTimeTo:   c.QueryFloat("est-read-time-to", 0),
+		EstReadTimeFrom: fiber.Query[float64](c, "est-read-time-from", 0),
+		EstReadTimeTo:   fiber.Query[float64](c, "est-read-time-to", 0),
 		WordsPerMinute:  d.config.WordsPerMinute,
 	}
 
@@ -122,7 +122,7 @@ func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) 
 	return searchFields, nil
 }
 
-func (d *Controller) parseSortBy(c *fiber.Ctx) []string {
+func (d *Controller) parseSortBy(c fiber.Ctx) []string {
 	if c.Query("sort-by") != "" {
 		switch c.Query("sort-by") {
 		case "pub-date-older-first":
@@ -139,7 +139,7 @@ func (d *Controller) parseSortBy(c *fiber.Ctx) []string {
 }
 
 // Subjects returns all unique subjects from the index as JSON
-func (d *Controller) Subjects(c *fiber.Ctx) error {
+func (d *Controller) Subjects(c fiber.Ctx) error {
 	subjects, err := d.idx.Subjects()
 	if err != nil {
 		log.Println(err)

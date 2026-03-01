@@ -1,6 +1,6 @@
 module github.com/svera/coreander/v4
 
-go 1.24.1
+go 1.25.0
 
 require (
 	github.com/Navid2zp/go-wikidata v1.0.1
@@ -8,10 +8,11 @@ require (
 	github.com/blevesearch/bleve/v2 v2.5.2
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/glebarez/sqlite v1.11.0
-	github.com/gofiber/fiber/v2 v2.52.12
-	github.com/gofiber/jwt/v3 v3.3.10
-	github.com/gofiber/template/html/v2 v2.1.3
+	github.com/gofiber/contrib/v3/jwt v1.0.0
+	github.com/gofiber/fiber/v3 v3.1.0
+	github.com/gofiber/template/html/v3 v3.0.0
 	github.com/golang-jwt/jwt/v4 v4.5.2
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/hhrutter/tiff v1.0.2
 	github.com/kovidgoyal/imaging v1.6.4
@@ -22,12 +23,13 @@ require (
 	github.com/rjeczalik/notify v0.9.3
 	github.com/spf13/afero v1.14.0
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
-	golang.org/x/text v0.31.0
+	golang.org/x/text v0.34.0
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/gorm v1.30.0
 )
 
 require (
+	github.com/MicahParks/keyfunc/v2 v2.1.0 // indirect
 	github.com/RoaringBitmap/roaring/v2 v2.6.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/beevik/etree v1.5.1 // indirect
@@ -35,8 +37,10 @@ require (
 	github.com/blevesearch/zapx/v16 v16.2.4 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/glebarez/go-sqlite v1.22.0 // indirect
-	github.com/gofiber/template v1.8.3 // indirect
+	github.com/gofiber/schema v1.7.0 // indirect
+	github.com/gofiber/template/v2 v2.0.0 // indirect
 	github.com/gofiber/utils v1.2.0 // indirect
+	github.com/gofiber/utils/v2 v2.0.2 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/govalues/decimal v0.1.36 // indirect
 	github.com/hhrutter/lzw v1.0.0 // indirect
@@ -54,11 +58,10 @@ require (
 	github.com/rickb777/period v1.0.15 // indirect
 	github.com/rickb777/plural v1.4.4 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/tinylib/msgp v1.3.0 // indirect
-	golang.org/x/crypto v0.45.0 // indirect
-	golang.org/x/sync v0.18.0 // indirect
+	github.com/tinylib/msgp v1.6.3 // indirect
+	golang.org/x/crypto v0.48.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
-	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	modernc.org/libc v1.66.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
@@ -91,7 +94,7 @@ require (
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/gosimple/slug v1.15.0
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
@@ -102,11 +105,11 @@ require (
 	github.com/pirmd/epub v0.3.1
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.63.0
+	github.com/valyala/fasthttp v1.69.0
 	go.etcd.io/bbolt v1.4.2 // indirect
 	golang.org/x/image v0.28.0 // indirect
-	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )

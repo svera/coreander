@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/webserver"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
@@ -251,8 +251,8 @@ func TestUpload(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
-			t.Errorf("Expected status %d, got %d", expectedStatus, response.StatusCode)
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected status 302 or 303, got %d", response.StatusCode)
 		}
 
 		// The recently added document should appear in home page under "Latest additions"

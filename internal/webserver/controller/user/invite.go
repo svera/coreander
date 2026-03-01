@@ -8,14 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // InviteForm shows the invitation form
-func (u *Controller) InviteForm(c *fiber.Ctx) error {
+func (u *Controller) InviteForm(c fiber.Ctx) error {
 	if _, ok := u.sender.(*infrastructure.NoEmail); ok {
 		return fiber.ErrNotFound
 	}
@@ -27,7 +27,7 @@ func (u *Controller) InviteForm(c *fiber.Ctx) error {
 }
 
 // SendInvite sends an invitation email to the specified address
-func (u *Controller) SendInvite(c *fiber.Ctx) error {
+func (u *Controller) SendInvite(c fiber.Ctx) error {
 	if _, ok := u.sender.(*infrastructure.NoEmail); ok {
 		return fiber.ErrNotFound
 	}
@@ -93,11 +93,11 @@ func (u *Controller) SendInvite(c *fiber.Ctx) error {
 		Expires: time.Now().Add(24 * time.Hour),
 	})
 
-	return c.Redirect("/users")
+	return c.Redirect().To("/users")
 }
 
 // AcceptInviteForm shows the form to accept an invitation
-func (u *Controller) AcceptInviteForm(c *fiber.Ctx) error {
+func (u *Controller) AcceptInviteForm(c fiber.Ctx) error {
 	invitation, err := u.validateInvitation(c.Query("id"))
 	if err != nil {
 		return err
@@ -113,7 +113,7 @@ func (u *Controller) AcceptInviteForm(c *fiber.Ctx) error {
 }
 
 // AcceptInvite processes the invitation acceptance
-func (u *Controller) AcceptInvite(c *fiber.Ctx) error {
+func (u *Controller) AcceptInvite(c fiber.Ctx) error {
 	invitation, err := u.validateInvitation(c.FormValue("invitation_uuid"))
 	if err != nil {
 		return err
@@ -181,7 +181,7 @@ func (u *Controller) AcceptInvite(c *fiber.Ctx) error {
 		Expires: time.Now().Add(24 * time.Hour),
 	})
 
-	return c.Redirect("/sessions/new")
+	return c.Redirect().To("/sessions/new")
 }
 
 func (u *Controller) validateInvitation(invitationUUID string) (*model.Invitation, error) {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/blevesearch/bleve/v2"
@@ -386,6 +387,10 @@ func (m mockEpubReader) Metadata(filename string) (metadata.Metadata, error) {
 		}
 	}
 
+	seriesIndex := 0.0
+	if meta.SeriesIndex != "" {
+		seriesIndex, _ = strconv.ParseFloat(meta.SeriesIndex, 64)
+	}
 	return metadata.Metadata{
 		Title:       title,
 		Authors:     authors,
@@ -393,7 +398,7 @@ func (m mockEpubReader) Metadata(filename string) (metadata.Metadata, error) {
 		Language:    lang,
 		Publication: publication,
 		Series:      meta.Series,
-		SeriesIndex: 0,
+		SeriesIndex: seriesIndex,
 		Format:      "EPUB",
 		Subjects:    meta.Subject,
 		Words:       wordCount,

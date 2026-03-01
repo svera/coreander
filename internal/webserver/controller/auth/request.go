@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 )
 
-func (a *Controller) Request(c *fiber.Ctx) error {
+func (a *Controller) Request(c fiber.Ctx) error {
 	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
 		return fiber.ErrNotFound
 	}
@@ -62,5 +62,5 @@ func (a *Controller) Request(c *fiber.Ctx) error {
 		Value:   "<p>We've received your password recovery request. If the address you introduced is registered in our system, you'll receive an email with further instructions in your inbox.</p><p>Check your spam folder if you don't receive the recovery email after a while.</p>",
 		Expires: time.Now().Add(24 * time.Hour),
 	})
-	return c.Redirect("/sessions/new")
+	return c.Redirect().To("/sessions/new")
 }

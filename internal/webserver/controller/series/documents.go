@@ -4,14 +4,14 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
-func (a *Controller) Documents(c *fiber.Ctx) error {
+func (a *Controller) Documents(c fiber.Ctx) error {
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
@@ -92,7 +92,7 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 	return nil
 }
 
-func (d *Controller) parseSortBy(c *fiber.Ctx) []string {
+func (d *Controller) parseSortBy(c fiber.Ctx) []string {
 	if c.Query("sort-by") != "" {
 		switch c.Query("sort-by") {
 		case "pub-date-older-first":

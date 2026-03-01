@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/kovidgoyal/imaging"
 	"github.com/svera/coreander/v4/internal/datasource/wikidata"
 )
 
-func (a *Controller) Image(c *fiber.Ctx) error {
+func (a *Controller) Image(c fiber.Ctx) error {
 	authorSlug := strings.Split(c.Params("slug"), "_")[0]
 	lang := c.Locals("Lang").(string)
 
@@ -84,7 +84,7 @@ func (a *Controller) Image(c *fiber.Ctx) error {
 
 // setupClientCache configures cache headers for the image response.
 // Returns true if a 304 Not Modified response should be sent.
-func (a *Controller) setupClientCache(c *fiber.Ctx, fileInfo os.FileInfo) bool {
+func (a *Controller) setupClientCache(c fiber.Ctx, fileInfo os.FileInfo) bool {
 	// If cache-busting query parameter is present, disable caching completely
 	if c.Query("t") != "" {
 		c.Set("Cache-Control", "no-cache, no-store, must-revalidate")

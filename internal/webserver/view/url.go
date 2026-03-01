@@ -3,11 +3,11 @@ package view
 import (
 	"html/template"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // URL returns the current URL along with the query string
-func URL(c *fiber.Ctx) template.URL {
+func URL(c fiber.Ctx) template.URL {
 	url := c.Path()
 	qs := string(c.Request().URI().QueryString())
 	if qs != "" {
@@ -16,7 +16,7 @@ func URL(c *fiber.Ctx) template.URL {
 	return template.URL(url)
 }
 
-func BaseURLWithout(c *fiber.Ctx, keys ...string) template.URL {
+func BaseURLWithout(c fiber.Ctx, keys ...string) template.URL {
 	url := c.Path()
 	queries := c.Queries()
 	for _, key := range keys {

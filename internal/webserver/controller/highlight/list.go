@@ -4,13 +4,13 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/result"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
 )
 
-func (h *Controller) List(c *fiber.Ctx) error {
+func (h *Controller) List(c fiber.Ctx) error {
 	page, err := strconv.Atoi(c.Query("page"))
 	if err != nil {
 		page = 1
@@ -37,7 +37,7 @@ func (h *Controller) List(c *fiber.Ctx) error {
 	}
 
 	if c.Query("view") == "latest" {
-		highlights, err := h.latestHighlights(page, user, c.QueryInt("amount", latestHighlightsAmount))
+		highlights, err := h.latestHighlights(page, user, fiber.Query[int](c, "amount", latestHighlightsAmount))
 		if err != nil {
 			return err
 		}
@@ -177,12 +177,12 @@ func (h *Controller) latestHighlights(page int, user *model.User, highlightsAmou
 	return highlights, nil
 }
 
-func (h *Controller) latest(c *fiber.Ctx, highlights []model.AugmentedDocument) error {
+func (h *Controller) latest(c fiber.Ctx, highlights []model.AugmentedDocument) error {
 	err := c.Render("partials/latest-highlights", fiber.Map{
 		"Highlights":     highlights,
 		"EmailFrom":      h.sender.From(),
 		"WordsPerMinute": h.wordsPerMinute,
-		"Amount":         c.QueryInt("amount", latestHighlightsAmount),
+		"Amount":         fiber.Query[int](c, "amount", latestHighlightsAmount),
 	})
 	if err != nil {
 		log.Println(err)
