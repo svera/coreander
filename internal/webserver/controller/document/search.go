@@ -52,7 +52,7 @@ func (d *Controller) Search(c *fiber.Ctx) error {
 		"Title":               "Search results",
 		"DocumentsSearchPage": true,
 		"EmailFrom":           d.sender.From(),
-		"WordsPerMinute":      d.config.WordsPerMinute,
+		"WordsPerMinute": d.config.WordsPerMinute,
 		"URL":                 view.URL(c),
 		"SortURL":             view.BaseURLWithout(c, "sort-by", "page"),
 		"SortBy":              c.Query("sort-by"),
@@ -93,6 +93,7 @@ func (d *Controller) parseSearchQuery(c *fiber.Ctx) (index.SearchFields, error) 
 		EstReadTimeFrom: c.QueryFloat("est-read-time-from", 0),
 		EstReadTimeTo:   c.QueryFloat("est-read-time-to", 0),
 		WordsPerMinute:  d.config.WordsPerMinute,
+		IllustratedOnly: c.Query("illustrated-only") == "on" || c.Query("illustrated-only") == "1",
 	}
 
 	if c.Query("pub-date-from") != "" {

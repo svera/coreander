@@ -3,6 +3,7 @@ package index
 import (
 	"log"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
@@ -25,7 +26,7 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v10"
+const DocumentVersion = "v11"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
@@ -33,8 +34,9 @@ const AuthorVersion = "1"
 
 // Metadata fields
 var (
-	internalLanguages = []byte("languages")
-	internalVersion   = []byte("version")
+	internalLanguages        = []byte("languages")
+	internalVersion          = []byte("version")
+	internalIllustratedMinSize = []byte("illustrated_min_size")
 )
 
 var noStopWordsFilters = map[string][]string{
@@ -48,26 +50,38 @@ var noStopWordsFilters = map[string][]string{
 
 const defaultAnalyzer = "default_analyzer"
 
+// Config holds indexer configuration.
+type Config struct {
+	// IllustratedMinAmount is the minimum number of illustrations (excluding cover) for a document to be considered illustrated.
+	IllustratedMinAmount int
+	// IllustratedMinSize is the minimum size in megapixels for an image to count as an illustration.
+	IllustratedMinSize float64
+}
+
 type BleveIndexer struct {
-	fs             afero.Fs
-	documentsIdx   bleve.Index // Documents index
-	authorsIdx     bleve.Index // Authors index
-	libraryPath    string
-	reader         map[string]metadata.Reader
-	indexStartTime float64
-	indexedEntries float64
+	fs                  afero.Fs
+	documentsIdx        bleve.Index // Documents index
+	authorsIdx          bleve.Index // Authors index
+	libraryPath         string
+	reader              map[string]metadata.Reader
+	indexStartTime      float64
+	indexedEntries      float64
+	illustratedMinAmount int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
+	illustratedMinSize   float64 // minimum size in megapixels for an image to count as an illustration
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
-func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs, libraryPath string, read map[string]metadata.Reader) *BleveIndexer {
+func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs, libraryPath string, read map[string]metadata.Reader, cfg Config) *BleveIndexer {
 	return &BleveIndexer{
-		fs:             fs,
-		documentsIdx:   documentsIndex,
-		authorsIdx:     authorsIndex,
-		libraryPath:    strings.TrimSuffix(libraryPath, string(filepath.Separator)),
-		reader:         read,
-		indexStartTime: 0,
-		indexedEntries: 0,
+		fs:                   fs,
+		documentsIdx:         documentsIndex,
+		authorsIdx:           authorsIndex,
+		libraryPath:          strings.TrimSuffix(libraryPath, string(filepath.Separator)),
+		reader:               read,
+		indexStartTime:       0,
+		indexedEntries:       0,
+		illustratedMinAmount: cfg.IllustratedMinAmount,
+		illustratedMinSize:   cfg.IllustratedMinSize,
 	}
 }
 
@@ -147,6 +161,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Publication.Precision", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Words", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Pages", numericFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrations", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	}
 
@@ -165,6 +180,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Publication.Precision", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Words", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Pages", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Illustrations", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 
 	return indexMapping
@@ -203,4 +219,21 @@ func (b *BleveIndexer) Close() error {
 		return err
 	}
 	return b.authorsIdx.Close()
+}
+
+// NeedsReindexForIllustratedConfig reports whether the documents index must be rebuilt because the stored
+// illustrated-min-size config differs from currentMinSize (or is missing).
+func NeedsReindexForIllustratedConfig(documentsIndex bleve.Index, currentMinSize float64) (bool, error) {
+	stored, err := documentsIndex.GetInternal(internalIllustratedMinSize)
+	if err != nil {
+		return true, err
+	}
+	if len(stored) == 0 {
+		return true, nil
+	}
+	storedSize, err := strconv.ParseFloat(string(stored), 64)
+	if err != nil {
+		return true, err
+	}
+	return storedSize != currentMinSize, nil
 }

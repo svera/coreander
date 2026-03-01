@@ -62,7 +62,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
 				query := bleve.NewQueryStringQuery(searchFields.Keywords)
 				filtersQuery.AddQuery(query)
-				addFilters(searchFields, filtersQuery)
+				addFilters(b, searchFields, filtersQuery)
 
 				return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 			}
@@ -85,7 +85,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 				qb.AddQuery(qs)
 			}
 			filtersQuery.AddQuery(qb)
-			addFilters(searchFields, filtersQuery)
+			addFilters(b, searchFields, filtersQuery)
 			return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 		}
 
@@ -103,12 +103,12 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		filtersQuery.AddQuery(matchAllQuery)
 	}
 
-	addFilters(searchFields, filtersQuery)
+	addFilters(b, searchFields, filtersQuery)
 
 	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 }
 
-func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
+func addFilters(b *BleveIndexer, searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
 	// Only filter by language if a language is specified
 	if searchFields.Language != "" && strings.TrimSpace(searchFields.Language) != "" {
 		// Use prefix query to match all regional variants of the selected language
@@ -166,6 +166,12 @@ func addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery)
 			q.Max = &max
 		}
 		q.SetField("Words")
+		filtersQuery.AddQuery(q)
+	}
+	if searchFields.IllustratedOnly && b.illustratedMinAmount > 0 {
+		minIllustrations := float64(b.illustratedMinAmount)
+		q := bleve.NewNumericRangeQuery(&minIllustrations, nil)
+		q.SetField("Illustrations")
 		filtersQuery.AddQuery(q)
 	}
 }
@@ -570,6 +576,11 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		language = match.Fields["Language"].(string)
 	}
 
+	illustrations := 0
+	if match.Fields["Illustrations"] != nil {
+		illustrations = int(match.Fields["Illustrations"].(float64))
+	}
+
 	doc := Document{
 		ID: match.ID,
 		Metadata: metadata.Metadata{
@@ -589,6 +600,7 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		AuthorsSlugs:  slicer(match.Fields["AuthorsSlugs"]),
 		SeriesSlug:    match.Fields["SeriesSlug"].(string),
 		SubjectsSlugs: slicer(match.Fields["SubjectsSlugs"]),
+		Illustrations: illustrations,
 		AddedOn:       addedOn,
 	}
 

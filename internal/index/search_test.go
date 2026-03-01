@@ -58,7 +58,7 @@ func TestIndexAndSearch(t *testing.T) {
 			}
 
 			authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
-			idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
+			idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
 			if err = idx.AddLibrary(1, true); err != nil {
 				t.Errorf("Error indexing: %s", err.Error())
@@ -124,7 +124,7 @@ func TestLanguageFilter(t *testing.T) {
 	afero.WriteFile(appFS, "lib/french_book.epub", []byte(""), 0644)
 
 	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
-	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
 	if err = idx.AddLibrary(1, true); err != nil {
 		t.Fatalf("Error indexing: %s", err.Error())
@@ -269,7 +269,7 @@ func TestSearchResultsSortedByDate(t *testing.T) {
 	}
 
 	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
-	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
 	if err = idx.AddLibrary(1, true); err != nil {
 		t.Fatalf("Error indexing: %v", err)
@@ -495,7 +495,7 @@ func TestSearchResultsSortedByReadingTime(t *testing.T) {
 	}
 
 	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
-	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
 	if err = idx.AddLibrary(1, true); err != nil {
 		t.Fatalf("Error indexing: %v", err)
