@@ -73,7 +73,9 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 		}
 		// Some epub files mistakenly put all subjects in a single field instead of using a field for each one.
 		// We want to identify those cases looking for specific separators and then indexing each subject properly.
-		names := strings.Split(subject, ",")
+		names := strings.FieldsFunc(subject, func(r rune) bool {
+			return r == ',' || r == ';'
+		})
 		for _, name := range names {
 			if name = strings.TrimSpace(name); name != "" {
 				subjects = append(subjects, name)
