@@ -28,7 +28,7 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 		return "", fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
 
-	document := b.createDocument(meta, file, nil, ext)
+	document := b.createDocument(meta, file, nil)
 	document.AddedOn = time.Now().UTC()
 
 	if err = b.documentsIdx.Index(document.ID, document); err != nil {
@@ -84,7 +84,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 			return nil
 		}
 
-		document := b.createDocument(meta, fullPath, batchSlugs, ext)
+		document := b.createDocument(meta, fullPath, batchSlugs)
 		batchSlugs[document.Slug] = struct{}{}
 		languages = addLanguage(meta.Language, languages)
 		document.AddedOn = time.Time{}
@@ -221,7 +221,7 @@ func addLanguage(lang string, languages []string) []string {
 	return languages
 }
 
-func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, batchSlugs map[string]struct{}, ext string) Document {
+func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, batchSlugs map[string]struct{}) Document {
 	document := Document{
 		ID:            b.id(fullPath),
 		Metadata:      meta,
@@ -229,12 +229,6 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 		AuthorsSlugs:  make([]string, len(meta.Authors)),
 		SeriesSlug:    slug.Make(meta.Series),
 		SubjectsSlugs: make([]string, len(meta.Subjects)),
-	}
-
-	if reader := b.reader[ext]; reader != nil {
-		if n, err := reader.Illustrations(fullPath, b.illustratedMinSize); err == nil {
-			document.Illustrations = n
-		}
 	}
 
 	document.Slug = b.Slug(document, batchSlugs)

@@ -114,22 +114,29 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 
 	seriesIndex, _ = strconv.ParseFloat(meta.SeriesIndex, 64)
 
-	bk = Metadata{
-		Title:       title,
-		Authors:     authors,
-		Description: template.HTML(description),
-		Language:    lang,
-		Publication: publication,
-		Series:      meta.Series,
-		SeriesIndex: seriesIndex,
-		Format:      "EPUB",
-		Subjects:    subjects,
+	illustrations, err := e.illustrations(filename, 0.25)
+	if err != nil {
+		log.Printf("Cannot count illustrations in %s: $%s\n", filename, err)
 	}
+
 	w, err := words(filename)
 	if err != nil {
 		log.Printf("Cannot count words in %s: $%s\n", filename, err)
 	}
-	bk.Words = float64(w)
+
+	bk = Metadata{
+		Title:         title,
+		Authors:       authors,
+		Description:   template.HTML(description),
+		Language:      lang,
+		Publication:   publication,
+		Series:        meta.Series,
+		SeriesIndex:   seriesIndex,
+		Format:        "EPUB",
+		Subjects:      subjects,
+		Illustrations: illustrations,
+		Words:         float64(w),
+	}
 	return bk, nil
 }
 
@@ -178,8 +185,8 @@ func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, e
 	return cover, nil
 }
 
-// Illustrations returns the number of images in the EPUB that have size >= minMegapixels (excluding the cover).
-func (e EpubReader) Illustrations(documentFullPath string, minMegapixels float64) (int, error) {
+// illustrations returns the number of images in the EPUB that have size >= minMegapixels (excluding the cover).
+func (e EpubReader) illustrations(documentFullPath string, minMegapixels float64) (int, error) {
 	opf, err := e.GetPackageFromFile(documentFullPath)
 	if err != nil {
 		return 0, err

@@ -9,17 +9,18 @@ import (
 )
 
 type Metadata struct {
-	Title       string
-	Authors     []string
-	Description template.HTML
-	Language    string
-	Publication precisiondate.PrecisionDate
-	Words       float64
-	Series      string
-	SeriesIndex float64
-	Pages       float64
-	Format      string
-	Subjects    []string
+	Title         string
+	Authors       []string
+	Description   template.HTML
+	Language      string
+	Publication   precisiondate.PrecisionDate
+	Words         float64
+	Series        string
+	SeriesIndex   float64
+	Pages         float64
+	Format        string
+	Subjects      []string
+	Illustrations int
 }
 
 func (m Metadata) ReadingTime(wordsPerMinute float64) string {
@@ -53,6 +54,4 @@ func FmtDuration(d time.Duration) string {
 type Reader interface {
 	Metadata(file string) (Metadata, error)
 	Cover(documentFullPath string, coverMaxWidth int) ([]byte, error)
-	// Illustrations returns the number of images that count as illustrations (excluding cover, size >= minMegapixels).
-	Illustrations(documentFullPath string, minMegapixels float64) (int, error)
 }

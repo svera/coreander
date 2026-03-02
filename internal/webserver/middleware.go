@@ -33,8 +33,8 @@ func RequireAdmin(c fiber.Ctx) error {
 }
 
 // SetConfigLocals sets config values in c.Locals() for template access
-func SetConfigLocals(cfg Config) func(*fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
+func SetConfigLocals(cfg Config) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		c.Locals("ShareCommentMaxSize", cfg.ShareCommentMaxSize)
 		c.Locals("ShareMaxRecipients", cfg.ShareMaxRecipients)
 		c.Locals("IllustratedMinAmount", cfg.IllustratedMinAmount)

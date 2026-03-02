@@ -27,7 +27,6 @@ type Document struct {
 	AuthorsSlugs  []string
 	SeriesSlug    string
 	SubjectsSlugs []string
-	Illustrations int
 	AddedOn       time.Time
 }
 

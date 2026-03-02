@@ -62,7 +62,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
 				query := bleve.NewQueryStringQuery(searchFields.Keywords)
 				filtersQuery.AddQuery(query)
-				addFilters(b, searchFields, filtersQuery)
+				b.addFilters(searchFields, filtersQuery)
 
 				return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 			}
@@ -85,7 +85,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 				qb.AddQuery(qs)
 			}
 			filtersQuery.AddQuery(qb)
-			addFilters(b, searchFields, filtersQuery)
+			b.addFilters(searchFields, filtersQuery)
 			return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 		}
 
@@ -103,12 +103,12 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		filtersQuery.AddQuery(matchAllQuery)
 	}
 
-	addFilters(b, searchFields, filtersQuery)
+	b.addFilters(searchFields, filtersQuery)
 
 	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 }
 
-func addFilters(b *BleveIndexer, searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
+func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
 	// Only filter by language if a language is specified
 	if searchFields.Language != "" && strings.TrimSpace(searchFields.Language) != "" {
 		// Use prefix query to match all regional variants of the selected language
@@ -584,23 +584,23 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 	doc := Document{
 		ID: match.ID,
 		Metadata: metadata.Metadata{
-			Title:       match.Fields["Title"].(string),
-			Authors:     slicer(match.Fields["Authors"]),
-			Description: template.HTML(match.Fields["Description"].(string)),
-			Language:    language,
-			Publication: publication,
-			Words:       match.Fields["Words"].(float64),
-			Series:      match.Fields["Series"].(string),
-			SeriesIndex: match.Fields["SeriesIndex"].(float64),
-			Pages:       match.Fields["Pages"].(float64),
-			Subjects:    slicer(match.Fields["Subjects"]),
-			Format:      match.Fields["Format"].(string),
+			Title:         match.Fields["Title"].(string),
+			Authors:       slicer(match.Fields["Authors"]),
+			Description:   template.HTML(match.Fields["Description"].(string)),
+			Language:      language,
+			Publication:   publication,
+			Words:         match.Fields["Words"].(float64),
+			Series:        match.Fields["Series"].(string),
+			SeriesIndex:   match.Fields["SeriesIndex"].(float64),
+			Pages:         match.Fields["Pages"].(float64),
+			Subjects:      slicer(match.Fields["Subjects"]),
+			Illustrations: illustrations,
+			Format:        match.Fields["Format"].(string),
 		},
 		Slug:          match.Fields["Slug"].(string),
 		AuthorsSlugs:  slicer(match.Fields["AuthorsSlugs"]),
 		SeriesSlug:    match.Fields["SeriesSlug"].(string),
 		SubjectsSlugs: slicer(match.Fields["SubjectsSlugs"]),
-		Illustrations: illustrations,
 		AddedOn:       addedOn,
 	}
 
