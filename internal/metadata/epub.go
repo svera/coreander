@@ -2,7 +2,6 @@ package metadata
 
 import (
 	"archive/zip"
-	"bytes"
 	"fmt"
 	"html/template"
 	"image"
@@ -142,23 +141,7 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 	return bk, nil
 }
 
-// Cover parses the document looking for a cover image and returns it
-func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
-	var cover []byte
-
-	coverFileName := ""
-
-	opf, err := e.GetPackageFromFile(documentFullPath)
-	if err != nil {
-		return nil, err
-	}
-
-	r, err := zip.OpenReader(documentFullPath)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-
+func opfBaseDir(r *zip.ReadCloser) string {
 	opfPath := findOpfPath(r)
 	opfBaseDir := ""
 	if opfPath != "" {
@@ -167,10 +150,20 @@ func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, e
 			opfBaseDir = ""
 		}
 	}
+	return opfBaseDir
+}
 
-	coverFileName = selectCoverFileName(opf)
+func (e EpubReader) coverFileName(documentFullPath string, r *zip.ReadCloser) (string, error) {
+	opf, err := e.GetPackageFromFile(documentFullPath)
+	if err != nil {
+		return "", err
+	}
+
+	opfBaseDir := opfBaseDir(r)
+
+	coverFileName := selectCoverFileName(opf)
 	if coverFileName == "" {
-		return nil, fmt.Errorf("no cover image set in %s", documentFullPath)
+		return "", fmt.Errorf("no cover image set in %s", documentFullPath)
 	}
 
 	coverFileName = resolveHref(coverFileName, opfBaseDir)
@@ -179,8 +172,25 @@ func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, e
 			coverFileName = resolvedCover
 		}
 	}
+	return coverFileName, nil
+}
 
-	cover, err = extractCover(r, coverFileName, opfBaseDir, coverMaxWidth)
+// Cover parses the document looking for a cover image and returns it
+func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
+	var cover []byte
+
+	r, err := zip.OpenReader(documentFullPath)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	coverFileName, err := e.coverFileName(documentFullPath, r)
+	if err != nil {
+		return nil, err
+	}
+
+	cover, err = extractCover(r, coverFileName, opfBaseDir(r), coverMaxWidth)
 	if err != nil {
 		return nil, err
 	}
@@ -199,30 +209,14 @@ func (e EpubReader) illustrations(documentFullPath string, minMegapixels float64
 	}
 	defer r.Close()
 
-	opfPath := findOpfPath(r)
-	opfBaseDir := ""
-	if opfPath != "" {
-		opfBaseDir = path.Dir(opfPath)
-		if opfBaseDir == "." {
-			opfBaseDir = ""
-		}
+	coverFileName, err := e.coverFileName(documentFullPath, r)
+	if err != nil {
+		return 0, err
 	}
-
-	coverFileName := selectCoverFileName(opf)
-	coverFileName = resolveHref(coverFileName, opfBaseDir)
-	if isMarkupFile(coverFileName) {
-		if resolvedCover, err := findCoverImageInMarkup(r, coverFileName); err == nil && resolvedCover != "" {
-			coverFileName = resolvedCover
-		}
-	}
-	coverPaths := coverCandidatePaths(coverFileName, opfBaseDir)
+	coverPaths := coverCandidatePaths(coverFileName, opfBaseDir(r))
 
 	if opf.Manifest == nil {
 		return 0, nil
-	}
-	zipByName := make(map[string]*zip.File, len(r.File))
-	for _, f := range r.File {
-		zipByName[f.Name] = f
 	}
 	// Count each distinct image file only once (manifest may reference the same file multiple times)
 	seen := make(map[string]struct{})
@@ -231,9 +225,9 @@ func (e EpubReader) illustrations(documentFullPath string, minMegapixels float64
 		if !strings.HasPrefix(item.MediaType, "image/") {
 			continue
 		}
-		resolved := resolveHref(item.Href, opfBaseDir)
+		resolved := resolveHref(item.Href, opfBaseDir(r))
 		candidates := imageCandidatePaths(resolved)
-		zipPath := findZipEntryPathFromMap(zipByName, candidates)
+		zipPath := findZipEntryPath(r, candidates)
 		if zipPath == "" {
 			continue
 		}
@@ -243,7 +237,7 @@ func (e EpubReader) illustrations(documentFullPath string, minMegapixels float64
 		if _, alreadyCounted := seen[zipPath]; alreadyCounted {
 			continue
 		}
-		mp, err := imageMegapixelsFromZip(zipByName, zipPath)
+		mp, err := imageMegapixels(r, zipPath)
 		if err != nil {
 			continue
 		}
@@ -277,15 +271,6 @@ func findZipEntryPath(r *zip.ReadCloser, candidates map[string]struct{}) string 
 	return ""
 }
 
-func findZipEntryPathFromMap(zipByName map[string]*zip.File, candidates map[string]struct{}) string {
-	for name := range candidates {
-		if _, ok := zipByName[name]; ok {
-			return name
-		}
-	}
-	return ""
-}
-
 func imageMegapixels(r *zip.ReadCloser, zipPath string) (float64, error) {
 	rc, err := readZipFileReader(r, zipPath)
 	if err != nil || rc == nil {
@@ -296,51 +281,7 @@ func imageMegapixels(r *zip.ReadCloser, zipPath string) (float64, error) {
 	if err == nil {
 		return float64(cfg.Width*cfg.Height) / 1e6, nil
 	}
-	rc2, _ := readZipFileReader(r, zipPath)
-	if rc2 != nil {
-		defer rc2.Close()
-		return imageMegapixelsFromReader(rc2)
-	}
 	return 0, err
-}
-
-// imageMegapixelsFromZip gets dimensions from the zip entry using a pre-built map (avoids repeated zip scans).
-// Tries image.DecodeConfig first (header-only for JPEG/PNG/GIF); only reads and decodes the full file when needed.
-func imageMegapixelsFromZip(zipByName map[string]*zip.File, zipPath string) (float64, error) {
-	f, ok := zipByName[zipPath]
-	if !ok {
-		return 0, fmt.Errorf("epub: no zip entry %q", zipPath)
-	}
-	rc, err := f.Open()
-	if err != nil {
-		return 0, err
-	}
-	cfg, _, err := image.DecodeConfig(rc)
-	rc.Close()
-	if err == nil {
-		return float64(cfg.Width*cfg.Height) / 1e6, nil
-	}
-	// Fallback: full read and decode for WebP, malformed headers, etc.
-	rc2, err := f.Open()
-	if err != nil {
-		return 0, err
-	}
-	defer rc2.Close()
-	return imageMegapixelsFromReader(rc2)
-}
-
-// imageMegapixelsFromReader returns megapixels by full decode (used when DecodeConfig is not enough).
-func imageMegapixelsFromReader(rc io.Reader) (float64, error) {
-	data, err := io.ReadAll(rc)
-	if err != nil {
-		return 0, err
-	}
-	img, err := imaging.Decode(bytes.NewReader(data))
-	if err != nil {
-		return 0, err
-	}
-	b := img.Bounds()
-	return float64(b.Dx()*b.Dy()) / 1e6, nil
 }
 
 func readZipFileReader(r *zip.ReadCloser, name string) (io.ReadCloser, error) {
