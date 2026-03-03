@@ -66,7 +66,10 @@
                     </dd>
                     {{end}}
                     {{ if gt .Document.Words 0.0 }}
-                        <li><i class="bi bi-stopwatch me-2"></i><time>{{.Document.ReadingTime .WordsPerMinute}}</time></li>
+                        {{$readingTimeHelpContent := t .Lang "Reading time calculated using a speed of %s words per minute. Log in to customize this value" (printf "%.0f" $.WordsPerMinute)}}
+                        {{if .Session}}
+                            {{$readingTimeHelpContent = t .Lang "Your reading speed is currently set to %s words per minute. You can change your reading speed in your profile." (printf "%.0f" $   .WordsPerMinute)}}
+                        {{end}}
                     {{ end }}
                     {{ if .Document.Pages }}
                         <li><i class="bi bi-book me-2"></i>{{.Document.Pages}}</li>
