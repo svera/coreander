@@ -213,7 +213,7 @@ func (e EpubReader) illustrations(documentFullPath string, minMegapixels float64
 	if err != nil {
 		return 0, err
 	}
-	coverPaths := coverCandidatePaths(coverFileName, opfBaseDir(r))
+	coverPaths := candidatePaths(coverFileName, opfBaseDir(r))
 
 	if opf.Manifest == nil {
 		return 0, nil
@@ -226,7 +226,7 @@ func (e EpubReader) illustrations(documentFullPath string, minMegapixels float64
 			continue
 		}
 		resolved := resolveHref(item.Href, opfBaseDir(r))
-		candidates := imageCandidatePaths(resolved)
+		candidates := candidatePaths(resolved, "")
 		zipPath := findZipEntryPath(r, candidates)
 		if zipPath == "" {
 			continue
@@ -249,15 +249,19 @@ func (e EpubReader) illustrations(documentFullPath string, minMegapixels float64
 	return count, nil
 }
 
-func imageCandidatePaths(resolved string) map[string]struct{} {
+// candidatePaths returns possible zip paths for a file (used for both cover and image lookup).
+// When opfBaseDir is non-empty, also adds opfBaseDir/fileOrPath.
+func candidatePaths(fileOrPath, opfBaseDir string) map[string]struct{} {
 	candidates := map[string]struct{}{}
-	if resolved != "" {
-		candidates[resolved] = struct{}{}
+	if fileOrPath != "" {
+		candidates[fileOrPath] = struct{}{}
 	}
-	base := path.Base(resolved)
-	if base != "" && base != "." && !strings.Contains(resolved, "/") {
-		candidates[path.Join("OEBPS", base)] = struct{}{}
-		candidates[path.Join("OPS", base)] = struct{}{}
+	if opfBaseDir != "" && fileOrPath != "" {
+		candidates[path.Clean(path.Join(opfBaseDir, fileOrPath))] = struct{}{}
+	}
+	if fileOrPath != "" && !strings.Contains(fileOrPath, "/") {
+		candidates[path.Join("OEBPS", fileOrPath)] = struct{}{}
+		candidates[path.Join("OPS", fileOrPath)] = struct{}{}
 	}
 	return candidates
 }
@@ -333,7 +337,7 @@ func words(documentFullPath string) (int, error) {
 }
 
 func extractCover(r *zip.ReadCloser, coverFile, opfBaseDir string, coverMaxWidth int) ([]byte, error) {
-	candidates := coverCandidatePaths(coverFile, opfBaseDir)
+	candidates := candidatePaths(coverFile, opfBaseDir)
 	for _, f := range r.File {
 		if _, ok := candidates[f.Name]; !ok {
 			continue
@@ -425,21 +429,6 @@ func resolveHref(href, baseDir string) string {
 		return path.Clean(href)
 	}
 	return path.Clean(path.Join(baseDir, href))
-}
-
-func coverCandidatePaths(coverFile, opfBaseDir string) map[string]struct{} {
-	candidates := map[string]struct{}{}
-	if coverFile != "" {
-		candidates[coverFile] = struct{}{}
-	}
-	if opfBaseDir != "" && coverFile != "" {
-		candidates[path.Clean(path.Join(opfBaseDir, coverFile))] = struct{}{}
-	}
-	if coverFile != "" && !strings.Contains(coverFile, "/") {
-		candidates[path.Join("OEBPS", coverFile)] = struct{}{}
-		candidates[path.Join("OPS", coverFile)] = struct{}{}
-	}
-	return candidates
 }
 
 func isMarkupFile(href string) bool {

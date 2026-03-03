@@ -34,8 +34,8 @@ const AuthorVersion = "1"
 
 // Metadata fields
 var (
-	internalLanguages        = []byte("languages")
-	internalVersion          = []byte("version")
+	internalLanguages          = []byte("languages")
+	internalVersion            = []byte("version")
 	internalIllustratedMinSize = []byte("illustrated_min_size")
 )
 
@@ -59,13 +59,13 @@ type Config struct {
 }
 
 type BleveIndexer struct {
-	fs                  afero.Fs
-	documentsIdx        bleve.Index // Documents index
-	authorsIdx          bleve.Index // Authors index
-	libraryPath         string
-	reader              map[string]metadata.Reader
-	indexStartTime      float64
-	indexedEntries      float64
+	fs                   afero.Fs
+	documentsIdx         bleve.Index // Documents index
+	authorsIdx           bleve.Index // Authors index
+	libraryPath          string
+	reader               map[string]metadata.Reader
+	indexStartTime       float64
+	indexedEntries       float64
 	illustratedMinAmount int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
 	illustratedMinSize   float64 // minimum size in megapixels for an image to count as an illustration
 }
