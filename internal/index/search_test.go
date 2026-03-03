@@ -177,6 +177,118 @@ func TestLanguageFilter(t *testing.T) {
 	}
 }
 
+// illustratedMockReader returns metadata with configurable Illustrations per file (for testing IllustratedOnly filter).
+type illustratedMockReader struct {
+	illustrationsByFile map[string]int
+}
+
+func (m illustratedMockReader) Metadata(filename string) (metadata.Metadata, error) {
+	illustrations := 0
+	if n, ok := m.illustrationsByFile[filename]; ok {
+		illustrations = n
+	}
+	base := "book"
+	if len(filename) > 0 {
+		base = filename
+	}
+	return metadata.Metadata{
+		Title:         base,
+		Authors:       []string{"Author"},
+		Description:   "<p>Description</p>",
+		Language:      "en",
+		Format:        "EPUB",
+		Subjects:      []string{"Fiction"},
+		Illustrations: illustrations,
+		Publication:   precisiondate.NewPrecisionDate("2020-01-01T00:00:00Z", precisiondate.PrecisionDay),
+	}, nil
+}
+
+func (m illustratedMockReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
+	return nil, nil
+}
+
+func TestSearchIllustratedDocuments(t *testing.T) {
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatalf("Error initialising index: %v", err)
+	}
+
+	mockReader := illustratedMockReader{
+		illustrationsByFile: map[string]int{
+			"lib/no-illustrations.epub": 0,
+			"lib/few-illustrations.epub": 2,
+			"lib/many-illustrations.epub": 5,
+		},
+	}
+	mockMetadataReaders := map[string]metadata.Reader{
+		".epub": mockReader,
+	}
+
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+	for _, f := range []string{"lib/no-illustrations.epub", "lib/few-illustrations.epub", "lib/many-illustrations.epub"} {
+		if err = afero.WriteFile(appFS, f, []byte(""), 0644); err != nil {
+			t.Fatalf("Couldn't write file %s: %v", f, err)
+		}
+	}
+
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{
+		IllustratedMinAmount: 2,
+	})
+
+	if err = idx.AddLibrary(1, true); err != nil {
+		t.Fatalf("Error indexing: %v", err)
+	}
+
+	t.Run("Without IllustratedOnly filter returns all documents", func(t *testing.T) {
+		res, err := idx.Search(index.SearchFields{}, 1, 10)
+		if err != nil {
+			t.Fatalf("Error searching: %v", err)
+		}
+		if res.TotalHits() != 3 {
+			t.Errorf("Expected 3 results without filter, got %d", res.TotalHits())
+		}
+	})
+
+	t.Run("With IllustratedOnly filter returns only documents with at least IllustratedMinAmount illustrations", func(t *testing.T) {
+		res, err := idx.Search(index.SearchFields{
+			IllustratedOnly: true,
+		}, 1, 10)
+		if err != nil {
+			t.Fatalf("Error searching: %v", err)
+		}
+		if res.TotalHits() != 2 {
+			t.Errorf("Expected 2 illustrated documents (few and many), got %d", res.TotalHits())
+		}
+		for _, doc := range res.Hits() {
+			if doc.Illustrations < 2 {
+				t.Errorf("Expected Illustrations >= 2 for %s, got %d", doc.ID, doc.Illustrations)
+			}
+		}
+	})
+
+	t.Run("With IllustratedOnly and IllustratedMinAmount 0 returns all documents", func(t *testing.T) {
+		indexMem2, _ := bleve.NewMemOnly(index.CreateDocumentsMapping())
+		authorsIndexMem2, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+		idx2 := index.NewBleve(indexMem2, authorsIndexMem2, appFS, "lib", mockMetadataReaders, index.Config{
+			IllustratedMinAmount: 0,
+		})
+		if err = idx2.AddLibrary(1, true); err != nil {
+			t.Fatalf("Error indexing: %v", err)
+		}
+		res, err := idx2.Search(index.SearchFields{
+			IllustratedOnly: true,
+		}, 1, 10)
+		if err != nil {
+			t.Fatalf("Error searching: %v", err)
+		}
+		if res.TotalHits() != 3 {
+			t.Errorf("Expected 3 results when IllustratedMinAmount is 0, got %d", res.TotalHits())
+		}
+	})
+}
+
 func TestSearchResultsSortedByDate(t *testing.T) {
 	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
