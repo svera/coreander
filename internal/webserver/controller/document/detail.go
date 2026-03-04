@@ -83,6 +83,11 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 	}
 
 	backLink := backLinkFromReferer(string(c.RequestCtx().Referer()))
+	if backLink != "" {
+		if pathOnly := strings.SplitN(backLink, "?", 2)[0]; pathOnly == "/documents/"+document.Slug {
+			backLink = ""
+		}
+	}
 
 	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, int(session.ID))
 
