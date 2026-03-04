@@ -192,6 +192,74 @@ func TestShareFailsWhenRecipientIsPrivate(t *testing.T) {
 	}
 }
 
+func TestHighlightsFilterSharedShowsOnlySharedDocuments(t *testing.T) {
+	webserverConfig := webserver.Config{
+		ShareMaxRecipients: 10,
+		LibraryPath:        "fixtures/library",
+		WordsPerMinute:     250,
+		SessionTimeout:     24 * time.Hour,
+		RecoveryTimeout:    2 * time.Hour,
+		MinPasswordLength:  5,
+	}
+	_, app, adminCookie, smtpMock := setupShareTestWithSMTP(t, webserverConfig)
+	createUser(t, app, adminCookie, userFixture{
+		name:     "Regular user",
+		username: "regular",
+		email:    "regular@example.com",
+		password: "regular",
+	})
+
+	shareData := url.Values{
+		"recipients": {"regular"},
+	}
+	smtpMock.Wg.Add(1)
+	response, err := postRequest(shareData, adminCookie, app, "/documents/john-doe-test-epub/share", t)
+	if response == nil || err != nil {
+		t.Fatalf("Unexpected error sharing document: %v", err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d for share, received %d", http.StatusOK, response.StatusCode)
+	}
+	smtpMock.Wg.Wait()
+
+	regularUserCookie, err := login(app, "regular@example.com", "regular", t)
+	if err != nil {
+		t.Fatalf("Unexpected error logging in as regular user: %v", err)
+	}
+
+	response, err = getRequest(regularUserCookie, app, "/highlights?filter=shared", t)
+	if response == nil || err != nil {
+		t.Fatalf("Unexpected error fetching highlights with filter=shared: %v", err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d for highlights list, received %d", http.StatusOK, response.StatusCode)
+	}
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing highlights page: %v", err)
+	}
+	sharedCount := doc.Find("#list .list-group-item").Length()
+	if sharedCount != 1 {
+		t.Errorf("Expected 1 shared highlight when filter=shared, got %d", sharedCount)
+	}
+
+	response, err = getRequest(regularUserCookie, app, "/highlights?filter=highlights", t)
+	if response == nil || err != nil {
+		t.Fatalf("Unexpected error fetching highlights with filter=highlights: %v", err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d for highlights list, received %d", http.StatusOK, response.StatusCode)
+	}
+	doc, err = goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatalf("Unexpected error parsing highlights page: %v", err)
+	}
+	ownCount := doc.Find("#list .list-group-item").Length()
+	if ownCount != 0 {
+		t.Errorf("Expected 0 own highlights when filter=highlights (recipient did not add any), got %d", ownCount)
+	}
+}
+
 func TestShareNotAvailableWhenEmailServiceNotConfigured(t *testing.T) {
 	_, app, adminCookie := setupShareTest(t, webserver.Config{}, &infrastructure.NoEmail{})
 	createUser(t, app, adminCookie, userFixture{
