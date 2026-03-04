@@ -7,14 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/webserver/controller/auth"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
 // Update gathers information from the edit user form and updates user data
-func (u *Controller) Update(c *fiber.Ctx) error {
+func (u *Controller) Update(c fiber.Ctx) error {
 	user, err := u.usersRepository.FindByUsername(c.Params("username"))
 	if err != nil {
 		log.Println(err.Error())
@@ -81,7 +81,7 @@ func (u *Controller) Update(c *fiber.Ctx) error {
 	return c.Render("user/edit", vars)
 }
 
-func (u *Controller) updateOptions(c *fiber.Ctx, user *model.User, session model.Session) error {
+func (u *Controller) updateOptions(c fiber.Ctx, user *model.User, session model.Session) error {
 	user.ShowFileName = c.FormValue("show-file-name") == "on"
 	if c.FormValue("private-profile") == "on" {
 		user.PrivateProfile = 1
@@ -139,7 +139,7 @@ func parseFormYear(value string) int {
 	return year
 }
 
-func (u *Controller) refreshSession(session model.Session, user *model.User, c *fiber.Ctx) error {
+func (u *Controller) refreshSession(session model.Session, user *model.User, c fiber.Ctx) error {
 	if session.Uuid == user.Uuid {
 		expiration := time.Unix(int64(session.Exp), 0)
 		signedToken, err := auth.GenerateToken(c, user, expiration, u.config.Secret)
@@ -160,7 +160,7 @@ func (u *Controller) refreshSession(session model.Session, user *model.User, c *
 	return nil
 }
 
-func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session model.Session) (map[string]string, error) {
+func (u *Controller) updateUserData(c fiber.Ctx, user *model.User, session model.Session) (map[string]string, error) {
 	user.Name = strings.TrimSpace(c.FormValue("name"))
 	user.Username = strings.ToLower(c.FormValue("username"))
 	user.Email = c.FormValue("email")
@@ -180,7 +180,7 @@ func (u *Controller) updateUserData(c *fiber.Ctx, user *model.User, session mode
 	return nil, nil
 }
 
-func (u *Controller) validate(c *fiber.Ctx, user *model.User, session model.Session) (map[string]string, error) {
+func (u *Controller) validate(c fiber.Ctx, user *model.User, session model.Session) (map[string]string, error) {
 	errs := user.Validate(u.config.MinPasswordLength)
 
 	exists, err := u.usernameExists(c, session)
@@ -205,7 +205,7 @@ func (u *Controller) validate(c *fiber.Ctx, user *model.User, session model.Sess
 	return errs, nil
 }
 
-func (u *Controller) usernameExists(c *fiber.Ctx, session model.Session) (bool, error) {
+func (u *Controller) usernameExists(c fiber.Ctx, session model.Session) (bool, error) {
 	user, err := u.usersRepository.FindByUsername(c.FormValue("username"))
 	if err != nil {
 		return false, err
@@ -222,7 +222,7 @@ func (u *Controller) usernameExists(c *fiber.Ctx, session model.Session) (bool, 
 	return false, nil
 }
 
-func (u *Controller) emailExists(c *fiber.Ctx, session model.Session) (bool, error) {
+func (u *Controller) emailExists(c fiber.Ctx, session model.Session) (bool, error) {
 	user, err := u.usersRepository.FindByEmail(c.FormValue("email"))
 	if err != nil {
 		return false, err
@@ -240,7 +240,7 @@ func (u *Controller) emailExists(c *fiber.Ctx, session model.Session) (bool, err
 }
 
 // updateUserPassword gathers information from the edit user form and updates user password
-func (u *Controller) updateUserPassword(c *fiber.Ctx, user model.User, session model.Session) (map[string]string, error) {
+func (u *Controller) updateUserPassword(c fiber.Ctx, user model.User, session model.Session) (map[string]string, error) {
 	user.Password = c.FormValue("password")
 
 	errs := user.Validate(u.config.MinPasswordLength)

@@ -6,14 +6,14 @@ import (
 	"net/mail"
 	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"golang.org/x/exp/slices"
 )
 
-func (d *Controller) Share(c *fiber.Ctx) error {
+func (d *Controller) Share(c fiber.Ctx) error {
 	session, _ := c.Locals("Session").(model.Session)
 	if session.PrivateProfile != 0 {
 		return fiber.ErrForbidden
@@ -98,7 +98,7 @@ func (d *Controller) Share(c *fiber.Ctx) error {
 	return nil
 }
 
-func (d *Controller) sendShareEmails(c *fiber.Ctx, recipientUsers []*model.User, senderName, documentTitle, docURL, highlightsURL, comment string) error {
+func (d *Controller) sendShareEmails(c fiber.Ctx, recipientUsers []*model.User, senderName, documentTitle, docURL, highlightsURL, comment string) error {
 	if _, ok := d.sender.(*infrastructure.NoEmail); ok {
 		return nil
 	}

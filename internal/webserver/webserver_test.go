@@ -14,7 +14,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/blevesearch/bleve/v2"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/datasource/wikidata"
 	"github.com/svera/coreander/v4/internal/index"

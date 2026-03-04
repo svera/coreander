@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
@@ -15,7 +15,7 @@ type updateCompletionDateRequest struct {
 // ToggleComplete marks a document as complete or incomplete
 // If a date is provided in the request body, it sets the completion date to that value
 // If no date is provided (POST), it toggles between complete (with current date) and incomplete
-func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
+func (d *Controller) ToggleComplete(c fiber.Ctx) error {
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
@@ -38,7 +38,7 @@ func (d *Controller) ToggleComplete(c *fiber.Ctx) error {
 	// Check if a date was provided in the request body (for updating completion date)
 	var req updateCompletionDateRequest
 	if c.Body() != nil && len(c.Body()) > 0 {
-		if err := c.BodyParser(&req); err != nil {
+		if err := c.Bind().Body(&req); err != nil {
 			return fiber.ErrBadRequest
 		}
 

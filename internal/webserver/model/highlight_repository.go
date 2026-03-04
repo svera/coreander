@@ -53,7 +53,6 @@ func (u *HighlightRepository) Total(userID int) (int, error) {
 	return int(total), nil
 }
 
-
 func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]AugmentedDocument]) result.Paginated[[]AugmentedDocument] {
 	highlightsByPath := map[string]Highlight{}
 	paths := make([]string, 0, len(results.Hits()))

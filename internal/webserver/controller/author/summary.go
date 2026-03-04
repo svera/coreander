@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/datasource/model"
 	"github.com/svera/coreander/v4/internal/index"
 )
 
-func (a *Controller) Summary(c *fiber.Ctx) error {
+func (a *Controller) Summary(c fiber.Ctx) error {
 	// Set cache headers to prevent caching of author summary HTML
 	// This ensures fresh ImageVersion is always retrieved
 	c.Set("Cache-Control", "no-cache, no-store, must-revalidate")

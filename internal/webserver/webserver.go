@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cache"
-	"github.com/gofiber/fiber/v2/middleware/compress"
-	"github.com/gofiber/fiber/v2/middleware/favicon"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cache"
+	"github.com/gofiber/fiber/v3/middleware/compress"
+	"github.com/gofiber/fiber/v3/middleware/favicon"
 	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
@@ -117,9 +117,7 @@ func New(cfg Config, controllers Controllers, sender Sender, idx ProgressInfo, u
 	}
 
 	app := fiber.New(fiber.Config{
-		Views:                        engine,
-		DisableStartupMessage:        true,
-		AppName:                      cfg.Version,
+		Views: engine, AppName: cfg.Version,
 		PassLocalsToViews:            true,
 		ErrorHandler:                 errorHandler,
 		BodyLimit:                    cfg.UploadDocumentMaxSize * 1024 * 1024,
@@ -132,7 +130,7 @@ func New(cfg Config, controllers Controllers, sender Sender, idx ProgressInfo, u
 		SetProgress(idx),
 		favicon.New(),
 		cache.New(cache.Config{
-			ExpirationGenerator: func(c *fiber.Ctx, cfg *cache.Config) time.Duration {
+			ExpirationGenerator: func(c fiber.Ctx, cfg *cache.Config) time.Duration {
 				newCacheTime, _ := strconv.Atoi(c.GetRespHeader("Cache-Time", "0"))
 				return time.Second * time.Duration(newCacheTime)
 			},
@@ -145,7 +143,7 @@ func New(cfg Config, controllers Controllers, sender Sender, idx ProgressInfo, u
 	return app
 }
 
-func chooseBestLanguage(c *fiber.Ctx) string {
+func chooseBestLanguage(c fiber.Ctx) string {
 	lang := c.Query("l")
 	if lang != "" {
 		c.Cookie(&fiber.Cookie{
@@ -169,7 +167,7 @@ func chooseBestLanguage(c *fiber.Ctx) string {
 	return lang
 }
 
-func errorHandler(c *fiber.Ctx, err error) error {
+func errorHandler(c fiber.Ctx, err error) error {
 	// Status code defaults to 500
 	code := fiber.StatusInternalServerError
 	// Retrieve the custom status code if it's a *fiber.Error

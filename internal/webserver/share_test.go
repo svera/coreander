@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/webserver"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
@@ -71,7 +71,7 @@ func TestShareCommentIsTruncated(t *testing.T) {
 		WordsPerMinute:      250,
 		SessionTimeout:      24 * time.Hour,
 		RecoveryTimeout:     2 * time.Hour,
-		MinPasswordLength:  5,
+		MinPasswordLength:   5,
 	}
 	db, app, adminCookie, smtpMock := setupShareTestWithSMTP(t, webserverConfig)
 	createUser(t, app, adminCookie, userFixture{
@@ -246,7 +246,7 @@ func TestShareFailsWhenRecipientLimitExceeded(t *testing.T) {
 		WordsPerMinute:     250,
 		SessionTimeout:     24 * time.Hour,
 		RecoveryTimeout:    2 * time.Hour,
-		MinPasswordLength: 5,
+		MinPasswordLength:  5,
 	}
 	_, app, adminCookie, smtpMock := setupShareTestWithSMTP(t, webserverConfig)
 
@@ -306,7 +306,7 @@ func TestShareCommentSizeLimit(t *testing.T) {
 		WordsPerMinute:      250,
 		SessionTimeout:      24 * time.Hour,
 		RecoveryTimeout:     2 * time.Hour,
-		MinPasswordLength:  5,
+		MinPasswordLength:   5,
 	}
 	db, app, adminCookie, smtpMock := setupShareTestWithSMTP(t, webserverConfig)
 	createUser(t, app, adminCookie, userFixture{
