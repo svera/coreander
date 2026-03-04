@@ -36,8 +36,12 @@ func RequireAdmin(c fiber.Ctx) error {
 // as a local variable of the request
 func SetFQDN(cfg Config) func(fiber.Ctx) error {
 	return func(c fiber.Ctx) error {
+		protocol := "http"
+		if c.Secure() {
+			protocol = "https"
+		}
 		c.Locals("fqdn", fmt.Sprintf("%s://%s",
-			c.Protocol(),
+			protocol,
 			cfg.FQDN,
 		))
 		return c.Next()
