@@ -39,6 +39,17 @@
     </footer>
     <script src="/js/bootstrap.bundle.min.js{{versionParam .Version}}"></script>
     <script src="/js/htmx.min.js{{versionParam .Version}}"></script>
+    <script>
+    function initReadingTimePopovers() {
+        document.querySelectorAll('.reading-time-help-popover').forEach(function (el) {
+            if (!bootstrap.Popover.getInstance(el)) {
+                new bootstrap.Popover(el);
+            }
+        });
+    }
+    document.addEventListener('DOMContentLoaded', initReadingTimePopovers);
+    document.body.addEventListener('htmx:afterSettle', initReadingTimePopovers);
+    </script>
     <script type="module" src="/js/share-recipients.js{{versionParam .Version}}"></script>
     <script type="module" src="/js/feedback.js{{versionParam .Version}}"></script>
     <link rel="preload" href="/css/bootstrap-icons.min.css{{versionParam .Version}}" as="style" onload="this.onload=null;this.rel='stylesheet'">
