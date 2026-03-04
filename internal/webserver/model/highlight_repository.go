@@ -20,9 +20,9 @@ func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage in
 
 	switch filter {
 	case "highlights":
-		query = query.Where("h.shared_by_id IS NULL")
+		query = query.Where("shared_by_id IS NULL")
 	case "shared":
-		query = query.Where("h.shared_by_id IS NOT NULL")
+		query = query.Where("shared_by_id IS NOT NULL")
 	}
 
 	countQuery := query
