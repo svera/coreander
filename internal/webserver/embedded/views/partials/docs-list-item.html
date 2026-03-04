@@ -1,3 +1,4 @@
+{{$ctx := .}}
 {{if and .Document.Highlight .Document.Highlight.SharedByID}}
     {{$sharedByName := ""}}
     {{if .Document.Highlight.SharedBy}}
@@ -52,8 +53,8 @@
                 {{if .Document.Authors}}
                 <h5>
                     {{range $i, $author := .Document.Authors}}
-                    {{$authorTitle := t $.Lang "Search for more titles by %s" $author}}
-                    <a href="/authors/{{index $.Document.AuthorsSlugs $i}}" title={{$authorTitle}}>{{$author}}</a>{{if notLast $.Document.Authors $i}}, {{end}}
+                    {{$authorTitle := t $ctx.Lang "Search for more titles by %s" $author}}
+                    <a href="/authors/{{index $ctx.Document.AuthorsSlugs $i}}" title={{$authorTitle}}>{{$author}}</a>{{if notLast $ctx.Document.Authors $i}}, {{end}}
                     {{end}}
                 </h5>
                 {{else}}
@@ -66,7 +67,11 @@
                     </dd>
                     {{end}}
                     {{ if gt .Document.Words 0.0 }}
-                        <li><i class="bi bi-stopwatch me-2"></i><time>{{.Document.ReadingTime .WordsPerMinute}}</time></li>
+                        {{$readingTimeHelpContent := t .Lang "Reading time calculated using a speed of %s words per minute. Log in to customize this value" (printf "%.0f" .WordsPerMinute)}}
+                        {{if .Session}}
+                            {{$readingTimeHelpContent = t .Lang "Your reading speed is currently set to %s words per minute. You can change your reading speed in your profile." (printf "%.0f" .WordsPerMinute)}}
+                        {{end}}
+                        <li><i class="bi bi-stopwatch me-2"></i><time>{{.Document.ReadingTime .WordsPerMinute}}</time> <span class="reading-time-help-popover d-inline-block ms-1" role="button" tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="top" data-bs-content="{{$readingTimeHelpContent}}"><i class="bi bi-info-circle text-muted"></i></span></li>
                     {{ end }}
                     {{ if .Document.Pages }}
                         <li><i class="bi bi-book me-2"></i>{{.Document.Pages}}</li>
@@ -110,7 +115,7 @@
                 {{ if .Document.Subjects }}
                 <ul class="list-inline mt-3">
                     {{range $i, $subject := .Document.Subjects}}
-                        {{$subjectTitle := t $.Lang "Search for more titles in %s" $subject}}
+                        {{$subjectTitle := t $ctx.Lang "Search for more titles in %s" $subject}}
                         <li class="list-inline-item"><a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?subjects={{urlquery $subject}}" title={{$subjectTitle}}>{{$subject}}</a></li>
                     {{end}}
                 </ul>
