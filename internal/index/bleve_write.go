@@ -238,7 +238,7 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 	}
 
 	for i, subject := range meta.Subjects {
-		document.SubjectsSlugs[i] = canonicalSubjectSlug(subject)
+		document.SubjectsSlugs[i] = slug.Make(subject)
 	}
 
 	return document
