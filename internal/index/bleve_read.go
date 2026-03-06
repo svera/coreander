@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"unicode"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
@@ -18,6 +19,9 @@ import (
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/precisiondate"
 	"github.com/svera/coreander/v4/internal/result"
+	"golang.org/x/text/runes"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 )
 
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
@@ -128,8 +132,8 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 			if subjectStr == "" {
 				continue
 			}
-			// Convert subject to slug for exact matching on SubjectsSlugs field (keyword field)
-			subjectSlug := slug.Make(subjectStr)
+			// Use same canonical slug as Subjects() and indexing so "cronica" and "crónica" match
+			subjectSlug := canonicalSubjectSlug(subjectStr)
 			// Use TermQuery for exact match on SubjectsSlugs (keyword field, not analyzed)
 			q := bleve.NewTermQuery(subjectSlug)
 			q.SetField("SubjectsSlugs")
@@ -454,54 +458,61 @@ func normalizeSubjectName(subject string) string {
 	return subject
 }
 
-// Subjects returns a list of all unique subjects in the indexed documents using faceted search.
-// Uses Subjects field (now keyword field) for faceting to get complete subject names.
-// Subject names are normalized to have only the first letter capitalized.
-func (b *BleveIndexer) Subjects() ([]string, error) {
+// canonicalSubjectSlug returns an accent-insensitive slug so "cronica" and "crónica" group together.
+func canonicalSubjectSlug(s string) string {
+	// NFD decompose then remove combining marks (e.g. ó -> o + combining acute -> o)
+	t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+	out, _, _ := transform.String(t, s)
+	return slug.Make(out)
+}
+
+// Subjects returns subject groups: each slug with all display names that map to it.
+// Uses Subjects field for faceting; names are normalized (first letter capitalized).
+// Grouping uses accent-insensitive slug so "cronica" and "crónica" are one group.
+func (b *BleveIndexer) Subjects() ([]SubjectGroup, error) {
 	if b.documentsIdx == nil {
-		return []string{}, nil
+		return []SubjectGroup{}, nil
 	}
 
-	// Use faceted search to get all unique subjects from documents
 	matchAllQuery := bleve.NewMatchAllQuery()
 	searchRequest := bleve.NewSearchRequest(matchAllQuery)
-	searchRequest.Size = 0 // We don't need document hits, only facets
-
-	// Add facet request for Subjects field (keyword field, not analyzed)
-	// Use a large size to get all unique subjects
+	searchRequest.Size = 0
 	subjectsFacet := bleve.NewFacetRequest("Subjects", 10000)
 	searchRequest.AddFacet("subjects", subjectsFacet)
 
 	searchResult, err := b.documentsIdx.Search(searchRequest)
 	if err != nil {
-		return []string{}, err
+		return []SubjectGroup{}, err
 	}
 
-	// Use a map to track unique normalized subjects
-	subjectsMap := make(map[string]bool)
+	// canonical slug -> set of normalized names (map for dedup, then slice for output)
+	bySlug := make(map[string]map[string]bool)
 
-	// Extract subjects from facet results and normalize them
 	if subjectsFacetResult, ok := searchResult.Facets["subjects"]; ok && subjectsFacetResult.Terms != nil {
 		for _, term := range subjectsFacetResult.Terms.Terms() {
 			if term.Term == "" {
 				continue
 			}
-			// Normalize subject name (only first letter capitalized)
 			normalized := normalizeSubjectName(term.Term)
-			subjectsMap[normalized] = true
+			s := canonicalSubjectSlug(term.Term)
+			if bySlug[s] == nil {
+				bySlug[s] = make(map[string]bool)
+			}
+			bySlug[s][normalized] = true
 		}
 	}
 
-	// Convert map to slice
-	subjects := make([]string, 0, len(subjectsMap))
-	for subject := range subjectsMap {
-		subjects = append(subjects, subject)
+	groups := make([]SubjectGroup, 0, len(bySlug))
+	for s, namesSet := range bySlug {
+		names := make([]string, 0, len(namesSet))
+		for n := range namesSet {
+			names = append(names, n)
+		}
+		slices.Sort(names)
+		groups = append(groups, SubjectGroup{Slug: s, Names: names})
 	}
-
-	// Sort for consistent output
-	slices.Sort(subjects)
-
-	return subjects, nil
+	slices.SortFunc(groups, func(a, b SubjectGroup) int { return strings.Compare(a.Slug, b.Slug) })
+	return groups, nil
 }
 
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {

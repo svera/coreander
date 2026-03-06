@@ -214,12 +214,14 @@ function initSearchFilters(searchFilters) {
         })
     }
 
-    // Subjects (scoped to this container)
+    // Subjects (scoped to this container): grouped by slug; selection stores slugs, badges show all names for that slug
     const subjectsList = document.getElementById(idPrefix + 'subjects-list')
     const subjectsInput = document.getElementById(idPrefix + 'subjects')
     const subjectsHiddenInput = document.getElementById(idPrefix + 'subjects-hidden')
     const subjectsBadgesContainer = document.getElementById(idPrefix + 'subjects-badges-container')
-    let selectedSubjects = []
+    let selectedSubjectSlugs = []
+    let slugToNames = {}
+    let nameToSlug = {}
 
     if (subjectsList) {
         fetch('/subjects')
@@ -229,37 +231,61 @@ function initSearchFilters(searchFilters) {
                 }
                 return response.json()
             })
-            .then(subjects => {
+            .then(groups => {
+                slugToNames = {}
+                nameToSlug = {}
                 subjectsList.innerHTML = ''
-                subjects.forEach(subject => {
+                groups.forEach(group => {
+                    const names = group.names || []
+                    slugToNames[group.slug] = names
+                    names.forEach(name => {
+                        nameToSlug[name] = group.slug
+                    })
+                    const displayText = names.join(', ')
+                    nameToSlug[displayText] = group.slug
                     const option = document.createElement('option')
-                    option.value = subject
+                    option.value = displayText
                     subjectsList.appendChild(option)
                 })
+                applyInitialSubjects()
+                updateSubjectBadges()
             })
             .catch(error => {
                 console.error('Error loading subjects:', error)
             })
     }
 
+    function slugForValue(value) {
+        const trimmed = (value || '').trim()
+        if (!trimmed) return null
+        if (nameToSlug[trimmed]) return nameToSlug[trimmed]
+        if (slugToNames[trimmed]) return trimmed
+        return null
+    }
+
+    function displayNamesForSlug(slug) {
+        return (slugToNames[slug] || [slug]).join(', ')
+    }
+
     function updateSubjectBadges() {
         if (!subjectsBadgesContainer || !subjectsHiddenInput) return
         subjectsBadgesContainer.innerHTML = ''
-        if (selectedSubjects.length === 0) {
+        if (selectedSubjectSlugs.length === 0) {
             subjectsBadgesContainer.classList.add('d-none')
             subjectsHiddenInput.value = ''
             return
         }
         subjectsBadgesContainer.classList.remove('d-none')
-        selectedSubjects.forEach((subject, index) => {
+        selectedSubjectSlugs.forEach((slug, index) => {
+            const displayText = displayNamesForSlug(slug)
             const badge = document.createElement('span')
             badge.className = 'badge rounded-pill text-bg-primary d-inline-flex align-items-center'
             badge.style.pointerEvents = 'all'
-            badge.textContent = subject
+            badge.textContent = displayText
             const closeBtn = document.createElement('button')
             closeBtn.type = 'button'
             closeBtn.className = 'btn-close btn-close-white ms-1 mt-0 small'
-            const removeSubjectLabel = translations.remove_subject ? translations.remove_subject.replace('%s', subject) : `Remove subject: ${subject}`
+            const removeSubjectLabel = translations.remove_subject ? translations.remove_subject.replace('%s', displayText) : `Remove subject: ${displayText}`
             closeBtn.setAttribute('aria-label', removeSubjectLabel)
             closeBtn.addEventListener('click', (e) => {
                 e.preventDefault()
@@ -269,17 +295,15 @@ function initSearchFilters(searchFilters) {
             badge.appendChild(closeBtn)
             subjectsBadgesContainer.appendChild(badge)
         })
-        subjectsHiddenInput.value = selectedSubjects.join(',')
+        subjectsHiddenInput.value = selectedSubjectSlugs.join(',')
     }
 
-    function addSubject(subject) {
-        const trimmedSubject = subject.trim()
-        if (!trimmedSubject) return
-        const isDuplicate = selectedSubjects.some(existing =>
-            existing.toLowerCase() === trimmedSubject.toLowerCase()
-        )
+    function addSubject(value) {
+        const slug = slugForValue(value)
+        if (!slug) return
+        const isDuplicate = selectedSubjectSlugs.includes(slug)
         if (!isDuplicate) {
-            selectedSubjects.push(trimmedSubject)
+            selectedSubjectSlugs.push(slug)
             updateSubjectBadges()
             if (triggerSearchUpdate) triggerSearchUpdate()
         }
@@ -287,7 +311,7 @@ function initSearchFilters(searchFilters) {
     }
 
     function removeSubject(index) {
-        selectedSubjects.splice(index, 1)
+        selectedSubjectSlugs.splice(index, 1)
         updateSubjectBadges()
         if (triggerSearchUpdate) triggerSearchUpdate()
         if (subjectsInput) subjectsInput.focus()
@@ -306,36 +330,31 @@ function initSearchFilters(searchFilters) {
         }
     }
 
+    function applyInitialSubjects() {
+        if (!subjectsHiddenInput) return
+        const raw = subjectsHiddenInput.value
+        const parts = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : []
+        const seen = new Set()
+        selectedSubjectSlugs = []
+        parts.forEach(part => {
+            const slug = slugForValue(part) || part
+            const key = slug.toLowerCase()
+            if (!seen.has(key)) {
+                seen.add(key)
+                selectedSubjectSlugs.push(slug)
+            }
+        })
+    }
+
     if (subjectsInput && subjectsHiddenInput) {
-        const initialValue = subjectsHiddenInput.value
-        if (initialValue) {
-            const subjects = initialValue.split(',').map(s => s.trim()).filter(s => s)
-            const seen = new Set()
-            selectedSubjects = subjects.filter(subject => {
-                const lower = subject.toLowerCase()
-                if (seen.has(lower)) return false
-                seen.add(lower)
-                return true
-            })
-        }
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', updateSubjectBadges)
-        } else {
-            updateSubjectBadges()
+            document.addEventListener('DOMContentLoaded', () => {
+                if (Object.keys(slugToNames).length > 0) updateSubjectBadges()
+            })
         }
         searchFilters.addEventListener('syncSubjectsFromHiddenInput', () => {
             if (!subjectsHiddenInput) return
-            const value = subjectsHiddenInput.value
-            const parsed = value ? value.split(',').map(s => s.trim()).filter(s => s) : []
-            const seen = new Set()
-            selectedSubjects.length = 0
-            parsed.forEach(subject => {
-                const lower = subject.toLowerCase()
-                if (!seen.has(lower)) {
-                    seen.add(lower)
-                    selectedSubjects.push(subject)
-                }
-            })
+            applyInitialSubjects()
             updateSubjectBadges()
         })
         let lastInputValue = ''
@@ -358,8 +377,8 @@ function initSearchFilters(searchFilters) {
                 e.preventDefault()
                 const value = subjectsInput.value.trim()
                 if (value) addSubject(value)
-            } else if (e.key === 'Backspace' && subjectsInput.value === '' && selectedSubjects.length > 0) {
-                removeSubject(selectedSubjects.length - 1)
+            } else if (e.key === 'Backspace' && subjectsInput.value === '' && selectedSubjectSlugs.length > 0) {
+                removeSubject(selectedSubjectSlugs.length - 1)
             }
         })
     }

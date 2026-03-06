@@ -139,12 +139,12 @@ func (d *Controller) parseSortBy(c fiber.Ctx) []string {
 	return []string{"-_score", "Series", "SeriesIndex"}
 }
 
-// Subjects returns all unique subjects from the index as JSON
+// Subjects returns all subjects from the index grouped by slug, as JSON
 func (d *Controller) Subjects(c fiber.Ctx) error {
-	subjects, err := d.idx.Subjects()
+	groups, err := d.idx.Subjects()
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
-	return c.JSON(subjects)
+	return c.JSON(groups)
 }
