@@ -128,7 +128,7 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 			if subjectStr == "" {
 				continue
 			}
-			// Convert subject to slug for exact matching on SubjectsSlugs field (keyword field)
+			// Convert subject to slug for exact matching on SubjectsSlugs (same as Subjects() and indexing)
 			subjectSlug := slug.Make(subjectStr)
 			// Use TermQuery for exact match on SubjectsSlugs (keyword field, not analyzed)
 			q := bleve.NewTermQuery(subjectSlug)
@@ -454,54 +454,45 @@ func normalizeSubjectName(subject string) string {
 	return subject
 }
 
-// Subjects returns a list of all unique subjects in the indexed documents using faceted search.
-// Uses Subjects field (now keyword field) for faceting to get complete subject names.
-// Subject names are normalized to have only the first letter capitalized.
-func (b *BleveIndexer) Subjects() ([]string, error) {
+// Subjects returns subject groups: each slug with all display names that map to it.
+// Uses Subjects field for faceting; names are normalized (first letter capitalized).
+// Grouping uses slug.Make so variants like "cronica" and "crónica" share one slug (slug transliterates accents).
+func (b *BleveIndexer) Subjects() (map[string][]string, error) {
 	if b.documentsIdx == nil {
-		return []string{}, nil
+		return map[string][]string{}, nil
 	}
 
-	// Use faceted search to get all unique subjects from documents
 	matchAllQuery := bleve.NewMatchAllQuery()
 	searchRequest := bleve.NewSearchRequest(matchAllQuery)
-	searchRequest.Size = 0 // We don't need document hits, only facets
-
-	// Add facet request for Subjects field (keyword field, not analyzed)
-	// Use a large size to get all unique subjects
+	searchRequest.Size = 0
 	subjectsFacet := bleve.NewFacetRequest("Subjects", 10000)
 	searchRequest.AddFacet("subjects", subjectsFacet)
 
 	searchResult, err := b.documentsIdx.Search(searchRequest)
 	if err != nil {
-		return []string{}, err
+		return nil, err
 	}
 
-	// Use a map to track unique normalized subjects
-	subjectsMap := make(map[string]bool)
+	// slug -> unique normalized names
+	bySlug := make(map[string][]string)
 
-	// Extract subjects from facet results and normalize them
 	if subjectsFacetResult, ok := searchResult.Facets["subjects"]; ok && subjectsFacetResult.Terms != nil {
 		for _, term := range subjectsFacetResult.Terms.Terms() {
 			if term.Term == "" {
 				continue
 			}
-			// Normalize subject name (only first letter capitalized)
 			normalized := normalizeSubjectName(term.Term)
-			subjectsMap[normalized] = true
+			s := slug.Make(term.Term)
+			if !slices.Contains(bySlug[s], normalized) {
+				bySlug[s] = append(bySlug[s], normalized)
+			}
 		}
 	}
 
-	// Convert map to slice
-	subjects := make([]string, 0, len(subjectsMap))
-	for subject := range subjectsMap {
-		subjects = append(subjects, subject)
+	for _, names := range bySlug {
+		slices.Sort(names)
 	}
-
-	// Sort for consistent output
-	slices.Sort(subjects)
-
-	return subjects, nil
+	return bySlug, nil
 }
 
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {

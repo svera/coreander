@@ -163,7 +163,7 @@ func (e EpubReader) coverFileName(documentFullPath string, r *zip.ReadCloser) (s
 
 	coverFileName := selectCoverFileName(opf)
 	if coverFileName == "" {
-		return "", fmt.Errorf("no cover image set in %s", documentFullPath)
+		return "", nil
 	}
 
 	coverFileName = resolveHref(coverFileName, opfBaseDir)

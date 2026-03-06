@@ -32,7 +32,7 @@ type IdxReaderWriter interface {
 	RemoveFile(file string) error
 	Documents(IDs []string, sortBy []string) ([]index.Document, error)
 	Languages() ([]string, error)
-	Subjects() ([]string, error)
+	Subjects() (map[string][]string, error)
 }
 
 type highlightsRepository interface {
