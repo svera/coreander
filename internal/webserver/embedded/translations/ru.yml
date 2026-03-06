@@ -6,6 +6,8 @@
 "%d documents found": "Найдено %d документов"
 "No documents found": "Документы не найдены"
 "Estimated reading time": "Оценочное время чтения"
+"Illustrated": "Иллюстрированное"
+"Only illustrated": "Только с иллюстрациями"
 "Your reading speed is currently set to %s words per minute. You can change your reading speed in your profile.": "Ваша скорость чтения установлена на %s слов в минуту. Изменить скорость чтения можно в профиле."
 "Reading time calculated using a speed of %s words per minute. Log in to customize this value": "Время чтения рассчитано при скорости %s слов в минуту. Войдите, чтобы изменить это значение."
 "Coreander - search results": Coreander - результаты поиска

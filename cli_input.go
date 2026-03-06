@@ -19,6 +19,10 @@ type CLIInput struct {
 	AuthorImageMaxWidth int `env:"AUTHOR_IMAGE_MAX_WIDTH" default:"600" name:"author-image-max-width" help:"Maximum horizontal size for author images in pixels. Set to 0 to keep original image size"`
 	// CoverMaxWidth sets the maximum horizontal size for documents cover thumbnails in pixels
 	CoverMaxWidth int `env:"COVER_MAX_WIDTH" default:"600" name:"cover-max-width" help:"Maximum horizontal size for documents cover thumbnails in pixels"`
+	// IllustratedMinAmount is the minimum number of illustrations (excluding cover) for a document to be considered illustrated
+	IllustratedMinAmount int `env:"ILLUSTRATED_MIN_AMOUNT" default:"2" name:"illustrated-min-amount" help:"Minimum number of illustrations (excluding cover) for a document to be considered illustrated"`
+	// IllustratedMinSize is the minimum size in megapixels for an image to count as an illustration
+	IllustratedMinSize float64 `env:"ILLUSTRATED_MIN_SIZE" default:"0.25" name:"illustrated-min-size" help:"Minimum size in megapixels for an image to count as an illustration"`
 	// ForceIndexing signals whether to force indexing already indexed documents or not
 	ForceIndexing bool `env:"FORCE_INDEXING" short:"f" default:"false" name:"force-indexing" help:"Force indexing already indexed documents"`
 	// SmtpServer points to the address of the send mail server

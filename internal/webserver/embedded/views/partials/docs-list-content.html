@@ -2,7 +2,7 @@
 <ul class="list-group rounded-0">
     {{range $i, $document := .Results.Hits}}
     <li class="list-group-item border border-0 px-0 mt-5">
-        {{template "partials/docs-list-item" dict "Lang" $.Lang "Document" $document "Session" $.Session "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $.WordsPerMinute "EmailSendingConfigured" $.EmailSendingConfigured "EmailFrom" $.EmailFrom "DefaultAction" $.DefaultAction "CanShare" $.CanShare "PreferredEpub" $.PreferredEpub "ShareMaxRecipients" $.ShareMaxRecipients "ShareCommentMaxSize" $.ShareCommentMaxSize}}
+        {{template "partials/docs-list-item" dict "Lang" $.Lang "Document" $document "Session" $.Session "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $.WordsPerMinute "EmailSendingConfigured" $.EmailSendingConfigured "EmailFrom" $.EmailFrom "DefaultAction" $.DefaultAction "CanShare" $.CanShare "PreferredEpub" $.PreferredEpub "ShareMaxRecipients" $.ShareMaxRecipients "ShareCommentMaxSize" $.ShareCommentMaxSize "IllustratedMinAmount" $.IllustratedMinAmount}}
     </li>
     {{end}}
 </ul>

@@ -83,6 +83,11 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 	}
 
 	backLink := backLinkFromReferer(string(c.RequestCtx().Referer()))
+	if backLink != "" {
+		if pathOnly := strings.SplitN(backLink, "?", 2)[0]; pathOnly == "/documents/"+document.Slug {
+			backLink = ""
+		}
+	}
 
 	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, int(session.ID))
 
@@ -98,12 +103,12 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 
 	result.CompletedOn = completedOn
 	return c.Render("document/detail", fiber.Map{
-		"Title":          title,
-		"BackLink":       backLink,
-		"Document":       result,
-		"EmailFrom":      d.sender.From(),
-		"SameSeries":     sameSeries,
-		"SameAuthors":    sameAuthors,
+		"Title":               title,
+		"BackLink":            backLink,
+		"Document":            result,
+		"EmailFrom":           d.sender.From(),
+		"SameSeries":          sameSeries,
+		"SameAuthors":         sameAuthors,
 		"SameSubjects":   sameSubjects,
 		"WordsPerMinute": d.config.WordsPerMinute,
 	}, "layout")

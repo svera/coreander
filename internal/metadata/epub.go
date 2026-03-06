@@ -4,6 +4,10 @@ import (
 	"archive/zip"
 	"fmt"
 	"html/template"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"log"
 	"path"
@@ -68,7 +72,9 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 		}
 		// Some epub files mistakenly put all subjects in a single field instead of using a field for each one.
 		// We want to identify those cases looking for specific separators and then indexing each subject properly.
-		names := strings.Split(subject, ",")
+		names := strings.FieldsFunc(subject, func(r rune) bool {
+			return r == ',' || r == ';'
+		})
 		for _, name := range names {
 			if name = strings.TrimSpace(name); name != "" {
 				subjects = append(subjects, name)
@@ -109,42 +115,33 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 
 	seriesIndex, _ = strconv.ParseFloat(meta.SeriesIndex, 64)
 
-	bk = Metadata{
-		Title:       title,
-		Authors:     authors,
-		Description: template.HTML(description),
-		Language:    lang,
-		Publication: publication,
-		Series:      meta.Series,
-		SeriesIndex: seriesIndex,
-		Format:      "EPUB",
-		Subjects:    subjects,
+	illustrations, err := e.illustrations(filename, 0.25)
+	if err != nil {
+		log.Printf("Cannot count illustrations in %s: $%s\n", filename, err)
 	}
+
 	w, err := words(filename)
 	if err != nil {
 		log.Printf("Cannot count words in %s: $%s\n", filename, err)
 	}
-	bk.Words = float64(w)
+
+	bk = Metadata{
+		Title:         title,
+		Authors:       authors,
+		Description:   template.HTML(description),
+		Language:      lang,
+		Publication:   publication,
+		Series:        meta.Series,
+		SeriesIndex:   seriesIndex,
+		Format:        "EPUB",
+		Subjects:      subjects,
+		Illustrations: illustrations,
+		Words:         float64(w),
+	}
 	return bk, nil
 }
 
-// Cover parses the document looking for a cover image and returns it
-func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
-	var cover []byte
-
-	coverFileName := ""
-
-	opf, err := e.GetPackageFromFile(documentFullPath)
-	if err != nil {
-		return nil, err
-	}
-
-	r, err := zip.OpenReader(documentFullPath)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-
+func opfBaseDir(r *zip.ReadCloser) string {
 	opfPath := findOpfPath(r)
 	opfBaseDir := ""
 	if opfPath != "" {
@@ -153,10 +150,20 @@ func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, e
 			opfBaseDir = ""
 		}
 	}
+	return opfBaseDir
+}
 
-	coverFileName = selectCoverFileName(opf)
+func (e EpubReader) coverFileName(documentFullPath string, r *zip.ReadCloser) (string, error) {
+	opf, err := e.GetPackageFromFile(documentFullPath)
+	if err != nil {
+		return "", err
+	}
+
+	opfBaseDir := opfBaseDir(r)
+
+	coverFileName := selectCoverFileName(opf)
 	if coverFileName == "" {
-		return nil, fmt.Errorf("no cover image set in %s", documentFullPath)
+		return "", fmt.Errorf("no cover image set in %s", documentFullPath)
 	}
 
 	coverFileName = resolveHref(coverFileName, opfBaseDir)
@@ -165,12 +172,130 @@ func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, e
 			coverFileName = resolvedCover
 		}
 	}
+	return coverFileName, nil
+}
 
-	cover, err = extractCover(r, coverFileName, opfBaseDir, coverMaxWidth)
+// Cover parses the document looking for a cover image and returns it
+func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
+	var cover []byte
+
+	r, err := zip.OpenReader(documentFullPath)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	coverFileName, err := e.coverFileName(documentFullPath, r)
+	if err != nil {
+		return nil, err
+	}
+
+	cover, err = extractCover(r, coverFileName, opfBaseDir(r), coverMaxWidth)
 	if err != nil {
 		return nil, err
 	}
 	return cover, nil
+}
+
+// illustrations returns the number of images in the EPUB that have size >= minMegapixels (excluding the cover).
+func (e EpubReader) illustrations(documentFullPath string, minMegapixels float64) (int, error) {
+	opf, err := e.GetPackageFromFile(documentFullPath)
+	if err != nil {
+		return 0, err
+	}
+	r, err := zip.OpenReader(documentFullPath)
+	if err != nil {
+		return 0, err
+	}
+	defer r.Close()
+
+	coverFileName, err := e.coverFileName(documentFullPath, r)
+	if err != nil {
+		return 0, err
+	}
+	coverPaths := candidatePaths(coverFileName, opfBaseDir(r))
+
+	if opf.Manifest == nil {
+		return 0, nil
+	}
+	// Count each distinct image file only once (manifest may reference the same file multiple times)
+	seen := make(map[string]struct{})
+	var count int
+	for _, item := range opf.Manifest.Items {
+		if !strings.HasPrefix(item.MediaType, "image/") {
+			continue
+		}
+		resolved := resolveHref(item.Href, opfBaseDir(r))
+		candidates := candidatePaths(resolved, "")
+		zipPath := findZipEntryPath(r, candidates)
+		if zipPath == "" {
+			continue
+		}
+		if _, isCover := coverPaths[zipPath]; isCover {
+			continue
+		}
+		if _, alreadyCounted := seen[zipPath]; alreadyCounted {
+			continue
+		}
+		mp, err := imageMegapixels(r, zipPath)
+		if err != nil {
+			continue
+		}
+		if mp >= minMegapixels {
+			seen[zipPath] = struct{}{}
+			count++
+		}
+	}
+	return count, nil
+}
+
+// candidatePaths returns possible zip paths for a file (used for both cover and image lookup).
+// When opfBaseDir is non-empty, also adds opfBaseDir/fileOrPath.
+func candidatePaths(fileOrPath, opfBaseDir string) map[string]struct{} {
+	candidates := map[string]struct{}{}
+	if fileOrPath != "" {
+		candidates[fileOrPath] = struct{}{}
+	}
+	if opfBaseDir != "" && fileOrPath != "" {
+		candidates[path.Clean(path.Join(opfBaseDir, fileOrPath))] = struct{}{}
+	}
+	if fileOrPath != "" && !strings.Contains(fileOrPath, "/") {
+		candidates[path.Join("OEBPS", fileOrPath)] = struct{}{}
+		candidates[path.Join("OPS", fileOrPath)] = struct{}{}
+	}
+	return candidates
+}
+
+func findZipEntryPath(r *zip.ReadCloser, candidates map[string]struct{}) string {
+	for _, f := range r.File {
+		if _, ok := candidates[f.Name]; ok {
+			return f.Name
+		}
+	}
+	return ""
+}
+
+func imageMegapixels(r *zip.ReadCloser, zipPath string) (float64, error) {
+	rc, err := readZipFileReader(r, zipPath)
+	if err != nil || rc == nil {
+		return 0, err
+	}
+	cfg, _, err := image.DecodeConfig(rc)
+	rc.Close()
+	if err == nil {
+		return float64(cfg.Width*cfg.Height) / 1e6, nil
+	}
+	return 0, err
+}
+
+func readZipFileReader(r *zip.ReadCloser, name string) (io.ReadCloser, error) {
+	for _, f := range r.File {
+		if f.Name != name {
+			continue
+		}
+		return f.Open()
+	}
+	return nil, fmt.Errorf("epub: no zip entry %q", name)
 }
 
 func words(documentFullPath string) (int, error) {
@@ -212,7 +337,7 @@ func words(documentFullPath string) (int, error) {
 }
 
 func extractCover(r *zip.ReadCloser, coverFile, opfBaseDir string, coverMaxWidth int) ([]byte, error) {
-	candidates := coverCandidatePaths(coverFile, opfBaseDir)
+	candidates := candidatePaths(coverFile, opfBaseDir)
 	for _, f := range r.File {
 		if _, ok := candidates[f.Name]; !ok {
 			continue
@@ -304,21 +429,6 @@ func resolveHref(href, baseDir string) string {
 		return path.Clean(href)
 	}
 	return path.Clean(path.Join(baseDir, href))
-}
-
-func coverCandidatePaths(coverFile, opfBaseDir string) map[string]struct{} {
-	candidates := map[string]struct{}{}
-	if coverFile != "" {
-		candidates[coverFile] = struct{}{}
-	}
-	if opfBaseDir != "" && coverFile != "" {
-		candidates[path.Clean(path.Join(opfBaseDir, coverFile))] = struct{}{}
-	}
-	if coverFile != "" && !strings.Contains(coverFile, "/") {
-		candidates[path.Join("OEBPS", coverFile)] = struct{}{}
-		candidates[path.Join("OPS", coverFile)] = struct{}{}
-	}
-	return candidates
 }
 
 func isMarkupFile(href string) bool {

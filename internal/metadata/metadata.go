@@ -9,17 +9,18 @@ import (
 )
 
 type Metadata struct {
-	Title       string
-	Authors     []string
-	Description template.HTML
-	Language    string
-	Publication precisiondate.PrecisionDate
-	Words       float64
-	Series      string
-	SeriesIndex float64
-	Pages       float64
-	Format      string
-	Subjects    []string
+	Title         string
+	Authors       []string
+	Description   template.HTML
+	Language      string
+	Publication   precisiondate.PrecisionDate
+	Words         float64
+	Series        string
+	SeriesIndex   float64
+	Pages         float64
+	Format        string
+	Subjects      []string
+	Illustrations int
 }
 
 func (m Metadata) ReadingTime(wordsPerMinute float64) string {

@@ -16,6 +16,7 @@ type SearchFields struct {
 	EstReadTimeFrom float64
 	EstReadTimeTo   float64
 	WordsPerMinute  float64
+	IllustratedOnly bool
 	SortBy          []string
 }
 

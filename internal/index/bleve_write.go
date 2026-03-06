@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -125,6 +126,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 		languagesStr = strings.Join(languages, ",")
 	}
 	batch.SetInternal(internalLanguages, []byte(languagesStr))
+	batch.SetInternal(internalIllustratedMinSize, []byte(strconv.FormatFloat(b.illustratedMinSize, 'g', -1, 64)))
 
 	// Flush remaining documents batch
 	if err := b.documentsIdx.Batch(batch); err != nil {
