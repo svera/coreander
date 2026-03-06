@@ -20,12 +20,6 @@ type SearchFields struct {
 	SortBy          []string
 }
 
-// SubjectGroup holds a subject slug and all display names that map to it.
-type SubjectGroup struct {
-	Slug  string   `json:"slug"`
-	Names []string `json:"names"`
-}
-
 type Document struct {
 	metadata.Metadata
 	ID            string

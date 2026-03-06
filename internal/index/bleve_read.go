@@ -457,9 +457,9 @@ func normalizeSubjectName(subject string) string {
 // Subjects returns subject groups: each slug with all display names that map to it.
 // Uses Subjects field for faceting; names are normalized (first letter capitalized).
 // Grouping uses slug.Make so variants like "cronica" and "crónica" share one slug (slug transliterates accents).
-func (b *BleveIndexer) Subjects() ([]SubjectGroup, error) {
+func (b *BleveIndexer) Subjects() (map[string][]string, error) {
 	if b.documentsIdx == nil {
-		return []SubjectGroup{}, nil
+		return map[string][]string{}, nil
 	}
 
 	matchAllQuery := bleve.NewMatchAllQuery()
@@ -470,7 +470,7 @@ func (b *BleveIndexer) Subjects() ([]SubjectGroup, error) {
 
 	searchResult, err := b.documentsIdx.Search(searchRequest)
 	if err != nil {
-		return []SubjectGroup{}, err
+		return nil, err
 	}
 
 	// slug -> unique normalized names
@@ -489,13 +489,10 @@ func (b *BleveIndexer) Subjects() ([]SubjectGroup, error) {
 		}
 	}
 
-	groups := make([]SubjectGroup, 0, len(bySlug))
-	for s, names := range bySlug {
+	for _, names := range bySlug {
 		slices.Sort(names)
-		groups = append(groups, SubjectGroup{Slug: s, Names: names})
 	}
-	slices.SortFunc(groups, func(a, b SubjectGroup) int { return strings.Compare(a.Slug, b.Slug) })
-	return groups, nil
+	return bySlug, nil
 }
 
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {

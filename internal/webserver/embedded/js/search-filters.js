@@ -231,18 +231,18 @@ function initSearchFilters(searchFilters) {
                 }
                 return response.json()
             })
-            .then(groups => {
+            .then(bySlug => {
                 slugToNames = {}
                 nameToSlug = {}
                 subjectsList.innerHTML = ''
-                groups.forEach(group => {
-                    const names = group.names || []
-                    slugToNames[group.slug] = names
-                    names.forEach(name => {
-                        nameToSlug[name] = group.slug
+                Object.entries(bySlug || {}).forEach(([slug, names]) => {
+                    const nameList = names || []
+                    slugToNames[slug] = nameList
+                    nameList.forEach(name => {
+                        nameToSlug[name] = slug
                     })
-                    const displayText = names.join(', ')
-                    nameToSlug[displayText] = group.slug
+                    const displayText = nameList.join(', ')
+                    nameToSlug[displayText] = slug
                     const option = document.createElement('option')
                     option.value = displayText
                     subjectsList.appendChild(option)
