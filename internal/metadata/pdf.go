@@ -125,11 +125,9 @@ func (p PdfReader) Illustrations(documentFullPath string, minMegapixels float64)
 	seen := make(map[int]struct{})
 	var count int
 	for pageNr := 1; pageNr <= ctx.PageCount; pageNr++ {
-		// Use stub=true for metadata-only (Width/Height); stub=false can fail on some PDFs when decoding stream.
 		imgs, err := pdfcpu.ExtractPageImages(ctx, pageNr, true)
 		if err != nil {
-			log.Printf("Cannot extract page images from page %d of %s: %v", pageNr, documentFullPath, err)
-			continue
+			return 0, err
 		}
 		for _, img := range imgs {
 			if _, counted := seen[img.ObjNr]; counted {
@@ -166,7 +164,7 @@ func decodePDF(r io.Reader) (io.Reader, error) {
 		return nil, err
 	}
 	if ctx.PageCount == 0 {
-		return nil, fmt.Errorf("no image found")
+		return nil, fmt.Errorf("page count is zero")
 	}
 
 	for p := 1; p <= ctx.PageCount; p++ {

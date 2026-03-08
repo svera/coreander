@@ -13,7 +13,7 @@
         <dd class="col-4 text-end"><time>{{.Document.ReadingTime .WordsPerMinute}}</time> <span class="reading-time-help-popover d-inline-block ms-1" role="button" tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="top" data-bs-content="{{$readingTimeHelpContent}}"><i class="bi bi-info-circle text-muted"></i></span></dd>
     {{ end }}
     {{ if .Document.Pages }}
-        <dt class="col-8">{{t .Lang "Pages" }}</dt>
+        <dt class="col-8"><i class="bi bi-book me-2"></i>{{t .Lang "Pages" }}</dt>
         <dd class="col-4 text-end">{{.Document.Pages}}<dd>
     {{ end }}
     {{ if and .IllustratedMinAmount (ge .Document.Illustrations .IllustratedMinAmount) }}
