@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/flotzilla/pdf_parser"
+	"github.com/gekkowrld/pdf_parser"
 	"github.com/hhrutter/tiff"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
