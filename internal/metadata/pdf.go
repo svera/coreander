@@ -9,9 +9,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
-	"github.com/gekkowrld/pdf_parser"
 	"github.com/hhrutter/tiff"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
@@ -23,42 +23,56 @@ import (
 
 type PdfReader struct{}
 
+// pdfDateRe matches PDF date format D:YYYYMMDD... and captures YYYY, MM, DD.
+var pdfDateRe = regexp.MustCompile(`D:(\d{4})(\d{2})?(\d{2})?`)
+
 func (p PdfReader) Metadata(file string) (Metadata, error) {
 	bk := Metadata{}
 
-	pdf, err := pdf_parser.ParsePdf(file)
-
+	f, err := os.ReadFile(file)
 	if err != nil {
 		return bk, err
 	}
 
-	title := pdf.GetTitle()
+	conf := model.NewDefaultConfiguration()
+	conf.ValidationMode = model.ValidationRelaxed
+	info, err := api.PDFInfo(bytes.NewReader(f), filepath.Base(file), nil, false, conf)
+	if err != nil {
+		return bk, err
+	}
+
+	title := strings.TrimSpace(info.Title)
 	if title == "" {
 		title = strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 	}
 
 	publication := precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay}
-	if publication.Date, err = date.Parse("2006-01-02", pdf.GetDate()); err != nil {
+	dateStr := normalizePDFDate(info.CreationDate, info.ModificationDate)
+	if publication.Date, err = date.Parse("2006-01-02", dateStr); err != nil {
 		publication.Precision = precisiondate.PrecisionYear
-		publication.Date, _ = date.Parse("2006", pdf.GetDate())
+		publication.Date, _ = date.Parse("2006", dateStr)
 	}
 
-	description := pdf.GetDescription()
+	description := strings.TrimSpace(info.Subject)
 	if description != "" {
-		p := bluemonday.UGCPolicy()
-		description = p.Sanitize(description)
+		policy := bluemonday.UGCPolicy()
+		description = policy.Sanitize(description)
 	}
 
 	authors := []string{""}
-	if pdf.GetAuthor() != "" {
-		// We want to identify cases with multiple authors looking for specific separators and then indexing each author properly.
-		authors = strings.Split(pdf.GetAuthor(), "&")
+	if author := strings.TrimSpace(info.Author); author != "" {
+		authors = strings.Split(author, "&")
 		for i := range authors {
 			authors[i] = strings.TrimSpace(authors[i])
 		}
 	}
 
-	lang := pdf.GetLanguage()
+	lang := ""
+	if info.Properties != nil {
+		if l, ok := info.Properties["Language"]; ok {
+			lang = strings.TrimSpace(l)
+		}
+	}
 
 	illustrations, err := p.Illustrations(file, 0.25)
 	if err != nil {
@@ -71,13 +85,31 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 		Description:   template.HTML(description),
 		Language:      lang,
 		Publication:   publication,
-		Pages:         float64(pdf.GetPagesCount()),
+		Pages:         float64(info.PageCount),
 		Format:        "PDF",
 		Subjects:      []string{},
 		Illustrations: illustrations,
 	}
 
 	return bk, nil
+}
+
+// normalizePDFDate returns a date string suitable for date.Parse, preferring creation then modification.
+// PDF dates are typically like "D:20210101120000+00'00'"; we extract YYYY-MM-DD or YYYY when possible.
+func normalizePDFDate(creation, modification string) string {
+	for _, raw := range []string{creation, modification} {
+		if raw == "" {
+			continue
+		}
+		if m := pdfDateRe.FindStringSubmatch(raw); len(m) >= 2 {
+			year := m[1]
+			if len(m) >= 4 && m[2] != "" && m[3] != "" {
+				return year + "-" + m[2] + "-" + m[3]
+			}
+			return year
+		}
+	}
+	return ""
 }
 
 // Cover parses the document looking for a cover image and returns it
