@@ -99,33 +99,38 @@
         </div>
     {{else}}
         <div class="btn-group flex-fill" role="group" aria-label="Button group with nested dropdown">
-                {{if and $emailSendingConfigured (eq $defaultAction "send")}}
-                    {{template "partials/action-send" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" (printf "btn %s %s flex-sm-fill text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-envelope" "IncludeSpinner" true}}
-                {{else if eq $defaultAction "share"}}
-                    {{template "partials/action-share" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" (printf "btn %s %s flex-sm-fill text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-share-fill" "CanShare" $canShare}}
-                {{else if eq $defaultAction "copy"}}
-                    {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" (printf "btn %s %s flex-sm-fill text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-copy"}}
-                {{else}}
-                    {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" (printf "btn %s %s flex-sm-fill text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download" .Document.Slug) "BadgeText" .Document.Format "BadgeClass" "badge text-bg-danger"}}
+            {{if eq $defaultAction "send"}}
+                {{template "partials/action-send" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-envelope" "IncludeSpinner" true}}
+            {{else if eq $defaultAction "share"}}
+                {{template "partials/action-share" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-share-fill" "CanShare" $canShare}}
+            {{else if eq $defaultAction "copy"}}
+                {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-copy"}}
+            {{else}}
+                {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download" .Document.Slug) "BadgeText" .Document.Format "BadgeClass" "badge text-bg-danger"}}
+            {{end}}
+            <button type="button" class="btn {{ $buttonSize }} {{ $buttonStyle }} dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Actions"}}'></button>
+            <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
+                {{if ne $defaultAction "download"}}
+                <li>
+                    {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" "dropdown-item" "Label" (t .Lang "Download") "IconClass" "bi-cloud-download me-2" "Href" (printf "/documents/%s/download" .Document.Slug) "BadgeText" .Document.Format "BadgeClass" "badge text-bg-danger ms-2"}}
+                </li>
                 {{end}}
-                <button type="button" class="btn {{ $buttonSize }} {{ $buttonStyle }} dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Actions"}}'></button>
-                <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
-                    {{if ne $defaultAction "copy"}}
-                    <li>
-                        {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" "dropdown-item" "Label" (t .Lang "Copy link") "IconClass" "bi-copy me-2"}}
-                    </li>
-                    {{end}}
-                    {{if and $emailSendingConfigured (ne $defaultAction "send")}}
-                    <li>
-                        {{template "partials/action-send" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" "dropdown-item" "Label" (t .Lang "Send to email") "IconClass" "bi-envelope me-2" "IncludeSpinner" true}}
-                    </li>
-                    {{end}}
-                    {{if and $emailSendingConfigured (ne $defaultAction "share") (or (not $session) $canShare)}}
-                    <li>
-                        {{template "partials/action-share" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" "dropdown-item" "Label" (t .Lang "Share") "IconClass" "bi-share-fill me-2" "CanShare" $canShare}}
-                    </li>
-                    {{end}}
-                </ul>
+                {{if ne $defaultAction "copy"}}
+                <li>
+                    {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" "dropdown-item" "Label" (t .Lang "Copy link") "IconClass" "bi-copy me-2"}}
+                </li>
+                {{end}}
+                {{if and $emailSendingConfigured (ne $defaultAction "send")}}
+                <li>
+                    {{template "partials/action-send" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" "dropdown-item" "Label" (t .Lang "Send to email") "IconClass" "bi-envelope me-2" "IncludeSpinner" true}}
+                </li>
+                {{end}}
+                {{if and $emailSendingConfigured (ne $defaultAction "share") (or (not $session) $canShare)}}
+                <li>
+                    {{template "partials/action-share" dict "Lang" .Lang "Session" $session "Document" .Document "ButtonClass" "dropdown-item" "Label" (t .Lang "Share") "IconClass" "bi-share-fill me-2" "CanShare" $canShare}}
+                </li>
+                {{end}}
+            </ul>
         </div>
     {{end}}
 

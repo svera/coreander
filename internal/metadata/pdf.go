@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"image"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,15 +60,21 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 
 	lang := pdf.GetLanguage()
 
+	illustrations, err := p.Illustrations(file, 0.25)
+	if err != nil {
+		log.Printf("Cannot count illustrations in %s: %s\n", file, err)
+	}
+
 	bk = Metadata{
-		Title:       title,
-		Authors:     authors,
-		Description: template.HTML(description),
-		Language:    lang,
-		Publication: publication,
-		Pages:       float64(pdf.GetPagesCount()),
-		Format:      "PDF",
-		Subjects:    []string{},
+		Title:         title,
+		Authors:       authors,
+		Description:   template.HTML(description),
+		Language:      lang,
+		Publication:   publication,
+		Pages:         float64(pdf.GetPagesCount()),
+		Format:        "PDF",
+		Subjects:      []string{},
+		Illustrations: illustrations,
 	}
 
 	return bk, nil
@@ -92,9 +99,48 @@ func (p PdfReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, er
 	return resize(src, coverMaxWidth, err)
 }
 
-// Illustrations returns the number of illustrations; PDFs are not counted for now.
+// Illustrations returns the number of distinct embedded images with pixel count >= minMegapixels.
 func (p PdfReader) Illustrations(documentFullPath string, minMegapixels float64) (int, error) {
-	return 0, nil
+	f, err := os.ReadFile(documentFullPath)
+	if err != nil {
+		return 0, err
+	}
+	conf := model.NewDefaultConfiguration()
+	conf.ValidationMode = model.ValidationRelaxed
+	ctx, err := pdfcpu.Read(bytes.NewReader(f), conf)
+	if err != nil {
+		return 0, err
+	}
+	// Ensure page count is set (pdfcpu may leave it 0 when validation is skipped or for some PDFs).
+	if err := ctx.EnsurePageCount(); err != nil {
+		log.Printf("Cannot get page count for %s: %v", documentFullPath, err)
+		return 0, nil
+	}
+	if err := api.OptimizeContext(ctx); err != nil {
+		return 0, err
+	}
+	if ctx.PageCount == 0 {
+		return 0, nil
+	}
+	seen := make(map[int]struct{})
+	var count int
+	for pageNr := 1; pageNr <= ctx.PageCount; pageNr++ {
+		imgs, err := pdfcpu.ExtractPageImages(ctx, pageNr, true)
+		if err != nil {
+			return 0, err
+		}
+		for _, img := range imgs {
+			if _, counted := seen[img.ObjNr]; counted {
+				continue
+			}
+			mp := float64(img.Width*img.Height) / 1e6
+			if img.Width > 0 && img.Height > 0 && mp >= minMegapixels {
+				seen[img.ObjNr] = struct{}{}
+				count++
+			}
+		}
+	}
+	return count, nil
 }
 
 func decodePDF(r io.Reader) (io.Reader, error) {
@@ -110,7 +156,10 @@ func decodePDF(r io.Reader) (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	// Ensure page count is set (pdfcpu may leave it 0 when validation is skipped or for some PDFs).
+	if err := ctx.EnsurePageCount(); err != nil {
+		return nil, fmt.Errorf("no image found")
+	}
 	if err := api.OptimizeContext(ctx); err != nil {
 		return nil, err
 	}
