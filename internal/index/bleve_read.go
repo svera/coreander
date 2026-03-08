@@ -489,9 +489,6 @@ func (b *BleveIndexer) Subjects() (map[string][]string, error) {
 		}
 	}
 
-	for _, names := range bySlug {
-		slices.Sort(names)
-	}
 	return bySlug, nil
 }
 
