@@ -10,7 +10,7 @@
             {{$readingTimeHelpContent = t .Lang "Your reading speed is currently set to %s words per minute. You can change your reading speed in your profile." (printf "%.0f" .WordsPerMinute)}}
         {{end}}
         <dt class="col-8 mb-1"><i class="bi bi-stopwatch me-2"></i>{{t .Lang "Estimated reading time"}}</dt>
-        <dd class="col-4 text-end"><time>{{.Document.ReadingTime .WordsPerMinute}}</time> <span class="reading-time-help-popover d-inline-block ms-1" role="button" tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="top" data-bs-content="{{$readingTimeHelpContent}}"><i class="bi bi-info-circle text-muted"></i></span></dd>
+        <dd class="col-4 text-end"><time>{{.Document.ReadingTime .WordsPerMinute}}</time> <span class="reading-time-help-popover d-inline-block ms-1" role="button" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="top" data-bs-content="{{$readingTimeHelpContent}}"><i class="bi bi-info-circle text-muted"></i></span></dd>
     {{ end }}
     {{ if .Document.Pages }}
         <dt class="col-8 mb-1"><i class="bi bi-book me-2"></i>{{t .Lang "Pages" }}</dt>
