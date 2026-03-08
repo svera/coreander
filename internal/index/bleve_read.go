@@ -567,6 +567,8 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 	illustrations := 0
 	if match.Fields["Illustrations"] != nil {
 		illustrations = int(match.Fields["Illustrations"].(float64))
+	} else if match.Fields["Metadata.Illustrations"] != nil {
+		illustrations = int(match.Fields["Metadata.Illustrations"].(float64))
 	}
 
 	doc := Document{

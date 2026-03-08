@@ -162,6 +162,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Words", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Pages", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrations", numericFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Metadata.Illustrations", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	}
 
@@ -181,6 +182,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Words", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Pages", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Illustrations", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Metadata.Illustrations", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 
 	return indexMapping
