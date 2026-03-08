@@ -1,6 +1,6 @@
 <dl class="row text-muted mt-3">
     {{if not (eq .Document.Publication.Date 0)}}
-        <dt class="col-8"><i class="bi bi-calendar3 me-2"></i>{{t .Lang "Year"}}</dt>
+        <dt class="col-8 mb-1"><i class="bi bi-calendar3 me-2"></i>{{t .Lang "Year"}}</dt>
         <dd class="col-4 text-end"><time>{{.Document.Publication.Date.Year}}</time>
     </dd>
     {{end}}
@@ -9,18 +9,19 @@
         {{if .Session}}
             {{$readingTimeHelpContent = t .Lang "Your reading speed is currently set to %s words per minute. You can change your reading speed in your profile." (printf "%.0f" .WordsPerMinute)}}
         {{end}}
-        <dt class="col-8"><i class="bi bi-stopwatch me-2"></i>{{t .Lang "Estimated reading time"}}</dt>
+        <dt class="col-8 mb-1"><i class="bi bi-stopwatch me-2"></i>{{t .Lang "Estimated reading time"}}</dt>
         <dd class="col-4 text-end"><time>{{.Document.ReadingTime .WordsPerMinute}}</time> <span class="reading-time-help-popover d-inline-block ms-1" role="button" tabindex="0" data-bs-toggle="popover" data-bs-trigger="focus" data-bs-placement="top" data-bs-content="{{$readingTimeHelpContent}}"><i class="bi bi-info-circle text-muted"></i></span></dd>
     {{ end }}
     {{ if .Document.Pages }}
-        <dt class="col-8"><i class="bi bi-book me-2"></i>{{t .Lang "Pages" }}</dt>
-        <dd class="col-4 text-end">{{.Document.Pages}}<dd>
+        <dt class="col-8 mb-1"><i class="bi bi-book me-2"></i>{{t .Lang "Pages" }}</dt>
+        <dd class="col-4 text-end">{{.Document.Pages}}</dd>
     {{ end }}
     {{ if and .IllustratedMinAmount (ge .Document.Illustrations .IllustratedMinAmount) }}
-        <dt class="col-12"><i class="bi bi-images me-2"></i>{{t .Lang "Illustrated"}}</dt>
+        <dt class="col-8 mb-1"><i class="bi bi-images me-2"></i>{{t .Lang "Illustrated"}}</dt>
+        <dd class="col-4 text-end"></dd>
     {{ end }}
     {{if .Session}}
-        <dt class="col-6">
+        <dt class="col-6 mb-1">
             <input class="form-check-input me-2" type="checkbox"
                    id="complete-checkbox-{{.Document.Slug}}"
                    {{if .Document.CompletedOn}}checked{{end}}
@@ -41,7 +42,7 @@
         </dd>
 
         {{if and .Session .Session.ShowFileName}}
-            <dt class="col-5"><i class="bi bi-file-earmark-text me-2"></i>{{t .Lang "File name"}}</dt>
+            <dt class="col-5 mb-1"><i class="bi bi-file-earmark-text me-2"></i>{{t .Lang "File name"}}</dt>
             <dd class="col-7 text-end"><small><i>{{.Document.ID}}</i></small></dd>
         {{end}}
     {{end}}
