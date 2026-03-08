@@ -64,10 +64,17 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 		publication.Date, _ = date.Parse("2006", dateStr)
 	}
 
-	description := strings.TrimSpace(info.Subject)
-	if description != "" {
-		policy := bluemonday.UGCPolicy()
-		description = policy.Sanitize(description)
+	description := ""
+	if raw := strings.TrimSpace(info.Subject); raw != "" {
+		strict := bluemonday.StrictPolicy()
+		noHTMLDescription := strict.Sanitize(raw)
+		if noHTMLDescription == raw {
+			paragraphs := strings.Split(raw, "\n")
+			description = "<p>" + strings.Join(paragraphs, "</p><p>") + "</p>"
+		} else {
+			p := bluemonday.UGCPolicy()
+			description = p.Sanitize(raw)
+		}
 	}
 
 	authors := []string{""}
