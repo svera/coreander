@@ -7,7 +7,6 @@ import (
 	"image"
 	"io"
 	"log"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -18,18 +17,30 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"github.com/rickb777/date/v2"
+	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/precisiondate"
 )
 
-type PdfReader struct{}
+type PdfReader struct {
+	Fs afero.Fs
+}
 
 // pdfDateRe matches PDF date format D:YYYYMMDD... and captures YYYY, MM, DD.
 var pdfDateRe = regexp.MustCompile(`D:(\d{4})(\d{2})?(\d{2})?`)
 
+func readFile(fs afero.Fs, name string) ([]byte, error) {
+	f, err := fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(f)
+}
+
 func (p PdfReader) Metadata(file string) (Metadata, error) {
 	bk := Metadata{}
 
-	f, err := os.ReadFile(file)
+	f, err := readFile(p.Fs, file)
 	if err != nil {
 		return bk, err
 	}
@@ -114,7 +125,7 @@ func normalizePDFDate(creation, modification string) string {
 
 // Cover parses the document looking for a cover image and returns it
 func (p PdfReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
-	f, err := os.ReadFile(documentFullPath)
+	f, err := readFile(p.Fs, documentFullPath)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +144,7 @@ func (p PdfReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, er
 
 // Illustrations returns the number of distinct embedded images with pixel count >= minMegapixels.
 func (p PdfReader) Illustrations(documentFullPath string, minMegapixels float64) (int, error) {
-	f, err := os.ReadFile(documentFullPath)
+	f, err := readFile(p.Fs, documentFullPath)
 	if err != nil {
 		return 0, err
 	}
