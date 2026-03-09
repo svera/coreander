@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3/extractors"
@@ -43,11 +44,18 @@ func SetConfigLocals(cfg Config) func(fiber.Ctx) error {
 }
 
 // SetFQDN composes the Fully Qualified Domain Name of the host running the app and sets it
-// as a local variable of the request
+// as a local variable of the request. When behind a reverse proxy, X-Forwarded-Proto is
+// used so that HTTPS is preserved and mixed-content is avoided (e.g. reader download URL).
 func SetFQDN(cfg Config) func(fiber.Ctx) error {
 	return func(c fiber.Ctx) error {
 		protocol := "http"
-		if c.Secure() {
+		if proto := c.Get("X-Forwarded-Proto"); proto != "" {
+			// Proxy may send comma-separated list; first value is client-facing
+			if strings.ToLower(strings.TrimSpace(strings.Split(proto, ",")[0])) == "https" {
+				protocol = "https"
+			}
+		}
+		if protocol == "http" && c.Secure() {
 			protocol = "https"
 		}
 		c.Locals("fqdn", fmt.Sprintf("%s://%s",
