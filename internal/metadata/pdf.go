@@ -79,9 +79,14 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 
 	authors := []string{""}
 	if author := strings.TrimSpace(info.Author); author != "" {
-		authors = strings.Split(author, "&")
-		for i := range authors {
-			authors[i] = strings.TrimSpace(authors[i])
+		var names []string
+		for _, s := range strings.FieldsFunc(author, func(r rune) bool { return r == '&' || r == ',' || r == ';' }) {
+			if name := strings.TrimSpace(s); name != "" {
+				names = append(names, name)
+			}
+		}
+		if len(names) > 0 {
+			authors = names
 		}
 	}
 
