@@ -11,7 +11,6 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cache"
-	"github.com/gofiber/fiber/v3/middleware/compress"
 	"github.com/gofiber/fiber/v3/middleware/favicon"
 	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/index"
@@ -137,8 +136,8 @@ func New(cfg Config, controllers Controllers, sender Sender, idx ProgressInfo, u
 			},
 		}),
 		OneTimeMessages(),
-		compress.New(),
 	)
+	addCompressMiddleware(app)
 
 	routes(app, controllers, cfg.JwtSecret, sender, translator, cfg, idx, usersRepository)
 	return app
