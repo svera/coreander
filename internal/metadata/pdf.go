@@ -7,58 +7,95 @@ import (
 	"image"
 	"io"
 	"log"
-	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
-	"github.com/gekkowrld/pdf_parser"
 	"github.com/hhrutter/tiff"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"github.com/rickb777/date/v2"
+	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/precisiondate"
 )
 
-type PdfReader struct{}
+type PdfReader struct {
+	Fs afero.Fs
+}
+
+// pdfDateRe matches PDF date format D:YYYYMMDD... and captures YYYY, MM, DD.
+var pdfDateRe = regexp.MustCompile(`D:(\d{4})(\d{2})?(\d{2})?`)
+
+func readFile(fs afero.Fs, name string) ([]byte, error) {
+	f, err := fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(f)
+}
 
 func (p PdfReader) Metadata(file string) (Metadata, error) {
 	bk := Metadata{}
 
-	pdf, err := pdf_parser.ParsePdf(file)
-
+	f, err := readFile(p.Fs, file)
 	if err != nil {
 		return bk, err
 	}
 
-	title := pdf.GetTitle()
+	conf := model.NewDefaultConfiguration()
+	conf.ValidationMode = model.ValidationRelaxed
+	info, err := api.PDFInfo(bytes.NewReader(f), filepath.Base(file), nil, false, conf)
+	if err != nil {
+		return bk, err
+	}
+
+	title := strings.TrimSpace(info.Title)
 	if title == "" {
 		title = strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
 	}
 
 	publication := precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay}
-	if publication.Date, err = date.Parse("2006-01-02", pdf.GetDate()); err != nil {
+	dateStr := normalizePDFDate(info.CreationDate, info.ModificationDate)
+	if publication.Date, err = date.Parse("2006-01-02", dateStr); err != nil {
 		publication.Precision = precisiondate.PrecisionYear
-		publication.Date, _ = date.Parse("2006", pdf.GetDate())
+		publication.Date, _ = date.Parse("2006", dateStr)
 	}
 
-	description := pdf.GetDescription()
-	if description != "" {
-		p := bluemonday.UGCPolicy()
-		description = p.Sanitize(description)
-	}
-
-	authors := []string{""}
-	if pdf.GetAuthor() != "" {
-		// We want to identify cases with multiple authors looking for specific separators and then indexing each author properly.
-		authors = strings.Split(pdf.GetAuthor(), "&")
-		for i := range authors {
-			authors[i] = strings.TrimSpace(authors[i])
+	description := ""
+	if raw := strings.TrimSpace(info.Subject); raw != "" {
+		strict := bluemonday.StrictPolicy()
+		noHTMLDescription := strict.Sanitize(raw)
+		if noHTMLDescription == raw {
+			paragraphs := strings.Split(raw, "\n")
+			description = "<p>" + strings.Join(paragraphs, "</p><p>") + "</p>"
+		} else {
+			p := bluemonday.UGCPolicy()
+			description = p.Sanitize(raw)
 		}
 	}
 
-	lang := pdf.GetLanguage()
+	authors := []string{""}
+	if author := strings.TrimSpace(info.Author); author != "" {
+		var names []string
+		for _, s := range strings.FieldsFunc(author, func(r rune) bool { return r == '&' || r == ',' || r == ';' }) {
+			if name := strings.TrimSpace(s); name != "" {
+				names = append(names, name)
+			}
+		}
+		if len(names) > 0 {
+			authors = names
+		}
+	}
+
+	lang := ""
+	if info.Properties != nil {
+		if l, ok := info.Properties["Language"]; ok {
+			lang = strings.TrimSpace(l)
+		}
+	}
 
 	illustrations, err := p.Illustrations(file, 0.25)
 	if err != nil {
@@ -71,7 +108,7 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 		Description:   template.HTML(description),
 		Language:      lang,
 		Publication:   publication,
-		Pages:         float64(pdf.GetPagesCount()),
+		Pages:         float64(info.PageCount),
 		Format:        "PDF",
 		Subjects:      []string{},
 		Illustrations: illustrations,
@@ -80,9 +117,27 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 	return bk, nil
 }
 
+// normalizePDFDate returns a date string suitable for date.Parse, preferring creation then modification.
+// PDF dates are typically like "D:20210101120000+00'00'"; we extract YYYY-MM-DD or YYYY when possible.
+func normalizePDFDate(creation, modification string) string {
+	for _, raw := range []string{creation, modification} {
+		if raw == "" {
+			continue
+		}
+		if m := pdfDateRe.FindStringSubmatch(raw); len(m) >= 2 {
+			year := m[1]
+			if len(m) >= 4 && m[2] != "" && m[3] != "" {
+				return year + "-" + m[2] + "-" + m[3]
+			}
+			return year
+		}
+	}
+	return ""
+}
+
 // Cover parses the document looking for a cover image and returns it
 func (p PdfReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
-	f, err := os.ReadFile(documentFullPath)
+	f, err := readFile(p.Fs, documentFullPath)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +156,7 @@ func (p PdfReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, er
 
 // Illustrations returns the number of distinct embedded images with pixel count >= minMegapixels.
 func (p PdfReader) Illustrations(documentFullPath string, minMegapixels float64) (int, error) {
-	f, err := os.ReadFile(documentFullPath)
+	f, err := readFile(p.Fs, documentFullPath)
 	if err != nil {
 		return 0, err
 	}

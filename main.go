@@ -64,15 +64,14 @@ func init() {
 		log.Fatalf("Directory '%s' does not exist, exiting", input.LibPath)
 	}
 
+	appFs = afero.NewOsFs()
 	metadataReaders = map[string]metadata.Reader{
 		".epub": metadata.EpubReader{
 			GetMetadataFromFile: epub.GetMetadataFromFile,
 			GetPackageFromFile:  epub.GetPackageFromFile,
 		},
-		".pdf": metadata.PdfReader{},
+		".pdf": metadata.PdfReader{Fs: appFs},
 	}
-
-	appFs = afero.NewOsFs()
 
 	var documentsIndex, authorsIndex bleve.Index
 	var needsReindex bool
