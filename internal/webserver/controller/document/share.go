@@ -85,7 +85,7 @@ func (d *Controller) Share(c fiber.Ctx) error {
 			newRecipientIDs = append(newRecipientIDs, int(user.ID))
 		}
 
-		if err := d.hlRepository.Share(int(session.ID), document.Slug, document.Slug, comment, newRecipientIDs); err != nil {
+		if err := d.hlRepository.Share(int(session.ID), document.Slug, comment, newRecipientIDs); err != nil {
 			log.Printf("error saving share: %v\n", err)
 			return fiber.ErrInternalServerError
 		}

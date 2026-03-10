@@ -130,7 +130,7 @@ func (u *HighlightRepository) Remove(userID int, documentSlug string) error {
 	return u.DB.Delete(&highlight).Error
 }
 
-func (u *HighlightRepository) Share(senderID int, documentID, documentSlug, comment string, recipientIDs []int) error {
+func (u *HighlightRepository) Share(senderID int, documentSlug, comment string, recipientIDs []int) error {
 	if senderID <= 0 || documentSlug == "" || len(recipientIDs) == 0 {
 		return nil
 	}

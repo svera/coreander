@@ -40,7 +40,7 @@ type highlightsRepository interface {
 	Highlighted(userID int, doc model.AugmentedDocument) model.AugmentedDocument
 	HighlightedPaginatedResult(userID int, results result.Paginated[[]model.AugmentedDocument]) result.Paginated[[]model.AugmentedDocument]
 	RemoveDocument(documentSlug string) error
-	Share(senderID int, documentID, documentSlug, comment string, recipientIDs []int) error
+	Share(senderID int, documentSlug, comment string, recipientIDs []int) error
 }
 
 type usersRepository interface {
