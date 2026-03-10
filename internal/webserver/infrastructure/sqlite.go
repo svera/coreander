@@ -40,6 +40,141 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 	return db
 }
 
+// FillSlugsFromPaths updates empty slug fields in highlights and readings tables
+// by resolving each path (document ID) to its slug via the given resolver.
+// resolveSlug should return the document slug for a given path, or empty string if not found.
+// For highlights, only runs if the table still has a path column (pre-migration).
+func FillSlugsFromPaths(db *gorm.DB, resolveSlug func(path string) string) {
+	fillHighlightsSlugs(db, resolveSlug)
+	fillReadingsSlugs(db, resolveSlug)
+}
+
+func fillHighlightsSlugs(db *gorm.DB, resolveSlug func(path string) string) {
+	var pathColExists int
+	if err := db.Raw("SELECT COUNT(*) FROM pragma_table_info('highlights') WHERE name = 'path'").Scan(&pathColExists).Error; err != nil || pathColExists == 0 {
+		return
+	}
+	var rows []struct {
+		UserID int
+		Path   string
+	}
+	if err := db.Raw("SELECT user_id, path FROM highlights WHERE slug = ? OR slug IS NULL", "").Scan(&rows).Error; err != nil {
+		return
+	}
+	for _, r := range rows {
+		if slug := resolveSlug(r.Path); slug != "" {
+			db.Exec("UPDATE highlights SET slug = ? WHERE user_id = ? AND path = ?", slug, r.UserID, r.Path)
+		}
+	}
+}
+
+// MigrateHighlightsToSlugPK migrates the highlights table from (user_id, path) to (user_id, slug) primary key.
+// Run after FillSlugsFromPaths so slugs are populated. No-op if the table has already been migrated.
+func MigrateHighlightsToSlugPK(db *gorm.DB) {
+	var pathColExists int
+	if err := db.Raw("SELECT COUNT(*) FROM pragma_table_info('highlights') WHERE name = 'path'").Scan(&pathColExists).Error; err != nil || pathColExists == 0 {
+		return
+	}
+	log.Println("Migrating highlights table to slug primary key...")
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`
+			CREATE TABLE highlights_new (
+				user_id INTEGER NOT NULL,
+				slug TEXT NOT NULL,
+				created_at DATETIME,
+				updated_at DATETIME,
+				shared_by_id INTEGER,
+				comment TEXT,
+				PRIMARY KEY (user_id, slug)
+			)
+		`).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(`
+			INSERT INTO highlights_new (user_id, slug, created_at, updated_at, shared_by_id, comment)
+			SELECT user_id, slug, created_at, updated_at, shared_by_id, comment
+			FROM highlights
+			WHERE slug IS NOT NULL AND slug != ''
+		`).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DROP TABLE highlights").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("ALTER TABLE highlights_new RENAME TO highlights").Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		log.Printf("Error migrating highlights table: %v\n", err)
+		return
+	}
+	log.Println("Successfully migrated highlights table to slug primary key")
+}
+
+func fillReadingsSlugs(db *gorm.DB, resolveSlug func(path string) string) {
+	var pathColExists int
+	if err := db.Raw("SELECT COUNT(*) FROM pragma_table_info('readings') WHERE name = 'path'").Scan(&pathColExists).Error; err != nil || pathColExists == 0 {
+		return
+	}
+	var rows []struct {
+		UserID int
+		Path   string
+	}
+	if err := db.Raw("SELECT user_id, path FROM readings WHERE slug = ? OR slug IS NULL", "").Scan(&rows).Error; err != nil {
+		return
+	}
+	for _, r := range rows {
+		if slug := resolveSlug(r.Path); slug != "" {
+			db.Exec("UPDATE readings SET slug = ? WHERE user_id = ? AND path = ?", slug, r.UserID, r.Path)
+		}
+	}
+}
+
+// MigrateReadingsToSlugPK migrates the readings table from (user_id, path) to (user_id, slug) primary key.
+// Run after FillSlugsFromPaths so slugs are populated. No-op if the table has already been migrated.
+func MigrateReadingsToSlugPK(db *gorm.DB) {
+	var pathColExists int
+	if err := db.Raw("SELECT COUNT(*) FROM pragma_table_info('readings') WHERE name = 'path'").Scan(&pathColExists).Error; err != nil || pathColExists == 0 {
+		return
+	}
+	log.Println("Migrating readings table to slug primary key...")
+	if err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`
+			CREATE TABLE readings_new (
+				user_id INTEGER NOT NULL,
+				slug TEXT NOT NULL,
+				created_at DATETIME,
+				updated_at DATETIME,
+				position TEXT,
+				completed_on DATETIME,
+				PRIMARY KEY (user_id, slug)
+			)
+		`).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec(`
+			INSERT INTO readings_new (user_id, slug, created_at, updated_at, position, completed_on)
+			SELECT user_id, slug, created_at, updated_at, position, completed_on
+			FROM readings
+			WHERE slug IS NOT NULL AND slug != ''
+		`).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DROP TABLE readings").Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("ALTER TABLE readings_new RENAME TO readings").Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		log.Printf("Error migrating readings table: %v\n", err)
+		return
+	}
+	log.Println("Successfully migrated readings table to slug primary key")
+}
+
 func migrateLastLoginToLastRequest(db *gorm.DB) {
 	migrator := db.Migrator()
 

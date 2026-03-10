@@ -46,7 +46,7 @@ func (d *Controller) ToggleComplete(c fiber.Ctx) error {
 		if req.CompletedOn != nil {
 			if *req.CompletedOn == "" {
 				// Empty string means mark as incomplete
-				if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, nil); err != nil {
+				if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.Slug, nil); err != nil {
 					log.Printf("error marking document as incomplete: %s\n", err)
 					return fiber.ErrInternalServerError
 				}
@@ -68,7 +68,7 @@ func (d *Controller) ToggleComplete(c fiber.Ctx) error {
 				}
 
 				// Update the completion date
-				if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, &completedOn); err != nil {
+				if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.Slug, &completedOn); err != nil {
 					log.Printf("error updating completion date: %s\n", err)
 					return fiber.ErrInternalServerError
 				}
@@ -79,10 +79,10 @@ func (d *Controller) ToggleComplete(c fiber.Ctx) error {
 
 	// No date provided - toggle behavior
 	// Get current reading status to check if already completed
-	reading, err := d.readingRepository.Get(int(session.ID), document.ID)
+	reading, err := d.readingRepository.Get(int(session.ID), document.Slug)
 	if err != nil {
 		// If no reading record exists yet, create one by touching it
-		if err := d.readingRepository.Touch(int(session.ID), document.ID); err != nil {
+		if err := d.readingRepository.Touch(int(session.ID), document.Slug); err != nil {
 			log.Printf("error creating reading record: %s\n", err)
 			return fiber.ErrInternalServerError
 		}
@@ -98,7 +98,7 @@ func (d *Controller) ToggleComplete(c fiber.Ctx) error {
 	}
 	// If reading.CompletedOn != nil, newCompletionDate stays nil (marking as incomplete)
 
-	if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.ID, newCompletionDate); err != nil {
+	if err := d.readingRepository.UpdateCompletionDate(int(session.ID), document.Slug, newCompletionDate); err != nil {
 		log.Printf("error updating completion status: %s\n", err)
 		return fiber.ErrInternalServerError
 	}

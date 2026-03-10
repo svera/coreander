@@ -43,13 +43,13 @@ func (d *Controller) Index(c fiber.Ctx) error {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
-		for _, ID := range readingList.Hits() {
-			doc, err := d.idx.DocumentByID(ID)
+		for _, slug := range readingList.Hits() {
+			doc, err := d.idx.Document(slug)
 			if err != nil {
 				log.Println(err)
 				return fiber.ErrInternalServerError
 			}
-			if doc.ID == "" {
+			if doc.Slug == "" {
 				continue
 			}
 			result := model.AugmentedDocument{Document: doc}

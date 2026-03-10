@@ -15,7 +15,7 @@ func (h *Controller) Delete(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	if err = h.hlRepository.Remove(int(user.ID), document.ID); err != nil {
+	if err = h.hlRepository.Remove(int(user.ID), document.Slug); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}

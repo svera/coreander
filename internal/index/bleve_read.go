@@ -317,6 +317,19 @@ func (b *BleveIndexer) DocumentByID(ID string) (Document, error) {
 	return hydrateDocument(searchResult.Hits[0]), nil
 }
 
+// DocumentIDs returns document IDs (paths) for the given slugs. Missing or invalid slugs are skipped.
+func (b *BleveIndexer) DocumentIDs(slugs []string) ([]string, error) {
+	ids := make([]string, 0, len(slugs))
+	for _, slug := range slugs {
+		doc, err := b.Document(slug)
+		if err != nil || doc.Slug == "" {
+			continue
+		}
+		ids = append(ids, doc.ID)
+	}
+	return ids, nil
+}
+
 func (b *BleveIndexer) Documents(IDs []string, sortBy []string) ([]Document, error) {
 	var docs []Document
 	query := bleve.NewDocIDQuery(IDs)

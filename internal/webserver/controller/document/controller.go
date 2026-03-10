@@ -39,7 +39,7 @@ type highlightsRepository interface {
 	Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]model.Highlight], error)
 	Highlighted(userID int, doc model.AugmentedDocument) model.AugmentedDocument
 	HighlightedPaginatedResult(userID int, results result.Paginated[[]model.AugmentedDocument]) result.Paginated[[]model.AugmentedDocument]
-	RemoveDocument(documentPath string) error
+	RemoveDocument(documentSlug string) error
 	Share(senderID int, documentID, documentSlug, comment string, recipientIDs []int) error
 }
 
@@ -49,12 +49,12 @@ type usersRepository interface {
 }
 
 type readingRepository interface {
-	Get(userID int, documentPath string) (model.Reading, error)
-	Update(userID int, documentPath, position string) error
-	Touch(userID int, documentPath string) error
-	RemoveDocument(documentPath string) error
-	UpdateCompletionDate(userID int, documentPath string, completedAt *time.Time) error
-	CompletedOn(userID int, documentID string) (*time.Time, error)
+	Get(userID int, documentSlug string) (model.Reading, error)
+	Update(userID int, documentSlug, position string) error
+	Touch(userID int, documentSlug string) error
+	RemoveDocument(documentSlug string) error
+	UpdateCompletionDate(userID int, documentSlug string, completedAt *time.Time) error
+	CompletedOn(userID int, documentSlug string) (*time.Time, error)
 	CompletedPaginatedResult(userID int, results result.Paginated[[]model.AugmentedDocument]) result.Paginated[[]model.AugmentedDocument]
 }
 
