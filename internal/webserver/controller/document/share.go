@@ -78,14 +78,14 @@ func (d *Controller) Share(c fiber.Ctx) error {
 	}
 
 	// Filter out recipients who already have the document
-	newRecipients = d.filterNewRecipients(recipientUsers, document.ID)
+	newRecipients = d.filterNewRecipients(recipientUsers, document)
 	if len(newRecipients) > 0 {
 		newRecipientIDs := make([]int, 0, len(newRecipients))
 		for _, user := range newRecipients {
 			newRecipientIDs = append(newRecipientIDs, int(user.ID))
 		}
 
-		if err := d.hlRepository.Share(int(session.ID), document.ID, document.Slug, comment, newRecipientIDs); err != nil {
+		if err := d.hlRepository.Share(int(session.ID), document.Slug, comment, newRecipientIDs); err != nil {
 			log.Printf("error saving share: %v\n", err)
 			return fiber.ErrInternalServerError
 		}
@@ -170,7 +170,7 @@ func (d *Controller) resolveRecipients(recipients []string) ([]*model.User, erro
 	return recipientUsers, nil
 }
 
-func (d *Controller) filterNewRecipients(recipientUsers []*model.User, documentID string) []*model.User {
+func (d *Controller) filterNewRecipients(recipientUsers []*model.User, document index.Document) []*model.User {
 	if len(recipientUsers) == 0 {
 		return recipientUsers
 	}
@@ -178,8 +178,8 @@ func (d *Controller) filterNewRecipients(recipientUsers []*model.User, documentI
 	newRecipients := make([]*model.User, 0, len(recipientUsers))
 	for _, user := range recipientUsers {
 		// Check if user already has this document highlighted
-		checkedResult := d.hlRepository.Highlighted(int(user.ID), model.AugmentedDocument{Document: index.Document{ID: documentID}})
-		if checkedResult.Highlight.Path == "" {
+		checkedResult := d.hlRepository.Highlighted(int(user.ID), model.AugmentedDocument{Document: document})
+		if checkedResult.Highlight.Slug == "" {
 			newRecipients = append(newRecipients, user)
 		}
 	}

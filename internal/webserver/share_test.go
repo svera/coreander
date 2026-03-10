@@ -100,7 +100,7 @@ func TestShareCommentIsTruncated(t *testing.T) {
 
 	highlight := model.Highlight{}
 	db.Where("user_id = ?", regularUser.ID).First(&highlight)
-	if highlight.Path == "" {
+	if highlight.Slug == "" {
 		t.Fatal("Expected share highlight to be created")
 	}
 

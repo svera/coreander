@@ -95,7 +95,7 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 	result := model.AugmentedDocument{Document: document}
 	if session.ID > 0 {
 		result = d.hlRepository.Highlighted(int(session.ID), result)
-		completedOn, err = d.readingRepository.CompletedOn(int(session.ID), result.ID)
+		completedOn, err = d.readingRepository.CompletedOn(int(session.ID), result.Slug)
 		if err != nil {
 			log.Println(err)
 		}

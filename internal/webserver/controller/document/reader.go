@@ -33,7 +33,7 @@ func (d *Controller) Reader(c fiber.Ctx) error {
 		session = val
 	}
 	if session.ID > 0 {
-		if err := d.readingRepository.Touch(int(session.ID), document.ID); err != nil {
+		if err := d.readingRepository.Touch(int(session.ID), document.Slug); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}

@@ -35,7 +35,7 @@ func (d *Controller) UpdatePosition(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	if err := d.readingRepository.Update(int(session.ID), document.ID, body.Position); err != nil {
+	if err := d.readingRepository.Update(int(session.ID), document.Slug, body.Position); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}

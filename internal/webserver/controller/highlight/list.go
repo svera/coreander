@@ -125,7 +125,7 @@ func (h *Controller) sortedHighlightResults(page int, user *model.User, highligh
 
 	searchResults := make([]model.AugmentedDocument, 0, len(docsSortedByHighlightedDate.Hits()))
 	for _, highlight := range docsSortedByHighlightedDate.Hits() {
-		doc, err := h.idx.DocumentByID(highlight.Path)
+		doc, err := h.idx.Document(highlight.Slug)
 		if err != nil {
 			log.Println(err)
 			return result.Paginated[[]model.AugmentedDocument]{}, fiber.ErrInternalServerError
@@ -160,7 +160,7 @@ func (h *Controller) latestHighlights(page int, user *model.User, highlightsAmou
 
 	highlights := make([]model.AugmentedDocument, 0, len(docsSortedByHighlightedDate.Hits()))
 	for _, highlight := range docsSortedByHighlightedDate.Hits() {
-		doc, err := h.idx.DocumentByID(highlight.Path)
+		doc, err := h.idx.Document(highlight.Slug)
 		if err != nil {
 			log.Println(err)
 			return nil, fiber.ErrInternalServerError

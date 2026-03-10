@@ -87,6 +87,12 @@ func init() {
 	}
 
 	db = infrastructure.Connect(homeDir+databasePath, input.WordsPerMinute)
+	infrastructure.FillSlugsFromPaths(db, func(path string) string {
+		doc, _ := idx.DocumentByID(path)
+		return doc.Slug
+	})
+	infrastructure.MigrateHighlightsToSlugPK(db)
+	infrastructure.MigrateReadingsToSlugPK(db)
 }
 
 func main() {

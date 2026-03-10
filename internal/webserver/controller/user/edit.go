@@ -69,13 +69,13 @@ func (u *Controller) calculateYearlyStats(userID int, wordsPerMinute float64, ye
 	startOfYear := time.Date(year, 1, 1, 0, 0, 0, 0, now.Location())
 	endOfYear := time.Date(year, 12, 31, 23, 59, 59, 999999999, now.Location())
 
-	completedPaths, err := u.readingRepository.CompletedBetweenDates(userID, &startOfYear, &endOfYear)
+	completedSlugs, err := u.readingRepository.CompletedBetweenDates(userID, &startOfYear, &endOfYear)
 	if err != nil {
 		log.Printf("error getting completed readings for user %d: %s\n", userID, err)
 		return 0, ""
 	}
 
-	return u.calculateReadingStats(completedPaths, userID, wordsPerMinute)
+	return u.calculateReadingStats(completedSlugs, userID, wordsPerMinute)
 }
 
 func (u *Controller) readingStatsYear(requestedYear int) int {
@@ -104,30 +104,33 @@ func (u *Controller) readingStatsYears(userID uint) []int {
 
 func (u *Controller) calculateLifetimeStats(userID int, wordsPerMinute float64) (int, string) {
 	// Get all completed documents (no date filtering)
-	completedPaths, err := u.readingRepository.CompletedBetweenDates(userID, nil, nil)
+	completedSlugs, err := u.readingRepository.CompletedBetweenDates(userID, nil, nil)
 	if err != nil {
 		log.Printf("error getting lifetime completed readings for user %d: %s\n", userID, err)
 		return 0, ""
 	}
 
-	return u.calculateReadingStats(completedPaths, userID, wordsPerMinute)
+	return u.calculateReadingStats(completedSlugs, userID, wordsPerMinute)
 }
 
-func (u *Controller) calculateReadingStats(completedPaths []string, userID int, wordsPerMinute float64) (int, string) {
-	if len(completedPaths) == 0 {
+func (u *Controller) calculateReadingStats(completedSlugs []string, userID int, wordsPerMinute float64) (int, string) {
+	if len(completedSlugs) == 0 {
 		return 0, ""
 	}
 
-	totalWords, err := u.indexer.TotalWordCount(completedPaths)
+	totalWords, err := u.indexer.TotalWordCount(completedSlugs)
 	if err != nil {
 		log.Printf("error getting total word count for user %d: %s\n", userID, err)
-		return len(completedPaths), ""
+		return len(completedSlugs), ""
+	}
+	if totalWords == 0 {
+		return len(completedSlugs), ""
 	}
 
 	// Calculate reading time and format it
 	if readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", totalWords/wordsPerMinute)); err == nil {
-		return len(completedPaths), metadata.FmtDuration(readingTime)
+		return len(completedSlugs), metadata.FmtDuration(readingTime)
 	}
 
-	return len(completedPaths), ""
+	return len(completedSlugs), ""
 }

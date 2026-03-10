@@ -101,7 +101,7 @@ func TestDocumentReadAndDeleteDocumentAfterwards(t *testing.T) {
 			}
 
 			var total int64
-			if db.Table("readings").Where("path = ?", "quijote.epub").Count(&total); total != 0 {
+			if db.Table("readings").Where("slug = ?", "miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha").Count(&total); total != 0 {
 				t.Errorf("Expected no entries in DB readings table for document, got %d", total)
 			}
 		})
