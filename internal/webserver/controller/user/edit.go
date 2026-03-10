@@ -118,7 +118,7 @@ func (u *Controller) calculateReadingStats(completedSlugs []string, userID int, 
 		return 0, ""
 	}
 
-	totalWords, err := u.indexer.TotalWordCountBySlugs(completedSlugs)
+	totalWords, err := u.indexer.TotalWordCount(completedSlugs)
 	if err != nil {
 		log.Printf("error getting total word count for user %d: %s\n", userID, err)
 		return len(completedSlugs), ""

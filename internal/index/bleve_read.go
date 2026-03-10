@@ -349,17 +349,17 @@ func (b *BleveIndexer) Documents(IDs []string, sortBy []string) ([]Document, err
 	return docs, nil
 }
 
-// TotalWordCount returns the sum of word counts for the given document IDs
-func (b *BleveIndexer) TotalWordCount(IDs []string) (float64, error) {
-	if len(IDs) == 0 {
-		return 0, nil
+// TotalWordCount returns the sum of word counts for the documents matching the given slugs.
+func (b *BleveIndexer) TotalWordCount(slugs []string) (float64, error) {
+	ids, err := b.documentIDs(slugs)
+	if err != nil || len(ids) == 0 {
+		return 0, err
 	}
 
-	query := bleve.NewDocIDQuery(IDs)
-
+	query := bleve.NewDocIDQuery(ids)
 	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"Words"}
-	searchOptions.Size = len(IDs)
+	searchOptions.Size = len(ids)
 	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
 		return 0, err
@@ -373,15 +373,6 @@ func (b *BleveIndexer) TotalWordCount(IDs []string) (float64, error) {
 	}
 
 	return totalWords, nil
-}
-
-// TotalWordCountBySlugs returns the sum of word counts for the documents matching the given slugs.
-func (b *BleveIndexer) TotalWordCountBySlugs(slugs []string) (float64, error) {
-	ids, err := b.documentIDs(slugs)
-	if err != nil || len(ids) == 0 {
-		return 0, err
-	}
-	return b.TotalWordCount(ids)
 }
 
 func (b *BleveIndexer) analyzers() ([]string, error) {

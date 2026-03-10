@@ -38,7 +38,7 @@ type readingRepository interface {
 }
 
 type indexer interface {
-	TotalWordCountBySlugs(slugs []string) (float64, error)
+	TotalWordCount(slugs []string) (float64, error)
 	Languages() ([]string, error)
 }
 
