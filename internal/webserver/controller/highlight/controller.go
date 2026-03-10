@@ -23,7 +23,6 @@ type readingRepository interface {
 // IdxReaderWriter defines a set of reading and writing operations over an index
 type IdxReaderWriter interface {
 	Document(Slug string) (index.Document, error)
-	DocumentByID(ID string) (index.Document, error)
 	Languages() ([]string, error)
 }
 
