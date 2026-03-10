@@ -30,7 +30,7 @@ type IdxReaderWriter interface {
 	SameSeries(slug string, quantity int) ([]index.Document, error)
 	AddFile(file string) (string, error)
 	RemoveFile(file string) error
-	Documents(IDs []string, sortBy []string) ([]index.Document, error)
+	Documents(slugs []string) ([]index.Document, error)
 	Languages() ([]string, error)
 	Subjects() (map[string][]string, error)
 }

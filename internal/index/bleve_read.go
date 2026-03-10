@@ -317,33 +317,46 @@ func (b *BleveIndexer) DocumentByID(ID string) (Document, error) {
 	return hydrateDocument(searchResult.Hits[0]), nil
 }
 
-func (b *BleveIndexer) Documents(IDs []string, sortBy []string) ([]Document, error) {
-	var docs []Document
-	query := bleve.NewDocIDQuery(IDs)
-
-	searchOptions := bleve.NewSearchRequest(query)
+// Documents returns documents for the given slugs in a single search. Missing slugs are skipped.
+func (b *BleveIndexer) Documents(slugs []string) ([]Document, error) {
+	if len(slugs) == 0 {
+		return nil, nil
+	}
+	queries := make([]query.Query, 0, len(slugs))
+	for _, slug := range slugs {
+		if slug == "" {
+			continue
+		}
+		q := bleve.NewTermQuery(slug)
+		q.SetField("Slug")
+		queries = append(queries, q)
+	}
+	if len(queries) == 0 {
+		return nil, nil
+	}
+	disq := bleve.NewDisjunctionQuery(queries...)
+	searchOptions := bleve.NewSearchRequest(disq)
 	searchOptions.Fields = []string{"*"}
-	searchOptions.SortBy(sortBy)
+	searchOptions.Size = len(slugs)
 	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
-		return docs, err
+		return nil, err
 	}
-
+	docs := make([]Document, 0, len(searchResult.Hits))
 	for _, hit := range searchResult.Hits {
 		docs = append(docs, hydrateDocument(hit))
 	}
-
 	return docs, nil
 }
 
 // TotalWordCount returns the sum of word counts for the documents matching the given slugs.
 func (b *BleveIndexer) TotalWordCount(slugs []string) (float64, error) {
+	docs, err := b.Documents(slugs)
+	if err != nil {
+		return 0, err
+	}
 	var totalWords float64
-	for _, slug := range slugs {
-		doc, err := b.Document(slug)
-		if err != nil || doc.Slug == "" {
-			continue
-		}
+	for _, doc := range docs {
 		totalWords += doc.Words
 	}
 	return totalWords, nil
