@@ -299,6 +299,7 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 	return hydrateDocument(searchResult.Hits[0]), nil
 }
 
+// @deprecated Remove after migration
 func (b *BleveIndexer) DocumentByID(ID string) (Document, error) {
 	query := bleve.NewDocIDQuery([]string{ID})
 
@@ -623,7 +624,7 @@ func slicer(val any) []string {
 
 // hydrateAuthorFromFields converts a fields map to an Author struct
 // This is the shared implementation used by hydrateAuthor
-func hydrateAuthorFromFields(fields map[string]interface{}, docID string) Author {
+func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
 	retrievedOn := time.Time{}
 	if val, ok := fields["RetrievedOn"]; ok && val != nil {
 		if str, ok := val.(string); ok && str != "" {
