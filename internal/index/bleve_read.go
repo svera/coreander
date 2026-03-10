@@ -375,6 +375,15 @@ func (b *BleveIndexer) TotalWordCount(IDs []string) (float64, error) {
 	return totalWords, nil
 }
 
+// TotalWordCountBySlugs returns the sum of word counts for the documents matching the given slugs.
+func (b *BleveIndexer) TotalWordCountBySlugs(slugs []string) (float64, error) {
+	ids, err := b.DocumentIDs(slugs)
+	if err != nil || len(ids) == 0 {
+		return 0, err
+	}
+	return b.TotalWordCount(ids)
+}
+
 func (b *BleveIndexer) analyzers() ([]string, error) {
 	// Get all languages from indexed documents (already normalized to two-letter codes)
 	allLanguages, err := b.Languages()
