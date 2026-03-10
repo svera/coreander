@@ -317,8 +317,8 @@ func (b *BleveIndexer) DocumentByID(ID string) (Document, error) {
 	return hydrateDocument(searchResult.Hits[0]), nil
 }
 
-// DocumentIDs returns document IDs (paths) for the given slugs. Missing or invalid slugs are skipped.
-func (b *BleveIndexer) DocumentIDs(slugs []string) ([]string, error) {
+// documentIDs returns document IDs (paths) for the given slugs. Missing or invalid slugs are skipped.
+func (b *BleveIndexer) documentIDs(slugs []string) ([]string, error) {
 	ids := make([]string, 0, len(slugs))
 	for _, slug := range slugs {
 		doc, err := b.Document(slug)
@@ -377,7 +377,7 @@ func (b *BleveIndexer) TotalWordCount(IDs []string) (float64, error) {
 
 // TotalWordCountBySlugs returns the sum of word counts for the documents matching the given slugs.
 func (b *BleveIndexer) TotalWordCountBySlugs(slugs []string) (float64, error) {
-	ids, err := b.DocumentIDs(slugs)
+	ids, err := b.documentIDs(slugs)
 	if err != nil || len(ids) == 0 {
 		return 0, err
 	}
