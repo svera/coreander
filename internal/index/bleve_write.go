@@ -34,7 +34,7 @@ func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error)
 		_ = b.fs.Remove(fullPath)
 		return "", fmt.Errorf("closing file %s: %w", fullPath, err)
 	}
-	slug, err := b.AddFile(fullPath)
+	slug, err := b.indexFile(fullPath)
 	if err != nil {
 		_ = b.fs.Remove(fullPath)
 		return "", err
@@ -42,8 +42,8 @@ func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error)
 	return slug, nil
 }
 
-// AddFile adds a file to the index
-func (b *BleveIndexer) AddFile(file string) (string, error) {
+// indexFile adds a file to the index
+func (b *BleveIndexer) indexFile(file string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(file))
 	if _, ok := b.reader[ext]; !ok {
 		return "", fmt.Errorf("file extension %s not supported", ext)
@@ -74,8 +74,8 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 	return document.Slug, nil
 }
 
-// RemoveFile removes a file from the index
-func (b *BleveIndexer) RemoveFile(file string) error {
+// removeFile removes a file from the index
+func (b *BleveIndexer) removeFile(file string) error {
 	file = strings.Replace(file, b.libraryPath, "", 1)
 	file = strings.TrimPrefix(file, string(filepath.Separator))
 	if err := b.documentsIdx.Delete(file); err != nil {
@@ -94,7 +94,7 @@ func (b *BleveIndexer) DeleteDocument(slug string) error {
 		return ErrDocumentNotFound
 	}
 	fullPath := filepath.Join(b.libraryPath, document.ID)
-	if err := b.RemoveFile(fullPath); err != nil {
+	if err := b.removeFile(fullPath); err != nil {
 		return err
 	}
 	if err := b.fs.Remove(fullPath); err != nil && !os.IsNotExist(err) {

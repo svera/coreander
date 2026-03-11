@@ -30,9 +30,7 @@ type IdxReaderWriter interface {
 	SameSubjects(slug string, quantity int) ([]index.Document, error)
 	SameAuthors(slug string, quantity int) ([]index.Document, error)
 	SameSeries(slug string, quantity int) ([]index.Document, error)
-	AddFile(file string) (string, error)
 	NewFile(fileName string, contents []byte) (string, error)
-	RemoveFile(file string) error
 	DeleteDocument(slug string) error
 	Documents(slugs []string) ([]index.Document, error)
 	Languages() ([]string, error)
