@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"path/filepath"
 	"slices"
 	"time"
 
@@ -45,36 +44,21 @@ func (d *Controller) Upload(c fiber.Ctx) error {
 		return c.Status(fiber.StatusRequestEntityTooLarge).Render("document/upload", templateVars, "layout")
 	}
 
-	destination := filepath.Join(d.config.LibraryPath, file.Filename)
 	internalServerErrorStatus := c.Status(fiber.StatusInternalServerError).Render("document/upload", fiber.Map{
 		"Title":   "Upload Document",
 		"Error":   "Error uploading document",
 		"MaxSize": d.config.UploadDocumentMaxSize,
 	}, "layout")
 
-	bytes, err := fileToBytes(file)
+	contents, err := fileToBytes(file)
 	if err != nil {
 		log.Error(err)
 		return internalServerErrorStatus
 	}
 
-	destFile, err := d.appFs.Create(destination)
+	slug, err := d.idx.NewFile(file.Filename, contents)
 	if err != nil {
 		log.Error(err)
-		return internalServerErrorStatus
-	}
-
-	defer destFile.Close()
-
-	if _, err := destFile.Write(bytes); err != nil {
-		log.Error(err)
-		return internalServerErrorStatus
-	}
-
-	slug, err := d.idx.AddFile(destination)
-	if err != nil {
-		log.Error(err)
-		d.appFs.Remove(destination)
 		return internalServerErrorStatus
 	}
 

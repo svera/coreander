@@ -15,7 +15,7 @@ const relatedDocuments = 4
 
 type Sender interface {
 	SendBCC(addresses []string, subject, body string) error
-	SendDocument(address, subject, libraryPath, fileName string) error
+	SendDocument(address, subject string, file []byte, fileName string) error
 	From() string
 }
 
@@ -25,11 +25,13 @@ type IdxReaderWriter interface {
 	Count() (uint64, error)
 	Close() error
 	Document(Slug string) (index.Document, error)
+	File(slug string) (*index.IndexedFile, error)
+	Cover(slug string, coverMaxWidth int) ([]byte, error)
 	SameSubjects(slug string, quantity int) ([]index.Document, error)
 	SameAuthors(slug string, quantity int) ([]index.Document, error)
 	SameSeries(slug string, quantity int) ([]index.Document, error)
-	AddFile(file string) (string, error)
-	RemoveFile(file string) error
+	NewFile(fileName string, contents []byte) (string, error)
+	DeleteDocument(slug string) error
 	Documents(slugs []string) ([]index.Document, error)
 	Languages() ([]string, error)
 	Subjects() (map[string][]string, error)
@@ -60,7 +62,6 @@ type readingRepository interface {
 
 type Config struct {
 	WordsPerMinute        float64
-	LibraryPath           string
 	HomeDir               string
 	CoverMaxWidth         int
 	Hostname              string

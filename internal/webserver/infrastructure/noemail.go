@@ -11,7 +11,7 @@ func (s *NoEmail) SendBCC(addresses []string, subject, body string) error {
 	return nil
 }
 
-func (s *NoEmail) SendDocument(address, subject, libraryPath, fileName string) error {
+func (s *NoEmail) SendDocument(address, subject string, file []byte, fileName string) error {
 	return nil
 }
 

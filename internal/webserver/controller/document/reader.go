@@ -3,8 +3,6 @@ package document
 import (
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -19,10 +17,6 @@ func (d *Controller) Reader(c fiber.Ctx) error {
 	}
 
 	if document.Slug == "" {
-		return fiber.ErrNotFound
-	}
-
-	if _, err := os.Stat(filepath.Join(d.config.LibraryPath, document.ID)); err != nil {
 		return fiber.ErrNotFound
 	}
 

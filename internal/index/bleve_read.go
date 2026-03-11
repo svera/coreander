@@ -1,11 +1,13 @@
 package index
 
 import (
+	"errors"
 	"html/template"
 	"io/fs"
 	"math"
 	"net/url"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -297,6 +299,57 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 	}
 
 	return hydrateDocument(searchResult.Hits[0]), nil
+}
+
+// IndexedFile holds the bytes and metadata for a document download.
+type IndexedFile struct {
+	Document    Document
+	Data        []byte
+	FileName    string
+	ContentType string
+}
+
+// File returns the raw document payload and metadata for the given slug.
+func (b *BleveIndexer) File(slug string) (*IndexedFile, error) {
+	doc, err := b.Document(slug)
+	if err != nil || doc.ID == "" {
+		return nil, ErrDocumentNotFound
+	}
+	fullPath := filepath.Join(b.libraryPath, doc.ID)
+	exists, err := afero.Exists(b.fs, fullPath)
+	if err != nil || !exists {
+		return nil, errors.New("document file not found")
+	}
+	data, err := afero.ReadFile(b.fs, fullPath)
+	if err != nil {
+		return nil, err
+	}
+	ext := strings.ToLower(filepath.Ext(doc.ID))
+	result := &IndexedFile{
+		Document:    doc,
+		Data:        data,
+		FileName:    filepath.Base(doc.ID),
+		ContentType: "application/pdf",
+	}
+	if ext == ".epub" {
+		result.ContentType = "application/epub+zip"
+	}
+	return result, nil
+}
+
+// Cover returns the cover image for the document identified by slug, resized to at most coverMaxWidth pixels wide.
+func (b *BleveIndexer) Cover(slug string, coverMaxWidth int) ([]byte, error) {
+	doc, err := b.Document(slug)
+	if err != nil || doc.ID == "" {
+		return nil, errors.New("document not found")
+	}
+	fullPath := filepath.Join(b.libraryPath, doc.ID)
+	ext := strings.ToLower(filepath.Ext(doc.ID))
+	reader, ok := b.reader[ext]
+	if !ok {
+		return nil, errors.New("unsupported document type for cover")
+	}
+	return reader.Cover(fullPath, coverMaxWidth)
 }
 
 // @deprecated Remove after migration

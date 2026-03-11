@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -73,10 +71,6 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	if _, err := os.Stat(filepath.Join(d.config.LibraryPath, document.ID)); err != nil {
-		return fiber.ErrNotFound
-	}
-
 	title := document.Title
 	if len(document.Authors) > 0 {
 		title = fmt.Sprintf("%s - %s", strings.Join(document.Authors, ", "), document.Title)
@@ -103,12 +97,12 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 
 	result.CompletedOn = completedOn
 	return c.Render("document/detail", fiber.Map{
-		"Title":               title,
-		"BackLink":            backLink,
-		"Document":            result,
-		"EmailFrom":           d.sender.From(),
-		"SameSeries":          sameSeries,
-		"SameAuthors":         sameAuthors,
+		"Title":          title,
+		"BackLink":       backLink,
+		"Document":       result,
+		"EmailFrom":      d.sender.From(),
+		"SameSeries":     sameSeries,
+		"SameAuthors":    sameAuthors,
 		"SameSubjects":   sameSubjects,
 		"WordsPerMinute": d.config.WordsPerMinute,
 	}, "layout")

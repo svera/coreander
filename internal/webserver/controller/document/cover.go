@@ -3,7 +3,6 @@ package document
 import (
 	"fmt"
 	"log"
-	"path/filepath"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -14,20 +13,7 @@ func (d *Controller) Cover(c fiber.Ctx) error {
 	c.Set("Cache-Control", cacheControl)
 	c.Append("Cache-Time", fmt.Sprintf("%d", d.config.ServerImageCacheTTL))
 
-	var (
-		image []byte
-	)
-
-	document, err := d.idx.Document(c.Params("slug"))
-	if err != nil {
-		return fiber.ErrBadRequest
-	}
-	ext := filepath.Ext(document.ID)
-
-	if _, ok := d.metadataReaders[ext]; !ok {
-		return fiber.ErrBadRequest
-	}
-	image, err = d.metadataReaders[ext].Cover(filepath.Join(d.config.LibraryPath, document.ID), d.config.CoverMaxWidth)
+	image, err := d.idx.Cover(c.Params("slug"), d.config.CoverMaxWidth)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrNotFound
