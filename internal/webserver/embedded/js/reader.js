@@ -658,7 +658,7 @@ class Reader {
 
         document.addEventListener('keydown', this.#handleKeydown.bind(this))
 
-        const title = formatLanguageMap(book.metadata?.title) || t.untitled_document
+        const title = formatLanguageMap(book.metadata?.title) || slug || this.translations?.untitled_document
         document.title = title
         $('#side-bar-title').innerText = title
         $('#side-bar-author').innerText = formatContributor(book.metadata?.author)
