@@ -7,7 +7,7 @@ import (
 )
 
 type Sender interface {
-	SendDocument(address, subject, libraryPath, fileName string) error
+	SendDocument(address, subject string, file []byte, fileName string) error
 	From() string
 }
 

@@ -3,8 +3,6 @@ package document
 import (
 	"log"
 	"net/mail"
-	"os"
-	"path/filepath"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -25,10 +23,11 @@ func (d *Controller) Send(c fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	if _, err := os.Stat(filepath.Join(d.config.LibraryPath, document.ID)); err != nil {
+	file, err := d.idx.File(slug)
+	if err != nil {
 		log.Println(err)
-		return fiber.ErrInternalServerError
+		return fiber.ErrNotFound
 	}
 
-	return d.sender.SendDocument(c.FormValue("email"), document.Title, d.config.LibraryPath, document.ID)
+	return d.sender.SendDocument(c.FormValue("email"), document.Title, file.Data, file.FileName)
 }

@@ -1,6 +1,7 @@
 package index
 
 import (
+	"errors"
 	"log"
 	"path/filepath"
 	"strconv"
@@ -38,6 +39,9 @@ var (
 	internalVersion            = []byte("version")
 	internalIllustratedMinSize = []byte("illustrated_min_size")
 )
+
+// ErrDocumentNotFound is returned when a document cannot be found by slug.
+var ErrDocumentNotFound = errors.New("document not found")
 
 var noStopWordsFilters = map[string][]string{
 	es.AnalyzerName: {lowercase.Name, es.NormalizeName, es.LightStemmerName},

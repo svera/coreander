@@ -59,6 +59,25 @@ func (b *BleveIndexer) RemoveFile(file string) error {
 	return nil
 }
 
+// DeleteDocument removes the document identified by slug from the index and deletes its file from the filesystem.
+func (b *BleveIndexer) DeleteDocument(slug string) error {
+	document, err := b.Document(slug)
+	if err != nil {
+		return err
+	}
+	if document.Slug == "" {
+		return ErrDocumentNotFound
+	}
+	fullPath := filepath.Join(b.libraryPath, document.ID)
+	if err := b.RemoveFile(fullPath); err != nil {
+		return err
+	}
+	if err := b.fs.Remove(fullPath); err != nil && !os.IsNotExist(err) {
+		log.Printf("error removing file %s: %s\n", fullPath, err.Error())
+	}
+	return nil
+}
+
 // AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <batchSize> if they
 // haven't been previously indexed or if <forceIndexing> is true
 func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {

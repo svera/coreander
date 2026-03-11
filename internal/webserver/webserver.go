@@ -59,7 +59,7 @@ type Config struct {
 type Sender interface {
 	Send(address, subject, body string) error
 	SendBCC(addresses []string, subject, body string) error
-	SendDocument(address, subject, libraryPath, fileName string) error
+	SendDocument(address, subject string, file []byte, fileName string) error
 	From() string
 }
 

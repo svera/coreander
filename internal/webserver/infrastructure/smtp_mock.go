@@ -30,7 +30,7 @@ func (s *SMTPMock) SendBCC(addresses []string, subject, body string) error {
 	return nil
 }
 
-func (s *SMTPMock) SendDocument(address, subject, libraryPath, fileName string) error {
+func (s *SMTPMock) SendDocument(address, subject string, file []byte, fileName string) error {
 	defer s.Wg.Done()
 
 	s.mu.Lock()
