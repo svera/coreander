@@ -11,10 +11,9 @@ import (
 // StartFileWatcher starts watching the library path for file changes and updates the index.
 // It blocks until the process exits. Call it in a goroutine.
 func (b *BleveIndexer) StartFileWatcher() {
-	libPath := b.libraryPath
-	log.Printf("Starting file watcher on %s\n", libPath)
+	log.Printf("Starting file watcher on %s\n", b.libraryPath)
 	c := make(chan notify.EventInfo, 1)
-	if err := notify.Watch(libPath, c, notify.InCloseWrite, notify.InMovedTo, notify.InMovedFrom, notify.InDelete); err != nil {
+	if err := notify.Watch(b.libraryPath, c, notify.InCloseWrite, notify.InMovedTo, notify.InMovedFrom, notify.InDelete); err != nil {
 		log.Fatal(err)
 	}
 
