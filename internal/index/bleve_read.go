@@ -303,6 +303,7 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 
 // IndexedFile holds the bytes and metadata for a document download.
 type IndexedFile struct {
+	Document    Document
 	Data        []byte
 	FileName    string
 	ContentType string
@@ -312,7 +313,7 @@ type IndexedFile struct {
 func (b *BleveIndexer) File(slug string) (*IndexedFile, error) {
 	doc, err := b.Document(slug)
 	if err != nil || doc.ID == "" {
-		return nil, errors.New("document not found")
+		return nil, ErrDocumentNotFound
 	}
 	fullPath := filepath.Join(b.libraryPath, doc.ID)
 	exists, err := afero.Exists(b.fs, fullPath)
@@ -325,6 +326,7 @@ func (b *BleveIndexer) File(slug string) (*IndexedFile, error) {
 	}
 	ext := strings.ToLower(filepath.Ext(doc.ID))
 	result := &IndexedFile{
+		Document:    doc,
 		Data:        data,
 		FileName:    filepath.Base(doc.ID),
 		ContentType: "application/pdf",

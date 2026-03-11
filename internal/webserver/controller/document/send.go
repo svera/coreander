@@ -1,10 +1,12 @@
 package document
 
 import (
+	"errors"
 	"log"
 	"net/mail"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v4/internal/index"
 )
 
 func (d *Controller) Send(c fiber.Ctx) error {
@@ -14,20 +16,13 @@ func (d *Controller) Send(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	document, err := d.idx.Document(slug)
-	if err != nil {
+	file, err := d.idx.File(slug)
+	if errors.Is(err, index.ErrDocumentNotFound) {
+		return fiber.ErrNotFound
+	} else if err != nil {
+		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	if document.Slug == "" {
-		return fiber.ErrNotFound
-	}
-
-	file, err := d.idx.File(slug)
-	if err != nil {
-		log.Println(err)
-		return fiber.ErrNotFound
-	}
-
-	return d.sender.SendDocument(c.FormValue("email"), document.Title, file.Data, file.FileName)
+	return d.sender.SendDocument(c.FormValue("email"), file.Document.Title, file.Data, file.FileName)
 }
