@@ -31,6 +31,7 @@ type IdxReaderWriter interface {
 	SameAuthors(slug string, quantity int) ([]index.Document, error)
 	SameSeries(slug string, quantity int) ([]index.Document, error)
 	AddFile(file string) (string, error)
+	NewFile(fileName string, contents []byte) (string, error)
 	RemoveFile(file string) error
 	DeleteDocument(slug string) error
 	Documents(slugs []string) ([]index.Document, error)
@@ -63,7 +64,6 @@ type readingRepository interface {
 
 type Config struct {
 	WordsPerMinute        float64
-	LibraryPath           string
 	HomeDir               string
 	CoverMaxWidth         int
 	Hostname              string

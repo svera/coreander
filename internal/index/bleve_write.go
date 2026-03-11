@@ -17,6 +17,31 @@ import (
 	"github.com/svera/coreander/v4/internal/metadata"
 )
 
+// NewFile writes the given contents to the library as fileName, indexes it, and returns the document slug.
+func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error) {
+	fullPath := filepath.Join(b.libraryPath, fileName)
+	f, err := b.fs.Create(fullPath)
+	if err != nil {
+		return "", fmt.Errorf("creating file %s: %w", fullPath, err)
+	}
+	_, err = f.Write(contents)
+	if err != nil {
+		f.Close()
+		_ = b.fs.Remove(fullPath)
+		return "", fmt.Errorf("writing file %s: %w", fullPath, err)
+	}
+	if err := f.Close(); err != nil {
+		_ = b.fs.Remove(fullPath)
+		return "", fmt.Errorf("closing file %s: %w", fullPath, err)
+	}
+	slug, err := b.AddFile(fullPath)
+	if err != nil {
+		_ = b.fs.Remove(fullPath)
+		return "", err
+	}
+	return slug, nil
+}
+
 // AddFile adds a file to the index
 func (b *BleveIndexer) AddFile(file string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(file))
