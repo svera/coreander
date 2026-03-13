@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	testDocSlug   = "miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha"
+	testDocSlug   = "miguel-cervantes-y-saavedra-don-quijote-la-mancha"
 	testDocPath   = "quijote.epub"
 	regularUserID = 2
 	adminUserID   = 1
