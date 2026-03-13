@@ -69,7 +69,7 @@
                     {{ if gt .Document.Words 0.0 }}
                         {{$readingTimeHelpContent := t .Lang "Reading time calculated using a speed of %s words per minute. Log in to customize this value" (printf "%.0f" .WordsPerMinute)}}
                         {{if .Session}}
-                            {{$readingTimeHelpContent = t .Lang "Your reading speed is currently set to %s words per minute. You can change your reading speed in your profile." (printf "%.0f" .WordsPerMinute)}}
+                            {{$readingTimeHelpContent = t .Lang "Reading time calculated using a speed of %s words per minute. You can change your reading speed in your profile." (printf "%.0f" .WordsPerMinute)}}
                         {{end}}
                         <li><i class="bi bi-stopwatch me-2"></i><time>{{.Document.ReadingTime .WordsPerMinute}}</time> <span class="reading-time-help-popover d-inline-block ms-1" role="button" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-content="{{$readingTimeHelpContent}}"><i class="bi bi-info-circle text-muted"></i></span></li>
                     {{ end }}
