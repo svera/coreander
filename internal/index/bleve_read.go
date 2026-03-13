@@ -195,16 +195,19 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 		qt.Analyzer = noStopWordsAnalyzer
 		qt.SetField("Title")
 		qt.Operator = query.MatchQueryOperatorAnd
+		qt.SetFuzziness(1)
 
 		qs := bleve.NewMatchQuery(keywords)
 		qs.Analyzer = noStopWordsAnalyzer
 		qs.SetField("Series")
 		qs.Operator = query.MatchQueryOperatorAnd
+		qs.SetFuzziness(1)
 
 		qd := bleve.NewMatchQuery(keywords)
 		qd.Analyzer = analyzer
 		qd.SetField("Description")
 		qd.Operator = query.MatchQueryOperatorAnd
+		qd.SetFuzziness(1)
 
 		langCompoundQuery.AddQuery(qt, qs, qd)
 
@@ -212,6 +215,7 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 		orTitleQuery.SetField("Title")
 		orTitleQuery.Operator = query.MatchQueryOperatorOr
 		orTitleQuery.Analyzer = analyzer
+		orTitleQuery.SetFuzziness(1)
 
 		allLangsOrTitleQuery.AddQuery(orTitleQuery)
 	}
@@ -220,11 +224,13 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	qa.SetField("Authors")
 	qa.Operator = query.MatchQueryOperatorAnd
 	qa.Analyzer = defaultAnalyzer
+	qa.SetFuzziness(1)
 
 	orAuthorQuery := bleve.NewMatchQuery(keywords)
 	orAuthorQuery.SetField("Authors")
 	orAuthorQuery.Operator = query.MatchQueryOperatorOr
 	orAuthorQuery.Analyzer = defaultAnalyzer
+	orAuthorQuery.SetFuzziness(1)
 
 	authorTitleQuery.AddQuery(orAuthorQuery, allLangsOrTitleQuery)
 
