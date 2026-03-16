@@ -1,0 +1,35 @@
+<div class="row mt-5 mb-2 pb-2 border-bottom d-flex">
+    {{if eq .Results.TotalHits 0}}
+    <div class="col-12 align-content-end">
+        <p class="text-center">{{t .Lang "No completed documents yet" }}</p>
+    </div>
+    {{else}}
+    <div class="col-12 align-content-end d-flex flex-wrap align-items-center gap-2">
+        <select class="form-select form-select-sm w-auto" id="stats-year" name="stats-year"
+            hx-get="/users/{{.User.Username}}/completed" hx-include="[name='stats-year']" hx-trigger="change" hx-target="#list" hx-swap="innerHTML">
+            {{range .StatsYears}}
+                <option value="{{.}}" {{if eq . $.StatsYear}}selected{{end}}>{{if eq . 0}}{{t $.Lang "All time"}}{{else}}{{.}}{{end}}</option>
+            {{end}}
+        </select>
+        {{if gt .YearlyCompletedCount 0}}
+            {{t .Lang "<strong>%d</strong> documents completed, total reading time: <strong>%s</strong>" .YearlyCompletedCount .YearlyReadingTime}}
+        {{else}}
+            {{t .Lang "you have not completed any documents yet."}}
+        {{end}}
+    </div>
+    {{end}}
+</div>
+
+{{if gt .Results.TotalHits 0}}
+<ul class="list-group rounded-0">
+    {{range $i, $result := .Results.Hits}}
+    <li class="list-group-item border border-0 px-0 mt-5">
+        {{template "partials/docs-list-item" dict "Lang" $.Lang "Document" $result "Session" $.Session "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $.WordsPerMinute "IllustratedMinAmount" $.IllustratedMinAmount "EmailSendingConfigured" $.EmailSendingConfigured "DefaultAction" $.DefaultAction "CanShare" $.CanShare "PreferredEpub" $.PreferredEpub}}
+    </li>
+    {{end}}
+</ul>
+{{end}}
+
+{{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
+{{template "partials/pagination" .}}
+{{end}}

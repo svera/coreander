@@ -87,6 +87,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	usersGroup.Get("/invite", RequireAdmin, controllers.Users.InviteForm)
 	usersGroup.Post("/invite", RequireAdmin, controllers.Users.SendInvite)
 	usersGroup.Get("/share-recipients", controllers.Users.ShareRecipients)
+	usersGroup.Get("/:username/completed", controllers.Users.Completed)
 	usersGroup.Get("/:username", controllers.Users.Edit)
 	usersGroup.Put("/:username", controllers.Users.Update)
 	usersGroup.Delete("/:username", RequireAdmin, controllers.Users.Delete)

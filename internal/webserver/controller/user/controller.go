@@ -3,6 +3,7 @@ package user
 import (
 	"time"
 
+	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/result"
 	"github.com/svera/coreander/v4/internal/webserver/model"
@@ -35,9 +36,12 @@ type invitationsRepository interface {
 type readingRepository interface {
 	CompletedBetweenDates(userID int, startDate, endDate *time.Time) ([]string, error)
 	CompletedYears(userID uint) ([]int, error)
+	CompletedPaginated(userID int, page int, resultsPerPage int) (result.Paginated[[]model.Reading], error)
+	CompletedPaginatedBetweenDates(userID int, startDate, endDate *time.Time, page int, resultsPerPage int) (result.Paginated[[]model.Reading], error)
 }
 
 type indexer interface {
+	Document(slug string) (index.Document, error)
 	TotalWordCount(slugs []string) (float64, error)
 	Languages() ([]string, error)
 }

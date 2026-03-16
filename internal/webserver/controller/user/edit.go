@@ -31,30 +31,15 @@ func (u *Controller) Edit(c fiber.Ctx) error {
 		return fiber.ErrForbidden
 	}
 
-	statsYear := u.readingStatsYear(fiber.Query[int](c, "stats-year"))
-	statsYears := u.readingStatsYears(user.ID)
-
-	// Calculate yearly reading statistics
-	yearlyCompletedCount, yearlyReadingTime := u.calculateYearlyStats(int(user.ID), user.WordsPerMinute, statsYear)
-
-	// Calculate lifetime reading statistics
-	lifetimeCompletedCount, lifetimeReadingTime := u.calculateLifetimeStats(int(user.ID), user.WordsPerMinute)
-
 	vars := fiber.Map{
-		"Title":                  "Edit user",
-		"User":                   user,
-		"MinPasswordLength":      u.config.MinPasswordLength,
-		"UsernamePattern":        model.UsernamePattern,
-		"Errors":                 map[string]string{},
-		"EmailFrom":              u.sender.From(),
-		"ActiveTab":              "options",
-		"StatsYear":              statsYear,
-		"StatsYears":             statsYears,
-		"YearlyCompletedCount":   yearlyCompletedCount,
-		"YearlyReadingTime":      yearlyReadingTime,
-		"LifetimeCompletedCount": lifetimeCompletedCount,
-		"LifetimeReadingTime":    lifetimeReadingTime,
-		"AvailableLanguages":     c.Locals("AvailableLanguages"),
+		"Title":              "Edit user",
+		"User":               user,
+		"MinPasswordLength":  u.config.MinPasswordLength,
+		"UsernamePattern":    model.UsernamePattern,
+		"Errors":             map[string]string{},
+		"EmailFrom":          u.sender.From(),
+		"ActiveTab":          "options",
+		"AvailableLanguages": c.Locals("AvailableLanguages"),
 	}
 
 	if c.Get("HX-Request") == "true" {
@@ -82,6 +67,9 @@ func (u *Controller) readingStatsYear(requestedYear int) int {
 	nowYear := time.Now().Year()
 	if requestedYear > 0 {
 		return requestedYear
+	}
+	if requestedYear == 0 {
+		return 0 // "All time"
 	}
 	return nowYear
 }

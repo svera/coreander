@@ -151,6 +151,51 @@ func (u *ReadingRepository) CompletedBetweenDates(userID int, startDate, endDate
 	return slugs, nil
 }
 
+// CompletedPaginated returns paginated completed readings for a user, ordered by completed_on DESC.
+func (u *ReadingRepository) CompletedPaginated(userID int, page int, resultsPerPage int) (result.Paginated[[]Reading], error) {
+	return u.CompletedPaginatedBetweenDates(userID, nil, nil, page, resultsPerPage)
+}
+
+// CompletedPaginatedBetweenDates returns paginated completed readings for a user, optionally filtered by date range (inclusive).
+// When startDate and endDate are both nil, all completed readings are returned.
+func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate, endDate *time.Time, page int, resultsPerPage int) (result.Paginated[[]Reading], error) {
+	var readings []Reading
+	var total int64
+
+	baseQuery := u.DB.Table("readings").Where("user_id = ? AND completed_on IS NOT NULL", userID)
+	if startDate != nil {
+		baseQuery = baseQuery.Where("completed_on >= ?", startDate)
+	}
+	if endDate != nil {
+		baseQuery = baseQuery.Where("completed_on <= ?", endDate)
+	}
+
+	if err := baseQuery.Count(&total).Error; err != nil {
+		log.Printf("error counting completed readings: %s\n", err)
+		return result.Paginated[[]Reading]{}, err
+	}
+
+	res := u.DB.Where("user_id = ? AND completed_on IS NOT NULL", userID)
+	if startDate != nil {
+		res = res.Where("completed_on >= ?", startDate)
+	}
+	if endDate != nil {
+		res = res.Where("completed_on <= ?", endDate)
+	}
+	res = res.Order("completed_on DESC").Scopes(Paginate(page, resultsPerPage)).Find(&readings)
+	if res.Error != nil {
+		log.Printf("error listing completed readings: %s\n", res.Error)
+		return result.Paginated[[]Reading]{}, res.Error
+	}
+
+	return result.NewPaginated(
+		resultsPerPage,
+		page,
+		int(total),
+		readings,
+	), nil
+}
+
 // CompletedYears returns the years with completed readings for a user.
 func (u *ReadingRepository) CompletedYears(userID uint) ([]int, error) {
 	var yearStrings []string

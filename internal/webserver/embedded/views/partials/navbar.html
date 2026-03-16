@@ -97,6 +97,13 @@
                                 </a>
                             </li>
                             <li class="dropdown-item">
+                                <a href="/users/{{.Session.Username}}/completed" class="link-underline link-underline-opacity-0">
+                                    <i class="bi-check-circle-fill"></i>
+
+                                    {{t .Lang "Completed documents"}}
+                                </a>
+                            </li>
+                            <li class="dropdown-item">
                                 <a href="/users/{{.Session.Username}}" class="link-underline link-underline-opacity-0">
                                     <i class="bi-person-fill-gear"></i>
 
