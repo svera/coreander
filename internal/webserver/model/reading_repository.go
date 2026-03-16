@@ -3,7 +3,6 @@ package model
 import (
 	"errors"
 	"log"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -159,83 +158,6 @@ func (u *ReadingRepository) CompletedBetweenDates(userID int, startDate, endDate
 	}
 
 	return slugs, nil
-}
-
-// CompletedReadingsBetweenDates returns all completed readings for a user in the given date range (inclusive) as AugmentedDocuments.
-// Used when sorting by reading time requires fetching all readings then sorting in memory.
-// Requires DocGetter to be set; documents missing from the index are skipped.
-func (u *ReadingRepository) CompletedReadingsBetweenDates(userID int, startDate, endDate *time.Time) ([]AugmentedDocument, error) {
-	if u.DocGetter == nil {
-		return nil, errors.New("reading repository: DocGetter required for CompletedReadingsBetweenDates")
-	}
-	var readings []Reading
-	query := u.DB.Table("readings").Where("user_id = ? AND completed_on IS NOT NULL", userID)
-	if startDate != nil {
-		query = query.Where("completed_on >= ?", startDate)
-	}
-	if endDate != nil {
-		query = query.Where("completed_on <= ?", endDate)
-	}
-	err := query.Order("completed_on DESC").Find(&readings).Error
-	if err != nil {
-		log.Printf("error getting completed readings: %s\n", err)
-		return nil, err
-	}
-	slugs := make([]string, 0, len(readings))
-	for _, r := range readings {
-		slugs = append(slugs, r.Slug)
-	}
-	docs, err := u.DocGetter.Documents(slugs)
-	if err != nil {
-		log.Printf("error getting documents: %s\n", err)
-		return nil, err
-	}
-	docBySlug := make(map[string]index.Document, len(docs))
-	for _, d := range docs {
-		if d.ID != "" {
-			docBySlug[d.Slug] = d
-		}
-	}
-	augmented := make([]AugmentedDocument, 0, len(readings))
-	for _, r := range readings {
-		if doc, ok := docBySlug[r.Slug]; ok {
-			augmented = append(augmented, AugmentedDocument{Document: doc, CompletedOn: r.CompletedOn})
-		}
-	}
-	return augmented, nil
-}
-
-// CompletedPaginatedBetweenDatesByWords returns paginated completed readings for a user as AugmentedDocuments, sorted by document word count.
-// startDate and endDate nil means all time. ascending true = shortest first, false = longest first. Tiebreak: completed_on.
-func (u *ReadingRepository) CompletedPaginatedBetweenDatesByWords(userID int, startDate, endDate *time.Time, page int, resultsPerPage int, ascending bool) (result.Paginated[[]AugmentedDocument], error) {
-	augmented, err := u.CompletedReadingsBetweenDates(userID, startDate, endDate)
-	if err != nil {
-		return result.Paginated[[]AugmentedDocument]{}, err
-	}
-	sort.Slice(augmented, func(i, j int) bool {
-		wi, wj := augmented[i].Document.Words, augmented[j].Document.Words
-		if wi != wj {
-			if ascending {
-				return wi < wj
-			}
-			return wi > wj
-		}
-		if augmented[i].CompletedOn == nil || augmented[j].CompletedOn == nil {
-			return false
-		}
-		return augmented[i].CompletedOn.Before(*augmented[j].CompletedOn)
-	})
-	total := len(augmented)
-	offset := (page - 1) * resultsPerPage
-	if offset > total {
-		offset = total
-	}
-	end := offset + resultsPerPage
-	if end > total {
-		end = total
-	}
-	pageHits := augmented[offset:end]
-	return result.NewPaginated(resultsPerPage, page, total, pageHits), nil
 }
 
 // CompletedPaginated returns paginated completed readings for a user as AugmentedDocuments, ordered by completed_on (default DESC).

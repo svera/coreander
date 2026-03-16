@@ -45,24 +45,12 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 	}
 
 	var results result.Paginated[[]model.AugmentedDocument]
-	sortByReadingTime := sortBy == "reading-time-shortest-first" || sortBy == "reading-time-longest-first"
-
-	if sortByReadingTime {
-		var startDate, endDate *time.Time
-		if statsYear != 0 {
-			s := time.Date(statsYear, 1, 1, 0, 0, 0, 0, time.Local)
-			e := time.Date(statsYear, 12, 31, 23, 59, 59, 999999999, time.Local)
-			startDate, endDate = &s, &e
-		}
-		results, err = u.readingRepository.CompletedPaginatedBetweenDatesByWords(int(user.ID), startDate, endDate, page, int(model.ResultsPerPage), sortBy == "reading-time-shortest-first")
+	if statsYear == 0 {
+		results, err = u.readingRepository.CompletedPaginated(int(user.ID), page, int(model.ResultsPerPage), orderBy)
 	} else {
-		if statsYear == 0 {
-			results, err = u.readingRepository.CompletedPaginated(int(user.ID), page, int(model.ResultsPerPage), orderBy)
-		} else {
-			startOfYear := time.Date(statsYear, 1, 1, 0, 0, 0, 0, time.Local)
-			endOfYear := time.Date(statsYear, 12, 31, 23, 59, 59, 999999999, time.Local)
-			results, err = u.readingRepository.CompletedPaginatedBetweenDates(int(user.ID), &startOfYear, &endOfYear, page, int(model.ResultsPerPage), orderBy)
-		}
+		startOfYear := time.Date(statsYear, 1, 1, 0, 0, 0, 0, time.Local)
+		endOfYear := time.Date(statsYear, 12, 31, 23, 59, 59, 999999999, time.Local)
+		results, err = u.readingRepository.CompletedPaginatedBetweenDates(int(user.ID), &startOfYear, &endOfYear, page, int(model.ResultsPerPage), orderBy)
 	}
 	if err != nil {
 		log.Println(err)
@@ -103,8 +91,6 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 		}{
 			{"completed-newest-first", "completed first"},
 			{"completed-oldest-first", "completed last"},
-			{"reading-time-shortest-first", "shortest first"},
-			{"reading-time-longest-first", "longest first"},
 		},
 	}
 
