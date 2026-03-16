@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/hhrutter/tiff"
-	"github.com/microcosm-cc/bluemonday"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
@@ -64,31 +63,11 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 		publication.Date, _ = date.Parse("2006", dateStr)
 	}
 
-	description := ""
-	if raw := strings.TrimSpace(info.Subject); raw != "" {
-		strict := bluemonday.StrictPolicy()
-		noHTMLDescription := strict.Sanitize(raw)
-		if noHTMLDescription == raw {
-			paragraphs := strings.Split(raw, "\n")
-			description = "<p>" + strings.Join(paragraphs, "</p><p>") + "</p>"
-		} else {
-			p := bluemonday.NewPolicy()
-			p.AllowElements("p", "br", "strong", "em", "i", "b", "u", "s", "a", "blockquote", "cite", "code", "pre", "ol", "ul", "li", "h2", "h3", "h4", "h5", "h6", "dd", "dt", "dl", "dfn", "kbd", "mark", "q", "samp", "small", "sub", "sup", "time", "tt", "var")
-			description = p.Sanitize(raw)
-		}
-	}
+	description := SanitizeDescription(info.Subject)
 
 	authors := []string{""}
-	if author := strings.TrimSpace(info.Author); author != "" {
-		var names []string
-		for _, s := range strings.FieldsFunc(author, func(r rune) bool { return r == '&' || r == ',' || r == ';' }) {
-			if name := strings.TrimSpace(s); name != "" {
-				names = append(names, name)
-			}
-		}
-		if len(names) > 0 {
-			authors = names
-		}
+	if names := ParseAuthorList(info.Author); len(names) > 0 {
+		authors = names
 	}
 
 	lang := ""

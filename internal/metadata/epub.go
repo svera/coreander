@@ -49,16 +49,9 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 	var authors []string
 	for _, creator := range meta.Creator {
 		if creator.Role == "aut" || creator.Role == "" {
-			// Some epub files mistakenly put all authors in a single field instead of using a field for each one.
-			// Split by common separators and index each author properly.
-			for _, s := range strings.FieldsFunc(creator.FullName, func(r rune) bool { return r == '&' || r == ',' || r == ';' }) {
-				if name := strings.TrimSpace(s); name != "" {
-					authors = append(authors, name)
-				}
-			}
+			authors = append(authors, ParseAuthorList(creator.FullName)...)
 		}
 	}
-
 	if len(authors) == 0 {
 		authors = []string{""}
 	}
@@ -83,16 +76,7 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 
 	description := ""
 	if len(meta.Description) > 0 {
-		strict := bluemonday.StrictPolicy()
-		noHTMLDescription := strict.Sanitize(meta.Description[0])
-		if noHTMLDescription == meta.Description[0] {
-			paragraphs := strings.Split(meta.Description[0], "\n")
-			description = "<p>" + strings.Join(paragraphs, "</p><p>") + "</p>"
-		} else {
-			p := bluemonday.NewPolicy()
-			p.AllowElements("p", "br", "strong", "em", "i", "b", "u", "s", "a", "blockquote", "cite", "code", "pre", "ol", "ul", "li", "h2", "h3", "h4", "h5", "h6", "dd", "dt", "dl", "dfn", "kbd", "mark", "q", "samp", "small", "sub", "sup", "time", "tt", "var")
-			description = p.Sanitize(meta.Description[0])
-		}
+		description = SanitizeDescription(meta.Description[0])
 	}
 
 	lang := ""
