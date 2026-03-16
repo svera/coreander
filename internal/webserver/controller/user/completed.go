@@ -38,13 +38,13 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 	}
 
 	var results result.Paginated[[]model.AugmentedDocument]
-	if year == 0 {
-		results, err = u.readingRepository.CompletedPaginated(int(session.User.ID), page, int(model.ResultsPerPage), orderBy)
-	} else {
-		startOfYear := time.Date(year, 1, 1, 0, 0, 0, 0, time.Local)
-		endOfYear := time.Date(year, 12, 31, 23, 59, 59, 999999999, time.Local)
-		results, err = u.readingRepository.CompletedPaginatedBetweenDates(int(session.User.ID), &startOfYear, &endOfYear, page, int(model.ResultsPerPage), orderBy)
+	var startDate, endDate *time.Time
+	if year != 0 {
+		s := time.Date(year, 1, 1, 0, 0, 0, 0, time.Local)
+		e := time.Date(year, 12, 31, 23, 59, 59, 999999999, time.Local)
+		startDate, endDate = &s, &e
 	}
+	results, err = u.readingRepository.CompletedPaginatedBetweenDates(int(session.User.ID), startDate, endDate, page, int(model.ResultsPerPage), orderBy)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
