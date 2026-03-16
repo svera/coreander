@@ -6,13 +6,13 @@
     {{else}}
     <div class="col-6 col-md-8 align-content-end">
         <div class="form-floating">
-            <select class="form-select form-select-sm" id="stats-year" name="stats-year"
-                hx-get="/completed" hx-include="[name='stats-year']" hx-trigger="change" hx-target="#list" hx-swap="innerHTML">
+            <select class="form-select form-select-sm" id="year" name="year"
+                hx-get="/completed" hx-include="[name='year']" hx-trigger="change" hx-target="#list" hx-swap="innerHTML">
                 {{range .YearStats}}
-                    <option value="{{.Year}}" {{if eq .Year $.StatsYear}}selected{{end}}>{{if eq .Year 0}}{{t $.Lang "All time"}}{{else}}{{.Year}}{{end}} ({{.DocumentCount}} {{t $.Lang "documents"}}{{if .ReadingTime}}, {{.ReadingTime}}{{end}})</option>
+                    <option value="{{.Year}}" {{if eq .Year $.Year}}selected{{end}}>{{if eq .Year 0}}{{t $.Lang "All time"}}{{else}}{{.Year}}{{end}} ({{.DocumentCount}} {{t $.Lang "documents"}}{{if .ReadingTime}}, {{.ReadingTime}}{{end}})</option>
                 {{end}}
             </select>
-            <label for="stats-year">{{t .Lang "Year"}}</label>
+            <label for="year">{{t .Lang "Year"}}</label>
         </div>
     </div>
     <div class="col-6 col-md-4 text-end">

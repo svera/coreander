@@ -25,11 +25,11 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 		page = 1
 	}
 
-	var statsYear int
-	if c.Query("stats-year") == "" {
-		statsYear = time.Now().Year()
+	var year int
+	if c.Query("year") == "" {
+		year = time.Now().Year()
 	} else {
-		statsYear, _ = strconv.Atoi(c.Query("stats-year"))
+		year, _ = strconv.Atoi(c.Query("year"))
 	}
 
 	sortBy := c.Query("sort-by")
@@ -40,11 +40,11 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 	}
 
 	var results result.Paginated[[]model.AugmentedDocument]
-	if statsYear == 0 {
+	if year == 0 {
 		results, err = u.readingRepository.CompletedPaginated(int(session.User.ID), page, int(model.ResultsPerPage), orderBy)
 	} else {
-		startOfYear := time.Date(statsYear, 1, 1, 0, 0, 0, 0, time.Local)
-		endOfYear := time.Date(statsYear, 12, 31, 23, 59, 59, 999999999, time.Local)
+		startOfYear := time.Date(year, 1, 1, 0, 0, 0, 0, time.Local)
+		endOfYear := time.Date(year, 12, 31, 23, 59, 59, 999999999, time.Local)
 		results, err = u.readingRepository.CompletedPaginatedBetweenDates(int(session.User.ID), &startOfYear, &endOfYear, page, int(model.ResultsPerPage), orderBy)
 	}
 	if err != nil {
@@ -70,7 +70,7 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 		"Title":                  "Completions",
 		"URL":                    view.URL(c),
 		"WordsPerMinute":         session.User.WordsPerMinute,
-		"StatsYear":              statsYear,
+		"Year":                   year,
 		"YearStats":              yearStats,
 		"SortURL":                view.BaseURLWithout(c, "sort-by", "page"),
 		"SortBy":                 c.Query("sort-by"),
