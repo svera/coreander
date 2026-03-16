@@ -72,7 +72,8 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 			paragraphs := strings.Split(raw, "\n")
 			description = "<p>" + strings.Join(paragraphs, "</p><p>") + "</p>"
 		} else {
-			p := bluemonday.UGCPolicy()
+			p := bluemonday.NewPolicy()
+			p.AllowElements("p", "br", "strong", "em", "i", "b", "u", "s", "a", "blockquote", "cite", "code", "pre", "ol", "ul", "li", "h2", "h3", "h4", "h5", "h6", "dd", "dt", "dl", "dfn", "kbd", "mark", "q", "samp", "small", "sub", "sup", "time", "tt", "var")
 			description = p.Sanitize(raw)
 		}
 	}

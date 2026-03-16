@@ -89,7 +89,8 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 			paragraphs := strings.Split(meta.Description[0], "\n")
 			description = "<p>" + strings.Join(paragraphs, "</p><p>") + "</p>"
 		} else {
-			p := bluemonday.UGCPolicy()
+			p := bluemonday.NewPolicy()
+			p.AllowElements("p", "br", "strong", "em", "i", "b", "u", "s", "a", "blockquote", "cite", "code", "pre", "ol", "ul", "li", "h2", "h3", "h4", "h5", "h6", "dd", "dt", "dl", "dfn", "kbd", "mark", "q", "samp", "small", "sub", "sup", "time", "tt", "var")
 			description = p.Sanitize(meta.Description[0])
 		}
 	}
