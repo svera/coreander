@@ -7,7 +7,7 @@
     <div class="col-6 col-md-8 align-content-end">
         <div class="form-floating">
             <select class="form-select form-select-sm" id="stats-year" name="stats-year"
-                hx-get="/users/{{.User.Username}}/completed" hx-include="[name='stats-year']" hx-trigger="change" hx-target="#list" hx-swap="innerHTML">
+                hx-get="/completed" hx-include="[name='stats-year']" hx-trigger="change" hx-target="#list" hx-swap="innerHTML">
                 {{range .YearStats}}
                     <option value="{{.Year}}" {{if eq .Year $.StatsYear}}selected{{end}}>{{if eq .Year 0}}{{t $.Lang "All time"}}{{else}}{{.Year}}{{end}} ({{.DocumentCount}} {{t $.Lang "documents"}}{{if .ReadingTime}}, {{.ReadingTime}}{{end}})</option>
                 {{end}}

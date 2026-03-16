@@ -3,7 +3,6 @@ package user
 import (
 	"fmt"
 	"log"
-	"sort"
 	"strconv"
 	"time"
 
@@ -21,7 +20,7 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 		session = val
 	}
 
-	if session.Username != c.Params("username") {
+	if session.Username == "" {
 		return fiber.ErrForbidden
 	}
 	user := &session.User
@@ -55,37 +54,7 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 			e := time.Date(statsYear, 12, 31, 23, 59, 59, 999999999, time.Local)
 			startDate, endDate = &s, &e
 		}
-		augmented, err := u.readingRepository.CompletedReadingsBetweenDates(int(user.ID), startDate, endDate)
-		if err != nil {
-			log.Println(err)
-			return fiber.ErrInternalServerError
-		}
-		ascending := sortBy == "reading-time-shortest-first"
-		sort.Slice(augmented, func(i, j int) bool {
-			wi, wj := augmented[i].Document.Words, augmented[j].Document.Words
-			if wi != wj {
-				if ascending {
-					return wi < wj
-				}
-				return wi > wj
-			}
-			if augmented[i].CompletedOn == nil || augmented[j].CompletedOn == nil {
-				return false
-			}
-			return augmented[i].CompletedOn.Before(*augmented[j].CompletedOn)
-		})
-		total := len(augmented)
-		perPage := int(model.ResultsPerPage)
-		offset := (page - 1) * perPage
-		if offset > total {
-			offset = total
-		}
-		end := offset + perPage
-		if end > total {
-			end = total
-		}
-		pageHits := augmented[offset:end]
-		results = result.NewPaginated(perPage, page, total, pageHits)
+		results, err = u.readingRepository.CompletedPaginatedBetweenDatesByWords(int(user.ID), startDate, endDate, page, int(model.ResultsPerPage), sortBy == "reading-time-shortest-first")
 	} else {
 		if statsYear == 0 {
 			results, err = u.readingRepository.CompletedPaginated(int(user.ID), page, int(model.ResultsPerPage), orderBy)
@@ -94,10 +63,10 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 			endOfYear := time.Date(statsYear, 12, 31, 23, 59, 59, 999999999, time.Local)
 			results, err = u.readingRepository.CompletedPaginatedBetweenDates(int(user.ID), &startOfYear, &endOfYear, page, int(model.ResultsPerPage), orderBy)
 		}
-		if err != nil {
-			log.Println(err)
-			return fiber.ErrInternalServerError
-		}
+	}
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
 	}
 
 	yearStats, err := u.completedYearStats(int(user.ID), user.WordsPerMinute)

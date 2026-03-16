@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -202,6 +203,39 @@ func (u *ReadingRepository) CompletedReadingsBetweenDates(userID int, startDate,
 		}
 	}
 	return augmented, nil
+}
+
+// CompletedPaginatedBetweenDatesByWords returns paginated completed readings for a user as AugmentedDocuments, sorted by document word count.
+// startDate and endDate nil means all time. ascending true = shortest first, false = longest first. Tiebreak: completed_on.
+func (u *ReadingRepository) CompletedPaginatedBetweenDatesByWords(userID int, startDate, endDate *time.Time, page int, resultsPerPage int, ascending bool) (result.Paginated[[]AugmentedDocument], error) {
+	augmented, err := u.CompletedReadingsBetweenDates(userID, startDate, endDate)
+	if err != nil {
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
+	sort.Slice(augmented, func(i, j int) bool {
+		wi, wj := augmented[i].Document.Words, augmented[j].Document.Words
+		if wi != wj {
+			if ascending {
+				return wi < wj
+			}
+			return wi > wj
+		}
+		if augmented[i].CompletedOn == nil || augmented[j].CompletedOn == nil {
+			return false
+		}
+		return augmented[i].CompletedOn.Before(*augmented[j].CompletedOn)
+	})
+	total := len(augmented)
+	offset := (page - 1) * resultsPerPage
+	if offset > total {
+		offset = total
+	}
+	end := offset + resultsPerPage
+	if end > total {
+		end = total
+	}
+	pageHits := augmented[offset:end]
+	return result.NewPaginated(resultsPerPage, page, total, pageHits), nil
 }
 
 // CompletedPaginated returns paginated completed readings for a user as AugmentedDocuments, ordered by completed_on (default DESC).
