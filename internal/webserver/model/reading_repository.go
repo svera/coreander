@@ -282,7 +282,6 @@ func (u *ReadingRepository) CompletedStatsByYear(userID int, wordsPerMinute floa
 	stats := []CompletedYearStats{{
 		Year:          0,
 		DocumentCount: len(allSlugs),
-		Words:         allWords,
 		ReadingTime:   wordsToReadingTime(allWords, wordsPerMinute),
 	}}
 	var rows []completedStatsByYearRow
@@ -308,7 +307,6 @@ func (u *ReadingRepository) CompletedStatsByYear(userID int, wordsPerMinute floa
 		stats = append(stats, CompletedYearStats{
 			Year:          year,
 			DocumentCount: r.DocCnt,
-			Words:         words,
 			ReadingTime:   wordsToReadingTime(words, wordsPerMinute),
 		})
 	}
