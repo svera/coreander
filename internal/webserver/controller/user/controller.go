@@ -35,9 +35,11 @@ type invitationsRepository interface {
 
 type readingRepository interface {
 	CompletedBetweenDates(userID int, startDate, endDate *time.Time) ([]string, error)
+	CompletedReadingsBetweenDates(userID int, startDate, endDate *time.Time) ([]model.Reading, error)
 	CompletedYears(userID uint) ([]int, error)
-	CompletedPaginated(userID int, page int, resultsPerPage int) (result.Paginated[[]model.Reading], error)
-	CompletedPaginatedBetweenDates(userID int, startDate, endDate *time.Time, page int, resultsPerPage int) (result.Paginated[[]model.Reading], error)
+	CompletedPaginated(userID int, page int, resultsPerPage int, orderBy string) (result.Paginated[[]model.Reading], error)
+	CompletedPaginatedBetweenDates(userID int, startDate, endDate *time.Time, page int, resultsPerPage int, orderBy string) (result.Paginated[[]model.Reading], error)
+	CompletedStatsByYear(userID int) ([]model.CompletedYearStatsRow, error)
 }
 
 type indexer interface {

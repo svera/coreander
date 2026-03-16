@@ -3,6 +3,7 @@ package model
 import (
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/svera/coreander/v4/internal/result"
@@ -151,16 +152,40 @@ func (u *ReadingRepository) CompletedBetweenDates(userID int, startDate, endDate
 	return slugs, nil
 }
 
-// CompletedPaginated returns paginated completed readings for a user, ordered by completed_on DESC.
-func (u *ReadingRepository) CompletedPaginated(userID int, page int, resultsPerPage int) (result.Paginated[[]Reading], error) {
-	return u.CompletedPaginatedBetweenDates(userID, nil, nil, page, resultsPerPage)
+// CompletedReadingsBetweenDates returns all completed readings for a user in the given date range (inclusive).
+// Used when sorting by reading time requires fetching all readings then sorting in memory.
+func (u *ReadingRepository) CompletedReadingsBetweenDates(userID int, startDate, endDate *time.Time) ([]Reading, error) {
+	var readings []Reading
+	query := u.DB.Table("readings").Where("user_id = ? AND completed_on IS NOT NULL", userID)
+	if startDate != nil {
+		query = query.Where("completed_on >= ?", startDate)
+	}
+	if endDate != nil {
+		query = query.Where("completed_on <= ?", endDate)
+	}
+	err := query.Order("completed_on DESC").Find(&readings).Error
+	if err != nil {
+		log.Printf("error getting completed readings: %s\n", err)
+		return nil, err
+	}
+	return readings, nil
+}
+
+// CompletedPaginated returns paginated completed readings for a user, ordered by completed_on (default DESC).
+func (u *ReadingRepository) CompletedPaginated(userID int, page int, resultsPerPage int, orderBy string) (result.Paginated[[]Reading], error) {
+	return u.CompletedPaginatedBetweenDates(userID, nil, nil, page, resultsPerPage, orderBy)
 }
 
 // CompletedPaginatedBetweenDates returns paginated completed readings for a user, optionally filtered by date range (inclusive).
 // When startDate and endDate are both nil, all completed readings are returned.
-func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate, endDate *time.Time, page int, resultsPerPage int) (result.Paginated[[]Reading], error) {
+// orderBy is e.g. "completed_on DESC" or "completed_on ASC"; if empty, "completed_on DESC" is used.
+func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate, endDate *time.Time, page int, resultsPerPage int, orderBy string) (result.Paginated[[]Reading], error) {
 	var readings []Reading
 	var total int64
+
+	if orderBy == "" {
+		orderBy = "completed_on DESC"
+	}
 
 	baseQuery := u.DB.Table("readings").Where("user_id = ? AND completed_on IS NOT NULL", userID)
 	if startDate != nil {
@@ -182,7 +207,7 @@ func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate
 	if endDate != nil {
 		res = res.Where("completed_on <= ?", endDate)
 	}
-	res = res.Order("completed_on DESC").Scopes(Paginate(page, resultsPerPage)).Find(&readings)
+	res = res.Order(orderBy).Scopes(Paginate(page, resultsPerPage)).Find(&readings)
 	if res.Error != nil {
 		log.Printf("error listing completed readings: %s\n", res.Error)
 		return result.Paginated[[]Reading]{}, res.Error
@@ -216,4 +241,43 @@ func (u *ReadingRepository) CompletedYears(userID uint) ([]int, error) {
 	}
 
 	return years, nil
+}
+
+// completedStatsByYearRow is used to scan the raw SQL result.
+type completedStatsByYearRow struct {
+	Year    string
+	DocCnt  int
+	SlugsCS string
+}
+
+// CompletedStatsByYear returns a slice of years (sorted descending) with document count and slugs per year.
+// Words are not set; the caller should use indexer.TotalWordCount(row.Slugs) to fill CompletedYearStats.Words.
+func (u *ReadingRepository) CompletedStatsByYear(userID int) ([]CompletedYearStatsRow, error) {
+	var rows []completedStatsByYearRow
+	err := u.DB.Raw(
+		`SELECT strftime('%Y', completed_on) AS year, COUNT(*) AS doc_cnt, group_concat(slug) AS slugs_cs
+		 FROM readings
+		 WHERE user_id = ? AND completed_on IS NOT NULL
+		 GROUP BY strftime('%Y', completed_on)
+		 ORDER BY year DESC`,
+		userID,
+	).Scan(&rows).Error
+	if err != nil {
+		log.Printf("error getting completed stats by year: %s\n", err)
+		return nil, err
+	}
+	out := make([]CompletedYearStatsRow, 0, len(rows))
+	for _, r := range rows {
+		year, _ := strconv.Atoi(r.Year)
+		slugs := []string{}
+		if r.SlugsCS != "" {
+			slugs = strings.Split(r.SlugsCS, ",")
+		}
+		out = append(out, CompletedYearStatsRow{
+			Year:          year,
+			DocumentCount: r.DocCnt,
+			Slugs:         slugs,
+		})
+	}
+	return out, nil
 }
