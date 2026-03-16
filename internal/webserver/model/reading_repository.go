@@ -2,20 +2,23 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/result"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-// DocumentBySlugGetter is used by the reading repository to build AugmentedDocuments.
+// DocumentBySlugGetter is used by the reading repository to build AugmentedDocuments and word counts for stats.
 type DocumentBySlugGetter interface {
 	Documents(slugs []string) ([]index.Document, error)
+	TotalWordCount(slugs []string) (float64, error)
 }
 
 type ReadingRepository struct {
@@ -265,11 +268,25 @@ type completedStatsByYearRow struct {
 	SlugsCS string
 }
 
-// CompletedStatsByYear returns a slice of years (sorted descending) with document count and slugs per year.
-// Words are not set; the caller should use indexer.TotalWordCount(row.Slugs) to fill CompletedYearStats.Words.
-func (u *ReadingRepository) CompletedStatsByYear(userID int) ([]CompletedYearStatsRow, error) {
+// CompletedStatsByYear returns aggregated stats per year (and "all time" as year 0) including estimated reading time.
+// wordsPerMinute is used to compute ReadingTime for each year. Requires DocGetter (TotalWordCount) to be set.
+func (u *ReadingRepository) CompletedStatsByYear(userID int, wordsPerMinute float64) ([]CompletedYearStats, error) {
+	if u.DocGetter == nil {
+		return nil, errors.New("reading repository: DocGetter required for CompletedStatsByYear")
+	}
+	allSlugs, err := u.CompletedBetweenDates(userID, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	allWords, _ := u.DocGetter.TotalWordCount(allSlugs)
+	stats := []CompletedYearStats{{
+		Year:          0,
+		DocumentCount: len(allSlugs),
+		Words:         allWords,
+		ReadingTime:   wordsToReadingTime(allWords, wordsPerMinute),
+	}}
 	var rows []completedStatsByYearRow
-	err := u.DB.Raw(
+	err = u.DB.Raw(
 		`SELECT strftime('%Y', completed_on) AS year, COUNT(*) AS doc_cnt, group_concat(slug) AS slugs_cs
 		 FROM readings
 		 WHERE user_id = ? AND completed_on IS NOT NULL
@@ -281,18 +298,29 @@ func (u *ReadingRepository) CompletedStatsByYear(userID int) ([]CompletedYearSta
 		log.Printf("error getting completed stats by year: %s\n", err)
 		return nil, err
 	}
-	out := make([]CompletedYearStatsRow, 0, len(rows))
 	for _, r := range rows {
 		year, _ := strconv.Atoi(r.Year)
 		slugs := []string{}
 		if r.SlugsCS != "" {
 			slugs = strings.Split(r.SlugsCS, ",")
 		}
-		out = append(out, CompletedYearStatsRow{
+		words, _ := u.DocGetter.TotalWordCount(slugs)
+		stats = append(stats, CompletedYearStats{
 			Year:          year,
 			DocumentCount: r.DocCnt,
-			Slugs:         slugs,
+			Words:         words,
+			ReadingTime:   wordsToReadingTime(words, wordsPerMinute),
 		})
 	}
-	return out, nil
+	return stats, nil
+}
+
+func wordsToReadingTime(words, wordsPerMinute float64) string {
+	if words <= 0 || wordsPerMinute <= 0 {
+		return ""
+	}
+	if readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", words/wordsPerMinute)); err == nil {
+		return metadata.FmtDuration(readingTime)
+	}
+	return ""
 }

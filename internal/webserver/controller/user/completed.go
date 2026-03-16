@@ -1,13 +1,11 @@
 package user
 
 import (
-	"fmt"
 	"log"
 	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/result"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"github.com/svera/coreander/v4/internal/webserver/view"
@@ -52,7 +50,7 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	yearStats, err := u.completedYearStats(int(session.User.ID), session.User.WordsPerMinute)
+	yearStats, err := u.readingRepository.CompletedStatsByYear(int(session.User.ID), session.User.WordsPerMinute)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
@@ -97,43 +95,4 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 	}
 
 	return nil
-}
-
-// completedYearStats returns year stats (including "All time" as year 0) with document count, words, and estimated reading time per year.
-func (u *Controller) completedYearStats(userID int, wordsPerMinute float64) ([]model.CompletedYearStats, error) {
-	rows, err := u.readingRepository.CompletedStatsByYear(userID)
-	if err != nil {
-		return nil, err
-	}
-	allSlugs, err := u.readingRepository.CompletedBetweenDates(userID, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	allWords, _ := u.indexer.TotalWordCount(allSlugs)
-	stats := []model.CompletedYearStats{{
-		Year:          0,
-		DocumentCount: len(allSlugs),
-		Words:         allWords,
-		ReadingTime:   u.wordsToReadingTime(allWords, wordsPerMinute),
-	}}
-	for _, row := range rows {
-		words, _ := u.indexer.TotalWordCount(row.Slugs)
-		stats = append(stats, model.CompletedYearStats{
-			Year:          row.Year,
-			DocumentCount: row.DocumentCount,
-			Words:         words,
-			ReadingTime:   u.wordsToReadingTime(words, wordsPerMinute),
-		})
-	}
-	return stats, nil
-}
-
-func (u *Controller) wordsToReadingTime(words float64, wordsPerMinute float64) string {
-	if words <= 0 || wordsPerMinute <= 0 {
-		return ""
-	}
-	if readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", words/wordsPerMinute)); err == nil {
-		return metadata.FmtDuration(readingTime)
-	}
-	return ""
 }
