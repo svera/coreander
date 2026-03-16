@@ -1,18 +1,26 @@
 package model
 
 import (
+	"errors"
 	"log"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
+// DocumentBySlugGetter is used by the reading repository to build AugmentedDocuments.
+type DocumentBySlugGetter interface {
+	Documents(slugs []string) ([]index.Document, error)
+}
+
 type ReadingRepository struct {
-	DB *gorm.DB
+	DB         *gorm.DB
+	DocGetter  DocumentBySlugGetter
 }
 
 func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error) {
@@ -152,9 +160,13 @@ func (u *ReadingRepository) CompletedBetweenDates(userID int, startDate, endDate
 	return slugs, nil
 }
 
-// CompletedReadingsBetweenDates returns all completed readings for a user in the given date range (inclusive).
+// CompletedReadingsBetweenDates returns all completed readings for a user in the given date range (inclusive) as AugmentedDocuments.
 // Used when sorting by reading time requires fetching all readings then sorting in memory.
-func (u *ReadingRepository) CompletedReadingsBetweenDates(userID int, startDate, endDate *time.Time) ([]Reading, error) {
+// Requires DocGetter to be set; documents missing from the index are skipped.
+func (u *ReadingRepository) CompletedReadingsBetweenDates(userID int, startDate, endDate *time.Time) ([]AugmentedDocument, error) {
+	if u.DocGetter == nil {
+		return nil, errors.New("reading repository: DocGetter required for CompletedReadingsBetweenDates")
+	}
 	var readings []Reading
 	query := u.DB.Table("readings").Where("user_id = ? AND completed_on IS NOT NULL", userID)
 	if startDate != nil {
@@ -168,18 +180,43 @@ func (u *ReadingRepository) CompletedReadingsBetweenDates(userID int, startDate,
 		log.Printf("error getting completed readings: %s\n", err)
 		return nil, err
 	}
-	return readings, nil
+	slugs := make([]string, 0, len(readings))
+	for _, r := range readings {
+		slugs = append(slugs, r.Slug)
+	}
+	docs, err := u.DocGetter.Documents(slugs)
+	if err != nil {
+		log.Printf("error getting documents: %s\n", err)
+		return nil, err
+	}
+	docBySlug := make(map[string]index.Document, len(docs))
+	for _, d := range docs {
+		if d.ID != "" {
+			docBySlug[d.Slug] = d
+		}
+	}
+	augmented := make([]AugmentedDocument, 0, len(readings))
+	for _, r := range readings {
+		if doc, ok := docBySlug[r.Slug]; ok {
+			augmented = append(augmented, AugmentedDocument{Document: doc, CompletedOn: r.CompletedOn})
+		}
+	}
+	return augmented, nil
 }
 
-// CompletedPaginated returns paginated completed readings for a user, ordered by completed_on (default DESC).
-func (u *ReadingRepository) CompletedPaginated(userID int, page int, resultsPerPage int, orderBy string) (result.Paginated[[]Reading], error) {
+// CompletedPaginated returns paginated completed readings for a user as AugmentedDocuments, ordered by completed_on (default DESC).
+func (u *ReadingRepository) CompletedPaginated(userID int, page int, resultsPerPage int, orderBy string) (result.Paginated[[]AugmentedDocument], error) {
 	return u.CompletedPaginatedBetweenDates(userID, nil, nil, page, resultsPerPage, orderBy)
 }
 
-// CompletedPaginatedBetweenDates returns paginated completed readings for a user, optionally filtered by date range (inclusive).
+// CompletedPaginatedBetweenDates returns paginated completed readings for a user as AugmentedDocuments, optionally filtered by date range (inclusive).
 // When startDate and endDate are both nil, all completed readings are returned.
 // orderBy is e.g. "completed_on DESC" or "completed_on ASC"; if empty, "completed_on DESC" is used.
-func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate, endDate *time.Time, page int, resultsPerPage int, orderBy string) (result.Paginated[[]Reading], error) {
+// Requires DocGetter to be set; documents missing from the index are skipped from the page but total count is the DB count.
+func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate, endDate *time.Time, page int, resultsPerPage int, orderBy string) (result.Paginated[[]AugmentedDocument], error) {
+	if u.DocGetter == nil {
+		return result.Paginated[[]AugmentedDocument]{}, errors.New("reading repository: DocGetter required for CompletedPaginatedBetweenDates")
+	}
 	var readings []Reading
 	var total int64
 
@@ -197,7 +234,7 @@ func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate
 
 	if err := baseQuery.Count(&total).Error; err != nil {
 		log.Printf("error counting completed readings: %s\n", err)
-		return result.Paginated[[]Reading]{}, err
+		return result.Paginated[[]AugmentedDocument]{}, err
 	}
 
 	res := u.DB.Where("user_id = ? AND completed_on IS NOT NULL", userID)
@@ -210,14 +247,36 @@ func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate
 	res = res.Order(orderBy).Scopes(Paginate(page, resultsPerPage)).Find(&readings)
 	if res.Error != nil {
 		log.Printf("error listing completed readings: %s\n", res.Error)
-		return result.Paginated[[]Reading]{}, res.Error
+		return result.Paginated[[]AugmentedDocument]{}, res.Error
+	}
+
+	slugs := make([]string, 0, len(readings))
+	for _, r := range readings {
+		slugs = append(slugs, r.Slug)
+	}
+	docs, err := u.DocGetter.Documents(slugs)
+	if err != nil {
+		log.Printf("error getting documents: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
+	docBySlug := make(map[string]index.Document, len(docs))
+	for _, d := range docs {
+		if d.ID != "" {
+			docBySlug[d.Slug] = d
+		}
+	}
+	augmented := make([]AugmentedDocument, 0, len(readings))
+	for _, r := range readings {
+		if doc, ok := docBySlug[r.Slug]; ok {
+			augmented = append(augmented, AugmentedDocument{Document: doc, CompletedOn: r.CompletedOn})
+		}
 	}
 
 	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(total),
-		readings,
+		augmented,
 	), nil
 }
 

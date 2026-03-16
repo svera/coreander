@@ -29,7 +29,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 	usersRepository := &model.UserRepository{DB: db}
 	invitationsRepository := &model.InvitationRepository{DB: db}
 	highlightsRepository := &model.HighlightRepository{DB: db}
-	readingRepository := &model.ReadingRepository{DB: db}
+	readingRepository := &model.ReadingRepository{DB: db, DocGetter: idx}
 
 	authCfg := auth.Config{
 		MinPasswordLength: cfg.MinPasswordLength,

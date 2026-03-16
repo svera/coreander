@@ -16,23 +16,15 @@ import (
 
 // Completed renders the list of documents completed by the user
 func (u *Controller) Completed(c fiber.Ctx) error {
-	user, err := u.usersRepository.FindByUsername(c.Params("username"))
-	if err != nil {
-		log.Println(err.Error())
-		return fiber.ErrInternalServerError
-	}
-	if user == nil {
-		return fiber.ErrNotFound
-	}
-
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
 	}
 
-	if session.Role != model.RoleAdmin && session.Username != c.Params("username") {
+	if session.Username != c.Params("username") {
 		return fiber.ErrForbidden
 	}
+	user := &session.User
 
 	page, err := strconv.Atoi(c.Query("page"))
 	if err != nil {
@@ -47,8 +39,9 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 	}
 
 	sortBy := c.Query("sort-by")
-	orderBy := "completed_on DESC"
-	if sortBy == "completed-oldest-first" {
+	orderBy := "completed_on DESC" // "completed last" = most recently completed at top
+	if sortBy == "completed-newest-first" {
+		// "completed first" = items completed first in time (oldest) at top
 		orderBy = "completed_on ASC"
 	}
 
@@ -62,25 +55,10 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 			e := time.Date(statsYear, 12, 31, 23, 59, 59, 999999999, time.Local)
 			startDate, endDate = &s, &e
 		}
-		readings, err := u.readingRepository.CompletedReadingsBetweenDates(int(user.ID), startDate, endDate)
+		augmented, err := u.readingRepository.CompletedReadingsBetweenDates(int(user.ID), startDate, endDate)
 		if err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
-		}
-		augmented := make([]model.AugmentedDocument, 0, len(readings))
-		for _, reading := range readings {
-			doc, err := u.indexer.Document(reading.Slug)
-			if err != nil {
-				log.Println(err)
-				return fiber.ErrInternalServerError
-			}
-			if doc.ID == "" {
-				continue
-			}
-			augmented = append(augmented, model.AugmentedDocument{
-				Document:    doc,
-				CompletedOn: reading.CompletedOn,
-			})
 		}
 		ascending := sortBy == "reading-time-shortest-first"
 		sort.Slice(augmented, func(i, j int) bool {
@@ -109,39 +87,17 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 		pageHits := augmented[offset:end]
 		results = result.NewPaginated(perPage, page, total, pageHits)
 	} else {
-		var paginatedReadings result.Paginated[[]model.Reading]
 		if statsYear == 0 {
-			paginatedReadings, err = u.readingRepository.CompletedPaginated(int(user.ID), page, int(model.ResultsPerPage), orderBy)
+			results, err = u.readingRepository.CompletedPaginated(int(user.ID), page, int(model.ResultsPerPage), orderBy)
 		} else {
 			startOfYear := time.Date(statsYear, 1, 1, 0, 0, 0, 0, time.Local)
 			endOfYear := time.Date(statsYear, 12, 31, 23, 59, 59, 999999999, time.Local)
-			paginatedReadings, err = u.readingRepository.CompletedPaginatedBetweenDates(int(user.ID), &startOfYear, &endOfYear, page, int(model.ResultsPerPage), orderBy)
+			results, err = u.readingRepository.CompletedPaginatedBetweenDates(int(user.ID), &startOfYear, &endOfYear, page, int(model.ResultsPerPage), orderBy)
 		}
 		if err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
-		augmented := make([]model.AugmentedDocument, 0, len(paginatedReadings.Hits()))
-		for _, reading := range paginatedReadings.Hits() {
-			doc, err := u.indexer.Document(reading.Slug)
-			if err != nil {
-				log.Println(err)
-				return fiber.ErrInternalServerError
-			}
-			if doc.ID == "" {
-				continue
-			}
-			augmented = append(augmented, model.AugmentedDocument{
-				Document:    doc,
-				CompletedOn: reading.CompletedOn,
-			})
-		}
-		results = result.NewPaginated(
-			int(model.ResultsPerPage),
-			page,
-			paginatedReadings.TotalHits(),
-			augmented,
-		)
 	}
 
 	yearStats, err := u.completedYearStats(int(user.ID), user.WordsPerMinute)
@@ -176,8 +132,8 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 			Key   string
 			Value string
 		}{
-			{"completed-newest-first", "newest first"},
-			{"completed-oldest-first", "oldest first"},
+			{"completed-newest-first", "completed first"},
+			{"completed-oldest-first", "completed last"},
 			{"reading-time-shortest-first", "shortest first"},
 			{"reading-time-longest-first", "longest first"},
 		},
