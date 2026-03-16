@@ -264,7 +264,6 @@ func (u *ReadingRepository) CompletedYears(userID uint) ([]int, error) {
 // completedStatsByYearRow is used to scan the raw SQL result.
 type completedStatsByYearRow struct {
 	Year    string
-	DocCnt  int
 	SlugsCS string
 }
 
@@ -286,7 +285,7 @@ func (u *ReadingRepository) CompletedStatsByYear(userID int, wordsPerMinute floa
 	}}
 	var rows []completedStatsByYearRow
 	err = u.DB.Raw(
-		`SELECT strftime('%Y', completed_on) AS year, COUNT(*) AS doc_cnt, group_concat(slug) AS slugs_cs
+		`SELECT strftime('%Y', completed_on) AS year, group_concat(slug) AS slugs_cs
 		 FROM readings
 		 WHERE user_id = ? AND completed_on IS NOT NULL
 		 GROUP BY strftime('%Y', completed_on)
@@ -306,7 +305,7 @@ func (u *ReadingRepository) CompletedStatsByYear(userID int, wordsPerMinute floa
 		words, _ := u.DocGetter.TotalWordCount(slugs)
 		stats = append(stats, CompletedYearStats{
 			Year:          year,
-			DocumentCount: r.DocCnt,
+			DocumentCount: len(slugs),
 			ReadingTime:   wordsToReadingTime(words, wordsPerMinute),
 		})
 	}

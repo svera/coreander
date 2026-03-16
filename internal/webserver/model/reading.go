@@ -21,8 +21,8 @@ type CompletedYearStats struct {
 }
 
 // CompletedYearStatsRow is the repository result for CompletedStatsByYear (includes Slugs for word count lookup).
+// Document count is len(Slugs).
 type CompletedYearStatsRow struct {
-	Year          int
-	DocumentCount int
-	Slugs         []string
+	Year  int
+	Slugs []string
 }
