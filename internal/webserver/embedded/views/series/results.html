@@ -1,4 +1,4 @@
-<h2 class="text-center">{{t .Lang "Collection \"%s\"" .Title}}</h2>
+<h1 class="mt-5">{{t .Lang "Collection \"%s\"" .Title}}</h1>
 {{template "partials/docs-list-placeholder" .}}
 
 <div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">

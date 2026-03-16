@@ -1,4 +1,4 @@
-package user
+package completed
 
 import (
 	"log"
@@ -12,25 +12,25 @@ import (
 )
 
 // Completed renders the list of documents completed by the user
-func (u *Controller) Completed(c fiber.Ctx) error {
+func (c *Controller) Completed(ctx fiber.Ctx) error {
 	var session model.Session
-	if val, ok := c.Locals("Session").(model.Session); ok {
+	if val, ok := ctx.Locals("Session").(model.Session); ok {
 		session = val
 	}
 
-	page, err := strconv.Atoi(c.Query("page"))
+	page, err := strconv.Atoi(ctx.Query("page"))
 	if err != nil {
 		page = 1
 	}
 
 	var year int
-	if c.Query("year") == "" {
+	if ctx.Query("year") == "" {
 		year = time.Now().Year()
 	} else {
-		year, _ = strconv.Atoi(c.Query("year"))
+		year, _ = strconv.Atoi(ctx.Query("year"))
 	}
 
-	sortBy := c.Query("sort-by")
+	sortBy := ctx.Query("sort-by")
 	orderBy := "completed_on DESC" // "completed last" = most recently completed at top
 	if sortBy == "completed-newest-first" {
 		// "completed first" = items completed first in time (oldest) at top
@@ -44,34 +44,34 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 		e := time.Date(year, 12, 31, 23, 59, 59, 999999999, time.Local)
 		startDate, endDate = &s, &e
 	}
-	results, err = u.readingRepository.CompletedPaginatedBetweenDates(int(session.User.ID), startDate, endDate, page, int(model.ResultsPerPage), orderBy)
+	results, err = c.readingRepository.CompletedPaginatedBetweenDates(int(session.User.ID), startDate, endDate, page, int(model.ResultsPerPage), orderBy)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	yearStats, err := u.readingRepository.CompletedStatsByYear(int(session.User.ID), session.User.WordsPerMinute)
+	yearStats, err := c.readingRepository.CompletedStatsByYear(int(session.User.ID), session.User.WordsPerMinute)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
 	layout := "layout"
-	if c.Query("view") == "list" {
+	if ctx.Query("view") == "list" {
 		layout = ""
 	}
 
 	templateVars := fiber.Map{
 		"User":                   &session.User,
 		"Results":                results,
-		"Paginator":               view.Pagination(model.MaxPagesNavigator, results, c.Queries()),
+		"Paginator":               view.Pagination(model.MaxPagesNavigator, results, ctx.Queries()),
 		"Title":                  "Completions",
-		"URL":                    view.URL(c),
+		"URL":                    view.URL(ctx),
 		"WordsPerMinute":         session.User.WordsPerMinute,
 		"Year":                   year,
 		"YearStats":              yearStats,
-		"SortURL":                view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":                 c.Query("sort-by"),
+		"SortURL":                view.BaseURLWithout(ctx, "sort-by", "page"),
+		"SortBy":                 ctx.Query("sort-by"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
@@ -81,15 +81,15 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 		},
 	}
 
-	if c.Get("hx-request") == "true" {
-		if err := c.Render("partials/completed-list", templateVars); err != nil {
+	if ctx.Get("hx-request") == "true" {
+		if err := ctx.Render("partials/completed-list", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
 		return nil
 	}
 
-	if err := c.Render("user/completed", templateVars, layout); err != nil {
+	if err := ctx.Render("completed/index", templateVars, layout); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
