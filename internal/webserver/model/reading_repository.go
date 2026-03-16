@@ -163,11 +163,6 @@ func (u *ReadingRepository) CompletedBetweenDates(userID int, startDate, endDate
 	return slugs, nil
 }
 
-// CompletedPaginated returns paginated completed readings for a user as AugmentedDocuments, ordered by completed_on (default DESC).
-func (u *ReadingRepository) CompletedPaginated(userID int, page int, resultsPerPage int, orderBy string) (result.Paginated[[]AugmentedDocument], error) {
-	return u.CompletedPaginatedBetweenDates(userID, nil, nil, page, resultsPerPage, orderBy)
-}
-
 // CompletedPaginatedBetweenDates returns paginated completed readings for a user as AugmentedDocuments, optionally filtered by date range (inclusive).
 // When startDate and endDate are both nil, all completed readings are returned.
 // orderBy is e.g. "completed_on DESC" or "completed_on ASC"; if empty, "completed_on DESC" is used.
