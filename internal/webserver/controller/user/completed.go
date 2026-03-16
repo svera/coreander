@@ -20,11 +20,6 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 		session = val
 	}
 
-	if session.Username == "" {
-		return fiber.ErrForbidden
-	}
-	user := &session.User
-
 	page, err := strconv.Atoi(c.Query("page"))
 	if err != nil {
 		page = 1
@@ -46,25 +41,21 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 
 	var results result.Paginated[[]model.AugmentedDocument]
 	if statsYear == 0 {
-		results, err = u.readingRepository.CompletedPaginated(int(user.ID), page, int(model.ResultsPerPage), orderBy)
+		results, err = u.readingRepository.CompletedPaginated(int(session.User.ID), page, int(model.ResultsPerPage), orderBy)
 	} else {
 		startOfYear := time.Date(statsYear, 1, 1, 0, 0, 0, 0, time.Local)
 		endOfYear := time.Date(statsYear, 12, 31, 23, 59, 59, 999999999, time.Local)
-		results, err = u.readingRepository.CompletedPaginatedBetweenDates(int(user.ID), &startOfYear, &endOfYear, page, int(model.ResultsPerPage), orderBy)
+		results, err = u.readingRepository.CompletedPaginatedBetweenDates(int(session.User.ID), &startOfYear, &endOfYear, page, int(model.ResultsPerPage), orderBy)
 	}
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	yearStats, err := u.completedYearStats(int(user.ID), user.WordsPerMinute)
+	yearStats, err := u.completedYearStats(int(session.User.ID), session.User.WordsPerMinute)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
-	}
-	yearlyCompletedCount, yearlyReadingTime := u.calculateYearlyStats(int(user.ID), user.WordsPerMinute, statsYear)
-	if statsYear == 0 {
-		yearlyCompletedCount, yearlyReadingTime = u.calculateLifetimeStats(int(user.ID), user.WordsPerMinute)
 	}
 
 	layout := "layout"
@@ -73,16 +64,14 @@ func (u *Controller) Completed(c fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"User":                   user,
+		"User":                   &session.User,
 		"Results":                results,
 		"Paginator":               view.Pagination(model.MaxPagesNavigator, results, c.Queries()),
 		"Title":                  "Completions",
 		"URL":                    view.URL(c),
-		"WordsPerMinute":         user.WordsPerMinute,
+		"WordsPerMinute":         session.User.WordsPerMinute,
 		"StatsYear":              statsYear,
 		"YearStats":              yearStats,
-		"YearlyCompletedCount":   yearlyCompletedCount,
-		"YearlyReadingTime":      yearlyReadingTime,
 		"SortURL":                view.BaseURLWithout(c, "sort-by", "page"),
 		"SortBy":                 c.Query("sort-by"),
 		"AdditionalSortOptions": []struct {
