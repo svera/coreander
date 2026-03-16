@@ -19,10 +19,3 @@ type CompletedYearStats struct {
 	DocumentCount int
 	ReadingTime   string // estimated reading time (e.g. "2h 30m") from word count and user's words-per-minute
 }
-
-// CompletedYearStatsRow is the repository result for CompletedStatsByYear (includes Slugs for word count lookup).
-// Document count is len(Slugs).
-type CompletedYearStatsRow struct {
-	Year  int
-	Slugs []string
-}
