@@ -1,45 +1,89 @@
 package model
 
 import (
+	"errors"
 	"log"
 
+	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 type HighlightRepository struct {
-	DB *gorm.DB
+	DB        *gorm.DB
+	DocGetter idxReader
 }
 
-func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]Highlight], error) {
-	var total int64
-
-	query := u.DB.Model(&Highlight{}).
-		Where("user_id = ?", userID)
-
+func (u *HighlightRepository) highlightListQuery(userID int, filter string) *gorm.DB {
+	q := u.DB.Model(&Highlight{}).Where("user_id = ?", userID)
 	switch filter {
 	case "highlights":
-		query = query.Where("shared_by_id IS NULL")
+		q = q.Where("shared_by_id IS NULL")
 	case "shared":
-		query = query.Where("shared_by_id IS NOT NULL")
+		q = q.Where("shared_by_id IS NOT NULL")
+	}
+	return q
+}
+
+// Highlights returns paginated highlights as AugmentedDocuments (index-backed). Rows whose documents
+// are missing from the index are omitted from Hits() but still count toward TotalHits.
+func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]AugmentedDocument], error) {
+	if u.DocGetter == nil {
+		return result.Paginated[[]AugmentedDocument]{}, errors.New("highlight repository: idx required for Highlights")
 	}
 
-	countQuery := query
-	countQuery.Count(&total)
+	var total int64
+	if err := u.highlightListQuery(userID, filter).Count(&total).Error; err != nil {
+		log.Printf("error counting highlights: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
 
 	highlights := []Highlight{}
-	res := query.Preload("SharedBy").Scopes(Paginate(page, resultsPerPage)).Order(sortBy).Find(&highlights)
+	res := u.highlightListQuery(userID, filter).
+		Preload("SharedBy").
+		Scopes(Paginate(page, resultsPerPage)).
+		Order(sortBy).
+		Find(&highlights)
 	if res.Error != nil {
 		log.Printf("error listing highlights: %s\n", res.Error)
-		return result.Paginated[[]Highlight]{}, res.Error
+		return result.Paginated[[]AugmentedDocument]{}, res.Error
+	}
+
+	if len(highlights) == 0 {
+		return result.NewPaginated(resultsPerPage, page, int(total), []AugmentedDocument{}), nil
+	}
+
+	slugs := make([]string, len(highlights))
+	for i, hl := range highlights {
+		slugs[i] = hl.Slug
+	}
+	docs, err := u.DocGetter.Documents(slugs)
+	if err != nil {
+		log.Printf("error getting documents for highlights: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
+	docBySlug := make(map[string]index.Document, len(docs))
+	for _, d := range docs {
+		if d.ID != "" {
+			docBySlug[d.Slug] = d
+		}
+	}
+	augmented := make([]AugmentedDocument, 0, len(highlights))
+	for _, hl := range highlights {
+		if doc, ok := docBySlug[hl.Slug]; ok {
+			augmented = append(augmented, AugmentedDocument{
+				Document:  doc,
+				Highlight: hl,
+			})
+		}
 	}
 
 	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(total),
-		highlights,
+		augmented,
 	), nil
 }
 

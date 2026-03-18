@@ -15,15 +15,9 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// DocumentBySlugGetter is used by the reading repository to build AugmentedDocuments and word counts for stats.
-type DocumentBySlugGetter interface {
-	Documents(slugs []string) ([]index.Document, error)
-	TotalWordCount(slugs []string) (float64, error)
-}
-
 type ReadingRepository struct {
-	DB         *gorm.DB
-	DocGetter  DocumentBySlugGetter
+	DB        *gorm.DB
+	DocGetter idxReader
 }
 
 func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error) {
@@ -169,7 +163,7 @@ func (u *ReadingRepository) CompletedBetweenDates(userID int, startDate, endDate
 // Requires DocGetter to be set; documents missing from the index are skipped from the page but total count is the DB count.
 func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate, endDate *time.Time, page int, resultsPerPage int, orderBy string) (result.Paginated[[]AugmentedDocument], error) {
 	if u.DocGetter == nil {
-		return result.Paginated[[]AugmentedDocument]{}, errors.New("reading repository: DocGetter required for CompletedPaginatedBetweenDates")
+		return result.Paginated[[]AugmentedDocument]{}, errors.New("reading repository: idx required for CompletedPaginatedBetweenDates")
 	}
 	var readings []Reading
 	var total int64
@@ -266,7 +260,7 @@ type completedStatsByYearRow struct {
 // wordsPerMinute is used to compute ReadingTime for each year. Requires DocGetter (TotalWordCount) to be set.
 func (u *ReadingRepository) CompletedStatsByYear(userID int, wordsPerMinute float64) ([]CompletedYearStats, error) {
 	if u.DocGetter == nil {
-		return nil, errors.New("reading repository: DocGetter required for CompletedStatsByYear")
+		return nil, errors.New("reading repository: idx required for CompletedStatsByYear")
 	}
 	allSlugs, err := u.CompletedBetweenDates(userID, nil, nil)
 	if err != nil {
