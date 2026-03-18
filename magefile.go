@@ -17,7 +17,7 @@ func Install() error {
 	if err != nil {
 		return err
 	}
-	return sh.Run("go", "install", "-ldflags", "-X main.version="+version)
+	return sh.Run("go", "install", "-ldflags", "-s -w-X main.version="+version)
 }
 
 // Creates an executable for the given platform.
@@ -59,7 +59,7 @@ func Release() error {
 }
 
 func buildEnv(platform, version string, envMap map[string]string) error {
-	return sh.RunWith(envMap, "go", "build", "-ldflags", "-X main.version="+version)
+	return sh.RunWith(envMap, "go", "build", "-ldflags", "-s -w -X main.version="+version)
 }
 
 func env(platform string) (map[string]string, error) {
