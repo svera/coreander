@@ -89,7 +89,7 @@ func (c *Controller) Completed(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	if err := ctx.Render("completed/index", templateVars, layout); err != nil {
+	if err := ctx.Render("completed/list", templateVars, layout); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}

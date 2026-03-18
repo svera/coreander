@@ -99,7 +99,7 @@ func (h *Controller) List(c fiber.Ctx) error {
 		}
 		return nil
 	}
-	if err = c.Render("highlight/index", templateVars, layout); err != nil {
+	if err = c.Render("highlight/list", templateVars, layout); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
