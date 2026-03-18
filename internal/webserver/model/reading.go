@@ -12,3 +12,10 @@ type Reading struct {
 	Position    string     `gorm:"type:text"`
 	CompletedOn *time.Time `gorm:"default:null"`
 }
+
+// CompletedYearStats holds aggregated stats for documents completed in a year (or all time when Year is 0).
+type CompletedYearStats struct {
+	Year          int
+	DocumentCount int
+	ReadingTime   string // estimated reading time (e.g. "2h 30m") from word count and user's words-per-minute
+}

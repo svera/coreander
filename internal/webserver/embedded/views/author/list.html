@@ -1,0 +1,26 @@
+{{if ne .Author.Name ""}}
+<div hx-get="/authors/{{.Author.Slug}}/summary" hx-trigger="load" hx-target="this">
+    <div class="card mb-3">
+        <div class="row">
+            <div class="card-body col-sm-6 col-md-9">
+                <h1 class="card-title ms-3">{{.Author.Name}}</h1>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{template "partials/docs-list-placeholder" .}}
+
+<div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
+    {{ template "partials/docs-list" . }}
+</div>
+
+{{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
+
+<script type="module" src="/js/send-email.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/delete.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/highlight.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/complete.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/cover.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/datetime.js{{versionParam .Version}}"></script>

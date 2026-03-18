@@ -99,7 +99,7 @@ func (h *Controller) List(c fiber.Ctx) error {
 		}
 		return nil
 	}
-	if err = c.Render("highlight/index", templateVars, layout); err != nil {
+	if err = c.Render("highlight/list", templateVars, layout); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
@@ -123,21 +123,7 @@ func (h *Controller) sortedHighlightResults(page int, user *model.User, highligh
 		}
 	}
 
-	searchResults := make([]model.AugmentedDocument, 0, len(docsSortedByHighlightedDate.Hits()))
-	for _, highlight := range docsSortedByHighlightedDate.Hits() {
-		doc, err := h.idx.Document(highlight.Slug)
-		if err != nil {
-			log.Println(err)
-			return result.Paginated[[]model.AugmentedDocument]{}, fiber.ErrInternalServerError
-		}
-		if doc.ID == "" {
-			continue
-		}
-		searchResults = append(searchResults, model.AugmentedDocument{
-			Document:  doc,
-			Highlight: highlight,
-		})
-	}
+	searchResults := docsSortedByHighlightedDate.Hits()
 
 	paginatedResults := result.NewPaginated(
 		model.ResultsPerPage,
@@ -158,23 +144,7 @@ func (h *Controller) latestHighlights(page int, user *model.User, highlightsAmou
 		return nil, fiber.ErrInternalServerError
 	}
 
-	highlights := make([]model.AugmentedDocument, 0, len(docsSortedByHighlightedDate.Hits()))
-	for _, highlight := range docsSortedByHighlightedDate.Hits() {
-		doc, err := h.idx.Document(highlight.Slug)
-		if err != nil {
-			log.Println(err)
-			return nil, fiber.ErrInternalServerError
-		}
-		if doc.ID == "" {
-			continue
-		}
-		highlights = append(highlights, model.AugmentedDocument{
-			Document:  doc,
-			Highlight: highlight,
-		})
-	}
-
-	return highlights, nil
+	return docsSortedByHighlightedDate.Hits(), nil
 }
 
 func (h *Controller) latest(c fiber.Ctx, highlights []model.AugmentedDocument) error {

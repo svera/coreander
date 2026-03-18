@@ -76,7 +76,7 @@ func (d *Controller) Search(c fiber.Ctx) error {
 		return nil
 	}
 
-	if err = c.Render("document/results", templateVars, "layout"); err != nil {
+	if err = c.Render("document/list", templateVars, "layout"); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}

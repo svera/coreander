@@ -43,5 +43,5 @@ func (u *Controller) List(c fiber.Ctx) error {
 		return nil
 	}
 
-	return c.Render("user/index", templateVars, "layout")
+	return c.Render("user/list", templateVars, "layout")
 }

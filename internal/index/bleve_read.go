@@ -377,10 +377,10 @@ func (b *BleveIndexer) DocumentByID(ID string) (Document, error) {
 	return hydrateDocument(searchResult.Hits[0]), nil
 }
 
-// Documents returns documents for the given slugs in a single search. Missing slugs are skipped.
-func (b *BleveIndexer) Documents(slugs []string) ([]Document, error) {
+// Documents returns documents for the given slugs in a single search. Missing or invalid slugs are omitted.
+func (b *BleveIndexer) Documents(slugs []string) (map[string]Document, error) {
 	if len(slugs) == 0 {
-		return nil, nil
+		return map[string]Document{}, nil
 	}
 	queries := make([]query.Query, 0, len(slugs))
 	for _, slug := range slugs {
@@ -392,7 +392,7 @@ func (b *BleveIndexer) Documents(slugs []string) ([]Document, error) {
 		queries = append(queries, q)
 	}
 	if len(queries) == 0 {
-		return nil, nil
+		return map[string]Document{}, nil
 	}
 	disq := bleve.NewDisjunctionQuery(queries...)
 	searchOptions := bleve.NewSearchRequest(disq)
@@ -402,11 +402,13 @@ func (b *BleveIndexer) Documents(slugs []string) ([]Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	docs := make([]Document, 0, len(searchResult.Hits))
+	out := make(map[string]Document, len(searchResult.Hits))
 	for _, hit := range searchResult.Hits {
-		docs = append(docs, hydrateDocument(hit))
+		if d := hydrateDocument(hit); d.Slug != "" {
+			out[d.Slug] = d
+		}
 	}
-	return docs, nil
+	return out, nil
 }
 
 // TotalWordCount returns the sum of word counts for the documents matching the given slugs.
@@ -416,8 +418,13 @@ func (b *BleveIndexer) TotalWordCount(slugs []string) (float64, error) {
 		return 0, err
 	}
 	var totalWords float64
-	for _, doc := range docs {
-		totalWords += doc.Words
+	for _, slug := range slugs {
+		if slug == "" {
+			continue
+		}
+		if doc, ok := docs[slug]; ok {
+			totalWords += doc.Words
+		}
 	}
 	return totalWords, nil
 }

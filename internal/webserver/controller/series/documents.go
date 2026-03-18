@@ -85,7 +85,7 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		return nil
 	}
 
-	if err = c.Render("series/results", templateVars, "layout"); err != nil {
+	if err = c.Render("series/list", templateVars, "layout"); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
