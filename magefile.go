@@ -17,7 +17,7 @@ func Install() error {
 	if err != nil {
 		return err
 	}
-	return sh.Run("go", "install", "-ldflags", "-s -w-X main.version="+version)
+	return sh.Run("go", "install", "-ldflags", "-s -w -X main.version="+version)
 }
 
 // Creates an executable for the given platform.
