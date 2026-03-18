@@ -404,8 +404,7 @@ func (b *BleveIndexer) Documents(slugs []string) (map[string]Document, error) {
 	}
 	out := make(map[string]Document, len(searchResult.Hits))
 	for _, hit := range searchResult.Hits {
-		d := hydrateDocument(hit)
-		if d.ID != "" && d.Slug != "" {
+		if d := hydrateDocument(hit); d.Slug != "" {
 			out[d.Slug] = d
 		}
 	}
