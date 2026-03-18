@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/result"
 	"gorm.io/gorm"
@@ -17,7 +16,7 @@ import (
 
 type ReadingRepository struct {
 	DB        *gorm.DB
-	DocGetter idxReader
+	Idx idxReader
 }
 
 func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error) {
@@ -160,9 +159,9 @@ func (u *ReadingRepository) CompletedBetweenDates(userID int, startDate, endDate
 // CompletedPaginatedBetweenDates returns paginated completed readings for a user as AugmentedDocuments, optionally filtered by date range (inclusive).
 // When startDate and endDate are both nil, all completed readings are returned.
 // orderBy is e.g. "completed_on DESC" or "completed_on ASC"; if empty, "completed_on DESC" is used.
-// Requires DocGetter to be set; documents missing from the index are skipped from the page but total count is the DB count.
+// Requires Idx to be set; documents missing from the index are skipped from the page but total count is the DB count.
 func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate, endDate *time.Time, page int, resultsPerPage int, orderBy string) (result.Paginated[[]AugmentedDocument], error) {
-	if u.DocGetter == nil {
+	if u.Idx == nil {
 		return result.Paginated[[]AugmentedDocument]{}, errors.New("reading repository: idx required for CompletedPaginatedBetweenDates")
 	}
 	var readings []Reading
@@ -202,16 +201,10 @@ func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate
 	for _, r := range readings {
 		slugs = append(slugs, r.Slug)
 	}
-	docs, err := u.DocGetter.Documents(slugs)
+	docBySlug, err := u.Idx.Documents(slugs)
 	if err != nil {
 		log.Printf("error getting documents: %s\n", err)
 		return result.Paginated[[]AugmentedDocument]{}, err
-	}
-	docBySlug := make(map[string]index.Document, len(docs))
-	for _, d := range docs {
-		if d.ID != "" {
-			docBySlug[d.Slug] = d
-		}
 	}
 	augmented := make([]AugmentedDocument, 0, len(readings))
 	for _, r := range readings {
@@ -257,16 +250,16 @@ type completedStatsByYearRow struct {
 }
 
 // CompletedStatsByYear returns aggregated stats per year (and "all time" as year 0) including estimated reading time.
-// wordsPerMinute is used to compute ReadingTime for each year. Requires DocGetter (TotalWordCount) to be set.
+// wordsPerMinute is used to compute ReadingTime for each year. Requires Idx (TotalWordCount) to be set.
 func (u *ReadingRepository) CompletedStatsByYear(userID int, wordsPerMinute float64) ([]CompletedYearStats, error) {
-	if u.DocGetter == nil {
+	if u.Idx == nil {
 		return nil, errors.New("reading repository: idx required for CompletedStatsByYear")
 	}
 	allSlugs, err := u.CompletedBetweenDates(userID, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	allWords, _ := u.DocGetter.TotalWordCount(allSlugs)
+	allWords, _ := u.Idx.TotalWordCount(allSlugs)
 	stats := []CompletedYearStats{{
 		Year:          0,
 		DocumentCount: len(allSlugs),
@@ -291,7 +284,7 @@ func (u *ReadingRepository) CompletedStatsByYear(userID int, wordsPerMinute floa
 		if r.SlugsCS != "" {
 			slugs = strings.Split(r.SlugsCS, ",")
 		}
-		words, _ := u.DocGetter.TotalWordCount(slugs)
+		words, _ := u.Idx.TotalWordCount(slugs)
 		stats = append(stats, CompletedYearStats{
 			Year:          year,
 			DocumentCount: len(slugs),

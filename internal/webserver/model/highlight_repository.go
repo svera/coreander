@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 
-	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/result"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -12,7 +11,7 @@ import (
 
 type HighlightRepository struct {
 	DB        *gorm.DB
-	DocGetter idxReader
+	Idx idxReader
 }
 
 func (u *HighlightRepository) highlightListQuery(userID int, filter string) *gorm.DB {
@@ -29,7 +28,7 @@ func (u *HighlightRepository) highlightListQuery(userID int, filter string) *gor
 // Highlights returns paginated highlights as AugmentedDocuments (index-backed). Rows whose documents
 // are missing from the index are omitted from Hits() but still count toward TotalHits.
 func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]AugmentedDocument], error) {
-	if u.DocGetter == nil {
+	if u.Idx == nil {
 		return result.Paginated[[]AugmentedDocument]{}, errors.New("highlight repository: idx required for Highlights")
 	}
 
@@ -58,16 +57,10 @@ func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage in
 	for i, hl := range highlights {
 		slugs[i] = hl.Slug
 	}
-	docs, err := u.DocGetter.Documents(slugs)
+	docBySlug, err := u.Idx.Documents(slugs)
 	if err != nil {
 		log.Printf("error getting documents for highlights: %s\n", err)
 		return result.Paginated[[]AugmentedDocument]{}, err
-	}
-	docBySlug := make(map[string]index.Document, len(docs))
-	for _, d := range docs {
-		if d.ID != "" {
-			docBySlug[d.Slug] = d
-		}
 	}
 	augmented := make([]AugmentedDocument, 0, len(highlights))
 	for _, hl := range highlights {

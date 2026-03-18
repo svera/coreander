@@ -30,8 +30,8 @@ type Controllers struct {
 func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {
 	usersRepository := &model.UserRepository{DB: db}
 	invitationsRepository := &model.InvitationRepository{DB: db}
-	highlightsRepository := &model.HighlightRepository{DB: db, DocGetter: idx}
-	readingRepository := &model.ReadingRepository{DB: db, DocGetter: idx}
+	highlightsRepository := &model.HighlightRepository{DB: db, Idx: idx}
+	readingRepository := &model.ReadingRepository{DB: db, Idx: idx}
 
 	authCfg := auth.Config{
 		MinPasswordLength: cfg.MinPasswordLength,
