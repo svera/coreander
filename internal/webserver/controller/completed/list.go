@@ -31,10 +31,15 @@ func (c *Controller) Completed(ctx fiber.Ctx) error {
 	}
 
 	sortBy := ctx.Query("sort-by")
-	orderBy := "completed_on DESC" // "completed last" = most recently completed at top
+	orderBy := "completed_on DESC" // "completed last": most recently completed at top
 	if sortBy == "completed-newest-first" {
-		// "completed first" = items completed first in time (oldest) at top
+		// "completed first": oldest completions at top
 		orderBy = "completed_on ASC"
+	}
+
+	sortByForUI := sortBy
+	if sortByForUI == "" {
+		sortByForUI = "completed-oldest-first"
 	}
 
 	var results result.Paginated[[]model.AugmentedDocument]
@@ -71,13 +76,13 @@ func (c *Controller) Completed(ctx fiber.Ctx) error {
 		"Year":                   year,
 		"YearStats":              yearStats,
 		"SortURL":                view.BaseURLWithout(ctx, "sort-by", "page"),
-		"SortBy":                 ctx.Query("sort-by"),
+		"SortBy":                 sortByForUI,
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
 		}{
-			{"completed-newest-first", "completed first"},
 			{"completed-oldest-first", "completed last"},
+			{"completed-newest-first", "completed first"},
 		},
 	}
 
