@@ -43,5 +43,6 @@ func (d *Controller) Reader(c fiber.Ctx) error {
 		"Author":      strings.Join(document.Authors, ", "),
 		"Description": document.Description,
 		"Slug":        document.Slug,
+		"Format":     document.Format,
 	})
 }

@@ -15,6 +15,7 @@
 
 <input type="hidden" id="url" value="{{.fqdn}}/documents/{{.Slug}}/download">
 <input type="hidden" id="slug" value="{{.Slug}}">
+<input type="hidden" id="format" value="{{.Format}}">
 <input type="hidden" id="authenticated" value="{{if and (.Session) (ne .Session.Name "")}}true{{else}}false{{end}}">
 
 <div id="spinner-container" class="filter">
