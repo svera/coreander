@@ -133,19 +133,30 @@ func distanceToDate(referenceDate float64, match *search.DocumentMatch) float64 
 }
 
 // SameAuthors returns an array of metadata of documents by the same authors which
-// does not belong to the same collection
+// does not belong to the same collection. Returns no results if the document has
+// no authors or only empty author slugs.
 func (b *BleveIndexer) SameAuthors(slugID string, quantity int) ([]Document, error) {
 	doc, err := b.Document(slugID)
 	if err != nil {
 		return []Document{}, err
 	}
 
-	if len(doc.Authors) == 0 {
-		return []Document{}, err
+	hasAuthor := false
+	for _, slug := range doc.AuthorsSlugs {
+		if slug != "" {
+			hasAuthor = true
+			break
+		}
+	}
+	if !hasAuthor {
+		return []Document{}, nil
 	}
 
 	authorsCompoundQuery := bleve.NewDisjunctionQuery()
 	for _, slug := range doc.AuthorsSlugs {
+		if slug == "" {
+			continue
+		}
 		qu := bleve.NewTermQuery(slug)
 		qu.SetField("AuthorsSlugs")
 		authorsCompoundQuery.AddQuery(qu)

@@ -870,6 +870,9 @@ const open = async file => {
 }
 
 const url = document.getElementById('url').value
+const slug = document.getElementById('slug')?.value || 'document'
+const format = (document.getElementById('format')?.value || '').toLowerCase()
+const ext = format === 'cbz' ? '.cbz' : format === 'pdf' ? '.pdf' : '.epub'
 if (url) fetch(url)
     .then(res => {
         if (res.status == 403) {
@@ -891,10 +894,13 @@ if (url) fetch(url)
         if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);
         }
-        return res.blob()
+        return res.blob().then(blob => ({ blob, contentType: res.headers.get('Content-Type') || '' }))
     })
-    .then(blob => {
-        if (blob) open(new File([blob], new URL(url).pathname))
+    .then(({ blob, contentType }) => {
+        if (blob) {
+            const filename = slug + ext
+            open(new File([blob], filename, { type: contentType }))
+        }
     })
     .catch(e => {
         if (e.message !== 'Authentication required') {

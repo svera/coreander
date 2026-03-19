@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -33,8 +35,22 @@ func (d *Controller) Upload(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).Render("document/upload", templateVars, "layout")
 	}
 
-	allowedTypes := []string{"application/epub+zip", "application/pdf"}
-	if !slices.Contains(allowedTypes, file.Header.Get("Content-Type")) {
+	allowedExtensions := []string{".epub", ".pdf", ".cbz"}
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if !slices.Contains(allowedExtensions, ext) {
+		templateVars["Error"] = "Invalid file type"
+		return c.Status(fiber.StatusBadRequest).Render("document/upload", templateVars, "layout")
+	}
+
+	// Browsers often send application/zip or application/octet-stream for .cbz; accept by extension.
+	allowedTypes := []string{"application/epub+zip", "application/pdf", "application/vnd.comicbook+zip", "application/x-cbz", "application/zip", "application/octet-stream", ""}
+	contentType := strings.TrimSpace(file.Header.Get("Content-Type"))
+	if !slices.Contains(allowedTypes, contentType) {
+		templateVars["Error"] = "Invalid file type"
+		return c.Status(fiber.StatusBadRequest).Render("document/upload", templateVars, "layout")
+	}
+	// application/zip only allowed for .cbz (reject generic zip uploaded as .epub/.pdf)
+	if contentType == "application/zip" && ext != ".cbz" {
 		templateVars["Error"] = "Invalid file type"
 		return c.Status(fiber.StatusBadRequest).Render("document/upload", templateVars, "layout")
 	}
