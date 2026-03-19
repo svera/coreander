@@ -5,14 +5,9 @@ import (
 	"encoding/xml"
 	"fmt"
 	"html/template"
-	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
 	"io"
 	"log"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -138,18 +133,14 @@ func (c CbzReader) Metadata(file string) (Metadata, error) {
 		}
 	}
 
-	pages := float64(countImageEntries(r))
+	pages := float64(len(SortedImageEntriesFromZip(r)))
 	if info != nil && info.PageCount > 0 {
 		pages = float64(info.PageCount)
 	}
 
 	var subjects []string
 	if info != nil && info.Genre != "" {
-		for _, s := range strings.FieldsFunc(info.Genre, func(r rune) bool { return r == ',' || r == ';' }) {
-			if s = strings.TrimSpace(s); s != "" {
-				subjects = append(subjects, s)
-			}
-		}
+		subjects = ParseSubjectList(info.Genre)
 	}
 
 	formatLabel := "CBZ"
@@ -196,7 +187,7 @@ func (c CbzReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, er
 		}
 	}
 
-	names := sortedImageEntries(r)
+	names := SortedImageEntriesFromZip(r)
 	if len(names) == 0 {
 		return nil, fmt.Errorf("cbz: no image found")
 	}
@@ -205,7 +196,7 @@ func (c CbzReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, er
 	}
 	coverName := names[coverIndex-1]
 
-	rc, err := openZipEntry(r, coverName)
+	rc, err := OpenZipEntry(r, coverName)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +228,7 @@ func (c CbzReader) illustrations(documentFullPath string, minMegapixels float64)
 		}
 	}
 
-	names := sortedImageEntries(r)
+	names := SortedImageEntriesFromZip(r)
 	if len(names) == 0 {
 		return 0, nil
 	}
@@ -251,7 +242,7 @@ func (c CbzReader) illustrations(documentFullPath string, minMegapixels float64)
 		if name == coverName {
 			continue
 		}
-		mp, err := cbzImageMegapixels(r, name)
+		mp, err := ImageMegapixelsFromZip(r, name)
 		if err != nil {
 			continue
 		}
@@ -260,19 +251,6 @@ func (c CbzReader) illustrations(documentFullPath string, minMegapixels float64)
 		}
 	}
 	return count, nil
-}
-
-func cbzImageMegapixels(r *zip.ReadCloser, name string) (float64, error) {
-	rc, err := openZipEntry(r, name)
-	if err != nil || rc == nil {
-		return 0, err
-	}
-	defer rc.Close()
-	cfg, _, err := image.DecodeConfig(rc)
-	if err != nil {
-		return 0, err
-	}
-	return float64(cfg.Width*cfg.Height) / 1e6, nil
 }
 
 func readComicInfoFromZip(r *zip.ReadCloser) (*ComicInfo, error) {
@@ -293,7 +271,7 @@ func readComicInfoFromZip(r *zip.ReadCloser) (*ComicInfo, error) {
 		return nil, nil
 	}
 
-	rc, err := openZipEntry(r, entryName)
+	rc, err := OpenZipEntry(r, entryName)
 	if err != nil {
 		return nil, err
 	}
@@ -334,36 +312,3 @@ func collectComicAuthors(info *ComicInfo) []string {
 	return out
 }
 
-var imageExtensions = map[string]bool{
-	".jpg": true, ".jpeg": true, ".png": true, ".gif": true,
-	".webp": true, ".bmp": true, ".tiff": true, ".tif": true,
-}
-
-func sortedImageEntries(r *zip.ReadCloser) []string {
-	var names []string
-	for _, f := range r.File {
-		if f.FileInfo().IsDir() {
-			continue
-		}
-		ext := strings.ToLower(filepath.Ext(f.Name))
-		if imageExtensions[ext] {
-			names = append(names, f.Name)
-		}
-	}
-	sort.Slice(names, func(i, j int) bool { return names[i] < names[j] })
-	return names
-}
-
-func countImageEntries(r *zip.ReadCloser) int {
-	return len(sortedImageEntries(r))
-}
-
-func openZipEntry(r *zip.ReadCloser, name string) (io.ReadCloser, error) {
-	for _, f := range r.File {
-		if f.Name != name {
-			continue
-		}
-		return f.Open()
-	}
-	return nil, fmt.Errorf("cbz: entry %q not found", name)
-}

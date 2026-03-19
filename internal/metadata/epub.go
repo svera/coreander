@@ -4,10 +4,6 @@ import (
 	"archive/zip"
 	"fmt"
 	"html/template"
-	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
 	"io"
 	"log"
 	"path"
@@ -58,20 +54,8 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 
 	var subjects []string
 	for _, subject := range meta.Subject {
-		subject = strings.TrimSpace(subject)
-		if subject == "" {
-			continue
-		}
-		// Some epub files mistakenly put all subjects in a single field instead of using a field for each one.
-		// We want to identify those cases looking for specific separators and then indexing each subject properly.
-		names := strings.FieldsFunc(subject, func(r rune) bool {
-			return r == ',' || r == ';'
-		})
-		for _, name := range names {
-			if name = strings.TrimSpace(name); name != "" {
-				subjects = append(subjects, name)
-			}
-		}
+		// Some epub files put all subjects in a single field; ParseSubjectList handles comma/semicolon separators.
+		subjects = append(subjects, ParseSubjectList(subject)...)
 	}
 
 	description := ""
@@ -221,7 +205,7 @@ func (e EpubReader) illustrations(documentFullPath string, minMegapixels float64
 		if _, alreadyCounted := seen[zipPath]; alreadyCounted {
 			continue
 		}
-		mp, err := imageMegapixels(r, zipPath)
+		mp, err := ImageMegapixelsFromZip(r, zipPath)
 		if err != nil {
 			continue
 		}
@@ -259,27 +243,8 @@ func findZipEntryPath(r *zip.ReadCloser, candidates map[string]struct{}) string 
 	return ""
 }
 
-func imageMegapixels(r *zip.ReadCloser, zipPath string) (float64, error) {
-	rc, err := readZipFileReader(r, zipPath)
-	if err != nil || rc == nil {
-		return 0, err
-	}
-	cfg, _, err := image.DecodeConfig(rc)
-	rc.Close()
-	if err == nil {
-		return float64(cfg.Width*cfg.Height) / 1e6, nil
-	}
-	return 0, err
-}
-
 func readZipFileReader(r *zip.ReadCloser, name string) (io.ReadCloser, error) {
-	for _, f := range r.File {
-		if f.Name != name {
-			continue
-		}
-		return f.Open()
-	}
-	return nil, fmt.Errorf("epub: no zip entry %q", name)
+	return OpenZipEntry(r, name)
 }
 
 func words(documentFullPath string) (int, error) {
