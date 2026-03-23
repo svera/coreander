@@ -1,50 +1,49 @@
-<dl class="row text-muted mt-3">
+<ul class="row text-muted list-unstyled mt-3">
     {{if not (eq .Document.Publication.Date 0)}}
-        <dt class="col-8 mb-1"><i class="bi bi-calendar3 me-2"></i>{{t .Lang "Year"}}</dt>
-        <dd class="col-4 text-end mb-1"><time>{{.Document.Publication.Date.Year}}</time>
-    </dd>
+        <li><i class="bi bi-calendar3 me-2" alt="{{t .Lang "Year"}}" title="{{t .Lang "Year"}}"></i><time class="fw-bold">{{.Document.Publication.Date.Year}}</time></li>
     {{end}}
     {{ if gt .Document.Words 0.0 }}
         {{$readingTimeHelpContent := t .Lang "Reading time calculated using a speed of %s words per minute. Log in to customize this value" (printf "%.0f" .WordsPerMinute)}}
         {{if .Session}}
             {{$readingTimeHelpContent = t .Lang "Reading time calculated using a speed of %s words per minute. You can change your reading speed in your profile." (printf "%.0f" .WordsPerMinute)}}
         {{end}}
-        <dt class="col-8 mb-1"><i class="bi bi-stopwatch me-2"></i>{{t .Lang "Estimated reading time"}}</dt>
-        <dd class="col-4 text-end mb-1"><time>{{.Document.ReadingTime .WordsPerMinute}}</time> <span class="reading-time-help-popover d-inline-block ms-1" role="button" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-content="{{$readingTimeHelpContent}}"><i class="bi bi-info-circle text-muted"></i></span></dd>
+        <li><i class="bi bi-stopwatch me-2" alt="{{t .Lang "Estimated reading time"}}" title="{{t .Lang "Estimated reading time"}}"></i><time class="fw-bold">{{.Document.ReadingTime .WordsPerMinute}}</time> <span class="reading-time-help-popover d-inline-block ms-1" role="button" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-content="{{$readingTimeHelpContent}}"><i class="bi bi-info-circle text-muted"></i></span></li>
     {{ end }}
     {{ if .Document.Pages }}
-        <dt class="col-8 mb-1"><i class="bi bi-book me-2"></i>{{t .Lang "Pages" }}</dt>
-        <dd class="col-4 text-end mb-1">{{.Document.Pages}}</dd>
+        <li class="fw-bold"><i class="bi bi-book me-2" alt="{{t .Lang "Pages"}}" title="{{t .Lang "Pages"}}"></i>{{.Document.Pages}}</li>
     {{ end }}
     {{ if and .IllustratedMinAmount (ge .Document.Illustrations .IllustratedMinAmount) }}
-        <dt class="col-8 mb-1"><i class="bi bi-images me-2"></i>{{t .Lang "Illustrated"}}</dt>
-        <dd class="col-4 text-end mb-1"></dd>
+        <li class="fw-bold"><i class="bi bi-images me-2" alt="{{t .Lang "Illustrated"}}" title="{{t .Lang "Illustrated"}}"></i>{{t .Lang "Illustrated"}}</li>
     {{ end }}
+
     {{if .Session}}
-        <dt class="col-6 mb-1">
-            <input class="form-check-input me-2" type="checkbox"
-                   id="complete-checkbox-{{.Document.Slug}}"
-                   {{if .Document.CompletedOn}}checked{{end}}
-                   title='{{if .Document.CompletedOn}}{{t .Lang "Mark as incomplete"}}{{else}}{{t .Lang "Mark as complete"}}{{end}}'
-                   data-complete-title='{{t .Lang "Mark as complete"}}'
-                   data-incomplete-title='{{t .Lang "Mark as incomplete"}}'
-                   data-completed-label='{{t .Lang "Completed"}}'
-                   data-uncompleted-label='{{t .Lang "Uncompleted"}}'
-                   data-slug="{{.Document.Slug}}" /><label class="form-check-label" id="complete-label-{{.Document.Slug}}" for="complete-checkbox-{{.Document.Slug}}">{{if .Document.CompletedOn}}{{t .Lang "Completed"}}{{else}}{{t .Lang "Uncompleted"}}{{end}}</label>
-        </dt>
-        <dd class="col-6 text-end mb-1" id="completion-date-{{.Document.Slug}}">
-            <input type="date" class="border-0 border-bottom text-muted bg-transparent p-0{{if not .Document.CompletedOn}} d-none{{end}}"
-                   value="{{if .Document.CompletedOn}}{{.Document.CompletedOn.Format "2006-01-02"}}{{end}}"
-                   data-slug="{{.Document.Slug}}"
-                   data-original-date="{{if .Document.CompletedOn}}{{.Document.CompletedOn.Format "2006-01-02"}}{{end}}"
-                   title='{{t .Lang "Edit completion date"}}'
-                   {{if not .Document.CompletedOn}}disabled{{end}} />
-        </dd>
-
-        {{if and .Session .Session.ShowFileName}}
-            <dt class="col-5"><i class="bi bi-file-earmark-text me-2"></i>{{t .Lang "File name"}}</dt>
-            <dd class="col-7 text-end"><small><i>{{.Document.ID}}</i></small></dd>
-        {{end}}
+        <li class="fw-bold">
+            <div class="d-inline-block">
+                <input class="form-check-input me-1" type="checkbox"
+                       id="complete-checkbox-{{.Document.Slug}}"
+                       {{if .Document.CompletedOn}}checked{{end}}
+                       title='{{if .Document.CompletedOn}}{{t .Lang "Mark as incomplete"}}{{else}}{{t .Lang "Mark as complete"}}{{end}}'
+                       data-complete-title='{{t .Lang "Mark as complete"}}'
+                       data-incomplete-title='{{t .Lang "Mark as incomplete"}}'
+                       data-completed-label='{{t .Lang "Completed"}}'
+                       data-uncompleted-label='{{t .Lang "Uncompleted"}}'
+                       data-slug="{{.Document.Slug}}" />
+                <label class="form-check-label" id="complete-label-{{.Document.Slug}}" for="complete-checkbox-{{.Document.Slug}}">
+                    {{if .Document.CompletedOn}}{{t .Lang "Completed"}}{{else}}{{t .Lang "Uncompleted"}}{{end}}
+                </label>
+                <span id="completion-date-{{.Document.Slug}}">
+                    <input type="date" class="border-0 border-bottom text-muted bg-transparent p-0 ms-1{{if not .Document.CompletedOn}} d-none{{end}}"
+                        value="{{if .Document.CompletedOn}}{{.Document.CompletedOn.Format "2006-01-02"}}{{end}}"
+                        data-slug="{{.Document.Slug}}"
+                        data-original-date="{{if .Document.CompletedOn}}{{.Document.CompletedOn.Format "2006-01-02"}}{{end}}"
+                        title='{{t .Lang "Edit completion date"}}'
+                        {{if not .Document.CompletedOn}}disabled{{end}} />
+                </span>
+            </div>
+        </li>
     {{end}}
-</dl>
 
+    {{if and .Session .Session.ShowFileName}}
+        <li><i class="bi bi-file-earmark-text me-2" alt="{{t .Lang "File name"}}" title="{{t .Lang "File name"}}"></i><i class="fw-bold">{{.Document.ID}}</i></li>
+    {{end}}
+</ul>
