@@ -1,6 +1,6 @@
 <ul class="row text-muted list-unstyled mt-3">
     {{if not (eq .Document.Publication.Date 0)}}
-        <li><i class="bi bi-calendar3 me-2" alt="{{t .Lang "Publication date"}}" title="{{t .Lang "Publication date"}}"></i><time class="fw-bold">{{.Document.Publication.Date.Year}}</time></li>
+        <li><i class="bi bi-calendar3 me-2" alt="{{t .Lang "Year"}}" title="{{t .Lang "Year"}}"></i><time class="fw-bold">{{.Document.Publication.Date.Year}}</time></li>
     {{end}}
     {{ if gt .Document.Words 0.0 }}
         {{$readingTimeHelpContent := t .Lang "Reading time calculated using a speed of %s words per minute. Log in to customize this value" (printf "%.0f" .WordsPerMinute)}}
@@ -44,6 +44,6 @@
     {{end}}
 
     {{if and .Session .Session.ShowFileName}}
-        <li><i class="bi bi-file-earmark-text me-2" alt="{{t .Lang "File name"}}" title="{{t .Lang "File name"}}"></i><i>{{.Document.ID}}</i></li>
+        <li><i class="bi bi-file-earmark-text me-2" alt="{{t .Lang "File name"}}" title="{{t .Lang "File name"}}"></i><i class="fw-bold">{{.Document.ID}}</i></li>
     {{end}}
 </ul>
