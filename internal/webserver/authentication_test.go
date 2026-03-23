@@ -19,7 +19,7 @@ import (
 )
 
 func TestAuthentication(t *testing.T) {
-	db := infrastructure.Connect(":memory:?cache=shared", 250)
+	db := infrastructure.Connect(":memory:?cache=shared", 250, nil)
 	app := bootstrapApp(db, &infrastructure.SMTP{}, afero.NewMemMapFs(), webserver.Config{})
 
 	data := url.Values{
@@ -82,7 +82,7 @@ func TestAuthentication(t *testing.T) {
 }
 
 func TestRecoverNoEmailService(t *testing.T) {
-	db := infrastructure.Connect(":memory:?cache=shared", 250)
+	db := infrastructure.Connect(":memory:?cache=shared", 250, nil)
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
 
 	req, err := http.NewRequest(http.MethodGet, "/recover", nil)
@@ -116,7 +116,7 @@ func TestRecover(t *testing.T) {
 			LibraryPath:           "fixtures/library",
 			UploadDocumentMaxSize: 1,
 		}
-		db = infrastructure.Connect(":memory:?cache=shared", 250)
+		db = infrastructure.Connect(":memory:?cache=shared", 250, nil)
 		smtpMock = &infrastructure.SMTPMock{}
 		app = bootstrapApp(db, smtpMock, afero.NewMemMapFs(), webserverConfig)
 
@@ -360,7 +360,7 @@ func TestRecover(t *testing.T) {
 }
 
 func TestDeletedUserSessionIsRejected(t *testing.T) {
-	db := infrastructure.Connect(":memory:?cache=shared", 250)
+	db := infrastructure.Connect(":memory:?cache=shared", 250, nil)
 	app := bootstrapApp(db, &infrastructure.SMTP{}, afero.NewMemMapFs(), webserver.Config{})
 
 	cookie, err := login(app, "admin@example.com", "admin", t)

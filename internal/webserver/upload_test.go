@@ -20,7 +20,7 @@ import (
 )
 
 func TestUpload(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250)
+	db := infrastructure.Connect(":memory:", 250, nil)
 	appFS := loadDirInMemoryFs("fixtures/library")
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS, webserver.Config{})
 

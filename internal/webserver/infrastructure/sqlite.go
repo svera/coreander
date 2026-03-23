@@ -13,7 +13,9 @@ import (
 	"gorm.io/gorm"
 )
 
-func Connect(path string, wordsPerMinute float64) *gorm.DB {
+// resolveSlug maps a legacy document path (file ID) to its slug; required when upgrading an older
+// database that stored paths. Pass nil for tests or fresh databases (no path-based tables).
+func Connect(path string, wordsPerMinute float64, resolveSlug func(string) string) *gorm.DB {
 	if _, err := os.Stat(path); os.IsNotExist(err) && !strings.Contains(path, ":memory:") {
 		if _, err = os.Create(path); err != nil {
 			log.Fatal(err)
@@ -33,11 +35,44 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 	// Run column rename migration before AutoMigrate to avoid creating duplicate columns
 	migrateLastLoginToLastRequest(db)
 
+	// Legacy DBs stored document path instead of slug. SQLite cannot ADD COLUMN ... NOT NULL on
+	// non-empty tables without a default. Add nullable slug, backfill, rebuild PK, then AutoMigrate.
+	prepareLegacySlugColumns(db)
+	if resolveSlug != nil {
+		FillSlugsFromPaths(db, resolveSlug)
+		MigrateHighlightsToSlugPK(db)
+		MigrateReadingsToSlugPK(db)
+	}
+
 	if err := db.AutoMigrate(&model.User{}, &model.Highlight{}, &model.Reading{}, &model.Invitation{}); err != nil {
 		log.Fatal(err)
 	}
 	addDefaultAdmin(db, wordsPerMinute)
 	return db
+}
+
+// prepareLegacySlugColumns adds a nullable slug column when the table still uses path,
+// so AutoMigrate never issues ADD slug NOT NULL (which SQLite rejects for existing rows).
+func prepareLegacySlugColumns(db *gorm.DB) {
+	addNullableSlugIfPathExists := func(table string) {
+		var tableExists int
+		if err := db.Raw("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table).Scan(&tableExists).Error; err != nil || tableExists == 0 {
+			return
+		}
+		var pathCol int
+		if err := db.Raw("SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = 'path'", table).Scan(&pathCol).Error; err != nil || pathCol == 0 {
+			return
+		}
+		var slugCol int
+		if err := db.Raw("SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = 'slug'", table).Scan(&slugCol).Error; err != nil || slugCol > 0 {
+			return
+		}
+		if err := db.Exec("ALTER TABLE `" + table + "` ADD COLUMN slug text").Error; err != nil {
+			log.Printf("prepareLegacySlugColumns %s: %v\n", table, err)
+		}
+	}
+	addNullableSlugIfPathExists("highlights")
+	addNullableSlugIfPathExists("readings")
 }
 
 // FillSlugsFromPaths updates empty slug fields in highlights and readings tables
