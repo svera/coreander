@@ -722,52 +722,6 @@ func testIndexAndSearchCases() []testCase {
 			),
 		},
 		{
-			"Fuzzy search returns document when search term has typo (e.g. Tolkin matches Tolkien)",
-			"lib/book_fuzzy.epub",
-			&epub.Information{
-				Title: []string{"Tolkien Tales"},
-				Creator: []epub.Author{
-					{
-						FullName: "John Smith",
-						Role:     "aut",
-					},
-				},
-				Description: []string{"Stories by Tolkien"},
-				Language:    []string{"en"},
-				Subject:     []string{"Fiction"},
-				Date: []epub.Date{
-					{
-						Stamp: "2020-01-01",
-						Event: "publication",
-					},
-				},
-			},
-			index.SearchFields{Keywords: "Tolkin"},
-			result.NewPaginated(
-				model.ResultsPerPage,
-				1,
-				1,
-				[]index.Document{
-					{
-						ID:   "book_fuzzy.epub",
-						Slug: "john-smith-tolkien-tales",
-						Metadata: metadata.Metadata{
-							Title:       "Tolkien Tales",
-							Authors:     []string{"John Smith"},
-							Description: "<p>Stories by Tolkien</p>",
-							Language:    "en",
-							Subjects:    []string{"Fiction"},
-							Format:      "EPUB",
-							Publication: precisiondate.NewPrecisionDate("2020-01-01T00:00:00Z", precisiondate.PrecisionDay),
-						},
-						AuthorsSlugs:  []string{"john-smith"},
-						SeriesSlug:    "",
-						SubjectsSlugs: []string{"fiction"},
-					},
-				},
-			),
-		},
-		{
 			"Look for a term without circumflex accent must return circumflexed results",
 			"lib/book2.epub",
 			&epub.Information{

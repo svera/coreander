@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	testDocSlug   = "miguel-cervantes-y-saavedra-don-quijote-la-mancha"
+	testDocSlug   = "miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha"
 	regularUserID = 2
 	adminUserID   = 1
 )
