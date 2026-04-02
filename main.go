@@ -26,7 +26,6 @@ var version string = "unknown"
 
 const documentsIndexPath = "/.coreander/documents_index"
 const authorsIndexPath = "/.coreander/authors_index"
-const legacyIndexPath = "/.coreander/index" // Old single index path
 const databasePath = "/.coreander/database.db"
 
 var (
@@ -37,8 +36,7 @@ var (
 	homeDir             string
 	err                 error
 	metadataReaders     map[string]metadata.Reader
-	sender              webserver.Sender
-	migrationSuccessful bool
+	sender webserver.Sender
 )
 
 func init() {
@@ -75,21 +73,18 @@ func init() {
 
 	var documentsIndex, authorsIndex bleve.Index
 	var needsReindex bool
-	documentsIndex, authorsIndex, needsReindex, migrationSuccessful = getIndexes(appFs, input.IllustratedMinSize)
+	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize)
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
 		IllustratedMinAmount: input.IllustratedMinAmount,
 		IllustratedMinSize:   input.IllustratedMinSize,
 	})
 
-	// If index was migrated or newly created, force reindexing
+	// If index was newly created or recreated, force reindexing
 	if needsReindex {
 		input.ForceIndexing = true
 	}
 
-	db = infrastructure.Connect(homeDir+databasePath, input.WordsPerMinute, func(path string) string {
-		doc, _ := idx.DocumentByID(path)
-		return doc.Slug
-	})
+	db = infrastructure.Connect(homeDir+databasePath, input.WordsPerMinute)
 }
 
 func main() {
@@ -168,13 +163,6 @@ func main() {
 }
 
 func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
-	// Skip indexing if migration was successful - documents are already in the new index
-	if migrationSuccessful {
-		log.Println("Documents were successfully migrated from legacy index. Skipping library indexing.")
-		idx.StartFileWatcher()
-		return
-	}
-
 	start := time.Now().Unix()
 	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
 	err := idx.AddLibrary(batchSize, input.ForceIndexing)
@@ -187,20 +175,8 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
 	idx.StartFileWatcher()
 }
 
-func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Index, bool, bool) {
+func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Index, bool) {
 	needsReindex := false
-	migrationSuccessful := false
-
-	// Check if legacy single index exists (migration scenario)
-	legacyExists, _ := afero.DirExists(fs, homeDir+legacyIndexPath)
-	if legacyExists {
-		log.Println("Detected legacy single index format. Migrating to separate indexes...")
-		needsReindex = migrateLegacyIndex(fs, homeDir, legacyIndexPath, documentsIndexPath, authorsIndexPath)
-		// Migration is successful if we don't need to reindex
-		if !needsReindex {
-			migrationSuccessful = true
-		}
-	}
 
 	// Open or create documents index
 	documentsIndex, err := bleve.Open(homeDir + documentsIndexPath)
@@ -271,5 +247,5 @@ func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Ind
 		needsReindex = true
 	}
 
-	return documentsIndex, authorsIndex, needsReindex, migrationSuccessful
+	return documentsIndex, authorsIndex, needsReindex
 }

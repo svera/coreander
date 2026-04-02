@@ -12,7 +12,7 @@ import (
 )
 
 func TestSendDocument(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250, nil)
+	db := infrastructure.Connect(":memory:", 250)
 	smtpMock := &infrastructure.SMTPMock{}
 	app := bootstrapApp(db, smtpMock, afero.NewOsFs(), webserver.Config{})
 

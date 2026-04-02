@@ -37,7 +37,7 @@ func TestGET(t *testing.T) {
 		{"Server returns not found if the user tries to access a non-existent URL", "/xx", http.StatusNotFound},
 	}
 
-	db := infrastructure.Connect(":memory:", 250, nil)
+	db := infrastructure.Connect(":memory:", 250)
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
 
 	for _, tcase := range cases {

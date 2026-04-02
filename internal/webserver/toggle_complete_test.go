@@ -34,7 +34,7 @@ func TestToggleComplete(t *testing.T) {
 		t.Helper()
 
 		var err error
-		db = infrastructure.Connect(":memory:", 250, nil)
+		db = infrastructure.Connect(":memory:", 250)
 
 		appFs := loadFilesInMemoryFs([]string{
 			"fixtures/library/metadata.epub",

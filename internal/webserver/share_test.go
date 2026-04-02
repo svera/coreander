@@ -454,7 +454,7 @@ type userFixture struct {
 
 func setupShareTest(t *testing.T, config webserver.Config, sender webserver.Sender) (*gorm.DB, *fiber.App, *http.Cookie) {
 	t.Helper()
-	db := infrastructure.Connect(":memory:", 250, nil)
+	db := infrastructure.Connect(":memory:", 250)
 	app := bootstrapApp(db, sender, afero.NewOsFs(), config)
 	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {

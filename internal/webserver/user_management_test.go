@@ -32,7 +32,7 @@ func TestUserManagement(t *testing.T) {
 		t.Helper()
 
 		var err error
-		db = infrastructure.Connect(":memory:", 250, nil)
+		db = infrastructure.Connect(":memory:", 250)
 		app = bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
 
 		adminUser = model.User{}
