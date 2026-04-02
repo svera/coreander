@@ -15,7 +15,7 @@ func (h *Controller) Create(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	if err = h.hlRepository.Highlight(int(user.ID), document.ID); err != nil {
+	if err = h.hlRepository.Highlight(int(user.ID), document.Slug); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}

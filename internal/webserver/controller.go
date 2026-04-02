@@ -6,6 +6,7 @@ import (
 	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/webserver/controller/auth"
 	"github.com/svera/coreander/v4/internal/webserver/controller/author"
+	"github.com/svera/coreander/v4/internal/webserver/controller/completed"
 	"github.com/svera/coreander/v4/internal/webserver/controller/document"
 	"github.com/svera/coreander/v4/internal/webserver/controller/highlight"
 	"github.com/svera/coreander/v4/internal/webserver/controller/home"
@@ -16,20 +17,21 @@ import (
 )
 
 type Controllers struct {
-	Auth       *auth.Controller
-	Users      *user.Controller
-	Highlights *highlight.Controller
-	Documents  *document.Controller
-	Home       *home.Controller
-	Authors    *author.Controller
-	Series     *series.Controller
+	Auth        *auth.Controller
+	Users       *user.Controller
+	Completed   *completed.Controller
+	Highlights  *highlight.Controller
+	Documents   *document.Controller
+	Home        *home.Controller
+	Authors     *author.Controller
+	Series      *series.Controller
 }
 
 func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {
 	usersRepository := &model.UserRepository{DB: db}
 	invitationsRepository := &model.InvitationRepository{DB: db}
-	highlightsRepository := &model.HighlightRepository{DB: db}
-	readingRepository := &model.ReadingRepository{DB: db}
+	highlightsRepository := &model.HighlightRepository{DB: db, Idx: idx}
+	readingRepository := &model.ReadingRepository{DB: db, Idx: idx}
 
 	authCfg := auth.Config{
 		MinPasswordLength: cfg.MinPasswordLength,
@@ -50,7 +52,6 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 
 	documentsCfg := document.Config{
 		WordsPerMinute:        cfg.WordsPerMinute,
-		LibraryPath:           cfg.LibraryPath,
 		HomeDir:               cfg.HomeDir,
 		CoverMaxWidth:         cfg.CoverMaxWidth,
 		Hostname:              cfg.Hostname,
@@ -58,8 +59,8 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
 		ClientImageCacheTTL:   cfg.ClientDynamicImageCacheTTL,
 		ServerImageCacheTTL:   cfg.ServerDynamicImageCacheTTL,
-		ShareCommentMaxSize: cfg.ShareCommentMaxSize,
-		ShareMaxRecipients:  cfg.ShareMaxRecipients,
+		ShareCommentMaxSize:   cfg.ShareCommentMaxSize,
+		ShareMaxRecipients:    cfg.ShareMaxRecipients,
 	}
 
 	authorsCfg := author.Config{
@@ -82,7 +83,8 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 
 	return Controllers{
 		Auth:       auth.NewController(usersRepository, sender, authCfg, translator),
-		Users:      user.NewController(usersRepository, invitationsRepository, readingRepository, idx, usersCfg, sender, translator),
+		Users:      user.NewController(usersRepository, invitationsRepository, usersCfg, sender, translator),
+		Completed:  completed.NewController(readingRepository, idx),
 		Highlights: highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
 		Documents:  document.NewController(highlightsRepository, usersRepository, readingRepository, sender, idx, metadataReaders, appFs, documentsCfg, translator),
 		Home:       home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),

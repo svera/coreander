@@ -7,13 +7,13 @@ import (
 )
 
 type Sender interface {
-	SendDocument(address, subject, libraryPath, fileName string) error
+	SendDocument(address, subject string, file []byte, fileName string) error
 	From() string
 }
 
 // IdxReaderWriter defines a set of reading and writing operations over an index
 type IdxReaderWriter interface {
-	DocumentByID(ID string) (index.Document, error)
+	Document(slug string) (index.Document, error)
 	Count() (uint64, error)
 	LatestDocs(limit int) ([]index.Document, error)
 	Languages() ([]string, error)

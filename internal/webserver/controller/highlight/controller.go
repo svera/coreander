@@ -9,10 +9,10 @@ import (
 const latestHighlightsAmount = 6
 
 type highlightsRepository interface {
-	Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]model.Highlight], error)
+	Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]model.AugmentedDocument], error)
 	Total(userID int) (int, error)
-	Highlight(userID int, documentPath string) error
-	Remove(userID int, documentPath string) error
+	Highlight(userID int, documentSlug string) error
+	Remove(userID int, documentSlug string) error
 	Highlighted(userID int, documents model.AugmentedDocument) model.AugmentedDocument
 }
 
@@ -23,7 +23,6 @@ type readingRepository interface {
 // IdxReaderWriter defines a set of reading and writing operations over an index
 type IdxReaderWriter interface {
 	Document(Slug string) (index.Document, error)
-	DocumentByID(ID string) (index.Document, error)
 	Languages() ([]string, error)
 }
 
@@ -33,7 +32,7 @@ type usersRepository interface {
 }
 
 type Sender interface {
-	SendDocument(address, subject, libraryPath, fileName string) error
+	SendDocument(address, subject string, file []byte, fileName string) error
 	From() string
 }
 

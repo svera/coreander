@@ -22,6 +22,7 @@ require (
 	github.com/rickb777/date/v2 v2.1.11
 	github.com/rjeczalik/notify v0.9.3
 	github.com/spf13/afero v1.14.0
+	github.com/wneessen/go-mail v0.7.2
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
 	golang.org/x/text v0.35.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -60,7 +61,6 @@ require (
 	github.com/tinylib/msgp v1.6.3 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	modernc.org/libc v1.66.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
@@ -109,7 +109,6 @@ require (
 	golang.org/x/net v0.50.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
-	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )
 
 replace github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.3

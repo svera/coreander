@@ -17,8 +17,33 @@ import (
 	"github.com/svera/coreander/v4/internal/metadata"
 )
 
-// AddFile adds a file to the index
-func (b *BleveIndexer) AddFile(file string) (string, error) {
+// NewFile writes the given contents to the library as fileName, indexes it, and returns the document slug.
+func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error) {
+	fullPath := filepath.Join(b.libraryPath, fileName)
+	f, err := b.fs.Create(fullPath)
+	if err != nil {
+		return "", fmt.Errorf("creating file %s: %w", fullPath, err)
+	}
+	_, err = f.Write(contents)
+	if err != nil {
+		f.Close()
+		_ = b.fs.Remove(fullPath)
+		return "", fmt.Errorf("writing file %s: %w", fullPath, err)
+	}
+	if err := f.Close(); err != nil {
+		_ = b.fs.Remove(fullPath)
+		return "", fmt.Errorf("closing file %s: %w", fullPath, err)
+	}
+	slug, err := b.indexFile(fullPath)
+	if err != nil {
+		_ = b.fs.Remove(fullPath)
+		return "", err
+	}
+	return slug, nil
+}
+
+// indexFile adds a file to the index
+func (b *BleveIndexer) indexFile(file string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(file))
 	if _, ok := b.reader[ext]; !ok {
 		return "", fmt.Errorf("file extension %s not supported", ext)
@@ -49,12 +74,31 @@ func (b *BleveIndexer) AddFile(file string) (string, error) {
 	return document.Slug, nil
 }
 
-// RemoveFile removes a file from the index
-func (b *BleveIndexer) RemoveFile(file string) error {
+// removeFile removes a file from the index
+func (b *BleveIndexer) removeFile(file string) error {
 	file = strings.Replace(file, b.libraryPath, "", 1)
 	file = strings.TrimPrefix(file, string(filepath.Separator))
 	if err := b.documentsIdx.Delete(file); err != nil {
 		return err
+	}
+	return nil
+}
+
+// DeleteDocument removes the document identified by slug from the index and deletes its file from the filesystem.
+func (b *BleveIndexer) DeleteDocument(slug string) error {
+	document, err := b.Document(slug)
+	if err != nil {
+		return err
+	}
+	if document.Slug == "" {
+		return ErrDocumentNotFound
+	}
+	fullPath := filepath.Join(b.libraryPath, document.ID)
+	if err := b.removeFile(fullPath); err != nil {
+		return err
+	}
+	if err := b.fs.Remove(fullPath); err != nil && !os.IsNotExist(err) {
+		log.Printf("error removing file %s: %s\n", fullPath, err.Error())
 	}
 	return nil
 }

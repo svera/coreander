@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"log"
 
 	"github.com/svera/coreander/v4/internal/result"
@@ -9,37 +10,73 @@ import (
 )
 
 type HighlightRepository struct {
-	DB *gorm.DB
+	DB        *gorm.DB
+	Idx idxReader
 }
 
-func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]Highlight], error) {
-	var total int64
-
-	query := u.DB.Model(&Highlight{}).
-		Where("user_id = ?", userID)
-
+func (u *HighlightRepository) highlightListQuery(userID int, filter string) *gorm.DB {
+	q := u.DB.Model(&Highlight{}).Where("user_id = ?", userID)
 	switch filter {
 	case "highlights":
-		query = query.Where("shared_by_id IS NULL")
+		q = q.Where("shared_by_id IS NULL")
 	case "shared":
-		query = query.Where("shared_by_id IS NOT NULL")
+		q = q.Where("shared_by_id IS NOT NULL")
+	}
+	return q
+}
+
+// Highlights returns paginated highlights as AugmentedDocuments (index-backed). Rows whose documents
+// are missing from the index are omitted from Hits() but still count toward TotalHits.
+func (u *HighlightRepository) Highlights(userID int, page int, resultsPerPage int, sortBy, filter string) (result.Paginated[[]AugmentedDocument], error) {
+	if u.Idx == nil {
+		return result.Paginated[[]AugmentedDocument]{}, errors.New("highlight repository: idx required for Highlights")
 	}
 
-	countQuery := query
-	countQuery.Count(&total)
+	var total int64
+	if err := u.highlightListQuery(userID, filter).Count(&total).Error; err != nil {
+		log.Printf("error counting highlights: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
 
 	highlights := []Highlight{}
-	res := query.Preload("SharedBy").Scopes(Paginate(page, resultsPerPage)).Order(sortBy).Find(&highlights)
+	res := u.highlightListQuery(userID, filter).
+		Preload("SharedBy").
+		Scopes(Paginate(page, resultsPerPage)).
+		Order(sortBy).
+		Find(&highlights)
 	if res.Error != nil {
 		log.Printf("error listing highlights: %s\n", res.Error)
-		return result.Paginated[[]Highlight]{}, res.Error
+		return result.Paginated[[]AugmentedDocument]{}, res.Error
+	}
+
+	if len(highlights) == 0 {
+		return result.NewPaginated(resultsPerPage, page, int(total), []AugmentedDocument{}), nil
+	}
+
+	slugs := make([]string, len(highlights))
+	for i, hl := range highlights {
+		slugs[i] = hl.Slug
+	}
+	docBySlug, err := u.Idx.Documents(slugs)
+	if err != nil {
+		log.Printf("error getting documents for highlights: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
+	augmented := make([]AugmentedDocument, 0, len(highlights))
+	for _, hl := range highlights {
+		if doc, ok := docBySlug[hl.Slug]; ok {
+			augmented = append(augmented, AugmentedDocument{
+				Document:  doc,
+				Highlight: hl,
+			})
+		}
 	}
 
 	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(total),
-		highlights,
+		augmented,
 	), nil
 }
 
@@ -54,30 +91,30 @@ func (u *HighlightRepository) Total(userID int) (int, error) {
 }
 
 func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results result.Paginated[[]AugmentedDocument]) result.Paginated[[]AugmentedDocument] {
-	highlightsByPath := map[string]Highlight{}
-	paths := make([]string, 0, len(results.Hits()))
+	highlightsBySlug := map[string]Highlight{}
+	slugs := make([]string, 0, len(results.Hits()))
 	searchResults := make([]AugmentedDocument, len(results.Hits()))
 
 	for _, searchResult := range results.Hits() {
-		paths = append(paths, searchResult.ID)
+		slugs = append(slugs, searchResult.Slug)
 	}
-	if len(paths) > 0 && userID > 0 {
+	if len(slugs) > 0 && userID > 0 {
 		highlights := []Highlight{}
 		res := u.DB.Model(&Highlight{}).
-			Where("user_id = ? AND path IN (?)", userID, paths).
+			Where("user_id = ? AND slug IN (?)", userID, slugs).
 			Preload("SharedBy").
 			Find(&highlights)
 		if res.Error != nil {
 			log.Printf("error listing highlight details: %s\n", res.Error)
 		} else {
 			for _, highlight := range highlights {
-				highlightsByPath[highlight.Path] = highlight
+				highlightsBySlug[highlight.Slug] = highlight
 			}
 		}
 	}
 
 	for i, searchResult := range results.Hits() {
-		highlight, ok := highlightsByPath[searchResult.ID]
+		highlight, ok := highlightsBySlug[searchResult.Slug]
 		if !ok {
 			highlight = Highlight{}
 		}
@@ -100,38 +137,38 @@ func (u *HighlightRepository) Highlighted(userID int, doc AugmentedDocument) Aug
 	var count int64
 
 	u.DB.Table("highlights").Where(
-		"user_id = ? AND path = ?",
+		"user_id = ? AND slug = ?",
 		userID,
-		doc.ID,
+		doc.Slug,
 	).Count(&count)
 
 	if count == 1 {
 		doc.Highlight = Highlight{
 			UserID: userID,
-			Path:   doc.ID,
+			Slug:   doc.Slug,
 		}
 	}
 	return doc
 }
 
-func (u *HighlightRepository) Highlight(userID int, documentPath string) error {
+func (u *HighlightRepository) Highlight(userID int, documentSlug string) error {
 	highlight := Highlight{
 		UserID: userID,
-		Path:   documentPath,
+		Slug:   documentSlug,
 	}
 	return u.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&highlight).Error
 }
 
-func (u *HighlightRepository) Remove(userID int, documentPath string) error {
+func (u *HighlightRepository) Remove(userID int, documentSlug string) error {
 	highlight := Highlight{
 		UserID: userID,
-		Path:   documentPath,
+		Slug:   documentSlug,
 	}
 	return u.DB.Delete(&highlight).Error
 }
 
-func (u *HighlightRepository) Share(senderID int, documentID, documentSlug, comment string, recipientIDs []int) error {
-	if senderID <= 0 || documentID == "" || len(recipientIDs) == 0 {
+func (u *HighlightRepository) Share(senderID int, documentSlug, comment string, recipientIDs []int) error {
+	if senderID <= 0 || documentSlug == "" || len(recipientIDs) == 0 {
 		return nil
 	}
 
@@ -143,7 +180,7 @@ func (u *HighlightRepository) Share(senderID int, documentID, documentSlug, comm
 		}
 		shares = append(shares, Highlight{
 			UserID:     recipientID,
-			Path:       documentID,
+			Slug:       documentSlug,
 			SharedByID: &sharedByID,
 			Comment:    comment,
 		})
@@ -157,6 +194,6 @@ func (u *HighlightRepository) Share(senderID int, documentID, documentSlug, comm
 	return u.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&shares).Error
 }
 
-func (u *HighlightRepository) RemoveDocument(documentPath string) error {
-	return u.DB.Where("path = ?", documentPath).Delete(&Highlight{}).Error
+func (u *HighlightRepository) RemoveDocument(documentSlug string) error {
+	return u.DB.Where("slug = ?", documentSlug).Delete(&Highlight{}).Error
 }

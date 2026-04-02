@@ -100,7 +100,7 @@ func TestShareCommentIsTruncated(t *testing.T) {
 
 	highlight := model.Highlight{}
 	db.Where("user_id = ?", regularUser.ID).First(&highlight)
-	if highlight.Path == "" {
+	if highlight.Slug == "" {
 		t.Fatal("Expected share highlight to be created")
 	}
 
@@ -454,7 +454,7 @@ type userFixture struct {
 
 func setupShareTest(t *testing.T, config webserver.Config, sender webserver.Sender) (*gorm.DB, *fiber.App, *http.Cookie) {
 	t.Helper()
-	db := infrastructure.Connect(":memory:", 250)
+	db := infrastructure.Connect(":memory:", 250, nil)
 	app := bootstrapApp(db, sender, afero.NewOsFs(), config)
 	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {

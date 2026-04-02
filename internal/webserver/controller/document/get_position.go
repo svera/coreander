@@ -27,7 +27,7 @@ func (d *Controller) GetPosition(c fiber.Ctx) error {
 		return fiber.ErrUnauthorized
 	}
 
-	reading, err := d.readingRepository.Get(int(session.ID), document.ID)
+	reading, err := d.readingRepository.Get(int(session.ID), document.Slug)
 	if err != nil {
 		// Return empty response if no position is stored
 		return c.JSON(fiber.Map{

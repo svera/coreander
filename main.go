@@ -86,7 +86,10 @@ func init() {
 		input.ForceIndexing = true
 	}
 
-	db = infrastructure.Connect(homeDir+databasePath, input.WordsPerMinute)
+	db = infrastructure.Connect(homeDir+databasePath, input.WordsPerMinute, func(path string) string {
+		doc, _ := idx.DocumentByID(path)
+		return doc.Slug
+	})
 }
 
 func main() {
@@ -168,7 +171,7 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
 	// Skip indexing if migration was successful - documents are already in the new index
 	if migrationSuccessful {
 		log.Println("Documents were successfully migrated from legacy index. Skipping library indexing.")
-		fileWatcher(idx, libPath)
+		idx.StartFileWatcher()
 		return
 	}
 
@@ -181,7 +184,7 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
 	end := time.Now().Unix()
 	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 	log.Printf("Indexing finished, took %d seconds", int(dur.Seconds()))
-	fileWatcher(idx, libPath)
+	idx.StartFileWatcher()
 }
 
 func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Index, bool, bool) {

@@ -30,7 +30,7 @@ func TestUserInvitation(t *testing.T) {
 		t.Helper()
 
 		var err error
-		db = infrastructure.Connect(":memory:", 250)
+		db = infrastructure.Connect(":memory:", 250, nil)
 		smtpMock = &infrastructure.SMTPMock{}
 
 		webserverConfig := webserver.Config{
@@ -121,7 +121,7 @@ func TestUserInvitation(t *testing.T) {
 	t.Run("Try to access invite form without email configured (NoEmail)", func(t *testing.T) {
 		t.Helper()
 
-		db := infrastructure.Connect(":memory:", 250)
+		db := infrastructure.Connect(":memory:", 250, nil)
 		noEmailApp := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
 
 		cookie, err := login(noEmailApp, "admin@example.com", "admin", t)
@@ -140,7 +140,7 @@ func TestUserInvitation(t *testing.T) {
 	t.Run("Try to send invitation without email configured (NoEmail)", func(t *testing.T) {
 		t.Helper()
 
-		db := infrastructure.Connect(":memory:", 250)
+		db := infrastructure.Connect(":memory:", 250, nil)
 		noEmailApp := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
 
 		cookie, err := login(noEmailApp, "admin@example.com", "admin", t)
@@ -163,7 +163,7 @@ func TestUserInvitation(t *testing.T) {
 	t.Run("Invite button is disabled when email server is not configured", func(t *testing.T) {
 		t.Helper()
 
-		db := infrastructure.Connect(":memory:", 250)
+		db := infrastructure.Connect(":memory:", 250, nil)
 		noEmailApp := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
 
 		cookie, err := login(noEmailApp, "admin@example.com", "admin", t)
@@ -654,7 +654,7 @@ func TestInvitationEmailContent(t *testing.T) {
 	reset := func() (*gorm.DB, *fiber.App, *http.Cookie, *infrastructure.SMTPMock) {
 		t.Helper()
 
-		db := infrastructure.Connect(":memory:", 250)
+		db := infrastructure.Connect(":memory:", 250, nil)
 		smtpMock := &infrastructure.SMTPMock{}
 
 		webserverConfig := webserver.Config{
@@ -708,7 +708,7 @@ func TestInvitationEmailContent(t *testing.T) {
 	})
 
 	t.Run("Invitation email link includes protocol when FQDN lacks one", func(t *testing.T) {
-		db := infrastructure.Connect(":memory:", 250)
+		db := infrastructure.Connect(":memory:", 250, nil)
 		smtpMock := &infrastructure.SMTPMock{}
 
 		// Configure FQDN without protocol

@@ -40,7 +40,7 @@ func TestVersionParameterInURLs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup app with specific version
-			db := infrastructure.Connect(":memory:", 250)
+			db := infrastructure.Connect(":memory:", 250, nil)
 			config := webserver.Config{
 				Version:               tc.version,
 				SessionTimeout:        24 * 60 * 60 * 1000000000, // 24 hours in nanoseconds

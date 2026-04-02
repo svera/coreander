@@ -1,15 +1,4 @@
-{{if ne .Author.Name ""}}
-<div hx-get="/authors/{{.Author.Slug}}/summary" hx-trigger="load" hx-target="this">
-    <div class="card mb-3">
-        <div class="row">
-            <div class="card-body col-sm-6 col-md-9">
-                <h2 class="card-title ms-3">{{.Author.Name}}</h2>
-            </div>
-        </div>
-    </div>
-</div>
-{{end}}
-
+<h1 class="mt-5">{{t .Lang "Collection \"%s\"" .Title}}</h1>
 {{template "partials/docs-list-placeholder" .}}
 
 <div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">

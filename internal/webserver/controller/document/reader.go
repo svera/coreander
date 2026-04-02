@@ -3,8 +3,6 @@ package document
 import (
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -22,10 +20,6 @@ func (d *Controller) Reader(c fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	if _, err := os.Stat(filepath.Join(d.config.LibraryPath, document.ID)); err != nil {
-		return fiber.ErrNotFound
-	}
-
 	// Touch the reading record to track that the document has been opened
 	// This creates a record if it doesn't exist, but doesn't overwrite existing positions
 	var session model.Session
@@ -33,7 +27,7 @@ func (d *Controller) Reader(c fiber.Ctx) error {
 		session = val
 	}
 	if session.ID > 0 {
-		if err := d.readingRepository.Touch(int(session.ID), document.ID); err != nil {
+		if err := d.readingRepository.Touch(int(session.ID), document.Slug); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}

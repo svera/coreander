@@ -61,56 +61,7 @@
                     <h5>{{t .Lang "Unknown author"}}</h5>
                 {{end}}
 
-                <ul class="row text-muted list-unstyled mt-3">
-                    {{if not (eq .Document.Publication.Date 0)}}
-                        <li><i class="bi bi-calendar3 me-2"></i><time>{{.Document.Publication.Date.Year}}</time></li>
-                    </dd>
-                    {{end}}
-                    {{ if gt .Document.Words 0.0 }}
-                        {{$readingTimeHelpContent := t .Lang "Reading time calculated using a speed of %s words per minute. Log in to customize this value" (printf "%.0f" .WordsPerMinute)}}
-                        {{if .Session}}
-                            {{$readingTimeHelpContent = t .Lang "Your reading speed is currently set to %s words per minute. You can change your reading speed in your profile." (printf "%.0f" .WordsPerMinute)}}
-                        {{end}}
-                        <li><i class="bi bi-stopwatch me-2"></i><time>{{.Document.ReadingTime .WordsPerMinute}}</time> <span class="reading-time-help-popover d-inline-block ms-1" role="button" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-content="{{$readingTimeHelpContent}}"><i class="bi bi-info-circle text-muted"></i></span></li>
-                    {{ end }}
-                    {{ if .Document.Pages }}
-                        <li><i class="bi bi-book me-2"></i>{{.Document.Pages}}</li>
-                    {{ end }}
-                    {{ if and .IllustratedMinAmount (ge .Document.Illustrations .IllustratedMinAmount) }}
-                        <li><i class="bi bi-images me-2"></i>{{t .Lang "Illustrated"}}</li>
-                    {{ end }}
-
-                    {{if .Session}}
-                        <li>
-                            <div class="d-inline-block">
-                                <input class="form-check-input me-1" type="checkbox"
-                                       id="complete-checkbox-{{.Document.Slug}}"
-                                       {{if .Document.CompletedOn}}checked{{end}}
-                                       title='{{if .Document.CompletedOn}}{{t .Lang "Mark as incomplete"}}{{else}}{{t .Lang "Mark as complete"}}{{end}}'
-                                       data-complete-title='{{t .Lang "Mark as complete"}}'
-                                       data-incomplete-title='{{t .Lang "Mark as incomplete"}}'
-                                       data-completed-label='{{t .Lang "Completed"}}'
-                                       data-uncompleted-label='{{t .Lang "Uncompleted"}}'
-                                       data-slug="{{.Document.Slug}}" />
-                                <label class="form-check-label" id="complete-label-{{.Document.Slug}}" for="complete-checkbox-{{.Document.Slug}}">
-                                    {{if .Document.CompletedOn}}{{t .Lang "Completed"}}{{else}}{{t .Lang "Uncompleted"}}{{end}}
-                                </label>
-                                <span id="completion-date-{{.Document.Slug}}">
-                                    <input type="date" class="border-0 border-bottom text-muted bg-transparent p-0 ms-1{{if not .Document.CompletedOn}} d-none{{end}}"
-                                        value="{{if .Document.CompletedOn}}{{.Document.CompletedOn.Format "2006-01-02"}}{{end}}"
-                                        data-slug="{{.Document.Slug}}"
-                                        data-original-date="{{if .Document.CompletedOn}}{{.Document.CompletedOn.Format "2006-01-02"}}{{end}}"
-                                        title='{{t .Lang "Edit completion date"}}'
-                                        {{if not .Document.CompletedOn}}disabled{{end}} />
-                                </span>
-                            </div>
-                        </li>
-                    {{end}}
-
-                    {{if and .Session .Session.ShowFileName}}
-                        <li><i class="bi bi-file-earmark-text me-2"></i><i>{{.Document.ID}}</i></li>
-                    {{end}}
-                </ul>
+                {{template "partials/document-metadata" dict "Lang" .Lang "Document" .Document "Session" .Session "WordsPerMinute" .WordsPerMinute "IllustratedMinAmount" .IllustratedMinAmount}}
 
                 {{ if .Document.Subjects }}
                 <ul class="list-inline mt-3">
