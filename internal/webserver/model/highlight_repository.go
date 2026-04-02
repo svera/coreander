@@ -10,7 +10,7 @@ import (
 )
 
 type HighlightRepository struct {
-	DB        *gorm.DB
+	DB  *gorm.DB
 	Idx idxReader
 }
 

@@ -29,14 +29,14 @@ const authorsIndexPath = "/.coreander/authors_index"
 const databasePath = "/.coreander/database.db"
 
 var (
-	input               CLIInput
-	appFs               afero.Fs
-	idx                 *index.BleveIndexer
-	db                  *gorm.DB
-	homeDir             string
-	err                 error
-	metadataReaders     map[string]metadata.Reader
-	sender webserver.Sender
+	input           CLIInput
+	appFs           afero.Fs
+	idx             *index.BleveIndexer
+	db              *gorm.DB
+	homeDir         string
+	err             error
+	metadataReaders map[string]metadata.Reader
+	sender          webserver.Sender
 )
 
 func init() {
