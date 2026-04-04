@@ -46,3 +46,17 @@ func ParseAuthorList(s string) []string {
 	}
 	return names
 }
+
+// ParseSubjectList splits s by ',' and ';', trims each part, and returns non-empty strings.
+// Used for EPUB subjects and CBZ genre (and similar comma/semicolon-separated fields).
+func ParseSubjectList(s string) []string {
+	var list []string
+	for _, part := range strings.FieldsFunc(s, func(r rune) bool {
+		return r == ',' || r == ';'
+	}) {
+		if v := strings.TrimSpace(part); v != "" {
+			list = append(list, v)
+		}
+	}
+	return list
+}

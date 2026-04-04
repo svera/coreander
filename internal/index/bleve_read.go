@@ -331,8 +331,11 @@ func (b *BleveIndexer) File(slug string) (*IndexedFile, error) {
 		FileName:    filepath.Base(doc.ID),
 		ContentType: "application/pdf",
 	}
-	if ext == ".epub" {
+	switch ext {
+	case ".epub":
 		result.ContentType = "application/epub+zip"
+	case ".cbz":
+		result.ContentType = "application/vnd.comicbook+zip"
 	}
 	return result, nil
 }
