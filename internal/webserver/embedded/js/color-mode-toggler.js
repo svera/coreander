@@ -29,27 +29,32 @@
   
     setTheme(getPreferredTheme())
   
+    const themeIconHref = {
+      light: '#sun-fill',
+      dark: '#moon-stars-fill',
+      auto: '#circle-half',
+    }
+
     const showActiveTheme = (theme, focus = false) => {
       const themeSwitcher = document.querySelector('#bd-theme')
-  
-      if (!themeSwitcher) {
-        return
-      }
-  
       const activeThemeIcon = document.querySelector('.theme-icon-active use')
-      const btnToActive = document.querySelector(`[data-bs-theme-value="${theme}"]`)
-      const svgOfActiveBtn = btnToActive.querySelector('svg use').getAttribute('href')
-  
+      const href = themeIconHref[theme]
+
       document.querySelectorAll('[data-bs-theme-value]').forEach(element => {
         element.classList.remove('active')
         element.setAttribute('aria-pressed', 'false')
       })
-  
-      btnToActive.classList.add('active')
-      btnToActive.setAttribute('aria-pressed', 'true')
-      activeThemeIcon.setAttribute('href', svgOfActiveBtn)
-  
-      if (focus) {
+
+      document.querySelectorAll(`[data-bs-theme-value="${theme}"]`).forEach(btn => {
+        btn.classList.add('active')
+        btn.setAttribute('aria-pressed', 'true')
+      })
+
+      if (activeThemeIcon && href) {
+        activeThemeIcon.setAttribute('href', href)
+      }
+
+      if (focus && themeSwitcher) {
         themeSwitcher.focus()
       }
     }

@@ -33,6 +33,52 @@ main .form-control:focus {
     height: 1em;
 }
 
+/* Offcanvas nav (mobile): icon column lines up with label text */
+.offcanvas-nav-flat .navbar-nav .nav-link > i:first-child,
+#bd-theme .theme-icon-active {
+    flex-shrink: 0;
+    width: 1.1em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    color: inherit;
+}
+
+.offcanvas-style-btn-group {
+    display: flex;
+    width: 100%;
+}
+
+.offcanvas-style-btn-group > .btn {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+#offcanvasNavbar .offcanvas-nav-flat .navbar-nav {
+    --bs-nav-link-color: var(--bs-body-color);
+    --bs-nav-link-hover-color: var(--bs-body-color);
+}
+
+#offcanvasNavbar .offcanvas-style-btn-group > .btn.btn-outline-secondary {
+    --bs-btn-color: var(--bs-body-color);
+    --bs-btn-border-color: var(--bs-body-color);
+    --bs-btn-hover-color: var(--bs-body-color);
+    --bs-btn-hover-bg: rgba(var(--bs-emphasis-color-rgb), 0.08);
+    --bs-btn-hover-border-color: var(--bs-body-color);
+    --bs-btn-focus-shadow-rgb: var(--bs-emphasis-color-rgb);
+    --bs-btn-active-color: var(--bs-body-color);
+    --bs-btn-active-bg: rgba(var(--bs-emphasis-color-rgb), 0.14);
+    --bs-btn-active-border-color: var(--bs-body-color);
+    --bs-btn-active-shadow: none;
+    --bs-btn-disabled-color: var(--bs-body-color);
+    --bs-btn-disabled-border-color: var(--bs-body-color);
+}
+
+#offcanvasNavbar .offcanvas-nav-flat .text-muted {
+    color: var(--bs-body-color) !important;
+}
+
 :root, [data-bs-theme=light] {
     --bs-link-color-rgb: 0, 0, 0;
     --bs-link-hover-color-rgb: 0, 0, 0;
@@ -46,6 +92,10 @@ main .form-control:focus {
     .navbar {
         --bs-bg-opacity: 1;
         background-color: rgba(var(--bs-light-rgb), var(--bs-bg-opacity)) !important;
+    }
+    .navbar #offcanvasNavbar {
+        --bs-offcanvas-bg: rgba(var(--bs-light-rgb), var(--bs-bg-opacity));
+        --bs-offcanvas-color: var(--bs-body-color);
     }
     .navbar-home {
         background-color: white !important;
@@ -76,6 +126,10 @@ main .form-control:focus {
     .navbar {
         --bs-bg-opacity: 1;
         background-color: rgba(var(--bs-dark-rgb), var(--bs-bg-opacity)) !important;
+    }
+    .navbar #offcanvasNavbar {
+        --bs-offcanvas-bg: rgba(var(--bs-dark-rgb), var(--bs-bg-opacity));
+        --bs-offcanvas-color: var(--bs-body-color);
     }
     .color-invertible {
       filter: invert(100%);
