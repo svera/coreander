@@ -128,17 +128,17 @@
                     </div>
                     <ul class="navbar-nav ms-auto flex-row align-items-center justify-content-end flex-grow-1 flex-lg-grow-0 pe-3 text-start d-none d-lg-flex">
                         <li class="nav-item dropdown">
-                            <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi-globe"></i>
-                            </button>
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-globe" aria-hidden="true"></i>
+                            </a>
                             <ul class="dropdown-menu shadow">
                                 {{range $i, $currentLang := .SupportedLanguages}}
                                     {{if eq $lang $currentLang}}
-                                        <li class="dropdown-item">{{language $currentLang}}</li>
+                                        <li><span class="dropdown-item nav-link disabled">{{language $currentLang}}</span></li>
                                     {{else if eq $queryString ""}}
-                                        <li class="dropdown-item"><a href="{{$URLPath}}?l={{$currentLang}}">{{language $currentLang}}</a></li>
+                                        <li><a class="dropdown-item nav-link" href="{{$URLPath}}?l={{$currentLang}}">{{language $currentLang}}</a></li>
                                     {{else}}
-                                        <li class="dropdown-item"><a href="{{$URLPath}}?{{$queryString}}&l={{$currentLang}}">{{language $currentLang}}</a></li>
+                                        <li><a class="dropdown-item nav-link" href="{{$URLPath}}?{{$queryString}}&l={{$currentLang}}">{{language $currentLang}}</a></li>
                                     {{end}}
                                 {{end}}
                             </ul>
@@ -149,64 +149,27 @@
                         {{if and (.Session) (ne .Session.Name "")}}
                         {{if eq .Session.Role 2}}
                         <li class="nav-item dropdown">
-                            <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi-gear-fill"></i>
-
-                                {{t .Lang "Manage"}}
-                            </button>
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-gear-fill" aria-hidden="true"></i>
+                                {{t $lang "Manage"}}
+                            </a>
                             <ul class="dropdown-menu shadow">
-                                <li class="dropdown-item">
-                                    <a href="/users" class="link-underline link-underline-opacity-0">
-                                        <i class="bi-people-fill"></i>
-
-                                        {{t .Lang "Users"}}
-                                    </a>
-                                </li>
-                                <li class="dropdown-item">
-                                    <a href="/upload" class="link-underline link-underline-opacity-0">
-                                        <i class="bi-cloud-upload-fill"></i>
-
-                                        {{t .Lang "Upload document"}}
-                                    </a>
-                                </li>
+                                <li><a class="dropdown-item nav-link" href="/users"><i class="bi bi-people-fill me-2" aria-hidden="true"></i>{{t $lang "Users"}}</a></li>
+                                <li><a class="dropdown-item nav-link" href="/upload"><i class="bi bi-cloud-upload-fill me-2" aria-hidden="true"></i>{{t $lang "Upload document"}}</a></li>
                             </ul>
                         </li>
                         {{end}}
                         <li class="nav-item dropdown">
-                            <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi-person-fill"></i>
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-person-fill" aria-hidden="true"></i>
                                 {{.Session.Name}}
-                            </button>
+                            </a>
                             <ul class="dropdown-menu shadow">
-                                <li class="dropdown-item">
-                                    <a href="/highlights" class="link-underline link-underline-opacity-0">
-                                        <i class="bi-star-fill"></i>
-
-                                        {{t .Lang "Highlights"}}
-                                    </a>
-                                </li>
-                                <li class="dropdown-item">
-                                    <a href="/completed" class="link-underline link-underline-opacity-0">
-                                        <i class="bi-check-circle-fill"></i>
-
-                                        {{t .Lang "Completions"}}
-                                    </a>
-                                </li>
-                                <li class="dropdown-item">
-                                    <a href="/users/{{.Session.Username}}" class="link-underline link-underline-opacity-0">
-                                        <i class="bi-person-fill-gear"></i>
-
-                                        {{t .Lang "Profile"}}
-                                    </a>
-                                </li>
-                                <hr>
-                                <li class="dropdown-item">
-                                    <a href="/sessions" hx-delete="/sessions" class="link-underline link-underline-opacity-0">
-                                        <i class="bi-box-arrow-right"></i>
-
-                                        {{t .Lang "Logout"}}
-                                    </a>
-                                </li>
+                                <li><a class="dropdown-item nav-link" href="/highlights"><i class="bi bi-star-fill me-2" aria-hidden="true"></i>{{t $lang "Highlights"}}</a></li>
+                                <li><a class="dropdown-item nav-link" href="/completed"><i class="bi bi-check-circle-fill me-2" aria-hidden="true"></i>{{t $lang "Completions"}}</a></li>
+                                <li><a class="dropdown-item nav-link" href="/users/{{.Session.Username}}"><i class="bi bi-person-fill-gear me-2" aria-hidden="true"></i>{{t $lang "Profile"}}</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item nav-link" href="/sessions" hx-delete="/sessions"><i class="bi bi-box-arrow-right me-2" aria-hidden="true"></i>{{t $lang "Logout"}}</a></li>
                             </ul>
                         </li>
                         {{else if not .DisableLoginLink}}

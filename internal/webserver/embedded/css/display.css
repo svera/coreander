@@ -28,7 +28,8 @@ main .form-control:focus {
     font-size: 0.65em;
 }
 
-.nav-item .bi {
+/* Only toggles directly under .nav-item; do not target icons inside .dropdown-menu. */
+.navbar-nav > .nav-item > .nav-link .bi {
     width: 1em;
     height: 1em;
 }
@@ -45,6 +46,15 @@ main .form-control:focus {
     color: inherit;
 }
 
+#bd-theme + .dropdown-menu .btn .bi {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25em;
+    height: 1.25em;
+    line-height: 1;
+}
+
 .offcanvas-style-btn-group {
     display: flex;
     width: 100%;
@@ -53,30 +63,6 @@ main .form-control:focus {
 .offcanvas-style-btn-group > .btn {
     flex: 1 1 0;
     min-width: 0;
-}
-
-#offcanvasNavbar .offcanvas-nav-flat .navbar-nav {
-    --bs-nav-link-color: var(--bs-body-color);
-    --bs-nav-link-hover-color: var(--bs-body-color);
-}
-
-#offcanvasNavbar .offcanvas-style-btn-group > .btn.btn-outline-secondary {
-    --bs-btn-color: var(--bs-body-color);
-    --bs-btn-border-color: var(--bs-body-color);
-    --bs-btn-hover-color: var(--bs-body-color);
-    --bs-btn-hover-bg: rgba(var(--bs-emphasis-color-rgb), 0.08);
-    --bs-btn-hover-border-color: var(--bs-body-color);
-    --bs-btn-focus-shadow-rgb: var(--bs-emphasis-color-rgb);
-    --bs-btn-active-color: var(--bs-body-color);
-    --bs-btn-active-bg: rgba(var(--bs-emphasis-color-rgb), 0.14);
-    --bs-btn-active-border-color: var(--bs-body-color);
-    --bs-btn-active-shadow: none;
-    --bs-btn-disabled-color: var(--bs-body-color);
-    --bs-btn-disabled-border-color: var(--bs-body-color);
-}
-
-#offcanvasNavbar .offcanvas-nav-flat .text-muted {
-    color: var(--bs-body-color) !important;
 }
 
 :root, [data-bs-theme=light] {
@@ -95,7 +81,6 @@ main .form-control:focus {
     }
     .navbar #offcanvasNavbar {
         --bs-offcanvas-bg: rgba(var(--bs-light-rgb), var(--bs-bg-opacity));
-        --bs-offcanvas-color: var(--bs-body-color);
     }
     .navbar-home {
         background-color: white !important;
@@ -129,7 +114,6 @@ main .form-control:focus {
     }
     .navbar #offcanvasNavbar {
         --bs-offcanvas-bg: rgba(var(--bs-dark-rgb), var(--bs-bg-opacity));
-        --bs-offcanvas-color: var(--bs-body-color);
     }
     .color-invertible {
       filter: invert(100%);

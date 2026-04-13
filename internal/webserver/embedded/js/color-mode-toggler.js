@@ -29,16 +29,16 @@
   
     setTheme(getPreferredTheme())
   
-    const themeIconHref = {
-      light: '#sun-fill',
-      dark: '#moon-stars-fill',
-      auto: '#circle-half',
+    const themeIconClass = {
+      light: 'bi-sun-fill',
+      dark: 'bi-moon-stars-fill',
+      auto: 'bi-circle-half',
     }
 
     const showActiveTheme = (theme, focus = false) => {
       const themeSwitcher = document.querySelector('#bd-theme')
-      const activeThemeIcon = document.querySelector('.theme-icon-active use')
-      const href = themeIconHref[theme]
+      const activeThemeIcon = document.querySelector('#bd-theme .theme-icon-active')
+      const icon = themeIconClass[theme]
 
       document.querySelectorAll('[data-bs-theme-value]').forEach(element => {
         element.classList.remove('active')
@@ -50,8 +50,9 @@
         btn.setAttribute('aria-pressed', 'true')
       })
 
-      if (activeThemeIcon && href) {
-        activeThemeIcon.setAttribute('href', href)
+      if (activeThemeIcon && icon) {
+        activeThemeIcon.className = `bi ${icon} my-1 theme-icon-active`
+        activeThemeIcon.setAttribute('aria-hidden', 'true')
       }
 
       if (focus && themeSwitcher) {
