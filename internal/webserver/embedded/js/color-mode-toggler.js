@@ -45,9 +45,9 @@
         element.setAttribute('aria-pressed', 'false')
       })
 
-      document.querySelectorAll(`[data-bs-theme-value="${theme}"]`).forEach(btn => {
-        btn.classList.add('active')
-        btn.setAttribute('aria-pressed', 'true')
+      document.querySelectorAll(`[data-bs-theme-value="${theme}"]`).forEach(el => {
+        el.classList.add('active')
+        el.setAttribute('aria-pressed', 'true')
       })
 
       if (activeThemeIcon && icon) {
@@ -72,7 +72,8 @@
   
       document.querySelectorAll('[data-bs-theme-value]')
         .forEach(toggle => {
-          toggle.addEventListener('click', () => {
+          toggle.addEventListener('click', e => {
+            e.preventDefault()
             const theme = toggle.getAttribute('data-bs-theme-value')
             setStoredTheme(theme)
             setTheme(theme)

@@ -46,13 +46,14 @@ main .form-control:focus {
     color: inherit;
 }
 
-#bd-theme + .dropdown-menu .btn .bi {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.25em;
-    height: 1.25em;
-    line-height: 1;
+/*
+ * .dropdown-item.active uses primary fill; theme JS uses .active for the stored choice only.
+ * Use the same subtle row highlight as hover so it matches other menus visually.
+ */
+#bd-theme + .dropdown-menu .dropdown-item.active,
+#bd-theme + .dropdown-menu .dropdown-item:active {
+    color: var(--bs-dropdown-link-color);
+    background-color: var(--bs-dropdown-link-hover-bg);
 }
 
 /* .dropdown-divider uses dropdown-menu CSS variables; offcanvas nav is outside any menu. */

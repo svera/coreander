@@ -9,26 +9,23 @@
     aria-label='{{t .Lang "Toggle theme (light)"}}'>
     <i class="bi bi-sun-fill my-1 theme-icon-active" aria-hidden="true"></i>
 </a>
-<ul class="dropdown-menu dropdown-menu-end shadow py-2 px-2" aria-labelledby="bd-theme-text">
-    <li class="mb-1">
-        <button type="button" class="btn btn-outline-secondary border-0 w-100 d-flex align-items-center gap-2 text-start active"
+<ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="bd-theme-text">
+    <li>
+        <a href="#" class="dropdown-item nav-link active"
             data-bs-theme-value="light" aria-pressed="true">
-            <i class="bi bi-sun-fill flex-shrink-0 opacity-50" aria-hidden="true"></i>
-            <span>{{t .Lang "Light"}}</span>
-        </button>
-    </li>
-    <li class="mb-1">
-        <button type="button" class="btn btn-outline-secondary border-0 w-100 d-flex align-items-center gap-2 text-start"
-            data-bs-theme-value="dark" aria-pressed="false">
-            <i class="bi bi-moon-stars-fill flex-shrink-0 opacity-50" aria-hidden="true"></i>
-            <span>{{t .Lang "Dark"}}</span>
-        </button>
+            <i class="bi bi-sun-fill me-2" aria-hidden="true"></i>{{t .Lang "Light"}}
+        </a>
     </li>
     <li>
-        <button type="button" class="btn btn-outline-secondary border-0 w-100 d-flex align-items-center gap-2 text-start"
+        <a href="#" class="dropdown-item nav-link"
+            data-bs-theme-value="dark" aria-pressed="false">
+            <i class="bi bi-moon-stars-fill me-2" aria-hidden="true"></i>{{t .Lang "Dark"}}
+        </a>
+    </li>
+    <li>
+        <a href="#" class="dropdown-item nav-link"
             data-bs-theme-value="auto" aria-pressed="false">
-            <i class="bi bi-circle-half flex-shrink-0 opacity-50" aria-hidden="true"></i>
-            <span>{{t .Lang "Auto"}}</span>
-        </button>
+            <i class="bi bi-circle-half me-2" aria-hidden="true"></i>{{t .Lang "Auto"}}
+        </a>
     </li>
 </ul>
