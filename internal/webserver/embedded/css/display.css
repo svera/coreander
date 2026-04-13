@@ -86,9 +86,6 @@ main .form-control:focus {
         --bs-bg-opacity: 1;
         background-color: rgba(var(--bs-light-rgb), var(--bs-bg-opacity)) !important;
     }
-    .navbar #offcanvasNavbar {
-        --bs-offcanvas-bg: rgba(var(--bs-light-rgb), var(--bs-bg-opacity));
-    }
     .navbar-home {
         background-color: white !important;
     }
@@ -118,9 +115,6 @@ main .form-control:focus {
     .navbar {
         --bs-bg-opacity: 1;
         background-color: rgba(var(--bs-dark-rgb), var(--bs-bg-opacity)) !important;
-    }
-    .navbar #offcanvasNavbar {
-        --bs-offcanvas-bg: rgba(var(--bs-dark-rgb), var(--bs-bg-opacity));
     }
     .color-invertible {
       filter: invert(100%);
