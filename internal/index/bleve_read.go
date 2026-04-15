@@ -61,7 +61,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 	filtersQuery := bleve.NewConjunctionQuery()
 
 	if searchFields.Keywords != "" {
-		for _, prefix := range []string{"Authors:", "Series:", "Title:", "Subjects:", "\""} {
+		for _, prefix := range []string{"Authors:", "Illustrators:", "Series:", "Title:", "Subjects:", "\""} {
 			if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
 				query := bleve.NewQueryStringQuery(searchFields.Keywords)
 				filtersQuery.AddQuery(query)
@@ -221,6 +221,11 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	qa.Operator = query.MatchQueryOperatorAnd
 	qa.Analyzer = defaultAnalyzer
 
+	qi := bleve.NewMatchQuery(keywords)
+	qi.SetField("Illustrators")
+	qi.Operator = query.MatchQueryOperatorAnd
+	qi.Analyzer = defaultAnalyzer
+
 	orAuthorQuery := bleve.NewMatchQuery(keywords)
 	orAuthorQuery.SetField("Authors")
 	orAuthorQuery.Operator = query.MatchQueryOperatorOr
@@ -228,7 +233,7 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 
 	authorTitleQuery.AddQuery(orAuthorQuery, allLangsOrTitleQuery)
 
-	return bleve.NewDisjunctionQuery(qa, langCompoundQuery, authorTitleQuery)
+	return bleve.NewDisjunctionQuery(qa, qi, langCompoundQuery, authorTitleQuery)
 }
 
 func (b *BleveIndexer) runQuery(query query.Query, results int, sortBy []string) ([]Document, error) {
@@ -631,11 +636,17 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		illustrations = int(match.Fields["Illustrations"].(float64))
 	}
 
+	illustrators := slicer(match.Fields["Illustrators"])
+	if len(illustrators) == 0 {
+		illustrators = nil
+	}
+
 	doc := Document{
 		ID: path.Base(match.ID),
 		Metadata: metadata.Metadata{
 			Title:         match.Fields["Title"].(string),
 			Authors:       slicer(match.Fields["Authors"]),
+			Illustrators:  illustrators,
 			Description:   template.HTML(match.Fields["Description"].(string)),
 			Language:      language,
 			Publication:   publication,

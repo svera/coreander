@@ -189,33 +189,39 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	return e
 }
 
-// indexAuthors indexes authors of a document if they are not already indexed in the authors index
+// indexAuthors indexes document authors and illustrators in the authors index when missing.
 func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data any) error) error {
 	for i, name := range document.Authors {
-		// Skip authors with empty names or empty slugs
-		if name == "" || document.AuthorsSlugs[i] == "" {
-			continue
-		}
-
-		// Check if author already exists in authors index
-		indexedAuthor, err := b.authorsIdx.Document(document.AuthorsSlugs[i])
-		if err != nil {
+		if err := b.indexAuthorIfMissing(name, document.AuthorsSlugs[i], index); err != nil {
 			return err
 		}
-		if indexedAuthor != nil {
-			continue
+	}
+	for _, name := range document.Illustrators {
+		if err := b.indexAuthorIfMissing(name, slug.Make(name), index); err != nil {
+			return err
 		}
+	}
+	return nil
+}
 
-		author := Author{
-			Name:        name,
-			Slug:        document.AuthorsSlugs[i],
-			RetrievedOn: time.Time{},
-		}
-
-		if err := index(author.Slug, author); err != nil {
-			log.Printf("Error indexing author %s: %s\n", name, err)
-			continue
-		}
+func (b *BleveIndexer) indexAuthorIfMissing(name, authorSlug string, index func(id string, data any) error) error {
+	if name == "" || authorSlug == "" {
+		return nil
+	}
+	indexedAuthor, err := b.authorsIdx.Document(authorSlug)
+	if err != nil {
+		return err
+	}
+	if indexedAuthor != nil {
+		return nil
+	}
+	author := Author{
+		Name:        name,
+		Slug:        authorSlug,
+		RetrievedOn: time.Time{},
+	}
+	if err := index(author.Slug, author); err != nil {
+		log.Printf("Error indexing author %s: %s\n", name, err)
 	}
 	return nil
 }
