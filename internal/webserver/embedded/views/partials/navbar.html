@@ -39,19 +39,23 @@
                     {{$queryString := .QueryString}}
                     <div class="offcanvas-nav-flat d-lg-none pe-3">
                         <p class="small text-muted text-uppercase mb-2 mt-1">{{t $lang "Language"}}</p>
-                        <ul class="navbar-nav flex-column mb-4 w-100">
-                            {{range $i, $currentLang := .SupportedLanguages}}
-                            <li class="nav-item">
-                                {{if eq $lang $currentLang}}
-                                <span class="nav-link disabled py-2 px-0">{{language $currentLang}}</span>
-                                {{else if eq $queryString ""}}
-                                <a href="{{$URLPath}}?l={{$currentLang}}" class="nav-link d-flex align-items-center gap-2 py-2 px-0">{{language $currentLang}}</a>
-                                {{else}}
-                                <a href="{{$URLPath}}?{{$queryString}}&l={{$currentLang}}" class="nav-link d-flex align-items-center gap-2 py-2 px-0">{{language $currentLang}}</a>
+                        <div class="dropdown mb-4 w-100">
+                            <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex align-items-center gap-2" type="button" id="offcanvasNavbarLanguage" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" aria-haspopup="true" aria-controls="offcanvasNavbarLanguageMenu">
+                                <i class="bi bi-globe flex-shrink-0" aria-hidden="true"></i>
+                                <span class="text-truncate">{{language $lang}}</span>
+                            </button>
+                            <ul class="dropdown-menu w-100 shadow" id="offcanvasNavbarLanguageMenu" aria-labelledby="offcanvasNavbarLanguage">
+                                {{range $i, $currentLang := .SupportedLanguages}}
+                                    {{if eq $lang $currentLang}}
+                                        <li><span class="dropdown-item disabled text-wrap">{{language $currentLang}}</span></li>
+                                    {{else if eq $queryString ""}}
+                                        <li><a class="dropdown-item text-wrap" href="{{$URLPath}}?l={{$currentLang}}">{{language $currentLang}}</a></li>
+                                    {{else}}
+                                        <li><a class="dropdown-item text-wrap" href="{{$URLPath}}?{{$queryString}}&l={{$currentLang}}">{{language $currentLang}}</a></li>
+                                    {{end}}
                                 {{end}}
-                            </li>
-                            {{end}}
-                        </ul>
+                            </ul>
+                        </div>
                         <p class="small text-muted text-uppercase mb-2">{{t $lang "Style"}}</p>
                         <div class="btn-group w-100 mb-4 offcanvas-style-btn-group" role="group" aria-label='{{t $lang "Style"}}'>
                             <button type="button" class="btn btn-outline-secondary py-2 active"
