@@ -67,7 +67,6 @@
         {{end}}
 
         {{if and (gt (len .Document.Illustrators) 0) (le (len .Document.Illustrators) 2) (ne (index .Document.Illustrators 0) "")}}
-            <hr>
             {{range $i, $illustrator := .Document.Illustrators}}
                 {{if ne $illustrator ""}}
                     {{$illSlug := slugify $illustrator}}
@@ -76,6 +75,9 @@
                         {{if eq (slugify $a) $illSlug}}{{$skipIll = true}}{{end}}
                     {{end}}
                     {{if not $skipIll}}
+                        {{if eq $i 0}}
+                        <hr>
+                        {{end}}
                         <div class="row" hx-get="/authors/{{$illSlug}}/summary?style=clear" hx-trigger="load" hx-target="this">
                         </div>
                     {{end}}
