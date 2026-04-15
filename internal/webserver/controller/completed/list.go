@@ -67,16 +67,16 @@ func (c *Controller) Completed(ctx fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"User":                   &session.User,
-		"Results":                results,
-		"Paginator":               view.Pagination(model.MaxPagesNavigator, results, ctx.Queries()),
-		"Title":                  "Completions",
-		"URL":                    view.URL(ctx),
-		"WordsPerMinute":         session.User.WordsPerMinute,
-		"Year":                   year,
-		"YearStats":              yearStats,
-		"SortURL":                view.BaseURLWithout(ctx, "sort-by", "page"),
-		"SortBy":                 sortByForUI,
+		"User":           &session.User,
+		"Results":        results,
+		"Paginator":      view.Pagination(model.MaxPagesNavigator, results, ctx.Queries()),
+		"Title":          "Completions",
+		"URL":            view.URL(ctx),
+		"WordsPerMinute": session.User.WordsPerMinute,
+		"Year":           year,
+		"YearStats":      yearStats,
+		"SortURL":        view.BaseURLWithout(ctx, "sort-by", "page"),
+		"SortBy":         sortByForUI,
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string

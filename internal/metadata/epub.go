@@ -47,10 +47,13 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 		title = meta.Title[0]
 	}
 	var authors []string
+	var illustrators []string
 	for _, creator := range meta.Creator {
-		if creator.Role == "aut" || creator.Role == "" {
-			authors = append(authors, ParseAuthorList(creator.FullName)...)
-		}
+		classifyEpubPerson(creator, true, &authors, &illustrators)
+	}
+	// Illustrators often appear as <dc:contributor opf:role="ill"> (not creator).
+	for _, contributor := range meta.Contributor {
+		classifyEpubPerson(contributor, false, &authors, &illustrators)
 	}
 	if len(authors) == 0 {
 		authors = []string{""}
@@ -112,6 +115,7 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 	bk = Metadata{
 		Title:         title,
 		Authors:       authors,
+		Illustrators:  illustrators,
 		Description:   template.HTML(description),
 		Language:      lang,
 		Publication:   publication,
@@ -446,6 +450,43 @@ func findCoverImageInMarkup(r *zip.ReadCloser, markupPath string) (string, error
 		}
 	}
 	return "", nil
+}
+
+// normalizeMarcRelator returns a short MARC relator code from OPF role values, which may be
+// bare codes (e.g. "ill") or full vocabulary URIs (e.g. ".../relators/ill").
+func normalizeMarcRelator(role string) string {
+	r := strings.ToLower(strings.TrimSpace(role))
+	if r == "" {
+		return ""
+	}
+	if idx := strings.LastIndex(r, "/"); idx >= 0 {
+		r = r[idx+1:]
+	}
+	r = strings.TrimPrefix(r, "marc:")
+	switch r {
+	case "illustrator":
+		return "ill"
+	case "artist":
+		return "art"
+	}
+	return r
+}
+
+// classifyEpubPerson maps dc:creator / dc:contributor entries to authors or illustrators.
+// Contributors with role ill (or art) are illustrators; empty role only counts as author on creators.
+func classifyEpubPerson(p epub.Author, fromCreator bool, authors, illustrators *[]string) {
+	switch normalizeMarcRelator(p.Role) {
+	case "ill", "art":
+		*illustrators = append(*illustrators, ParseAuthorList(p.FullName)...)
+	case "aut":
+		*authors = append(*authors, ParseAuthorList(p.FullName)...)
+	case "":
+		if fromCreator {
+			*authors = append(*authors, ParseAuthorList(p.FullName)...)
+		}
+	default:
+		// e.g. trl (translator), edt (editor)
+	}
 }
 
 func readZipFile(r *zip.ReadCloser, name string) ([]byte, error) {

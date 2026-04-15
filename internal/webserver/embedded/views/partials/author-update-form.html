@@ -1,11 +1,11 @@
 <p class="opacity-75"><small>
     <i class="bi-person-fill-exclamation me-2"></i>
-    <a data-bs-toggle="collapse" href="#update-author-form" aria-expanded="false">
+    <a data-bs-toggle="collapse" href="#update-author-form-{{.Author.Slug}}" aria-expanded="false" aria-controls="update-author-form-{{.Author.Slug}}">
         {{ t .Lang "Is not the right author or data is outdated?" }}
     </a>
 </small>
 </p>
-<div class="collapse" id="update-author-form">
+<div class="collapse" id="update-author-form-{{.Author.Slug}}">
     <p class="opacity-75"><small>{{ t .Lang "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here." }}</small></p>
     <p class="opacity-75"><small>{{ t .Lang "Leave it blank if the author does not have a Wikidata entry yet."}}</small></p>
     <div class="row pb-3">
