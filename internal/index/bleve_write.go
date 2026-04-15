@@ -189,33 +189,39 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 	return e
 }
 
-// indexAuthors indexes authors of a document if they are not already indexed in the authors index
+// indexAuthors indexes document authors and illustrators in the authors index when missing.
 func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data any) error) error {
 	for i, name := range document.Authors {
-		// Skip authors with empty names or empty slugs
-		if name == "" || document.AuthorsSlugs[i] == "" {
-			continue
-		}
-
-		// Check if author already exists in authors index
-		indexedAuthor, err := b.authorsIdx.Document(document.AuthorsSlugs[i])
-		if err != nil {
+		if err := b.indexAuthorIfMissing(name, document.AuthorsSlugs[i], index); err != nil {
 			return err
 		}
-		if indexedAuthor != nil {
-			continue
+	}
+	for _, name := range document.Illustrators {
+		if err := b.indexAuthorIfMissing(name, slug.Make(name), index); err != nil {
+			return err
 		}
+	}
+	return nil
+}
 
-		author := Author{
-			Name:        name,
-			Slug:        document.AuthorsSlugs[i],
-			RetrievedOn: time.Time{},
-		}
-
-		if err := index(author.Slug, author); err != nil {
-			log.Printf("Error indexing author %s: %s\n", name, err)
-			continue
-		}
+func (b *BleveIndexer) indexAuthorIfMissing(name, authorSlug string, index func(id string, data any) error) error {
+	if name == "" || authorSlug == "" {
+		return nil
+	}
+	indexedAuthor, err := b.authorsIdx.Document(authorSlug)
+	if err != nil {
+		return err
+	}
+	if indexedAuthor != nil {
+		return nil
+	}
+	author := Author{
+		Name:        name,
+		Slug:        authorSlug,
+		RetrievedOn: time.Time{},
+	}
+	if err := index(author.Slug, author); err != nil {
+		log.Printf("Error indexing author %s: %s\n", name, err)
 	}
 	return nil
 }
@@ -267,18 +273,23 @@ func addLanguage(lang string, languages []string) []string {
 
 func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, batchSlugs map[string]struct{}) Document {
 	document := Document{
-		ID:            b.id(fullPath),
-		Metadata:      meta,
-		Slug:          slug.Make(meta.Title),
-		AuthorsSlugs:  make([]string, len(meta.Authors)),
-		SeriesSlug:    slug.Make(meta.Series),
-		SubjectsSlugs: make([]string, len(meta.Subjects)),
+		ID:                b.id(fullPath),
+		Metadata:          meta,
+		Slug:              slug.Make(meta.Title),
+		AuthorsSlugs:      make([]string, len(meta.Authors)),
+		IllustratorsSlugs: make([]string, len(meta.Illustrators)),
+		SeriesSlug:        slug.Make(meta.Series),
+		SubjectsSlugs:     make([]string, len(meta.Subjects)),
 	}
 
 	document.Slug = b.Slug(document, batchSlugs)
 
 	for i, author := range meta.Authors {
 		document.AuthorsSlugs[i] = slug.Make(author)
+	}
+
+	for i, illustrator := range meta.Illustrators {
+		document.IllustratorsSlugs[i] = slug.Make(illustrator)
 	}
 
 	for i, subject := range meta.Subjects {

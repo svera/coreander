@@ -11,6 +11,7 @@ import (
 type Metadata struct {
 	Title         string
 	Authors       []string
+	Illustrators  []string
 	Description   template.HTML
 	Language      string
 	Publication   precisiondate.PrecisionDate

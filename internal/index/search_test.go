@@ -215,8 +215,8 @@ func TestSearchIllustratedDocuments(t *testing.T) {
 
 	mockReader := illustratedMockReader{
 		illustrationsByFile: map[string]int{
-			"lib/no-illustrations.epub": 0,
-			"lib/few-illustrations.epub": 2,
+			"lib/no-illustrations.epub":   0,
+			"lib/few-illustrations.epub":  2,
 			"lib/many-illustrations.epub": 5,
 		},
 	}
