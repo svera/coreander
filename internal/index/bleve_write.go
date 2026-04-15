@@ -273,18 +273,23 @@ func addLanguage(lang string, languages []string) []string {
 
 func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, batchSlugs map[string]struct{}) Document {
 	document := Document{
-		ID:            b.id(fullPath),
-		Metadata:      meta,
-		Slug:          slug.Make(meta.Title),
-		AuthorsSlugs:  make([]string, len(meta.Authors)),
-		SeriesSlug:    slug.Make(meta.Series),
-		SubjectsSlugs: make([]string, len(meta.Subjects)),
+		ID:                b.id(fullPath),
+		Metadata:          meta,
+		Slug:              slug.Make(meta.Title),
+		AuthorsSlugs:      make([]string, len(meta.Authors)),
+		IllustratorsSlugs: make([]string, len(meta.Illustrators)),
+		SeriesSlug:        slug.Make(meta.Series),
+		SubjectsSlugs:     make([]string, len(meta.Subjects)),
 	}
 
 	document.Slug = b.Slug(document, batchSlugs)
 
 	for i, author := range meta.Authors {
 		document.AuthorsSlugs[i] = slug.Make(author)
+	}
+
+	for i, illustrator := range meta.Illustrators {
+		document.IllustratorsSlugs[i] = slug.Make(illustrator)
 	}
 
 	for i, subject := range meta.Subjects {

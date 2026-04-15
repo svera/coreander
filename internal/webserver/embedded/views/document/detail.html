@@ -23,7 +23,7 @@
                 <p class="fs-2 mb-0">{{t .Lang "Unknown author"}}</p>
             {{end}}
             {{if .Document.Illustrators}}
-                <p class="fs-2">{{t $lang "Illustrators"}}: {{join .Document.Illustrators ", "}}</p>
+                <p class="fs-2"><span class="text-muted">{{t $lang "Illustrations"}}:</span> {{join .Document.Illustrators ", "}}</p>
             {{end}}
         </header>
     </div>

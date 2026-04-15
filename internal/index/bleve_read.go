@@ -71,7 +71,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			}
 		}
 
-		for _, prefix := range []string{"AuthorsSlugs:", "SeriesSlug:"} {
+		for _, prefix := range []string{"AuthorsSlugs:", "IllustratorsSlugs:", "SeriesSlug:"} {
 			unescaped, err := url.QueryUnescape(strings.TrimSpace(searchFields.Keywords))
 			if err != nil {
 				break
@@ -560,10 +560,14 @@ func (b *BleveIndexer) Subjects() (map[string][]string, error) {
 }
 
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
-	aq := bleve.NewTermQuery(searchFields.Keywords)
-	aq.SetField("AuthorsSlugs")
+	slug := searchFields.Keywords
+	byAuthor := bleve.NewTermQuery(slug)
+	byAuthor.SetField("AuthorsSlugs")
+	byIllustrator := bleve.NewTermQuery(slug)
+	byIllustrator.SetField("IllustratorsSlugs")
+	dq := bleve.NewDisjunctionQuery(byAuthor, byIllustrator)
 
-	return b.runPaginatedQuery(aq, page, resultsPerPage, searchFields.SortBy)
+	return b.runPaginatedQuery(dq, page, resultsPerPage, searchFields.SortBy)
 }
 
 func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
@@ -641,6 +645,11 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		illustrators = nil
 	}
 
+	illustratorsSlugs := slicer(match.Fields["IllustratorsSlugs"])
+	if len(illustratorsSlugs) == 0 {
+		illustratorsSlugs = nil
+	}
+
 	doc := Document{
 		ID: path.Base(match.ID),
 		Metadata: metadata.Metadata{
@@ -658,11 +667,12 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 			Illustrations: illustrations,
 			Format:        match.Fields["Format"].(string),
 		},
-		Slug:          match.Fields["Slug"].(string),
-		AuthorsSlugs:  slicer(match.Fields["AuthorsSlugs"]),
-		SeriesSlug:    match.Fields["SeriesSlug"].(string),
-		SubjectsSlugs: slicer(match.Fields["SubjectsSlugs"]),
-		AddedOn:       addedOn,
+		Slug:              match.Fields["Slug"].(string),
+		AuthorsSlugs:      slicer(match.Fields["AuthorsSlugs"]),
+		IllustratorsSlugs: illustratorsSlugs,
+		SeriesSlug:        match.Fields["SeriesSlug"].(string),
+		SubjectsSlugs:     slicer(match.Fields["SubjectsSlugs"]),
+		AddedOn:           addedOn,
 	}
 
 	return doc
