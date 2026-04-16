@@ -9,7 +9,7 @@ import (
 )
 
 func TestSeries(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250, nil)
+	db := infrastructure.Connect(":memory:", 250)
 	smtpMock := &infrastructure.SMTPMock{}
 	appFS := loadDirInMemoryFs("fixtures/library")
 

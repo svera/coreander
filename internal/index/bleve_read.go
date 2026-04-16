@@ -357,25 +357,6 @@ func (b *BleveIndexer) Cover(slug string, coverMaxWidth int) ([]byte, error) {
 	return reader.Cover(fullPath, coverMaxWidth)
 }
 
-// @deprecated Remove after migration
-func (b *BleveIndexer) DocumentByID(ID string) (Document, error) {
-	query := bleve.NewDocIDQuery([]string{ID})
-
-	searchOptions := bleve.NewSearchRequest(query)
-	searchOptions.Fields = []string{"*"}
-	searchOptions.Size = 1
-	searchResult, err := b.documentsIdx.Search(searchOptions)
-	if err != nil {
-		return Document{}, err
-	}
-
-	if searchResult.Total == 0 {
-		return Document{}, nil
-	}
-
-	return hydrateDocument(searchResult.Hits[0]), nil
-}
-
 // Documents returns documents for the given slugs in a single search. Missing or invalid slugs are omitted.
 func (b *BleveIndexer) Documents(slugs []string) (map[string]Document, error) {
 	if len(slugs) == 0 {
