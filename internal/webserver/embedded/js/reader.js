@@ -5,35 +5,15 @@ import { Overlayer } from './foliate-js/overlayer.js'
 import { ReaderSync } from './reader-sync.js'
 import { ReaderToast } from './reader-toast.js'
 
-function refererIsThisDocumentDetailPage(slug) {
-    if (!slug || !document.referrer) return false
-    try {
-        const ref = new URL(document.referrer)
-        if (ref.origin !== window.location.origin) return false
-        const refPath = ref.pathname.replace(/\/+$/, '') || '/'
-        const detailPath = (`/documents/${slug}`).replace(/\/+$/, '')
-        return refPath === detailPath
-    } catch {
-        return false
-    }
-}
-
-/** When the reader was opened from this document's detail page, use history.back() for detail links. */
-function attachDocumentDetailHistoryBack() {
-    const slug = document.getElementById('slug')?.value
-    if (!slug || !refererIsThisDocumentDetailPage(slug)) return
-    for (const a of document.querySelectorAll('a.reader-doc-detail-link')) {
+/** Sidebar and error-state links: primary click uses browser history. */
+function attachReaderHistoryBackLinks() {
+    for (const a of document.querySelectorAll('a[data-reader-history-back]')) {
         a.addEventListener('click', e => {
             if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
                 return
             }
             e.preventDefault()
-            const href = a.getAttribute('href')
-            if (window.history.length > 1) {
-                window.history.back()
-            } else if (href) {
-                window.location.assign(href)
-            }
+            window.history.back()
         })
     }
 }
@@ -293,7 +273,7 @@ class Reader {
         // Load translations
         this.translations = JSON.parse(document.getElementById('i18n').textContent).i18n
 
-        attachDocumentDetailHistoryBack()
+        attachReaderHistoryBackLinks()
 
         // Initialize toast
         this.#toast = new ReaderToast()
@@ -420,7 +400,7 @@ class Reader {
                 label: 'Theme',
                 type: 'radio',
                 items: [
-                    [t.auto ?? t.system ?? 'System', 'auto'],
+                    [t.auto ?? 'System', 'auto'],
                     [t.light, 'light'],
                     [t.dark, 'dark'],
                 ],
@@ -764,7 +744,7 @@ class Reader {
             this.view.goRight()
         }
     }
-    #onLoad({ detail: { doc, index } }) {
+    #onLoad({ detail: { doc } }) {
         doc.addEventListener('keydown', this.#handleKeydown.bind(this))
     }
     async #handleFootnoteLinkEvent(href) {
@@ -939,4 +919,3 @@ if (url) fetch(url)
         }
         console.error(e);
     })
-else dropTarget.style.visibility = 'visible'
