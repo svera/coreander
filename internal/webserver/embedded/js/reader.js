@@ -5,6 +5,39 @@ import { Overlayer } from './foliate-js/overlayer.js'
 import { ReaderSync } from './reader-sync.js'
 import { ReaderToast } from './reader-toast.js'
 
+function refererIsThisDocumentDetailPage(slug) {
+    if (!slug || !document.referrer) return false
+    try {
+        const ref = new URL(document.referrer)
+        if (ref.origin !== window.location.origin) return false
+        const refPath = ref.pathname.replace(/\/+$/, '') || '/'
+        const detailPath = (`/documents/${slug}`).replace(/\/+$/, '')
+        return refPath === detailPath
+    } catch {
+        return false
+    }
+}
+
+/** When the reader was opened from this document's detail page, use history.back() for detail links. */
+function attachDocumentDetailHistoryBack() {
+    const slug = document.getElementById('slug')?.value
+    if (!slug || !refererIsThisDocumentDetailPage(slug)) return
+    for (const a of document.querySelectorAll('a.reader-doc-detail-link')) {
+        a.addEventListener('click', e => {
+            if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
+                return
+            }
+            e.preventDefault()
+            const href = a.getAttribute('href')
+            if (window.history.length > 1) {
+                window.history.back()
+            } else if (href) {
+                window.location.assign(href)
+            }
+        })
+    }
+}
+
 const getCSS = ({ spacing, justify, hyphenate, theme, fontSize, fontFamily }) => `
     @namespace epub "http://www.idpf.org/2007/ops";
     html {
@@ -260,6 +293,8 @@ class Reader {
         // Load translations
         this.translations = JSON.parse(document.getElementById('i18n').textContent).i18n
 
+        attachDocumentDetailHistoryBack()
+
         // Initialize toast
         this.#toast = new ReaderToast()
 
@@ -385,7 +420,7 @@ class Reader {
                 label: 'Theme',
                 type: 'radio',
                 items: [
-                    [t.auto, 'auto'],
+                    [t.auto ?? t.system ?? 'System', 'auto'],
                     [t.light, 'light'],
                     [t.dark, 'dark'],
                 ],
