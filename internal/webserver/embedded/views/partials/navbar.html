@@ -40,9 +40,9 @@
                     <div class="offcanvas-nav-flat d-lg-none pe-3">
                         <p class="small text-muted text-uppercase mb-2 mt-1">{{t $lang "Language"}}</p>
                         <div class="dropdown mb-4 w-100">
-                            <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex align-items-center gap-2" type="button" id="offcanvasNavbarLanguage" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" aria-haspopup="true" aria-controls="offcanvasNavbarLanguageMenu">
+                            <button class="btn btn-outline-secondary dropdown-toggle w-100 d-flex align-items-center gap-2" type="button" id="offcanvasNavbarLanguage" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false" aria-haspopup="true" aria-controls="offcanvasNavbarLanguageMenu">
                                 <i class="bi bi-globe flex-shrink-0" aria-hidden="true"></i>
-                                <span class="text-truncate">{{language $lang}}</span>
+                                <span class="text-truncate flex-grow-1 min-w-0 text-start">{{language $lang}}</span>
                             </button>
                             <ul class="dropdown-menu w-100 shadow" id="offcanvasNavbarLanguageMenu" aria-labelledby="offcanvasNavbarLanguage">
                                 {{range $i, $currentLang := .SupportedLanguages}}
@@ -58,20 +58,20 @@
                         </div>
                         <p class="small text-muted text-uppercase mb-2">{{t $lang "Style"}}</p>
                         <div class="btn-group w-100 mb-4 offcanvas-style-btn-group" role="group" aria-label='{{t $lang "Style"}}'>
-                            <button type="button" class="btn btn-outline-secondary py-2 active"
-                                data-bs-theme-value="light" aria-pressed="true"
-                                aria-label='{{t $lang "Light"}}'>
-                                <i class="bi bi-sun-fill fs-5" aria-hidden="true"></i>
+                            <button type="button" class="btn btn-outline-secondary py-2 px-1 active d-flex align-items-center justify-content-center gap-1"
+                                data-bs-theme-value="light" aria-pressed="true">
+                                <i class="bi bi-sun-fill fs-6 flex-shrink-0" aria-hidden="true"></i>
+                                <span class="text-truncate min-w-0 flex-shrink-1">{{t $lang "Light"}}</span>
                             </button>
-                            <button type="button" class="btn btn-outline-secondary py-2"
-                                data-bs-theme-value="dark" aria-pressed="false"
-                                aria-label='{{t $lang "Dark"}}'>
-                                <i class="bi bi-moon-stars-fill fs-5" aria-hidden="true"></i>
+                            <button type="button" class="btn btn-outline-secondary py-2 px-1 d-flex align-items-center justify-content-center gap-1"
+                                data-bs-theme-value="dark" aria-pressed="false">
+                                <i class="bi bi-moon-stars-fill fs-6 flex-shrink-0" aria-hidden="true"></i>
+                                <span class="text-truncate min-w-0 flex-shrink-1">{{t $lang "Dark"}}</span>
                             </button>
-                            <button type="button" class="btn btn-outline-secondary py-2"
-                                data-bs-theme-value="auto" aria-pressed="false"
-                                aria-label='{{t $lang "Auto"}}'>
-                                <i class="bi bi-circle-half fs-5" aria-hidden="true"></i>
+                            <button type="button" class="btn btn-outline-secondary py-2 px-1 d-flex align-items-center justify-content-center gap-1"
+                                data-bs-theme-value="auto" aria-pressed="false">
+                                <i class="bi bi-circle-half fs-6 flex-shrink-0" aria-hidden="true"></i>
+                                <span class="text-truncate min-w-0 flex-shrink-1">{{t $lang "System"}}</span>
                             </button>
                         </div>
                         {{if and (.Session) (ne .Session.Name "")}}
