@@ -5,18 +5,14 @@ import { Overlayer } from './foliate-js/overlayer.js'
 import { ReaderSync } from './reader-sync.js'
 import { ReaderToast } from './reader-toast.js'
 
-/** Sidebar and error-state links: primary click uses browser history. */
-function attachReaderHistoryBackLinks() {
-    for (const a of document.querySelectorAll('a[data-reader-history-back]')) {
-        a.addEventListener('click', e => {
-            if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
-                return
-            }
-            e.preventDefault()
-            window.history.back()
-        })
+document.addEventListener('click', e => {
+    const a = e.target.closest?.('a[data-reader-history-back]')
+    if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
+        return
     }
-}
+    e.preventDefault()
+    window.history.back()
+})
 
 const getCSS = ({ spacing, justify, hyphenate, theme, fontSize, fontFamily }) => `
     @namespace epub "http://www.idpf.org/2007/ops";
@@ -272,8 +268,6 @@ class Reader {
 
         // Load translations
         this.translations = JSON.parse(document.getElementById('i18n').textContent).i18n
-
-        attachReaderHistoryBackLinks()
 
         // Initialize toast
         this.#toast = new ReaderToast()
