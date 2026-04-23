@@ -20,40 +20,42 @@ import (
 type ComicInfo struct {
 	XMLName xml.Name `xml:"ComicInfo"`
 
-	Title    string `xml:"Title"`
-	Series   string `xml:"Series"`
-	Number   string `xml:"Number"`
-	Count    int    `xml:"Count"`
-	Volume   int    `xml:"Volume"`
-	Summary  string `xml:"Summary"`
-	Notes    string `xml:"Notes"`
+	Title   string `xml:"Title"`
+	Series  string `xml:"Series"`
+	Number  string `xml:"Number"`
+	Count   int    `xml:"Count"`
+	Volume  int    `xml:"Volume"`
+	Summary string `xml:"Summary"`
+	Notes   string `xml:"Notes"`
 
 	Year  int `xml:"Year"`
 	Month int `xml:"Month"`
 	Day   int `xml:"Day"`
 
-	Writer       string `xml:"Writer"`
-	Penciller    string `xml:"Penciller"`
-	Inker        string `xml:"Inker"`
-	Colorist     string `xml:"Colorist"`
-	Letterer     string `xml:"Letterer"`
-	CoverArtist  string `xml:"CoverArtist"`
-	Editor       string `xml:"Editor"`
-	Publisher    string `xml:"Publisher"`
-	Imprint      string `xml:"Imprint"`
-	Genre        string `xml:"Genre"`
-	Web          string `xml:"Web"`
-	PageCount    int    `xml:"PageCount"`
-	LanguageISO  string `xml:"LanguageISO"`
-	Format       string `xml:"Format"`
-	Characters   string `xml:"Characters"`
-	Teams        string `xml:"Teams"`
-	Locations    string `xml:"Locations"`
-	StoryArc     string `xml:"StoryArc"`
-	SeriesGroup  string `xml:"SeriesGroup"`
-	ScanInfo     string `xml:"ScanInformation"`
-	AgeRating    string `xml:"AgeRating"`
-	Review       string `xml:"Review"`
+	Writer      string `xml:"Writer"`
+	Penciller   string `xml:"Penciller"`
+	Inker       string `xml:"Inker"`
+	Colorist    string `xml:"Colorist"`
+	Letterer    string `xml:"Letterer"`
+	CoverArtist string `xml:"CoverArtist"`
+	// Illustrator is used by some tools alongside or instead of Penciller/Inker.
+	Illustrator string `xml:"Illustrator"`
+	Editor      string `xml:"Editor"`
+	Publisher   string `xml:"Publisher"`
+	Imprint     string `xml:"Imprint"`
+	Genre       string `xml:"Genre"`
+	Web         string `xml:"Web"`
+	PageCount   int    `xml:"PageCount"`
+	LanguageISO string `xml:"LanguageISO"`
+	Format      string `xml:"Format"`
+	Characters  string `xml:"Characters"`
+	Teams       string `xml:"Teams"`
+	Locations   string `xml:"Locations"`
+	StoryArc    string `xml:"StoryArc"`
+	SeriesGroup string `xml:"SeriesGroup"`
+	ScanInfo    string `xml:"ScanInformation"`
+	AgeRating   string `xml:"AgeRating"`
+	Review      string `xml:"Review"`
 
 	Pages *ComicPages `xml:"Pages"`
 }
@@ -91,11 +93,13 @@ func (c CbzReader) Metadata(file string) (Metadata, error) {
 	}
 
 	authors := []string{""}
+	var illustrators []string
 	if info != nil {
 		authors = collectComicAuthors(info)
 		if len(authors) == 0 {
 			authors = []string{""}
 		}
+		illustrators = collectComicIllustrators(info)
 	}
 
 	description := ""
@@ -156,6 +160,7 @@ func (c CbzReader) Metadata(file string) (Metadata, error) {
 	bk = Metadata{
 		Title:         title,
 		Authors:       authors,
+		Illustrators:  illustrators,
 		Description:   template.HTML(description),
 		Language:      lang,
 		Publication:   publication,
@@ -289,12 +294,27 @@ func readComicInfoFromZip(r *zip.ReadCloser) (*ComicInfo, error) {
 	return &info, nil
 }
 
+// collectComicAuthors returns writing and editorial credits (ComicInfo Writer, Editor).
 func collectComicAuthors(info *ComicInfo) []string {
+	return uniqueComicNames(info.Writer, info.Editor)
+}
+
+// collectComicIllustrators returns art credits from ComicInfo: penciller, inker,
+// colorist, letterer, cover artist, and optional Illustrator element.
+func collectComicIllustrators(info *ComicInfo) []string {
+	return uniqueComicNames(
+		info.Penciller,
+		info.Inker,
+		info.Colorist,
+		info.Letterer,
+		info.CoverArtist,
+		info.Illustrator,
+	)
+}
+
+func uniqueComicNames(fields ...string) []string {
 	var combined []string
-	for _, s := range []string{
-		info.Writer, info.Penciller, info.Inker, info.CoverArtist,
-		info.Colorist, info.Letterer, info.Editor,
-	} {
+	for _, s := range fields {
 		combined = append(combined, ParseAuthorList(s)...)
 	}
 	seen := make(map[string]struct{})
@@ -311,4 +331,3 @@ func collectComicAuthors(info *ComicInfo) []string {
 	}
 	return out
 }
-
