@@ -92,10 +92,29 @@ func TestUserInvitation(t *testing.T) {
 		mustReturnStatus(response, fiber.StatusForbidden, t)
 	})
 
-	t.Run("Access invite form as admin", func(t *testing.T) {
+	t.Run("GET /users/invite redirects to user list", func(t *testing.T) {
 		reset()
 
 		response, err := getRequest(adminCookie, app, "/users/invite", t)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		switch response.StatusCode {
+		case fiber.StatusMovedPermanently, fiber.StatusFound, fiber.StatusSeeOther, fiber.StatusTemporaryRedirect, fiber.StatusPermanentRedirect:
+		default:
+			t.Errorf("Expected redirect status (3xx), got %d", response.StatusCode)
+		}
+		loc := response.Header.Get("Location")
+		if loc != "/users" {
+			t.Errorf("Expected redirect to /users, got %q", loc)
+		}
+	})
+
+	t.Run("Access invite form as admin", func(t *testing.T) {
+		reset()
+
+		response, err := getRequest(adminCookie, app, "/users", t)
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
@@ -107,14 +126,12 @@ func TestUserInvitation(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Check form exists
-		if doc.Find("form[action='/users/invite']").Length() == 0 {
-			t.Error("Expected invitation form not found")
+		if doc.Find("#inviteUserModal form[action='/users/invite']").Length() == 0 {
+			t.Error("Expected invitation form inside modal not found")
 		}
 
-		// Check email input exists
-		if doc.Find("input[name='email']").Length() == 0 {
-			t.Error("Expected email input not found")
+		if doc.Find("#inviteUserModal textarea[name='email']").Length() == 0 {
+			t.Error("Expected email textarea not found")
 		}
 	})
 
@@ -185,9 +202,9 @@ func TestUserInvitation(t *testing.T) {
 		}
 
 		// Check that the invite button exists but is disabled
-		disabledButton := doc.Find("button:contains('Invite user')[disabled]")
+		disabledButton := doc.Find("button:contains('Invite users')[disabled]")
 		if disabledButton.Length() == 0 {
-			t.Error("Expected disabled 'Invite user' button not found")
+			t.Error("Expected disabled 'Invite users' button not found")
 		}
 
 		// Check that the disabled button is wrapped in a span with a title tooltip
@@ -196,10 +213,10 @@ func TestUserInvitation(t *testing.T) {
 			t.Error("Expected tooltip span with 'Email server not configured' message not found")
 		}
 
-		// Check that there is NO link to /users/invite (only the disabled button)
-		inviteLink := doc.Find("a[href='/users/invite']")
-		if inviteLink.Length() > 0 {
-			t.Error("Expected no active link to /users/invite when email is not configured")
+		// Check that there is NO control that opens the invite modal (only the disabled button)
+		inviteOpen := doc.Find(`button[data-bs-target="#inviteUserModal"]`)
+		if inviteOpen.Length() > 0 {
+			t.Error("Expected no invite modal trigger when email is not configured")
 		}
 	})
 
@@ -219,14 +236,12 @@ func TestUserInvitation(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		// Check that the invite link exists
-		inviteLink := doc.Find("a[href='/users/invite']:contains('Invite user')")
-		if inviteLink.Length() == 0 {
-			t.Error("Expected active 'Invite user' link not found")
+		inviteBtn := doc.Find(`button[data-bs-target="#inviteUserModal"]:contains('Invite users')`)
+		if inviteBtn.Length() == 0 {
+			t.Error("Expected active 'Invite users' modal trigger not found")
 		}
 
-		// Check that there is NO disabled button (only the link)
-		disabledButton := doc.Find("button:contains('Invite user')[disabled]")
+		disabledButton := doc.Find("button:contains('Invite users')[disabled]")
 		if disabledButton.Length() > 0 {
 			t.Error("Expected no disabled button when email is configured")
 		}
@@ -276,6 +291,35 @@ func TestUserInvitation(t *testing.T) {
 		}
 	})
 
+	t.Run("Send comma-separated invitations successfully", func(t *testing.T) {
+		reset()
+
+		inviteData := url.Values{
+			"email": {"alpha@example.com, beta@example.com"},
+		}
+
+		smtpMock.Wg.Add(2)
+		response, err := postRequest(inviteData, adminCookie, app, "/users/invite", t)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		smtpMock.Wg.Wait()
+
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected redirect status, got %d", response.StatusCode)
+		}
+
+		var n int64
+		db.Model(&model.Invitation{}).Where("email IN ?", []string{"alpha@example.com", "beta@example.com"}).Count(&n)
+		if n != 2 {
+			t.Errorf("Expected 2 invitations, got %d", n)
+		}
+
+		if !smtpMock.CalledSend() {
+			t.Error("Expected email to be sent")
+		}
+	})
+
 	t.Run("Send invitation with invalid email", func(t *testing.T) {
 		reset()
 
@@ -289,7 +333,7 @@ func TestUserInvitation(t *testing.T) {
 		}
 
 		expectedErrorMessages := []string{
-			"Incorrect email address",
+			"Incorrect email address: invalid-email",
 		}
 
 		checkErrorMessages(response, t, expectedErrorMessages)
@@ -308,7 +352,7 @@ func TestUserInvitation(t *testing.T) {
 		}
 
 		expectedErrorMessages := []string{
-			"A user with this email already exists",
+			"A user with this email already exists: admin@example.com",
 		}
 
 		checkErrorMessages(response, t, expectedErrorMessages)

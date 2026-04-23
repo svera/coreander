@@ -1,0 +1,28 @@
+<div class="modal fade" id="inviteUserModal" tabindex="-1" aria-labelledby="inviteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="/users/invite" autocomplete="off">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="inviteUserModalLabel">{{t .Lang "Invite users"}}</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label='{{t .Lang "Close"}}'></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="invite-email" class="form-label">{{t .Lang "Email addresses"}}</label>
+                        <textarea name="email" id="invite-email" class='form-control {{if ne (index .InviteFormErrors "email") ""}}is-invalid{{end}}' required="required" maxlength="{{if .InviteEmailListMaxLength}}{{.InviteEmailListMaxLength}}{{else}}2000{{end}}" rows="4" placeholder="one@example.com, other@example.com">{{.InviteFormEmail}}</textarea>
+                        <div class="form-text">{{t .Lang "Separate multiple email addresses with commas."}}</div>
+                        {{if ne (index .InviteFormErrors "email") ""}}
+                        <div class="invalid-feedback d-block">
+                            {{index .InviteFormErrors "email"}}
+                        </div>
+                        {{end}}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{t .Lang "Cancel"}}</button>
+                    <button type="submit" class="btn btn-primary">{{t .Lang "Send invitation"}}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

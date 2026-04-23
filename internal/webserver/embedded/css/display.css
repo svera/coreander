@@ -1,9 +1,19 @@
+/* Scroll on `body`, not `html`: Bootstrap modals set `overflow: hidden` on `body` and add
+   padding for the scrollbar width. If the scrollbar actually lives on `html`, that padding
+   stays while the bar remains — content jumps left. With `html` locked and `body` scrolling,
+   the bar disappears with body overflow and the padding matches. */
+html {
+    height: 100%;
+    overflow: hidden;
+}
+
 html,
 body {
     height: 100%;
 }
 
 body {
+    overflow-y: auto;
     align-items: center;
     padding-bottom: 40px;
 }

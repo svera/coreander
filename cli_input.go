@@ -62,4 +62,8 @@ type CLIInput struct {
 	ShareCommentMaxSize int `env:"SHARE_COMMENT_MAX_SIZE" short:"m" default:"280" name:"share-comment-max-size" help:"Maximum length for share comments in characters. Defaults to 280."`
 	// ShareMaxRecipients defines the maximum number of recipients allowed when sharing a document. Defaults to 10.
 	ShareMaxRecipients int `env:"SHARE_MAX_RECIPIENTS" default:"10" name:"share-max-recipients" help:"Maximum number of recipients allowed when sharing a document. Defaults to 10."`
+	// InviteEmailListMaxLength is the maximum length (in bytes) of the comma-separated invite email field. Defaults to 2000.
+	InviteEmailListMaxLength int `env:"INVITE_EMAIL_LIST_MAX_LENGTH" default:"2000" name:"invite-email-list-max-length" help:"Maximum length in bytes of the invitation email list field. Defaults to 2000."`
+	// InviteMaxRecipients is the maximum number of distinct addresses per invitation submit. Defaults to 50.
+	InviteMaxRecipients int `env:"INVITE_MAX_RECIPIENTS" default:"50" name:"invite-max-recipients" help:"Maximum number of distinct email addresses per invitation form submit. Defaults to 50."`
 }

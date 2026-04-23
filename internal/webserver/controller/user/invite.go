@@ -14,82 +14,83 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
-// InviteForm shows the invitation form
+// InviteForm redirects to the user list (legacy /users/invite URL; invite opens from the list via modal).
 func (u *Controller) InviteForm(c fiber.Ctx) error {
 	if _, ok := u.sender.(*infrastructure.NoEmail); ok {
 		return fiber.ErrNotFound
 	}
-
-	return c.Render("user/invite-form", fiber.Map{
-		"Title":  "Invite user",
-		"Errors": map[string]string{},
-	}, "layout")
+	return c.Redirect().To("/users")
 }
 
-// SendInvite sends an invitation email to the specified address
+// SendInvite sends invitation emails to one or more addresses (comma-separated).
 func (u *Controller) SendInvite(c fiber.Ctx) error {
 	if _, ok := u.sender.(*infrastructure.NoEmail); ok {
 		return fiber.ErrNotFound
 	}
 
-	email := c.FormValue("email")
+	raw := c.FormValue("email")
 	lang := c.Locals("Lang").(string)
 
-	errs, err := u.validateInviteEmail(email, lang)
+	errs, err := u.validateAndPrepareInviteEmails(raw, lang)
 	if err != nil {
 		return err
 	}
 
 	if len(errs) > 0 {
-		return c.Render("user/invite-form", fiber.Map{
-			"Title":  "Invite user",
-			"Email":  email,
-			"Errors": errs,
-		}, "layout")
+		vars := u.buildUserListVars(c, 1, "")
+		vars["InviteFormEmail"] = raw
+		vars["InviteFormErrors"] = errs
+		vars["InviteFormOpen"] = true
+		return c.Render("user/list", vars, "layout")
 	}
 
-	// Create invitation
-	invitation := &model.Invitation{
-		Email:      email,
-		UUID:       uuid.NewString(),
-		ValidUntil: time.Now().UTC().Add(u.config.InvitationTimeout),
-	}
+	addresses := parseCommaSeparatedInviteEmails(raw)
 
-	if err := u.invitationsRepository.Create(invitation); err != nil {
-		log.Printf("error creating invitation: %v\n", err)
-		return fiber.ErrInternalServerError
-	}
-
-	// Send invitation email
 	fqdn := u.config.FQDN
-	// Ensure FQDN has a protocol
 	if !strings.HasPrefix(fqdn, "http://") && !strings.HasPrefix(fqdn, "https://") {
 		fqdn = "http://" + fqdn
 	}
 
-	invitationLink := fmt.Sprintf(
-		"%s/invite?id=%s",
-		fqdn,
-		invitation.UUID,
-	)
+	subject := u.translator.T(lang, "You've been invited to join Coreander")
 
-	c.Render("user/invitation-email", fiber.Map{
-		"InvitationLink":    invitationLink,
-		"InvitationTimeout": strconv.FormatFloat(u.config.InvitationTimeout.Hours(), 'f', -1, 64),
-	})
+	for _, email := range addresses {
+		if err := u.invitationsRepository.DeleteByEmail(email); err != nil {
+			log.Printf("error deleting old invitation: %v\n", err)
+			return fiber.ErrInternalServerError
+		}
 
-	if err := u.sender.Send(
-		email,
-		u.translator.T(c.Locals("Lang").(string), "You've been invited to join Coreander"),
-		string(c.Response().Body()),
-	); err != nil {
-		log.Printf("error sending invitation email: %v\n", err)
-		return fiber.ErrInternalServerError
+		invitation := &model.Invitation{
+			Email:      email,
+			UUID:       uuid.NewString(),
+			ValidUntil: time.Now().UTC().Add(u.config.InvitationTimeout),
+		}
+		if err := u.invitationsRepository.Create(invitation); err != nil {
+			log.Printf("error creating invitation: %v\n", err)
+			return fiber.ErrInternalServerError
+		}
+
+		invitationLink := fmt.Sprintf("%s/invite?id=%s", fqdn, invitation.UUID)
+		c.Render("user/invitation-email", fiber.Map{
+			"InvitationLink":    invitationLink,
+			"InvitationTimeout": strconv.FormatFloat(u.config.InvitationTimeout.Hours(), 'f', -1, 64),
+		})
+
+		if err := u.sender.Send(email, subject, string(c.Response().Body())); err != nil {
+			log.Printf("error sending invitation email: %v\n", err)
+			return fiber.ErrInternalServerError
+		}
+	}
+
+	var successMsg string
+	if len(addresses) == 1 {
+		successMsg = u.translator.T(lang, "Invitation sent successfully to %s", addresses[0])
+	} else {
+		successMsg = u.translator.T(lang, "%d invitations sent successfully", len(addresses))
 	}
 
 	c.Cookie(&fiber.Cookie{
 		Name:    "success-once",
-		Value:   u.translator.T(lang, "Invitation sent successfully to %s", email),
+		Value:   successMsg,
 		Expires: time.Now().Add(24 * time.Hour),
 	})
 
@@ -212,34 +213,76 @@ func (u *Controller) validateInvitation(invitationUUID string) (*model.Invitatio
 	return nil, fiber.NewError(fiber.StatusBadRequest, "This invitation has expired")
 }
 
-func (u *Controller) validateInviteEmail(email, lang string) (map[string]string, error) {
-	errs := map[string]string{}
+func parseCommaSeparatedInviteEmails(raw string) []string {
+	parts := strings.Split(raw, ",")
+	seen := make(map[string]struct{})
+	var out []string
+	for _, p := range parts {
+		e := strings.TrimSpace(p)
+		if e == "" {
+			continue
+		}
+		key := strings.ToLower(e)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, e)
+	}
+	return out
+}
 
-	// Validate email format
+func (u *Controller) validateInviteCandidate(email, lang string) (string, error) {
 	if _, err := mail.ParseAddress(email); err != nil {
-		errs["email"] = u.translator.T(lang, "Incorrect email address")
+		return u.translator.T(lang, "Incorrect email address: %s", email), nil
 	}
-
-	// Validate email length
 	if len(email) > 100 {
-		errs["email"] = u.translator.T(lang, "Email cannot be longer than 100 characters")
+		return u.translator.T(lang, "Email cannot be longer than 100 characters: %s", email), nil
 	}
-
-	// Check if user already exists
 	existingUser, err := u.usersRepository.FindByEmail(email)
 	if err != nil {
 		log.Printf("error checking for existing user: %v\n", err)
-		return nil, fiber.ErrInternalServerError
+		return "", err
 	}
 	if existingUser != nil {
-		errs["email"] = u.translator.T(lang, "A user with this email already exists")
+		return u.translator.T(lang, "A user with this email already exists: %s", email), nil
+	}
+	return "", nil
+}
+
+func (u *Controller) validateAndPrepareInviteEmails(raw, lang string) (map[string]string, error) {
+	errs := map[string]string{}
+
+	maxList := u.config.InviteEmailListMaxLength
+	maxRec := u.config.InviteMaxRecipients
+
+	if len(raw) > maxList {
+		errs["email"] = u.translator.T(lang, "Invitation list is too long (maximum %d characters)", maxList)
+		return errs, nil
 	}
 
-	// Delete any existing invitation for this email before creating a new one
-	if err := u.invitationsRepository.DeleteByEmail(email); err != nil {
-		log.Printf("error deleting old invitation: %v\n", err)
-		return nil, fiber.ErrInternalServerError
+	addresses := parseCommaSeparatedInviteEmails(raw)
+	if len(addresses) == 0 {
+		errs["email"] = u.translator.T(lang, "Enter at least one email address")
+		return errs, nil
+	}
+	if len(addresses) > maxRec {
+		errs["email"] = u.translator.T(lang, "Too many email addresses (maximum %d)", maxRec)
+		return errs, nil
 	}
 
+	var problems []string
+	for _, email := range addresses {
+		msg, err := u.validateInviteCandidate(email, lang)
+		if err != nil {
+			return nil, err
+		}
+		if msg != "" {
+			problems = append(problems, msg)
+		}
+	}
+	if len(problems) > 0 {
+		errs["email"] = strings.Join(problems, " ")
+	}
 	return errs, nil
 }

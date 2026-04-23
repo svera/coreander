@@ -5,15 +5,15 @@
     <div class="col-12 col-md-6 text-md-end">
         <div class="d-grid gap-2 d-md-inline-flex justify-content-md-end">
             {{if .EmailConfigured}}
-            <a href="/users/invite" class="btn btn-secondary">
+            <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#inviteUserModal">
                 <i class="bi-envelope-fill"></i>
-                {{t .Lang "Invite user"}}
-            </a>
+                {{t .Lang "Invite users"}}
+            </button>
             {{else}}
             <span class="d-inline-block" tabindex="0" title="{{t .Lang "Email server not configured"}}">
                 <button class="btn btn-secondary w-100" disabled style="pointer-events: none;">
                     <i class="bi-envelope-fill"></i>
-                    {{t .Lang "Invite user"}}
+                    {{t .Lang "Invite users"}}
                 </button>
             </span>
             {{end}}
