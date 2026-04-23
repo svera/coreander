@@ -30,9 +30,6 @@
         {{template "partials/main" dict "Lang" .Lang "RemainingIndexingTime" .RemainingIndexingTime "IndexingProgressPercentage" .IndexingProgressPercentage "Error" .Error "Warning" .Warning "Success" .Success "Embed" .Embed}}
     </main>
     {{template "partials/share-modal" .}}
-    {{if .EmailConfigured}}
-    {{template "partials/user-invite-modal" .}}
-    {{end}}
     <footer class="footer mt-auto py-5">
         <div class="container">
             <span class="text-muted"><small>{{t .Lang "Made with words by Sergio Vera"}} - <a
@@ -41,16 +38,6 @@
         </div>
     </footer>
     <script src="/js/bootstrap.bundle.min.js{{versionParam .Version}}"></script>
-    {{if and .EmailConfigured .InviteFormOpen}}
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var el = document.getElementById('inviteUserModal');
-        if (el && window.bootstrap && bootstrap.Modal) {
-            bootstrap.Modal.getOrCreateInstance(el).show();
-        }
-    });
-    </script>
-    {{end}}
     <script src="/js/htmx.min.js{{versionParam .Version}}"></script>
     <script>
     function initReadingTimePopovers() {

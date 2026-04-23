@@ -14,14 +14,6 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
-// InviteForm redirects to the user list (legacy /users/invite URL; invite opens from the list via modal).
-func (u *Controller) InviteForm(c fiber.Ctx) error {
-	if _, ok := u.sender.(*infrastructure.NoEmail); ok {
-		return fiber.ErrNotFound
-	}
-	return c.Redirect().To("/users")
-}
-
 // SendInvite sends invitation emails to one or more addresses (comma-separated).
 func (u *Controller) SendInvite(c fiber.Ctx) error {
 	if _, ok := u.sender.(*infrastructure.NoEmail); ok {

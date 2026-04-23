@@ -81,7 +81,7 @@ func TestUserInvitation(t *testing.T) {
 		mustReturnForbiddenAndShowLogin(response, t)
 	})
 
-	t.Run("Try to access invite form as regular user", func(t *testing.T) {
+	t.Run("Try to access invite path as regular user", func(t *testing.T) {
 		reset()
 
 		response, err := getRequest(regularCookie, app, "/users/invite", t)
@@ -89,26 +89,8 @@ func TestUserInvitation(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		mustReturnStatus(response, fiber.StatusForbidden, t)
-	})
-
-	t.Run("GET /users/invite redirects to user list", func(t *testing.T) {
-		reset()
-
-		response, err := getRequest(adminCookie, app, "/users/invite", t)
-		if response == nil {
-			t.Fatalf("Unexpected error: %v", err.Error())
-		}
-
-		switch response.StatusCode {
-		case fiber.StatusMovedPermanently, fiber.StatusFound, fiber.StatusSeeOther, fiber.StatusTemporaryRedirect, fiber.StatusPermanentRedirect:
-		default:
-			t.Errorf("Expected redirect status (3xx), got %d", response.StatusCode)
-		}
-		loc := response.Header.Get("Location")
-		if loc != "/users" {
-			t.Errorf("Expected redirect to /users, got %q", loc)
-		}
+		// GET /users/invite is not a dedicated route; it falls through to /users/:username.
+		mustReturnStatus(response, fiber.StatusNotFound, t)
 	})
 
 	t.Run("Access invite form as admin", func(t *testing.T) {

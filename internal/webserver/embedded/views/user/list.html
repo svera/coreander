@@ -81,7 +81,20 @@
     {{end}}
 </div>
 
+{{if .EmailConfigured}}
+{{template "partials/user-invite-modal" .}}
+{{end}}
 {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/users" "ModalHeader" "Delete user" "ModalBody" "Are you sure you want to delete this user?" "ModalErrorMessage" "There was an error deleting the user, please try again later"}}
 
+{{if and .EmailConfigured .InviteFormOpen}}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var el = document.getElementById('inviteUserModal');
+    if (el && window.bootstrap && bootstrap.Modal) {
+        bootstrap.Modal.getOrCreateInstance(el).show();
+    }
+});
+</script>
+{{end}}
 <script type="module" src="/js/delete.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/datetime.js{{versionParam .Version}}"></script>

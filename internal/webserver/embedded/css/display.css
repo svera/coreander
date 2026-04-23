@@ -7,19 +7,14 @@ html {
     overflow: hidden;
 }
 
-html,
 body {
     height: 100%;
-}
-
-body {
     overflow-y: auto;
     align-items: center;
     padding-bottom: 40px;
 }
 
 main {
-    padding-top: 40px;
     width: 100%;
     padding: 15px;
 }
@@ -221,10 +216,7 @@ main .form-control:focus {
     display: none;
 }
 
-.htmx-request .spinner-border {
-    display: inline-block;
-}
-
+.htmx-request .spinner-border,
 .htmx-request.spinner-border {
     display: inline-block;
 }
@@ -237,10 +229,7 @@ main .form-control:focus {
     display: none;
 }
 
-.htmx-request .list-group-placeholder {
-    display: inline-block;
-}
-
+.htmx-request .list-group-placeholder,
 .htmx-request.list-group-placeholder {
     display: inline-block;
 }
