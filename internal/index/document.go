@@ -22,12 +22,13 @@ type SearchFields struct {
 
 type Document struct {
 	metadata.Metadata
-	ID            string
-	Slug          string
-	AuthorsSlugs  []string
-	SeriesSlug    string
-	SubjectsSlugs []string
-	AddedOn       time.Time
+	ID                string
+	Slug              string
+	AuthorsSlugs      []string
+	IllustratorsSlugs []string
+	SeriesSlug        string
+	SubjectsSlugs     []string
+	AddedOn           time.Time
 }
 
 // BleveType is part of the bleve.Classifier interface and its purpose is to tell the indexer

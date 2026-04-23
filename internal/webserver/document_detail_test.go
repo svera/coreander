@@ -23,9 +23,9 @@ func TestDocumentDetail(t *testing.T) {
 		url            string
 		expectedStatus int
 	}{
-		{"/documents/miguel-cervantes-y-saavedra-don-quijote-la-mancha", http.StatusOK},
-		{"/documents/miguel-cervantes-y-saavedra-don-quijote-la-mancha--2", http.StatusOK},
-		{"/documents/miguel-cervantes-y-saavedra-don-quijote-la-mancha--3", http.StatusOK},
+		{"/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
+		{"/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha--2", http.StatusOK},
+		{"/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha--3", http.StatusOK},
 		{"/documents/john-doe-non-existing-document", http.StatusNotFound},
 	}
 
@@ -61,7 +61,7 @@ func TestDocumentReadAndDeleteDocumentAfterwards(t *testing.T) {
 		url            string
 		expectedStatus int
 	}{
-		{"/documents/miguel-cervantes-y-saavedra-don-quijote-la-mancha", http.StatusOK},
+		{"/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", http.StatusOK},
 		{"/documents/john-doe-non-existing-document", http.StatusNotFound},
 	}
 
@@ -101,7 +101,7 @@ func TestDocumentReadAndDeleteDocumentAfterwards(t *testing.T) {
 			}
 
 			var total int64
-			if db.Table("readings").Where("slug = ?", "miguel-cervantes-y-saavedra-don-quijote-la-mancha").Count(&total); total != 0 {
+			if db.Table("readings").Where("slug = ?", "miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha").Count(&total); total != 0 {
 				t.Errorf("Expected no entries in DB readings table for document, got %d", total)
 			}
 		})
@@ -128,7 +128,7 @@ func TestDocumentReadAndDeleteUserAfterwards(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}
 
-	req, err := http.NewRequest(http.MethodGet, "/documents/miguel-cervantes-y-saavedra-don-quijote-la-mancha/read", nil)
+	req, err := http.NewRequest(http.MethodGet, "/documents/miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha/read", nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err.Error())
 	}

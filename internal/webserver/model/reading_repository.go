@@ -15,7 +15,7 @@ import (
 )
 
 type ReadingRepository struct {
-	DB        *gorm.DB
+	DB  *gorm.DB
 	Idx idxReader
 }
 

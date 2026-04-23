@@ -17,14 +17,14 @@ import (
 )
 
 type Controllers struct {
-	Auth        *auth.Controller
-	Users       *user.Controller
-	Completed   *completed.Controller
-	Highlights  *highlight.Controller
-	Documents   *document.Controller
-	Home        *home.Controller
-	Authors     *author.Controller
-	Series      *series.Controller
+	Auth       *auth.Controller
+	Users      *user.Controller
+	Completed  *completed.Controller
+	Highlights *highlight.Controller
+	Documents  *document.Controller
+	Home       *home.Controller
+	Authors    *author.Controller
+	Series     *series.Controller
 }
 
 func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {

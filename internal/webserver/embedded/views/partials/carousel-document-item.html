@@ -7,19 +7,28 @@
                 </p>
             {{end}}
 
-            <h4 class="text-start">
+            <h3 class="text-start">
                 <a href="/documents/{{.Document.Slug}}">{{.Document.Title}}</a>
-            </h4>
+            </h3>
 
             {{if .Document.Authors}}
-            <h5>
+            <p class="fs-5 mb-0">
                 {{range $i, $author := .Document.Authors}}
                 {{$authorTitle := t $.Lang "Search for more titles by %s" $author}}
                 <a href="/authors/{{index $.Document.AuthorsSlugs $i}}" title={{$authorTitle}}>{{$author}}</a>{{if notLast $.Document.Authors $i}}, {{end}}
                 {{end}}
-            </h5>
+            </p>
             {{else}}
-                <h5>{{t .Lang "Unknown author"}}</h5>
+                <p class="fs-5 mb-0">{{t .Lang "Unknown author"}}</p>
+            {{end}}
+            {{if .Document.Illustrators}}
+            <p class="fs-5">
+                <span class="text-muted">{{t .Lang "Illustrations"}}:</span>
+                {{range $i, $ill := .Document.Illustrators}}
+                {{$illTitle := t $.Lang "Search for more titles by %s" $ill}}
+                <a href="/authors/{{slugify $ill}}" title={{$illTitle}}>{{$ill}}</a>{{if notLast $.Document.Illustrators $i}}, {{end}}
+                {{end}}
+            </p>
             {{end}}
             <div class="mt-5 d-none {{if .ShowClasses}}d-md-block{{end}} d-lg-block">
                 <div class="clamp">{{.Document.Description}}</div>

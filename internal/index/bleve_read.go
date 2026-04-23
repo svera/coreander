@@ -61,7 +61,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 	filtersQuery := bleve.NewConjunctionQuery()
 
 	if searchFields.Keywords != "" {
-		for _, prefix := range []string{"Authors:", "Series:", "Title:", "Subjects:", "\""} {
+		for _, prefix := range []string{"Authors:", "Illustrators:", "Series:", "Title:", "Subjects:", "\""} {
 			if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
 				query := bleve.NewQueryStringQuery(searchFields.Keywords)
 				filtersQuery.AddQuery(query)
@@ -71,7 +71,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			}
 		}
 
-		for _, prefix := range []string{"AuthorsSlugs:", "SeriesSlug:"} {
+		for _, prefix := range []string{"AuthorsSlugs:", "IllustratorsSlugs:", "SeriesSlug:"} {
 			unescaped, err := url.QueryUnescape(strings.TrimSpace(searchFields.Keywords))
 			if err != nil {
 				break
@@ -195,19 +195,16 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 		qt.Analyzer = noStopWordsAnalyzer
 		qt.SetField("Title")
 		qt.Operator = query.MatchQueryOperatorAnd
-		qt.SetFuzziness(1)
 
 		qs := bleve.NewMatchQuery(keywords)
 		qs.Analyzer = noStopWordsAnalyzer
 		qs.SetField("Series")
 		qs.Operator = query.MatchQueryOperatorAnd
-		qs.SetFuzziness(1)
 
 		qd := bleve.NewMatchQuery(keywords)
 		qd.Analyzer = analyzer
 		qd.SetField("Description")
 		qd.Operator = query.MatchQueryOperatorAnd
-		qd.SetFuzziness(1)
 
 		langCompoundQuery.AddQuery(qt, qs, qd)
 
@@ -215,7 +212,6 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 		orTitleQuery.SetField("Title")
 		orTitleQuery.Operator = query.MatchQueryOperatorOr
 		orTitleQuery.Analyzer = analyzer
-		orTitleQuery.SetFuzziness(1)
 
 		allLangsOrTitleQuery.AddQuery(orTitleQuery)
 	}
@@ -224,17 +220,20 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	qa.SetField("Authors")
 	qa.Operator = query.MatchQueryOperatorAnd
 	qa.Analyzer = defaultAnalyzer
-	qa.SetFuzziness(1)
+
+	qi := bleve.NewMatchQuery(keywords)
+	qi.SetField("Illustrators")
+	qi.Operator = query.MatchQueryOperatorAnd
+	qi.Analyzer = defaultAnalyzer
 
 	orAuthorQuery := bleve.NewMatchQuery(keywords)
 	orAuthorQuery.SetField("Authors")
 	orAuthorQuery.Operator = query.MatchQueryOperatorOr
 	orAuthorQuery.Analyzer = defaultAnalyzer
-	orAuthorQuery.SetFuzziness(1)
 
 	authorTitleQuery.AddQuery(orAuthorQuery, allLangsOrTitleQuery)
 
-	return bleve.NewDisjunctionQuery(qa, langCompoundQuery, authorTitleQuery)
+	return bleve.NewDisjunctionQuery(qa, qi, langCompoundQuery, authorTitleQuery)
 }
 
 func (b *BleveIndexer) runQuery(query query.Query, results int, sortBy []string) ([]Document, error) {
@@ -359,25 +358,6 @@ func (b *BleveIndexer) Cover(slug string, coverMaxWidth int) ([]byte, error) {
 		return nil, errors.New("unsupported document type for cover")
 	}
 	return reader.Cover(fullPath, coverMaxWidth)
-}
-
-// @deprecated Remove after migration
-func (b *BleveIndexer) DocumentByID(ID string) (Document, error) {
-	query := bleve.NewDocIDQuery([]string{ID})
-
-	searchOptions := bleve.NewSearchRequest(query)
-	searchOptions.Fields = []string{"*"}
-	searchOptions.Size = 1
-	searchResult, err := b.documentsIdx.Search(searchOptions)
-	if err != nil {
-		return Document{}, err
-	}
-
-	if searchResult.Total == 0 {
-		return Document{}, nil
-	}
-
-	return hydrateDocument(searchResult.Hits[0]), nil
 }
 
 // Documents returns documents for the given slugs in a single search. Missing or invalid slugs are omitted.
@@ -564,10 +544,14 @@ func (b *BleveIndexer) Subjects() (map[string][]string, error) {
 }
 
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
-	aq := bleve.NewTermQuery(searchFields.Keywords)
-	aq.SetField("AuthorsSlugs")
+	slug := searchFields.Keywords
+	byAuthor := bleve.NewTermQuery(slug)
+	byAuthor.SetField("AuthorsSlugs")
+	byIllustrator := bleve.NewTermQuery(slug)
+	byIllustrator.SetField("IllustratorsSlugs")
+	dq := bleve.NewDisjunctionQuery(byAuthor, byIllustrator)
 
-	return b.runPaginatedQuery(aq, page, resultsPerPage, searchFields.SortBy)
+	return b.runPaginatedQuery(dq, page, resultsPerPage, searchFields.SortBy)
 }
 
 func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
@@ -640,11 +624,22 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		illustrations = int(match.Fields["Illustrations"].(float64))
 	}
 
+	illustrators := slicer(match.Fields["Illustrators"])
+	if len(illustrators) == 0 {
+		illustrators = nil
+	}
+
+	illustratorsSlugs := slicer(match.Fields["IllustratorsSlugs"])
+	if len(illustratorsSlugs) == 0 {
+		illustratorsSlugs = nil
+	}
+
 	doc := Document{
 		ID: path.Base(match.ID),
 		Metadata: metadata.Metadata{
 			Title:         match.Fields["Title"].(string),
 			Authors:       slicer(match.Fields["Authors"]),
+			Illustrators:  illustrators,
 			Description:   template.HTML(match.Fields["Description"].(string)),
 			Language:      language,
 			Publication:   publication,
@@ -656,11 +651,12 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 			Illustrations: illustrations,
 			Format:        match.Fields["Format"].(string),
 		},
-		Slug:          match.Fields["Slug"].(string),
-		AuthorsSlugs:  slicer(match.Fields["AuthorsSlugs"]),
-		SeriesSlug:    match.Fields["SeriesSlug"].(string),
-		SubjectsSlugs: slicer(match.Fields["SubjectsSlugs"]),
-		AddedOn:       addedOn,
+		Slug:              match.Fields["Slug"].(string),
+		AuthorsSlugs:      slicer(match.Fields["AuthorsSlugs"]),
+		IllustratorsSlugs: illustratorsSlugs,
+		SeriesSlug:        match.Fields["SeriesSlug"].(string),
+		SubjectsSlugs:     slicer(match.Fields["SubjectsSlugs"]),
+		AddedOn:           addedOn,
 	}
 
 	return doc

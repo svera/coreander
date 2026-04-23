@@ -162,11 +162,7 @@ function initSearchFilters(searchFilters) {
         const sidebarForm = document.getElementById('search-filters-form')
         if (sidebarForm && isDocumentsPage) {
             if (searchFiltersForm !== sidebarForm) {
-                const formData = new FormData(searchFiltersForm)
-                for (const [k, v] of formData.entries()) {
-                    const el = sidebarForm.elements[k]
-                    if (el) el.value = v
-                }
+                copyFormValues(searchFiltersForm, sidebarForm)
                 const sidebarContainer = document.getElementById('search-filters-sidebar')
                 if (sidebarContainer) sidebarContainer.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
             }
@@ -205,6 +201,7 @@ function initSearchFilters(searchFilters) {
         })
 
         searchFiltersForm.addEventListener('input', () => scheduleApplyFilters())
+        searchFiltersForm.addEventListener('change', () => scheduleApplyFilters())
     } else {
         searchFiltersForm.addEventListener('submit', () => {
             composeDateControls()
