@@ -248,6 +248,7 @@
 "You are not logged in. Your reading position is saved locally only.": "No has iniciado sesión. Tu posición de lectura solo se guarda localmente. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Iniciar sesión</a>"
 "Invite users": "Invitar usuarios"
 "Send invitation": "Enviar invitación"
+"Invitations sent successfully": "Invitaciones enviadas correctamente"
 "Email addresses": "Direcciones de correo"
 "Separate multiple email addresses with commas.": "Separe varias direcciones con comas."
 "Enter at least one email address": "Introduzca al menos una dirección de correo"

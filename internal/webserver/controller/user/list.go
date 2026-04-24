@@ -25,7 +25,6 @@ func (u *Controller) buildUserListVars(c fiber.Ctx, page int, filter string) fib
 		"InviteEmailListMaxLength": u.config.InviteEmailListMaxLength,
 		"InviteFormErrors":         map[string]string{},
 		"InviteFormEmail":          "",
-		"InviteFormOpen":           false,
 	}
 }
 

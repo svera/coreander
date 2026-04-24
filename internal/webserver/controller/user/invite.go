@@ -29,11 +29,12 @@ func (u *Controller) SendInvite(c fiber.Ctx) error {
 	}
 
 	if len(errs) > 0 {
-		vars := u.buildUserListVars(c, 1, "")
-		vars["InviteFormEmail"] = raw
-		vars["InviteFormErrors"] = errs
-		vars["InviteFormOpen"] = true
-		return c.Render("user/list", vars, "layout")
+		return c.Status(fiber.StatusUnprocessableEntity).Render("partials/user-invite-modal-form", fiber.Map{
+			"Lang":                     lang,
+			"InviteFormErrors":         errs,
+			"InviteFormEmail":          raw,
+			"InviteEmailListMaxLength": u.config.InviteEmailListMaxLength,
+		})
 	}
 
 	addresses := parseCommaSeparatedInviteEmails(raw)
@@ -80,12 +81,15 @@ func (u *Controller) SendInvite(c fiber.Ctx) error {
 		successMsg = u.translator.T(lang, "%d invitations sent successfully", len(addresses))
 	}
 
+	if c.Get("HX-Request") == "true" {
+		return c.SendStatus(fiber.StatusNoContent)
+	}
+
 	c.Cookie(&fiber.Cookie{
 		Name:    "success-once",
 		Value:   successMsg,
 		Expires: time.Now().Add(24 * time.Hour),
 	})
-
 	return c.Redirect().To("/users")
 }
 
