@@ -2,6 +2,7 @@
       hx-post="/users/invite"
       hx-target="#invite-user-modal-content"
       hx-swap="innerHTML"
+      hx-indicator="#invite-send-spinner"
       hx-disabled-elt="#invite-send-submit"
       data-success-message='{{t .Lang "Invitations sent successfully"}}'
       data-close-modal="#inviteUserModal">
@@ -23,6 +24,9 @@
     </div>
     <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{t .Lang "Cancel"}}</button>
-        <button type="submit" id="invite-send-submit" class="btn btn-primary">{{t .Lang "Send invitation"}}</button>
+        <button type="submit" id="invite-send-submit" class="btn btn-primary d-inline-flex align-items-center">
+            <span id="invite-send-spinner" class="spinner-border spinner-border-sm htmx-indicator me-2" role="status" aria-hidden="true"></span>
+            {{t .Lang "Send invitation"}}
+        </button>
     </div>
 </form>
