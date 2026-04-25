@@ -81,13 +81,16 @@ func (u *Controller) SendInvite(c fiber.Ctx) error {
 		})
 	}
 
-	for _, invite := range emails {
-		go func(invite inviteEmail) {
-			if err := u.sender.Send(invite.email, subject, invite.body); err != nil {
+	// One background goroutine: sequential sends are gentler on SMTP and avoid a burst of connections.
+	emailsToSend := append([]inviteEmail(nil), emails...)
+	sender := u.sender
+	go func() {
+		for _, invite := range emailsToSend {
+			if err := sender.Send(invite.email, subject, invite.body); err != nil {
 				log.Printf("error sending invitation email to %s: %v\n", invite.email, err)
 			}
-		}(invite)
-	}
+		}
+	}()
 
 	var successMsg string
 	if len(addresses) == 1 {
