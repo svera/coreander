@@ -54,6 +54,8 @@ type Config struct {
 	ShareCommentMaxSize        int
 	ShareMaxRecipients         int
 	IllustratedMinAmount       int
+	InviteEmailListMaxLength   int
+	InviteMaxRecipients        int
 }
 
 type Sender interface {

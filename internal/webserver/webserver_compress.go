@@ -1,5 +1,3 @@
-//go:build !386 && !arm
-
 package webserver
 
 import (
