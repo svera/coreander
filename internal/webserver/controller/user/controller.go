@@ -33,11 +33,13 @@ type invitationsRepository interface {
 }
 
 type Config struct {
-	MinPasswordLength int
-	WordsPerMinute    float64
-	Secret            []byte
-	InvitationTimeout time.Duration
-	FQDN              string
+	MinPasswordLength        int
+	WordsPerMinute           float64
+	Secret                   []byte
+	InvitationTimeout        time.Duration
+	FQDN                     string
+	InviteEmailListMaxLength int
+	InviteMaxRecipients      int
 }
 
 type Controller struct {
