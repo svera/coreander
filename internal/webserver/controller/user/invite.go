@@ -45,6 +45,11 @@ func (u *Controller) SendInvite(c fiber.Ctx) error {
 	}
 
 	subject := u.translator.T(lang, "You've been invited to join Coreander")
+	type inviteEmail struct {
+		email string
+		body  string
+	}
+	emails := make([]inviteEmail, 0, len(addresses))
 
 	for _, email := range addresses {
 		if err := u.invitationsRepository.DeleteByEmail(email); err != nil {
@@ -63,16 +68,29 @@ func (u *Controller) SendInvite(c fiber.Ctx) error {
 		}
 
 		invitationLink := fmt.Sprintf("%s/invite?id=%s", fqdn, invitation.UUID)
-		c.Render("user/invitation-email", fiber.Map{
+		if err := c.Render("user/invitation-email", fiber.Map{
 			"InvitationLink":    invitationLink,
 			"InvitationTimeout": strconv.FormatFloat(u.config.InvitationTimeout.Hours(), 'f', -1, 64),
-		})
-
-		if err := u.sender.Send(email, subject, string(c.Response().Body())); err != nil {
-			log.Printf("error sending invitation email: %v\n", err)
+		}); err != nil {
+			log.Printf("error rendering invitation email: %v\n", err)
 			return fiber.ErrInternalServerError
 		}
+		emails = append(emails, inviteEmail{
+			email: email,
+			body:  string(c.Response().Body()),
+		})
 	}
+
+	// One background goroutine: sequential sends are gentler on SMTP and avoid a burst of connections.
+	emailsToSend := append([]inviteEmail(nil), emails...)
+	sender := u.sender
+	go func() {
+		for _, invite := range emailsToSend {
+			if err := sender.Send(invite.email, subject, invite.body); err != nil {
+				log.Printf("error sending invitation email to %s: %v\n", invite.email, err)
+			}
+		}
+	}()
 
 	var successMsg string
 	if len(addresses) == 1 {
