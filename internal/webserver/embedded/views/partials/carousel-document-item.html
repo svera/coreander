@@ -8,7 +8,7 @@
             {{end}}
 
             <h3 class="text-start">
-                <a href="/documents/{{.Document.Slug}}{{if eq .LinkToReader true}}/read{{end}}">{{.Document.Title}}</a>
+                <a href="/documents/{{.Document.Slug}}">{{.Document.Title}}</a>
             </h3>
 
             {{if .Document.Authors}}
@@ -35,7 +35,7 @@
             </div>
         </div>
         <div class="col-12 {{if .ShowClasses}}col-md-4{{end}} col-lg-4">
-            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableActions" true "LinkToReader" .LinkToReader "Version" .Version}}
+            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableActions" true "Version" .Version}}
         </div>
     </div>
 </div>
