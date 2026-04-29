@@ -8,7 +8,7 @@
             {{end}}
 
             <h3 class="text-start">
-                <a href="/documents/{{.Document.Slug}}">{{.Document.Title}}</a>
+                <a href="/documents/{{.Document.Slug}}{{if eq .LinkToReader true}}/read{{end}}">{{.Document.Title}}</a>
             </h3>
 
             {{if .Document.Authors}}
