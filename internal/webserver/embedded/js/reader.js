@@ -669,7 +669,12 @@ class Reader {
 
         const title = formatLanguageMap(book.metadata?.title) || slug
         document.title = title
-        $('#side-bar-title').innerText = title
+        const titleEl = $('#side-bar-title')
+        titleEl.replaceChildren()
+        const detailLink = document.createElement('a')
+        detailLink.href = `/documents/${slug}`
+        detailLink.textContent = title
+        titleEl.appendChild(detailLink)
         $('#side-bar-author').innerText = formatContributor(book.metadata?.author)
         Promise.resolve(book.getCover?.())?.then(blob =>
             blob ? $('#side-bar-cover').src = URL.createObjectURL(blob) : null)
