@@ -1,15 +1,20 @@
-html,
-body {
+/* Scroll on `body`, not `html`: Bootstrap modals set `overflow: hidden` on `body` and add
+   padding for the scrollbar width. If the scrollbar actually lives on `html`, that padding
+   stays while the bar remains — content jumps left. With `html` locked and `body` scrolling,
+   the bar disappears with body overflow and the padding matches. */
+html {
     height: 100%;
+    overflow: hidden;
 }
 
 body {
+    height: 100%;
+    overflow-y: auto;
     align-items: center;
     padding-bottom: 40px;
 }
 
 main {
-    padding-top: 40px;
     width: 100%;
     padding: 15px;
 }
@@ -28,9 +33,49 @@ main .form-control:focus {
     font-size: 0.65em;
 }
 
-.nav-item .bi {
+/* Only toggles directly under .nav-item; do not target icons inside .dropdown-menu. */
+.navbar-nav > .nav-item > .nav-link .bi {
     width: 1em;
     height: 1em;
+}
+
+/* Offcanvas nav (mobile): icon column lines up with label text */
+.offcanvas-nav-flat .navbar-nav .nav-link > i:first-child,
+#bd-theme .theme-icon-active {
+    flex-shrink: 0;
+    width: 1.1em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    color: inherit;
+}
+
+/*
+ * .dropdown-item.active uses primary fill; theme JS uses .active for the stored choice only.
+ * Use the same subtle row highlight as hover so it matches other menus visually.
+ */
+#bd-theme + .dropdown-menu .dropdown-item.active,
+#bd-theme + .dropdown-menu .dropdown-item:active {
+    color: var(--bs-dropdown-link-color);
+    background-color: var(--bs-dropdown-link-hover-bg);
+}
+
+/* .dropdown-divider uses dropdown-menu CSS variables; offcanvas nav is outside any menu. */
+#offcanvasNavbar .offcanvas-nav-flat hr.dropdown-divider {
+    margin: 0.5rem 0;
+    border-top: 1px solid var(--bs-border-color-translucent);
+    opacity: 1;
+}
+
+.offcanvas-style-btn-group {
+    display: flex;
+    width: 100%;
+}
+
+.offcanvas-style-btn-group > .btn {
+    flex: 1 1 0;
+    min-width: 0;
 }
 
 :root, [data-bs-theme=light] {
@@ -171,10 +216,7 @@ main .form-control:focus {
     display: none;
 }
 
-.htmx-request .spinner-border {
-    display: inline-block;
-}
-
+.htmx-request .spinner-border,
 .htmx-request.spinner-border {
     display: inline-block;
 }
@@ -187,10 +229,7 @@ main .form-control:focus {
     display: none;
 }
 
-.htmx-request .list-group-placeholder {
-    display: inline-block;
-}
-
+.htmx-request .list-group-placeholder,
 .htmx-request.list-group-placeholder {
     display: inline-block;
 }

@@ -5,6 +5,15 @@ import { Overlayer } from './foliate-js/overlayer.js'
 import { ReaderSync } from './reader-sync.js'
 import { ReaderToast } from './reader-toast.js'
 
+document.addEventListener('click', e => {
+    const a = e.target.closest?.('a[data-reader-history-back]')
+    if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
+        return
+    }
+    e.preventDefault()
+    window.history.back()
+})
+
 const getCSS = ({ spacing, justify, hyphenate, theme, fontSize, fontFamily }) => `
     @namespace epub "http://www.idpf.org/2007/ops";
     html {
@@ -385,7 +394,7 @@ class Reader {
                 label: 'Theme',
                 type: 'radio',
                 items: [
-                    [t.auto, 'auto'],
+                    [t.auto ?? 'System', 'auto'],
                     [t.light, 'light'],
                     [t.dark, 'dark'],
                 ],
@@ -660,7 +669,12 @@ class Reader {
 
         const title = formatLanguageMap(book.metadata?.title) || slug
         document.title = title
-        $('#side-bar-title').innerText = title
+        const titleEl = $('#side-bar-title')
+        titleEl.replaceChildren()
+        const detailLink = document.createElement('a')
+        detailLink.href = `/documents/${slug}`
+        detailLink.textContent = title
+        titleEl.appendChild(detailLink)
         $('#side-bar-author').innerText = formatContributor(book.metadata?.author)
         Promise.resolve(book.getCover?.())?.then(blob =>
             blob ? $('#side-bar-cover').src = URL.createObjectURL(blob) : null)
@@ -729,7 +743,7 @@ class Reader {
             this.view.goRight()
         }
     }
-    #onLoad({ detail: { doc, index } }) {
+    #onLoad({ detail: { doc } }) {
         doc.addEventListener('keydown', this.#handleKeydown.bind(this))
     }
     async #handleFootnoteLinkEvent(href) {
@@ -904,4 +918,3 @@ if (url) fetch(url)
         }
         console.error(e);
     })
-else dropTarget.style.visibility = 'visible'

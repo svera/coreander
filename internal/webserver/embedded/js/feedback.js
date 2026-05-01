@@ -19,6 +19,38 @@ function showToast(message, type = 'success') {
 // Make showToast available globally for non-module scripts
 window.showToast = showToast
 
+function escapeHtmlText(s) {
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+}
+
+// Replace ${email} from hx-include targets (e.g. quick-email-*) without mutating data-* attributes.
+function resolveEmailPlaceholder(message, elt) {
+    if (!message || message.indexOf('${email}') === -1) {
+        return message
+    }
+    const inc = elt && elt.getAttribute ? elt.getAttribute('hx-include') || '' : ''
+    let email = ''
+    const re = /id='([^']+)'/g
+    let m
+    while ((m = re.exec(inc)) !== null) {
+        const field = document.getElementById(m[1])
+        if (!field || field.tagName !== 'INPUT') {
+            continue
+        }
+        const id = m[1]
+        if (field.name === 'email' || field.type === 'email' || id.indexOf('quick-email') === 0) {
+            email = String(field.value || '').trim()
+            break
+        }
+    }
+    return message.split('${email}').join(escapeHtmlText(email))
+}
+
 htmx.on("htmx:beforeSwap", (evt) => {
     // Allow 422 and 400 responses to swap
     // We treat these as form validation errors
@@ -36,14 +68,13 @@ htmx.on('htmx:beforeRequest', (evt) => {
 })
 
 htmx.on('htmx:afterRequest', (evt) => {
-    const toastSuccess = document.getElementById('live-toast-success')
-    const toastDanger = document.getElementById('live-toast-danger')
     const unexpectedServerErrorText = document.getElementsByTagName('main')[0].dataset.unexpectedServerError
 
     if (!evt.detail.xhr) {
         return;
     }
     const xhr = evt.detail.xhr;
+    const elt = evt.detail.elt
 
     if (evt.detail.failed) {
         // Server error with response contents, equivalent to htmx:responseError
@@ -58,21 +89,27 @@ htmx.on('htmx:afterRequest', (evt) => {
         }
 
         if (dataErrorMessage !== null) {
-            showToast(dataErrorMessage, 'danger')
+            showToast(resolveEmailPlaceholder(dataErrorMessage, elt), 'danger')
             return
         }
     }
 
-    if (xhr.status === 200 && dataSuccessMessage !== null && dataSuccessMessage !== undefined) {
-        showToast(dataSuccessMessage, 'success')
+    if ((xhr.status === 200 || xhr.status === 204) && dataSuccessMessage) {
+        showToast(resolveEmailPlaceholder(dataSuccessMessage, elt), 'success')
     }
 
-    if (xhr.status === 200) {
-        const closeTarget = evt.detail.elt.getAttribute("data-close-modal")
+    if (xhr.status === 200 || xhr.status === 204) {
+        const closeTarget = elt.getAttribute("data-close-modal")
         if (closeTarget) {
             const modalEl = document.querySelector(closeTarget)
-            if (modalEl) {
+            if (modalEl && window.bootstrap && bootstrap.Modal) {
                 bootstrap.Modal.getOrCreateInstance(modalEl).hide()
+            }
+            if (closeTarget === '#inviteUserModal') {
+                const ta = document.getElementById('invite-email')
+                if (ta) {
+                    ta.value = ''
+                }
             }
         }
     }

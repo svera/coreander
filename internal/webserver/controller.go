@@ -17,14 +17,14 @@ import (
 )
 
 type Controllers struct {
-	Auth        *auth.Controller
-	Users       *user.Controller
-	Completed   *completed.Controller
-	Highlights  *highlight.Controller
-	Documents   *document.Controller
-	Home        *home.Controller
-	Authors     *author.Controller
-	Series      *series.Controller
+	Auth       *auth.Controller
+	Users      *user.Controller
+	Completed  *completed.Controller
+	Highlights *highlight.Controller
+	Documents  *document.Controller
+	Home       *home.Controller
+	Authors    *author.Controller
+	Series     *series.Controller
 }
 
 func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {
@@ -42,12 +42,22 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		RecoveryTimeout:   cfg.RecoveryTimeout,
 	}
 
+	inviteListMax := cfg.InviteEmailListMaxLength
+	if inviteListMax <= 0 {
+		inviteListMax = 2000
+	}
+	inviteMaxRec := cfg.InviteMaxRecipients
+	if inviteMaxRec <= 0 {
+		inviteMaxRec = 50
+	}
 	usersCfg := user.Config{
-		MinPasswordLength: cfg.MinPasswordLength,
-		WordsPerMinute:    cfg.WordsPerMinute,
-		Secret:            cfg.JwtSecret,
-		InvitationTimeout: cfg.InvitationTimeout,
-		FQDN:              cfg.FQDN,
+		MinPasswordLength:        cfg.MinPasswordLength,
+		WordsPerMinute:           cfg.WordsPerMinute,
+		Secret:                   cfg.JwtSecret,
+		InvitationTimeout:        cfg.InvitationTimeout,
+		FQDN:                     cfg.FQDN,
+		InviteEmailListMaxLength: inviteListMax,
+		InviteMaxRecipients:      inviteMaxRec,
 	}
 
 	documentsCfg := document.Config{

@@ -4,3 +4,4 @@ tmp
 *.zip
 *.exe
 .air.toml
+.cursor

@@ -1,9 +1,9 @@
 <div class="position-relative border border-2">
-    {{if not .DisableCoverMainLink}}<a href="/documents/{{.Document.Slug}}{{if .LinkToReader}}/read{{end}}" class="text-decoration-none">
+    {{if not .DisableCoverMainLink}}<a href="/documents/{{.Document.Slug}}{{if eq .LinkToReader true}}/read{{end}}" class="text-decoration-none">
         <div class="zoomable cover">{{end}}
-            <img src="/images/generic.webp{{versionParam .Version}}" data-src="/documents/{{.Document.Slug}}/cover" loading="lazy" class="cover img-fluid w-100" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}" />
+            <img src="/images/generic.webp{{versionParam .Version}}" data-src="/documents/{{.Document.Slug}}/cover" loading="lazy" class="cover img-fluid w-100" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}" />
             {{if not .DisableCoverMainLink}}</div>{{end}}
-        <div class="card-img-overlay card-body" id="cover-title-{{.Document.Slug}}">
+        <div class="card-img-overlay card-body" id="cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}">
             <h5 class="card-title text-center text-truncate mx-2">{{.Document.Title}}</h5>
             {{if .Document.Authors}}
                 <p class="card-text text-center text-truncate mx-2">

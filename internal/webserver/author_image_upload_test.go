@@ -21,7 +21,7 @@ import (
 )
 
 func TestAuthorImageUpload(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250, nil)
+	db := infrastructure.Connect(":memory:", 250)
 	appFS := loadDirInMemoryFs("fixtures/library")
 
 	// Set required config fields for authentication to work
