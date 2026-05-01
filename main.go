@@ -124,6 +124,8 @@ func main() {
 		ShareCommentMaxSize:        input.ShareCommentMaxSize,
 		ShareMaxRecipients:         input.ShareMaxRecipients,
 		IllustratedMinAmount:       input.IllustratedMinAmount,
+		InviteEmailListMaxLength:   input.InviteEmailListMaxLength,
+		InviteMaxRecipients:        input.InviteMaxRecipients,
 	}
 
 	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", input.SessionTimeout))

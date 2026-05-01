@@ -13,16 +13,22 @@ const coversLoader = () => {
         const coverTitleId = elem.getAttribute("data-cover-title-id");
 
         elem.addEventListener("load", () => {
-            if (elem.src.endsWith("/images/generic.webp")) {
+            if (elem.src.includes("/images/generic.webp")) {
                 return
             }
-            document.getElementById(coverTitleId).remove();
+            const overlay = document.getElementById(coverTitleId)
+            if (overlay) {
+                overlay.remove()
+            }
         })
 
         elem.addEventListener("error", () => {
             elem.onerror = null;
             elem.src = '/images/generic.webp';
-            document.getElementById(coverTitleId).classList.remove('d-none');
+            const overlayOnError = document.getElementById(coverTitleId)
+            if (overlayOnError) {
+                overlayOnError.classList.remove('d-none')
+            }
         })
 
         elem.setAttribute('src', elem.getAttribute('data-src'));

@@ -30,8 +30,20 @@ func (d *Controller) Upload(c fiber.Ctx) error {
 	}
 
 	file, err := c.FormFile("filename")
-	if errors.Is(err, fasthttp.ErrMissingFile) {
-		templateVars["Error"] = "Invalid file type"
+	if err != nil {
+		if errors.Is(err, fasthttp.ErrMissingFile) {
+			templateVars["Error"] = "Invalid file type"
+			return c.Status(fiber.StatusBadRequest).Render("document/upload", templateVars, "layout")
+		}
+		if errors.Is(err, fasthttp.ErrBodyTooLarge) {
+			// Body was truncated while parsing multipart; remaining bytes must not be
+			// interpreted as the next HTTP request on a keep-alive connection.
+			c.RequestCtx().SetConnectionClose()
+			templateVars["Error"] = fmt.Sprintf("Document too large, the maximum allowed size is %d megabytes", d.config.UploadDocumentMaxSize)
+			return c.Status(fiber.StatusRequestEntityTooLarge).Render("document/upload", templateVars, "layout")
+		}
+		log.Error(err)
+		templateVars["Error"] = "Could not read uploaded file"
 		return c.Status(fiber.StatusBadRequest).Render("document/upload", templateVars, "layout")
 	}
 
