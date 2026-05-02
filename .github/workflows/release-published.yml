@@ -1,5 +1,8 @@
 name: Release binaries
 
+# Only runs when a release is published. This file intentionally has no
+# `pull_request` trigger so PRs never start a run for this workflow (avoids
+# “No jobs were run” / empty checks tied to release-only logic).
 on:
   release:
     types: [published]
