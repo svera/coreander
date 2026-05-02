@@ -143,7 +143,7 @@ func (a *Controller) readFromDataSource(path string) (image.Image, error) {
 		return nil, fmt.Errorf("failed to fetch image from %s: HTTP %d", path, res.StatusCode)
 	}
 
-	img, err := imaging.Decode(res.Body)
+	img, err := imaging.Decode(res.Body, imaging.Backends(imaging.GO_IMAGE))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image from %s: %w", path, err)
 	}
@@ -160,7 +160,8 @@ func (a *Controller) openImage(filename string, opts ...imaging.DecodeOption) (i
 		return nil, err
 	}
 	defer file.Close()
-	return imaging.Decode(file, opts...)
+	decodeOpts := append([]imaging.DecodeOption{imaging.Backends(imaging.GO_IMAGE)}, opts...)
+	return imaging.Decode(file, decodeOpts...)
 }
 
 func (a *Controller) saveImage(img image.Image, filename string, opts ...imaging.EncodeOption) (err error) {
@@ -198,7 +199,7 @@ func (a *Controller) loadDefaultImage(gender float64) (image.Image, error) {
 	}
 	defer file.Close()
 
-	img, err := imaging.Decode(file)
+	img, err := imaging.Decode(file, imaging.Backends(imaging.GO_IMAGE))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode default image %s: %w", defaultImagePath, err)
 	}
