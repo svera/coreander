@@ -4,23 +4,12 @@ on:
   push:
     branches: [main, develop]
   pull_request:
-  release:
-    types: [published]
 
-# Single job, no job-level `if:` — avoids “No jobs were run” when GitHub skips
-# every job. First step always runs; build vs release steps are step-level only.
 jobs:
-  ci:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: Workflow event
-        run: echo "go workflow event=${{ github.event_name }}"
-
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -28,23 +17,7 @@ jobs:
           go-version: "1.25"
 
       - name: Build
-        if: ${{ github.event_name != 'release' }}
         run: go build .
 
       - name: Test
-        if: ${{ github.event_name != 'release' }}
         run: go test -v ./... --cover
-
-      - name: Install Mage
-        if: ${{ github.event_name == 'release' }}
-        run: go install github.com/magefile/mage@v1.17.2
-
-      - name: Build cross-platform archives
-        if: ${{ github.event_name == 'release' }}
-        run: "$(go env GOPATH)/bin/mage" Release
-
-      - name: Upload archives to release
-        if: ${{ github.event_name == 'release' }}
-        uses: softprops/action-gh-release@v2
-        with:
-          files: coreander_*.zip
