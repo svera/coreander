@@ -126,6 +126,8 @@ func (c CbzReader) Metadata(file string) (Metadata, error) {
 		seriesIndex = ParseSeriesIndex(info.Number)
 	}
 
+	// Prefer ComicInfo PageCount when present (canonical for the publication).
+	// If it is missing (0), fall back to counting image files in the zip — extensions must match the reader (see ImageExtensions).
 	pages := float64(len(SortedImageEntriesFromZip(r)))
 	if info != nil && info.PageCount > 0 {
 		pages = float64(info.PageCount)

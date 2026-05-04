@@ -247,6 +247,7 @@
 "Reading position updated from another device.": "Leseposition von einem anderen Gerät aktualisiert."
 "You are not logged in. Your reading position is saved locally only.": "Sie sind nicht angemeldet. Ihre Leseposition wird nur lokal gespeichert. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Anmelden</a>"
 "Your saved reading position was reset because this document changed.": "Ihre gespeicherte Leseposition wurde zurückgesetzt, weil sich dieses Dokument geändert hat."
+"No supported image files in archive": "Keine unterstützten Bilddateien im Archiv"
 "Invite users": "Benutzer einladen"
 "Send invitation": "Einladung senden"
 "Invitations sent successfully": "Einladungen erfolgreich gesendet"

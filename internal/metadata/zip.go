@@ -55,9 +55,11 @@ func ImageMegapixelsFromZip(r *zip.ReadCloser, name string) (float64, error) {
 }
 
 // ImageExtensions is the set of file extensions treated as images (for listing images in zip-based comics).
+// Keep in sync with foliate-js/comic-book.js so CBZ page fallbacks match what the reader can open.
 var ImageExtensions = map[string]bool{
 	".jpg": true, ".jpeg": true, ".png": true, ".gif": true,
 	".webp": true, ".bmp": true, ".tiff": true, ".tif": true,
+	".svg": true, ".jxl": true, ".avif": true,
 }
 
 // SortedImageEntriesFromZip returns the names of non-directory zip entries whose extension is in ImageExtensions, sorted by name.
