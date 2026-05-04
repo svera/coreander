@@ -9,11 +9,9 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
-	"github.com/kovidgoyal/imaging"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/pirmd/epub"
 	"github.com/rickb777/date/v2"
@@ -38,7 +36,7 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 	if err != nil {
 		return bk, err
 	}
-	title := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
+	title := DefaultTitleFromFilename(filename)
 	if len(meta.Title) > 0 && len(meta.Title[0]) > 0 {
 		title = meta.Title[0]
 	}
@@ -51,9 +49,7 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 	for _, contributor := range meta.Contributor {
 		classifyEpubPerson(contributor, false, &authors, &illustrators)
 	}
-	if len(authors) == 0 {
-		authors = []string{""}
-	}
+	authors = AuthorsOrEmptySlot(authors)
 
 	var subjects []string
 	for _, subject := range meta.Subject {
@@ -82,18 +78,16 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 		}
 	}
 
-	var seriesIndex float64 = 0
-
-	seriesIndex, _ = strconv.ParseFloat(meta.SeriesIndex, 64)
+	seriesIndex := ParseSeriesIndex(meta.SeriesIndex)
 
 	illustrations, err := e.illustrations(filename, 0.25)
 	if err != nil {
-		log.Printf("Cannot count illustrations in %s: $%s\n", filename, err)
+		log.Printf("Cannot count illustrations in %s: %v\n", filename, err)
 	}
 
 	w, err := words(filename)
 	if err != nil {
-		log.Printf("Cannot count words in %s: $%s\n", filename, err)
+		log.Printf("Cannot count words in %s: %v\n", filename, err)
 	}
 
 	bk = Metadata{
@@ -295,15 +289,7 @@ func extractCover(r *zip.ReadCloser, coverFile, opfBaseDir string, coverMaxWidth
 		if _, ok := candidates[f.Name]; !ok {
 			continue
 		}
-		rc, err := f.Open()
-		if err != nil {
-			return nil, err
-		}
-		src, err := imaging.Decode(rc, imaging.Backends(imaging.GO_IMAGE))
-		if err != nil {
-			return nil, err
-		}
-		return resize(src, coverMaxWidth, err)
+		return DecodeResizeZipImageEntry(r, f.Name, coverMaxWidth)
 	}
 	return nil, fmt.Errorf("no cover image found")
 }

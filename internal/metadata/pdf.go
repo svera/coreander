@@ -53,7 +53,7 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 
 	title := strings.TrimSpace(info.Title)
 	if title == "" {
-		title = strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+		title = DefaultTitleFromFilename(file)
 	}
 
 	publication := precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay}
@@ -65,10 +65,7 @@ func (p PdfReader) Metadata(file string) (Metadata, error) {
 
 	description := SanitizeDescription(info.Subject)
 
-	authors := []string{""}
-	if names := ParseAuthorList(info.Author); len(names) > 0 {
-		authors = names
-	}
+	authors := AuthorsOrEmptySlot(ParseAuthorList(info.Author))
 
 	lang := ""
 	if info.Properties != nil {

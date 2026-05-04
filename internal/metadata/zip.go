@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/kovidgoyal/imaging"
 )
 
 // OpenZipEntry opens a file inside a zip by name and returns a ReadCloser.
@@ -22,6 +24,20 @@ func OpenZipEntry(r *zip.ReadCloser, name string) (io.ReadCloser, error) {
 		return f.Open()
 	}
 	return nil, fmt.Errorf("zip entry %q not found", name)
+}
+
+// DecodeResizeZipImageEntry opens a zip entry by name, decodes it as an image, and returns JPEG bytes resized to coverMaxWidth (height auto).
+func DecodeResizeZipImageEntry(r *zip.ReadCloser, name string, coverMaxWidth int) ([]byte, error) {
+	rc, err := OpenZipEntry(r, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	src, err := imaging.Decode(rc, imaging.Backends(imaging.GO_IMAGE))
+	if err != nil {
+		return nil, err
+	}
+	return resize(src, coverMaxWidth, nil)
 }
 
 // ImageMegapixelsFromZip reads a zip entry as an image and returns its size in megapixels (width*height/1e6).

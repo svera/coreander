@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kovidgoyal/imaging"
 	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v4/internal/precisiondate"
 )
@@ -87,7 +86,7 @@ func (c CbzReader) Metadata(file string) (Metadata, error) {
 
 	info, _ := readComicInfoFromZip(r)
 
-	title := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	title := DefaultTitleFromFilename(file)
 	if info != nil && strings.TrimSpace(info.Title) != "" {
 		title = strings.TrimSpace(info.Title)
 	}
@@ -95,10 +94,7 @@ func (c CbzReader) Metadata(file string) (Metadata, error) {
 	authors := []string{""}
 	var illustrators []string
 	if info != nil {
-		authors = collectComicAuthors(info)
-		if len(authors) == 0 {
-			authors = []string{""}
-		}
+		authors = AuthorsOrEmptySlot(collectComicAuthors(info))
 		illustrators = collectComicIllustrators(info)
 	}
 
@@ -130,11 +126,7 @@ func (c CbzReader) Metadata(file string) (Metadata, error) {
 	series := ""
 	if info != nil {
 		series = strings.TrimSpace(info.Series)
-		if info.Number != "" {
-			if n, err := strconv.ParseFloat(strings.TrimSpace(info.Number), 64); err == nil {
-				seriesIndex = n
-			}
-		}
+		seriesIndex = ParseSeriesIndex(info.Number)
 	}
 
 	pages := float64(len(SortedImageEntriesFromZip(r)))
@@ -154,7 +146,7 @@ func (c CbzReader) Metadata(file string) (Metadata, error) {
 
 	illustrations, err := c.illustrations(file, 0.25)
 	if err != nil {
-		log.Printf("Cannot count illustrations in %s: %s\n", file, err)
+		log.Printf("Cannot count illustrations in %s: %v\n", file, err)
 	}
 
 	bk = Metadata{
@@ -182,36 +174,12 @@ func (c CbzReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, er
 	defer r.Close()
 
 	info, _ := readComicInfoFromZip(r)
-	coverIndex := 0
-	if info != nil && info.Pages != nil {
-		for _, p := range info.Pages.Page {
-			if strings.EqualFold(strings.TrimSpace(p.Type), "FrontCover") {
-				coverIndex = p.Image
-				break
-			}
-		}
-	}
-
-	names := SortedImageEntriesFromZip(r)
+	coverName, names := cbzCoverImageAndNames(r, info)
 	if len(names) == 0 {
 		return nil, fmt.Errorf("cbz: no image found")
 	}
-	if coverIndex < 1 || coverIndex > len(names) {
-		coverIndex = 1
-	}
-	coverName := names[coverIndex-1]
 
-	rc, err := OpenZipEntry(r, coverName)
-	if err != nil {
-		return nil, err
-	}
-	defer rc.Close()
-
-	src, err := imaging.Decode(rc)
-	if err != nil {
-		return nil, err
-	}
-	return resize(src, coverMaxWidth, nil)
+	return DecodeResizeZipImageEntry(r, coverName, coverMaxWidth)
 }
 
 // illustrations returns the number of images in the CBZ with size >= minMegapixels (excluding the cover).
@@ -223,24 +191,10 @@ func (c CbzReader) illustrations(documentFullPath string, minMegapixels float64)
 	defer r.Close()
 
 	info, _ := readComicInfoFromZip(r)
-	coverIndex := 0
-	if info != nil && info.Pages != nil {
-		for _, p := range info.Pages.Page {
-			if strings.EqualFold(strings.TrimSpace(p.Type), "FrontCover") {
-				coverIndex = p.Image
-				break
-			}
-		}
-	}
-
-	names := SortedImageEntriesFromZip(r)
+	coverName, names := cbzCoverImageAndNames(r, info)
 	if len(names) == 0 {
 		return 0, nil
 	}
-	if coverIndex < 1 || coverIndex > len(names) {
-		coverIndex = 1
-	}
-	coverName := names[coverIndex-1]
 
 	var count int
 	for _, name := range names {
@@ -256,6 +210,28 @@ func (c CbzReader) illustrations(documentFullPath string, minMegapixels float64)
 		}
 	}
 	return count, nil
+}
+
+// cbzCoverImageAndNames returns sorted image paths in the archive and the path used as cover
+// (ComicInfo FrontCover index when valid, otherwise the first image).
+func cbzCoverImageAndNames(r *zip.ReadCloser, info *ComicInfo) (coverName string, names []string) {
+	names = SortedImageEntriesFromZip(r)
+	if len(names) == 0 {
+		return "", nil
+	}
+	coverIndex := 1
+	if info != nil && info.Pages != nil {
+		for _, p := range info.Pages.Page {
+			if strings.EqualFold(strings.TrimSpace(p.Type), "FrontCover") {
+				coverIndex = p.Image
+				break
+			}
+		}
+	}
+	if coverIndex < 1 || coverIndex > len(names) {
+		coverIndex = 1
+	}
+	return names[coverIndex-1], names
 }
 
 func readComicInfoFromZip(r *zip.ReadCloser) (*ComicInfo, error) {

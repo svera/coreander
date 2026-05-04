@@ -1,6 +1,8 @@
 package metadata
 
 import (
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/microcosm-cc/bluemonday"
@@ -33,6 +35,20 @@ func SanitizeDescription(raw string) string {
 	return p.Sanitize(raw)
 }
 
+// DefaultTitleFromFilename returns the basename of fullPath without its extension (fallback book title).
+func DefaultTitleFromFilename(fullPath string) string {
+	return strings.TrimSuffix(filepath.Base(fullPath), filepath.Ext(fullPath))
+}
+
+// AuthorsOrEmptySlot returns authors unchanged if non-empty, otherwise a single empty string
+// so Metadata always has at least one author slot (same convention as EPUB/CBZ readers).
+func AuthorsOrEmptySlot(authors []string) []string {
+	if len(authors) == 0 {
+		return []string{""}
+	}
+	return authors
+}
+
 // ParseAuthorList splits s by '&', ',', and ';', trims each part, and returns non-empty names.
 // Used for both EPUB creator lists and PDF author strings.
 func ParseAuthorList(s string) []string {
@@ -45,6 +61,20 @@ func ParseAuthorList(s string) []string {
 		}
 	}
 	return names
+}
+
+// ParseSeriesIndex parses a series index or issue number string (e.g. EPUB calibre:series_index, CBZ Number).
+// Returns 0 for empty or invalid input.
+func ParseSeriesIndex(s string) float64 {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0
+	}
+	n, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 // ParseSubjectList splits s by ',' and ';', trims each part, and returns non-empty strings.
