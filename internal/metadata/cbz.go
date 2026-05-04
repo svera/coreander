@@ -72,9 +72,6 @@ type ComicPageInfo struct {
 
 type CbzReader struct{}
 
-// comicInfoFilenames are possible names for the metadata file (case-insensitive match).
-var comicInfoFilenames = []string{"ComicInfo.xml", "comicinfo.xml", "COMICINFO.XML"}
-
 func (c CbzReader) Metadata(file string) (Metadata, error) {
 	bk := Metadata{}
 
@@ -238,13 +235,8 @@ func readComicInfoFromZip(r *zip.ReadCloser) (*ComicInfo, error) {
 	var entryName string
 	for _, f := range r.File {
 		base := filepath.Base(f.Name)
-		for _, want := range comicInfoFilenames {
-			if base == want {
-				entryName = f.Name
-				break
-			}
-		}
-		if entryName != "" {
+		if strings.EqualFold(base, "comicinfo.xml") {
+			entryName = f.Name
 			break
 		}
 	}
