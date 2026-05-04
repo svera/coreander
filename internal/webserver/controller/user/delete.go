@@ -1,6 +1,8 @@
 package user
 
 import (
+	"net/url"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
@@ -44,6 +46,19 @@ func (u *Controller) Delete(c fiber.Ctx) error {
 	}
 
 	if isSelf {
+		lang := "en"
+		if v, ok := c.Locals("Lang").(string); ok && v != "" {
+			lang = v
+		}
+		msg := u.translator.T(lang, "Your account has been deleted.")
+		c.Cookie(&fiber.Cookie{
+			Name:     "toast-success-once",
+			Value:    url.QueryEscape(msg),
+			Path:     "/",
+			MaxAge:   120,
+			HTTPOnly: false,
+			Secure:   false,
+		})
 		c.Cookie(&fiber.Cookie{
 			Name:     "session",
 			Value:    "",

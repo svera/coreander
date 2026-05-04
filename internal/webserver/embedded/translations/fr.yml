@@ -280,6 +280,7 @@
 "This username is already taken": "Ce nom d'utilisateur est déjà pris"
 "Invitation sent successfully to %s": "Invitation envoyée avec succès à %s"
 "Account created successfully. Please log in.": "Compte créé avec succès. Veuillez vous connecter."
+"Your account has been deleted.": "Votre compte a été supprimé."
 "Email server not configured": "Serveur de messagerie non configuré"
 "Mark as complete": "Marquer comme lu"
 "Mark as incomplete": "Marquer comme non lu"

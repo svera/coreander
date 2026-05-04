@@ -284,6 +284,7 @@
 "This username is already taken": "Это имя пользователя уже занято"
 "Invitation sent successfully to %s": "Приглашение успешно отправлено на %s"
 "Account created successfully. Please log in.": "Аккаунт успешно создан. Пожалуйста, войдите."
+"Your account has been deleted.": "Ваш аккаунт удалён."
 "Email server not configured": "Почтовый сервер не настроен"
 "Mark as complete": "Отметить как завершённое"
 "Mark as incomplete": "Отметить как незавершённое"
