@@ -2,13 +2,14 @@
 
 const clampPct = n => Math.min(100, Math.max(0, Math.round(Number(n))))
 
-function toFraction(value) {
+/** @returns {number|null} 0–1 for bar width */
+function toUnitIntervalFromPercentage(value) {
     if (typeof value === 'number' && !Number.isNaN(value)) {
-        return value
+        return Math.min(1, Math.max(0, value / 100))
     }
     if (typeof value === 'string' && value.trim() !== '') {
         const n = parseFloat(value)
-        return Number.isFinite(n) ? n : null
+        return Number.isFinite(n) ? Math.min(1, Math.max(0, n / 100)) : null
     }
     return null
 }
@@ -23,14 +24,14 @@ function setProgressBar(root, pct) {
     root.setAttribute('aria-valuenow', String(v))
 }
 
-function localFraction(slug) {
+function localUnitInterval(slug) {
     try {
         const raw = window.localStorage.getItem(slug)
         if (!raw) {
             return null
         }
         const j = JSON.parse(raw)
-        const lf = toFraction(j.fraction)
+        const lf = toUnitIntervalFromPercentage(j.percentage)
         if (lf !== null) {
             return lf
         }
@@ -55,14 +56,14 @@ async function hydrateRoot(root) {
             const ct = res.headers.get('content-type') || ''
             if (ct.includes('json')) {
                 const data = await res.json()
-                frac = toFraction(data.fraction)
+                frac = toUnitIntervalFromPercentage(data.percentage)
             }
         }
     } catch {
         /* ignore */
     }
     if (frac === null) {
-        frac = localFraction(slug)
+        frac = localUnitInterval(slug)
     }
     if (frac !== null) {
         setProgressBar(root, frac * 100)

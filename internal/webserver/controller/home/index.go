@@ -43,7 +43,7 @@ func (d *Controller) Index(c fiber.Ctx) error {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
-		fracBySlug, err := d.readingRepository.ReadingFractionBySlugs(int(session.ID), readingList.Hits())
+		pctBySlug, err := d.readingRepository.ReadingPercentageBySlugs(int(session.ID), readingList.Hits())
 		if err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
@@ -58,8 +58,8 @@ func (d *Controller) Index(c fiber.Ctx) error {
 				continue
 			}
 			result := model.AugmentedDocument{
-				Document:               doc,
-				ReadingProgressPercent: model.FractionToBarPercent(fracBySlug[slug]),
+				Document:          doc,
+				ReadingPercentage: pctBySlug[slug],
 			}
 			result = d.hlRepository.Highlighted(int(session.ID), result)
 			readingDocs = append(readingDocs, result)

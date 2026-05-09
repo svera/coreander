@@ -9,9 +9,9 @@ import (
 
 type AugmentedDocument struct {
 	index.Document
-	Highlight              Highlight
-	CompletedOn            *time.Time
-	ReadingProgressPercent int // 0–100 bar width derived from readings.fraction; used on home resume block
+	Highlight         Highlight
+	CompletedOn       *time.Time
+	ReadingPercentage int // 0–100 from readings.percentage; used on home resume cover bar
 }
 
 func AugmentedDocumentsFromDocuments(results result.Paginated[[]index.Document]) result.Paginated[[]AugmentedDocument] {

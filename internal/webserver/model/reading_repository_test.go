@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestReadingRepositoryUpdatePersistsFraction(t *testing.T) {
+func TestReadingRepositoryUpdatePersistsPercentage(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
@@ -17,48 +17,42 @@ func TestReadingRepositoryUpdatePersistsFraction(t *testing.T) {
 		t.Fatal(err)
 	}
 	repo := &ReadingRepository{DB: db}
-	f := 0.37
-	if err := repo.Update(1, "slug-a", "epubcfi(/6/4)", &f); err != nil {
+	p := 37
+	if err := repo.Update(42, "doc-slug", "epubcfi(/6/4[chap]!/4)", &p); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	var got Reading
+	if err := db.Where("user_id = ? AND slug = ?", 42, "doc-slug").First(&got).Error; err != nil {
+		t.Fatalf("First: %v", err)
+	}
+	if got.Percentage == nil || *got.Percentage != 37 {
+		t.Fatalf("Percentage = %v, want 37", got.Percentage)
+	}
+}
+
+func TestReadingRepositoryUpdatePersistsZeroPercentage(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&Reading{}); err != nil {
+		t.Fatal(err)
+	}
+	repo := &ReadingRepository{DB: db}
+	z := 0
+	if err := repo.Update(1, "slug-a", "cfi-here", &z); err != nil {
 		t.Fatal(err)
 	}
 	var got Reading
 	if err := db.Where("user_id = ? AND slug = ?", 1, "slug-a").First(&got).Error; err != nil {
 		t.Fatal(err)
 	}
-	if got.Fraction == nil || *got.Fraction != 0.37 {
-		t.Fatalf("Fraction = %v, want 0.37", got.Fraction)
+	if got.Percentage == nil || *got.Percentage != 0 {
+		t.Fatalf("Percentage = %v, want 0", got.Percentage)
 	}
 }
 
-func TestReadingRepositoryUpdatePositionWithoutFractionKeepsExistingFraction(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.AutoMigrate(&Reading{}); err != nil {
-		t.Fatal(err)
-	}
-	repo := &ReadingRepository{DB: db}
-	f := 0.5
-	if err := repo.Update(2, "slug-b", "cfi-1", &f); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.Update(2, "slug-b", "cfi-2", nil); err != nil {
-		t.Fatal(err)
-	}
-	var got Reading
-	if err := db.Where("user_id = ? AND slug = ?", 2, "slug-b").First(&got).Error; err != nil {
-		t.Fatal(err)
-	}
-	if got.Fraction == nil || *got.Fraction != 0.5 {
-		t.Fatalf("Fraction = %v, want 0.5 preserved", got.Fraction)
-	}
-	if got.Position != "cfi-2" {
-		t.Fatalf("Position = %q", got.Position)
-	}
-}
-
-func TestReadingRepositoryUpdateWithoutFractionLeavesColumnUnsetOnInsert(t *testing.T) {
+func TestReadingRepositoryUpdateWithoutPercentageLeavesColumnUnsetOnInsert(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
@@ -74,15 +68,12 @@ func TestReadingRepositoryUpdateWithoutFractionLeavesColumnUnsetOnInsert(t *test
 	if err := db.Where("user_id = ? AND slug = ?", 1, "slug-b").First(&got).Error; err != nil {
 		t.Fatal(err)
 	}
-	if got.Position != "only-pos" {
-		t.Fatalf("Position = %q", got.Position)
-	}
-	if got.Fraction != nil {
-		t.Fatalf("Fraction = %v, want nil on first insert", got.Fraction)
+	if got.Percentage != nil {
+		t.Fatalf("Percentage = %v, want nil on first insert", got.Percentage)
 	}
 }
 
-func TestReadingFractionBySlugs(t *testing.T) {
+func TestReadingRepositoryUpdatePositionWithoutPercentageKeepsExisting(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
@@ -91,46 +82,67 @@ func TestReadingFractionBySlugs(t *testing.T) {
 		t.Fatal(err)
 	}
 	repo := &ReadingRepository{DB: db}
-	a := 0.42
-	if err := repo.Update(1, "a", "p", &a); err != nil {
+	fifty := 50
+	if err := repo.Update(2, "slug-c", "cfi-1", &fifty); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.Update(1, "b", "p2", nil); err != nil {
+	if err := repo.Update(2, "slug-c", "cfi-2", nil); err != nil {
 		t.Fatal(err)
 	}
-	c := 2.0
-	if err := repo.Update(1, "c", "p3", &c); err != nil {
+	var got Reading
+	if err := db.Where("user_id = ? AND slug = ?", 2, "slug-c").First(&got).Error; err != nil {
 		t.Fatal(err)
 	}
+	if got.Percentage == nil || *got.Percentage != 50 {
+		t.Fatalf("Percentage = %v, want 50 preserved", got.Percentage)
+	}
+}
+
+func TestReadingPercentageBySlugs(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&Reading{}); err != nil {
+		t.Fatal(err)
+	}
+	repo := &ReadingRepository{DB: db}
+	p42, p150 := 42, 150
+	if err := repo.Update(1, "a", "pos-a", &p42); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Update(1, "b", "pos-b", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Update(1, "c", "pos-c", &p150); err != nil {
+		t.Fatal(err)
+	}
+	p10 := 10
 	completedAt := time.Now()
-	p10 := 0.1
 	if err := db.Create(&Reading{
 		UserID:      1,
 		Slug:        "d",
-		Position:    "p",
-		Fraction:    &p10,
+		Position:    "x",
+		Percentage:  &p10,
 		CompletedOn: &completedAt,
 	}).Error; err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := repo.ReadingFractionBySlugs(1, []string{"a", "b", "c", "d", "missing"})
+	got, err := repo.ReadingPercentageBySlugs(1, []string{"a", "b", "c", "d", "missing"})
 	if err != nil {
-		t.Fatalf("ReadingFractionBySlugs: %v", err)
+		t.Fatalf("ReadingPercentageBySlugs: %v", err)
 	}
-	if got["a"] != 0.42 {
-		t.Errorf("a = %v", got["a"])
+	if got["a"] != 42 {
+		t.Errorf("a = %d, want 42", got["a"])
 	}
-	if _, ok := got["b"]; ok {
-		t.Errorf("b should be omitted (nil fraction)")
+	if got["b"] != 0 {
+		t.Errorf("b = %d, want 0 (nil percentage)", got["b"])
 	}
-	if got["c"] != 1 {
-		t.Errorf("c = %v, want 1 (clamped)", got["c"])
+	if got["c"] != 100 {
+		t.Errorf("c = %d, want 100 (clamped)", got["c"])
 	}
-	if _, ok := got["d"]; ok {
-		t.Errorf("completed d should be omitted")
-	}
-	if _, ok := got["missing"]; ok {
-		t.Errorf("missing should be omitted")
+	if got["missing"] != 0 {
+		t.Errorf("missing = %d, want 0", got["missing"])
 	}
 }

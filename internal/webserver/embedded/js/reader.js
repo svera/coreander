@@ -562,8 +562,8 @@ class Reader {
                         position: serverData.position,
                         updated: serverData.updated
                     }
-                    if (typeof serverData.fraction === 'number' && !Number.isNaN(serverData.fraction)) {
-                        mergedOpen.fraction = serverData.fraction
+                    if (typeof serverData.percentage === 'number' && !Number.isNaN(serverData.percentage)) {
+                        mergedOpen.percentage = serverData.percentage
                     }
                     storage.setItem(slug, JSON.stringify(mergedOpen))
                 }
@@ -843,16 +843,17 @@ class Reader {
         const frac = typeof detail.fraction === 'number' && !Number.isNaN(detail.fraction)
             ? Math.min(1, Math.max(0, detail.fraction))
             : null
+        const pct = frac !== null ? Math.round(frac * 100) : null
         storage.setItem(slug, JSON.stringify({
             position: detail.cfi,
-            ...(frac !== null ? { fraction: frac } : {}),
+            ...(pct !== null ? { percentage: pct } : {}),
             updated: new Date().toISOString()
         }))
 
         // Update position on server if authenticated (debounced)
         // Skip if sidebar is being opened or if we're skipping pushes (e.g., after focus events)
         if (this.sync.isAuthenticated && !this.#sidebarOpening && !this.#skipNextPush) {
-            this.sync.schedulePositionUpdate(slug, detail.cfi, frac !== null ? frac : undefined)
+            this.sync.schedulePositionUpdate(slug, detail.cfi, pct !== null ? pct : undefined)
         }
 
         const { fraction, location, tocItem, pageItem } = detail

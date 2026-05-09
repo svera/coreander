@@ -40,8 +40,8 @@ func (d *Controller) GetPosition(c fiber.Ctx) error {
 		"position": reading.Position,
 		"updated":  reading.UpdatedAt.UTC().Format("2006-01-02T15:04:05.000Z"),
 	}
-	if reading.Fraction != nil {
-		resp["fraction"] = *reading.Fraction
+	if reading.Percentage != nil {
+		resp["percentage"] = *reading.Percentage
 	}
 	return c.JSON(resp)
 }

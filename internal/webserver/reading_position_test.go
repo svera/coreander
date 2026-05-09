@@ -12,7 +12,7 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 )
 
-func TestPutReadingPositionPersistsFractionAndGetReturnsIt(t *testing.T) {
+func TestPutReadingPositionPersistsPercentageAndGetReturnsIt(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	appFs := loadFilesInMemoryFs([]string{
 		"fixtures/library/metadata.epub",
@@ -30,7 +30,7 @@ func TestPutReadingPositionPersistsFractionAndGetReturnsIt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	body := `{"position":"epubcfi(/6/2!/4)","fraction":0.412}`
+	body := `{"position":"epubcfi(/6/2!/4)","percentage":41}`
 	req, _ := http.NewRequest(http.MethodPut, "/documents/"+testDocSlug+"/position", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept-Language", "en")
@@ -58,8 +58,8 @@ func TestPutReadingPositionPersistsFractionAndGetReturnsIt(t *testing.T) {
 	}
 	raw, _ := io.ReadAll(getResp.Body)
 	var out struct {
-		Position string   `json:"position"`
-		Fraction *float64 `json:"fraction"`
+		Position   string `json:"position"`
+		Percentage *int   `json:"percentage"`
 	}
 	if err := json.Unmarshal(raw, &out); err != nil {
 		t.Fatalf("json: %v body=%s", err, string(raw))
@@ -67,11 +67,11 @@ func TestPutReadingPositionPersistsFractionAndGetReturnsIt(t *testing.T) {
 	if out.Position != "epubcfi(/6/2!/4)" {
 		t.Fatalf("position %q", out.Position)
 	}
-	if out.Fraction == nil {
-		t.Fatal("fraction is nil")
+	if out.Percentage == nil {
+		t.Fatal("percentage is nil")
 	}
-	if *out.Fraction < 0.409 || *out.Fraction > 0.415 {
-		t.Fatalf("fraction %v, want ~0.412", *out.Fraction)
+	if *out.Percentage != 41 {
+		t.Fatalf("percentage %d, want 41", *out.Percentage)
 	}
 }
 

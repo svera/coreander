@@ -1,8 +1,8 @@
 <div class="position-relative border border-2">
     {{if .ReadingProgressShow}}
     <div class="position-absolute bottom-0 start-0 end-0 overflow-hidden" style="z-index: 4;">
-        <div class="progress rounded-0 border-0 mb-0 bg-transparent" style="height: 6px;" role="progressbar" aria-valuenow="{{.ReadingProgressPercent}}" aria-valuemin="0" aria-valuemax="100">
-            <div class="progress-bar" style="width: {{.ReadingProgressPercent}}%;"></div>
+        <div class="progress rounded-0 border-0 mb-0 bg-transparent" style="height: 6px;" role="progressbar" aria-valuenow="{{.ReadingPercentage}}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" style="width: {{.ReadingPercentage}}%;"></div>
         </div>
     </div>
     {{end}}

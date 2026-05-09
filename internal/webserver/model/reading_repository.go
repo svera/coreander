@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -45,71 +44,53 @@ func (u *ReadingRepository) Get(userID int, documentSlug string) (Reading, error
 	return reading, err
 }
 
-func clampFraction(f float64) float64 {
-	return ClampReadingFraction(f)
-}
-
-func fractionBarPercent(f *float64) int {
-	if f == nil {
+func clampPercentagePtr(p *int) int {
+	if p == nil {
 		return 0
 	}
-	v := int(math.Round(*f * 100))
-	if v < 0 {
-		return 0
-	}
-	if v > 100 {
-		return 100
-	}
-	return v
+	return ClampReadingPercentage(*p)
 }
 
-// FractionToBarPercent maps a 0–1 fraction to a 0–100 bar width (e.g. home cover bar).
-func FractionToBarPercent(f float64) int {
-	return fractionBarPercent(&f)
-}
-
-// ReadingFractionBySlugs returns stored 0–1 fractions for in-progress readings (completed_on IS NULL).
-// Slugs with no row or null fraction are omitted.
-func (u *ReadingRepository) ReadingFractionBySlugs(userID int, slugs []string) (map[string]float64, error) {
+// ReadingPercentageBySlugs returns clamped 0–100 percentage for in-progress readings (completed_on IS NULL).
+// Slugs with no row or null percentage map to 0.
+func (u *ReadingRepository) ReadingPercentageBySlugs(userID int, slugs []string) (map[string]int, error) {
 	if len(slugs) == 0 {
-		return map[string]float64{}, nil
+		return map[string]int{}, nil
 	}
 	var rows []Reading
 	err := u.DB.Where("user_id = ? AND slug IN ? AND completed_on IS NULL", userID, slugs).Find(&rows).Error
 	if err != nil {
-		log.Printf("error loading reading fractions: %s\n", err)
+		log.Printf("error loading reading percentage for slugs: %s\n", err)
 		return nil, err
 	}
-	out := make(map[string]float64, len(rows))
+	out := make(map[string]int, len(rows))
 	for _, r := range rows {
-		if r.Fraction != nil {
-			out[r.Slug] = clampFraction(*r.Fraction)
-		}
+		out[r.Slug] = clampPercentagePtr(r.Percentage)
 	}
 	return out, nil
 }
 
-// Update upserts reading position. Empty position clears fraction. When fraction is nil and position is
-// non-empty, an existing fraction in the DB is left unchanged on conflict.
-func (u *ReadingRepository) Update(userID int, documentSlug, position string, fraction *float64) error {
+// Update upserts reading position. Empty position clears percentage. When percentage is nil and position is
+// non-empty, an existing percentage in the DB is left unchanged on conflict.
+func (u *ReadingRepository) Update(userID int, documentSlug, position string, percentage *int) error {
 	row := Reading{
 		UserID:   userID,
 		Slug:     documentSlug,
 		Position: position,
 	}
 	if position == "" {
-		row.Fraction = nil
+		row.Percentage = nil
 		return u.DB.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "user_id"}, {Name: "slug"}},
-			DoUpdates: clause.AssignmentColumns([]string{"position", "fraction", "updated_at"}),
+			DoUpdates: clause.AssignmentColumns([]string{"position", "percentage", "updated_at"}),
 		}).Create(&row).Error
 	}
-	if fraction != nil {
-		f := clampFraction(*fraction)
-		row.Fraction = &f
+	if percentage != nil {
+		v := ClampReadingPercentage(*percentage)
+		row.Percentage = &v
 		return u.DB.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "user_id"}, {Name: "slug"}},
-			DoUpdates: clause.AssignmentColumns([]string{"position", "fraction", "updated_at"}),
+			DoUpdates: clause.AssignmentColumns([]string{"position", "percentage", "updated_at"}),
 		}).Create(&row).Error
 	}
 	return u.DB.Clauses(clause.OnConflict{
