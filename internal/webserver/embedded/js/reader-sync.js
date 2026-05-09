@@ -67,14 +67,18 @@ export class ReaderSync {
         }
     }
 
-    async syncPositionToServer(slug, position) {
+    async syncPositionToServer(slug, position, progressPercent) {
+        const body = { position }
+        if (typeof progressPercent === 'number' && !Number.isNaN(progressPercent)) {
+            body.progress = Math.min(100, Math.max(0, Math.round(progressPercent)))
+        }
         try {
             const response = await fetch(`/documents/${slug}/position`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ position })
+                body: JSON.stringify(body)
             })
             
             if (response.status === 403) {
@@ -141,10 +145,10 @@ export class ReaderSync {
         }
     }
 
-    schedulePositionUpdate(slug, position) {        
+    schedulePositionUpdate(slug, position, progressPercent) {
         clearTimeout(this.#updatePositionTimeout)
         this.#updatePositionTimeout = setTimeout(() => {
-            this.syncPositionToServer(slug, position)
+            this.syncPositionToServer(slug, position, progressPercent)
         }, 1000) // Wait 1 second after last position change
     }
 }

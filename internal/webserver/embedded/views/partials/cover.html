@@ -1,4 +1,11 @@
 <div class="position-relative border border-2">
+    {{if .ReadingProgressShow}}
+    <div class="position-absolute bottom-0 start-0 end-0 overflow-hidden" style="z-index: 4;">
+        <div class="progress rounded-0 border-0 mb-0 bg-transparent" style="height: 6px;" role="progressbar" aria-valuenow="{{.ReadingProgressPercent}}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" style="width: {{.ReadingProgressPercent}}%;"></div>
+        </div>
+    </div>
+    {{end}}
     {{if not .DisableCoverMainLink}}<a href="/documents/{{.Document.Slug}}{{if eq .LinkToReader true}}/read{{end}}" class="text-decoration-none">
         <div class="zoomable cover">{{end}}
             <img src="/images/generic.webp{{versionParam .Version}}" data-src="/documents/{{.Document.Slug}}/cover" loading="lazy" class="cover img-fluid w-100" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}" />

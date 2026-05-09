@@ -571,7 +571,7 @@ class Reader {
         } catch (e) {
             storage.removeItem(slug)
             if (this.sync.isAuthenticated) {
-                await this.sync.syncPositionToServer(slug, '')
+                await this.sync.syncPositionToServer(slug, '', 0)
             }
             this.#toast.show('warning', this.translations.position_reset_reading)
             try {
@@ -836,15 +836,20 @@ class Reader {
         const storage = window.localStorage
         const slug = document.getElementById('slug').value
 
+        const frac = typeof detail.fraction === 'number' && !Number.isNaN(detail.fraction)
+            ? Math.min(1, Math.max(0, detail.fraction))
+            : null
         storage.setItem(slug, JSON.stringify({
             position: detail.cfi,
+            ...(frac !== null ? { fraction: frac } : {}),
             updated: new Date().toISOString()
         }))
 
         // Update position on server if authenticated (debounced)
         // Skip if sidebar is being opened or if we're skipping pushes (e.g., after focus events)
         if (this.sync.isAuthenticated && !this.#sidebarOpening && !this.#skipNextPush) {
-            this.sync.schedulePositionUpdate(slug, detail.cfi)
+            const progressPct = frac !== null ? Math.round(frac * 100) : undefined
+            this.sync.schedulePositionUpdate(slug, detail.cfi, progressPct)
         }
 
         const { fraction, location, tocItem, pageItem } = detail

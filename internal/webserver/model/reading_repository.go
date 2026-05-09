@@ -44,13 +44,55 @@ func (u *ReadingRepository) Get(userID int, documentSlug string) (Reading, error
 	return reading, err
 }
 
-func (u *ReadingRepository) Update(userID int, documentSlug, position string) error {
-	progress := Reading{
+// ReadingProgressPercentBySlugs returns clamped 0–100 progress for in-progress readings (completed_on IS NULL).
+// Slugs with no row or null progress map to 0.
+func (u *ReadingRepository) ReadingProgressPercentBySlugs(userID int, slugs []string) (map[string]int, error) {
+	if len(slugs) == 0 {
+		return map[string]int{}, nil
+	}
+	var rows []Reading
+	err := u.DB.Where("user_id = ? AND slug IN ? AND completed_on IS NULL", userID, slugs).Find(&rows).Error
+	if err != nil {
+		log.Printf("error loading reading progress for slugs: %s\n", err)
+		return nil, err
+	}
+	out := make(map[string]int, len(rows))
+	for _, r := range rows {
+		out[r.Slug] = clampReadingProgressPercent(r.Progress)
+	}
+	return out, nil
+}
+
+func clampReadingProgressPercent(p *int) int {
+	if p == nil {
+		return 0
+	}
+	v := *p
+	if v < 0 {
+		return 0
+	}
+	if v > 100 {
+		return 100
+	}
+	return v
+}
+
+func (u *ReadingRepository) Update(userID int, documentSlug, position string, progressPercent *int) error {
+	row := Reading{
 		UserID:   userID,
 		Slug:     documentSlug,
 		Position: position,
+		Progress: progressPercent,
 	}
-	return u.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(&progress).Error
+	conflict := clause.OnConflict{
+		Columns: []clause.Column{{Name: "user_id"}, {Name: "slug"}},
+	}
+	if progressPercent != nil {
+		conflict.DoUpdates = clause.AssignmentColumns([]string{"position", "progress", "updated_at"})
+	} else {
+		conflict.DoUpdates = clause.AssignmentColumns([]string{"position", "updated_at"})
+	}
+	return u.DB.Clauses(conflict).Create(&row).Error
 }
 
 // Touch creates a reading record if it doesn't exist, but doesn't update it if it does.

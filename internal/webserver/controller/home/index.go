@@ -43,6 +43,11 @@ func (d *Controller) Index(c fiber.Ctx) error {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
+		progressBySlug, err := d.readingRepository.ReadingProgressPercentBySlugs(int(session.ID), readingList.Hits())
+		if err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
 		for _, slug := range readingList.Hits() {
 			doc, err := d.idx.Document(slug)
 			if err != nil {
@@ -52,7 +57,10 @@ func (d *Controller) Index(c fiber.Ctx) error {
 			if doc.Slug == "" {
 				continue
 			}
-			result := model.AugmentedDocument{Document: doc}
+			result := model.AugmentedDocument{
+				Document:               doc,
+				ReadingProgressPercent: progressBySlug[slug],
+			}
 			result = d.hlRepository.Highlighted(int(session.ID), result)
 			readingDocs = append(readingDocs, result)
 		}

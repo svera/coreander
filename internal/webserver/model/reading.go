@@ -10,6 +10,7 @@ type Reading struct {
 	UserID      int        `gorm:"primaryKey"`
 	Slug        string     `gorm:"primaryKey"`
 	Position    string     `gorm:"type:text"`
+	Progress    *int       `gorm:"default:null"` // 0–100 when set (reading progress percentage)
 	CompletedOn *time.Time `gorm:"default:null"`
 }
 

@@ -33,11 +33,21 @@ func (d *Controller) GetPosition(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"position": "",
 			"updated":  "",
+			"progress": nil,
+			"fraction": nil,
 		})
 	}
 
-	return c.JSON(fiber.Map{
+	out := fiber.Map{
 		"position": reading.Position,
 		"updated":  reading.UpdatedAt.UTC().Format("2006-01-02T15:04:05.000Z"),
-	})
+	}
+	if reading.Progress != nil {
+		out["progress"] = *reading.Progress
+		out["fraction"] = float64(*reading.Progress) / 100.0
+	} else {
+		out["progress"] = nil
+		out["fraction"] = nil
+	}
+	return c.JSON(out)
 }

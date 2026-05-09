@@ -51,7 +51,7 @@ type usersRepository interface {
 
 type readingRepository interface {
 	Get(userID int, documentSlug string) (model.Reading, error)
-	Update(userID int, documentSlug, position string) error
+	Update(userID int, documentSlug, position string, progressPercent *int) error
 	Touch(userID int, documentSlug string) error
 	RemoveDocument(documentSlug string) error
 	UpdateCompletionDate(userID int, documentSlug string, completedAt *time.Time) error

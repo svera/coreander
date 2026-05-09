@@ -9,8 +9,9 @@ import (
 
 type AugmentedDocument struct {
 	index.Document
-	Highlight   Highlight
-	CompletedOn *time.Time
+	Highlight              Highlight
+	CompletedOn            *time.Time
+	ReadingProgressPercent int // 0–100 from readings.progress when set; used on home resume block
 }
 
 func AugmentedDocumentsFromDocuments(results result.Paginated[[]index.Document]) result.Paginated[[]AugmentedDocument] {
