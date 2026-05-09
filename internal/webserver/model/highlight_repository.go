@@ -119,9 +119,10 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 			highlight = Highlight{}
 		}
 		searchResults[i] = AugmentedDocument{
-			Document:    searchResult.Document,
-			Highlight:   highlight,
-			CompletedOn: searchResult.CompletedOn,
+			Document:               searchResult.Document,
+			Highlight:              highlight,
+			CompletedOn:            searchResult.CompletedOn,
+			ReadingProgressPercent: searchResult.ReadingProgressPercent,
 		}
 	}
 

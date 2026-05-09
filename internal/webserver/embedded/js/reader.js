@@ -558,10 +558,14 @@ class Reader {
                     // Server position is newer
                     lastLocation = serverData.position
                     // Update localStorage with server data
-                    storage.setItem(slug, JSON.stringify({
+                    const mergedOpen = {
                         position: serverData.position,
                         updated: serverData.updated
-                    }))
+                    }
+                    if (typeof serverData.fraction === 'number' && !Number.isNaN(serverData.fraction)) {
+                        mergedOpen.fraction = serverData.fraction
+                    }
+                    storage.setItem(slug, JSON.stringify(mergedOpen))
                 }
             }
         }
@@ -571,7 +575,7 @@ class Reader {
         } catch (e) {
             storage.removeItem(slug)
             if (this.sync.isAuthenticated) {
-                await this.sync.syncPositionToServer(slug, '', 0)
+                await this.sync.syncPositionToServer(slug, '', null)
             }
             this.#toast.show('warning', this.translations.position_reset_reading)
             try {
@@ -848,8 +852,7 @@ class Reader {
         // Update position on server if authenticated (debounced)
         // Skip if sidebar is being opened or if we're skipping pushes (e.g., after focus events)
         if (this.sync.isAuthenticated && !this.#sidebarOpening && !this.#skipNextPush) {
-            const progressPct = frac !== null ? Math.round(frac * 100) : undefined
-            this.sync.schedulePositionUpdate(slug, detail.cfi, progressPct)
+            this.sync.schedulePositionUpdate(slug, detail.cfi, frac !== null ? frac : undefined)
         }
 
         const { fraction, location, tocItem, pageItem } = detail

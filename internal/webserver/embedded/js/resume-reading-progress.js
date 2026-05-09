@@ -56,9 +56,6 @@ async function hydrateRoot(root) {
             if (ct.includes('json')) {
                 const data = await res.json()
                 frac = toFraction(data.fraction)
-                if (frac === null && typeof data.progress === 'number' && !Number.isNaN(data.progress)) {
-                    frac = Math.min(1, Math.max(0, data.progress / 100))
-                }
             }
         }
     } catch {

@@ -59,7 +59,6 @@ func TestPutReadingPositionPersistsFractionAndGetReturnsIt(t *testing.T) {
 	raw, _ := io.ReadAll(getResp.Body)
 	var out struct {
 		Position string   `json:"position"`
-		Progress *int     `json:"progress"`
 		Fraction *float64 `json:"fraction"`
 	}
 	if err := json.Unmarshal(raw, &out); err != nil {
@@ -68,18 +67,11 @@ func TestPutReadingPositionPersistsFractionAndGetReturnsIt(t *testing.T) {
 	if out.Position != "epubcfi(/6/2!/4)" {
 		t.Fatalf("position %q", out.Position)
 	}
-	if out.Progress == nil {
-		t.Fatal("progress is nil")
-	}
-	// 0.412 rounds to 41 percent; fraction is derived as progress/100
-	if *out.Progress != 41 {
-		t.Fatalf("progress %d, want 41", *out.Progress)
-	}
 	if out.Fraction == nil {
 		t.Fatal("fraction is nil")
 	}
-	if *out.Fraction < 0.409 || *out.Fraction > 0.411 {
-		t.Fatalf("fraction %v, want ~0.41", *out.Fraction)
+	if *out.Fraction < 0.409 || *out.Fraction > 0.415 {
+		t.Fatalf("fraction %v, want ~0.412", *out.Fraction)
 	}
 }
 

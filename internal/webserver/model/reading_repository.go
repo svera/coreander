@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -44,30 +45,15 @@ func (u *ReadingRepository) Get(userID int, documentSlug string) (Reading, error
 	return reading, err
 }
 
-// ReadingProgressPercentBySlugs returns clamped 0–100 progress for in-progress readings (completed_on IS NULL).
-// Slugs with no row or null progress map to 0.
-func (u *ReadingRepository) ReadingProgressPercentBySlugs(userID int, slugs []string) (map[string]int, error) {
-	if len(slugs) == 0 {
-		return map[string]int{}, nil
-	}
-	var rows []Reading
-	err := u.DB.Where("user_id = ? AND slug IN ? AND completed_on IS NULL", userID, slugs).Find(&rows).Error
-	if err != nil {
-		log.Printf("error loading reading progress for slugs: %s\n", err)
-		return nil, err
-	}
-	out := make(map[string]int, len(rows))
-	for _, r := range rows {
-		out[r.Slug] = clampReadingProgressPercent(r.Progress)
-	}
-	return out, nil
+func clampFraction(f float64) float64 {
+	return ClampReadingFraction(f)
 }
 
-func clampReadingProgressPercent(p *int) int {
-	if p == nil {
+func fractionBarPercent(f *float64) int {
+	if f == nil {
 		return 0
 	}
-	v := *p
+	v := int(math.Round(*f * 100))
 	if v < 0 {
 		return 0
 	}
@@ -77,22 +63,59 @@ func clampReadingProgressPercent(p *int) int {
 	return v
 }
 
-func (u *ReadingRepository) Update(userID int, documentSlug, position string, progressPercent *int) error {
+// FractionToBarPercent maps a 0–1 fraction to a 0–100 bar width (e.g. home cover bar).
+func FractionToBarPercent(f float64) int {
+	return fractionBarPercent(&f)
+}
+
+// ReadingFractionBySlugs returns stored 0–1 fractions for in-progress readings (completed_on IS NULL).
+// Slugs with no row or null fraction are omitted.
+func (u *ReadingRepository) ReadingFractionBySlugs(userID int, slugs []string) (map[string]float64, error) {
+	if len(slugs) == 0 {
+		return map[string]float64{}, nil
+	}
+	var rows []Reading
+	err := u.DB.Where("user_id = ? AND slug IN ? AND completed_on IS NULL", userID, slugs).Find(&rows).Error
+	if err != nil {
+		log.Printf("error loading reading fractions: %s\n", err)
+		return nil, err
+	}
+	out := make(map[string]float64, len(rows))
+	for _, r := range rows {
+		if r.Fraction != nil {
+			out[r.Slug] = clampFraction(*r.Fraction)
+		}
+	}
+	return out, nil
+}
+
+// Update upserts reading position. Empty position clears fraction. When fraction is nil and position is
+// non-empty, an existing fraction in the DB is left unchanged on conflict.
+func (u *ReadingRepository) Update(userID int, documentSlug, position string, fraction *float64) error {
 	row := Reading{
 		UserID:   userID,
 		Slug:     documentSlug,
 		Position: position,
-		Progress: progressPercent,
 	}
-	conflict := clause.OnConflict{
-		Columns: []clause.Column{{Name: "user_id"}, {Name: "slug"}},
+	if position == "" {
+		row.Fraction = nil
+		return u.DB.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "user_id"}, {Name: "slug"}},
+			DoUpdates: clause.AssignmentColumns([]string{"position", "fraction", "updated_at"}),
+		}).Create(&row).Error
 	}
-	if progressPercent != nil {
-		conflict.DoUpdates = clause.AssignmentColumns([]string{"position", "progress", "updated_at"})
-	} else {
-		conflict.DoUpdates = clause.AssignmentColumns([]string{"position", "updated_at"})
+	if fraction != nil {
+		f := clampFraction(*fraction)
+		row.Fraction = &f
+		return u.DB.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "user_id"}, {Name: "slug"}},
+			DoUpdates: clause.AssignmentColumns([]string{"position", "fraction", "updated_at"}),
+		}).Create(&row).Error
 	}
-	return u.DB.Clauses(conflict).Create(&row).Error
+	return u.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "user_id"}, {Name: "slug"}},
+		DoUpdates: clause.AssignmentColumns([]string{"position", "updated_at"}),
+	}).Create(&row).Error
 }
 
 // Touch creates a reading record if it doesn't exist, but doesn't update it if it does.

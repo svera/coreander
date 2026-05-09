@@ -13,7 +13,7 @@ import (
 
 var errInvalidReadingPositionJSON = errors.New("invalid reading position JSON")
 
-func parseReadingPositionJSON(raw []byte) (position string, progressPercent *int, err error) {
+func parseReadingPositionJSON(raw []byte) (position string, fraction *float64, err error) {
 	if len(raw) == 0 {
 		return "", nil, errInvalidReadingPositionJSON
 	}
@@ -38,28 +38,14 @@ func parseReadingPositionJSON(raw []byte) (position string, progressPercent *int
 		return "", nil, err
 	}
 
-	if rawProg, ok := get("progress", "Progress"); ok {
-		var v int
-		if err := json.Unmarshal(rawProg, &v); err == nil {
-			progressPercent = &v
-		} else {
-			var f float64
-			if err := json.Unmarshal(rawProg, &f); err == nil {
-				vi := int(math.Round(f))
-				progressPercent = &vi
-			}
+	if rawFr, ok := get("fraction", "Fraction"); ok {
+		frac, perr := parseFractionJSON(rawFr)
+		if perr == nil && frac != nil {
+			f := model.ClampReadingFraction(*frac)
+			fraction = &f
 		}
 	}
-	if progressPercent == nil {
-		if rawFr, ok := get("fraction", "Fraction"); ok {
-			frac, perr := parseFractionJSON(rawFr)
-			if perr == nil && frac != nil {
-				v := int(math.Round(clamp01(*frac) * 100))
-				progressPercent = &v
-			}
-		}
-	}
-	return position, progressPercent, nil
+	return position, fraction, nil
 }
 
 func parseFractionJSON(raw json.RawMessage) (*float64, error) {
@@ -76,16 +62,6 @@ func parseFractionJSON(raw json.RawMessage) (*float64, error) {
 		return nil, err
 	}
 	return &x, nil
-}
-
-func clamp01(x float64) float64 {
-	if x < 0 {
-		return 0
-	}
-	if x > 1 {
-		return 1
-	}
-	return x
 }
 
 func (d *Controller) UpdatePosition(c fiber.Ctx) error {
@@ -108,17 +84,15 @@ func (d *Controller) UpdatePosition(c fiber.Ctx) error {
 		return fiber.ErrUnauthorized
 	}
 
-	position, progressPercent, err := parseReadingPositionJSON(c.Body())
+	position, fraction, err := parseReadingPositionJSON(c.Body())
 	if err != nil {
 		return fiber.ErrBadRequest
 	}
-	if progressPercent != nil {
-		if *progressPercent < 0 || *progressPercent > 100 {
-			return fiber.ErrBadRequest
-		}
+	if fraction != nil && math.IsNaN(*fraction) {
+		return fiber.ErrBadRequest
 	}
 
-	if err := d.readingRepository.Update(int(session.ID), document.Slug, position, progressPercent); err != nil {
+	if err := d.readingRepository.Update(int(session.ID), document.Slug, position, fraction); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
