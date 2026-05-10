@@ -833,15 +833,15 @@ class Reader {
         const frac = typeof detail.fraction === 'number' && !Number.isNaN(detail.fraction)
             ? Math.min(1, Math.max(0, detail.fraction))
             : null
-        const pct = frac !== null ? Math.round(frac * 100) : null
+        const syncPct = frac !== null ? Math.round(frac * 100) : 0
         storage.setItem(slug, JSON.stringify({
             position: detail.cfi,
-            ...(pct !== null ? { percentage: pct } : {}),
+            percentage: syncPct,
             updated: new Date().toISOString()
         }))
 
         if (this.sync.isAuthenticated && !this.#sidebarOpening && !this.#skipNextPush) {
-            this.sync.schedulePositionUpdate(slug, detail.cfi, pct !== null ? pct : undefined)
+            this.sync.schedulePositionUpdate(slug, detail.cfi, syncPct)
         }
 
         const { fraction, location, tocItem, pageItem } = detail
