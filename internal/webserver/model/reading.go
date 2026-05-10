@@ -21,7 +21,7 @@ type Reading struct {
 	UserID      int        `gorm:"primaryKey"`
 	Slug        string     `gorm:"primaryKey"`
 	Position    string     `gorm:"type:text"`
-	Percentage  *int       `gorm:"default:null"` // 0–100 reading position when set
+	Percentage  int        `gorm:"default:0"` // 0–100; unset is stored as 0
 	CompletedOn *time.Time `gorm:"default:null"`
 }
 

@@ -19,22 +19,55 @@ type ReadingRepository struct {
 	Idx idxReader
 }
 
-func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error) {
-	slugs := []string{}
-	var total int64
-
-	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("readings").Select("slug").Where("user_id = ? AND completed_on IS NULL", userID).Order("updated_at DESC").Pluck("slug", &slugs)
+// Latest returns in-progress readings as AugmentedDocuments in updated_at order, with ReadingPercentage
+// set from the readings row. Requires Idx for index-backed documents; slugs missing from the index are skipped.
+func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]AugmentedDocument], error) {
+	if u.Idx == nil {
+		return result.Paginated[[]AugmentedDocument]{}, errors.New("reading repository: idx required for Latest")
+	}
+	var rows []Reading
+	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Where("user_id = ? AND completed_on IS NULL", userID).Order("updated_at DESC").Find(&rows)
 	if res.Error != nil {
 		log.Printf("error listing documents in progress: %s\n", res.Error)
-		return result.Paginated[[]string]{}, res.Error
+		return result.Paginated[[]AugmentedDocument]{}, res.Error
 	}
-	u.DB.Table("readings").Where("user_id = ? AND completed_on IS NULL", userID).Count(&total)
+	var total int64
+	if err := u.DB.Model(&Reading{}).Where("user_id = ? AND completed_on IS NULL", userID).Count(&total).Error; err != nil {
+		log.Printf("error counting documents in progress: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
+
+	slugs := make([]string, 0, len(rows))
+	for _, r := range rows {
+		slugs = append(slugs, r.Slug)
+	}
+	if len(slugs) == 0 {
+		return result.NewPaginated(resultsPerPage, page, int(total), []AugmentedDocument{}), nil
+	}
+
+	docBySlug, err := u.Idx.Documents(slugs)
+	if err != nil {
+		log.Printf("error loading documents for in-progress list: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
+
+	augmented := make([]AugmentedDocument, 0, len(rows))
+	for _, r := range rows {
+		doc, ok := docBySlug[r.Slug]
+		if !ok || doc.Slug == "" {
+			continue
+		}
+		augmented = append(augmented, AugmentedDocument{
+			Document:          doc,
+			ReadingPercentage: ClampReadingPercentage(r.Percentage),
+		})
+	}
 
 	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(total),
-		slugs,
+		augmented,
 	), nil
 }
 
@@ -44,58 +77,24 @@ func (u *ReadingRepository) Get(userID int, documentSlug string) (Reading, error
 	return reading, err
 }
 
-func clampPercentagePtr(p *int) int {
-	if p == nil {
-		return 0
-	}
-	return ClampReadingPercentage(*p)
-}
-
-// ReadingPercentageBySlugs returns clamped 0–100 percentage for in-progress readings (completed_on IS NULL).
-// Slugs with no row or null percentage map to 0.
-func (u *ReadingRepository) ReadingPercentageBySlugs(userID int, slugs []string) (map[string]int, error) {
-	if len(slugs) == 0 {
-		return map[string]int{}, nil
-	}
-	var rows []Reading
-	err := u.DB.Where("user_id = ? AND slug IN ? AND completed_on IS NULL", userID, slugs).Find(&rows).Error
-	if err != nil {
-		log.Printf("error loading reading percentage for slugs: %s\n", err)
-		return nil, err
-	}
-	out := make(map[string]int, len(rows))
-	for _, r := range rows {
-		out[r.Slug] = clampPercentagePtr(r.Percentage)
-	}
-	return out, nil
-}
-
-// Update upserts reading position. Empty position clears percentage. When percentage is nil and position is
-// non-empty, an existing percentage in the DB is left unchanged on conflict.
-func (u *ReadingRepository) Update(userID int, documentSlug, position string, percentage *int) error {
+// Update upserts reading position. Empty position clears percentage to 0. Otherwise percentage is always written (0–100).
+func (u *ReadingRepository) Update(userID int, documentSlug, position string, percentage int) error {
 	row := Reading{
 		UserID:   userID,
 		Slug:     documentSlug,
 		Position: position,
 	}
 	if position == "" {
-		row.Percentage = nil
+		row.Percentage = 0
 		return u.DB.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "user_id"}, {Name: "slug"}},
 			DoUpdates: clause.AssignmentColumns([]string{"position", "percentage", "updated_at"}),
 		}).Create(&row).Error
 	}
-	if percentage != nil {
-		v := ClampReadingPercentage(*percentage)
-		row.Percentage = &v
-		return u.DB.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "user_id"}, {Name: "slug"}},
-			DoUpdates: clause.AssignmentColumns([]string{"position", "percentage", "updated_at"}),
-		}).Create(&row).Error
-	}
+	row.Percentage = ClampReadingPercentage(percentage)
 	return u.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "user_id"}, {Name: "slug"}},
-		DoUpdates: clause.AssignmentColumns([]string{"position", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"position", "percentage", "updated_at"}),
 	}).Create(&row).Error
 }
 

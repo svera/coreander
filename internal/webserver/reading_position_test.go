@@ -59,7 +59,7 @@ func TestPutReadingPositionPersistsPercentageAndGetReturnsIt(t *testing.T) {
 	raw, _ := io.ReadAll(getResp.Body)
 	var out struct {
 		Position   string `json:"position"`
-		Percentage *int   `json:"percentage"`
+		Percentage int    `json:"percentage"`
 	}
 	if err := json.Unmarshal(raw, &out); err != nil {
 		t.Fatalf("json: %v body=%s", err, string(raw))
@@ -67,11 +67,8 @@ func TestPutReadingPositionPersistsPercentageAndGetReturnsIt(t *testing.T) {
 	if out.Position != "epubcfi(/6/2!/4)" {
 		t.Fatalf("position %q", out.Position)
 	}
-	if out.Percentage == nil {
-		t.Fatal("percentage is nil")
-	}
-	if *out.Percentage != 41 {
-		t.Fatalf("percentage %d, want 41", *out.Percentage)
+	if out.Percentage != 41 {
+		t.Fatalf("percentage %d, want 41", out.Percentage)
 	}
 }
 

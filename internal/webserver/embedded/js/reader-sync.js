@@ -70,10 +70,18 @@ export class ReaderSync {
     }
 
     async syncPositionToServer(slug, position, percentage) {
-        const payload = { position }
-        if (typeof percentage === 'number' && !Number.isNaN(percentage)) {
-            payload.percentage = Math.min(100, Math.max(0, Math.round(percentage)))
+        let pct
+        if (position === '') {
+            pct = 0
+        } else if (typeof percentage === 'number' && !Number.isNaN(percentage)) {
+            pct = Math.min(100, Math.max(0, Math.round(percentage)))
+        } else {
+            const local = this.getLocalPosition(slug)
+            pct = typeof local.percentage === 'number' && !Number.isNaN(local.percentage)
+                ? Math.min(100, Math.max(0, Math.round(local.percentage)))
+                : 0
         }
+        const payload = { position, percentage: pct }
         try {
             const response = await fetch(`/documents/${slug}/position`, {
                 method: 'PUT',

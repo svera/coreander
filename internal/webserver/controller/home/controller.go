@@ -24,8 +24,7 @@ type highlightsRepository interface {
 }
 
 type readingRepository interface {
-	Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
-	ReadingPercentageBySlugs(userID int, slugs []string) (map[string]int, error)
+	Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]model.AugmentedDocument], error)
 }
 
 type Config struct {
