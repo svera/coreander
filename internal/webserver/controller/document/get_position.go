@@ -29,7 +29,6 @@ func (d *Controller) GetPosition(c fiber.Ctx) error {
 
 	reading, err := d.readingRepository.Get(int(session.ID), document.Slug)
 	if err != nil {
-		// Return empty response if no position is stored
 		return c.JSON(fiber.Map{
 			"position":   "",
 			"updated":    "",

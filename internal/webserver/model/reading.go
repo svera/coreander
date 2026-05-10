@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-// ClampReadingPercentage clamps v to [0, 100].
 func ClampReadingPercentage(v int) int {
 	if v < 0 {
 		return 0
@@ -21,7 +20,7 @@ type Reading struct {
 	UserID      int        `gorm:"primaryKey"`
 	Slug        string     `gorm:"primaryKey"`
 	Position    string     `gorm:"type:text"`
-	Percentage  int        `gorm:"default:0"` // 0–100; unset is stored as 0
+	Percentage  int        `gorm:"default:0"`
 	CompletedOn *time.Time `gorm:"default:null"`
 }
 

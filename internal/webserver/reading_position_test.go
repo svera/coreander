@@ -71,5 +71,3 @@ func TestPutReadingPositionPersistsPercentageAndGetReturnsIt(t *testing.T) {
 		t.Fatalf("percentage %d, want 41", out.Percentage)
 	}
 }
-
-// testDocSlug is declared in toggle_complete_test.go (same package).

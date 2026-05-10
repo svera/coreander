@@ -37,7 +37,6 @@ export class ReaderSync {
                 percentage: typeof p === 'number' && !Number.isNaN(p) ? p : null
             }
         } catch {
-            // Old format: plain string (position only)
             return { position: saved, updated: null, percentage: null }
         }
     }

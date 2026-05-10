@@ -19,8 +19,6 @@ type ReadingRepository struct {
 	Idx idxReader
 }
 
-// Latest returns in-progress readings as AugmentedDocuments in updated_at order, with ReadingPercentage
-// set from the readings row. Requires Idx for index-backed documents; slugs missing from the index are skipped.
 func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]AugmentedDocument], error) {
 	if u.Idx == nil {
 		return result.Paginated[[]AugmentedDocument]{}, errors.New("reading repository: idx required for Latest")
@@ -77,7 +75,6 @@ func (u *ReadingRepository) Get(userID int, documentSlug string) (Reading, error
 	return reading, err
 }
 
-// Update upserts reading position. Empty position clears percentage to 0. Otherwise percentage is always written (0–100).
 func (u *ReadingRepository) Update(userID int, documentSlug, position string, percentage int) error {
 	row := Reading{
 		UserID:   userID,

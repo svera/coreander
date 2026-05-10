@@ -509,24 +509,19 @@ class Reader {
         // Initialize footnote modal
         this.#setupFootnoteModal()
 
-        // Sync position from server when tab becomes visible or window gains focus
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden && !this.#sidebarOpening) {
-                // Set flag to skip pushing position updates triggered by this event
                 this.#skipNextPush = true
                 setTimeout(() => {
                     this.#skipNextPush = false
                 }, 500)
 
-                // Tab is visible again, sync from server (debounced)
                 this.sync.debouncedSyncPositionFromServer()
             }
         })
 
         window.addEventListener('focus', () => {
-            // Window gained focus, sync from server (debounced)
             if (!this.#sidebarOpening) {
-                // Set flag to skip pushing position updates triggered by this event
                 this.#skipNextPush = true
                 setTimeout(() => {
                     this.#skipNextPush = false
@@ -545,19 +540,15 @@ class Reader {
         document.body.append(this.view)
         await this.view.open(file)
 
-        // Get position, syncing with server if authenticated
         const localData = this.sync.getLocalPosition(slug)
         let lastLocation = localData.position
 
         if (this.sync.isAuthenticated) {
             const serverData = await this.sync.getServerPosition(slug)
 
-            // Compare timestamps and use the newer position
             if (serverData.position && serverData.updated) {
                 if (!localData.updated || new Date(serverData.updated) > new Date(localData.updated)) {
-                    // Server position is newer
                     lastLocation = serverData.position
-                    // Update localStorage with server data
                     const mergedOpen = {
                         position: serverData.position,
                         updated: serverData.updated
@@ -594,7 +585,6 @@ class Reader {
             }
         }
 
-        // Set view in sync helper after initialization
         this.sync.setView(this.view)
 
         // Check if it's pre-paginated content (PDF or fixed-layout) after the book is opened
@@ -850,8 +840,6 @@ class Reader {
             updated: new Date().toISOString()
         }))
 
-        // Update position on server if authenticated (debounced)
-        // Skip if sidebar is being opened or if we're skipping pushes (e.g., after focus events)
         if (this.sync.isAuthenticated && !this.#sidebarOpening && !this.#skipNextPush) {
             this.sync.schedulePositionUpdate(slug, detail.cfi, pct !== null ? pct : undefined)
         }

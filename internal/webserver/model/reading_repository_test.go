@@ -148,7 +148,6 @@ func TestLatestInProgressReturnsAugmentedWithPercentage(t *testing.T) {
 	if len(hits) != 3 {
 		t.Fatalf("len(hits) %d, want 3", len(hits))
 	}
-	// updated_at DESC: last updated is c, then b, then a
 	if hits[0].Slug != "c" || hits[0].ReadingPercentage != 100 {
 		t.Errorf("first hit %+v", hits[0])
 	}
