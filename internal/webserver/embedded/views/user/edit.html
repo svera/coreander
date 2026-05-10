@@ -134,6 +134,58 @@
                     <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
                 </div>
             </form>
+            {{if eq .Session.Uuid .User.Uuid}}
+            <hr class="my-5">
+            <div class="mb-3">
+                <h2 class="h5 text-danger">{{t .Lang "Danger zone"}}</h2>
+                <p class="text-muted">{{t .Lang "Permanently delete your account and associated data."}}</p>
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#delete-account-modal">{{t .Lang "Delete my account"}}</button>
+            </div>
+            <div class="modal fade" id="delete-account-modal" tabindex="-1" aria-labelledby="delete-account-modal-label" aria-hidden="true" data-expected-username="{{.User.Username}}">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form hx-delete="/users/{{.User.Username}}" hx-swap="none" data-error-message='{{t .Lang "The confirmation username does not match your username."}}' id="delete-account-form">
+                            <div class="modal-header">
+                                <h2 class="modal-title fs-5 text-danger" id="delete-account-modal-label">{{t .Lang "Delete account"}}</h2>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label='{{t .Lang "Close"}}'></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>{{t .Lang "This will remove your user, reading progress, highlights, and other personal data stored by this application."}}</p>
+                                <p>{{t .Lang "This action cannot be undone"}}</p>
+                                <div class="form-floating mb-3">
+                                    <input type="text" name="confirm-username" class="form-control" id="delete-account-confirm-username" autocomplete="off" placeholder='{{t .Lang "Your username"}}' aria-describedby="delete-account-confirm-help">
+                                    <label for="delete-account-confirm-username" class="form-label">{{t .Lang "Type your username to confirm"}}</label>
+                                </div>
+                                <p class="form-text" id="delete-account-confirm-help">{{t .Lang "Enter %s exactly as shown." .User.Username}}</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{t .Lang "Cancel"}}</button>
+                                <button type="submit" class="btn btn-danger" id="delete-account-submit" disabled>{{t .Lang "Delete account"}}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <script>
+            (function () {
+                const modal = document.getElementById('delete-account-modal')
+                const input = document.getElementById('delete-account-confirm-username')
+                const submit = document.getElementById('delete-account-submit')
+                if (!modal || !input || !submit) {
+                    return
+                }
+                const expected = modal.getAttribute('data-expected-username') || ''
+                function syncSubmit() {
+                    submit.disabled = input.value.trim() !== expected
+                }
+                input.addEventListener('input', syncSubmit)
+                modal.addEventListener('show.bs.modal', function () {
+                    input.value = ''
+                    syncSubmit()
+                })
+            })()
+            </script>
+            {{end}}
         </div>
         <div class='tab-pane fade {{if eq .ActiveTab "password"}}show active{{end}}' id="password-tab-pane" role="tabpanel" aria-labelledby="password-tab"
             tabindex="0">
