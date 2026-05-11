@@ -83,12 +83,9 @@ func (u *ReadingRepository) Update(userID int, documentSlug, position string, pe
 	}
 	if position == "" {
 		row.Percentage = 0
-		return u.DB.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "user_id"}, {Name: "slug"}},
-			DoUpdates: clause.AssignmentColumns([]string{"position", "percentage", "updated_at"}),
-		}).Create(&row).Error
+	} else {
+		row.Percentage = ClampReadingPercentage(percentage)
 	}
-	row.Percentage = ClampReadingPercentage(percentage)
 	return u.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "user_id"}, {Name: "slug"}},
 		DoUpdates: clause.AssignmentColumns([]string{"position", "percentage", "updated_at"}),
