@@ -35,7 +35,7 @@
             </div>
         </div>
         <div class="col-12 {{if .ShowClasses}}col-md-4{{end}} col-lg-4">
-            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableActions" true "Version" .Version "HideCoverTitle" true}}
+            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableActions" true "Version" .Version "CoverTitleSuffix" (printf "latest-%d" .Index)}}
         </div>
     </div>
 </div>

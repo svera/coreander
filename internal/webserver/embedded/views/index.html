@@ -24,7 +24,7 @@
                             <div class="carousel-inner">
                                 {{range $i, $document := .Reading}}
                                 <div class="carousel-item {{if eq $i 0}}active{{end}}">
-                                {{template "partials/cover" dict "Lang" $lang "Document" $document "Session" $session "DisableActions" true "LinkToReader" true "Version" $.Version "ReadingPercentage" $document.ReadingPercentage}}
+                                {{template "partials/cover" dict "Lang" $lang "Document" $document "Session" $session "DisableActions" true "LinkToReader" true "Version" $.Version "ReadingPercentage" $document.ReadingPercentage "CoverTitleSuffix" (printf "resume-lg-%d" $i)}}
                                 </div>
                                 {{end}}
                             </div>
@@ -47,7 +47,7 @@
                         {{range $i, $document := .Reading}}
                         {{if lt $i 4}}
                         <div class="carousel-item {{if eq $i 0}}active{{end}}">
-                            {{template "partials/cover" dict "Lang" $lang "Document" $document "Session" $session "DisableActions" true "LinkToReader" true "Version" $.Version "CoverTitleSuffix" "resume-sm" "ReadingPercentage" $document.ReadingPercentage}}
+                            {{template "partials/cover" dict "Lang" $lang "Document" $document "Session" $session "DisableActions" true "LinkToReader" true "Version" $.Version "CoverTitleSuffix" (printf "resume-sm-%d" $i) "ReadingPercentage" $document.ReadingPercentage}}
                         </div>
                         {{end}}
                         {{end}}
@@ -64,7 +64,7 @@
                     {{range $i, $document := .Reading}}
                     {{if lt $i 4}}
                     <div class="{{if gt (len $reading) 3}}col-md-3{{else if eq (len $reading) 3}}col-md-4{{else if eq (len $reading) 2}}col-md-6{{else}}col-md-4{{end}}">
-                        {{template "partials/cover" dict "Lang" $lang "Document" $document "Session" $session "DisableActions" true "LinkToReader" true "Version" $.Version "CoverTitleSuffix" "resume-md" "ReadingPercentage" $document.ReadingPercentage}}
+                        {{template "partials/cover" dict "Lang" $lang "Document" $document "Session" $session "DisableActions" true "LinkToReader" true "Version" $.Version "CoverTitleSuffix" (printf "resume-md-%d" $i) "ReadingPercentage" $document.ReadingPercentage}}
                     </div>
                     {{end}}
                     {{end}}
