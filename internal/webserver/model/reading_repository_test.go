@@ -8,7 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestReadingRepositoryUpdatePersistsPercentage(t *testing.T) {
+func newTestReadingRepo(t *testing.T) *ReadingRepository {
+	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
@@ -16,80 +17,48 @@ func TestReadingRepositoryUpdatePersistsPercentage(t *testing.T) {
 	if err := db.AutoMigrate(&Reading{}); err != nil {
 		t.Fatal(err)
 	}
-	repo := &ReadingRepository{DB: db}
-	if err := repo.Update(42, "doc-slug", "epubcfi(/6/4[chap]!/4)", 37); err != nil {
+	return &ReadingRepository{DB: db}
+}
+
+func mustUpdateReading(t *testing.T, repo *ReadingRepository, userID int, slug, position string, pct int) {
+	t.Helper()
+	if err := repo.Update(userID, slug, position, pct); err != nil {
 		t.Fatalf("Update: %v", err)
-	}
-	var got Reading
-	if err := db.Where("user_id = ? AND slug = ?", 42, "doc-slug").First(&got).Error; err != nil {
-		t.Fatalf("First: %v", err)
-	}
-	if got.Percentage != 37 {
-		t.Fatalf("Percentage = %d, want 37", got.Percentage)
 	}
 }
 
-func TestReadingRepositoryUpdatePersistsZeroPercentage(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.AutoMigrate(&Reading{}); err != nil {
-		t.Fatal(err)
-	}
-	repo := &ReadingRepository{DB: db}
-	if err := repo.Update(1, "slug-a", "cfi-here", 0); err != nil {
-		t.Fatal(err)
-	}
+func firstReading(t *testing.T, db *gorm.DB, userID int, slug string) Reading {
+	t.Helper()
 	var got Reading
-	if err := db.Where("user_id = ? AND slug = ?", 1, "slug-a").First(&got).Error; err != nil {
-		t.Fatal(err)
+	if err := db.Where("user_id = ? AND slug = ?", userID, slug).First(&got).Error; err != nil {
+		t.Fatalf("First: %v", err)
 	}
+	return got
+}
+
+func TestReadingRepositoryUpdatePersistsZeroPercentage(t *testing.T) {
+	repo := newTestReadingRepo(t)
+	mustUpdateReading(t, repo, 1, "slug-a", "cfi-here", 0)
+	got := firstReading(t, repo.DB, 1, "slug-a")
 	if got.Percentage != 0 {
 		t.Fatalf("Percentage = %d, want 0", got.Percentage)
 	}
 }
 
 func TestReadingRepositoryUpdateWithoutPercentageStoresZeroOnInsert(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.AutoMigrate(&Reading{}); err != nil {
-		t.Fatal(err)
-	}
-	repo := &ReadingRepository{DB: db}
-	if err := repo.Update(1, "slug-b", "only-pos", 0); err != nil {
-		t.Fatal(err)
-	}
-	var got Reading
-	if err := db.Where("user_id = ? AND slug = ?", 1, "slug-b").First(&got).Error; err != nil {
-		t.Fatal(err)
-	}
+	repo := newTestReadingRepo(t)
+	mustUpdateReading(t, repo, 1, "slug-b", "only-pos", 0)
+	got := firstReading(t, repo.DB, 1, "slug-b")
 	if got.Percentage != 0 {
 		t.Fatalf("Percentage = %d, want 0 when omitted", got.Percentage)
 	}
 }
 
 func TestReadingRepositoryUpdatePositionKeepsPercentageWhenResent(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.AutoMigrate(&Reading{}); err != nil {
-		t.Fatal(err)
-	}
-	repo := &ReadingRepository{DB: db}
-	if err := repo.Update(2, "slug-c", "cfi-1", 50); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.Update(2, "slug-c", "cfi-2", 50); err != nil {
-		t.Fatal(err)
-	}
-	var got Reading
-	if err := db.Where("user_id = ? AND slug = ?", 2, "slug-c").First(&got).Error; err != nil {
-		t.Fatal(err)
-	}
+	repo := newTestReadingRepo(t)
+	mustUpdateReading(t, repo, 2, "slug-c", "cfi-1", 50)
+	mustUpdateReading(t, repo, 2, "slug-c", "cfi-2", 50)
+	got := firstReading(t, repo.DB, 2, "slug-c")
 	if got.Percentage != 50 {
 		t.Fatalf("Percentage = %d, want 50 preserved", got.Percentage)
 	}
@@ -115,27 +84,15 @@ func (s *latestInProgressIdxStub) TotalWordCount(slugs []string) (float64, error
 
 func TestLatestInProgressReturnsAugmentedWithPercentage(t *testing.T) {
 	const uid = 701
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.AutoMigrate(&Reading{}); err != nil {
-		t.Fatal(err)
-	}
-	repo := &ReadingRepository{DB: db, Idx: &latestInProgressIdxStub{docs: map[string]index.Document{
+	repo := newTestReadingRepo(t)
+	repo.Idx = &latestInProgressIdxStub{docs: map[string]index.Document{
 		"a": {Slug: "a"},
 		"b": {Slug: "b"},
 		"c": {Slug: "c"},
-	}}}
-	if err := repo.Update(uid, "a", "pos-a", 42); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.Update(uid, "b", "pos-b", 0); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.Update(uid, "c", "pos-c", 150); err != nil {
-		t.Fatal(err)
-	}
+	}}
+	mustUpdateReading(t, repo, uid, "a", "pos-a", 42)
+	mustUpdateReading(t, repo, uid, "b", "pos-b", 0)
+	mustUpdateReading(t, repo, uid, "c", "pos-c", 150)
 
 	page, err := repo.Latest(uid, 1, 10)
 	if err != nil {
@@ -161,22 +118,12 @@ func TestLatestInProgressReturnsAugmentedWithPercentage(t *testing.T) {
 
 func TestLatestInProgressSkipsMissingIndexDocuments(t *testing.T) {
 	const uid = 702
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.AutoMigrate(&Reading{}); err != nil {
-		t.Fatal(err)
-	}
-	repo := &ReadingRepository{DB: db, Idx: &latestInProgressIdxStub{docs: map[string]index.Document{
+	repo := newTestReadingRepo(t)
+	repo.Idx = &latestInProgressIdxStub{docs: map[string]index.Document{
 		"in-index": {Slug: "in-index"},
-	}}}
-	if err := repo.Update(uid, "in-index", "p", 10); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.Update(uid, "ghost", "p2", 10); err != nil {
-		t.Fatal(err)
-	}
+	}}
+	mustUpdateReading(t, repo, uid, "in-index", "p", 10)
+	mustUpdateReading(t, repo, uid, "ghost", "p2", 10)
 	page, err := repo.Latest(uid, 1, 10)
 	if err != nil {
 		t.Fatalf("Latest: %v", err)
@@ -191,15 +138,8 @@ func TestLatestInProgressSkipsMissingIndexDocuments(t *testing.T) {
 }
 
 func TestLatestRequiresIdx(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := db.AutoMigrate(&Reading{}); err != nil {
-		t.Fatal(err)
-	}
-	repo := &ReadingRepository{DB: db, Idx: nil}
-	_, err = repo.Latest(1, 1, 10)
+	repo := newTestReadingRepo(t)
+	_, err := repo.Latest(1, 1, 10)
 	if err == nil {
 		t.Fatal("expected error when Idx is nil")
 	}
