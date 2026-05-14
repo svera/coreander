@@ -68,7 +68,8 @@ func init() {
 			GetMetadataFromFile: epub.GetMetadataFromFile,
 			GetPackageFromFile:  epub.GetPackageFromFile,
 		},
-		".pdf": metadata.PdfReader{Fs: appFs},
+		".pdf":  metadata.PdfReader{Fs: appFs},
+		".cbz":  metadata.CbzReader{},
 	}
 
 	var documentsIndex, authorsIndex bleve.Index

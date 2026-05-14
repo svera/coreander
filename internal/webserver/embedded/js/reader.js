@@ -59,6 +59,47 @@ const getCSS = ({ spacing, justify, hyphenate, theme, fontSize, fontFamily }) =>
 
 const $ = document.querySelector.bind(document)
 
+/** Message thrown by foliate comic-book.js when a CBZ has no supported images (must match upstream). */
+const emptyComicArchiveMessage = 'No supported image files in archive'
+
+/**
+ * Hides the loading spinner, removes a partially mounted foliate-view, and shows
+ * #error-icon-container with #reader-error-text (idempotent for the same page load).
+ */
+function showReaderOpenFailure(err) {
+    const errorIcon = document.querySelector('#error-icon-container')
+    if (errorIcon?.dataset.readerOpenFailureShown === '1') {
+        return
+    }
+
+    const spinner = document.querySelector('#spinner-container')
+    if (spinner?.parentNode) {
+        spinner.parentNode.removeChild(spinner)
+    }
+    document.querySelector('foliate-view')?.remove()
+
+    let translations = {}
+    try {
+        translations = JSON.parse(document.getElementById('i18n').textContent).i18n
+    } catch {
+        // ignore missing or invalid i18n
+    }
+
+    if (!errorIcon) {
+        return
+    }
+    const msgEl = document.querySelector('#reader-error-text')
+    if (msgEl) {
+        const msg = err?.message === emptyComicArchiveMessage && translations.empty_comic_archive
+            ? translations.empty_comic_archive
+            : (err?.message || String(err))
+        msgEl.textContent = msg
+        msgEl.classList.remove('d-none')
+    }
+    errorIcon.classList.remove('d-none')
+    errorIcon.dataset.readerOpenFailureShown = '1'
+}
+
 const locales = 'en'
 const percentFormat = new Intl.NumberFormat(locales, { style: 'percent' })
 const listFormat = new Intl.ListFormat(locales, { style: 'short', type: 'conjunction' })
@@ -538,7 +579,13 @@ class Reader {
         const storage = window.localStorage
         const slug = document.getElementById('slug').value
         document.body.append(this.view)
-        await this.view.open(file)
+        try {
+            await this.view.open(file)
+        } catch (e) {
+            showReaderOpenFailure(e)
+            globalThis.reader = null
+            throw e
+        }
 
         const localData = this.sync.getLocalPosition(slug)
         let lastLocation = localData.position
@@ -661,15 +708,18 @@ class Reader {
 
         document.addEventListener('keydown', this.#handleKeydown.bind(this))
 
-        const title = formatLanguageMap(book.metadata?.title) || slug
-        document.title = title
+        // Foliate CBZ sets book.metadata.title to the file name only; prefer index title (e.g. ComicInfo) from the server.
+        const indexedTitle = document.getElementById('indexed-document-title')?.value?.trim() ?? ''
+        const indexedAuthors = document.getElementById('indexed-document-authors')?.value?.trim() ?? ''
+        const displayTitle = indexedTitle || formatLanguageMap(book.metadata?.title) || slug
+        document.title = indexedAuthors ? `${indexedAuthors} - ${displayTitle}` : displayTitle
         const titleEl = $('#side-bar-title')
         titleEl.replaceChildren()
         const detailLink = document.createElement('a')
         detailLink.href = `/documents/${slug}`
-        detailLink.textContent = title
+        detailLink.textContent = displayTitle
         titleEl.appendChild(detailLink)
-        $('#side-bar-author').innerText = formatContributor(book.metadata?.author)
+        $('#side-bar-author').innerText = indexedAuthors || formatContributor(book.metadata?.author)
         Promise.resolve(book.getCover?.())?.then(blob =>
             blob ? $('#side-bar-cover').src = URL.createObjectURL(blob) : null)
 
@@ -881,6 +931,9 @@ const open = async file => {
 }
 
 const url = document.getElementById('url').value
+const slug = document.getElementById('slug')?.value || 'document'
+const format = (document.getElementById('format')?.value || '').toLowerCase()
+const ext = format === 'cbz' ? '.cbz' : format === 'pdf' ? '.pdf' : '.epub'
 if (url) fetch(url)
     .then(res => {
         if (res.status == 403) {
@@ -902,16 +955,18 @@ if (url) fetch(url)
         if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);
         }
-        return res.blob()
+        return res.blob().then(blob => ({ blob, contentType: res.headers.get('Content-Type') || '' }))
     })
-    .then(blob => {
-        if (blob) open(new File([blob], new URL(url).pathname))
+    .then(({ blob, contentType }) => {
+        if (blob) {
+            const filename = slug + ext
+            return open(new File([blob], filename, { type: contentType }))
+        }
+        return undefined
     })
     .catch(e => {
         if (e.message !== 'Authentication required') {
-            const spinner = $('#spinner-container');
-            if (spinner) document.body.removeChild(spinner);
-            $('#error-icon-container').classList.remove('d-none');
+            showReaderOpenFailure(e)
         }
-        console.error(e);
+        console.error(e)
     })

@@ -260,6 +260,7 @@
 "Reading position updated from another device.": "Позиция чтения обновлена с другого устройства."
 "You are not logged in. Your reading position is saved locally only.": "Вы не вошли в систему. Ваша позиция чтения сохраняется только локально. <a href=\"/sessions/new\" class=\"text-dark text-decoration-underline\">Войти</a>"
 "Your saved reading position was reset because this document changed.": "Сохраненная позиция чтения была сброшена, потому что документ изменился."
+"No supported image files in archive": "В архиве нет поддерживаемых файлов изображений"
 "Invite users": "Пригласить пользователей"
 "Send invitation": "Отправить приглашение"
 "Invitations sent successfully": "Приглашения успешно отправлены"

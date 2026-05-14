@@ -1,8 +1,13 @@
 package index_test
 
 import (
+	"archive/zip"
+	"encoding/base64"
+	"encoding/xml"
 	"fmt"
 	"html/template"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"testing"
@@ -1627,4 +1632,111 @@ func testIndexAndSearchCases() []testCase {
 			),
 		},
 	}
+}
+
+// cbzTestMinimalPNG is a 1×1 transparent PNG (valid image for CBZ tests).
+var cbzTestMinimalPNG, _ = base64.StdEncoding.DecodeString(
+	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+)
+
+func TestCbzReader_Metadata_Illustrators(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	cbPath := filepath.Join(dir, "issue.cbz")
+
+	comicXML := metadata.ComicInfo{
+		Title:     "Test Issue",
+		Writer:    "Alice Writer",
+		Penciller: "Bob Penciller",
+		Inker:     "Carol Inker",
+		Colorist:  "Dan Colorist",
+		Letterer:  "Eve Letterer",
+		Editor:    "Frank Editor",
+	}
+	comicXML.CoverArtist = "Gia Cover"
+	comicXML.Illustrator = "Helen Illustrator"
+
+	data, err := xml.Marshal(comicXML)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeTestCBZ(cbPath, string(data)); err != nil {
+		t.Fatal(err)
+	}
+
+	meta, err := metadata.CbzReader{}.Metadata(cbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantAuthors := []string{"Alice Writer", "Frank Editor"}
+	if !reflect.DeepEqual(meta.Authors, wantAuthors) {
+		t.Errorf("Authors = %#v; want %#v", meta.Authors, wantAuthors)
+	}
+
+	wantIll := []string{
+		"Bob Penciller",
+		"Carol Inker",
+		"Dan Colorist",
+		"Eve Letterer",
+		"Gia Cover",
+		"Helen Illustrator",
+	}
+	if !reflect.DeepEqual(meta.Illustrators, wantIll) {
+		t.Errorf("Illustrators = %#v; want %#v", meta.Illustrators, wantIll)
+	}
+}
+
+func TestCbzReader_Metadata_IllustratorsDedupe(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	cbPath := filepath.Join(dir, "dedupe.cbz")
+
+	comicXML := metadata.ComicInfo{
+		Writer:    "Same Person",
+		Penciller: "Same Person",
+		Inker:     "Same Person",
+	}
+	data, err := xml.Marshal(comicXML)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeTestCBZ(cbPath, string(data)); err != nil {
+		t.Fatal(err)
+	}
+
+	meta, err := metadata.CbzReader{}.Metadata(cbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(meta.Authors, []string{"Same Person"}) {
+		t.Errorf("Authors = %#v", meta.Authors)
+	}
+	if !reflect.DeepEqual(meta.Illustrators, []string{"Same Person"}) {
+		t.Errorf("Illustrators = %#v; want one deduped art credit", meta.Illustrators)
+	}
+}
+
+func writeTestCBZ(path, comicInfoXML string) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	zw := zip.NewWriter(f)
+	wci, err := zw.Create("ComicInfo.xml")
+	if err != nil {
+		return err
+	}
+	if _, err := wci.Write([]byte(xml.Header + comicInfoXML)); err != nil {
+		return err
+	}
+	wimg, err := zw.Create("001.png")
+	if err != nil {
+		return err
+	}
+	if _, err := wimg.Write(cbzTestMinimalPNG); err != nil {
+		return err
+	}
+	return zw.Close()
 }

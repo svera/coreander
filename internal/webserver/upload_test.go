@@ -130,7 +130,7 @@ func TestUpload(t *testing.T) {
 		multipartWriter := multipart.NewWriter(&buf)
 
 		h := make(textproto.MIMEHeader)
-		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, "filename", "file.txt"))
+		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, "filename", "file.epub"))
 		h.Set("Content-Type", "application/epub+zip")
 		part, _ := multipartWriter.CreatePart(h)
 		part.Write([]byte(`sample`))

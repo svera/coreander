@@ -8,6 +8,8 @@
     <meta name="author" content="Sergio Vera">
     <title>{{if .Title}}{{t .Lang .Title}} | {{end}}Coreander</title>
 
+    <link rel="preload" href="/images/generic.webp{{versionParam .Version}}" as="image" type="image/webp" crossorigin>
+
     <!-- Bootstrap core CSS -->
     <link href="/css/bootstrap.min.css{{versionParam .Version}}" rel="stylesheet">
     <link href="/css/display.css{{versionParam .Version}}" rel="stylesheet">

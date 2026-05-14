@@ -99,6 +99,12 @@ foliate-view:focus {
 .d-none {
     display: none !important;
 }
+#error-icon-container .reader-error-text {
+    max-width: 28rem;
+    margin: 0 auto 1rem;
+    text-align: center;
+}
+
 #spinner-container, #error-icon-container {
     height: 100vh;
     display: flex;
