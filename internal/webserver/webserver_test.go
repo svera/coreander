@@ -56,26 +56,28 @@ func TestGET(t *testing.T) {
 }
 
 func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig webserver.Config) *fiber.App {
+	return bootstrapAppWithReaders(db, sender, appFs, webserverConfig, testMetadataReaders())
+}
+
+func bootstrapAppWithReaders(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig webserver.Config, metadataReaders map[string]metadata.Reader) *fiber.App {
 	var (
 		idx *index.BleveIndexer
 	)
 
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
-	metadataReaders := map[string]metadata.Reader{
-		".epub": metadata.NewEpubReader(),
-		".pdf":  metadata.PdfReader{Fs: appFs},
+	if reflect.ValueOf(webserverConfig).IsZero() {
+		webserverConfig = defaultTestConfig()
+	}
+	if webserverConfig.LibraryPath == "" || webserverConfig.LibraryPath == "testdata/library" {
+		webserverConfig.LibraryPath = testLibraryDir
+	}
+	if webserverConfig.SessionTimeout == 0 {
+		webserverConfig.SessionTimeout = 24 * time.Hour
 	}
 
-	if reflect.ValueOf(webserverConfig).IsZero() {
-		webserverConfig = webserver.Config{
-			SessionTimeout:        24 * time.Hour,
-			RecoveryTimeout:       2 * time.Hour,
-			LibraryPath:           "fixtures/library",
-			WordsPerMinute:        250,
-			UploadDocumentMaxSize: 1,
-		}
-	}
+	_ = appFs.MkdirAll(webserverConfig.LibraryPath, 0o755)
+	_ = appFs.MkdirAll(filepath.Join(webserverConfig.LibraryPath, "nested"), 0o755)
 
 	indexFile, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err == nil {
@@ -97,6 +99,11 @@ func loadFilesInMemoryFs(files []string) afero.Fs {
 
 	appFS := afero.NewMemMapFs()
 
+	for i, fileName := range files {
+		if strings.HasPrefix(fileName, "testdata/library/") {
+			files[i] = filepath.Join(testLibraryDir, strings.TrimPrefix(fileName, "testdata/library/"))
+		}
+	}
 	for _, fileName := range files {
 		file, err := os.Open(fileName)
 		if err != nil {
@@ -181,6 +188,9 @@ func mustReturnForbiddenAndShowLogin(response *http.Response, t *testing.T) {
 }
 
 func loadDirInMemoryFs(dir string) afero.Fs {
+	if dir == "testdata/library" {
+		dir = testLibraryDir
+	}
 	contents := make(map[string][]byte)
 
 	appFS := afero.NewMemMapFs()

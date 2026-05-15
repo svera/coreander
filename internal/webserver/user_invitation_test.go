@@ -50,7 +50,7 @@ func TestUserInvitation(t *testing.T) {
 			SessionTimeout:    24 * time.Hour,
 			RecoveryTimeout:   2 * time.Hour,
 			InvitationTimeout: 72 * time.Hour,
-			LibraryPath:       "fixtures/library",
+			LibraryPath:       "testdata/library",
 			WordsPerMinute:    250,
 			FQDN:              "http://localhost:3000",
 		}
@@ -706,7 +706,7 @@ func TestInvitationEmailContent(t *testing.T) {
 			SessionTimeout:    24 * time.Hour,
 			RecoveryTimeout:   2 * time.Hour,
 			InvitationTimeout: 72 * time.Hour,
-			LibraryPath:       "fixtures/library",
+			LibraryPath:       "testdata/library",
 			WordsPerMinute:    250,
 			FQDN:              "http://localhost:3000",
 		}
@@ -761,7 +761,7 @@ func TestInvitationEmailContent(t *testing.T) {
 			SessionTimeout:    24 * time.Hour,
 			RecoveryTimeout:   2 * time.Hour,
 			InvitationTimeout: 72 * time.Hour,
-			LibraryPath:       "fixtures/library",
+			LibraryPath:       "testdata/library",
 			WordsPerMinute:    250,
 			FQDN:              "example.com", // No protocol
 		}

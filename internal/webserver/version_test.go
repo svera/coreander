@@ -45,11 +45,11 @@ func TestVersionParameterInURLs(t *testing.T) {
 				Version:               tc.version,
 				SessionTimeout:        24 * 60 * 60 * 1000000000, // 24 hours in nanoseconds
 				RecoveryTimeout:       2 * 60 * 60 * 1000000000,  // 2 hours in nanoseconds
-				LibraryPath:           "fixtures/library",
+				LibraryPath:           "testdata/library",
 				WordsPerMinute:        250,
 				UploadDocumentMaxSize: 1,
 			}
-			app := bootstrapApp(db, &infrastructure.NoEmail{}, loadDirInMemoryFs("fixtures/library"), config)
+			app := bootstrapApp(db, &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), config)
 
 			// Make request to home page
 			req, err := http.NewRequest(http.MethodGet, "/", nil)

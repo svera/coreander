@@ -9,11 +9,13 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/webserver"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
@@ -21,7 +23,7 @@ import (
 
 func TestUpload(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
-	appFS := loadDirInMemoryFs("fixtures/library")
+	appFS := loadDirInMemoryFs("testdata/library")
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS, webserver.Config{})
 
 	data := url.Values{
@@ -181,7 +183,7 @@ func TestUpload(t *testing.T) {
 		var buf bytes.Buffer
 		multipartWriter := multipart.NewWriter(&buf)
 
-		file, err := os.ReadFile("fixtures/upload/haruko-html-jpeg.epub")
+		file, err := os.ReadFile("testdata/upload/haruko-html-jpeg.epub")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -216,16 +218,20 @@ func TestUpload(t *testing.T) {
 	// a real filesystem instead Afero's in-memory implementation
 	t.Run("Returns 302 for correct document", func(t *testing.T) {
 		fs := afero.NewOsFs()
-		app := bootstrapApp(db, &infrastructure.NoEmail{}, fs, webserver.Config{})
+		readers := map[string]metadata.Reader{
+			".epub": metadata.NewEpubReader(),
+			".pdf":  metadata.PdfReader{Fs: fs},
+		}
+		app := bootstrapAppWithReaders(db, &infrastructure.NoEmail{}, fs, webserver.Config{}, readers)
 
 		t.Cleanup(func() {
-			fs.Remove("fixtures/library/childrens-literature.epub")
+			fs.Remove(filepath.Join(testLibraryDir, "childrens-literature.epub"))
 		})
 
 		var buf bytes.Buffer
 		multipartWriter := multipart.NewWriter(&buf)
 
-		file, err := os.ReadFile("fixtures/upload/childrens-literature.epub")
+		file, err := os.ReadFile("testdata/upload/childrens-literature.epub")
 		if err != nil {
 			log.Fatal(err)
 		}
