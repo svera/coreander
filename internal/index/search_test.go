@@ -1,10 +1,7 @@
 package index_test
 
 import (
-	"fmt"
-	"html/template"
 	"reflect"
-	"strconv"
 	"testing"
 
 	"github.com/blevesearch/bleve/v2"
@@ -26,30 +23,13 @@ func TestIndexAndSearch(t *testing.T) {
 				t.Errorf("Error initialising index")
 			}
 
-			var mockMetadataReaders map[string]metadata.Reader
-
-			// Use custom mockEpubReader for reading time tests that need specific word counts
-			if tcase.name == "Test estimated reading time range search" {
-				mockMetadataReaders = map[string]metadata.Reader{
-					".epub": mockEpubReader{
-						EpubReader: metadata.EpubReader{
-							GetMetadataFromFile: func(file string) (*epub.Information, error) {
-								return tcase.mockedMeta, nil
-							},
-							GetPackageFromFile: epub.GetPackageFromFile,
-						},
-					},
-				}
-			} else {
-				mockMetadataReaders = map[string]metadata.Reader{
-					".epub": metadata.EpubReader{
-						GetMetadataFromFile: func(file string) (*epub.Information, error) {
-							return tcase.mockedMeta, nil
-						},
-						GetPackageFromFile: epub.GetPackageFromFile,
-					},
-				}
+			reader := epubTestReader{
+				info: map[string]*epub.Information{tcase.filename: tcase.mockedMeta},
 			}
+			if tcase.name == "Test estimated reading time range search" {
+				reader.words = map[string]float64{tcase.filename: 24000}
+			}
+			mockMetadataReaders := map[string]metadata.Reader{".epub": reader}
 
 			appFS := afero.NewMemMapFs()
 			// create test files and directories
@@ -82,40 +62,7 @@ func TestLanguageFilter(t *testing.T) {
 	}
 
 	mockMetadataReaders := map[string]metadata.Reader{
-		".epub": mockEpubReader{
-			EpubReader: metadata.EpubReader{
-				GetMetadataFromFile: func(file string) (*epub.Information, error) {
-					switch file {
-					case "lib/english_book.epub":
-						return &epub.Information{
-							Title:       []string{"English Book"},
-							Creator:     []epub.Author{{FullName: "English Author", Role: "aut"}},
-							Description: []string{"A book in English"},
-							Language:    []string{"en"},
-							Subject:     []string{"Fiction"},
-						}, nil
-					case "lib/spanish_book.epub":
-						return &epub.Information{
-							Title:       []string{"Spanish Book"},
-							Creator:     []epub.Author{{FullName: "Spanish Author", Role: "aut"}},
-							Description: []string{"A book in Spanish"},
-							Language:    []string{"es"},
-							Subject:     []string{"Fiction"},
-						}, nil
-					case "lib/french_book.epub":
-						return &epub.Information{
-							Title:       []string{"French Book"},
-							Creator:     []epub.Author{{FullName: "French Author", Role: "aut"}},
-							Description: []string{"A book in French"},
-							Language:    []string{"fr"},
-							Subject:     []string{"Fiction"},
-						}, nil
-					}
-					return nil, fmt.Errorf("file not found")
-				},
-				GetPackageFromFile: epub.GetPackageFromFile,
-			},
-		},
+		".epub": epubTestReader{info: languageFilterLibrary()},
 	}
 
 	appFS := afero.NewMemMapFs()
@@ -296,78 +243,7 @@ func TestSearchResultsSortedByDate(t *testing.T) {
 	}
 
 	mockMetadataReaders := map[string]metadata.Reader{
-		".epub": metadata.EpubReader{
-			GetMetadataFromFile: func(file string) (*epub.Information, error) {
-				switch file {
-				case "lib/oldest.epub":
-					return &epub.Information{
-						Title: []string{"Oldest Book"},
-						Creator: []epub.Author{
-							{FullName: "Ancient Author", Role: "aut"},
-						},
-						Description: []string{"The oldest book"},
-						Language:    []string{"en"},
-						Subject:     []string{"History"},
-						Date: []epub.Date{
-							{Stamp: "1800-01-01", Event: "publication"},
-						},
-					}, nil
-				case "lib/older.epub":
-					return &epub.Information{
-						Title: []string{"Older Book"},
-						Creator: []epub.Author{
-							{FullName: "Old Author", Role: "aut"},
-						},
-						Description: []string{"An older book"},
-						Language:    []string{"en"},
-						Subject:     []string{"History"},
-						Date: []epub.Date{
-							{Stamp: "1900-06-15", Event: "publication"},
-						},
-					}, nil
-				case "lib/newer.epub":
-					return &epub.Information{
-						Title: []string{"Newer Book"},
-						Creator: []epub.Author{
-							{FullName: "New Author", Role: "aut"},
-						},
-						Description: []string{"A newer book"},
-						Language:    []string{"en"},
-						Subject:     []string{"History"},
-						Date: []epub.Date{
-							{Stamp: "2000-12-31", Event: "publication"},
-						},
-					}, nil
-				case "lib/newest.epub":
-					return &epub.Information{
-						Title: []string{"Newest Book"},
-						Creator: []epub.Author{
-							{FullName: "Modern Author", Role: "aut"},
-						},
-						Description: []string{"The newest book"},
-						Language:    []string{"en"},
-						Subject:     []string{"History"},
-						Date: []epub.Date{
-							{Stamp: "2023-03-20", Event: "publication"},
-						},
-					}, nil
-				case "lib/no-date.epub":
-					return &epub.Information{
-						Title: []string{"No Date Book"},
-						Creator: []epub.Author{
-							{FullName: "Unknown Author", Role: "aut"},
-						},
-						Description: []string{"A book without publication date"},
-						Language:    []string{"en"},
-						Subject:     []string{"History"},
-						Date:        []epub.Date{},
-					}, nil
-				default:
-					return nil, fmt.Errorf("unknown file: %s", file)
-				}
-			},
-			GetPackageFromFile: epub.GetPackageFromFile,
-		},
+		".epub": epubTestReader{info: publicationDateSortLibrary()},
 	}
 
 	appFS := afero.NewMemMapFs()
@@ -435,88 +311,6 @@ func TestSearchResultsSortedByDate(t *testing.T) {
 	})
 }
 
-// Create a custom metadata reader that sets different word counts
-type mockEpubReader struct {
-	metadata.EpubReader
-}
-
-func (m mockEpubReader) Metadata(filename string) (metadata.Metadata, error) {
-	// Get the base metadata from the mock
-	meta, err := m.GetMetadataFromFile(filename)
-	if err != nil {
-		return metadata.Metadata{}, err
-	}
-
-	// Create metadata with custom word counts based on filename
-	var wordCount float64
-	switch filename {
-	case "lib/shortest.epub":
-		wordCount = 1000 // 1000 words
-	case "lib/shorter.epub":
-		wordCount = 5000 // 5000 words
-	case "lib/longer.epub":
-		wordCount = 15000 // 15000 words
-	case "lib/longest.epub":
-		wordCount = 50000 // 50000 words
-	case "lib/no-words.epub":
-		wordCount = 0 // 0 words
-	case "lib/book19.epub":
-		wordCount = 24000 // 24000 words = 2 hours at 200 wpm
-	default:
-		wordCount = 1000 // Default to 1000 words for other files
-	}
-
-	// Create the metadata manually
-	title := meta.Title[0]
-	var authors []string
-	for _, creator := range meta.Creator {
-		if creator.Role == "aut" || creator.Role == "" {
-			authors = append(authors, creator.FullName)
-		}
-	}
-	if len(authors) == 0 {
-		authors = []string{""}
-	}
-
-	description := ""
-	if len(meta.Description) > 0 {
-		description = "<p>" + meta.Description[0] + "</p>"
-	}
-
-	lang := ""
-	if len(meta.Language) > 0 {
-		lang = meta.Language[0]
-	}
-
-	publication := precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay}
-	for _, currentDate := range meta.Date {
-		if currentDate.Event == "publication" || currentDate.Event == "" {
-			if publication.Date, err = date.ParseISO(currentDate.Stamp); err != nil {
-				publication.Precision = precisiondate.PrecisionYear
-				publication.Date, _ = date.Parse("2006", currentDate.Stamp)
-			}
-			break
-		}
-	}
-
-	seriesIndex := 0.0
-	if meta.SeriesIndex != "" {
-		seriesIndex, _ = strconv.ParseFloat(meta.SeriesIndex, 64)
-	}
-	return metadata.Metadata{
-		Title:       title,
-		Authors:     authors,
-		Description: template.HTML(description),
-		Language:    lang,
-		Publication: publication,
-		Series:      meta.Series,
-		SeriesIndex: seriesIndex,
-		Format:      "EPUB",
-		Subjects:    meta.Subject,
-		Words:       wordCount,
-	}, nil
-}
-
 func TestSearchResultsSortedByReadingTime(t *testing.T) {
 	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
@@ -524,80 +318,7 @@ func TestSearchResultsSortedByReadingTime(t *testing.T) {
 	}
 
 	mockMetadataReaders := map[string]metadata.Reader{
-		".epub": mockEpubReader{
-			EpubReader: metadata.EpubReader{
-				GetMetadataFromFile: func(file string) (*epub.Information, error) {
-					switch file {
-					case "lib/shortest.epub":
-						return &epub.Information{
-							Title: []string{"Shortest Book"},
-							Creator: []epub.Author{
-								{FullName: "Short Author", Role: "aut"},
-							},
-							Description: []string{"The shortest book"},
-							Language:    []string{"en"},
-							Subject:     []string{"Short Stories"},
-							Date: []epub.Date{
-								{Stamp: "2020-01-01", Event: "publication"},
-							},
-						}, nil
-					case "lib/shorter.epub":
-						return &epub.Information{
-							Title: []string{"Shorter Book"},
-							Creator: []epub.Author{
-								{FullName: "Medium Author", Role: "aut"},
-							},
-							Description: []string{"A shorter book"},
-							Language:    []string{"en"},
-							Subject:     []string{"Short Stories"},
-							Date: []epub.Date{
-								{Stamp: "2020-06-15", Event: "publication"},
-							},
-						}, nil
-					case "lib/longer.epub":
-						return &epub.Information{
-							Title: []string{"Longer Book"},
-							Creator: []epub.Author{
-								{FullName: "Long Author", Role: "aut"},
-							},
-							Description: []string{"A longer book"},
-							Language:    []string{"en"},
-							Subject:     []string{"Novels"},
-							Date: []epub.Date{
-								{Stamp: "2020-12-31", Event: "publication"},
-							},
-						}, nil
-					case "lib/longest.epub":
-						return &epub.Information{
-							Title: []string{"Longest Book"},
-							Creator: []epub.Author{
-								{FullName: "Epic Author", Role: "aut"},
-							},
-							Description: []string{"The longest book"},
-							Language:    []string{"en"},
-							Subject:     []string{"Epic Novels"},
-							Date: []epub.Date{
-								{Stamp: "2023-03-20", Event: "publication"},
-							},
-						}, nil
-					case "lib/no-words.epub":
-						return &epub.Information{
-							Title: []string{"No Words Book"},
-							Creator: []epub.Author{
-								{FullName: "Unknown Author", Role: "aut"},
-							},
-							Description: []string{"A book without word count"},
-							Language:    []string{"en"},
-							Subject:     []string{"Mystery"},
-							Date:        []epub.Date{},
-						}, nil
-					default:
-						return nil, fmt.Errorf("unknown file: %s", file)
-					}
-				},
-				GetPackageFromFile: epub.GetPackageFromFile,
-			},
-		},
+		".epub": readingTimeSortReader(),
 	}
 
 	appFS := afero.NewMemMapFs()

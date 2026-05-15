@@ -10,7 +10,6 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v3"
-	"github.com/pirmd/epub"
 	"gorm.io/gorm"
 
 	"github.com/alecthomas/kong"
@@ -71,11 +70,8 @@ func init() {
 
 	appFs = afero.NewOsFs()
 	metadataReaders = map[string]metadata.Reader{
-		".epub": metadata.EpubReader{
-			GetMetadataFromFile: epub.GetMetadataFromFile,
-			GetPackageFromFile:  epub.GetPackageFromFile,
-		},
-		".pdf": metadata.PdfReader{Fs: appFs},
+		".epub": metadata.NewEpubReader(),
+		".pdf":  metadata.PdfReader{Fs: appFs},
 	}
 
 	var documentsIndex, authorsIndex bleve.Index

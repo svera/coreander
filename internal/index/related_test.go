@@ -20,12 +20,7 @@ func TestSameSubjects(t *testing.T) {
 	library := mockedLibrary()
 
 	mockMetadataReaders := map[string]metadata.Reader{
-		".epub": metadata.EpubReader{
-			GetMetadataFromFile: func(file string) (*epub.Information, error) {
-				return library[file], nil
-			},
-			GetPackageFromFile: epub.GetPackageFromFile,
-		},
+		".epub": epubTestReader{info: library},
 	}
 
 	appFS := afero.NewMemMapFs()

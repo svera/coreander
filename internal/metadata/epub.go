@@ -12,7 +12,6 @@ import (
 	"log"
 	"path"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -37,20 +36,7 @@ func NewEpubReader() EpubReader {
 	}
 }
 
-func (e EpubReader) usesDefaultEpubPipeline() bool {
-	return reflect.ValueOf(e.GetMetadataFromFile).Pointer() == reflect.ValueOf(epub.GetMetadataFromFile).Pointer() &&
-		reflect.ValueOf(e.GetPackageFromFile).Pointer() == reflect.ValueOf(epub.GetPackageFromFile).Pointer()
-}
-
 func (e EpubReader) Metadata(filename string) (Metadata, error) {
-	if e.usesDefaultEpubPipeline() {
-		return e.metadataSingleOpen(filename)
-	}
-	return e.metadataWithInjectedHooks(filename)
-}
-
-// metadataSingleOpen reads the EPUB once (zip + package) for metadata, illustration count, and word count.
-func (e EpubReader) metadataSingleOpen(filename string) (Metadata, error) {
 	book, err := epub.Open(filename)
 	if err != nil {
 		return Metadata{}, err
@@ -65,54 +51,6 @@ func (e EpubReader) metadataSingleOpen(filename string) (Metadata, error) {
 	if err != nil {
 		return Metadata{}, err
 	}
-	opf, err := book.Package()
-	if err != nil {
-		log.Printf("Cannot load package for illustrations/words in %s: %s\n", filename, err)
-		return bk, nil
-	}
-	illustrations, err := e.illustrationsWithZip(book.ReadCloser, opf, 0.25)
-	if err != nil {
-		log.Printf("Cannot count illustrations in %s: %s\n", filename, err)
-	}
-	bk.Illustrations = illustrations
-	w, err := wordsFromZip(book.ReadCloser)
-	if err != nil {
-		log.Printf("Cannot count words in %s: %s\n", filename, err)
-	}
-	bk.Words = float64(w)
-	return bk, nil
-}
-
-// metadataWithInjectedHooks supports tests that replace GetMetadataFromFile while still avoiding
-// redundant zip opens for illustration and word counting when GetPackageFromFile is the default.
-func (e EpubReader) metadataWithInjectedHooks(filename string) (Metadata, error) {
-	meta, err := e.GetMetadataFromFile(filename)
-	if err != nil {
-		return Metadata{}, err
-	}
-	bk, err := buildEpubMetadataFields(meta, filename)
-	if err != nil {
-		return Metadata{}, err
-	}
-	if reflect.ValueOf(e.GetPackageFromFile).Pointer() != reflect.ValueOf(epub.GetPackageFromFile).Pointer() {
-		illustrations, err := e.illustrationsLegacy(filename, 0.25)
-		if err != nil {
-			log.Printf("Cannot count illustrations in %s: %s\n", filename, err)
-		}
-		bk.Illustrations = illustrations
-		w, err := wordsLegacy(filename)
-		if err != nil {
-			log.Printf("Cannot count words in %s: %s\n", filename, err)
-		}
-		bk.Words = float64(w)
-		return bk, nil
-	}
-	book, err := epub.Open(filename)
-	if err != nil {
-		log.Printf("Cannot open epub for illustrations/words in %s: %s\n", filename, err)
-		return bk, nil
-	}
-	defer book.Close()
 	opf, err := book.Package()
 	if err != nil {
 		log.Printf("Cannot load package for illustrations/words in %s: %s\n", filename, err)
@@ -262,20 +200,6 @@ func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, e
 	return cover, nil
 }
 
-// illustrationsLegacy opens the file twice (package + zip) for tests that replace GetPackageFromFile.
-func (e EpubReader) illustrationsLegacy(documentFullPath string, minMegapixels float64) (int, error) {
-	opf, err := e.GetPackageFromFile(documentFullPath)
-	if err != nil {
-		return 0, err
-	}
-	r, err := zip.OpenReader(documentFullPath)
-	if err != nil {
-		return 0, err
-	}
-	defer r.Close()
-	return e.illustrationsWithZip(r, opf, minMegapixels)
-}
-
 // illustrationsWithZip counts images in the EPUB at least minMegapixels megapixels (excluding the cover)
 // using an already-open zip and parsed package document.
 func (e EpubReader) illustrationsWithZip(r *zip.ReadCloser, opf *epub.PackageDocument, minMegapixels float64) (int, error) {
@@ -367,15 +291,6 @@ func readZipFileReader(r *zip.ReadCloser, name string) (io.ReadCloser, error) {
 		return f.Open()
 	}
 	return nil, fmt.Errorf("epub: no zip entry %q", name)
-}
-
-func wordsLegacy(documentFullPath string) (int, error) {
-	r, err := zip.OpenReader(documentFullPath)
-	if err != nil {
-		return 0, err
-	}
-	defer r.Close()
-	return wordsFromZip(r)
 }
 
 func wordsFromZip(r *zip.ReadCloser) (int, error) {
