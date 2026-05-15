@@ -12,6 +12,7 @@ import (
 	"log"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -36,12 +37,101 @@ func NewEpubReader() EpubReader {
 	}
 }
 
+func (e EpubReader) usesDefaultEpubPipeline() bool {
+	return reflect.ValueOf(e.GetMetadataFromFile).Pointer() == reflect.ValueOf(epub.GetMetadataFromFile).Pointer() &&
+		reflect.ValueOf(e.GetPackageFromFile).Pointer() == reflect.ValueOf(epub.GetPackageFromFile).Pointer()
+}
+
 func (e EpubReader) Metadata(filename string) (Metadata, error) {
-	bk := Metadata{}
+	if e.usesDefaultEpubPipeline() {
+		return e.metadataSingleOpen(filename)
+	}
+	return e.metadataWithInjectedHooks(filename)
+}
+
+// metadataSingleOpen reads the EPUB once (zip + package) for metadata, illustration count, and word count.
+func (e EpubReader) metadataSingleOpen(filename string) (Metadata, error) {
+	book, err := epub.Open(filename)
+	if err != nil {
+		return Metadata{}, err
+	}
+	defer book.Close()
+
+	info, err := book.Information()
+	if err != nil {
+		return Metadata{}, err
+	}
+	bk, err := buildEpubMetadataFields(info, filename)
+	if err != nil {
+		return Metadata{}, err
+	}
+	opf, err := book.Package()
+	if err != nil {
+		log.Printf("Cannot load package for illustrations/words in %s: %s\n", filename, err)
+		return bk, nil
+	}
+	illustrations, err := e.illustrationsWithZip(book.ReadCloser, opf, 0.25)
+	if err != nil {
+		log.Printf("Cannot count illustrations in %s: %s\n", filename, err)
+	}
+	bk.Illustrations = illustrations
+	w, err := wordsFromZip(book.ReadCloser)
+	if err != nil {
+		log.Printf("Cannot count words in %s: %s\n", filename, err)
+	}
+	bk.Words = float64(w)
+	return bk, nil
+}
+
+// metadataWithInjectedHooks supports tests that replace GetMetadataFromFile while still avoiding
+// redundant zip opens for illustration and word counting when GetPackageFromFile is the default.
+func (e EpubReader) metadataWithInjectedHooks(filename string) (Metadata, error) {
 	meta, err := e.GetMetadataFromFile(filename)
 	if err != nil {
-		return bk, err
+		return Metadata{}, err
 	}
+	bk, err := buildEpubMetadataFields(meta, filename)
+	if err != nil {
+		return Metadata{}, err
+	}
+	if reflect.ValueOf(e.GetPackageFromFile).Pointer() != reflect.ValueOf(epub.GetPackageFromFile).Pointer() {
+		illustrations, err := e.illustrationsLegacy(filename, 0.25)
+		if err != nil {
+			log.Printf("Cannot count illustrations in %s: %s\n", filename, err)
+		}
+		bk.Illustrations = illustrations
+		w, err := wordsLegacy(filename)
+		if err != nil {
+			log.Printf("Cannot count words in %s: %s\n", filename, err)
+		}
+		bk.Words = float64(w)
+		return bk, nil
+	}
+	book, err := epub.Open(filename)
+	if err != nil {
+		log.Printf("Cannot open epub for illustrations/words in %s: %s\n", filename, err)
+		return bk, nil
+	}
+	defer book.Close()
+	opf, err := book.Package()
+	if err != nil {
+		log.Printf("Cannot load package for illustrations/words in %s: %s\n", filename, err)
+		return bk, nil
+	}
+	illustrations, err := e.illustrationsWithZip(book.ReadCloser, opf, 0.25)
+	if err != nil {
+		log.Printf("Cannot count illustrations in %s: %s\n", filename, err)
+	}
+	bk.Illustrations = illustrations
+	w, err := wordsFromZip(book.ReadCloser)
+	if err != nil {
+		log.Printf("Cannot count words in %s: %s\n", filename, err)
+	}
+	bk.Words = float64(w)
+	return bk, nil
+}
+
+func buildEpubMetadataFields(meta *epub.Information, filename string) (Metadata, error) {
 	title := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
 	if len(meta.Title) > 0 && len(meta.Title[0]) > 0 {
 		title = meta.Title[0]
@@ -51,7 +141,6 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 	for _, creator := range meta.Creator {
 		classifyEpubPerson(creator, true, &authors, &illustrators)
 	}
-	// Illustrators often appear as <dc:contributor opf:role="ill"> (not creator).
 	for _, contributor := range meta.Contributor {
 		classifyEpubPerson(contributor, false, &authors, &illustrators)
 	}
@@ -65,8 +154,6 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 		if subject == "" {
 			continue
 		}
-		// Some epub files mistakenly put all subjects in a single field instead of using a field for each one.
-		// We want to identify those cases looking for specific separators and then indexing each subject properly.
 		names := strings.FieldsFunc(subject, func(r rune) bool {
 			return r == ',' || r == ';'
 		})
@@ -88,6 +175,7 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 	}
 
 	publication := precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay}
+	var err error
 	for _, currentDate := range meta.Date {
 		if currentDate.Event == "publication" || currentDate.Event == "" {
 			if publication.Date, err = date.ParseISO(currentDate.Stamp); err != nil {
@@ -98,35 +186,20 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 		}
 	}
 
-	var seriesIndex float64 = 0
+	seriesIndex, _ := strconv.ParseFloat(meta.SeriesIndex, 64)
 
-	seriesIndex, _ = strconv.ParseFloat(meta.SeriesIndex, 64)
-
-	illustrations, err := e.illustrations(filename, 0.25)
-	if err != nil {
-		log.Printf("Cannot count illustrations in %s: $%s\n", filename, err)
-	}
-
-	w, err := words(filename)
-	if err != nil {
-		log.Printf("Cannot count words in %s: $%s\n", filename, err)
-	}
-
-	bk = Metadata{
-		Title:         title,
-		Authors:       authors,
-		Illustrators:  illustrators,
-		Description:   template.HTML(description),
-		Language:      lang,
-		Publication:   publication,
-		Series:        meta.Series,
-		SeriesIndex:   seriesIndex,
-		Format:        "EPUB",
-		Subjects:      subjects,
-		Illustrations: illustrations,
-		Words:         float64(w),
-	}
-	return bk, nil
+	return Metadata{
+		Title:        title,
+		Authors:      authors,
+		Illustrators: illustrators,
+		Description:  template.HTML(description),
+		Language:     lang,
+		Publication:  publication,
+		Series:       meta.Series,
+		SeriesIndex:  seriesIndex,
+		Format:       "EPUB",
+		Subjects:     subjects,
+	}, nil
 }
 
 func opfBaseDir(r *zip.ReadCloser) string {
@@ -141,10 +214,9 @@ func opfBaseDir(r *zip.ReadCloser) string {
 	return opfBaseDir
 }
 
-func (e EpubReader) coverFileName(documentFullPath string, r *zip.ReadCloser) (string, error) {
-	opf, err := e.GetPackageFromFile(documentFullPath)
-	if err != nil {
-		return "", err
+func (e EpubReader) coverFileNameFromOPF(opf *epub.PackageDocument, r *zip.ReadCloser) (string, error) {
+	if opf == nil {
+		return "", nil
 	}
 
 	opfBaseDir := opfBaseDir(r)
@@ -167,26 +239,31 @@ func (e EpubReader) coverFileName(documentFullPath string, r *zip.ReadCloser) (s
 func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
 	var cover []byte
 
-	r, err := zip.OpenReader(documentFullPath)
+	book, err := epub.Open(documentFullPath)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+	defer book.Close()
 
-	coverFileName, err := e.coverFileName(documentFullPath, r)
+	opf, err := book.Package()
 	if err != nil {
 		return nil, err
 	}
 
-	cover, err = extractCover(r, coverFileName, opfBaseDir(r), coverMaxWidth)
+	coverFileName, err := e.coverFileNameFromOPF(opf, book.ReadCloser)
+	if err != nil {
+		return nil, err
+	}
+
+	cover, err = extractCover(book.ReadCloser, coverFileName, opfBaseDir(book.ReadCloser), coverMaxWidth)
 	if err != nil {
 		return nil, err
 	}
 	return cover, nil
 }
 
-// illustrations returns the number of images in the EPUB that have size >= minMegapixels (excluding the cover).
-func (e EpubReader) illustrations(documentFullPath string, minMegapixels float64) (int, error) {
+// illustrationsLegacy opens the file twice (package + zip) for tests that replace GetPackageFromFile.
+func (e EpubReader) illustrationsLegacy(documentFullPath string, minMegapixels float64) (int, error) {
 	opf, err := e.GetPackageFromFile(documentFullPath)
 	if err != nil {
 		return 0, err
@@ -196,16 +273,22 @@ func (e EpubReader) illustrations(documentFullPath string, minMegapixels float64
 		return 0, err
 	}
 	defer r.Close()
+	return e.illustrationsWithZip(r, opf, minMegapixels)
+}
 
-	coverFileName, err := e.coverFileName(documentFullPath, r)
+// illustrationsWithZip counts images in the EPUB at least minMegapixels megapixels (excluding the cover)
+// using an already-open zip and parsed package document.
+func (e EpubReader) illustrationsWithZip(r *zip.ReadCloser, opf *epub.PackageDocument, minMegapixels float64) (int, error) {
+	if opf == nil || opf.Manifest == nil {
+		return 0, nil
+	}
+
+	coverFileName, err := e.coverFileNameFromOPF(opf, r)
 	if err != nil {
 		return 0, err
 	}
 	coverPaths := candidatePaths(coverFileName, opfBaseDir(r))
 
-	if opf.Manifest == nil {
-		return 0, nil
-	}
 	// Count each distinct image file only once (manifest may reference the same file multiple times)
 	seen := make(map[string]struct{})
 	var count int
@@ -286,12 +369,16 @@ func readZipFileReader(r *zip.ReadCloser, name string) (io.ReadCloser, error) {
 	return nil, fmt.Errorf("epub: no zip entry %q", name)
 }
 
-func words(documentFullPath string) (int, error) {
+func wordsLegacy(documentFullPath string) (int, error) {
 	r, err := zip.OpenReader(documentFullPath)
 	if err != nil {
 		return 0, err
 	}
 	defer r.Close()
+	return wordsFromZip(r)
+}
+
+func wordsFromZip(r *zip.ReadCloser) (int, error) {
 	count := 0
 	for _, f := range r.File {
 		isContent, err := doublestar.PathMatch("O*PS/**/*.*htm*", f.Name)

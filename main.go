@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -52,6 +53,8 @@ func init() {
 		log.Fatalf("Error parsing configuration: %s", ctx.Error)
 	}
 
+	input.IndexWorkers = resolveIndexWorkers(ctx)
+
 	log.Printf("Coreander version %s starting\n", version)
 	homeDir, err = os.UserHomeDir()
 	if err != nil {
@@ -90,7 +93,7 @@ func init() {
 func main() {
 	defer idx.Close()
 
-	go startIndex(idx, input.BatchSize, input.LibPath)
+	go startIndex(idx, input.BatchSize, input.LibPath, input.IndexWorkers)
 
 	sender = &infrastructure.NoEmail{}
 	if input.SmtpServer != "" && input.SmtpUser != "" && input.SmtpPassword != "" {
@@ -164,10 +167,31 @@ func main() {
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", input.Port), fiber.ListenConfig{DisableStartupMessage: true}))
 }
 
-func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
+func indexWorkersManuallySet(ctx *kong.Context) bool {
+	if _, ok := os.LookupEnv("INDEX_WORKERS"); ok {
+		return true
+	}
+	for _, f := range ctx.Flags() {
+		if f.Name == "index-workers" && f.Set {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveIndexWorkers(ctx *kong.Context) int {
+	manual := indexWorkersManuallySet(ctx)
+	workers := index.ResolveMetadataWorkers(input.IndexWorkers, manual)
+	if !manual {
+		log.Printf("INDEX_WORKERS not set, using %d metadata workers (%d CPUs)", workers, runtime.NumCPU())
+	}
+	return workers
+}
+
+func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWorkers int) {
 	start := time.Now().Unix()
 	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
-	err := idx.AddLibrary(batchSize, input.ForceIndexing)
+	err := idx.AddLibrary(batchSize, input.ForceIndexing, indexWorkers)
 	if err != nil {
 		log.Fatal(err)
 	}

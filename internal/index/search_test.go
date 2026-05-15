@@ -61,7 +61,7 @@ func TestIndexAndSearch(t *testing.T) {
 			authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
 			idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
-			if err = idx.AddLibrary(1, true); err != nil {
+			if err = idx.AddLibrary(1, true, 0); err != nil {
 				t.Errorf("Error indexing: %s", err.Error())
 			}
 			res, err := idx.Search(tcase.search, 1, 10)
@@ -127,7 +127,7 @@ func TestLanguageFilter(t *testing.T) {
 	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
 	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
-	if err = idx.AddLibrary(1, true); err != nil {
+	if err = idx.AddLibrary(1, true, 0); err != nil {
 		t.Fatalf("Error indexing: %s", err.Error())
 	}
 
@@ -237,7 +237,7 @@ func TestSearchIllustratedDocuments(t *testing.T) {
 		IllustratedMinAmount: 2,
 	})
 
-	if err = idx.AddLibrary(1, true); err != nil {
+	if err = idx.AddLibrary(1, true, 0); err != nil {
 		t.Fatalf("Error indexing: %v", err)
 	}
 
@@ -274,7 +274,7 @@ func TestSearchIllustratedDocuments(t *testing.T) {
 		idx2 := index.NewBleve(indexMem2, authorsIndexMem2, appFS, "lib", mockMetadataReaders, index.Config{
 			IllustratedMinAmount: 0,
 		})
-		if err = idx2.AddLibrary(1, true); err != nil {
+		if err = idx2.AddLibrary(1, true, 0); err != nil {
 			t.Fatalf("Error indexing: %v", err)
 		}
 		res, err := idx2.Search(index.SearchFields{
@@ -384,7 +384,7 @@ func TestSearchResultsSortedByDate(t *testing.T) {
 	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
 	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
-	if err = idx.AddLibrary(1, true); err != nil {
+	if err = idx.AddLibrary(1, true, 0); err != nil {
 		t.Fatalf("Error indexing: %v", err)
 	}
 
@@ -614,7 +614,7 @@ func TestSearchResultsSortedByReadingTime(t *testing.T) {
 	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
 	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
-	if err = idx.AddLibrary(1, true); err != nil {
+	if err = idx.AddLibrary(1, true, 0); err != nil {
 		t.Fatalf("Error indexing: %v", err)
 	}
 

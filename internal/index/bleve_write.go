@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	index "github.com/blevesearch/bleve_index_api"
@@ -16,6 +17,9 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v4/internal/metadata"
 )
+
+// documentSlugCollisionPattern matches slugs like "title--2" used for disambiguation.
+var documentSlugCollisionPattern = regexp.MustCompile(`^[a-zA-Z0-9\-]+(--)[0-9]+$`)
 
 // NewFile writes the given contents to the library as fileName, indexes it, and returns the document slug.
 func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error) {
@@ -53,7 +57,7 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 		return "", fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
 
-	document := b.createDocument(meta, file, nil)
+	document := b.createDocument(meta, file, nil, nil)
 	document.AddedOn = time.Now().UTC()
 
 	if err = b.documentsIdx.Index(document.ID, document); err != nil {
@@ -62,7 +66,7 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 
 	// Index authors in the separate authors index
 	authorsBatch := b.authorsIdx.NewBatch()
-	if err := b.indexAuthors(document, authorsBatch.Index); err != nil {
+	if err := b.indexAuthors(document, authorsBatch.Index, nil); err != nil {
 		return document.Slug, err
 	}
 	if authorsBatch.Size() > 0 {
@@ -104,65 +108,68 @@ func (b *BleveIndexer) DeleteDocument(slug string) error {
 }
 
 // AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <batchSize> if they
-// haven't been previously indexed or if <forceIndexing> is true
-func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
+// haven't been previously indexed or if <forceIndexing> is true.
+// metadataWorkers controls parallel metadata extraction: 0 or 1 is fully sequential; values greater than 1
+// use a bounded worker pool while Bleve batching and slug resolution stay on a single goroutine.
+func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWorkers int) error {
+	b.beginIndexing()
+
+	pending, languages, err := b.collectPendingLibraryPaths(forceIndexing)
+	if err != nil {
+		b.endIndexing()
+		return err
+	}
+	b.indexTotalEntries.Store(b.indexedEntries.Load() + uint64(len(pending)))
+	slices.Sort(pending)
+
+	metaJobs := b.readMetadataForPaths(pending, metadataWorkers)
+
 	batch := b.documentsIdx.NewBatch()
 	authorsBatch := b.authorsIdx.NewBatch()
 	batchSlugs := make(map[string]struct{}, batchSize)
-	languages := []string{}
-	b.indexStartTime = float64(time.Now().UnixNano())
+	slugLookaside := make(map[string]Document, batchSize*4)
+	authorsSeen := make(map[string]struct{}, batchSize*4)
 
-	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, err error) error {
-		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed && !forceIndexing {
-			b.indexedEntries += 1
-			languages = addLanguage(lang, languages)
-			return nil
+	for _, job := range metaJobs {
+		if job.err != nil {
+			log.Printf("Error extracting metadata from file %s: %s\n", job.path, job.err)
+			continue
 		}
-		ext := strings.ToLower(filepath.Ext(fullPath))
-		if _, ok := b.reader[ext]; !ok {
-			return nil
-		}
-		meta, err := b.reader[ext].Metadata(fullPath)
-		if err != nil {
-			log.Printf("Error extracting metadata from file %s: %s\n", fullPath, err)
-			return nil
-		}
+		fullPath := job.path
+		meta := job.meta
 
-		document := b.createDocument(meta, fullPath, batchSlugs)
+		document := b.createDocument(meta, fullPath, batchSlugs, slugLookaside)
 		batchSlugs[document.Slug] = struct{}{}
 		languages = addLanguage(meta.Language, languages)
 		document.AddedOn = time.Time{}
 
 		if err = batch.Index(document.ID, document); err != nil {
 			log.Printf("Error indexing file %s: %s\n", fullPath, err)
-			return nil
+			continue
 		}
 
-		// Add authors to the authors batch
-		if err = b.indexAuthors(document, authorsBatch.Index); err != nil {
+		if err = b.indexAuthors(document, authorsBatch.Index, authorsSeen); err != nil {
+			b.endIndexing()
 			return err
 		}
 
-		b.indexedEntries += 1
-
 		if batch.Size() >= batchSize {
 			if err = b.documentsIdx.Batch(batch); err != nil {
+				b.endIndexing()
 				return err
 			}
 			batch.Reset()
 			batchSlugs = make(map[string]struct{}, batchSize)
 		}
 
-		// Flush authors batch periodically
 		if authorsBatch.Size() >= batchSize {
 			if err = b.authorsIdx.Batch(authorsBatch); err != nil {
+				b.endIndexing()
 				return err
 			}
 			authorsBatch.Reset()
 		}
-
-		return nil
-	})
+	}
 
 	// Always update languages, even if empty, to ensure consistency
 	languagesStr := ""
@@ -174,45 +181,135 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool) error {
 
 	// Flush remaining documents batch
 	if err := b.documentsIdx.Batch(batch); err != nil {
+		b.endIndexing()
 		return err
 	}
 
 	// Flush remaining authors batch
 	if authorsBatch.Size() > 0 {
 		if err := b.authorsIdx.Batch(authorsBatch); err != nil {
+			b.endIndexing()
 			return err
 		}
 	}
 
-	b.indexStartTime = 0
-	b.indexedEntries = 0
-	return e
+	b.endIndexing()
+	return nil
+}
+
+func (b *BleveIndexer) collectPendingLibraryPaths(forceIndexing bool) (pending []string, languages []string, err error) {
+	languages = []string{}
+	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if f.IsDir() {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(fullPath))
+		if _, ok := b.reader[ext]; !ok {
+			return nil
+		}
+		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed && !forceIndexing {
+			b.indexedEntries.Add(1)
+			languages = addLanguage(lang, languages)
+			return nil
+		}
+		pending = append(pending, fullPath)
+		return nil
+	})
+	return pending, languages, e
+}
+
+type metadataJobResult struct {
+	path string
+	meta metadata.Metadata
+	err  error
+}
+
+func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metadataJobResult {
+	out := make([]metadataJobResult, len(paths))
+	if len(paths) == 0 {
+		return out
+	}
+	recordProgress := func() {
+		b.indexedEntries.Add(1)
+	}
+	if workers <= 1 {
+		for i, p := range paths {
+			ext := strings.ToLower(filepath.Ext(p))
+			meta, err := b.reader[ext].Metadata(p)
+			out[i] = metadataJobResult{path: p, meta: meta, err: err}
+			recordProgress()
+		}
+		return out
+	}
+	if workers > maxMetadataWorkers {
+		workers = maxMetadataWorkers
+	}
+	if workers > len(paths) {
+		workers = len(paths)
+	}
+	type indexedPath struct {
+		i    int
+		path string
+	}
+	jobs := make(chan indexedPath)
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := range jobs {
+				ext := strings.ToLower(filepath.Ext(j.path))
+				meta, err := b.reader[ext].Metadata(j.path)
+				out[j.i] = metadataJobResult{path: j.path, meta: meta, err: err}
+				recordProgress()
+			}
+		}()
+	}
+	for i, p := range paths {
+		jobs <- indexedPath{i, p}
+	}
+	close(jobs)
+	wg.Wait()
+	return out
 }
 
 // indexAuthors indexes document authors and illustrators in the authors index when missing.
-func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data any) error) error {
+// authorsSeen, when non-nil, records author slugs already known or batched in this AddLibrary run
+// to avoid repeated authorsIdx.Document lookups.
+func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data any) error, authorsSeen map[string]struct{}) error {
 	for i, name := range document.Authors {
-		if err := b.indexAuthorIfMissing(name, document.AuthorsSlugs[i], index); err != nil {
+		if err := b.indexAuthorIfMissing(name, document.AuthorsSlugs[i], index, authorsSeen); err != nil {
 			return err
 		}
 	}
 	for _, name := range document.Illustrators {
-		if err := b.indexAuthorIfMissing(name, slug.Make(name), index); err != nil {
+		if err := b.indexAuthorIfMissing(name, slug.Make(name), index, authorsSeen); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (b *BleveIndexer) indexAuthorIfMissing(name, authorSlug string, index func(id string, data any) error) error {
+func (b *BleveIndexer) indexAuthorIfMissing(name, authorSlug string, index func(id string, data any) error, authorsSeen map[string]struct{}) error {
 	if name == "" || authorSlug == "" {
 		return nil
+	}
+	if authorsSeen != nil {
+		if _, ok := authorsSeen[authorSlug]; ok {
+			return nil
+		}
 	}
 	indexedAuthor, err := b.authorsIdx.Document(authorSlug)
 	if err != nil {
 		return err
 	}
 	if indexedAuthor != nil {
+		if authorsSeen != nil {
+			authorsSeen[authorSlug] = struct{}{}
+		}
 		return nil
 	}
 	author := Author{
@@ -222,6 +319,9 @@ func (b *BleveIndexer) indexAuthorIfMissing(name, authorSlug string, index func(
 	}
 	if err := index(author.Slug, author); err != nil {
 		log.Printf("Error indexing author %s: %s\n", name, err)
+	}
+	if authorsSeen != nil {
+		authorsSeen[authorSlug] = struct{}{}
 	}
 	return nil
 }
@@ -271,7 +371,7 @@ func addLanguage(lang string, languages []string) []string {
 	return languages
 }
 
-func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, batchSlugs map[string]struct{}) Document {
+func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, batchSlugs map[string]struct{}, slugLookaside map[string]Document) Document {
 	document := Document{
 		ID:                b.id(fullPath),
 		Metadata:          meta,
@@ -282,7 +382,7 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 		SubjectsSlugs:     make([]string, len(meta.Subjects)),
 	}
 
-	document.Slug = b.Slug(document, batchSlugs)
+	document.Slug = b.Slug(document, batchSlugs, slugLookaside)
 
 	for i, author := range meta.Authors {
 		document.AuthorsSlugs[i] = slug.Make(author)
@@ -301,16 +401,12 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 
 // As Bleve index is not updated until the batch is executed, we need to store the slugs
 // processed in the current batch in memory to also compare the current doc slug against them.
-func (b *BleveIndexer) Slug(document Document, batchSlugs map[string]struct{}) string {
+func (b *BleveIndexer) Slug(document Document, batchSlugs map[string]struct{}, slugLookaside map[string]Document) string {
 	docSlug := makeDocumentSlug(document)
-	exp, err := regexp.Compile(`^[a-zA-Z0-9\-]+(--)[0-9]+$`)
-	if err != nil {
-		log.Fatal(err)
-	}
 	i := 1
 	existsInBatch := false
 	for {
-		doc, _ := b.Document(docSlug)
+		doc, _ := b.documentBySlug(docSlug, slugLookaside)
 		if batchSlugs != nil {
 			_, existsInBatch = batchSlugs[docSlug]
 		}
@@ -320,13 +416,29 @@ func (b *BleveIndexer) Slug(document Document, batchSlugs map[string]struct{}) s
 		if doc.Slug == "" && !existsInBatch {
 			return docSlug
 		}
-		if exp.MatchString(docSlug) {
+		if documentSlugCollisionPattern.MatchString(docSlug) {
 			pos := strings.LastIndex(docSlug, "--")
 			docSlug = docSlug[:pos]
 		}
 		i++
 		docSlug = fmt.Sprintf("%s--%d", docSlug, i)
 	}
+}
+
+func (b *BleveIndexer) documentBySlug(docSlug string, slugLookaside map[string]Document) (Document, error) {
+	if slugLookaside != nil {
+		if doc, ok := slugLookaside[docSlug]; ok {
+			return doc, nil
+		}
+	}
+	doc, err := b.Document(docSlug)
+	if err != nil {
+		return Document{}, err
+	}
+	if slugLookaside != nil {
+		slugLookaside[docSlug] = doc
+	}
+	return doc, nil
 }
 
 func (b *BleveIndexer) id(file string) string {

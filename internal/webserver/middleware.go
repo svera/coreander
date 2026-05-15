@@ -74,9 +74,12 @@ func SetProgress(progress ProgressInfo) func(fiber.Ctx) error {
 		if err != nil {
 			fmt.Println(err)
 		}
-		if progress.RemainingTime > 0 {
-			c.Locals("RemainingIndexingTime", fmt.Sprintf("%d", progress.RemainingTime.Round(time.Minute)/time.Minute))
+		if progress.InProgress {
+			c.Locals("IndexingInProgress", true)
 			c.Locals("IndexingProgressPercentage", progress.Percentage)
+			if progress.RemainingTime > 0 {
+				c.Locals("RemainingIndexingTime", fmt.Sprintf("%d", progress.RemainingTime.Round(time.Minute)/time.Minute))
+			}
 		}
 		return c.Next()
 	}

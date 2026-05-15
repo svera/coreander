@@ -40,7 +40,7 @@ func TestSameSubjects(t *testing.T) {
 	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
 	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
-	if err = idx.AddLibrary(1, true); err != nil {
+	if err = idx.AddLibrary(1, true, 0); err != nil {
 		t.Errorf("Error indexing: %s", err.Error())
 	}
 

@@ -83,7 +83,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 		idx = index.NewBleve(indexFile, authorsIndexMem, appFs, webserverConfig.LibraryPath, metadataReaders, index.Config{})
 	}
 
-	err = idx.AddLibrary(100, true)
+	err = idx.AddLibrary(100, true, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
