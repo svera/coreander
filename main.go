@@ -54,8 +54,8 @@ func init() {
 	}
 
 	resolvedIndexWorkers = index.ResolveMetadataWorkers(input.IndexWorkers)
-	if input.IndexWorkers == nil {
-		log.Printf("INDEX_WORKERS not set, using %d metadata workers (%d CPUs)", resolvedIndexWorkers, runtime.NumCPU())
+	if input.IndexWorkers == 0 {
+		log.Printf("INDEX_WORKERS is 0 (automatic), using %d metadata workers (%d CPUs)", resolvedIndexWorkers, runtime.NumCPU())
 	}
 
 	log.Printf("Coreander version %s starting\n", version)

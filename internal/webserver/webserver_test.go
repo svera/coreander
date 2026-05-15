@@ -55,11 +55,11 @@ func TestGET(t *testing.T) {
 	}
 }
 
-func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig webserver.Config) *fiber.App {
-	return bootstrapAppWithReaders(db, sender, appFs, webserverConfig, testMetadataReaders())
-}
-
-func bootstrapAppWithReaders(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig webserver.Config, metadataReaders map[string]metadata.Reader) *fiber.App {
+func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig webserver.Config, metadataReaders ...map[string]metadata.Reader) *fiber.App {
+	readers := testMetadataReaders()
+	if len(metadataReaders) > 0 {
+		readers = metadataReaders[0]
+	}
 	var (
 		idx *index.BleveIndexer
 	)
@@ -82,14 +82,14 @@ func bootstrapAppWithReaders(db *gorm.DB, sender webserver.Sender, appFs afero.F
 	indexFile, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err == nil {
 		authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
-		idx = index.NewBleve(indexFile, authorsIndexMem, appFs, webserverConfig.LibraryPath, metadataReaders, index.Config{})
+		idx = index.NewBleve(indexFile, authorsIndexMem, appFs, webserverConfig.LibraryPath, readers, index.Config{})
 	}
 
 	err = idx.AddLibrary(100, true, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
-	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs, dataSource)
+	controllers := webserver.SetupControllers(webserverConfig, db, readers, idx, sender, appFs, dataSource)
 	usersRepository := &model.UserRepository{DB: db}
 	return webserver.New(webserverConfig, controllers, sender, idx, usersRepository)
 }

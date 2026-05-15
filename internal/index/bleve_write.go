@@ -109,8 +109,8 @@ func (b *BleveIndexer) DeleteDocument(slug string) error {
 
 // AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <batchSize> if they
 // haven't been previously indexed or if <forceIndexing> is true.
-// metadataWorkers controls parallel metadata extraction: 0 or 1 is fully sequential; values greater than 1
-// use a bounded worker pool while Bleve batching and slug resolution stay on a single goroutine.
+// metadataWorkers controls parallel metadata extraction after CLI resolution: 1 is fully sequential; values
+// greater than 1 use a bounded worker pool while Bleve batching and slug resolution stay on a single goroutine.
 func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWorkers int) error {
 	b.beginIndexing()
 

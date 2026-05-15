@@ -222,7 +222,7 @@ func TestUpload(t *testing.T) {
 			".epub": metadata.NewEpubReader(),
 			".pdf":  metadata.PdfReader{Fs: fs},
 		}
-		app := bootstrapAppWithReaders(db, &infrastructure.NoEmail{}, fs, webserver.Config{}, readers)
+		app := bootstrapApp(db, &infrastructure.NoEmail{}, fs, webserver.Config{}, readers)
 
 		t.Cleanup(func() {
 			fs.Remove(filepath.Join(testLibraryDir, "childrens-literature.epub"))
