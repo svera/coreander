@@ -127,8 +127,8 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 	batch := b.documentsIdx.NewBatch()
 	authorsBatch := b.authorsIdx.NewBatch()
 	batchSlugs := make(map[string]struct{}, batchSize)
-	slugLookaside := make(map[string]Document, batchSize*4)
-	authorsSeen := make(map[string]struct{}, batchSize*4)
+	documentsSeen := make(map[string]Document, len(pending))
+	authorsSeen := make(map[string]struct{}, len(pending))
 
 	for _, job := range metaJobs {
 		if job.err != nil {
@@ -138,7 +138,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 		fullPath := job.path
 		meta := job.meta
 
-		document := b.createDocument(meta, fullPath, batchSlugs, slugLookaside)
+		document := b.createDocument(meta, fullPath, batchSlugs, documentsSeen)
 		batchSlugs[document.Slug] = struct{}{}
 		languages = addLanguage(meta.Language, languages)
 		document.AddedOn = time.Time{}
@@ -371,7 +371,7 @@ func addLanguage(lang string, languages []string) []string {
 	return languages
 }
 
-func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, batchSlugs map[string]struct{}, slugLookaside map[string]Document) Document {
+func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, batchSlugs map[string]struct{}, documentsSeen map[string]Document) Document {
 	document := Document{
 		ID:                b.id(fullPath),
 		Metadata:          meta,
@@ -382,7 +382,7 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 		SubjectsSlugs:     make([]string, len(meta.Subjects)),
 	}
 
-	document.Slug = b.Slug(document, batchSlugs, slugLookaside)
+	document.Slug = b.Slug(document, batchSlugs, documentsSeen)
 
 	for i, author := range meta.Authors {
 		document.AuthorsSlugs[i] = slug.Make(author)
@@ -401,12 +401,12 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 
 // As Bleve index is not updated until the batch is executed, we need to store the slugs
 // processed in the current batch in memory to also compare the current doc slug against them.
-func (b *BleveIndexer) Slug(document Document, batchSlugs map[string]struct{}, slugLookaside map[string]Document) string {
+func (b *BleveIndexer) Slug(document Document, batchSlugs map[string]struct{}, documentsSeen map[string]Document) string {
 	docSlug := makeDocumentSlug(document)
 	i := 1
 	existsInBatch := false
 	for {
-		doc, _ := b.documentBySlug(docSlug, slugLookaside)
+		doc, _ := b.documentBySlug(docSlug, documentsSeen)
 		if batchSlugs != nil {
 			_, existsInBatch = batchSlugs[docSlug]
 		}
@@ -425,9 +425,9 @@ func (b *BleveIndexer) Slug(document Document, batchSlugs map[string]struct{}, s
 	}
 }
 
-func (b *BleveIndexer) documentBySlug(docSlug string, slugLookaside map[string]Document) (Document, error) {
-	if slugLookaside != nil {
-		if doc, ok := slugLookaside[docSlug]; ok {
+func (b *BleveIndexer) documentBySlug(docSlug string, documentsSeen map[string]Document) (Document, error) {
+	if documentsSeen != nil {
+		if doc, ok := documentsSeen[docSlug]; ok {
 			return doc, nil
 		}
 	}
@@ -435,8 +435,8 @@ func (b *BleveIndexer) documentBySlug(docSlug string, slugLookaside map[string]D
 	if err != nil {
 		return Document{}, err
 	}
-	if slugLookaside != nil {
-		slugLookaside[docSlug] = doc
+	if documentsSeen != nil {
+		documentsSeen[docSlug] = doc
 	}
 	return doc, nil
 }

@@ -30,14 +30,15 @@ const authorsIndexPath = "/.coreander/authors_index"
 const databasePath = "/.coreander/database.db"
 
 var (
-	input           CLIInput
-	appFs           afero.Fs
-	idx             *index.BleveIndexer
-	db              *gorm.DB
-	homeDir         string
-	err             error
-	metadataReaders map[string]metadata.Reader
-	sender          webserver.Sender
+	input                CLIInput
+	appFs                afero.Fs
+	idx                  *index.BleveIndexer
+	db                   *gorm.DB
+	homeDir              string
+	err                  error
+	metadataReaders      map[string]metadata.Reader
+	sender               webserver.Sender
+	resolvedIndexWorkers int
 )
 
 func init() {
@@ -53,7 +54,10 @@ func init() {
 		log.Fatalf("Error parsing configuration: %s", ctx.Error)
 	}
 
-	input.IndexWorkers = resolveIndexWorkers(ctx)
+	resolvedIndexWorkers = index.ResolveMetadataWorkers(input.IndexWorkers)
+	if input.IndexWorkers == nil {
+		log.Printf("INDEX_WORKERS not set, using %d metadata workers (%d CPUs)", resolvedIndexWorkers, runtime.NumCPU())
+	}
 
 	log.Printf("Coreander version %s starting\n", version)
 	homeDir, err = os.UserHomeDir()
@@ -93,7 +97,7 @@ func init() {
 func main() {
 	defer idx.Close()
 
-	go startIndex(idx, input.BatchSize, input.LibPath, input.IndexWorkers)
+	go startIndex(idx, input.BatchSize, input.LibPath, resolvedIndexWorkers)
 
 	sender = &infrastructure.NoEmail{}
 	if input.SmtpServer != "" && input.SmtpUser != "" && input.SmtpPassword != "" {
@@ -165,27 +169,6 @@ func main() {
 	}
 	log.Printf("Started listening on port %d\n", input.Port)
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", input.Port), fiber.ListenConfig{DisableStartupMessage: true}))
-}
-
-func indexWorkersManuallySet(ctx *kong.Context) bool {
-	if _, ok := os.LookupEnv("INDEX_WORKERS"); ok {
-		return true
-	}
-	for _, f := range ctx.Flags() {
-		if f.Name == "index-workers" && f.Set {
-			return true
-		}
-	}
-	return false
-}
-
-func resolveIndexWorkers(ctx *kong.Context) int {
-	manual := indexWorkersManuallySet(ctx)
-	workers := index.ResolveMetadataWorkers(input.IndexWorkers, manual)
-	if !manual {
-		log.Printf("INDEX_WORKERS not set, using %d metadata workers (%d CPUs)", workers, runtime.NumCPU())
-	}
-	return workers
 }
 
 func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWorkers int) {
