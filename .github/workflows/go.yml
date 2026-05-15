@@ -11,16 +11,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: 1.25
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.25
 
-    - name: Build
-      run: go build .
+      - name: Build
+        run: go build .
 
-    - name: Test
-      run: go test -v ./... --cover
-
+      - name: Test
+        run: go test -v ./... --cover
