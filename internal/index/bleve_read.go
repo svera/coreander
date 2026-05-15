@@ -24,19 +24,35 @@ import (
 )
 
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
-	var progress Progress
-
-	if b.indexStartTime == 0 {
-		return progress, nil
+	if b.indexStartNanos.Load() == 0 {
+		return Progress{}, nil
 	}
-	elapsedTime := float64(time.Now().UnixNano()) - b.indexStartTime
-	libraryFiles, err := countFiles(b.libraryPath, b.fs)
-	if err != nil {
-		return progress, err
+	processed := b.indexedEntries.Load()
+	total := b.indexTotalEntries.Load()
+	progress := Progress{InProgress: true}
+	if total > 0 {
+		progress.Percentage = math.Round(100 * float64(processed) / float64(total))
+		if progress.Percentage > 100 {
+			progress.Percentage = 100
+		}
 	}
-	progress.RemainingTime = time.Duration((elapsedTime * (libraryFiles - b.indexedEntries)) / b.indexedEntries)
-	progress.Percentage = math.Round((100 / libraryFiles) * b.indexedEntries)
+	if processed > 0 && processed < total {
+		elapsed := float64(time.Now().UnixNano()) - float64(b.indexStartNanos.Load())
+		progress.RemainingTime = time.Duration(elapsed * float64(total-processed) / float64(processed))
+	}
 	return progress, nil
+}
+
+func (b *BleveIndexer) beginIndexing() {
+	b.indexStartNanos.Store(time.Now().UnixNano())
+	b.indexedEntries.Store(0)
+	b.indexTotalEntries.Store(0)
+}
+
+func (b *BleveIndexer) endIndexing() {
+	b.indexStartNanos.Store(0)
+	b.indexedEntries.Store(0)
+	b.indexTotalEntries.Store(0)
 }
 
 func countFiles(dir string, fileSystem afero.Fs) (float64, error) {

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
@@ -68,8 +69,9 @@ type BleveIndexer struct {
 	authorsIdx           bleve.Index // Authors index
 	libraryPath          string
 	reader               map[string]metadata.Reader
-	indexStartTime       float64
-	indexedEntries       float64
+	indexStartNanos      atomic.Int64
+	indexedEntries       atomic.Uint64
+	indexTotalEntries    atomic.Uint64
 	illustratedMinAmount int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
 	illustratedMinSize   float64 // minimum size in megapixels for an image to count as an illustration
 }
@@ -82,8 +84,6 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		authorsIdx:           authorsIndex,
 		libraryPath:          strings.TrimSuffix(libraryPath, string(filepath.Separator)),
 		reader:               read,
-		indexStartTime:       0,
-		indexedEntries:       0,
 		illustratedMinAmount: cfg.IllustratedMinAmount,
 		illustratedMinSize:   cfg.IllustratedMinSize,
 	}

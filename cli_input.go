@@ -15,6 +15,8 @@ type CLIInput struct {
 	Port int `env:"PORT" short:"p" default:"3000" name:"port" help:"Port number in which the webserver listens for requests"`
 	// BatchSize indicates the number of documents persisted by the indexer in one operation
 	BatchSize int `env:"BATCH_SIZE" short:"b" default:"100" name:"batch-size" help:"Number of documents persisted by the indexer in one operation"`
+	// IndexWorkers is the number of goroutines used to extract metadata in parallel during indexing. 0 (default) chooses CPU count; 1 is sequential; 2+ sets an explicit pool size.
+	IndexWorkers int `env:"INDEX_WORKERS" name:"index-workers" default:"0" help:"Parallel workers for metadata extraction during indexing. 0 = automatic (CPU count); 1 = sequential; 2+ = explicit pool size."`
 	// AuthorImageMaxWidth sets the maximum horizontal size for author images in pixels. Set to 0 to keep original image size
 	AuthorImageMaxWidth int `env:"AUTHOR_IMAGE_MAX_WIDTH" default:"600" name:"author-image-max-width" help:"Maximum horizontal size for author images in pixels. Set to 0 to keep original image size"`
 	// CoverMaxWidth sets the maximum horizontal size for documents cover thumbnails in pixels

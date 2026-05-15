@@ -113,7 +113,7 @@ func TestRecover(t *testing.T) {
 		webserverConfig := webserver.Config{
 			SessionTimeout:        24 * time.Hour,
 			RecoveryTimeout:       recoveryTimeout,
-			LibraryPath:           "fixtures/library",
+			LibraryPath:           "testdata/library",
 			UploadDocumentMaxSize: 1,
 		}
 		db = infrastructure.Connect(":memory:?cache=shared", 250)
