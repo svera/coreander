@@ -334,7 +334,7 @@ func extractCover(r *zip.ReadCloser, coverFile, opfBaseDir string, coverMaxWidth
 		if err != nil {
 			return nil, err
 		}
-		src, err := imaging.Decode(rc)
+		src, err := imaging.Decode(rc, imaging.Backends(imaging.GO_IMAGE))
 		if err != nil {
 			return nil, err
 		}

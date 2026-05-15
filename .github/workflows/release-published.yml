@@ -1,8 +1,5 @@
 name: Release binaries
 
-# Only runs when a release is published. This file intentionally has no
-# `pull_request` trigger so PRs never start a run for this workflow (avoids
-# “No jobs were run” / empty checks tied to release-only logic).
 on:
   release:
     types: [published]
@@ -26,10 +23,11 @@ jobs:
           go-version: "1.25"
 
       - name: Install Mage
-        run: go install github.com/magefile/mage@v1.17.2
+        run: "go install github.com/magefile/mage@v1.17.2"
 
       - name: Build cross-platform archives
-        run: "$(go env GOPATH)/bin/mage" Release
+        run: |
+          "$(go env GOPATH)/bin/mage" Release
 
       - name: Upload archives to release
         uses: softprops/action-gh-release@v2
