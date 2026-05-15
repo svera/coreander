@@ -47,7 +47,7 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 	if err != nil {
 		return Metadata{}, err
 	}
-	bk, err := buildEpubMetadataFields(info, filename)
+	bk, err := BuildEpubMetadataFields(info, filename)
 	if err != nil {
 		return Metadata{}, err
 	}
@@ -69,7 +69,10 @@ func (e EpubReader) Metadata(filename string) (Metadata, error) {
 	return bk, nil
 }
 
-func buildEpubMetadataFields(meta *epub.Information, filename string) (Metadata, error) {
+// BuildEpubMetadataFields maps pirmd/epub Information into Metadata (title, authors, dates, etc.).
+// It does not open the EPUB: Illustrations and Words are left at zero unless set elsewhere.
+// EpubReader.Metadata uses this then fills illustrations and word count from the package/zip.
+func BuildEpubMetadataFields(meta *epub.Information, filename string) (Metadata, error) {
 	title := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
 	if len(meta.Title) > 0 && len(meta.Title[0]) > 0 {
 		title = meta.Title[0]

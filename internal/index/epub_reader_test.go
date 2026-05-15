@@ -18,7 +18,7 @@ func (r epubTestReader) Metadata(path string) (metadata.Metadata, error) {
 	if !ok {
 		return metadata.Metadata{}, fmt.Errorf("no test metadata for %s", path)
 	}
-	md, err := metadata.FromEpubInformation(path, info)
+	md, err := metadata.BuildEpubMetadataFields(info, path)
 	if err != nil {
 		return metadata.Metadata{}, err
 	}
