@@ -14,8 +14,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           submodules: recursive
+
+      - name: Verify foliate-js submodule
+        run: test -f internal/webserver/embedded/js/foliate-js/view.js
 
       - name: Set up Go
         uses: actions/setup-go@v5
