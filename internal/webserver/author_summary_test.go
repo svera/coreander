@@ -14,7 +14,7 @@ import (
 func TestAuthorSummary(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	smtpMock := &infrastructure.SMTPMock{}
-	appFS := loadDirInMemoryFs("fixtures/library")
+	appFS := loadDirInMemoryFs("testdata/library")
 	mockDataSourceServer := wikidata.NewMockServer(t, "fixtures/datasource/wikidata")
 
 	gowikidata.WikidataDomain = mockDataSourceServer.URL

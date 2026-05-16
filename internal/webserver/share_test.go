@@ -67,7 +67,7 @@ func TestShareCommentIsTruncated(t *testing.T) {
 	webserverConfig := webserver.Config{
 		ShareCommentMaxSize: 280, // Use default value
 		ShareMaxRecipients:  10,
-		LibraryPath:         "fixtures/library",
+		LibraryPath:         "testdata/library",
 		WordsPerMinute:      250,
 		SessionTimeout:      24 * time.Hour,
 		RecoveryTimeout:     2 * time.Hour,
@@ -113,7 +113,7 @@ func TestShareCommentIsTruncated(t *testing.T) {
 func TestShareFailsWhenSenderIsPrivate(t *testing.T) {
 	webserverConfig := webserver.Config{
 		ShareMaxRecipients: 10,
-		LibraryPath:        "fixtures/library",
+		LibraryPath:        "testdata/library",
 		WordsPerMinute:     250,
 		SessionTimeout:     24 * time.Hour,
 		RecoveryTimeout:    2 * time.Hour,
@@ -157,7 +157,7 @@ func TestShareFailsWhenSenderIsPrivate(t *testing.T) {
 func TestShareFailsWhenRecipientIsPrivate(t *testing.T) {
 	webserverConfig := webserver.Config{
 		ShareMaxRecipients: 10,
-		LibraryPath:        "fixtures/library",
+		LibraryPath:        "testdata/library",
 		WordsPerMinute:     250,
 		SessionTimeout:     24 * time.Hour,
 		RecoveryTimeout:    2 * time.Hour,
@@ -195,7 +195,7 @@ func TestShareFailsWhenRecipientIsPrivate(t *testing.T) {
 func TestHighlightsFilterSharedShowsOnlySharedDocuments(t *testing.T) {
 	webserverConfig := webserver.Config{
 		ShareMaxRecipients: 10,
-		LibraryPath:        "fixtures/library",
+		LibraryPath:        "testdata/library",
 		WordsPerMinute:     250,
 		SessionTimeout:     24 * time.Hour,
 		RecoveryTimeout:    2 * time.Hour,
@@ -310,7 +310,7 @@ func TestShareNotAvailableWhenEmailServiceNotConfigured(t *testing.T) {
 func TestShareFailsWhenRecipientLimitExceeded(t *testing.T) {
 	webserverConfig := webserver.Config{
 		ShareMaxRecipients: 3,
-		LibraryPath:        "fixtures/library",
+		LibraryPath:        "testdata/library",
 		WordsPerMinute:     250,
 		SessionTimeout:     24 * time.Hour,
 		RecoveryTimeout:    2 * time.Hour,
@@ -370,7 +370,7 @@ func TestShareCommentSizeLimit(t *testing.T) {
 	webserverConfig := webserver.Config{
 		ShareCommentMaxSize: 100,
 		ShareMaxRecipients:  10,
-		LibraryPath:         "fixtures/library",
+		LibraryPath:         "testdata/library",
 		WordsPerMinute:      250,
 		SessionTimeout:      24 * time.Hour,
 		RecoveryTimeout:     2 * time.Hour,

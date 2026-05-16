@@ -27,7 +27,7 @@
         {{template "partials/navbar" .}}
     </header>
     <main class="mt-5" data-unexpected-server-error='{{t .Lang "Unexpected server error"}}'>
-        {{template "partials/main" dict "Lang" .Lang "RemainingIndexingTime" .RemainingIndexingTime "IndexingProgressPercentage" .IndexingProgressPercentage "Error" .Error "Warning" .Warning "Success" .Success "Embed" .Embed}}
+        {{template "partials/main" dict "Lang" .Lang "IndexingInProgress" .IndexingInProgress "RemainingIndexingTime" .RemainingIndexingTime "IndexingProgressPercentage" .IndexingProgressPercentage "Error" .Error "Warning" .Warning "Success" .Success "Embed" .Embed}}
     </main>
     {{template "partials/share-modal" .}}
     <footer class="footer mt-auto py-5">

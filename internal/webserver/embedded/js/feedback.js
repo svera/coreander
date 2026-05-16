@@ -159,3 +159,26 @@ document.addEventListener('click', (evt) => {
         })
     }
 })
+
+function consumeToastSuccessOnceCookie() {
+    const m = document.cookie.match(/(?:^|; )toast-success-once=([^;]*)/)
+    if (!m) {
+        return
+    }
+    let raw = m[1]
+    try {
+        raw = decodeURIComponent(raw.replace(/\+/g, ' '))
+    } catch {
+        // keep raw
+    }
+    if (raw) {
+        showToast(escapeHtmlText(raw), 'success')
+    }
+    document.cookie = 'toast-success-once=; Path=/; Max-Age=0'
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', consumeToastSuccessOnceCookie)
+} else {
+    consumeToastSuccessOnceCookie()
+}

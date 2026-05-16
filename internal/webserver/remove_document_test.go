@@ -17,7 +17,7 @@ import (
 func TestRemoveDocument(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	smtpMock := &infrastructure.SMTPMock{}
-	appFS := loadDirInMemoryFs("fixtures/library")
+	appFS := loadDirInMemoryFs("testdata/library")
 	app := bootstrapApp(db, smtpMock, appFS, webserver.Config{})
 
 	assertDocumentResults(app, t, "john+doe", 4)

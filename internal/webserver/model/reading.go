@@ -4,12 +4,23 @@ import (
 	"time"
 )
 
+func ClampReadingPercentage(v int) int {
+	if v < 0 {
+		return 0
+	}
+	if v > 100 {
+		return 100
+	}
+	return v
+}
+
 type Reading struct {
 	CreatedAt   time.Time  `gorm:"autoCreateTime"`
 	UpdatedAt   time.Time  `gorm:"autoUpdateTime"`
 	UserID      int        `gorm:"primaryKey"`
 	Slug        string     `gorm:"primaryKey"`
 	Position    string     `gorm:"type:text"`
+	Percentage  int        `gorm:"default:0"`
 	CompletedOn *time.Time `gorm:"default:null"`
 }
 

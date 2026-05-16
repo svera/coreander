@@ -89,7 +89,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	app.Get("/completed", alwaysRequireAuthentication, controllers.Completed.Completed)
 	usersGroup.Get("/:username", controllers.Users.Edit)
 	usersGroup.Put("/:username", controllers.Users.Update)
-	usersGroup.Delete("/:username", RequireAdmin, controllers.Users.Delete)
+	usersGroup.Delete("/:username", controllers.Users.Delete)
 
 	docsGroup := app.Group("/documents")
 	app.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)

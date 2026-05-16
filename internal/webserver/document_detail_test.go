@@ -48,7 +48,7 @@ func TestDocumentDetail(t *testing.T) {
 
 func TestDocumentReadAndDeleteDocumentAfterwards(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
-	appFS := loadFilesInMemoryFs([]string{"fixtures/library/quijote.epub"})
+	appFS := loadFilesInMemoryFs([]string{"testdata/library/quijote.epub"})
 	smtpMock := &infrastructure.SMTPMock{}
 	app := bootstrapApp(db, smtpMock, appFS, webserver.Config{})
 
@@ -110,7 +110,7 @@ func TestDocumentReadAndDeleteDocumentAfterwards(t *testing.T) {
 
 func TestDocumentReadAndDeleteUserAfterwards(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
-	appFS := loadFilesInMemoryFs([]string{"fixtures/library/quijote.epub"})
+	appFS := loadFilesInMemoryFs([]string{"testdata/library/quijote.epub"})
 	smtpMock := &infrastructure.SMTPMock{}
 	app := bootstrapApp(db, smtpMock, appFS, webserver.Config{})
 

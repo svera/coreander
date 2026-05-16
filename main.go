@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v3"
-	"github.com/pirmd/epub"
 	"gorm.io/gorm"
 
 	"github.com/alecthomas/kong"
@@ -29,14 +29,15 @@ const authorsIndexPath = "/.coreander/authors_index"
 const databasePath = "/.coreander/database.db"
 
 var (
-	input           CLIInput
-	appFs           afero.Fs
-	idx             *index.BleveIndexer
-	db              *gorm.DB
-	homeDir         string
-	err             error
-	metadataReaders map[string]metadata.Reader
-	sender          webserver.Sender
+	input                CLIInput
+	appFs                afero.Fs
+	idx                  *index.BleveIndexer
+	db                   *gorm.DB
+	homeDir              string
+	err                  error
+	metadataReaders      map[string]metadata.Reader
+	sender               webserver.Sender
+	resolvedIndexWorkers int
 )
 
 func init() {
@@ -52,6 +53,11 @@ func init() {
 		log.Fatalf("Error parsing configuration: %s", ctx.Error)
 	}
 
+	resolvedIndexWorkers = index.ResolveMetadataWorkers(input.IndexWorkers)
+	if input.IndexWorkers == 0 {
+		log.Printf("INDEX_WORKERS is 0 (automatic), using %d metadata workers (%d CPUs)", resolvedIndexWorkers, runtime.NumCPU())
+	}
+
 	log.Printf("Coreander version %s starting\n", version)
 	homeDir, err = os.UserHomeDir()
 	if err != nil {
@@ -64,11 +70,8 @@ func init() {
 
 	appFs = afero.NewOsFs()
 	metadataReaders = map[string]metadata.Reader{
-		".epub": metadata.EpubReader{
-			GetMetadataFromFile: epub.GetMetadataFromFile,
-			GetPackageFromFile:  epub.GetPackageFromFile,
-		},
-		".pdf": metadata.PdfReader{Fs: appFs},
+		".epub": metadata.NewEpubReader(),
+		".pdf":  metadata.PdfReader{Fs: appFs},
 	}
 
 	var documentsIndex, authorsIndex bleve.Index
@@ -90,7 +93,7 @@ func init() {
 func main() {
 	defer idx.Close()
 
-	go startIndex(idx, input.BatchSize, input.LibPath)
+	go startIndex(idx, input.BatchSize, input.LibPath, resolvedIndexWorkers)
 
 	sender = &infrastructure.NoEmail{}
 	if input.SmtpServer != "" && input.SmtpUser != "" && input.SmtpPassword != "" {
@@ -164,10 +167,10 @@ func main() {
 	log.Fatal(app.Listen(fmt.Sprintf(":%d", input.Port), fiber.ListenConfig{DisableStartupMessage: true}))
 }
 
-func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
+func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWorkers int) {
 	start := time.Now().Unix()
 	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
-	err := idx.AddLibrary(batchSize, input.ForceIndexing)
+	err := idx.AddLibrary(batchSize, input.ForceIndexing, indexWorkers)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -37,13 +37,13 @@ func TestToggleComplete(t *testing.T) {
 		db = infrastructure.Connect(":memory:", 250)
 
 		appFs := loadFilesInMemoryFs([]string{
-			"fixtures/library/metadata.epub",
-			"fixtures/library/quijote.epub",
+			"testdata/library/metadata.epub",
+			"testdata/library/quijote.epub",
 		})
 
 		webserverConfig := webserver.Config{
 			SessionTimeout: 24 * time.Hour,
-			LibraryPath:    "fixtures/library",
+			LibraryPath:    "testdata/library",
 			WordsPerMinute: 250,
 		}
 

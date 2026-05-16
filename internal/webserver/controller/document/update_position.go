@@ -7,6 +7,11 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/model"
 )
 
+type updateReadingPositionBody struct {
+	Position   string `json:"position"`
+	Percentage int    `json:"percentage"`
+}
+
 func (d *Controller) UpdatePosition(c fiber.Ctx) error {
 	document, err := d.idx.Document(c.Params("slug"))
 	if err != nil {
@@ -27,15 +32,13 @@ func (d *Controller) UpdatePosition(c fiber.Ctx) error {
 		return fiber.ErrUnauthorized
 	}
 
-	var body struct {
-		Position string `json:"position"`
-	}
-
+	var body updateReadingPositionBody
 	if err := c.Bind().Body(&body); err != nil {
 		return fiber.ErrBadRequest
 	}
 
-	if err := d.readingRepository.Update(int(session.ID), document.Slug, body.Position); err != nil {
+	pct := model.ClampReadingPercentage(body.Percentage)
+	if err := d.readingRepository.Update(int(session.ID), document.Slug, body.Position, pct); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
