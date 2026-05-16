@@ -58,7 +58,7 @@ func (a *Controller) UploadImage(c fiber.Ctx) error {
 	defer fileReader.Close()
 
 	// Decode image directly from file reader
-	img, err := imaging.Decode(fileReader)
+	img, err := imaging.Decode(fileReader, imaging.Backends(imaging.GO_IMAGE))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid image file",
