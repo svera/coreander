@@ -26,7 +26,7 @@ jobs:
         run: "go install github.com/magefile/mage@v1.17.2"
 
       - name: Build cross-platform archives
-        run: "$(go env GOPATH)/bin/mage" Release
+        run: "$(go env GOPATH)/bin/mage Release"
 
       - name: Upload archives to release
         uses: softprops/action-gh-release@v2
