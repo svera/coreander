@@ -129,5 +129,6 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	app.Get("/series/:slug", controllers.Series.Documents)
 
+	app.Get("/resume-reading", alwaysRequireAuthentication, controllers.Home.ResumeReading)
 	app.Get("/", controllers.Home.Index)
 }

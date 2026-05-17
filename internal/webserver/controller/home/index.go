@@ -38,14 +38,10 @@ func (d *Controller) Index(c fiber.Ctx) error {
 			latestDocs[i] = result
 		}
 
-		readingPage, err := d.readingRepository.Latest(int(session.ID), 1, d.config.LatestDocsLimit)
+		readingDocs, err = d.readingDocs(int(session.ID))
 		if err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
-		}
-		for _, doc := range readingPage.Hits() {
-			result := d.hlRepository.Highlighted(int(session.ID), doc)
-			readingDocs = append(readingDocs, result)
 		}
 	}
 
