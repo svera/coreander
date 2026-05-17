@@ -25,13 +25,7 @@ func (d *Controller) ResumeReading(c fiber.Ctx) error {
 	c.Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	c.Set("Pragma", "no-cache")
 
-	var session model.Session
-	if val, ok := c.Locals("Session").(model.Session); ok {
-		session = val
-	}
-	if session.ID == 0 {
-		return fiber.ErrUnauthorized
-	}
+	session, _ := c.Locals("Session").(model.Session)
 
 	readingDocs, err := d.readingDocs(int(session.ID))
 	if err != nil {

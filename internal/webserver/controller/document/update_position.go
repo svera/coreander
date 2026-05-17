@@ -23,14 +23,7 @@ func (d *Controller) UpdatePosition(c fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	var session model.Session
-	if val, ok := c.Locals("Session").(model.Session); ok {
-		session = val
-	}
-
-	if session.ID == 0 {
-		return fiber.ErrUnauthorized
-	}
+	session, _ := c.Locals("Session").(model.Session)
 
 	var body updateReadingPositionBody
 	if err := c.Bind().Body(&body); err != nil {

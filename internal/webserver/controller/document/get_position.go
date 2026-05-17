@@ -18,14 +18,7 @@ func (d *Controller) GetPosition(c fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	var session model.Session
-	if val, ok := c.Locals("Session").(model.Session); ok {
-		session = val
-	}
-
-	if session.ID == 0 {
-		return fiber.ErrUnauthorized
-	}
+	session, _ := c.Locals("Session").(model.Session)
 
 	reading, err := d.readingRepository.Get(int(session.ID), document.Slug)
 	if err != nil {
