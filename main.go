@@ -17,6 +17,7 @@ import (
 	"github.com/svera/coreander/v4/internal/datasource/wikidata"
 	"github.com/svera/coreander/v4/internal/index"
 	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v4/internal/versioncheck"
 	"github.com/svera/coreander/v4/internal/webserver"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
@@ -53,12 +54,14 @@ func init() {
 		log.Fatalf("Error parsing configuration: %s", ctx.Error)
 	}
 
+	log.Printf("Coreander version %s starting\n", version)
+
 	resolvedIndexWorkers = index.ResolveMetadataWorkers(input.IndexWorkers)
 	if input.IndexWorkers == 0 {
 		log.Printf("INDEX_WORKERS is 0 (automatic), using %d metadata workers (%d CPUs)", resolvedIndexWorkers, runtime.NumCPU())
 	}
 
-	log.Printf("Coreander version %s starting\n", version)
+	versioncheck.NotifyIfOutdated(version)
 	homeDir, err = os.UserHomeDir()
 	if err != nil {
 		log.Fatal("Error retrieving user home dir")
