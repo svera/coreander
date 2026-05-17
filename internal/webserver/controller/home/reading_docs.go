@@ -33,14 +33,8 @@ func (d *Controller) ResumeReading(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	latestDocsRaw, err := d.idx.LatestDocs(d.config.LatestDocsLimit)
-	if err != nil {
-		log.Println(err)
-		return fiber.ErrInternalServerError
-	}
-
 	return c.Render("partials/resume-reading", fiber.Map{
-		"Reading":    readingDocs,
-		"LatestDocs": latestDocsRaw,
+		"Reading": readingDocs,
+		"Compact": c.Query("compact") == "true",
 	})
 }
