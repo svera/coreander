@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestCanonicalize(t *testing.T) {
@@ -60,11 +61,7 @@ func TestFetchLatestReleaseTag(t *testing.T) {
 	}))
 	defer server.Close()
 
-	original := releaseAPIURL
-	releaseAPIURL = server.URL
-	t.Cleanup(func() { releaseAPIURL = original })
-
-	tag, err := fetchLatestReleaseTag()
+	tag, err := fetchLatestReleaseTag(server.URL)
 	if err != nil {
 		t.Fatalf("fetchLatestReleaseTag: %v", err)
 	}
@@ -73,8 +70,35 @@ func TestFetchLatestReleaseTag(t *testing.T) {
 	}
 }
 
-func TestDisplayVersion(t *testing.T) {
-	if got := displayVersion(""); got != "unknown" {
-		t.Fatalf("displayVersion(\"\") = %q, want unknown", got)
+func TestCheckerRefresh(t *testing.T) {
+	checker := NewWithFetcher("v1.0.0", func() (string, error) {
+		return "v2.0.0", nil
+	})
+	checker.Refresh()
+
+	latest, outdated := checker.Outdated()
+	if !outdated {
+		t.Fatal("expected outdated")
+	}
+	if latest != "v2.0.0" {
+		t.Fatalf("latest = %q, want v2.0.0", latest)
+	}
+}
+
+func TestCheckerNotOutdatedWhenCurrent(t *testing.T) {
+	checker := NewWithFetcher("v2.0.0", func() (string, error) {
+		return "v2.0.0", nil
+	})
+	checker.Refresh()
+
+	_, outdated := checker.Outdated()
+	if outdated {
+		t.Fatal("expected not outdated")
+	}
+}
+
+func TestCheckInterval(t *testing.T) {
+	if CheckInterval != 24*time.Hour {
+		t.Fatalf("CheckInterval = %v, want 24h", CheckInterval)
 	}
 }

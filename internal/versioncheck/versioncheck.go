@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/mod/semver"
@@ -14,38 +14,83 @@ import (
 
 const (
 	defaultReleaseAPIURL = "https://api.github.com/repos/svera/coreander/releases/latest"
-	releasesPageURL      = "https://github.com/svera/coreander/releases/latest"
-	requestTimeout       = 5 * time.Second
+	// ReleasesPageURL is the download page linked from the admin footer notice.
+	ReleasesPageURL = "https://github.com/svera/coreander/releases/latest"
+	requestTimeout  = 5 * time.Second
+	// CheckInterval is how often the running version is compared to GitHub's latest release.
+	CheckInterval = 24 * time.Hour
 )
-
-var releaseAPIURL = defaultReleaseAPIURL
 
 type releaseResponse struct {
 	TagName string `json:"tag_name"`
 }
 
-// NotifyIfOutdated fetches the latest stable GitHub release and logs a message when
-// the running version is older. Network or parse failures are ignored.
-func NotifyIfOutdated(running string) {
-	go func() {
-		latest, err := fetchLatestReleaseTag()
-		if err != nil {
-			return
-		}
-		if isOlder(running, latest) {
-			log.Printf(
-				"A new version of Coreander is available: %s (you are running %s). Download: %s\n",
-				latest,
-				displayVersion(running),
-				releasesPageURL,
-			)
-		}
-	}()
+type releaseFetcher func() (string, error)
+
+// Checker periodically compares the running version to the latest GitHub release.
+type Checker struct {
+	running string
+	fetch   releaseFetcher
+
+	mu       sync.RWMutex
+	latest   string
+	outdated bool
 }
 
-func fetchLatestReleaseTag() (string, error) {
+// New creates a checker that polls GitHub once per day.
+func New(running string) *Checker {
+	return NewWithFetcher(running, defaultReleaseFetcher)
+}
+
+// NewWithFetcher creates a checker using a custom release fetcher (for tests).
+func NewWithFetcher(running string, fetch releaseFetcher) *Checker {
+	if fetch == nil {
+		fetch = defaultReleaseFetcher
+	}
+	return &Checker{running: running, fetch: fetch}
+}
+
+// Start runs an immediate check and then checks every CheckInterval until the process exits.
+func (c *Checker) Start() {
+	go c.run()
+}
+
+func (c *Checker) run() {
+	c.Refresh()
+	ticker := time.NewTicker(CheckInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		c.Refresh()
+	}
+}
+
+// Refresh fetches the latest release tag and updates the outdated state.
+func (c *Checker) Refresh() {
+	latest, err := c.fetch()
+	if err != nil {
+		return
+	}
+	outdated := isOlder(c.running, latest)
+	c.mu.Lock()
+	c.latest = latest
+	c.outdated = outdated
+	c.mu.Unlock()
+}
+
+// Outdated reports whether a newer release exists and returns its tag when it does.
+func (c *Checker) Outdated() (latest string, outdated bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.latest, c.outdated
+}
+
+func defaultReleaseFetcher() (string, error) {
+	return fetchLatestReleaseTag(defaultReleaseAPIURL)
+}
+
+func fetchLatestReleaseTag(apiURL string) (string, error) {
 	client := &http.Client{Timeout: requestTimeout}
-	req, err := http.NewRequest(http.MethodGet, releaseAPIURL, nil)
+	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
 	if err != nil {
 		return "", err
 	}
@@ -104,12 +149,4 @@ func isOlder(running, latest string) bool {
 		return false
 	}
 	return semver.Compare(current, remote) < 0
-}
-
-func displayVersion(version string) string {
-	version = strings.TrimSpace(version)
-	if version == "" {
-		return "unknown"
-	}
-	return version
 }

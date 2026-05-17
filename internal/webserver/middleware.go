@@ -12,6 +12,7 @@ import (
 	jwtware "github.com/gofiber/contrib/v3/jwt"
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v4/internal/i18n"
+	"github.com/svera/coreander/v4/internal/versioncheck"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"golang.org/x/exp/slices"
@@ -101,7 +102,7 @@ func AllowIfNotLoggedIn(jwtSecret []byte) func(fiber.Ctx) error {
 
 // AlwaysRequireAuthentication returns forbidden and renders the login page
 // if the user trying to access has not logged in
-func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, usersRepository *model.UserRepository) func(fiber.Ctx) error {
+func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, usersRepository *model.UserRepository, versionChecker *versioncheck.Checker) func(fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey: jwtware.SigningKey{JWTAlg: "HS256", Key: jwtSecret},
 		Extractor:  extractors.FromCookie("session"),
@@ -116,6 +117,7 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18
 			c.Locals("Session", session)
 			usersRepository.UpdateLastRequest(session.ID)
 			updateUserLanguage(c, usersRepository, session)
+			applyVersionUpdateNotice(c, versionChecker)
 			return c.Next()
 		},
 		ErrorHandler: func(c fiber.Ctx, err error) error {
@@ -125,7 +127,7 @@ func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18
 }
 
 // ConfigurableAuthentication allows to enable or disable authentication on routes which may or may not require it
-func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, requireAuth bool, usersRepository *model.UserRepository) func(fiber.Ctx) error {
+func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, requireAuth bool, usersRepository *model.UserRepository, versionChecker *versioncheck.Checker) func(fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
 		SigningKey: jwtware.SigningKey{JWTAlg: "HS256", Key: jwtSecret},
 		Extractor:  extractors.FromCookie("session"),
@@ -143,6 +145,7 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n
 			c.Locals("Session", session)
 			usersRepository.UpdateLastRequest(session.ID)
 			updateUserLanguage(c, usersRepository, session)
+			applyVersionUpdateNotice(c, versionChecker)
 			return c.Next()
 		},
 		ErrorHandler: func(c fiber.Ctx, err error) error {
@@ -236,6 +239,21 @@ func OneTimeMessages() func(c fiber.Ctx) error {
 		c.Locals("Success", msg)
 
 		return c.Next()
+	}
+}
+
+func applyVersionUpdateNotice(c fiber.Ctx, checker *versioncheck.Checker) {
+	if checker == nil {
+		return
+	}
+	session, ok := c.Locals("Session").(model.Session)
+	if !ok || session.Role != model.RoleAdmin {
+		return
+	}
+	latest, outdated := checker.Outdated()
+	if outdated {
+		c.Locals("NewVersionAvailable", latest)
+		c.Locals("NewVersionDownloadURL", versioncheck.ReleasesPageURL)
 	}
 }
 

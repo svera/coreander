@@ -61,7 +61,6 @@ func init() {
 		log.Printf("INDEX_WORKERS is 0 (automatic), using %d metadata workers (%d CPUs)", resolvedIndexWorkers, runtime.NumCPU())
 	}
 
-	versioncheck.NotifyIfOutdated(version)
 	homeDir, err = os.UserHomeDir()
 	if err != nil {
 		log.Fatal("Error retrieving user home dir")
@@ -157,6 +156,10 @@ func main() {
 			log.Printf("Created cache folder at %s\n", webserverConfig.CacheDir)
 		}
 	}
+
+	versionChecker := versioncheck.New(version)
+	versionChecker.Start()
+	webserverConfig.VersionChecker = versionChecker
 
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 

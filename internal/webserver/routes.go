@@ -14,8 +14,8 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	// Middlewares
 	var (
 		allowIfNotLoggedIn          = AllowIfNotLoggedIn(jwtSecret)
-		alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender, translator, usersRepository)
-		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, translator, cfg.RequireAuth, usersRepository)
+		alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender, translator, usersRepository, cfg.VersionChecker)
+		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, translator, cfg.RequireAuth, usersRepository, cfg.VersionChecker)
 	)
 
 	staticCacheControl := fmt.Sprintf("public, max-age=%d, immutable", cfg.ClientStaticCacheTTL)
