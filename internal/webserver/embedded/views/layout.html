@@ -34,8 +34,7 @@
         <div class="container">
             <span class="text-muted"><small>{{t .Lang "Made with words by Sergio Vera"}} - <a
                         href="https://github.com/svera/coreander/releases" target="_blank"
-                        rel="noopener noreferrer">{{.Version}}</a>{{if .NewVersionAvailable}} — {{t .Lang "A new version (%s) is available." .NewVersionAvailable}}
-                    <a href="{{.NewVersionDownloadURL}}" target="_blank" rel="noopener noreferrer">{{t .Lang "Download"}}</a>{{end}}</small></span>
+                        rel="noopener noreferrer">{{.Version}}</a></small></span>
         </div>
     </footer>
     <script src="/js/bootstrap.bundle.min.js{{versionParam .Version}}"></script>

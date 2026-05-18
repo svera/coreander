@@ -1,0 +1,8 @@
+{{if .NewVersionAvailable}}
+<li class="nav-item">
+    <a class="nav-link{{if .Compact}} d-flex align-items-center gap-2 py-2 px-0{{end}}" href="{{.NewVersionDownloadURL}}" target="_blank" rel="noopener noreferrer">
+        <i class="bi bi-arrow-up-circle-fill{{if not .Compact}} pe-1{{end}}" aria-hidden="true"></i>
+        {{t .Lang "A new version (%s) is available." .NewVersionAvailable}}
+    </a>
+</li>
+{{end}}
