@@ -1,0 +1,5 @@
+{{if .NewVersionAvailable}}
+<span class="position-absolute top-0 start-100 translate-middle p-1 bg-primary border border-light rounded-circle">
+    <span class="visually-hidden">{{t .Lang "A new version (%s) is available." .NewVersionAvailable}}</span>
+</span>
+{{end}}
