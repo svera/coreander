@@ -9,7 +9,7 @@ import (
 
 type updateReadingPositionBody struct {
 	Position   string `json:"position"`
-	Percentage int    `json:"percentage"`
+	Percentage *int   `json:"percentage"`
 }
 
 func (d *Controller) UpdatePosition(c fiber.Ctx) error {
@@ -30,8 +30,7 @@ func (d *Controller) UpdatePosition(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	pct := model.ClampReadingPercentage(body.Percentage)
-	if err := d.readingRepository.Update(int(session.ID), document.Slug, body.Position, pct); err != nil {
+	if err := d.readingRepository.Update(int(session.ID), document.Slug, body.Position, body.Percentage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}

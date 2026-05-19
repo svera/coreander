@@ -20,11 +20,15 @@ func newTestReadingRepo(t *testing.T) *ReadingRepository {
 	return &ReadingRepository{DB: db}
 }
 
-func mustUpdateReading(t *testing.T, repo *ReadingRepository, userID int, slug, position string, pct int) {
+func mustUpdateReading(t *testing.T, repo *ReadingRepository, userID int, slug, position string, pct *int) {
 	t.Helper()
 	if err := repo.Update(userID, slug, position, pct); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
+}
+
+func intPtr(v int) *int {
+	return &v
 }
 
 func firstReading(t *testing.T, db *gorm.DB, userID int, slug string) Reading {
@@ -38,7 +42,7 @@ func firstReading(t *testing.T, db *gorm.DB, userID int, slug string) Reading {
 
 func TestReadingRepositoryUpdatePersistsZeroPercentage(t *testing.T) {
 	repo := newTestReadingRepo(t)
-	mustUpdateReading(t, repo, 1, "slug-a", "cfi-here", 0)
+	mustUpdateReading(t, repo, 1, "slug-a", "cfi-here", intPtr(0))
 	got := firstReading(t, repo.DB, 1, "slug-a")
 	if got.Percentage != 0 {
 		t.Fatalf("Percentage = %d, want 0", got.Percentage)
@@ -47,17 +51,30 @@ func TestReadingRepositoryUpdatePersistsZeroPercentage(t *testing.T) {
 
 func TestReadingRepositoryUpdateWithoutPercentageStoresZeroOnInsert(t *testing.T) {
 	repo := newTestReadingRepo(t)
-	mustUpdateReading(t, repo, 1, "slug-b", "only-pos", 0)
+	mustUpdateReading(t, repo, 1, "slug-b", "only-pos", nil)
 	got := firstReading(t, repo.DB, 1, "slug-b")
 	if got.Percentage != 0 {
-		t.Fatalf("Percentage = %d, want 0 when omitted", got.Percentage)
+		t.Fatalf("Percentage = %d, want 0 on insert", got.Percentage)
+	}
+}
+
+func TestReadingRepositoryUpdatePreservesPercentageWhenOmitted(t *testing.T) {
+	repo := newTestReadingRepo(t)
+	mustUpdateReading(t, repo, 1, "slug-d", "cfi-1", intPtr(60))
+	mustUpdateReading(t, repo, 1, "slug-d", "cfi-2", nil)
+	got := firstReading(t, repo.DB, 1, "slug-d")
+	if got.Percentage != 60 {
+		t.Fatalf("Percentage = %d, want 60 preserved when omitted", got.Percentage)
+	}
+	if got.Position != "cfi-2" {
+		t.Fatalf("Position = %q, want cfi-2", got.Position)
 	}
 }
 
 func TestReadingRepositoryUpdatePositionKeepsPercentageWhenResent(t *testing.T) {
 	repo := newTestReadingRepo(t)
-	mustUpdateReading(t, repo, 2, "slug-c", "cfi-1", 50)
-	mustUpdateReading(t, repo, 2, "slug-c", "cfi-2", 50)
+	mustUpdateReading(t, repo, 2, "slug-c", "cfi-1", intPtr(50))
+	mustUpdateReading(t, repo, 2, "slug-c", "cfi-2", intPtr(50))
 	got := firstReading(t, repo.DB, 2, "slug-c")
 	if got.Percentage != 50 {
 		t.Fatalf("Percentage = %d, want 50 preserved", got.Percentage)
@@ -90,9 +107,9 @@ func TestLatestInProgressReturnsAugmentedWithPercentage(t *testing.T) {
 		"b": {Slug: "b"},
 		"c": {Slug: "c"},
 	}}
-	mustUpdateReading(t, repo, uid, "a", "pos-a", 42)
-	mustUpdateReading(t, repo, uid, "b", "pos-b", 0)
-	mustUpdateReading(t, repo, uid, "c", "pos-c", 150)
+	mustUpdateReading(t, repo, uid, "a", "pos-a", intPtr(42))
+	mustUpdateReading(t, repo, uid, "b", "pos-b", intPtr(0))
+	mustUpdateReading(t, repo, uid, "c", "pos-c", intPtr(150))
 
 	page, err := repo.Latest(uid, 1, 10)
 	if err != nil {
@@ -122,8 +139,8 @@ func TestLatestInProgressSkipsMissingIndexDocuments(t *testing.T) {
 	repo.Idx = &latestInProgressIdxStub{docs: map[string]index.Document{
 		"in-index": {Slug: "in-index"},
 	}}
-	mustUpdateReading(t, repo, uid, "in-index", "p", 10)
-	mustUpdateReading(t, repo, uid, "ghost", "p2", 10)
+	mustUpdateReading(t, repo, uid, "in-index", "p", intPtr(10))
+	mustUpdateReading(t, repo, uid, "ghost", "p2", intPtr(10))
 	page, err := repo.Latest(uid, 1, 10)
 	if err != nil {
 		t.Fatalf("Latest: %v", err)
