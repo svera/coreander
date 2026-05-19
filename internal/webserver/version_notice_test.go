@@ -43,13 +43,13 @@ func TestNavVersionNoticeForAdminsOnly(t *testing.T) {
 			t.Fatalf("parse HTML: %v", err)
 		}
 		nav := doc.Find("nav").Text()
-		if !strings.Contains(nav, "v9.9.9") {
-			t.Fatalf("nav should mention latest version, got: %q", nav)
+		if !strings.Contains(nav, "New version available") {
+			t.Fatalf("nav should mention new version, got: %q", nav)
 		}
 		if doc.Find(`nav a[href="https://github.com/svera/coreander/releases/latest"]`).Length() == 0 {
 			t.Fatal("nav should contain download link for latest release")
 		}
-		if strings.Contains(doc.Find("footer").Text(), "A new version") {
+		if strings.Contains(doc.Find("footer").Text(), "New version available") {
 			t.Fatal("footer should not show update notice")
 		}
 	})
@@ -73,7 +73,7 @@ func TestNavVersionNoticeForAdminsOnly(t *testing.T) {
 			t.Fatalf("parse HTML: %v", err)
 		}
 		nav := doc.Find("nav").Text()
-		if strings.Contains(nav, "A new version") {
+		if strings.Contains(nav, "New version available") {
 			t.Fatalf("nav should not show update notice, got: %q", nav)
 		}
 	})
