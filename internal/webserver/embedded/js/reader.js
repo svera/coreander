@@ -1,9 +1,20 @@
-import './foliate-js/view.js'
-import { createTOCView } from './foliate-js/ui/tree.js'
-import { createMenu } from './menu.js'
-import { Overlayer } from './foliate-js/overlayer.js'
-import { ReaderSync } from './reader-sync.js'
-import { ReaderToast } from './reader-toast.js'
+import { importVersioned } from './asset-version.js'
+
+const [
+    _viewModule,
+    { createTOCView },
+    { createMenu },
+    { Overlayer },
+    { ReaderSync },
+    { ReaderToast },
+] = await Promise.all([
+    importVersioned('./foliate-js/view.js'),
+    importVersioned('./foliate-js/ui/tree.js'),
+    importVersioned('./menu.js'),
+    importVersioned('./foliate-js/overlayer.js'),
+    importVersioned('./reader-sync.js'),
+    importVersioned('./reader-toast.js'),
+])
 
 document.addEventListener('click', e => {
     const a = e.target.closest?.('a[data-reader-history-back]')
@@ -685,7 +696,7 @@ class Reader {
         // load and show highlights embedded in the file by Calibre
         const bookmarks = await book.getCalibreBookmarks?.()
         if (bookmarks) {
-            const { fromCalibreHighlight } = await import('./foliate-js/epubcfi.js')
+            const { fromCalibreHighlight } = await importVersioned('./foliate-js/epubcfi.js')
             for (const obj of bookmarks) {
                 if (obj.type === 'highlight') {
                     const value = fromCalibreHighlight(obj)
