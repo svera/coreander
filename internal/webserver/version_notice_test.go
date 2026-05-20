@@ -11,7 +11,7 @@ import (
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 )
 
-func TestFooterVersionNoticeForAdminsOnly(t *testing.T) {
+func TestNavVersionNoticeForAdminsOnly(t *testing.T) {
 	checker := versioncheck.NewWithFetcher("v1.0.0", func() (string, error) {
 		return "v9.9.9", nil
 	})
@@ -29,7 +29,7 @@ func TestFooterVersionNoticeForAdminsOnly(t *testing.T) {
 		t.Fatalf("login admin: %v", err)
 	}
 
-	t.Run("admin sees update notice in footer", func(t *testing.T) {
+	t.Run("admin sees update notice in nav", func(t *testing.T) {
 		response, err := getRequest(adminCookie, app, "/", t)
 		if err != nil {
 			t.Fatalf("GET /: %v", err)
@@ -42,12 +42,15 @@ func TestFooterVersionNoticeForAdminsOnly(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parse HTML: %v", err)
 		}
-		footer := doc.Find("footer").Text()
-		if !strings.Contains(footer, "v9.9.9") {
-			t.Fatalf("footer should mention latest version, got: %q", footer)
+		nav := doc.Find("nav").Text()
+		if !strings.Contains(nav, "New version available") {
+			t.Fatalf("nav should mention new version, got: %q", nav)
 		}
-		if doc.Find(`footer a[href="https://github.com/svera/coreander/releases/latest"]`).Length() == 0 {
-			t.Fatal("footer should contain download link for latest release")
+		if doc.Find(`nav a[href="https://github.com/svera/coreander/releases/latest"]`).Length() == 0 {
+			t.Fatal("nav should contain download link for latest release")
+		}
+		if strings.Contains(doc.Find("footer").Text(), "New version available") {
+			t.Fatal("footer should not show update notice")
 		}
 	})
 
@@ -69,9 +72,9 @@ func TestFooterVersionNoticeForAdminsOnly(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parse HTML: %v", err)
 		}
-		footer := doc.Find("footer").Text()
-		if strings.Contains(footer, "A new version") {
-			t.Fatalf("footer should not show update notice, got: %q", footer)
+		nav := doc.Find("nav").Text()
+		if strings.Contains(nav, "New version available") {
+			t.Fatalf("nav should not show update notice, got: %q", nav)
 		}
 	})
 }

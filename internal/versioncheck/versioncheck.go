@@ -57,15 +57,29 @@ func (c *Checker) Start() {
 
 func (c *Checker) run() {
 	c.Refresh()
+	if c.isOutdated() {
+		return
+	}
 	ticker := time.NewTicker(CheckInterval)
 	defer ticker.Stop()
 	for range ticker.C {
 		c.Refresh()
+		if c.isOutdated() {
+			return
+		}
 	}
 }
 
 // Refresh fetches the latest release tag and updates the outdated state.
+// It is a no-op when a newer version is already known.
 func (c *Checker) Refresh() {
+	c.mu.RLock()
+	if c.outdated {
+		c.mu.RUnlock()
+		return
+	}
+	c.mu.RUnlock()
+
 	latest, err := c.fetch()
 	if err != nil {
 		return
@@ -82,6 +96,12 @@ func (c *Checker) Outdated() (latest string, outdated bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.latest, c.outdated
+}
+
+func (c *Checker) isOutdated() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.outdated
 }
 
 func defaultReleaseFetcher() (string, error) {

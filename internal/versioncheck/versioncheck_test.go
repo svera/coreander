@@ -85,6 +85,23 @@ func TestCheckerRefresh(t *testing.T) {
 	}
 }
 
+func TestRefreshSkipsFetchWhenAlreadyOutdated(t *testing.T) {
+	fetches := 0
+	checker := NewWithFetcher("v1.0.0", func() (string, error) {
+		fetches++
+		return "v2.0.0", nil
+	})
+	checker.Refresh()
+	if fetches != 1 {
+		t.Fatalf("fetches = %d, want 1", fetches)
+	}
+
+	checker.Refresh()
+	if fetches != 1 {
+		t.Fatalf("second Refresh should not call GitHub, fetches = %d", fetches)
+	}
+}
+
 func TestCheckerNotOutdatedWhenCurrent(t *testing.T) {
 	checker := NewWithFetcher("v2.0.0", func() (string, error) {
 		return "v2.0.0", nil
