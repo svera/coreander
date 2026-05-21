@@ -30,6 +30,7 @@
         {{template "partials/main" dict "Lang" .Lang "IndexingInProgress" .IndexingInProgress "RemainingIndexingTime" .RemainingIndexingTime "IndexingProgressPercentage" .IndexingProgressPercentage "Error" .Error "Warning" .Warning "Success" .Success "Embed" .Embed}}
     </main>
     {{template "partials/share-modal" .}}
+    {{template "partials/keyboard-shortcuts-modal" .}}
     <footer class="footer mt-auto py-5">
         <div class="container">
             <span class="text-muted"><small>{{t .Lang "Made with words by Sergio Vera"}} - <a
@@ -39,6 +40,7 @@
     </footer>
     <script src="/js/bootstrap.bundle.min.js{{versionParam .Version}}"></script>
     <script src="/js/htmx.min.js{{versionParam .Version}}"></script>
+    <script src="/js/keyboard-shortcuts.js{{versionParam .Version}}"></script>
     <script>
     function initReadingTimePopovers() {
         document.querySelectorAll('.reading-time-help-popover').forEach(function (el) {
