@@ -55,7 +55,43 @@ function blurSearchInputs() {
     })
 }
 
+function shouldIgnoreShortcutsHelp(event) {
+    const target = event.target
+    if (!target || !(target instanceof Element)) {
+        return true
+    }
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+        return true
+    }
+    const tag = target.tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        return true
+    }
+    return !!target.isContentEditable
+}
+
+function toggleShortcutsModal(event) {
+    const modalEl = document.getElementById('keyboard-shortcuts-modal')
+    if (!modalEl || typeof bootstrap === 'undefined') {
+        return
+    }
+    event.preventDefault()
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl)
+    if (modalEl.classList.contains('show')) {
+        modal.hide()
+    } else {
+        modal.show()
+    }
+}
+
 function handleKeydown(event) {
+    if (event.key === '?') {
+        if (!shouldIgnoreShortcutsHelp(event)) {
+            toggleShortcutsModal(event)
+        }
+        return
+    }
+
     if (shouldIgnoreKeydown(event)) {
         return
     }

@@ -1,0 +1,32 @@
+<div class="modal fade" id="keyboard-shortcuts-modal" tabindex="-1" aria-labelledby="keyboard-shortcuts-modal-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="keyboard-shortcuts-modal-label">{{t .Lang "Keyboard shortcuts"}}</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label='{{t .Lang "Close"}}'></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        <tr>
+                            <th scope="row" class="text-nowrap"><kbd>/</kbd></th>
+                            <td>{{t .Lang "Focus search"}}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row" class="text-nowrap"><kbd>?</kbd></th>
+                            <td>{{t .Lang "Show keyboard shortcuts"}}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row" class="text-nowrap"><kbd>↑</kbd> <kbd>↓</kbd></th>
+                            <td>{{t .Lang "Scroll the page"}}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row" class="text-nowrap"><kbd>←</kbd> <kbd>→</kbd></th>
+                            <td>{{t .Lang "Previous or next results page"}}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
