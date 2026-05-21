@@ -245,6 +245,7 @@
 "Edit user": "Редактировать пользователя"
 "<a href='https://www.amazon.com/sendtokindle/email'>Add this address to your trusted list</a> if you want to receive documents on a Kindle device": "<a href='https://www.amazon.com/sendtokindle/email'>Добавьте этот адрес в список доверенных</a>, чтобы получать документы на устройстве Kindle"
 "Next": "Далее"
+"Previous": "Назад"
 "Footnote": "Сноска"
 "Close footnote": "Закрыть сноску"
 "Footnote content could not be loaded. This may be an external reference or the footnote may not be available in this document.": "Не удалось загрузить содержимое сноски. Возможно, это внешняя ссылка или сноска недоступна в данном документе."

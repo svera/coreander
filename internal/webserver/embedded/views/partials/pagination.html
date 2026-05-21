@@ -1,9 +1,9 @@
-<nav aria-label="..." class="mt-5 mb-5">
+<nav aria-label="Page navigation" aria-keyshortcuts="ArrowLeft ArrowRight" data-pagination-nav class="mt-5 mb-5">
     <ul class="pagination justify-content-center flex-wrap">
         {{$disabled := ""}} {{$ariaDisabled := ""}} {{ if not .Paginator.PreviousLink }} {{$disabled =
         "disabled"}} {{$ariaDisabled = "aria-disabled=\"true\""}} {{end}}
         <li class="page-item {{$disabled}}">
-            <a class="page-link" href="{{.Paginator.PreviousLink}}" tabindex="-1" {{$ariaDisabled}}>«</a>
+            <a class="page-link" href="{{.Paginator.PreviousLink}}" data-pagination="prev" tabindex="-1" aria-label='{{t .Lang "Previous"}}' {{$ariaDisabled}}>«</a>
         </li>
         {{range $number, $page := .Paginator.Pages}} {{$active := ""}} {{ if $page.IsCurrent }} {{$active =
         "active"}} {{end}}
@@ -11,7 +11,7 @@
         {{end}} {{$disabled := ""}} {{$ariaDisabled := ""}} {{ if not .Paginator.NextLink }} {{$disabled =
         "disabled"}} {{$ariaDisabled = "aria-disabled=\"true\""}} {{end}}
         <li class="page-item {{$disabled}}">
-            <a class="page-link" href="{{.Paginator.NextLink}}" tabindex="-1" {{$ariaDisabled}}>»</a>
+            <a class="page-link" href="{{.Paginator.NextLink}}" data-pagination="next" tabindex="-1" aria-label='{{t .Lang "Next"}}' {{$ariaDisabled}}>»</a>
         </li>
     </ul>
 </nav>
