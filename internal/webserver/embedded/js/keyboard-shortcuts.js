@@ -1,8 +1,5 @@
 'use strict'
 
-const PREV_KEYS = new Set(['ArrowLeft'])
-const NEXT_KEYS = new Set(['ArrowRight'])
-const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown'])
 const KEYBOARD_PAGINATION_KEY = 'coreander-keyboard-pagination'
 const SCROLL_STEP_PX = 40
 
@@ -21,23 +18,14 @@ function shouldIgnoreKeydown(event) {
     if (target.isContentEditable) {
         return true
     }
-    if (document.querySelector('.modal.show')) {
-        return true
-    }
-    if (document.querySelector('.offcanvas.show')) {
+    if (document.querySelector('.modal.show, .offcanvas.show')) {
         return true
     }
     return false
 }
 
 function isVisible(element) {
-    if (!element) {
-        return false
-    }
-    if (element.disabled) {
-        return false
-    }
-    return element.getClientRects().length > 0
+    return element && !element.disabled && element.getClientRects().length > 0
 }
 
 function getSearchInput() {
@@ -57,45 +45,8 @@ function getSearchInput() {
     return [...document.querySelectorAll('input[type="search"][name="search"]')].find(isVisible) ?? null
 }
 
-function focusSearch() {
-    const input = getSearchInput()
-    if (!input) {
-        return false
-    }
-    input.focus({ preventScroll: false })
-    input.select()
-    return true
-}
-
-function getPaginationLink(direction) {
-    const link = document.querySelector(
-        `nav[data-pagination-nav] a[data-pagination="${direction}"]`
-    )
-    if (!link) {
-        return null
-    }
-    if (link.closest('.page-item')?.classList.contains('disabled')) {
-        return null
-    }
-    if (link.getAttribute('aria-disabled') === 'true') {
-        return null
-    }
-    const href = link.getAttribute('href')
-    if (!href) {
-        return null
-    }
-    return link
-}
-
-function navigatePagination(direction) {
-    const link = getPaginationLink(direction)
-    if (!link) {
-        return false
-    }
-    sessionStorage.setItem(KEYBOARD_PAGINATION_KEY, '1')
-    document.activeElement?.blur()
-    window.location.assign(link.href)
-    return true
+function getPaginationLink(rel) {
+    return document.querySelector(`nav[data-pagination-nav] a[rel="${rel}"]`)
 }
 
 function blurSearchInputs() {
@@ -104,77 +55,58 @@ function blurSearchInputs() {
     })
 }
 
-function focusScrollContainer() {
-    const main = document.querySelector('main')
-    if (!main) {
-        return
-    }
-    main.classList.add('keyboard-scroll-anchor')
-    if (!main.hasAttribute('tabindex')) {
-        main.setAttribute('tabindex', '-1')
-    }
-    main.focus({ preventScroll: true })
-}
-
-function releaseFocusForScroll() {
-    blurSearchInputs()
-    focusScrollContainer()
-}
-
-function restoreFocusAfterKeyboardPagination() {
-    if (sessionStorage.getItem(KEYBOARD_PAGINATION_KEY) !== '1') {
-        return
-    }
-    sessionStorage.removeItem(KEYBOARD_PAGINATION_KEY)
-
-    releaseFocusForScroll()
-    requestAnimationFrame(() => {
-        releaseFocusForScroll()
-        setTimeout(releaseFocusForScroll, 0)
-    })
-}
-
-function scrollPageVertically(event) {
-    const delta = event.key === 'ArrowUp' ? -SCROLL_STEP_PX : SCROLL_STEP_PX
-    document.body.scrollBy({ top: delta, left: 0, behavior: 'auto' })
-    event.preventDefault()
-}
-
 function handleKeydown(event) {
     if (shouldIgnoreKeydown(event)) {
         return
     }
 
     if (event.key === '/') {
-        if (focusSearch()) {
+        const input = getSearchInput()
+        if (input) {
             event.preventDefault()
+            input.focus({ preventScroll: false })
+            input.select()
         }
         return
     }
 
-    if (SCROLL_KEYS.has(event.key)) {
-        scrollPageVertically(event)
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        const delta = event.key === 'ArrowUp' ? -SCROLL_STEP_PX : SCROLL_STEP_PX
+        document.body.scrollBy({ top: delta, left: 0, behavior: 'auto' })
+        event.preventDefault()
         return
     }
 
-    if (!document.querySelector('nav[data-pagination-nav]')) {
-        return
-    }
-
-    let direction = null
-    if (PREV_KEYS.has(event.key)) {
-        direction = 'prev'
-    } else if (NEXT_KEYS.has(event.key)) {
-        direction = 'next'
+    let link = null
+    if (event.key === 'ArrowLeft') {
+        link = getPaginationLink('prev')
+    } else if (event.key === 'ArrowRight') {
+        link = getPaginationLink('next')
     } else {
         return
     }
 
-    if (navigatePagination(direction)) {
-        event.preventDefault()
+    if (!link) {
+        return
     }
+
+    event.preventDefault()
+    sessionStorage.setItem(KEYBOARD_PAGINATION_KEY, '1')
+    window.location.assign(link.href)
 }
 
 document.addEventListener('keydown', handleKeydown)
-document.addEventListener('DOMContentLoaded', restoreFocusAfterKeyboardPagination)
-document.addEventListener('pageshow', restoreFocusAfterKeyboardPagination)
+function restoreAfterKeyboardPagination() {
+    if (sessionStorage.getItem(KEYBOARD_PAGINATION_KEY) !== '1') {
+        return
+    }
+    sessionStorage.removeItem(KEYBOARD_PAGINATION_KEY)
+    blurSearchInputs()
+    requestAnimationFrame(() => {
+        blurSearchInputs()
+        setTimeout(blurSearchInputs, 0)
+    })
+}
+
+document.addEventListener('pageshow', restoreAfterKeyboardPagination)
+document.addEventListener('DOMContentLoaded', restoreAfterKeyboardPagination)

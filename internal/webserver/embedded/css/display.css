@@ -19,12 +19,6 @@ main {
     padding: 15px;
 }
 
-/* Programmatic focus after keyboard pagination; keep arrow-key scroll without a visible ring */
-main.keyboard-scroll-anchor:focus {
-    outline: none;
-    box-shadow: none;
-}
-
 main .form-control {
     position: relative;
     box-sizing: border-box;
