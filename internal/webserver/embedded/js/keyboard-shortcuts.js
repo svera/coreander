@@ -2,6 +2,15 @@
 
 const KEYBOARD_PAGINATION_KEY = 'coreander-keyboard-pagination'
 const SCROLL_STEP_PX = 40
+const GO_SEQUENCE_MS = 2000
+const GO_DESTINATIONS = {
+    c: '/completed',
+    h: '/highlights',
+    u: '/upload',
+}
+
+let pendingGoKey = false
+let pendingGoTimeout = null
 
 function shouldIgnoreKeydown(event) {
     const target = event.target
@@ -70,6 +79,50 @@ function shouldIgnoreShortcutsHelp(event) {
     return !!target.isContentEditable
 }
 
+function clearGoSequence() {
+    pendingGoKey = false
+    if (pendingGoTimeout !== null) {
+        clearTimeout(pendingGoTimeout)
+        pendingGoTimeout = null
+    }
+}
+
+function startGoSequence() {
+    clearGoSequence()
+    pendingGoKey = true
+    pendingGoTimeout = setTimeout(clearGoSequence, GO_SEQUENCE_MS)
+}
+
+function letterKey(event) {
+    return event.key.length === 1 ? event.key.toLowerCase() : ''
+}
+
+function handleGoSequence(event) {
+    const key = letterKey(event)
+    if (!key) {
+        return false
+    }
+
+    if (pendingGoKey) {
+        clearGoSequence()
+        const destination = GO_DESTINATIONS[key]
+        if (destination) {
+            event.preventDefault()
+            window.location.assign(destination)
+            return true
+        }
+        return false
+    }
+
+    if (key === 'g') {
+        event.preventDefault()
+        startGoSequence()
+        return true
+    }
+
+    return false
+}
+
 function toggleShortcutsModal(event) {
     const modalEl = document.getElementById('keyboard-shortcuts-modal')
     if (!modalEl || typeof bootstrap === 'undefined') {
@@ -93,6 +146,10 @@ function handleKeydown(event) {
     }
 
     if (shouldIgnoreKeydown(event)) {
+        return
+    }
+
+    if (handleGoSequence(event)) {
         return
     }
 
@@ -132,6 +189,7 @@ function handleKeydown(event) {
 }
 
 document.addEventListener('keydown', handleKeydown)
+
 function restoreAfterKeyboardPagination() {
     if (sessionStorage.getItem(KEYBOARD_PAGINATION_KEY) !== '1') {
         return
