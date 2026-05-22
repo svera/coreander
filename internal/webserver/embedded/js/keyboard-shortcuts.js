@@ -189,6 +189,7 @@ function handleKeydown(event) {
 }
 
 document.addEventListener('keydown', handleKeydown)
+
 function restoreAfterKeyboardPagination() {
     if (sessionStorage.getItem(KEYBOARD_PAGINATION_KEY) !== '1') {
         return
