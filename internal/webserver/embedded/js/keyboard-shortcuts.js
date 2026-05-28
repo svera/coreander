@@ -6,7 +6,24 @@ const GO_SEQUENCE_MS = 2000
 const GO_DESTINATIONS = {
     c: '/completed',
     h: '/highlights',
-    u: '/upload',
+    o: '/',
+    s: '/sessions/new',
+}
+
+function resolveGoDestination(key) {
+    if (key === 'p') {
+        return document.body.dataset.profileUrl || null
+    }
+    if (document.body.dataset.admin !== 'true') {
+        return GO_DESTINATIONS[key] ?? null
+    }
+    if (key === 'a') {
+        return '/users'
+    }
+    if (key === 'u') {
+        return '/upload'
+    }
+    return GO_DESTINATIONS[key] ?? null
 }
 
 let pendingGoKey = false
@@ -105,7 +122,7 @@ function handleGoSequence(event) {
 
     if (pendingGoKey) {
         clearGoSequence()
-        const destination = GO_DESTINATIONS[key]
+        const destination = resolveGoDestination(key)
         if (destination) {
             event.preventDefault()
             window.location.assign(destination)
