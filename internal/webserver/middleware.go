@@ -92,7 +92,7 @@ func AllowIfNotLoggedIn(jwtSecret []byte) func(fiber.Ctx) error {
 		SigningKey: jwtware.SigningKey{JWTAlg: "HS256", Key: jwtSecret},
 		Extractor:  extractors.FromCookie("session"),
 		SuccessHandler: func(c fiber.Ctx) error {
-			return fiber.ErrForbidden
+			return c.Redirect().To("/")
 		},
 		ErrorHandler: func(c fiber.Ctx, err error) error {
 			return c.Next()

@@ -78,6 +78,37 @@ func TestAuthentication(t *testing.T) {
 		if url.Path != "/" {
 			t.Errorf("Expected location %s, received %s", "/", url.Path)
 		}
+
+		sessionCookie := ""
+		for _, cookie := range response.Cookies() {
+			if cookie.Name == "session" {
+				sessionCookie = cookie.Value
+				break
+			}
+		}
+		if sessionCookie == "" {
+			t.Fatal("Expected session cookie after login")
+		}
+
+		req, err = http.NewRequest(http.MethodGet, "/sessions/new", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		req.AddCookie(&http.Cookie{Name: "session", Value: sessionCookie})
+		response, err = app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected redirect when logged in, received %d", response.StatusCode)
+		}
+		location, err := response.Location()
+		if err != nil {
+			t.Fatal("No location header on redirect")
+		}
+		if location.Path != "/" {
+			t.Errorf("Expected redirect to /, received %s", location.Path)
+		}
 	})
 }
 

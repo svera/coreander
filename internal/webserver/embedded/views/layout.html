@@ -22,7 +22,7 @@
     <script src="/js/color-mode-toggler.js{{versionParam .Version}}"></script>
 </head>
 
-<body class="d-flex flex-column h-100" hx-ext="response-targets">
+<body class="d-flex flex-column h-100" hx-ext="response-targets"{{if and .Session (ne .Session.Name "")}} data-profile-url="/users/{{.Session.Username}}"{{end}}{{if and .Session (eq .Session.Role 2)}} data-admin="true"{{end}}>
     <header>
         {{template "partials/navbar" .}}
     </header>
