@@ -8,15 +8,20 @@ const GO_DESTINATIONS = {
     h: '/highlights',
     o: '/',
     s: '/sessions/new',
-    u: '/upload',
 }
 
 function resolveGoDestination(key) {
     if (key === 'p') {
         return document.body.dataset.profileUrl || null
     }
+    if (document.body.dataset.admin !== 'true') {
+        return GO_DESTINATIONS[key] ?? null
+    }
     if (key === 'a') {
-        return document.body.dataset.admin === 'true' ? '/users' : null
+        return '/users'
+    }
+    if (key === 'u') {
+        return '/upload'
     }
     return GO_DESTINATIONS[key] ?? null
 }

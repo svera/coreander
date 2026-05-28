@@ -44,6 +44,7 @@
                             <th scope="row" class="text-nowrap"><kbd>g</kbd> {{t .Lang "then"}} <kbd>s</kbd></th>
                             <td>{{t .Lang "Go to sign in"}}</td>
                         </tr>
+                        {{if and .Session (eq .Session.Role 2)}}
                         <tr>
                             <th scope="row" class="text-nowrap"><kbd>g</kbd> {{t .Lang "then"}} <kbd>u</kbd></th>
                             <td>{{t .Lang "Go to upload documents"}}</td>
@@ -52,6 +53,7 @@
                             <th scope="row" class="text-nowrap"><kbd>g</kbd> {{t .Lang "then"}} <kbd>a</kbd></th>
                             <td>{{t .Lang "Go to users (admin)"}}</td>
                         </tr>
+                        {{end}}
                     </tbody>
                 </table>
             </div>
