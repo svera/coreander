@@ -12,13 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
-          fetch-depth: 0
           submodules: recursive
 
+      - name: Verify foliate-js submodule
+        run: test -f internal/webserver/embedded/js/foliate-js/view.js
+
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.25"
 
@@ -29,6 +31,6 @@ jobs:
         run: "$(go env GOPATH)/bin/mage Release"
 
       - name: Upload archives to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: coreander_*.zip

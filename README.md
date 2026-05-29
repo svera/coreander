@@ -126,6 +126,7 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |                                     |`LIB_PATH`                | Absolute path to the folder containing the documents.
 |`-p` or `--port`                     |`PORT`                    | Port number in which the webserver listens for requests. Defaults to 3000.
 |`-b` or `--batch-size`               |`BATCH_SIZE`              | Number of documents persisted by the indexer in one write operation. Defaults to 100.
+|`--index-workers`                    |`INDEX_WORKERS`           | Parallel workers for metadata extraction during indexing. `0` (default) uses an automatic count based on CPUs (capped at 64); `1` is sequential; `2` or higher sets an explicit pool size (also capped at 64).
 |`--cover-max-width`                  |`COVER_MAX_WIDTH`         | Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 600.
 |`--author-image-max-width`           |`AUTHOR_IMAGE_MAX_WIDTH`  | Maximum horizontal size for author images in pixels. Set to 0 to keep original image size. Defaults to 600.
 |`--illustrated-min-amount`           |`ILLUSTRATED_MIN_AMOUNT`  | Minimum number of illustrations (excluding cover) for a document to be considered illustrated. Only raster images in PNG, GIF and JPEG formats are taken into account. Defaults to 2.

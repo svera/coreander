@@ -20,12 +20,7 @@ func TestSameSubjects(t *testing.T) {
 	library := mockedLibrary()
 
 	mockMetadataReaders := map[string]metadata.Reader{
-		".epub": metadata.EpubReader{
-			GetMetadataFromFile: func(file string) (*epub.Information, error) {
-				return library[file], nil
-			},
-			GetPackageFromFile: epub.GetPackageFromFile,
-		},
+		".epub": epubTestReader{info: library},
 	}
 
 	appFS := afero.NewMemMapFs()
@@ -40,7 +35,7 @@ func TestSameSubjects(t *testing.T) {
 	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
 	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
-	if err = idx.AddLibrary(1, true); err != nil {
+	if err = idx.AddLibrary(1, true, 0); err != nil {
 		t.Errorf("Error indexing: %s", err.Error())
 	}
 

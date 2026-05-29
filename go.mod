@@ -9,7 +9,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/gofiber/contrib/v3/jwt v1.1.2
-	github.com/gofiber/fiber/v3 v3.2.0
+	github.com/gofiber/fiber/v3 v3.3.0
 	github.com/gofiber/template/html/v3 v3.0.3
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -24,7 +24,8 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/wneessen/go-mail v0.7.2
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
-	golang.org/x/text v0.36.0
+	golang.org/x/mod v0.36.0
+	golang.org/x/text v0.37.0
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/gorm v1.31.1
 )
@@ -41,7 +42,7 @@ require (
 	github.com/glebarez/go-sqlite v1.22.0 // indirect
 	github.com/gofiber/schema v1.7.1 // indirect
 	github.com/gofiber/template/v2 v2.1.0 // indirect
-	github.com/gofiber/utils/v2 v2.0.4 // indirect
+	github.com/gofiber/utils/v2 v2.0.6 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/govalues/decimal v0.1.36 // indirect
 	github.com/hhrutter/lzw v1.0.0 // indirect
@@ -62,7 +63,7 @@ require (
 	github.com/rickb777/plural v1.4.10 // indirect
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
-	golang.org/x/crypto v0.50.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	modernc.org/libc v1.72.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
@@ -94,9 +95,9 @@ require (
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/gosimple/slug v1.15.0
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.18.5 // indirect
+	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.21 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
@@ -104,11 +105,11 @@ require (
 	github.com/pgaskin/kepubify/v4 v4.0.4
 	github.com/pirmd/epub v0.3.1
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.70.0
+	github.com/valyala/fasthttp v1.71.0
 	go.etcd.io/bbolt v1.4.3 // indirect
 	golang.org/x/image v0.39.0 // indirect
-	golang.org/x/net v0.53.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 

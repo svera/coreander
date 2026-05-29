@@ -14,8 +14,8 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	// Middlewares
 	var (
 		allowIfNotLoggedIn          = AllowIfNotLoggedIn(jwtSecret)
-		alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender, translator, usersRepository)
-		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, translator, cfg.RequireAuth, usersRepository)
+		alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender, translator, usersRepository, cfg.VersionChecker)
+		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, translator, cfg.RequireAuth, usersRepository, cfg.VersionChecker)
 	)
 
 	staticCacheControl := fmt.Sprintf("public, max-age=%d, immutable", cfg.ClientStaticCacheTTL)
@@ -89,7 +89,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	app.Get("/completed", alwaysRequireAuthentication, controllers.Completed.Completed)
 	usersGroup.Get("/:username", controllers.Users.Edit)
 	usersGroup.Put("/:username", controllers.Users.Update)
-	usersGroup.Delete("/:username", RequireAdmin, controllers.Users.Delete)
+	usersGroup.Delete("/:username", controllers.Users.Delete)
 
 	docsGroup := app.Group("/documents")
 	app.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
@@ -129,5 +129,6 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	app.Get("/series/:slug", controllers.Series.Documents)
 
+	app.Get("/resume-reading", alwaysRequireAuthentication, controllers.Home.ResumeReading)
 	app.Get("/", controllers.Home.Index)
 }

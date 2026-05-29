@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/favicon"
 	"github.com/svera/coreander/v4/internal/i18n"
 	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/versioncheck"
 	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v4/internal/webserver/model"
 	"golang.org/x/exp/slices"
@@ -56,6 +57,7 @@ type Config struct {
 	IllustratedMinAmount       int
 	InviteEmailListMaxLength   int
 	InviteMaxRecipients        int
+	VersionChecker             *versioncheck.Checker
 }
 
 type Sender interface {

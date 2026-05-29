@@ -19,22 +19,53 @@ type ReadingRepository struct {
 	Idx idxReader
 }
 
-func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error) {
-	slugs := []string{}
-	var total int64
-
-	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("readings").Select("slug").Where("user_id = ? AND completed_on IS NULL", userID).Order("updated_at DESC").Pluck("slug", &slugs)
+func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]AugmentedDocument], error) {
+	if u.Idx == nil {
+		return result.Paginated[[]AugmentedDocument]{}, errors.New("reading repository: idx required for Latest")
+	}
+	var rows []Reading
+	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Where("user_id = ? AND completed_on IS NULL", userID).Order("updated_at DESC").Find(&rows)
 	if res.Error != nil {
 		log.Printf("error listing documents in progress: %s\n", res.Error)
-		return result.Paginated[[]string]{}, res.Error
+		return result.Paginated[[]AugmentedDocument]{}, res.Error
 	}
-	u.DB.Table("readings").Where("user_id = ? AND completed_on IS NULL", userID).Count(&total)
+	var total int64
+	if err := u.DB.Model(&Reading{}).Where("user_id = ? AND completed_on IS NULL", userID).Count(&total).Error; err != nil {
+		log.Printf("error counting documents in progress: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
+
+	slugs := make([]string, 0, len(rows))
+	for _, r := range rows {
+		slugs = append(slugs, r.Slug)
+	}
+	if len(slugs) == 0 {
+		return result.NewPaginated(resultsPerPage, page, int(total), []AugmentedDocument{}), nil
+	}
+
+	docBySlug, err := u.Idx.Documents(slugs)
+	if err != nil {
+		log.Printf("error loading documents for in-progress list: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
+
+	augmented := make([]AugmentedDocument, 0, len(rows))
+	for _, r := range rows {
+		doc, ok := docBySlug[r.Slug]
+		if !ok || doc.Slug == "" {
+			continue
+		}
+		augmented = append(augmented, AugmentedDocument{
+			Document:          doc,
+			ReadingPercentage: ClampReadingPercentage(r.Percentage),
+		})
+	}
 
 	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(total),
-		slugs,
+		augmented,
 	), nil
 }
 
@@ -44,13 +75,24 @@ func (u *ReadingRepository) Get(userID int, documentSlug string) (Reading, error
 	return reading, err
 }
 
-func (u *ReadingRepository) Update(userID int, documentSlug, position string) error {
-	progress := Reading{
+func (u *ReadingRepository) Update(userID int, documentSlug, position string, percentage *int) error {
+	row := Reading{
 		UserID:   userID,
 		Slug:     documentSlug,
 		Position: position,
 	}
-	return u.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(&progress).Error
+	columns := []string{"position", "updated_at"}
+	if position == "" {
+		row.Percentage = 0
+		columns = append(columns, "percentage")
+	} else if percentage != nil {
+		row.Percentage = ClampReadingPercentage(*percentage)
+		columns = append(columns, "percentage")
+	}
+	return u.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "user_id"}, {Name: "slug"}},
+		DoUpdates: clause.AssignmentColumns(columns),
+	}).Create(&row).Error
 }
 
 // Touch creates a reading record if it doesn't exist, but doesn't update it if it does.

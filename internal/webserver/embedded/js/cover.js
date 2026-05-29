@@ -37,6 +37,7 @@ const coversLoader = () => {
 }
 
 document.addEventListener('DOMContentLoaded', coversLoader());
+document.body.addEventListener('htmx:afterSettle', coversLoader);
 
 const observer = new MutationObserver(coversLoader);
 

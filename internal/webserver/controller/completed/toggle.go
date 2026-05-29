@@ -16,14 +16,7 @@ type updateCompletionDateRequest struct {
 // If a date is provided in the request body, it sets the completion date to that value.
 // If no date is provided (POST), it toggles between complete (with current date) and incomplete.
 func (c *Controller) ToggleComplete(ctx fiber.Ctx) error {
-	var session model.Session
-	if val, ok := ctx.Locals("Session").(model.Session); ok {
-		session = val
-	}
-
-	if session.ID == 0 {
-		return fiber.ErrUnauthorized
-	}
+	session, _ := ctx.Locals("Session").(model.Session)
 
 	document, err := c.idxReader.Document(ctx.Params("slug"))
 	if err != nil {

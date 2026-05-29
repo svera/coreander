@@ -1,9 +1,20 @@
-import './foliate-js/view.js'
-import { createTOCView } from './foliate-js/ui/tree.js'
-import { createMenu } from './menu.js'
-import { Overlayer } from './foliate-js/overlayer.js'
-import { ReaderSync } from './reader-sync.js'
-import { ReaderToast } from './reader-toast.js'
+import { importVersioned } from './asset-version.js'
+
+const [
+    _viewModule,
+    { createTOCView },
+    { createMenu },
+    { Overlayer },
+    { ReaderSync },
+    { ReaderToast },
+] = await Promise.all([
+    importVersioned('./foliate-js/view.js'),
+    importVersioned('./foliate-js/ui/tree.js'),
+    importVersioned('./menu.js'),
+    importVersioned('./foliate-js/overlayer.js'),
+    importVersioned('./reader-sync.js'),
+    importVersioned('./reader-toast.js'),
+])
 
 document.addEventListener('click', e => {
     const a = e.target.closest?.('a[data-reader-history-back]')
@@ -509,24 +520,19 @@ class Reader {
         // Initialize footnote modal
         this.#setupFootnoteModal()
 
-        // Sync position from server when tab becomes visible or window gains focus
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden && !this.#sidebarOpening) {
-                // Set flag to skip pushing position updates triggered by this event
                 this.#skipNextPush = true
                 setTimeout(() => {
                     this.#skipNextPush = false
                 }, 500)
 
-                // Tab is visible again, sync from server (debounced)
                 this.sync.debouncedSyncPositionFromServer()
             }
         })
 
         window.addEventListener('focus', () => {
-            // Window gained focus, sync from server (debounced)
             if (!this.#sidebarOpening) {
-                // Set flag to skip pushing position updates triggered by this event
                 this.#skipNextPush = true
                 setTimeout(() => {
                     this.#skipNextPush = false
@@ -545,23 +551,23 @@ class Reader {
         document.body.append(this.view)
         await this.view.open(file)
 
-        // Get position, syncing with server if authenticated
         const localData = this.sync.getLocalPosition(slug)
         let lastLocation = localData.position
 
         if (this.sync.isAuthenticated) {
             const serverData = await this.sync.getServerPosition(slug)
 
-            // Compare timestamps and use the newer position
             if (serverData.position && serverData.updated) {
                 if (!localData.updated || new Date(serverData.updated) > new Date(localData.updated)) {
-                    // Server position is newer
                     lastLocation = serverData.position
-                    // Update localStorage with server data
-                    storage.setItem(slug, JSON.stringify({
+                    const mergedOpen = {
                         position: serverData.position,
                         updated: serverData.updated
-                    }))
+                    }
+                    if (typeof serverData.percentage === 'number' && !Number.isNaN(serverData.percentage)) {
+                        mergedOpen.percentage = serverData.percentage
+                    }
+                    storage.setItem(slug, JSON.stringify(mergedOpen))
                 }
             }
         }
@@ -571,7 +577,7 @@ class Reader {
         } catch (e) {
             storage.removeItem(slug)
             if (this.sync.isAuthenticated) {
-                await this.sync.syncPositionToServer(slug, '')
+                await this.sync.syncPositionToServer(slug, '', null)
             }
             this.#toast.show('warning', this.translations.position_reset_reading)
             try {
@@ -590,7 +596,6 @@ class Reader {
             }
         }
 
-        // Set view in sync helper after initialization
         this.sync.setView(this.view)
 
         // Check if it's pre-paginated content (PDF or fixed-layout) after the book is opened
@@ -691,7 +696,7 @@ class Reader {
         // load and show highlights embedded in the file by Calibre
         const bookmarks = await book.getCalibreBookmarks?.()
         if (bookmarks) {
-            const { fromCalibreHighlight } = await import('./foliate-js/epubcfi.js')
+            const { fromCalibreHighlight } = await importVersioned('./foliate-js/epubcfi.js')
             for (const obj of bookmarks) {
                 if (obj.type === 'highlight') {
                     const value = fromCalibreHighlight(obj)
@@ -836,15 +841,18 @@ class Reader {
         const storage = window.localStorage
         const slug = document.getElementById('slug').value
 
+        const frac = typeof detail.fraction === 'number' && !Number.isNaN(detail.fraction)
+            ? Math.min(1, Math.max(0, detail.fraction))
+            : null
+        const syncPct = frac !== null ? Math.round(frac * 100) : 0
         storage.setItem(slug, JSON.stringify({
             position: detail.cfi,
+            percentage: syncPct,
             updated: new Date().toISOString()
         }))
 
-        // Update position on server if authenticated (debounced)
-        // Skip if sidebar is being opened or if we're skipping pushes (e.g., after focus events)
         if (this.sync.isAuthenticated && !this.#sidebarOpening && !this.#skipNextPush) {
-            this.sync.schedulePositionUpdate(slug, detail.cfi)
+            this.sync.schedulePositionUpdate(slug, detail.cfi, syncPct)
         }
 
         const { fraction, location, tocItem, pageItem } = detail

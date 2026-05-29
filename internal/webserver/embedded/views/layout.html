@@ -22,14 +22,15 @@
     <script src="/js/color-mode-toggler.js{{versionParam .Version}}"></script>
 </head>
 
-<body class="d-flex flex-column h-100" hx-ext="response-targets">
+<body class="d-flex flex-column h-100" hx-ext="response-targets"{{if and .Session (ne .Session.Name "")}} data-profile-url="/users/{{.Session.Username}}"{{end}}{{if and .Session (eq .Session.Role 2)}} data-admin="true"{{end}}>
     <header>
         {{template "partials/navbar" .}}
     </header>
     <main class="mt-5" data-unexpected-server-error='{{t .Lang "Unexpected server error"}}'>
-        {{template "partials/main" dict "Lang" .Lang "RemainingIndexingTime" .RemainingIndexingTime "IndexingProgressPercentage" .IndexingProgressPercentage "Error" .Error "Warning" .Warning "Success" .Success "Embed" .Embed}}
+        {{template "partials/main" dict "Lang" .Lang "IndexingInProgress" .IndexingInProgress "RemainingIndexingTime" .RemainingIndexingTime "IndexingProgressPercentage" .IndexingProgressPercentage "Error" .Error "Warning" .Warning "Success" .Success "Embed" .Embed}}
     </main>
     {{template "partials/share-modal" .}}
+    {{template "partials/keyboard-shortcuts-modal" .}}
     <footer class="footer mt-auto py-5">
         <div class="container">
             <span class="text-muted"><small>{{t .Lang "Made with words by Sergio Vera"}} - <a
@@ -39,6 +40,7 @@
     </footer>
     <script src="/js/bootstrap.bundle.min.js{{versionParam .Version}}"></script>
     <script src="/js/htmx.min.js{{versionParam .Version}}"></script>
+    <script src="/js/keyboard-shortcuts.js{{versionParam .Version}}"></script>
     <script>
     function initReadingTimePopovers() {
         document.querySelectorAll('.reading-time-help-popover').forEach(function (el) {

@@ -1,0 +1,34 @@
+{{$lang := .Lang}}
+{{$session := .Session}}
+{{$reading := .Reading}}
+{{$compact := .Compact}}
+{{if gt (len .Reading) 0}}
+<div id="in-progress-docs">
+    {{if $compact}}
+    <div class="card px-0 bg-body-secondary">
+        <div class="card-header text-center">
+            <h4 class="mb-0">{{ t .Lang "Resume reading" }}</h4>
+        </div>
+        <div class="card-body pb-0">
+            <div class="col-12">
+                {{template "partials/resume-reading-carousel" dict "Lang" $lang "Session" $session "Reading" $reading "Version" $.Version "CarouselID" "resume-reading-docs" "SuffixPrefix" "resume-lg" "Limit" 0}}
+            </div>
+        </div>
+    </div>
+    {{else}}
+    <h2 class="border-bottom mb-3 pb-2">{{ t .Lang "Resume reading" }}</h2>
+    <div id="resume-reading-docs">
+        {{template "partials/resume-reading-carousel" dict "Lang" $lang "Session" $session "Reading" $reading "Version" $.Version "CarouselID" "resume-reading-full-carousel" "CarouselClass" "d-md-none" "SuffixPrefix" "resume-sm" "Limit" 4}}
+        <div class="row g-3 g-md-4 d-none d-md-flex{{if eq (len $reading) 1}} justify-content-md-center{{else}} justify-content-md-start{{end}}">
+            {{range $i, $document := .Reading}}
+            {{if lt $i 4}}
+            <div class="{{if gt (len $reading) 3}}col-md-3{{else if eq (len $reading) 3}}col-md-4{{else if eq (len $reading) 2}}col-md-6{{else}}col-md-4{{end}}">
+                {{template "partials/cover" dict "Lang" $lang "Document" $document "Session" $session "DisableActions" true "LinkToReader" true "Version" $.Version "CoverTitleSuffix" (printf "resume-md-%d" $i) "ReadingPercentage" $document.ReadingPercentage}}
+            </div>
+            {{end}}
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+</div>
+{{end}}

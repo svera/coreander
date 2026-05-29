@@ -320,7 +320,7 @@ func TestUserManagement(t *testing.T) {
 		mustReturnForbiddenAndShowLogin(response, t)
 	})
 
-	t.Run("Try to delete a user with a regular user's session", func(t *testing.T) {
+	t.Run("Regular user self-delete without confirmation username returns bad request", func(t *testing.T) {
 		reset()
 
 		response, err := deleteRequest(url.Values{}, regularUserCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
@@ -328,7 +328,48 @@ func TestUserManagement(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
+		mustReturnStatus(response, fiber.StatusBadRequest, t)
+	})
+
+	t.Run("Regular user self-delete with wrong confirmation username returns bad request", func(t *testing.T) {
+		reset()
+
+		response, err := deleteRequest(url.Values{"confirm-username": {"wrong"}}, regularUserCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnStatus(response, fiber.StatusBadRequest, t)
+	})
+
+	t.Run("Regular user cannot delete another user", func(t *testing.T) {
+		reset()
+
+		response, err := deleteRequest(url.Values{"confirm-username": {adminUser.Username}}, regularUserCookie, app, fmt.Sprintf("/users/%s", adminUser.Username), t)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
 		mustReturnStatus(response, fiber.StatusForbidden, t)
+	})
+
+	t.Run("Regular user can delete own account with matching confirmation", func(t *testing.T) {
+		reset()
+
+		response, err := deleteRequest(url.Values{"confirm-username": {regularUser.Username}}, regularUserCookie, app, fmt.Sprintf("/users/%s", regularUser.Username), t)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnStatus(response, fiber.StatusNoContent, t)
+		if got := response.Header.Get("HX-Redirect"); got != "/" {
+			t.Errorf("Expected HX-Redirect /, got %q", got)
+		}
+		var n int64
+		db.Model(&model.User{}).Where("username = ?", regularUser.Username).Count(&n)
+		if n != 0 {
+			t.Errorf("Expected user to be removed, count was %d", n)
+		}
 	})
 
 	t.Run("Try to delete a user with an admin session", func(t *testing.T) {
@@ -355,6 +396,70 @@ func TestUserManagement(t *testing.T) {
 		}
 
 		mustReturnStatus(response, fiber.StatusForbidden, t)
+	})
+
+	t.Run("Sole admin cannot self-delete even with matching confirm-username", func(t *testing.T) {
+		reset()
+
+		response, err := deleteRequest(
+			url.Values{"confirm-username": {adminUser.Username}},
+			adminCookie,
+			app,
+			fmt.Sprintf("/users/%s", adminUser.Username),
+			t,
+		)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		mustReturnStatus(response, fiber.StatusForbidden, t)
+		var n int64
+		db.Model(&model.User{}).Where("username = ?", adminUser.Username).Count(&n)
+		if n != 1 {
+			t.Errorf("Expected sole admin to remain, user count was %d", n)
+		}
+	})
+
+	t.Run("Admin can self-delete when another admin exists", func(t *testing.T) {
+		reset()
+
+		secondAdmin := url.Values{
+			"name":             {"Other admin"},
+			"username":         {"admin2"},
+			"email":            {"admin2@example.com"},
+			"password":         {"admin2pass"},
+			"confirm-password": {"admin2pass"},
+			"role":             {fmt.Sprint(model.RoleAdmin)},
+			"words-per-minute": {"250"},
+		}
+		response, err := postRequest(secondAdmin, adminCookie, app, "/users", t)
+		if response == nil || err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("Expected 200 creating second admin, got %d", response.StatusCode)
+		}
+
+		response, err = deleteRequest(url.Values{}, adminCookie, app, fmt.Sprintf("/users/%s", adminUser.Username), t)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		mustReturnStatus(response, fiber.StatusNoContent, t)
+		if got := response.Header.Get("HX-Redirect"); got != "/" {
+			t.Errorf("Expected HX-Redirect /, got %q", got)
+		}
+		var admins int64
+		db.Model(&model.User{}).Where("role = ?", model.RoleAdmin).Count(&admins)
+		if admins != 1 {
+			t.Errorf("Expected exactly 1 admin after self-delete, got %d", admins)
+		}
+		var remaining model.User
+		if err := db.Where("username = ?", "admin2").First(&remaining).Error; err != nil {
+			t.Fatalf("Expected second admin to remain: %v", err)
+		}
+		if remaining.Role != model.RoleAdmin {
+			t.Errorf("Expected remaining user to be admin, role=%d", remaining.Role)
+		}
 	})
 
 	t.Run("Try to delete a non existing user with an admin session", func(t *testing.T) {

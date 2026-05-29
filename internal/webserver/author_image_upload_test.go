@@ -22,7 +22,7 @@ import (
 
 func TestAuthorImageUpload(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
-	appFS := loadDirInMemoryFs("fixtures/library")
+	appFS := loadDirInMemoryFs("testdata/library")
 
 	// Set required config fields for authentication to work
 	// bootstrapApp only sets defaults if config is completely zero-valued,
@@ -30,7 +30,7 @@ func TestAuthorImageUpload(t *testing.T) {
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS, webserver.Config{
 		SessionTimeout:      24 * time.Hour,
 		RecoveryTimeout:     2 * time.Hour,
-		LibraryPath:         "fixtures/library",
+		LibraryPath:         "testdata/library",
 		WordsPerMinute:      250,
 		CacheDir:            "/tmp",
 		AuthorImageMaxWidth: 500,
