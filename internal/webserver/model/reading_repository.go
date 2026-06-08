@@ -23,16 +23,19 @@ func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (re
 	if u.Idx == nil {
 		return result.Paginated[[]AugmentedDocument]{}, errors.New("reading repository: idx required for Latest")
 	}
+	query := u.DB.Model(&Reading{}).Where("user_id = ? AND completed_on IS NULL", userID)
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		log.Printf("error counting documents in progress: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
+
 	var rows []Reading
-	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Where("user_id = ? AND completed_on IS NULL", userID).Order("updated_at DESC").Find(&rows)
+	res := query.Order("updated_at DESC").Scopes(Paginate(page, resultsPerPage)).Find(&rows)
 	if res.Error != nil {
 		log.Printf("error listing documents in progress: %s\n", res.Error)
 		return result.Paginated[[]AugmentedDocument]{}, res.Error
-	}
-	var total int64
-	if err := u.DB.Model(&Reading{}).Where("user_id = ? AND completed_on IS NULL", userID).Count(&total).Error; err != nil {
-		log.Printf("error counting documents in progress: %s\n", err)
-		return result.Paginated[[]AugmentedDocument]{}, err
 	}
 
 	slugs := make([]string, 0, len(rows))
@@ -99,18 +102,10 @@ func (u *ReadingRepository) Update(userID int, documentSlug, position string, pe
 // This is used to track that a document has been opened without overwriting existing positions.
 // Sets updated_at to NULL initially - it will only be set when the reading position is actually updated.
 func (u *ReadingRepository) Touch(userID int, documentSlug string) error {
-	// Check if record already exists
-	var count int64
-	u.DB.Model(&Reading{}).Where("user_id = ? AND slug = ?", userID, documentSlug).Count(&count)
-	if count > 0 {
-		return nil // Record already exists, do nothing
-	}
-
-	progress := Reading{
+	return u.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&Reading{
 		UserID: userID,
 		Slug:   documentSlug,
-	}
-	return u.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&progress).Error
+	}).Error
 }
 
 func (u *ReadingRepository) RemoveDocument(documentSlug string) error {
@@ -207,13 +202,12 @@ func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate
 		return result.Paginated[[]AugmentedDocument]{}, errors.New("reading repository: idx required for CompletedPaginatedBetweenDates")
 	}
 	var readings []Reading
-	var total int64
 
 	if orderBy == "" {
 		orderBy = "completed_on DESC"
 	}
 
-	baseQuery := u.DB.Table("readings").Where("user_id = ? AND completed_on IS NOT NULL", userID)
+	baseQuery := u.DB.Model(&Reading{}).Where("user_id = ? AND completed_on IS NOT NULL", userID)
 	if startDate != nil {
 		baseQuery = baseQuery.Where("completed_on >= ?", startDate)
 	}
@@ -221,19 +215,13 @@ func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate
 		baseQuery = baseQuery.Where("completed_on <= ?", endDate)
 	}
 
+	var total int64
 	if err := baseQuery.Count(&total).Error; err != nil {
 		log.Printf("error counting completed readings: %s\n", err)
 		return result.Paginated[[]AugmentedDocument]{}, err
 	}
 
-	res := u.DB.Where("user_id = ? AND completed_on IS NOT NULL", userID)
-	if startDate != nil {
-		res = res.Where("completed_on >= ?", startDate)
-	}
-	if endDate != nil {
-		res = res.Where("completed_on <= ?", endDate)
-	}
-	res = res.Order(orderBy).Scopes(Paginate(page, resultsPerPage)).Find(&readings)
+	res := baseQuery.Order(orderBy).Scopes(Paginate(page, resultsPerPage)).Find(&readings)
 	if res.Error != nil {
 		log.Printf("error listing completed readings: %s\n", res.Error)
 		return result.Paginated[[]AugmentedDocument]{}, res.Error
@@ -297,18 +285,8 @@ func (u *ReadingRepository) CompletedStatsByYear(userID int, wordsPerMinute floa
 	if u.Idx == nil {
 		return nil, errors.New("reading repository: idx required for CompletedStatsByYear")
 	}
-	allSlugs, err := u.CompletedBetweenDates(userID, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	allWords, _ := u.Idx.TotalWordCount(allSlugs)
-	stats := []CompletedYearStats{{
-		Year:          0,
-		DocumentCount: len(allSlugs),
-		ReadingTime:   wordsToReadingTime(allWords, wordsPerMinute),
-	}}
 	var rows []completedStatsByYearRow
-	err = u.DB.Raw(
+	err := u.DB.Raw(
 		`SELECT strftime('%Y', completed_on) AS year, group_concat(slug) AS slugs_cs
 		 FROM readings
 		 WHERE user_id = ? AND completed_on IS NOT NULL
@@ -320,20 +298,29 @@ func (u *ReadingRepository) CompletedStatsByYear(userID int, wordsPerMinute floa
 		log.Printf("error getting completed stats by year: %s\n", err)
 		return nil, err
 	}
+
+	var allSlugs []string
+	yearStats := make([]CompletedYearStats, 0, len(rows))
 	for _, r := range rows {
 		year, _ := strconv.Atoi(r.Year)
 		slugs := []string{}
 		if r.SlugsCS != "" {
 			slugs = strings.Split(r.SlugsCS, ",")
 		}
+		allSlugs = append(allSlugs, slugs...)
 		words, _ := u.Idx.TotalWordCount(slugs)
-		stats = append(stats, CompletedYearStats{
+		yearStats = append(yearStats, CompletedYearStats{
 			Year:          year,
 			DocumentCount: len(slugs),
 			ReadingTime:   wordsToReadingTime(words, wordsPerMinute),
 		})
 	}
-	return stats, nil
+	allWords, _ := u.Idx.TotalWordCount(allSlugs)
+	return append([]CompletedYearStats{{
+		Year:          0,
+		DocumentCount: len(allSlugs),
+		ReadingTime:   wordsToReadingTime(allWords, wordsPerMinute),
+	}}, yearStats...), nil
 }
 
 func wordsToReadingTime(words, wordsPerMinute float64) string {
