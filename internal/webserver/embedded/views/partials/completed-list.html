@@ -22,13 +22,16 @@
 </div>
 
 {{if gt .Results.TotalHits 0}}
-<ul class="list-group rounded-0">
+<div class="row pe-0">
     {{range $i, $result := .Results.Hits}}
-    <li class="list-group-item border border-0 px-0 mt-5">
-        {{template "partials/docs-list-item" dict "Lang" $.Lang "Document" $result "Session" $.Session "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $.WordsPerMinute "IllustratedMinAmount" $.IllustratedMinAmount "EmailSendingConfigured" $.EmailSendingConfigured "DefaultAction" $.DefaultAction "CanShare" $.CanShare "PreferredEpub" $.PreferredEpub}}
-    </li>
+    <div class="col-6 col-md-3 col-xl-2 pe-0 mt-3">
+        <div class="mb-3">
+            {{template "partials/cover" dict "Lang" $.Lang "Document" $result "Session" $.Session "Version" $.Version}}
+        </div>
+        {{template "partials/actions" dict "Lang" $.Lang "Document" $result "Session" $.Session "FQDN" $.fqdn "Version" $.Version "EmailSendingConfigured" $.EmailSendingConfigured "DefaultAction" $.DefaultAction "CanShare" $.CanShare "PreferredEpub" $.PreferredEpub "ShareMaxRecipients" $.ShareMaxRecipients "ShareCommentMaxSize" $.ShareCommentMaxSize}}
+    </div>
     {{end}}
-</ul>
+</div>
 {{end}}
 
 {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
