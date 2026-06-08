@@ -49,7 +49,7 @@ func (c *Controller) Completed(ctx fiber.Ctx) error {
 		e := time.Date(year, 12, 31, 23, 59, 59, 999999999, time.Local)
 		startDate, endDate = &s, &e
 	}
-	results, err = c.readingRepository.CompletedPaginatedBetweenDates(int(session.User.ID), startDate, endDate, page, int(model.ResultsPerPage), orderBy)
+	results, err = c.readingRepository.CompletedPaginatedBetweenDates(int(session.User.ID), startDate, endDate, page, resultsPerPage, orderBy)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
