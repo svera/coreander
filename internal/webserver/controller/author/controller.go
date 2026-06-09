@@ -15,6 +15,7 @@ type Sender interface {
 
 // IdxReader defines a set of author reading operations over an index
 type IdxReader interface {
+	SearchAuthors(searchFields index.AuthorSearchFields, page, resultsPerPage int) (result.Paginated[[]index.Author], error)
 	SearchByAuthor(searchFields index.SearchFields, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
 	Author(slug, lang string) (index.Author, error)
 	IndexAuthor(author index.Author) error

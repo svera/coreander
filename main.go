@@ -183,6 +183,12 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWor
 	end := time.Now().Unix()
 	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 	log.Printf("Indexing finished, took %d seconds", int(dur.Seconds()))
+
+	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
+	if err := idx.EnrichAuthorsFromDataSource(dataSource, webserver.SupportedLanguages(), index.DefaultAuthorEnrichInterval); err != nil {
+		log.Printf("Error enriching authors from Wikidata: %s", err)
+	}
+
 	idx.StartFileWatcher()
 }
 

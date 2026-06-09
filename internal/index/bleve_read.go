@@ -24,12 +24,17 @@ import (
 )
 
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
-	if b.indexStartNanos.Load() == 0 {
-		return Progress{}, nil
+	if b.indexStartNanos.Load() != 0 {
+		return b.progressFrom(ProgressDocuments, b.indexStartNanos.Load(), b.indexedEntries.Load(), b.indexTotalEntries.Load()), nil
 	}
-	processed := b.indexedEntries.Load()
-	total := b.indexTotalEntries.Load()
-	progress := Progress{InProgress: true}
+	if b.authorEnrichStartNanos.Load() != 0 {
+		return b.progressFrom(ProgressAuthors, b.authorEnrichStartNanos.Load(), b.authorEnrichProcessed.Load(), b.authorEnrichTotalEntries.Load()), nil
+	}
+	return Progress{}, nil
+}
+
+func (b *BleveIndexer) progressFrom(kind ProgressKind, startNanos int64, processed, total uint64) Progress {
+	progress := Progress{Kind: kind, InProgress: true}
 	if total > 0 {
 		progress.Percentage = math.Round(100 * float64(processed) / float64(total))
 		if progress.Percentage > 100 {
@@ -37,10 +42,10 @@ func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 		}
 	}
 	if processed > 0 && processed < total {
-		elapsed := float64(time.Now().UnixNano()) - float64(b.indexStartNanos.Load())
+		elapsed := float64(time.Now().UnixNano()) - float64(startNanos)
 		progress.RemainingTime = time.Duration(elapsed * float64(total-processed) / float64(processed))
 	}
-	return progress, nil
+	return progress
 }
 
 func (b *BleveIndexer) beginIndexing() {
@@ -53,6 +58,22 @@ func (b *BleveIndexer) endIndexing() {
 	b.indexStartNanos.Store(0)
 	b.indexedEntries.Store(0)
 	b.indexTotalEntries.Store(0)
+}
+
+func (b *BleveIndexer) beginAuthorEnrichment(total int) {
+	b.authorEnrichStartNanos.Store(time.Now().UnixNano())
+	b.authorEnrichProcessed.Store(0)
+	b.authorEnrichTotalEntries.Store(uint64(total))
+}
+
+func (b *BleveIndexer) endAuthorEnrichment() {
+	b.authorEnrichStartNanos.Store(0)
+	b.authorEnrichProcessed.Store(0)
+	b.authorEnrichTotalEntries.Store(0)
+}
+
+func (b *BleveIndexer) recordAuthorEnrichmentProgress() {
+	b.authorEnrichProcessed.Add(1)
 }
 
 func countFiles(dir string, fileSystem afero.Fs) (float64, error) {
@@ -303,6 +324,11 @@ func (b *BleveIndexer) Count() (uint64, error) {
 		return 0, err
 	}
 	return searchResult.Total, nil
+}
+
+// AuthorsCount returns the number of indexed authors.
+func (b *BleveIndexer) AuthorsCount() (uint64, error) {
+	return b.authorsIdx.DocCount()
 }
 
 func (b *BleveIndexer) Document(slug string) (Document, error) {

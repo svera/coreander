@@ -1,0 +1,24 @@
+<div class="row">
+    <div id="list-header" class="col-12">
+        {{template "partials/authors-list-header" .}}
+    </div>
+</div>
+
+<div class="row">
+    <div id="search-filters-sidebar-col" class="col-12 col-xl-3 mt-5 d-none d-xl-block p-0">
+        <div class="border rounded-4 p-3 pb-3 search-filters-sidebar-sticky">
+            <form id="search-filters-form" action="/authors" method="get" role="search">
+                {{template "partials/author-search-filters" dict "Lang" .Lang "FilterIdPrefix" "sidebar" "SearchFields" .SearchFields "SelectedGender" .SelectedGender "Version" .Version "AuthorsSearchPage" .AuthorsSearchPage}}
+            </form>
+        </div>
+    </div>
+    <div class="col-12 col-xl-9">
+        {{template "partials/docs-list-placeholder" .}}
+        <div id="list" hx-get="/authors" hx-include="#search-filters-form" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
+            {{ template "partials/authors-list-content" . }}
+        </div>
+    </div>
+</div>
+
+<script type="module" src="/js/datetime.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/search-filters-sidebar-pin.js{{versionParam .Version}}"></script>

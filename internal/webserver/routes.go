@@ -122,6 +122,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	app.Get("/subjects", controllers.Documents.Subjects)
 
 	app.Get("/authors/:slug.:extension<regex(jpg)$/i>", controllers.Authors.Image)
+	app.Get("/authors", controllers.Authors.Search)
 	app.Get("/authors/:slug", controllers.Authors.Documents)
 	app.Get("/authors/:slug/summary", controllers.Authors.Summary)
 	app.Put("/authors/:slug", controllers.Authors.Update, alwaysRequireAuthentication, RequireAdmin)

@@ -1,28 +1,68 @@
 <div class="row">
     <div class="col-sm">
-        <form action="/documents" roles="search">
-            <div id="searchbox-container">
-                <div class="input-group mb-3 mt-5 rounded-5">
-                    <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
-                    <input type="search" name="search" id="searchbox" class="form-control form-control-lg border-end-0 border rounded-start-5" placeholder={{t .Lang "Search in %d documents" .Count}} maxlength="255" value="{{.SearchFields.Keywords}}">
-                    <span class="input-group-append">
-                        <button class="btn btn-outline-secondary border-start-0 rounded-start-0 rounded-end-5 p-3 border" type="button">
-                            <i class="bi bi-search"></i>
-                        </button>
-                    </span>
+        <ul class="nav nav-pills nav-fill home-search-tabs mt-5 mb-0" id="home-search-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link active rounded-top-4" id="home-search-tab-documents" data-home-search-tab="documents" role="tab" aria-selected="true" aria-controls="home-search-documents">{{t .Lang "Documents"}}</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link rounded-top-4" id="home-search-tab-authors" data-home-search-tab="authors" role="tab" aria-selected="false" aria-controls="home-search-authors">{{t .Lang "Authors"}}</button>
+            </li>
+        </ul>
+
+        <div id="home-search-documents" class="home-search-panel" data-home-search-panel="documents" role="tabpanel" aria-labelledby="home-search-tab-documents">
+            <form action="/documents" role="search">
+                <div id="searchbox-container">
+                    <div class="input-group mb-3 rounded-5 home-search-input-group">
+                        <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
+                        <input type="search" name="search" id="searchbox" class="form-control form-control-lg border-end-0 border rounded-start-5" placeholder={{t .Lang "Search in %d documents" .Count}} maxlength="255" value="{{if .SearchFields}}{{.SearchFields.Keywords}}{{end}}">
+                        <span class="input-group-append">
+                            <button class="btn btn-outline-secondary border-start-0 rounded-start-0 rounded-end-5 p-3 border" type="submit">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </span>
+                    </div>
                 </div>
-            </div>
-            <p class="opacity-75 text-end">
-                <small>
-                    <i class="bi-sliders me-2"></i>
-                    <a data-bs-toggle="collapse" href="#search-filters-collapse" aria-expanded="false">
-                        {{ t .Lang "Advanced search" }}
-                    </a>
-                </small>
-            </p>
-            <div class="collapse text-start card" id="search-filters-collapse">
-                {{template "partials/search-filters" dict "Lang" .Lang "Responsive" true "Version" .Version "AvailableLanguages" .AvailableLanguages}}
-            </div>
-        </form>
+                <p class="opacity-75 text-end">
+                    <small>
+                        <i class="bi-sliders me-2"></i>
+                        <a data-bs-toggle="collapse" href="#search-filters-collapse" aria-expanded="false">
+                            {{ t .Lang "Advanced search" }}
+                        </a>
+                    </small>
+                </p>
+                <div class="collapse text-start card" id="search-filters-collapse">
+                    {{template "partials/search-filters" dict "Lang" .Lang "Responsive" true "Version" .Version "AvailableLanguages" .AvailableLanguages}}
+                </div>
+            </form>
+        </div>
+
+        <div id="home-search-authors" class="home-search-panel d-none" data-home-search-panel="authors" role="tabpanel" aria-labelledby="home-search-tab-authors">
+            <form action="/authors" role="search">
+                <div id="authors-searchbox-container">
+                    <div class="input-group mb-3 rounded-5 home-search-input-group">
+                        <label for="authors-searchbox" class="visually-hidden">{{t .Lang "Name"}}</label>
+                        <input type="search" name="name" id="authors-searchbox" class="form-control form-control-lg border-end-0 border rounded-start-5" placeholder={{t .Lang "Search in %d authors" .AuthorsCount}} maxlength="255">
+                        <span class="input-group-append">
+                            <button class="btn btn-outline-secondary border-start-0 rounded-start-0 rounded-end-5 p-3 border" type="submit">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </span>
+                    </div>
+                </div>
+                <p class="opacity-75 text-end">
+                    <small>
+                        <i class="bi-sliders me-2"></i>
+                        <a data-bs-toggle="collapse" href="#author-search-filters-collapse" aria-expanded="false">
+                            {{ t .Lang "Advanced search" }}
+                        </a>
+                    </small>
+                </p>
+                <div class="collapse text-start card" id="author-search-filters-collapse">
+                    {{template "partials/author-search-filters" dict "Lang" .Lang "Responsive" true "Version" .Version}}
+                </div>
+            </form>
+        </div>
     </div>
 </div>
+
+<script type="module" src="/js/home-search-tabs.js{{versionParam .Version}}"></script>

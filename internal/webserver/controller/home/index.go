@@ -19,6 +19,12 @@ func (d *Controller) Index(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
+	totalAuthorsCount, err := d.idx.AuthorsCount()
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
 	latestDocsRaw, err := d.idx.LatestDocs(d.config.LatestDocsLimit)
 	if err != nil {
 		log.Println(err)
@@ -46,10 +52,11 @@ func (d *Controller) Index(c fiber.Ctx) error {
 	}
 
 	return c.Render("index", fiber.Map{
-		"Count":      totalDocumentsCount,
-		"EmailFrom":  d.sender.From(),
-		"HomeNavbar": true,
-		"LatestDocs": latestDocs,
-		"Reading":    readingDocs,
+		"Count":        totalDocumentsCount,
+		"AuthorsCount": totalAuthorsCount,
+		"EmailFrom":    d.sender.From(),
+		"HomeNavbar":   true,
+		"LatestDocs":   latestDocs,
+		"Reading":      readingDocs,
 	}, "layout")
 }

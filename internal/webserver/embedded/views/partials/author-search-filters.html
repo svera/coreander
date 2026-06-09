@@ -1,0 +1,77 @@
+{{$idPrefix := or .FilterIdPrefix ""}}
+<div class="row card-body" id="author-search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
+    {{if $idPrefix}}
+    <fieldset class="mb-4">
+        <legend class="fs-5"><i class="bi bi-search me-3"></i>{{t .Lang "Search"}}</legend>
+        <div class="row">
+            <div class="col-12">
+                {{$name := ""}}
+                {{if .SearchFields}}
+                    {{$name = .SearchFields.Name}}
+                {{end}}
+                <label for="{{$idPrefix}}-name" class="visually-hidden">{{t .Lang "Name"}}</label>
+                <input type="search" name="name" id="{{$idPrefix}}-name" class="form-control" maxlength="255" value="{{$name}}" placeholder="{{t .Lang "Name"}}..." aria-label="{{t .Lang "Name"}}">
+            </div>
+        </div>
+    </fieldset>
+    {{end}}
+    <fieldset>
+        <legend class="fs-5"><i class="bi bi-gender-ambiguous me-3"></i>{{t .Lang "Gender"}}</legend>
+        <div class="row">
+            <div class="col-12">
+                {{$gender := or .SelectedGender ""}}
+                <select class="form-select" name="gender" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}gender">
+                    <option value="">{{t .Lang "All genders"}}</option>
+                    <option value="male" {{if eq $gender "male"}}selected{{end}}>{{t .Lang "Male"}}</option>
+                    <option value="female" {{if eq $gender "female"}}selected{{end}}>{{t .Lang "Female"}}</option>
+                    <option value="intersex" {{if eq $gender "intersex"}}selected{{end}}>{{t .Lang "Intersex"}}</option>
+                    <option value="transgender-female" {{if eq $gender "transgender-female"}}selected{{end}}>{{t .Lang "Transgender female"}}</option>
+                    <option value="transgender-male" {{if eq $gender "transgender-male"}}selected{{end}}>{{t .Lang "Transgender male"}}</option>
+                    <option value="unknown" {{if eq $gender "unknown"}}selected{{end}}>{{t .Lang "Unknown"}}</option>
+                </select>
+            </div>
+        </div>
+    </fieldset>
+    <fieldset class="mt-4">
+        <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Date of birth"}}</legend>
+        <div class="row">
+            <div class="col-12 {{if .Responsive}}col-xl-6{{end}} mb-3">
+                {{$birthDateFrom := ""}}
+                {{if .SearchFields}}{{$birthDateFrom = .SearchFields.BirthDateFrom}}{{end}}
+                {{template "partials/date-control" dict "Name" "birthdate-from" "Lang" .Lang "Date" $birthDateFrom "Label" "From" "IdPrefix" $idPrefix }}
+            </div>
+            <div class="col-12 {{if .Responsive}}col-xl-6{{end}}">
+                {{$birthDateTo := ""}}
+                {{if .SearchFields}}{{$birthDateTo = .SearchFields.BirthDateTo}}{{end}}
+                {{template "partials/date-control" dict "Name" "birthdate-to" "Lang" .Lang "Date" $birthDateTo "Label" "To" "IdPrefix" $idPrefix }}
+            </div>
+        </div>
+    </fieldset>
+    <fieldset class="mt-4">
+        <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Date of death"}}</legend>
+        <div class="row">
+            <div class="col-12 {{if .Responsive}}col-xl-6{{end}} mb-3">
+                {{$deathDateFrom := ""}}
+                {{if .SearchFields}}{{$deathDateFrom = .SearchFields.DeathDateFrom}}{{end}}
+                {{template "partials/date-control" dict "Name" "deathdate-from" "Lang" .Lang "Date" $deathDateFrom "Label" "From" "IdPrefix" $idPrefix }}
+            </div>
+            <div class="col-12 {{if .Responsive}}col-xl-6{{end}}">
+                {{$deathDateTo := ""}}
+                {{if .SearchFields}}{{$deathDateTo = .SearchFields.DeathDateTo}}{{end}}
+                {{template "partials/date-control" dict "Name" "deathdate-to" "Lang" .Lang "Date" $deathDateTo "Label" "To" "IdPrefix" $idPrefix }}
+            </div>
+        </div>
+    </fieldset>
+    {{if not .AuthorsSearchPage}}
+    <div class="row mt-4 g-0 w-100 px-2">
+        <div class="col-12">
+            <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
+        </div>
+    </div>
+    {{end}}
+</div>
+
+{{if or $idPrefix (not .AuthorsSearchPage)}}
+<script type="module" src="/js/datetime.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/author-search-filters.js{{versionParam .Version}}"></script>
+{{end}}

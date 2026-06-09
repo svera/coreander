@@ -32,7 +32,7 @@ const DocumentVersion = "v12"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const AuthorVersion = "1"
+const AuthorVersion = "2"
 
 // Metadata fields
 var (
@@ -64,16 +64,19 @@ type Config struct {
 }
 
 type BleveIndexer struct {
-	fs                   afero.Fs
-	documentsIdx         bleve.Index // Documents index
-	authorsIdx           bleve.Index // Authors index
-	libraryPath          string
-	reader               map[string]metadata.Reader
-	indexStartNanos      atomic.Int64
-	indexedEntries       atomic.Uint64
-	indexTotalEntries    atomic.Uint64
-	illustratedMinAmount int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
-	illustratedMinSize   float64 // minimum size in megapixels for an image to count as an illustration
+	fs                       afero.Fs
+	documentsIdx             bleve.Index // Documents index
+	authorsIdx               bleve.Index // Authors index
+	libraryPath              string
+	reader                   map[string]metadata.Reader
+	indexStartNanos          atomic.Int64
+	indexedEntries           atomic.Uint64
+	indexTotalEntries        atomic.Uint64
+	authorEnrichStartNanos   atomic.Int64
+	authorEnrichProcessed    atomic.Uint64
+	authorEnrichTotalEntries atomic.Uint64
+	illustratedMinAmount     int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
+	illustratedMinSize       float64 // minimum size in megapixels for an image to count as an illustration
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
@@ -197,16 +200,35 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 func CreateAuthorsMapping() mapping.IndexMapping {
 	indexMapping := bleve.NewIndexMapping()
 
+	err := indexMapping.AddCustomAnalyzer(defaultAnalyzer,
+		map[string]any{
+			"type": custom.Name,
+			"char_filters": []string{
+				asciifolding.Name,
+			},
+			"tokenizer": unicode.Name,
+			"token_filters": []string{
+				lowercase.Name,
+			},
+		})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	keywordFieldMapping := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable.Index = false
 
+	simpleTextFieldMapping := bleve.NewTextFieldMapping()
+	simpleTextFieldMapping.Analyzer = defaultAnalyzer
+
 	numericFieldMapping := bleve.NewNumericFieldMapping()
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
 
+	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Slug", keywordFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("Name", keywordFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("BirthName", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Name", simpleTextFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("BirthName", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("RetrievedOn", dateTimeFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceID", keywordFieldMappingNotIndexable)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceImage", keywordFieldMappingNotIndexable)

@@ -1,0 +1,13 @@
+{{if gt .Results.TotalHits 0}}
+<ul class="list-group rounded-0">
+    {{range $i, $author := .Results.Hits}}
+    <li class="list-group-item border border-0 px-0 mt-5">
+        {{template "partials/authors-list-item" dict "Lang" $.Lang "Author" $author "Version" $.Version}}
+    </li>
+    {{end}}
+</ul>
+{{end}}
+
+{{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
+{{template "partials/pagination" .}}
+{{end}}

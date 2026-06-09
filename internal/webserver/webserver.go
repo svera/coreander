@@ -103,6 +103,11 @@ func init() {
 	supportedLanguages = translator.SupportedLanguages()
 }
 
+// SupportedLanguages returns the list of supported UI languages.
+func SupportedLanguages() []string {
+	return supportedLanguages
+}
+
 // getSupportedLanguages returns the list of supported languages
 func getSupportedLanguages() []string {
 	return supportedLanguages
