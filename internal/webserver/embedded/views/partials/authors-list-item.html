@@ -14,7 +14,7 @@
         {{if index .Author.Description .Lang}}
             <p class="lead">{{index .Author.Description .Lang}}</p>
         {{end}}
-        <dl class="row mb-0">
+        <dl class="row mb-2">
             {{if ne .Author.DateOfBirth.Date 0}}
             <dt class="col-sm-3">{{t .Lang "Date of birth"}}</dt>
             <dd class="col-sm-9"><time datetime='{{.Author.DateOfBirth.Date.FormatISO 6}}' class='locale'>{{.Author.DateOfBirth.FormatISO 6}}</time></dd>
@@ -24,5 +24,6 @@
             <dd class="col-sm-9"><time datetime='{{.Author.DateOfDeath.Date.FormatISO 6}}' class='locale'>{{.Author.DateOfDeath.FormatISO 6}}</time></dd>
             {{end}}
         </dl>
+        <p class="text-muted">{{.DocumentCount}} {{if eq .DocumentCount 1}}{{t .Lang "document"}}{{else}}{{t .Lang "documents"}}{{end}}</p>
     </div>
 </div>

@@ -31,10 +31,19 @@ func (a *Controller) Search(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
+	documentCounts := map[string]uint64{}
+	if slugs := authorSlugs(authorResults.Hits()); len(slugs) > 0 {
+		if documentCounts, err = a.idx.DocumentCountsByAuthorSlugs(slugs); err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
+	}
+
 	templateVars := fiber.Map{
 		"SearchFields":      searchFields,
 		"SelectedGender":    c.Query("gender"),
 		"Results":           authorResults,
+		"DocumentCounts":    documentCounts,
 		"Paginator":         view.Pagination(model.MaxPagesNavigator, authorResults, c.Queries()),
 		"Title":             "Search authors",
 		"AuthorsSearchPage": true,
@@ -51,6 +60,8 @@ func (a *Controller) Search(c fiber.Ctx) error {
 			{"birth-newer-first", "birth newer first"},
 			{"death-older-first", "death older first"},
 			{"death-newer-first", "death newer first"},
+			{"documents-more-first", "documents more first"},
+			{"documents-fewer-first", "documents fewer first"},
 		},
 	}
 
@@ -153,7 +164,19 @@ func (a *Controller) parseAuthorSearchSortBy(c fiber.Ctx) []string {
 		return []string{"DateOfDeath.Date"}
 	case "death-newer-first":
 		return []string{"-DateOfDeath.Date"}
+	case "documents-more-first":
+		return []string{"-DocumentCount"}
+	case "documents-fewer-first":
+		return []string{"DocumentCount"}
 	default:
 		return []string{"Name"}
 	}
+}
+
+func authorSlugs(authors []index.Author) []string {
+	slugs := make([]string, len(authors))
+	for i, author := range authors {
+		slugs[i] = author.Slug
+	}
+	return slugs
 }

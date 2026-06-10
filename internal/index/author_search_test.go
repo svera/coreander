@@ -8,6 +8,7 @@ import (
 	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v4/internal/datasource/wikidata"
 	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v4/internal/metadata"
 	"github.com/svera/coreander/v4/internal/precisiondate"
 )
 
@@ -127,6 +128,52 @@ func TestSearchAuthors(t *testing.T) {
 			if hit.Slug == "living-author" {
 				t.Fatalf("living author should not match death date until filter, got %#v", res.Hits())
 			}
+		}
+	})
+
+	t.Run("by document count", func(t *testing.T) {
+		docs := []index.Document{
+			{
+				ID:           "doc-1",
+				Slug:         "doc-1",
+				AuthorsSlugs: []string{"george-orwell"},
+				Metadata:     metadata.Metadata{Title: "1984", Authors: []string{"George Orwell"}},
+			},
+			{
+				ID:           "doc-2",
+				Slug:         "doc-2",
+				AuthorsSlugs: []string{"george-orwell"},
+				Metadata:     metadata.Metadata{Title: "Animal Farm", Authors: []string{"George Orwell"}},
+			},
+			{
+				ID:           "doc-3",
+				Slug:         "doc-3",
+				AuthorsSlugs: []string{"jane-austen"},
+				Metadata:     metadata.Metadata{Title: "Pride", Authors: []string{"Jane Austen"}},
+			},
+		}
+		for _, doc := range docs {
+			if err := documentsIndexMem.Index(doc.ID, doc); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		moreFirst, err := idx.SearchAuthors(index.AuthorSearchFields{SortBy: []string{"-DocumentCount"}}, 1, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		moreHits := moreFirst.Hits()
+		if len(moreHits) != 3 || moreHits[0].Slug != "george-orwell" || moreHits[1].Slug != "jane-austen" || moreHits[2].Slug != "living-author" {
+			t.Fatalf("expected authors sorted by most documents first, got %#v", moreHits)
+		}
+
+		fewerFirst, err := idx.SearchAuthors(index.AuthorSearchFields{SortBy: []string{"DocumentCount"}}, 1, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fewerHits := fewerFirst.Hits()
+		if len(fewerHits) != 3 || fewerHits[0].Slug != "living-author" || fewerHits[1].Slug != "jane-austen" || fewerHits[2].Slug != "george-orwell" {
+			t.Fatalf("expected authors sorted by fewest documents first, got %#v", fewerHits)
 		}
 	})
 }

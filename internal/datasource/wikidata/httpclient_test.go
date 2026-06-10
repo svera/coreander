@@ -8,26 +8,23 @@ import (
 	"time"
 )
 
-func TestRetryAfterDuration(t *testing.T) {
+func TestParseRetryAfter(t *testing.T) {
 	t.Run("seconds", func(t *testing.T) {
-		resp := &http.Response{Header: http.Header{"Retry-After": []string{"30"}}}
-		if got := retryAfterDuration(resp); got != 30*time.Second {
+		if got := parseRetryAfter("30"); got != 30*time.Second {
 			t.Fatalf("expected 30s, got %s", got)
 		}
 	})
 
 	t.Run("http date", func(t *testing.T) {
 		retryTime := time.Now().Add(45 * time.Second).UTC()
-		resp := &http.Response{Header: http.Header{"Retry-After": []string{retryTime.Format(http.TimeFormat)}}}
-		got := retryAfterDuration(resp)
+		got := parseRetryAfter(retryTime.Format(http.TimeFormat))
 		if got < 44*time.Second || got > 46*time.Second {
 			t.Fatalf("expected about 45s, got %s", got)
 		}
 	})
 
 	t.Run("missing header uses default", func(t *testing.T) {
-		resp := &http.Response{Header: http.Header{}}
-		if got := retryAfterDuration(resp); got != defaultRetryAfter {
+		if got := parseRetryAfter(""); got != defaultRetryAfter {
 			t.Fatalf("expected default %s, got %s", defaultRetryAfter, got)
 		}
 	})

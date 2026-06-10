@@ -348,6 +348,21 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 	return hydrateDocument(searchResult.Hits[0]), nil
 }
 
+func (b *BleveIndexer) documentByIndexID(id string) (Document, error) {
+	query := bleve.NewDocIDQuery([]string{id})
+	searchOptions := bleve.NewSearchRequest(query)
+	searchOptions.Fields = []string{"*"}
+	searchResult, err := b.documentsIdx.Search(searchOptions)
+	if err != nil {
+		return Document{}, err
+	}
+	if searchResult.Total == 0 {
+		return Document{}, nil
+	}
+
+	return hydrateDocument(searchResult.Hits[0]), nil
+}
+
 // IndexedFile holds the bytes and metadata for a document download.
 type IndexedFile struct {
 	Document    Document
@@ -583,14 +598,33 @@ func (b *BleveIndexer) Subjects() (map[string][]string, error) {
 }
 
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
-	slug := searchFields.Keywords
-	byAuthor := bleve.NewTermQuery(slug)
-	byAuthor.SetField("AuthorsSlugs")
-	byIllustrator := bleve.NewTermQuery(slug)
-	byIllustrator.SetField("IllustratorsSlugs")
-	dq := bleve.NewDisjunctionQuery(byAuthor, byIllustrator)
+	return b.runPaginatedQuery(documentQueryByAuthorSlug(searchFields.Keywords), page, resultsPerPage, searchFields.SortBy)
+}
 
-	return b.runPaginatedQuery(dq, page, resultsPerPage, searchFields.SortBy)
+func documentQueryByAuthorSlug(authorSlug string) query.Query {
+	byAuthor := bleve.NewTermQuery(authorSlug)
+	byAuthor.SetField("AuthorsSlugs")
+	byIllustrator := bleve.NewTermQuery(authorSlug)
+	byIllustrator.SetField("IllustratorsSlugs")
+	return bleve.NewDisjunctionQuery(byAuthor, byIllustrator)
+}
+
+// DocumentCountsByAuthorSlugs returns document counts keyed by author slug.
+func (b *BleveIndexer) DocumentCountsByAuthorSlugs(slugs []string) (map[string]uint64, error) {
+	counts := make(map[string]uint64, len(slugs))
+	for _, authorSlug := range slugs {
+		if authorSlug == "" {
+			continue
+		}
+		searchRequest := bleve.NewSearchRequest(documentQueryByAuthorSlug(authorSlug))
+		searchRequest.Size = 0
+		searchResult, err := b.documentsIdx.Search(searchRequest)
+		if err != nil {
+			return nil, err
+		}
+		counts[authorSlug] = searchResult.Total
+	}
+	return counts, nil
 }
 
 func (b *BleveIndexer) Author(slug, lang string) (Author, error) {

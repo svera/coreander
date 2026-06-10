@@ -2,6 +2,7 @@ package webserver_test
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
@@ -76,5 +77,83 @@ func assertDocumentResults(app *fiber.App, t *testing.T, search string, expected
 
 	if actualResults := doc.Find("#list .list-group-item").Length(); actualResults != expectedResults {
 		t.Errorf("Expected %d results, got %d", expectedResults, actualResults)
+	}
+}
+
+func assertAuthorSearchResults(app *fiber.App, t *testing.T, name string, expectedResults int) {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodGet, "/authors?name="+name, nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	response, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualResults := doc.Find("#list .list-group-item").Length(); actualResults != expectedResults {
+		t.Errorf("Expected %d author results, got %d", expectedResults, actualResults)
+	}
+}
+
+func documentSearchFirstSlug(app *fiber.App, t *testing.T, search string) string {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodGet, "/documents?search="+search, nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	response, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	href, ok := doc.Find("#list .list-group-item a").First().Attr("href")
+	if !ok {
+		t.Fatalf("Expected a document link for search %q", search)
+	}
+
+	return strings.TrimPrefix(href, "/documents/")
+}
+
+func assertAuthorDocuments(app *fiber.App, t *testing.T, authorSlug string, expectedResults int) {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodGet, "/authors/"+authorSlug, nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	response, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualResults := doc.Find("#list .list-group-item").Length(); actualResults != expectedResults {
+		t.Errorf("Expected %d documents for author %q, got %d", expectedResults, authorSlug, actualResults)
 	}
 }

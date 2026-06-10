@@ -2,7 +2,7 @@
 <ul class="list-group rounded-0">
     {{range $i, $author := .Results.Hits}}
     <li class="list-group-item border border-0 px-0 mt-5">
-        {{template "partials/authors-list-item" dict "Lang" $.Lang "Author" $author "Version" $.Version}}
+        {{template "partials/authors-list-item" dict "Lang" $.Lang "Author" $author "Version" $.Version "DocumentCount" (index $.DocumentCounts $author.Slug)}}
     </li>
     {{end}}
 </ul>

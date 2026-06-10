@@ -80,12 +80,15 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 
 // removeFile removes a file from the index
 func (b *BleveIndexer) removeFile(file string) error {
-	file = strings.Replace(file, b.libraryPath, "", 1)
-	file = strings.TrimPrefix(file, string(filepath.Separator))
-	if err := b.documentsIdx.Delete(file); err != nil {
+	id := b.id(file)
+	document, err := b.documentByIndexID(id)
+	if err != nil {
 		return err
 	}
-	return nil
+	if document.ID != "" {
+		return b.deleteDocumentFromIndex(document)
+	}
+	return b.documentsIdx.Delete(id)
 }
 
 // DeleteDocument removes the document identified by slug from the index and deletes its file from the filesystem.
@@ -97,12 +100,54 @@ func (b *BleveIndexer) DeleteDocument(slug string) error {
 	if document.Slug == "" {
 		return ErrDocumentNotFound
 	}
-	fullPath := filepath.Join(b.libraryPath, document.ID)
-	if err := b.removeFile(fullPath); err != nil {
+	if err := b.deleteDocumentFromIndex(document); err != nil {
 		return err
 	}
+	fullPath := filepath.Join(b.libraryPath, document.ID)
 	if err := b.fs.Remove(fullPath); err != nil && !os.IsNotExist(err) {
 		log.Printf("error removing file %s: %s\n", fullPath, err.Error())
+	}
+	return nil
+}
+
+func (b *BleveIndexer) deleteDocumentFromIndex(document Document) error {
+	if err := b.documentsIdx.Delete(document.ID); err != nil {
+		return err
+	}
+	return b.removeOrphanAuthors(authorSlugsFromDocument(document))
+}
+
+func authorSlugsFromDocument(document Document) []string {
+	seen := make(map[string]struct{})
+	slugs := make([]string, 0, len(document.AuthorsSlugs)+len(document.IllustratorsSlugs))
+	for _, authorSlug := range append(document.AuthorsSlugs, document.IllustratorsSlugs...) {
+		if authorSlug == "" {
+			continue
+		}
+		if _, ok := seen[authorSlug]; ok {
+			continue
+		}
+		seen[authorSlug] = struct{}{}
+		slugs = append(slugs, authorSlug)
+	}
+	return slugs
+}
+
+func (b *BleveIndexer) removeOrphanAuthors(slugs []string) error {
+	if len(slugs) == 0 {
+		return nil
+	}
+	counts, err := b.DocumentCountsByAuthorSlugs(slugs)
+	if err != nil {
+		return err
+	}
+	for _, authorSlug := range slugs {
+		if counts[authorSlug] != 0 {
+			continue
+		}
+		if err := b.authorsIdx.Delete(authorSlug); err != nil {
+			return err
+		}
 	}
 	return nil
 }

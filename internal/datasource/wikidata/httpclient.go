@@ -29,7 +29,7 @@ func newRateLimitedHTTPClient() *rateLimitedHTTPClient {
 
 func (c *rateLimitedHTTPClient) getJSON(url string, dest any) error {
 	for {
-		c.waitUntilAllowed()
+		c.waitUntil("")
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
@@ -45,10 +45,8 @@ func (c *rateLimitedHTTPClient) getJSON(url string, dest any) error {
 		}
 
 		if resp.StatusCode == http.StatusTooManyRequests {
-			wait := retryAfterDuration(resp)
 			_ = resp.Body.Close()
-			c.pauseUntil(time.Now().Add(wait))
-			log.Printf("Wikidata rate limit reached, waiting %s before retrying", wait)
+			c.waitUntil(resp.Header.Get("Retry-After"))
 			continue
 		}
 
@@ -67,35 +65,39 @@ func (c *rateLimitedHTTPClient) getJSON(url string, dest any) error {
 	}
 }
 
-func (c *rateLimitedHTTPClient) waitUntilAllowed() {
+// waitUntil blocks until the shared pause deadline has passed. When retryAfterHeader
+// is non-empty, the deadline is extended using the Retry-After header value.
+func (c *rateLimitedHTTPClient) waitUntil(retryAfterHeader string) {
 	c.mu.Lock()
+	var rateLimitWait time.Duration
+	if retryAfterHeader != "" {
+		rateLimitWait = parseRetryAfter(retryAfterHeader)
+		resumeAt := time.Now().Add(rateLimitWait)
+		if resumeAt.After(c.resumeAt) {
+			c.resumeAt = resumeAt
+		}
+	}
 	wait := time.Until(c.resumeAt)
 	c.mu.Unlock()
+	if retryAfterHeader != "" {
+		log.Printf("Wikidata rate limit reached, waiting %s before retrying", rateLimitWait)
+	}
 	if wait > 0 {
 		time.Sleep(wait)
 	}
 }
 
-func (c *rateLimitedHTTPClient) pauseUntil(resumeAt time.Time) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if resumeAt.After(c.resumeAt) {
-		c.resumeAt = resumeAt
-	}
-}
-
-func retryAfterDuration(resp *http.Response) time.Duration {
-	retryAfter := resp.Header.Get("Retry-After")
-	if retryAfter == "" {
+func parseRetryAfter(header string) time.Duration {
+	if header == "" {
 		return defaultRetryAfter
 	}
-	if seconds, err := strconv.Atoi(retryAfter); err == nil {
+	if seconds, err := strconv.Atoi(header); err == nil {
 		if seconds <= 0 {
 			return defaultRetryAfter
 		}
 		return time.Duration(seconds) * time.Second
 	}
-	if retryTime, err := http.ParseTime(retryAfter); err == nil {
+	if retryTime, err := http.ParseTime(header); err == nil {
 		wait := time.Until(retryTime)
 		if wait <= 0 {
 			return defaultRetryAfter

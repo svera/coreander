@@ -1,6 +1,8 @@
 package index
 
 import (
+	"cmp"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -117,6 +119,10 @@ func (b *BleveIndexer) runAuthorsPaginatedQuery(q query.Query, page, resultsPerP
 		page = 1
 	}
 
+	if documentCountSort, desc := authorDocumentCountSort(sortBy); documentCountSort {
+		return b.runAuthorsPaginatedQueryByDocumentCount(q, page, resultsPerPage, desc)
+	}
+
 	searchOptions := bleve.NewSearchRequestOptions(q, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy(sortBy)
 	searchOptions.Fields = []string{"*"}
@@ -138,5 +144,78 @@ func (b *BleveIndexer) runAuthorsPaginatedQuery(q query.Query, page, resultsPerP
 		page,
 		int(searchResult.Total),
 		authors,
+	), nil
+}
+
+func authorDocumentCountSort(sortBy []string) (bool, bool) {
+	if len(sortBy) != 1 {
+		return false, false
+	}
+	switch sortBy[0] {
+	case "DocumentCount":
+		return true, false
+	case "-DocumentCount":
+		return true, true
+	default:
+		return false, false
+	}
+}
+
+func (b *BleveIndexer) runAuthorsPaginatedQueryByDocumentCount(q query.Query, page, resultsPerPage int, desc bool) (result.Paginated[[]Author], error) {
+	countRequest := bleve.NewSearchRequestOptions(q, 0, 0, false)
+	countResult, err := b.authorsIdx.Search(countRequest)
+	if err != nil {
+		return result.Paginated[[]Author]{}, err
+	}
+	total := int(countResult.Total)
+	if total == 0 {
+		return result.Paginated[[]Author]{}, nil
+	}
+
+	searchOptions := bleve.NewSearchRequestOptions(q, total, 0, false)
+	searchOptions.Fields = []string{"*"}
+	searchResult, err := b.authorsIdx.Search(searchOptions)
+	if err != nil {
+		return result.Paginated[[]Author]{}, err
+	}
+
+	authors := make([]Author, len(searchResult.Hits))
+	slugs := make([]string, len(searchResult.Hits))
+	for i, hit := range searchResult.Hits {
+		authors[i] = hydrateAuthor(hit)
+		slugs[i] = authors[i].Slug
+	}
+
+	counts, err := b.DocumentCountsByAuthorSlugs(slugs)
+	if err != nil {
+		return result.Paginated[[]Author]{}, err
+	}
+
+	slices.SortFunc(authors, func(a, b Author) int {
+		countA := counts[a.Slug]
+		countB := counts[b.Slug]
+		if countA != countB {
+			if desc {
+				return cmp.Compare(countB, countA)
+			}
+			return cmp.Compare(countA, countB)
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+
+	start := (page - 1) * resultsPerPage
+	if start >= total {
+		return result.NewPaginated(resultsPerPage, page, total, []Author{}), nil
+	}
+	end := start + resultsPerPage
+	if end > total {
+		end = total
+	}
+
+	return result.NewPaginated(
+		resultsPerPage,
+		page,
+		total,
+		authors[start:end],
 	), nil
 }
