@@ -3,7 +3,7 @@ package wikidata
 import (
 	"time"
 
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 // Wikidata properties IDs

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 func TestPrecisionDates(t *testing.T) {

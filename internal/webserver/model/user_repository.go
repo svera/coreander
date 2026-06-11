@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v5/internal/result"
 	"gorm.io/gorm"
 )
 

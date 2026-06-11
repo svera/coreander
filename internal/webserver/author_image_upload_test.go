@@ -15,9 +15,9 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/kovidgoyal/imaging"
-	"github.com/svera/coreander/v4/internal/webserver"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 func TestAuthorImageUpload(t *testing.T) {

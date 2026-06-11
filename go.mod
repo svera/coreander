@@ -1,4 +1,4 @@
-module github.com/svera/coreander/v4
+module github.com/svera/coreander/v5
 
 go 1.25.0
 

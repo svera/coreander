@@ -4,7 +4,7 @@ import (
 	"net/url"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 // Delete removes a user from the database. Admins may delete other users. A signed-in user may delete only their own account, after submitting confirm-username matching their username exactly.
