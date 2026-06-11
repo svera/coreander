@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pirmd/epub"
-	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v5/internal/metadata"
 )
 
 // epubTestReader implements metadata.Reader for index tests without injecting EpubReader hooks.

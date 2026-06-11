@@ -7,9 +7,9 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/pirmd/epub"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 func TestSameSubjects(t *testing.T) {

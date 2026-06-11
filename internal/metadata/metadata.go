@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"time"
 
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 type Metadata struct {

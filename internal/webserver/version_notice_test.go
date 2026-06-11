@@ -7,8 +7,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/versioncheck"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/versioncheck"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
 
 func TestNavVersionNoticeForAdminsOnly(t *testing.T) {

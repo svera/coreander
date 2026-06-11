@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/rickb777/date/v2"
-	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v5/internal/metadata"
 )
 
 type SearchFields struct {

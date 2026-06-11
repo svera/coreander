@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 func TestAuthor(t *testing.T) {

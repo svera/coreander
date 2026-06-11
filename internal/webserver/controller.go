@@ -2,17 +2,17 @@ package webserver
 
 import (
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/webserver/controller/auth"
-	"github.com/svera/coreander/v4/internal/webserver/controller/author"
-	"github.com/svera/coreander/v4/internal/webserver/controller/completed"
-	"github.com/svera/coreander/v4/internal/webserver/controller/document"
-	"github.com/svera/coreander/v4/internal/webserver/controller/highlight"
-	"github.com/svera/coreander/v4/internal/webserver/controller/home"
-	"github.com/svera/coreander/v4/internal/webserver/controller/series"
-	"github.com/svera/coreander/v4/internal/webserver/controller/user"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/webserver/controller/auth"
+	"github.com/svera/coreander/v5/internal/webserver/controller/author"
+	"github.com/svera/coreander/v5/internal/webserver/controller/completed"
+	"github.com/svera/coreander/v5/internal/webserver/controller/document"
+	"github.com/svera/coreander/v5/internal/webserver/controller/highlight"
+	"github.com/svera/coreander/v5/internal/webserver/controller/home"
+	"github.com/svera/coreander/v5/internal/webserver/controller/series"
+	"github.com/svera/coreander/v5/internal/webserver/controller/user"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 	"gorm.io/gorm"
 )
 

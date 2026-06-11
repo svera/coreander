@@ -3,9 +3,9 @@ package user
 import (
 	"time"
 
-	"github.com/svera/coreander/v4/internal/i18n"
-	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/i18n"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 type Sender interface {

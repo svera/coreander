@@ -15,7 +15,7 @@ import (
 	index "github.com/blevesearch/bleve_index_api"
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v5/internal/metadata"
 )
 
 // documentSlugCollisionPattern matches slugs like "title--2" used for disambiguation.

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/result"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

@@ -18,9 +18,9 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/rickb777/date/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/precisiondate"
-	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/result"
 )
 
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
