@@ -126,8 +126,7 @@ func (b *BleveIndexer) runAuthorsPaginatedQuery(q query.Query, page, resultsPerP
 			return result.Paginated[[]Author]{}, err
 		}
 		sortAuthorsByDocumentCount(authors, counts, desc)
-
-		return paginateAuthors(resultsPerPage, page, total, authors), nil
+		return result.Paginate(resultsPerPage, page, total, authors), nil
 	}
 
 	searchOptions := bleve.NewSearchRequestOptions(q, resultsPerPage, (page-1)*resultsPerPage, false)
@@ -141,7 +140,7 @@ func (b *BleveIndexer) runAuthorsPaginatedQuery(q query.Query, page, resultsPerP
 		return result.Paginated[[]Author]{}, nil
 	}
 
-	return result.NewPaginated(
+	return result.Paginate(
 		resultsPerPage,
 		page,
 		int(searchResult.Total),
@@ -191,16 +190,4 @@ func sortAuthorsByDocumentCount(authors []Author, counts map[string]uint64, desc
 		}
 		return strings.Compare(a.Name, b.Name)
 	})
-}
-
-func paginateAuthors(resultsPerPage, page, total int, authors []Author) result.Paginated[[]Author] {
-	start := (page - 1) * resultsPerPage
-	if start >= total {
-		return result.NewPaginated(resultsPerPage, page, total, []Author{})
-	}
-	end := start + resultsPerPage
-	if end > total {
-		end = total
-	}
-	return result.NewPaginated(resultsPerPage, page, total, authors[start:end])
 }
