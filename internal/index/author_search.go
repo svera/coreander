@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v4/internal/result"
@@ -97,30 +98,36 @@ func addDeathDateRangeFilter(filtersQuery *query.ConjunctionQuery, from, to date
 	filtersQuery.AddQuery(excludeLiving)
 }
 
-func addDateRangeFilter(filtersQuery *query.ConjunctionQuery, field string, from, to date.Date) {
-	if from == 0 && to == 0 {
-		return
-	}
-	minDate := float64(from)
-	q := bleve.NewNumericRangeQuery(nil, nil)
-	if from != 0 {
-		q.Min = &minDate
-	}
-	if to != 0 {
-		maxDate := float64(to) + 1
-		q.Max = &maxDate
-	}
-	q.SetField(field)
-	filtersQuery.AddQuery(q)
-}
-
 func (b *BleveIndexer) runAuthorsPaginatedQuery(q query.Query, page, resultsPerPage int, sortBy []string) (result.Paginated[[]Author], error) {
 	if page < 1 {
 		page = 1
 	}
 
-	if documentCountSort, desc := authorDocumentCountSort(sortBy); documentCountSort {
-		return b.runAuthorsPaginatedQueryByDocumentCount(q, page, resultsPerPage, desc)
+	if desc, ok := authorDocumentCountSortDesc(sortBy); ok {
+		countResult, err := b.authorsIdx.Search(bleve.NewSearchRequestOptions(q, 0, 0, false))
+		if err != nil {
+			return result.Paginated[[]Author]{}, err
+		}
+		total := int(countResult.Total)
+		if total == 0 {
+			return result.Paginated[[]Author]{}, nil
+		}
+
+		searchOptions := bleve.NewSearchRequestOptions(q, total, 0, false)
+		searchOptions.Fields = []string{"*"}
+		searchResult, err := b.authorsIdx.Search(searchOptions)
+		if err != nil {
+			return result.Paginated[[]Author]{}, err
+		}
+
+		authors := hydrateAuthors(searchResult.Hits)
+		counts, err := b.DocumentCountsByAuthorSlugs(authorSlugsFromAuthors(authors))
+		if err != nil {
+			return result.Paginated[[]Author]{}, err
+		}
+		sortAuthorsByDocumentCount(authors, counts, desc)
+
+		return paginateAuthors(resultsPerPage, page, total, authors), nil
 	}
 
 	searchOptions := bleve.NewSearchRequestOptions(q, resultsPerPage, (page-1)*resultsPerPage, false)
@@ -134,26 +141,21 @@ func (b *BleveIndexer) runAuthorsPaginatedQuery(q query.Query, page, resultsPerP
 		return result.Paginated[[]Author]{}, nil
 	}
 
-	authors := make([]Author, len(searchResult.Hits))
-	for i, hit := range searchResult.Hits {
-		authors[i] = hydrateAuthor(hit)
-	}
-
 	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(searchResult.Total),
-		authors,
+		hydrateAuthors(searchResult.Hits),
 	), nil
 }
 
-func authorDocumentCountSort(sortBy []string) (bool, bool) {
+func authorDocumentCountSortDesc(sortBy []string) (desc bool, ok bool) {
 	if len(sortBy) != 1 {
 		return false, false
 	}
 	switch sortBy[0] {
 	case "DocumentCount":
-		return true, false
+		return false, true
 	case "-DocumentCount":
 		return true, true
 	default:
@@ -161,36 +163,23 @@ func authorDocumentCountSort(sortBy []string) (bool, bool) {
 	}
 }
 
-func (b *BleveIndexer) runAuthorsPaginatedQueryByDocumentCount(q query.Query, page, resultsPerPage int, desc bool) (result.Paginated[[]Author], error) {
-	countRequest := bleve.NewSearchRequestOptions(q, 0, 0, false)
-	countResult, err := b.authorsIdx.Search(countRequest)
-	if err != nil {
-		return result.Paginated[[]Author]{}, err
-	}
-	total := int(countResult.Total)
-	if total == 0 {
-		return result.Paginated[[]Author]{}, nil
-	}
-
-	searchOptions := bleve.NewSearchRequestOptions(q, total, 0, false)
-	searchOptions.Fields = []string{"*"}
-	searchResult, err := b.authorsIdx.Search(searchOptions)
-	if err != nil {
-		return result.Paginated[[]Author]{}, err
-	}
-
-	authors := make([]Author, len(searchResult.Hits))
-	slugs := make([]string, len(searchResult.Hits))
-	for i, hit := range searchResult.Hits {
+func hydrateAuthors(hits search.DocumentMatchCollection) []Author {
+	authors := make([]Author, len(hits))
+	for i, hit := range hits {
 		authors[i] = hydrateAuthor(hit)
-		slugs[i] = authors[i].Slug
 	}
+	return authors
+}
 
-	counts, err := b.DocumentCountsByAuthorSlugs(slugs)
-	if err != nil {
-		return result.Paginated[[]Author]{}, err
+func authorSlugsFromAuthors(authors []Author) []string {
+	slugs := make([]string, len(authors))
+	for i, author := range authors {
+		slugs[i] = author.Slug
 	}
+	return slugs
+}
 
+func sortAuthorsByDocumentCount(authors []Author, counts map[string]uint64, desc bool) {
 	slices.SortFunc(authors, func(a, b Author) int {
 		countA := counts[a.Slug]
 		countB := counts[b.Slug]
@@ -202,20 +191,16 @@ func (b *BleveIndexer) runAuthorsPaginatedQueryByDocumentCount(q query.Query, pa
 		}
 		return strings.Compare(a.Name, b.Name)
 	})
+}
 
+func paginateAuthors(resultsPerPage, page, total int, authors []Author) result.Paginated[[]Author] {
 	start := (page - 1) * resultsPerPage
 	if start >= total {
-		return result.NewPaginated(resultsPerPage, page, total, []Author{}), nil
+		return result.NewPaginated(resultsPerPage, page, total, []Author{})
 	}
 	end := start + resultsPerPage
 	if end > total {
 		end = total
 	}
-
-	return result.NewPaginated(
-		resultsPerPage,
-		page,
-		total,
-		authors[start:end],
-	), nil
+	return result.NewPaginated(resultsPerPage, page, total, authors[start:end])
 }

@@ -181,20 +181,7 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 			filtersQuery.AddQuery(subjectQueries)
 		}
 	}
-	if searchFields.PubDateFrom != 0 || searchFields.PubDateTo != 0 {
-		minDate := float64(searchFields.PubDateFrom)
-		maxDate := float64(searchFields.PubDateTo)
-
-		q := bleve.NewNumericRangeQuery(nil, nil)
-		if minDate != 0 {
-			q.Min = &minDate
-		}
-		if maxDate != 0 {
-			q.Max = &maxDate
-		}
-		q.SetField("Publication.Date")
-		filtersQuery.AddQuery(q)
-	}
+	addDateRangeFilter(filtersQuery, "Publication.Date", searchFields.PubDateFrom, searchFields.PubDateTo)
 	if searchFields.EstReadTimeFrom > 0 || searchFields.EstReadTimeTo > 0 {
 		q := bleve.NewNumericRangeQuery(nil, nil)
 		if searchFields.EstReadTimeFrom > 0 {
