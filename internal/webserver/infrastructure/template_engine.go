@@ -11,7 +11,7 @@ import (
 
 	"github.com/gofiber/template/html/v3"
 	"github.com/gosimple/slug"
-	"github.com/svera/coreander/v4/internal/i18n"
+	"github.com/svera/coreander/v5/internal/i18n"
 )
 
 func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, error) {

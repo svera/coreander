@@ -14,13 +14,13 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/datasource/wikidata"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/versioncheck"
-	"github.com/svera/coreander/v4/internal/webserver"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/versioncheck"
+	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 var version string = "unknown"

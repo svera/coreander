@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 	"golang.org/x/exp/slices"
 )
 

@@ -23,7 +23,7 @@ import (
 	"github.com/blevesearch/bleve/v2/mapping"
 	index "github.com/blevesearch/bleve_index_api"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v5/internal/metadata"
 )
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v5/internal/index"
 	"gorm.io/gorm"
 )
 

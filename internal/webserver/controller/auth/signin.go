@@ -6,7 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 // guestOnlyPathPrefixes are URL path prefixes for routes that use AllowIfNotLoggedIn.

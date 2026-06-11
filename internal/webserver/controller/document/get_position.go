@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 func (d *Controller) GetPosition(c fiber.Ctx) error {

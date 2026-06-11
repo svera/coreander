@@ -3,8 +3,8 @@ package index_test
 import (
 	"testing"
 
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 func TestAge(t *testing.T) {

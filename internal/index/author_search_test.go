@@ -6,10 +6,10 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/rickb777/date/v2"
-	"github.com/svera/coreander/v4/internal/datasource/wikidata"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 func TestSearchAuthors(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"net/mail"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v5/internal/index"
 )
 
 func (d *Controller) Send(c fiber.Ctx) error {

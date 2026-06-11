@@ -6,11 +6,11 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/rickb777/date/v2"
-	"github.com/svera/coreander/v4/internal/datasource/wikidata"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/model"
-	"github.com/svera/coreander/v4/internal/webserver/view"
+	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver/view"
 )
 
 func (a *Controller) Search(c fiber.Ctx) error {

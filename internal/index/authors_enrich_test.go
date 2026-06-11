@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
-	datasourcemodel "github.com/svera/coreander/v4/internal/datasource/model"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 type mockAuthorDataSource struct {

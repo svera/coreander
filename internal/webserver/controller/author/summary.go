@@ -5,8 +5,8 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v3"
-	datasourcemodel "github.com/svera/coreander/v4/internal/datasource/model"
-	"github.com/svera/coreander/v4/internal/index"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
+	"github.com/svera/coreander/v5/internal/index"
 )
 
 func (a *Controller) Summary(c fiber.Ctx) error {

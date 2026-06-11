@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/precisiondate"
-	"github.com/svera/coreander/v4/internal/webserver"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/webserver"
 )
 
 const testLibraryDir = "testdata/library"

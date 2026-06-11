@@ -10,7 +10,7 @@ import (
 	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/rickb777/date/v2"
-	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v5/internal/result"
 )
 
 type AuthorSearchFields struct {

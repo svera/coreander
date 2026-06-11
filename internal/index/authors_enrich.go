@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
-	datasourcemodel "github.com/svera/coreander/v4/internal/datasource/model"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 )
 
 const (

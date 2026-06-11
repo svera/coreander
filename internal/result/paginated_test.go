@@ -3,7 +3,7 @@ package result_test
 import (
 	"testing"
 
-	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v5/internal/result"
 )
 
 func TestPaginateFullList(t *testing.T) {

@@ -3,8 +3,8 @@ package auth
 import (
 	"time"
 
-	"github.com/svera/coreander/v4/internal/i18n"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/i18n"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 type authRepository interface {

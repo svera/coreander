@@ -17,7 +17,7 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"github.com/rickb777/date/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 type PdfReader struct {

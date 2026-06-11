@@ -11,10 +11,10 @@ import (
 
 	jwtware "github.com/gofiber/contrib/v3/jwt"
 	"github.com/gofiber/fiber/v3"
-	"github.com/svera/coreander/v4/internal/i18n"
-	"github.com/svera/coreander/v4/internal/versioncheck"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/i18n"
+	"github.com/svera/coreander/v5/internal/versioncheck"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 	"golang.org/x/exp/slices"
 )
 

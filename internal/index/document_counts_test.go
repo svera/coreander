@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
 )
 
 func TestDocumentCountsByAuthorSlugs(t *testing.T) {

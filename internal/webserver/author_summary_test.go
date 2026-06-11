@@ -6,9 +6,9 @@ import (
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/svera/coreander/v4/internal/datasource/wikidata"
-	"github.com/svera/coreander/v4/internal/webserver"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
 
 func TestAuthorSummary(t *testing.T) {

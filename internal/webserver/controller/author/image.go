@@ -13,7 +13,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/kovidgoyal/imaging"
-	"github.com/svera/coreander/v4/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 )
 
 func (a *Controller) Image(c fiber.Ctx) error {

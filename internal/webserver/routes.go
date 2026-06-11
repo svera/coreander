@@ -5,9 +5,9 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/static"
-	"github.com/svera/coreander/v4/internal/i18n"
-	"github.com/svera/coreander/v4/internal/webserver/model"
-	"github.com/svera/coreander/v4/internal/webserver/view"
+	"github.com/svera/coreander/v5/internal/i18n"
+	"github.com/svera/coreander/v5/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver/view"
 )
 
 func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, translator i18n.Translator, cfg Config, idx ProgressInfo, usersRepository *model.UserRepository) {

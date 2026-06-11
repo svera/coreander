@@ -3,8 +3,8 @@ package model
 import (
 	"time"
 
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/result"
 )
 
 type AugmentedDocument struct {

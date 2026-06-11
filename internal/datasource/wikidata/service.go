@@ -13,8 +13,8 @@ import (
 	"time"
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
-	"github.com/svera/coreander/v4/internal/datasource/model"
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/datasource/model"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 const imgUrl = "https://upload.wikimedia.org/wikipedia/commons/%s/%s/%s"

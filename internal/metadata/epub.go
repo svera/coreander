@@ -21,7 +21,7 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/pirmd/epub"
 	"github.com/rickb777/date/v2"
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 type EpubReader struct {
