@@ -89,7 +89,7 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.
 		}
 	}
 
-	entities, err := a.fetchEntities(ids, languages)
+	entities, err := a.fetchEntitiesBatched(ids, languages, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -150,10 +150,6 @@ func (a WikidataSource) RetrieveAuthors(candidates map[string][]string, language
 		results[key] = author
 	}
 	return results, nil
-}
-
-func (a WikidataSource) fetchEntities(ids []string, languages []string) (map[string]gowikidata.Entity, error) {
-	return a.fetchEntitiesBatched(ids, languages, 0)
 }
 
 func (a WikidataSource) fetchEntitiesBatched(ids []string, languages []string, batchInterval time.Duration) (map[string]gowikidata.Entity, error) {

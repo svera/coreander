@@ -1,217 +1,59 @@
 "use strict"
 
-// Load translations (shared)
+import {
+    bindOffcanvasFilterSync,
+    enableFilterInputsOnPageShow,
+    initDateControls,
+    initFilterFormBehavior,
+    syncSidebarFormToOffcanvas,
+} from './search-filter-utils.js'
+
+// Load translations (subjects UI)
 let translations = {}
 const i18nElement = document.getElementById('i18n')
 if (i18nElement) {
     translations = JSON.parse(i18nElement.textContent).i18n
 }
 
-/**
- * Determines if a given year is a leap year
- * @param {number} year - The year to check
- * @returns {boolean} - True if the year is a leap year, false otherwise
- */
-function isLeapYear(year) {
-    // A year is a leap year if:
-    // 1. It's divisible by 4 AND
-    // 2. It's either NOT divisible by 100 OR it's divisible by 400
-    return (year % 4 === 0) && (year % 100 !== 0 || year % 400 === 0)
+function documentsSyncOffcanvas() {
+    syncSidebarFormToOffcanvas({
+        searchFieldName: 'search',
+        offcanvasContainerId: 'search-filters',
+        afterCopy: (offcanvasContainer) => {
+            const sidebarSubjectsHidden = document.getElementById('sidebar-subjects-hidden')
+            const offcanvasSubjectsHidden = document.getElementById('subjects-hidden')
+            if (sidebarSubjectsHidden && offcanvasSubjectsHidden) {
+                offcanvasSubjectsHidden.value = sidebarSubjectsHidden.value
+            }
+            offcanvasContainer.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
+        },
+    })
 }
 
-/**
- * Updates the max attribute of the day input based on the selected month and year
- * @param {HTMLElement} monthSelect - The month select element
- * @param {HTMLElement} dayInput - The day input element
- * @param {HTMLElement} yearInput - The year input element
- * @param {HTMLElement} dateControl - The date-control container element (optional, for updating hidden input)
- */
-function updateMaxDays(monthSelect, dayInput, yearInput, dateControl = null) {
-    const month = parseInt(monthSelect.value)
-    const year = parseInt(yearInput.value) || new Date().getFullYear()
-
-    let maxDays = 31 // default max days
-
-    switch (month) {
-        case 2: // February
-            maxDays = isLeapYear(year) ? 29 : 28
-            break
-        case 4: // April
-        case 6: // June
-        case 9: // September
-        case 11: // November
-            maxDays = 30
-            break
-    }
-
-    // Update the max attribute
-    dayInput.setAttribute('max', maxDays)
-
-    // If current day value is greater than max days, set it to max days
-    const currentDay = parseInt(dayInput.value)
-    if (currentDay > maxDays) {
-        dayInput.value = maxDays
-        // Update hidden input if dateControl is provided
-        if (dateControl) {
-            updateHiddenDateInput(dateControl)
-        }
-    }
-}
-
-/**
- * Updates the hidden date input field with the composed date value
- * @param {HTMLElement} dateControl - The date-control container element
- */
-function updateHiddenDateInput(dateControl) {
-    const yearInput = dateControl.querySelector('.input-year')
-    const monthSelect = dateControl.querySelector('.input-month')
-    const dayInput = dateControl.querySelector('.input-day')
-    const hiddenDateInput = dateControl.parentElement.querySelector('.date')
-
-    // Only update if year has a value
-    if (!yearInput.value || yearInput.value === '' || yearInput.value === '0') {
-        hiddenDateInput.value = ''
-        return
-    }
-
-    let year = yearInput.value
-    if (year.startsWith('-') || year.startsWith('+')) {
-        year = year.substring(0, 1) + year.substring(1).padStart(4, '0')
-    } else {
-        year = year.padStart(4, '0')
-    }
-
-    const month = monthSelect.value || '01'
-    const day = (dayInput.value || '1').padStart(2, '0')
-
-    hiddenDateInput.value = year + '-' + month + '-' + day
-}
-
-/**
- * Initialize search filters for a single container (main or sidebar).
- * @param {HTMLElement} searchFilters - The container element (#search-filters or #search-filters-sidebar)
- */
 function initSearchFilters(searchFilters) {
     if (!searchFilters) return
     const searchFiltersForm = searchFilters.closest('form')
     if (!searchFiltersForm) return
 
     const idPrefix = searchFilters.id === 'search-filters-sidebar' ? 'sidebar-' : ''
+    const composeDateControls = initDateControls(searchFilters, searchFiltersForm)
 
-    // Set up event listeners for all month selects
-    searchFilters.querySelectorAll('.date-control').forEach(dateControl => {
-        const monthSelect = dateControl.querySelector('.input-month')
-        const dayInput = dateControl.querySelector('.input-day')
-        const yearInput = dateControl.querySelector('.input-year')
-
-        // Update max days when month changes
-        monthSelect.addEventListener('change', () => {
-            updateMaxDays(monthSelect, dayInput, yearInput, dateControl)
-            updateHiddenDateInput(dateControl)
-        })
-
-        // Update max days when year changes (for February)
-        yearInput.addEventListener('change', () => {
-            if (parseInt(monthSelect.value) === 2) {
-                updateMaxDays(monthSelect, dayInput, yearInput, dateControl)
-            }
-            updateHiddenDateInput(dateControl)
-        })
-
-        yearInput.addEventListener('input', () => {
-            updateHiddenDateInput(dateControl)
-        })
-
-        dayInput.addEventListener('change', () => {
-            updateHiddenDateInput(dateControl)
-        })
-
-        dayInput.addEventListener('input', () => {
-            updateHiddenDateInput(dateControl)
-        })
-
-        updateMaxDays(monthSelect, dayInput, yearInput, dateControl)
-        updateHiddenDateInput(dateControl)
+    const { scheduleApplyFilters } = initFilterFormBehavior({
+        searchFilters,
+        searchFiltersForm,
+        composeDateControls,
+        listPath: '/documents',
+        syncOffcanvas: documentsSyncOffcanvas,
+        beforeSidebarApply: () => {
+            const sidebarContainer = document.getElementById('search-filters-sidebar')
+            if (sidebarContainer) sidebarContainer.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
+        },
     })
 
-    function composeDateControls() {
-        searchFiltersForm.querySelectorAll('.date-control').forEach(function (el) {
-            const yearEl = el.querySelector('.input-year')
-            if (!yearEl || (yearEl.value === '' || yearEl.value === '0')) return
-            const composed = el.parentElement.querySelector('.date')
-            if (!composed) return
-            let year = yearEl.value
-            if (year.startsWith('-') || year.startsWith('+')) {
-                year = year.substring(0, 1) + year.substring(1).padStart(4, '0')
-            } else {
-                year = year.padStart(4, '0')
-            }
-            const month = el.querySelector('.input-month').value || '01'
-            const day = (el.querySelector('.input-day').value || '1').padStart(2, '0')
-            composed.value = year + '-' + month + '-' + day
-        })
-    }
+    initSubjectsFilters(searchFilters, idPrefix, scheduleApplyFilters)
+}
 
-    const isDocumentsPage = window.location.pathname === '/documents'
-
-    let applyingFilters = false
-
-    function applyFilters() {
-        applyingFilters = true
-        composeDateControls()
-        const sidebarForm = document.getElementById('search-filters-form')
-        if (sidebarForm && isDocumentsPage) {
-            if (searchFiltersForm !== sidebarForm) {
-                copyFormValues(searchFiltersForm, sidebarForm)
-                const sidebarContainer = document.getElementById('search-filters-sidebar')
-                if (sidebarContainer) sidebarContainer.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
-            }
-            const formData = new FormData(sidebarForm)
-            const params = new URLSearchParams()
-            for (const [k, v] of formData.entries()) {
-                if (v != null && String(v).trim() !== '') params.append(k, v)
-            }
-            const queryString = params.toString()
-            const url = '/documents' + (queryString ? '?' + queryString : '')
-            window.htmx.trigger(document.body, 'update')
-            history.replaceState(null, '', url)
-            syncSidebarFormToOffcanvas()
-        } else {
-            const params = new URLSearchParams(new FormData(searchFiltersForm))
-            window.location.href = '/documents?' + params.toString()
-        }
-        setTimeout(() => { applyingFilters = false }, 0)
-    }
-
-    let triggerSearchUpdate = null
-    if (isDocumentsPage) {
-        const FILTER_DEBOUNCE_MS = 600
-        let applyFiltersDebounced
-        function scheduleApplyFilters() {
-            if (applyingFilters) return
-            if (applyFiltersDebounced) clearTimeout(applyFiltersDebounced)
-            applyFiltersDebounced = setTimeout(applyFilters, FILTER_DEBOUNCE_MS)
-        }
-        triggerSearchUpdate = scheduleApplyFilters
-
-        searchFiltersForm.addEventListener('submit', (e) => {
-            e.preventDefault()
-            if (applyFiltersDebounced) clearTimeout(applyFiltersDebounced)
-            applyFilters()
-        })
-
-        searchFiltersForm.addEventListener('input', () => scheduleApplyFilters())
-        searchFiltersForm.addEventListener('change', () => scheduleApplyFilters())
-    } else {
-        searchFiltersForm.addEventListener('submit', () => {
-            composeDateControls()
-            searchFilters.querySelectorAll('input').forEach(input => {
-                if (input.value === '' || input.value === '0') input.setAttribute('disabled', 'disabled')
-            })
-        })
-    }
-
-    // Subjects (scoped to this container): grouped by slug; selection stores slugs, badges show all names for that slug
+function initSubjectsFilters(searchFilters, idPrefix, triggerSearchUpdate) {
     const subjectsList = document.getElementById(idPrefix + 'subjects-list')
     const subjectsInput = document.getElementById(idPrefix + 'subjects')
     const subjectsHiddenInput = document.getElementById(idPrefix + 'subjects-hidden')
@@ -381,99 +223,14 @@ function initSearchFilters(searchFilters) {
     }
 }
 
-// Enable inputs when the page is shown
-window.addEventListener('pageshow', () => {
-    ['search-filters', 'search-filters-sidebar'].forEach(id => {
-        const el = document.getElementById(id)
-        if (el) {
-            el.querySelectorAll('input').forEach(input => {
-                input.removeAttribute('disabled')
-            })
-        }
-    })
-})
+enableFilterInputsOnPageShow(['search-filters', 'search-filters-sidebar'])
 
-/**
- * Copy form values from source to target form (by field name).
- */
-function copyFormValues(sourceForm, targetForm) {
-    for (const el of sourceForm.elements) {
-        if (!el.name) continue
-        const target = targetForm.elements[el.name]
-        if (target && target !== el) {
-            if (target.type === 'checkbox' || target.type === 'radio') {
-                target.checked = el.checked
-            } else {
-                target.value = el.value
-            }
-        }
-    }
-}
-
-/**
- * Strip leading zeroes from a year string so "0000" / "0001" become "" / "1", and "2024" stays "2024".
- * Preserves negative years (e.g. "-0500" -> "-500").
- */
-function yearForDisplay(yearStr) {
-    if (!yearStr) return ''
-    if (yearStr.startsWith('-')) {
-        const rest = yearStr.slice(1).replace(/^0+/, '')
-        return rest === '' ? '' : '-' + rest
-    }
-    const stripped = yearStr.replace(/^0+/, '')
-    return stripped === '' ? '' : stripped
-}
-
-/**
- * Apply hidden date input values (YYYY-MM-DD) to the visible year/month/day inputs in each .date-control.
- */
-function applyHiddenDatesToVisible(container) {
-    if (!container) return
-    container.querySelectorAll('.date-control').forEach(dateControl => {
-        const hiddenInput = dateControl.parentElement.querySelector('input.date')
-        if (!hiddenInput || !hiddenInput.value) return
-        const parts = hiddenInput.value.split('-')
-        if (parts.length < 3) return
-        const yearInput = dateControl.querySelector('.input-year')
-        const monthSelect = dateControl.querySelector('.input-month')
-        const dayInput = dateControl.querySelector('.input-day')
-        if (yearInput) yearInput.value = yearForDisplay(parts[0])
-        if (monthSelect) monthSelect.value = parts[1]
-        if (dayInput) dayInput.value = String(parseInt(parts[2], 10))
-    })
-}
-
-/**
- * Sync sidebar filter form state to the offcanvas form and navbar searchbox.
- */
-function syncSidebarFormToOffcanvas() {
-    const sidebarForm = document.getElementById('search-filters-form')
-    const offcanvasContainer = document.getElementById('search-filters')
-    if (!sidebarForm) return
-    const searchValue = sidebarForm.elements['search'] ? sidebarForm.elements['search'].value : ''
-    const navSearchbox = document.getElementById('searchbox')
-    if (navSearchbox) navSearchbox.value = searchValue
-    if (!offcanvasContainer) return
-    const offcanvasForm = offcanvasContainer.closest('form')
-    if (!offcanvasForm) return
-    copyFormValues(sidebarForm, offcanvasForm)
-    const sidebarSubjectsHidden = document.getElementById('sidebar-subjects-hidden')
-    const offcanvasSubjectsHidden = document.getElementById('subjects-hidden')
-    if (sidebarSubjectsHidden && offcanvasSubjectsHidden) {
-        offcanvasSubjectsHidden.value = sidebarSubjectsHidden.value
-    }
-    applyHiddenDatesToVisible(offcanvasContainer)
-    offcanvasContainer.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
-}
-
-// Initialize all filter containers on the page
 initSearchFilters(document.getElementById('search-filters'))
 initSearchFilters(document.getElementById('search-filters-sidebar'))
 
-// Keep sidebar and offcanvas filters in sync on the documents page
-if (document.getElementById('search-filters-form') && document.getElementById('search-filters')) {
-    const offcanvasEl = document.getElementById('search-filters-offcanvas')
-    if (offcanvasEl) {
-        offcanvasEl.addEventListener('shown.bs.offcanvas', () => syncSidebarFormToOffcanvas())
-    }
-}
+bindOffcanvasFilterSync({
+    sidebarFormId: 'search-filters-form',
+    offcanvasContainerId: 'search-filters',
+    offcanvasElementId: 'search-filters-offcanvas',
+    syncOffcanvas: documentsSyncOffcanvas,
+})
