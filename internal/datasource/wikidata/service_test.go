@@ -71,3 +71,23 @@ func testCases(t *testing.T) []testCase {
 		},
 	}
 }
+
+func TestRetrieveAuthorsBatch(t *testing.T) {
+	mockServer := NewMockServer(t, "fixtures")
+	defer mockServer.Close()
+	gowikidata.WikidataDomain = mockServer.URL
+
+	source := NewWikidataSource(Gowikidata{})
+	authors, err := source.RetrieveAuthors(map[string][]string{
+		"miguel": {"Q1234"},
+	}, []string{"en"}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(authors) != 1 {
+		t.Fatalf("expected 1 author from batch retrieve, got %d", len(authors))
+	}
+	if authors["miguel"].SourceID() != "Q1234" {
+		t.Fatalf("expected Q1234, got %q", authors["miguel"].SourceID())
+	}
+}

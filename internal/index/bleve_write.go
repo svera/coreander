@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/blevesearch/bleve/v2"
 	index "github.com/blevesearch/bleve_index_api"
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
@@ -238,7 +239,79 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 		}
 	}
 
+	if err := b.rebuildAuthorsFromDocumentsIfEmpty(); err != nil {
+		b.endIndexing()
+		return err
+	}
+
 	b.endIndexing()
+	return nil
+}
+
+// rebuildAuthorsFromDocumentsIfEmpty repopulates the authors index from indexed documents when
+// the authors index is empty but documents remain indexed (for example after a mapping version
+// bump recreates the authors index while the documents index is unchanged).
+func (b *BleveIndexer) rebuildAuthorsFromDocumentsIfEmpty() error {
+	authorCount, err := b.authorsIdx.DocCount()
+	if err != nil {
+		return err
+	}
+	if authorCount > 0 {
+		return nil
+	}
+
+	docCount, err := b.Count()
+	if err != nil {
+		return err
+	}
+	if docCount == 0 {
+		return nil
+	}
+
+	log.Println("Authors index is empty but documents are indexed, rebuilding authors from documents index.")
+	return b.RebuildAuthorsFromDocuments()
+}
+
+// RebuildAuthorsFromDocuments indexes all authors and illustrators referenced by documents
+// in the documents index into the authors index.
+func (b *BleveIndexer) RebuildAuthorsFromDocuments() error {
+	countResult, err := b.documentsIdx.Search(bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), 0, 0, false))
+	if err != nil {
+		return err
+	}
+	total := int(countResult.Total)
+	if total == 0 {
+		return nil
+	}
+
+	searchOptions := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), total, 0, false)
+	searchOptions.Fields = []string{"*"}
+	searchResult, err := b.documentsIdx.Search(searchOptions)
+	if err != nil {
+		return err
+	}
+
+	authorsBatch := b.authorsIdx.NewBatch()
+	authorsSeen := make(map[string]struct{})
+
+	for _, hit := range searchResult.Hits {
+		document := hydrateDocument(hit)
+		if err := b.indexAuthors(document, authorsBatch.Index, authorsSeen); err != nil {
+			return err
+		}
+		if authorsBatch.Size() >= 100 {
+			if err := b.authorsIdx.Batch(authorsBatch); err != nil {
+				return err
+			}
+			authorsBatch.Reset()
+		}
+	}
+
+	if authorsBatch.Size() > 0 {
+		if err := b.authorsIdx.Batch(authorsBatch); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

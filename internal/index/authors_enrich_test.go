@@ -13,14 +13,19 @@ import (
 )
 
 type mockAuthorDataSource struct {
-	byName  map[string]datasourcemodel.Author
-	calls   int
-	delay   time.Duration
-	errName string
+	byName        map[string]datasourcemodel.Author
+	bySlug        map[string]datasourcemodel.Author
+	entityIDs     map[string][]string
+	calls         int
+	searchCalls   int
+	retrieveCalls int
+	delay         time.Duration
+	errName       string
 }
 
 func (m *mockAuthorDataSource) SearchAuthor(name string, _ []string) (datasourcemodel.Author, error) {
 	m.calls++
+	m.searchCalls++
 	if m.delay > 0 {
 		time.Sleep(m.delay)
 	}
@@ -32,9 +37,42 @@ func (m *mockAuthorDataSource) SearchAuthor(name string, _ []string) (datasource
 
 var errMockLookup = errors.New("mock lookup failed")
 
+func (m *mockAuthorDataSource) SearchEntityIDs(name string) ([]string, error) {
+	m.calls++
+	m.searchCalls++
+	if m.delay > 0 {
+		time.Sleep(m.delay)
+	}
+	if m.errName == name {
+		return nil, errMockLookup
+	}
+	if m.entityIDs != nil {
+		if ids, ok := m.entityIDs[name]; ok {
+			return ids, nil
+		}
+	}
+	if author, ok := m.byName[name]; ok && author != nil {
+		return []string{author.SourceID()}, nil
+	}
+	return nil, nil
+}
+
 func (m *mockAuthorDataSource) RetrieveAuthor(_ []string, _ []string) (datasourcemodel.Author, error) {
 	m.calls++
+	m.retrieveCalls++
 	return nil, nil
+}
+
+func (m *mockAuthorDataSource) RetrieveAuthors(candidates map[string][]string, _ []string, _ time.Duration) (map[string]datasourcemodel.Author, error) {
+	m.calls++
+	m.retrieveCalls++
+	results := make(map[string]datasourcemodel.Author, len(candidates))
+	for slug := range candidates {
+		if author, ok := m.bySlug[slug]; ok {
+			results[slug] = author
+		}
+	}
+	return results, nil
 }
 
 type stubAuthor struct {
@@ -108,8 +146,11 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	}
 
 	dataSource := &mockAuthorDataSource{
-		byName: map[string]datasourcemodel.Author{
-			"Found Author": stubAuthor{sourceID: "Q1"},
+		bySlug: map[string]datasourcemodel.Author{
+			"found": stubAuthor{sourceID: "Q1"},
+		},
+		entityIDs: map[string][]string{
+			"Found Author": {"Q1"},
 		},
 	}
 
@@ -119,8 +160,11 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	}
 	elapsed := time.Since(start)
 
-	if dataSource.calls != 2 {
-		t.Fatalf("expected 2 Wikidata lookups, got %d", dataSource.calls)
+	if dataSource.searchCalls != 2 {
+		t.Fatalf("expected 2 Wikidata name searches, got %d", dataSource.searchCalls)
+	}
+	if dataSource.retrieveCalls != 1 {
+		t.Fatalf("expected 1 batched Wikidata entity fetch, got %d", dataSource.retrieveCalls)
 	}
 	if elapsed < 50*time.Millisecond {
 		t.Fatalf("expected throttling between lookups, took %s", elapsed)

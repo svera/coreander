@@ -19,6 +19,10 @@ import (
 
 const imgUrl = "https://upload.wikimedia.org/wikipedia/commons/%s/%s/%s"
 
+const maxEntitiesPerRequest = 50
+
+var entityFetchProps = []string{"descriptions", "claims", "sitelinks/urls", "labels"}
+
 type wikidata interface {
 	NewSearch(string, string) (SearchEntitiesRequest, error)
 	NewGetEntities([]string) (GetEntitiesRequest, error)
@@ -43,7 +47,7 @@ func NewWikidataSource(w wikidata) WikidataSource {
 }
 
 func (a WikidataSource) SearchAuthor(name string, languages []string) (model.Author, error) {
-	ids, err := a.getEntityIds(name)
+	ids, err := a.SearchEntityIDs(name)
 	if err != nil {
 		return nil, err
 	}
@@ -55,67 +59,170 @@ func (a WikidataSource) SearchAuthor(name string, languages []string) (model.Aut
 	return a.RetrieveAuthor(ids, languages)
 }
 
+// SearchEntityIDs returns Wikidata entity IDs matching the given author name.
+func (a WikidataSource) SearchEntityIDs(name string) ([]string, error) {
+	return a.getEntityIds(name)
+}
+
 // RetrieveAuthor returns the first match from the list of passed Wikidata entity IDs that represents a human
 func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.Author, error) {
-	author := Author{
-		wikipediaLink: make(map[string]string),
-		description:   make(map[string]string),
-	}
-
 	for _, id := range ids {
 		if !validateID(id) {
 			return Author{}, fmt.Errorf("invalid author ID %s", id)
 		}
 	}
 
-	entitiesReq, err := a.wikidata.NewGetEntities(ids)
-	if err != nil {
-		return nil, err
-	}
-	entitiesReq.SetProps([]string{"descriptions", "claims", "sitelinks/urls", "labels"})
-	entitiesReq.SetLanguages(languages)
-	// Call get to make the request based on the configurations
-	entities, err := entitiesReq.Get()
+	entities, err := a.fetchEntities(ids, languages)
 	if err != nil {
 		return nil, err
 	}
 
-	author.wikidataEntityId, author.instanceOf = getMostAccurateID(ids, entities)
+	author, err := a.authorFromEntityIDs(ids, entities, languages)
+	if err != nil {
+		return nil, err
+	}
 	if author.instanceOf == InstanceUnknown {
 		return nil, nil
 	}
+	return author, nil
+}
 
-	if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyBirthName]; exists {
+// RetrieveAuthors fetches metadata for multiple authors in as few Wikidata requests as possible.
+// Keys are caller-defined identifiers (for example author slugs). Values are Wikidata entity ID
+// candidates for each author, in search-result order.
+func (a WikidataSource) RetrieveAuthors(candidates map[string][]string, languages []string, batchInterval time.Duration) (map[string]model.Author, error) {
+	if len(candidates) == 0 {
+		return map[string]model.Author{}, nil
+	}
+
+	uniqueIDs := make([]string, 0)
+	seen := make(map[string]struct{})
+	for _, ids := range candidates {
+		for _, id := range ids {
+			if !validateID(id) {
+				return nil, fmt.Errorf("invalid author ID %s", id)
+			}
+			if id == "" {
+				continue
+			}
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			uniqueIDs = append(uniqueIDs, id)
+		}
+	}
+
+	entities, err := a.fetchEntitiesBatched(uniqueIDs, languages, batchInterval)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make(map[string]model.Author, len(candidates))
+	for key, ids := range candidates {
+		if len(ids) == 0 {
+			continue
+		}
+		author, err := a.authorFromEntityIDs(ids, entities, languages)
+		if err != nil {
+			return nil, err
+		}
+		if author.instanceOf == InstanceUnknown {
+			continue
+		}
+		results[key] = author
+	}
+	return results, nil
+}
+
+func (a WikidataSource) fetchEntities(ids []string, languages []string) (map[string]gowikidata.Entity, error) {
+	return a.fetchEntitiesBatched(ids, languages, 0)
+}
+
+func (a WikidataSource) fetchEntitiesBatched(ids []string, languages []string, batchInterval time.Duration) (map[string]gowikidata.Entity, error) {
+	entities := make(map[string]gowikidata.Entity, len(ids))
+	if len(ids) == 0 {
+		return entities, nil
+	}
+
+	for start := 0; start < len(ids); start += maxEntitiesPerRequest {
+		if start > 0 && batchInterval > 0 {
+			time.Sleep(batchInterval)
+		}
+		end := start + maxEntitiesPerRequest
+		if end > len(ids) {
+			end = len(ids)
+		}
+		chunk := ids[start:end]
+
+		entitiesReq, err := a.wikidata.NewGetEntities(chunk)
+		if err != nil {
+			return nil, err
+		}
+		entitiesReq.SetProps(entityFetchProps)
+		entitiesReq.SetLanguages(languages)
+		batch, err := entitiesReq.Get()
+		if err != nil {
+			return nil, err
+		}
+		for id, entity := range *batch {
+			entities[id] = entity
+		}
+	}
+	return entities, nil
+}
+
+func (a WikidataSource) authorFromEntityIDs(ids []string, entities map[string]gowikidata.Entity, languages []string) (Author, error) {
+	author := Author{
+		wikipediaLink: make(map[string]string),
+		description:   make(map[string]string),
+	}
+	if len(ids) == 0 {
+		return author, nil
+	}
+
+	entityPtr := &entities
+	author.wikidataEntityId, author.instanceOf = getMostAccurateID(ids, entityPtr)
+	if author.instanceOf == InstanceUnknown {
+		return author, nil
+	}
+
+	entity, ok := entities[author.wikidataEntityId]
+	if !ok {
+		return author, nil
+	}
+
+	if value, exists := entity.Claims[propertyBirthName]; exists {
 		author.birthName = value[0].MainSnak.DataValue.Value.ValueFields.Text
-	} else if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyNameInNativeLanguage]; exists {
+	} else if value, exists := entity.Claims[propertyNameInNativeLanguage]; exists {
 		author.birthName = value[0].MainSnak.DataValue.Value.ValueFields.Text
-	} else if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyOfficialName]; exists {
+	} else if value, exists := entity.Claims[propertyOfficialName]; exists {
 		author.birthName = value[0].MainSnak.DataValue.Value.ValueFields.Text
 	}
 
-	if value, exists := (*entities)[author.wikidataEntityId].Claims[propertySexOrGender]; exists {
+	if value, exists := entity.Claims[propertySexOrGender]; exists {
 		author.gender = parseGender(value[0])
 	}
 
 	author.retrievedOn = time.Now().UTC()
 	for _, lang := range languages {
-		if url := (*entities)[author.wikidataEntityId].SiteLinks[fmt.Sprintf("%swiki", lang)].URL; url != "" {
+		if url := entity.SiteLinks[fmt.Sprintf("%swiki", lang)].URL; url != "" {
 			author.wikipediaLink[lang] = url
 		}
-		if description := (*entities)[author.wikidataEntityId].Descriptions[lang].Value; description != "" {
+		if description := entity.Descriptions[lang].Value; description != "" {
 			author.description[lang] = description
 		}
 	}
-	if claim, exists := (*entities)[author.wikidataEntityId].Claims[propertyDateOfBirth]; exists {
+	if claim, exists := entity.Claims[propertyDateOfBirth]; exists {
 		author.dateOfBirth = parseDate(claim)
 	}
-	if claim, exists := (*entities)[author.wikidataEntityId].Claims[propertyDateOfDeath]; exists {
+	if claim, exists := entity.Claims[propertyDateOfDeath]; exists {
 		author.dateOfDeath = parseDate(claim)
 	}
-	if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyWebsite]; exists {
+	if value, exists := entity.Claims[propertyWebsite]; exists {
 		author.website = value[0].MainSnak.DataValue.Value.S
 	}
-	if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyPseudonym]; exists {
+	if value, exists := entity.Claims[propertyPseudonym]; exists {
 		author.pseudonyms = make([]string, 0, len(value))
 		for _, claim := range value {
 			pseudonym, err := strconv.Unquote("\"" + claim.MainSnak.DataValue.Value.S + "\"")
@@ -126,10 +233,10 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.
 		}
 	}
 
-	if value, exists := (*entities)[author.wikidataEntityId].Claims[propertyImage]; exists {
+	if value, exists := entity.Claims[propertyImage]; exists {
 		img, err := strconv.Unquote("\"" + value[0].MainSnak.DataValue.Value.S + "\"")
 		if err != nil {
-			return nil, err
+			return Author{}, err
 		}
 
 		if slices.Contains([]string{".png", ".jpg", ".jpeg", ".tif", ".tiff"}, strings.ToLower(filepath.Ext(img))) {

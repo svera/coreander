@@ -16,7 +16,9 @@ const (
 // AuthorDataSource retrieves author metadata from an external source such as Wikidata.
 type AuthorDataSource interface {
 	SearchAuthor(name string, languages []string) (datasourcemodel.Author, error)
+	SearchEntityIDs(name string) ([]string, error)
 	RetrieveAuthor(ids []string, languages []string) (datasourcemodel.Author, error)
+	RetrieveAuthors(candidates map[string][]string, languages []string, batchInterval time.Duration) (map[string]datasourcemodel.Author, error)
 }
 
 // CombineWithDataSource merges external author metadata into an indexed author.
@@ -76,7 +78,7 @@ func (b *BleveIndexer) AuthorsWithoutInfo() ([]Author, error) {
 }
 
 // EnrichAuthorsFromDataSource fetches metadata for authors missing external info and updates the index.
-// Requests are throttled to at most one author lookup per interval.
+// Name searches are throttled to at most one lookup per interval; entity details are fetched in batches.
 func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, supportedLanguages []string, interval time.Duration) error {
 	if interval <= 0 {
 		interval = DefaultAuthorEnrichInterval
@@ -92,28 +94,49 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 
 	log.Printf("Enriching %d authors from Wikidata", len(authors))
 
-	b.beginAuthorEnrichment(len(authors))
+	b.beginAuthorEnrichment(len(authors) * 2)
 	defer b.endAuthorEnrichment()
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	for i, author := range authors {
-		if i > 0 {
-			<-ticker.C
-		}
+	candidates := make(map[string][]string, len(authors))
+	authorsBySlug := make(map[string]Author, len(authors))
 
-		authorDataSource, err := b.fetchAuthorFromDataSource(dataSource, author, supportedLanguages)
-		if err != nil {
-			log.Printf("Error retrieving author %s from Wikidata: %s", author.Name, err)
+	searchIndex := 0
+	for _, author := range authors {
+		authorsBySlug[author.Slug] = author
+		if author.DataSourceID != "" {
+			candidates[author.Slug] = []string{author.DataSourceID}
 			b.recordAuthorEnrichmentProgress()
 			continue
 		}
 
-		if authorDataSource == nil {
-			author.RetrievedOn = time.Now().UTC()
+		if searchIndex > 0 {
+			<-ticker.C
+		}
+		searchIndex++
+
+		ids, err := dataSource.SearchEntityIDs(author.Name)
+		if err != nil {
+			log.Printf("Error searching author %s on Wikidata: %s", author.Name, err)
+			candidates[author.Slug] = nil
 		} else {
+			candidates[author.Slug] = ids
+		}
+		b.recordAuthorEnrichmentProgress()
+	}
+
+	enriched, err := dataSource.RetrieveAuthors(candidates, supportedLanguages, interval)
+	if err != nil {
+		return err
+	}
+
+	for slug, author := range authorsBySlug {
+		if authorDataSource, ok := enriched[slug]; ok {
 			CombineWithDataSource(&author, authorDataSource, supportedLanguages)
+		} else {
+			author.RetrievedOn = time.Now().UTC()
 		}
 
 		if err := b.IndexAuthor(author); err != nil {
@@ -124,11 +147,4 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 
 	log.Printf("Author enrichment finished")
 	return nil
-}
-
-func (b *BleveIndexer) fetchAuthorFromDataSource(dataSource AuthorDataSource, author Author, supportedLanguages []string) (datasourcemodel.Author, error) {
-	if author.DataSourceID != "" {
-		return dataSource.RetrieveAuthor([]string{author.DataSourceID}, supportedLanguages)
-	}
-	return dataSource.SearchAuthor(author.Name, supportedLanguages)
 }
