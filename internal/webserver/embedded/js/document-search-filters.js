@@ -18,7 +18,7 @@ if (i18nElement) {
 function documentsSyncOffcanvas() {
     syncSidebarFormToOffcanvas({
         searchFieldName: 'search',
-        offcanvasContainerId: 'search-filters',
+        offcanvasContainerId: 'document-search-filters',
         afterCopy: (offcanvasContainer) => {
             const sidebarSubjectsHidden = document.getElementById('sidebar-subjects-hidden')
             const offcanvasSubjectsHidden = document.getElementById('subjects-hidden')
@@ -30,12 +30,12 @@ function documentsSyncOffcanvas() {
     })
 }
 
-function initSearchFilters(searchFilters) {
+function initDocumentSearchFilters(searchFilters) {
     if (!searchFilters) return
     const searchFiltersForm = searchFilters.closest('form')
     if (!searchFiltersForm) return
 
-    const idPrefix = searchFilters.id === 'search-filters-sidebar' ? 'sidebar-' : ''
+    const idPrefix = searchFilters.id === 'document-search-filters-sidebar' ? 'sidebar-' : ''
     const composeDateControls = initDateControls(searchFilters, searchFiltersForm)
 
     const { scheduleApplyFilters } = initFilterFormBehavior({
@@ -45,7 +45,7 @@ function initSearchFilters(searchFilters) {
         listPath: '/documents',
         syncOffcanvas: documentsSyncOffcanvas,
         beforeSidebarApply: () => {
-            const sidebarContainer = document.getElementById('search-filters-sidebar')
+            const sidebarContainer = document.getElementById('document-search-filters-sidebar')
             if (sidebarContainer) sidebarContainer.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
         },
     })
@@ -223,14 +223,14 @@ function initSubjectsFilters(searchFilters, idPrefix, triggerSearchUpdate) {
     }
 }
 
-enableFilterInputsOnPageShow(['search-filters', 'search-filters-sidebar'])
+enableFilterInputsOnPageShow(['document-search-filters', 'document-search-filters-sidebar'])
 
-initSearchFilters(document.getElementById('search-filters'))
-initSearchFilters(document.getElementById('search-filters-sidebar'))
+initDocumentSearchFilters(document.getElementById('document-search-filters'))
+initDocumentSearchFilters(document.getElementById('document-search-filters-sidebar'))
 
 bindOffcanvasFilterSync({
     sidebarFormId: 'search-filters-form',
-    offcanvasContainerId: 'search-filters',
+    offcanvasContainerId: 'document-search-filters',
     offcanvasElementId: 'search-filters-offcanvas',
     syncOffcanvas: documentsSyncOffcanvas,
 })

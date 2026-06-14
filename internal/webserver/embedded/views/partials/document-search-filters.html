@@ -1,5 +1,5 @@
 {{$idPrefix := or .FilterIdPrefix ""}}
-<div class="row card-body" id="search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
+<div class="row card-body" id="document-search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
     {{if $idPrefix}}
     <fieldset class="mb-4">
         <legend class="fs-5"><i class="bi bi-search me-3"></i>{{t .Lang "Search"}}</legend>
@@ -124,5 +124,5 @@
     "remove_subject": {{t .Lang "Remove subject: %s" "%s"}}
 }}</script>
 
-<script type="module" src="/js/search-filters.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/document-search-filters.js{{versionParam .Version}}"></script>
 {{end}}
