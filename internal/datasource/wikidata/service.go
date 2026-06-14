@@ -61,7 +61,24 @@ func (a WikidataSource) SearchAuthor(name string, languages []string) (model.Aut
 
 // SearchEntityIDs returns Wikidata entity IDs matching the given author name.
 func (a WikidataSource) SearchEntityIDs(name string) ([]string, error) {
-	return a.getEntityIds(name)
+	query, err := a.wikidata.NewSearch(url.QueryEscape(name), "en")
+	if err != nil {
+		return nil, err
+	}
+	result, err := query.Get()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result.SearchResult) == 0 {
+		return nil, nil
+	}
+
+	ids := make([]string, 0, len(result.SearchResult))
+	for _, entity := range result.SearchResult {
+		ids = append(ids, entity.ID)
+	}
+	return ids, nil
 }
 
 // RetrieveAuthor returns the first match from the list of passed Wikidata entity IDs that represents a human
@@ -263,29 +280,6 @@ func getMostAccurateID(ids []string, entities *map[string]gowikidata.Entity) (st
 	}
 
 	return "", InstanceUnknown
-}
-
-// getEntityIds return all entity IDs from Wikidata which matches the passed name
-func (a WikidataSource) getEntityIds(name string) ([]string, error) {
-	query, err := a.wikidata.NewSearch(url.QueryEscape(name), "en")
-	if err != nil {
-		return []string{}, err
-	}
-	result, err := query.Get()
-	if err != nil {
-		return []string{}, err
-	}
-
-	if len(result.SearchResult) == 0 {
-		return []string{}, nil
-	}
-
-	res := make([]string, 0, len(result.SearchResult))
-	for _, entity := range result.SearchResult {
-		res = append(res, entity.ID)
-	}
-
-	return res, nil
 }
 
 func parseGender(claim gowikidata.Claim) float64 {
