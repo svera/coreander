@@ -11,6 +11,56 @@ import (
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
 
+func TestUnifiedSearch(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	smtpMock := &infrastructure.SMTPMock{}
+	appFS := loadDirInMemoryFs("testdata/library")
+
+	app := bootstrapApp(db, smtpMock, appFS, webserver.Config{})
+
+	req, err := http.NewRequest(http.MethodGet, "/search?search=john&type=documents", nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	response, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Errorf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if documentResults := doc.Find("#list .list-group-item").Length(); documentResults == 0 {
+		t.Error("Expected document search results for john")
+	}
+
+	req, err = http.NewRequest(http.MethodGet, "/search?search=john&type=authors", nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	response, err = app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Errorf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+
+	doc, err = goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if authorResults := doc.Find("#list .list-group-item").Length(); authorResults == 0 {
+		t.Error("Expected author search results for john")
+	}
+}
+
 func TestSearch(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	smtpMock := &infrastructure.SMTPMock{}

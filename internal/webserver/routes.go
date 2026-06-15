@@ -117,12 +117,12 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	docsGroup.Post("/:slug/send", alwaysRequireAuthentication, controllers.Documents.Send)
 	docsGroup.Post("/:slug/share", alwaysRequireAuthentication, controllers.Documents.Share)
 	docsGroup.Get("/:slug", controllers.Documents.Detail)
-	docsGroup.Get("/", controllers.Documents.Search)
+	docsGroup.Get("/", controllers.Search.SearchDocuments)
 
-	app.Get("/subjects", controllers.Documents.Subjects)
+	app.Get("/subjects", controllers.Search.Subjects)
 
 	app.Get("/authors/:slug.:extension<regex(jpg)$/i>", controllers.Authors.Image)
-	app.Get("/authors", controllers.Authors.Search)
+	app.Get("/authors", controllers.Search.SearchAuthors)
 	app.Get("/authors/:slug", controllers.Authors.Documents)
 	app.Get("/authors/:slug/summary", controllers.Authors.Summary)
 	app.Put("/authors/:slug", controllers.Authors.Update, alwaysRequireAuthentication, RequireAdmin)
@@ -131,5 +131,6 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	app.Get("/series/:slug", controllers.Series.Documents)
 
 	app.Get("/resume-reading", alwaysRequireAuthentication, controllers.Home.ResumeReading)
+	app.Get("/search", controllers.Search.Search)
 	app.Get("/", controllers.Home.Index)
 }

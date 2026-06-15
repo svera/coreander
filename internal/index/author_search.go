@@ -11,6 +11,9 @@ import (
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v5/internal/result"
+	"golang.org/x/text/runes"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 )
 
 type AuthorSearchFields struct {
@@ -42,25 +45,47 @@ func authorNameQuery(name string) query.Query {
 	if name == "" {
 		return nil
 	}
-	name = foldAuthorName(name)
 
 	disj := bleve.NewDisjunctionQuery()
 	for _, field := range []string{"Name", "BirthName"} {
-		prefix := bleve.NewPrefixQuery(name)
+		match := bleve.NewMatchQuery(name)
+		match.SetField(field)
+		match.Analyzer = defaultAnalyzer
+		match.Operator = query.MatchQueryOperatorAnd
+		disj.AddQuery(match)
+
+		folded := foldAuthorName(name)
+		if !isSingleAuthorNameToken(folded) {
+			continue
+		}
+
+		prefix := bleve.NewPrefixQuery(folded)
 		prefix.SetField(field)
 		disj.AddQuery(prefix)
 
-		wildcard := bleve.NewWildcardQuery("*" + escapeWildcard(name) + "*")
+		wildcard := bleve.NewWildcardQuery("*" + escapeWildcard(folded) + "*")
 		wildcard.SetField(field)
 		disj.AddQuery(wildcard)
 	}
 	return disj
 }
 
+func isSingleAuthorNameToken(folded string) bool {
+	if folded == "" {
+		return false
+	}
+	return !strings.ContainsAny(folded, " \t-")
+}
+
 func foldAuthorName(name string) string {
-	return strings.Map(func(r rune) rune {
-		return unicode.ToLower(r)
-	}, name)
+	folded, _, err := transform.String(
+		transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC),
+		name,
+	)
+	if err != nil {
+		folded = name
+	}
+	return strings.ToLower(folded)
 }
 
 func escapeWildcard(value string) string {

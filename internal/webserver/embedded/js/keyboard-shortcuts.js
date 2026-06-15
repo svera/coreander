@@ -57,11 +57,9 @@ function isVisible(element) {
 function getSearchInput() {
     const candidates = [
         document.querySelector('#searchbox-container input[name="search"]'),
-        document.querySelector('#authors-searchbox-container input[name="name"]'),
         document.querySelector('#sidebar-search'),
         ...document.querySelectorAll('#searchbox'),
         document.querySelector('#searchbox-offcanvas'),
-        document.querySelector('#authors-searchbox'),
     ]
 
     for (const input of candidates) {

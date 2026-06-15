@@ -12,7 +12,11 @@ import {
 let translations = {}
 const i18nElement = document.getElementById('i18n')
 if (i18nElement) {
-    translations = JSON.parse(i18nElement.textContent).i18n
+    try {
+        translations = JSON.parse(i18nElement.textContent).i18n
+    } catch (_) {
+        translations = {}
+    }
 }
 
 function documentsSyncOffcanvas() {
@@ -38,22 +42,27 @@ function initDocumentSearchFilters(searchFilters) {
     const idPrefix = searchFilters.id === 'document-search-filters-sidebar' ? 'sidebar-' : ''
     const composeDateControls = initDateControls(searchFilters, searchFiltersForm)
 
-    const { scheduleApplyFilters } = initFilterFormBehavior({
-        searchFilters,
-        searchFiltersForm,
-        composeDateControls,
-        listPath: '/documents',
-        syncOffcanvas: documentsSyncOffcanvas,
-        beforeSidebarApply: () => {
-            const sidebarContainer = document.getElementById('document-search-filters-sidebar')
-            if (sidebarContainer) sidebarContainer.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
-        },
-    })
+    if (searchFiltersForm.dataset.coreanderFilterBehavior !== 'true') {
+        const { scheduleApplyFilters } = initFilterFormBehavior({
+            searchFilters,
+            searchFiltersForm,
+            composeDateControls,
+            listPath: '/search',
+            syncOffcanvas: documentsSyncOffcanvas,
+            beforeSidebarApply: () => {
+                const sidebarContainer = document.getElementById('document-search-filters-sidebar')
+                if (sidebarContainer) sidebarContainer.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
+            },
+        })
+        searchFiltersForm.dataset.coreanderFilterBehavior = 'true'
+        initSubjectsFilters(searchFilters, idPrefix, scheduleApplyFilters)
+        return
+    }
 
-    initSubjectsFilters(searchFilters, idPrefix, scheduleApplyFilters)
+    initSubjectsFilters(searchFilters, idPrefix, null)
 }
 
-function initSubjectsFilters(searchFilters, idPrefix, triggerSearchUpdate) {
+export function initSubjectsFilters(searchFilters, idPrefix, triggerSearchUpdate) {
     const subjectsList = document.getElementById(idPrefix + 'subjects-list')
     const subjectsInput = document.getElementById(idPrefix + 'subjects')
     const subjectsHiddenInput = document.getElementById(idPrefix + 'subjects-hidden')
@@ -223,14 +232,16 @@ function initSubjectsFilters(searchFilters, idPrefix, triggerSearchUpdate) {
     }
 }
 
-enableFilterInputsOnPageShow(['document-search-filters', 'document-search-filters-sidebar'])
+if (!document.getElementById('home-search-form')) {
+    enableFilterInputsOnPageShow(['document-search-filters', 'document-search-filters-sidebar'])
 
-initDocumentSearchFilters(document.getElementById('document-search-filters'))
-initDocumentSearchFilters(document.getElementById('document-search-filters-sidebar'))
+    initDocumentSearchFilters(document.getElementById('document-search-filters'))
+    initDocumentSearchFilters(document.getElementById('document-search-filters-sidebar'))
 
-bindOffcanvasFilterSync({
-    sidebarFormId: 'search-filters-form',
-    offcanvasContainerId: 'document-search-filters',
-    offcanvasElementId: 'search-filters-offcanvas',
-    syncOffcanvas: documentsSyncOffcanvas,
-})
+    bindOffcanvasFilterSync({
+        sidebarFormId: 'search-filters-form',
+        offcanvasContainerId: 'document-search-filters',
+        offcanvasElementId: 'search-filters-offcanvas',
+        syncOffcanvas: documentsSyncOffcanvas,
+    })
+}

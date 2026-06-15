@@ -1,4 +1,4 @@
-package author
+package search
 
 import (
 	"log"
@@ -8,83 +8,56 @@ import (
 	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
-	"github.com/svera/coreander/v5/internal/result"
-	"github.com/svera/coreander/v5/internal/webserver/model"
-	"github.com/svera/coreander/v5/internal/webserver/view"
 )
 
-func (a *Controller) Search(c fiber.Ctx) error {
-	searchFields, err := a.parseAuthorSearchQuery(c)
-	if err != nil {
-		log.Println(err)
-		return fiber.ErrBadRequest
+func parseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.SearchFields, error) {
+	searchFields := index.SearchFields{
+		Keywords:        c.Query("search"),
+		Language:        c.Query("language"),
+		Subjects:        c.Query("subjects"),
+		SortBy:          parseDocumentSortBy(c),
+		EstReadTimeFrom: fiber.Query[float64](c, "est-read-time-from", 0),
+		EstReadTimeTo:   fiber.Query[float64](c, "est-read-time-to", 0),
+		WordsPerMinute:  wordsPerMinute,
+		IllustratedOnly: c.Query("illustrated-only") == "on" || c.Query("illustrated-only") == "1",
 	}
 
-	page, err := strconv.Atoi(c.Query("page"))
-	if err != nil {
-		page = 1
-	}
-
-	var authorResults result.Paginated[[]index.Author]
-	if authorResults, err = a.idx.SearchAuthors(searchFields, page, int(model.ResultsPerPage)); err != nil {
-		log.Println(err)
-		return fiber.ErrInternalServerError
-	}
-
-	documentCounts := map[string]uint64{}
-	if slugs := authorSlugs(authorResults.Hits()); len(slugs) > 0 {
-		if documentCounts, err = a.idx.DocumentCountsByAuthorSlugs(slugs); err != nil {
-			log.Println(err)
-			return fiber.ErrInternalServerError
+	if c.Query("pub-date-from") != "" {
+		pubDateFrom, err := date.ParseISO(c.Query("pub-date-from"))
+		if err != nil {
+			return searchFields, err
 		}
+		searchFields.PubDateFrom = pubDateFrom
 	}
 
-	templateVars := fiber.Map{
-		"SearchFields":      searchFields,
-		"SelectedGender":    c.Query("gender"),
-		"Results":           authorResults,
-		"DocumentCounts":    documentCounts,
-		"Paginator":         view.Pagination(model.MaxPagesNavigator, authorResults, c.Queries()),
-		"Title":             "Search authors",
-		"AuthorsSearchPage": true,
-		"URL":               view.URL(c),
-		"SortURL":           view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":            c.Query("sort-by"),
-		"AdditionalSortOptions": []struct {
-			Key   string
-			Value string
-		}{
-			{"name-a-z", "name A-Z"},
-			{"name-z-a", "name Z-A"},
-			{"birth-older-first", "birth older first"},
-			{"birth-newer-first", "birth newer first"},
-			{"death-older-first", "death older first"},
-			{"death-newer-first", "death newer first"},
-			{"documents-more-first", "documents more first"},
-			{"documents-fewer-first", "documents fewer first"},
-		},
-	}
-
-	if c.Get("hx-request") == "true" {
-		if err = c.Render("partials/authors-list-fragments", templateVars); err != nil {
-			log.Println(err)
-			return fiber.ErrInternalServerError
+	if c.Query("pub-date-to") != "" {
+		pubDateTo, err := date.ParseISO(c.Query("pub-date-to"))
+		if err != nil {
+			return searchFields, err
 		}
-		return nil
+		searchFields.PubDateTo = pubDateTo
 	}
 
-	if err = c.Render("author/search", templateVars, "layout"); err != nil {
-		log.Println(err)
-		return fiber.ErrInternalServerError
+	if searchFields.PubDateTo != 0 && searchFields.PubDateFrom > searchFields.PubDateTo {
+		searchFields.PubDateFrom, searchFields.PubDateTo = searchFields.PubDateTo, searchFields.PubDateFrom
 	}
 
-	return nil
+	if searchFields.EstReadTimeTo != 0 && searchFields.EstReadTimeFrom > searchFields.EstReadTimeTo {
+		searchFields.EstReadTimeFrom, searchFields.EstReadTimeTo = searchFields.EstReadTimeTo, searchFields.EstReadTimeFrom
+	}
+
+	return searchFields, nil
 }
 
-func (a *Controller) parseAuthorSearchQuery(c fiber.Ctx) (index.AuthorSearchFields, error) {
+func parseAuthorSearchQuery(c fiber.Ctx) (index.AuthorSearchFields, error) {
+	name := c.Query("name")
+	if name == "" {
+		name = c.Query("search")
+	}
+
 	searchFields := index.AuthorSearchFields{
-		Name:   c.Query("name"),
-		SortBy: a.parseAuthorSearchSortBy(c),
+		Name:   name,
+		SortBy: parseAuthorSortBy(c),
 	}
 
 	if gender, ok := parseGenderQuery(c.Query("gender")); ok {
@@ -152,7 +125,23 @@ func parseGenderQuery(value string) (float64, bool) {
 	}
 }
 
-func (a *Controller) parseAuthorSearchSortBy(c fiber.Ctx) []string {
+func parseDocumentSortBy(c fiber.Ctx) []string {
+	if c.Query("sort-by") != "" {
+		switch c.Query("sort-by") {
+		case "pub-date-older-first":
+			return []string{"Publication.Date"}
+		case "pub-date-newer-first":
+			return []string{"-Publication.Date"}
+		case "est-read-time-shorter-first":
+			return []string{"Words"}
+		case "est-read-time-longer-first":
+			return []string{"-Words"}
+		}
+	}
+	return []string{"-_score", "Series", "SeriesIndex"}
+}
+
+func parseAuthorSortBy(c fiber.Ctx) []string {
 	switch c.Query("sort-by") {
 	case "name-z-a":
 		return []string{"-Name"}
@@ -173,10 +162,38 @@ func (a *Controller) parseAuthorSearchSortBy(c fiber.Ctx) []string {
 	}
 }
 
+func searchTypeFromContext(c fiber.Ctx) string {
+	if val, ok := c.Locals("SearchType").(string); ok && val != "" {
+		return val
+	}
+	if t := c.Query("type"); t == TypeAuthors {
+		return TypeAuthors
+	}
+	return TypeDocuments
+}
+
+func parsePage(c fiber.Ctx) int {
+	page, err := strconv.Atoi(c.Query("page"))
+	if err != nil {
+		return 1
+	}
+	return page
+}
+
 func authorSlugs(authors []index.Author) []string {
 	slugs := make([]string, len(authors))
 	for i, author := range authors {
 		slugs[i] = author.Slug
 	}
 	return slugs
+}
+
+// Subjects returns all subjects from the index grouped by slug, as JSON.
+func (s *Controller) Subjects(c fiber.Ctx) error {
+	bySlug, err := s.idx.Subjects()
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+	return c.JSON(bySlug)
 }

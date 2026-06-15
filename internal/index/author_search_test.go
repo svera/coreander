@@ -43,6 +43,13 @@ func TestSearchAuthors(t *testing.T) {
 			RetrievedOn: mustParseTime("2020-01-01T00:00:00Z"),
 		},
 		{
+			Slug:        "arturo-perez-reverte",
+			Name:        "Arturo Pérez-Reverte",
+			Gender:      float64(wikidata.GenderMale),
+			DateOfBirth: precisiondate.NewPrecisionDate("+1951-11-24T00:00:00Z", precisiondate.PrecisionDay),
+			RetrievedOn: mustParseTime("2020-01-01T00:00:00Z"),
+		},
+		{
 			Slug:        "living-author",
 			Name:        "Living Author",
 			Gender:      float64(wikidata.GenderMale),
@@ -76,6 +83,19 @@ func TestSearchAuthors(t *testing.T) {
 			hits := res.Hits()
 			if res.TotalHits() != 1 || hits[0].Slug != "george-orwell" {
 				t.Fatalf("search %q: expected George Orwell, got %#v", name, hits)
+			}
+		}
+	})
+
+	t.Run("by name unaccented and spaced", func(t *testing.T) {
+		for _, name := range []string{"perez reverte", "Pérez-Reverte", "perez-reverte", "PEREZ REVERTE"} {
+			res, err := idx.SearchAuthors(index.AuthorSearchFields{Name: name}, 1, 10)
+			if err != nil {
+				t.Fatal(err)
+			}
+			hits := res.Hits()
+			if res.TotalHits() != 1 || hits[0].Slug != "arturo-perez-reverte" {
+				t.Fatalf("search %q: expected Arturo Pérez-Reverte, got %#v", name, hits)
 			}
 		}
 	})
@@ -163,7 +183,11 @@ func TestSearchAuthors(t *testing.T) {
 			t.Fatal(err)
 		}
 		moreHits := moreFirst.Hits()
-		if len(moreHits) != 3 || moreHits[0].Slug != "george-orwell" || moreHits[1].Slug != "jane-austen" || moreHits[2].Slug != "living-author" {
+		if len(moreHits) != 4 ||
+			moreHits[0].Slug != "george-orwell" ||
+			moreHits[1].Slug != "jane-austen" ||
+			moreHits[2].Slug != "arturo-perez-reverte" ||
+			moreHits[3].Slug != "living-author" {
 			t.Fatalf("expected authors sorted by most documents first, got %#v", moreHits)
 		}
 
@@ -172,7 +196,11 @@ func TestSearchAuthors(t *testing.T) {
 			t.Fatal(err)
 		}
 		fewerHits := fewerFirst.Hits()
-		if len(fewerHits) != 3 || fewerHits[0].Slug != "living-author" || fewerHits[1].Slug != "jane-austen" || fewerHits[2].Slug != "george-orwell" {
+		if len(fewerHits) != 4 ||
+			fewerHits[0].Slug != "arturo-perez-reverte" ||
+			fewerHits[1].Slug != "living-author" ||
+			fewerHits[2].Slug != "jane-austen" ||
+			fewerHits[3].Slug != "george-orwell" {
 			t.Fatalf("expected authors sorted by fewest documents first, got %#v", fewerHits)
 		}
 	})

@@ -5,6 +5,8 @@
 "Search results": "Resultados de la búsqueda"
 "Search in %d documents": "Buscar en %d documentos"
 "Search in %d authors": "Buscar en %d autores"
+"Search in %d documents and %d authors": "Buscar en %d documentos y %d autores"
+"No results found": "No se encontraron resultados"
 "Download": "Descargar"
 "%d documents found": "Hallados %d documentos"
 "No documents found": "No se han encontrado documentos"

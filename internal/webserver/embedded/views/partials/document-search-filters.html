@@ -1,5 +1,5 @@
 {{$idPrefix := or .FilterIdPrefix ""}}
-<div class="row card-body" id="document-search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
+<div class="search-filters-panel p-3" id="document-search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
     {{if $idPrefix}}
     <fieldset class="mb-4">
         <legend class="fs-5"><i class="bi bi-search me-3"></i>{{t .Lang "Search"}}</legend>
@@ -109,17 +109,15 @@
             </div>
         </div>
     </fieldset>
-    {{if not .DocumentsSearchPage}}
-    <div class="row mt-4 g-0 w-100 px-2">
+    <div class="row mt-4 g-0 w-100">
         <div class="col-12">
             <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
         </div>
     </div>
-    {{end}}
 </div>
 
 {{/* Include script and i18n from sidebar when on documents search page (so script runs after sidebar is in DOM); otherwise include from offcanvas. */}}
-{{if or $idPrefix (not .DocumentsSearchPage)}}
+{{if and (or $idPrefix (not .DocumentsSearchPage)) (not .HomeSearch)}}
 <script id="i18n" type="application/json">{"i18n":{
     "remove_subject": {{t .Lang "Remove subject: %s" "%s"}}
 }}</script>

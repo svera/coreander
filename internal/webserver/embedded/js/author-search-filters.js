@@ -22,13 +22,19 @@ function initAuthorSearchFilters(searchFilters) {
     if (!searchFiltersForm) return
 
     const composeDateControls = initDateControls(searchFilters, searchFiltersForm)
+    searchFiltersForm._coreanderComposeDates = searchFiltersForm._coreanderComposeDates || []
+    searchFiltersForm._coreanderComposeDates.push(composeDateControls)
+    if (searchFiltersForm.dataset.coreanderFilterBehavior === 'true') {
+        return
+    }
     initFilterFormBehavior({
         searchFilters,
         searchFiltersForm,
         composeDateControls,
-        listPath: '/authors',
+        listPath: '/search',
         syncOffcanvas: authorSyncOffcanvas,
     })
+    searchFiltersForm.dataset.coreanderFilterBehavior = 'true'
 }
 
 enableFilterInputsOnPageShow(['author-search-filters', 'author-search-filters-sidebar'])

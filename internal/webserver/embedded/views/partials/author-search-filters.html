@@ -1,5 +1,5 @@
 {{$idPrefix := or .FilterIdPrefix ""}}
-<div class="row card-body" id="author-search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
+<div class="search-filters-panel p-3" id="author-search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
     {{if $idPrefix}}
     <fieldset class="mb-4">
         <legend class="fs-5"><i class="bi bi-search me-3"></i>{{t .Lang "Search"}}</legend>
@@ -62,16 +62,14 @@
             </div>
         </div>
     </fieldset>
-    {{if not .AuthorsSearchPage}}
-    <div class="row mt-4 g-0 w-100 px-2">
+    <div class="row mt-4 g-0 w-100">
         <div class="col-12">
             <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
         </div>
     </div>
-    {{end}}
 </div>
 
-{{if or $idPrefix (not .AuthorsSearchPage)}}
+{{if and (or $idPrefix (not .AuthorsSearchPage)) (not .HomeSearch)}}
 <script type="module" src="/js/datetime.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/author-search-filters.js{{versionParam .Version}}"></script>
 {{end}}

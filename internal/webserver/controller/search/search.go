@@ -1,0 +1,183 @@
+package search
+
+import (
+	"log"
+
+	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver/view"
+)
+
+func (s *Controller) SearchDocuments(c fiber.Ctx) error {
+	c.Locals("SearchType", TypeDocuments)
+	return s.Search(c)
+}
+
+func (s *Controller) SearchAuthors(c fiber.Ctx) error {
+	c.Locals("SearchType", TypeAuthors)
+	return s.Search(c)
+}
+
+func (s *Controller) Search(c fiber.Ctx) error {
+	searchType := searchTypeFromContext(c)
+
+	var session model.Session
+	if val, ok := c.Locals("Session").(model.Session); ok {
+		session = val
+	}
+
+	wordsPerMinute := s.config.WordsPerMinute
+	if session.WordsPerMinute > 0 {
+		wordsPerMinute = session.WordsPerMinute
+	}
+
+	page := parsePage(c)
+
+	if searchType == TypeAuthors {
+		return s.renderAuthorSearch(c, session, page)
+	}
+	return s.renderDocumentSearch(c, session, page, wordsPerMinute)
+}
+
+func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, page int, wordsPerMinute float64) error {
+	searchFields, err := parseDocumentSearchQuery(c, wordsPerMinute)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrBadRequest
+	}
+
+	documentResults, err := s.idx.Search(searchFields, page, model.ResultsPerPage)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
+	searchResults := model.AugmentedDocumentsFromDocuments(documentResults)
+	if session.ID > 0 {
+		searchResults = s.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
+		searchResults = s.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
+	}
+
+	templateVars := s.baseTemplateVars(c, TypeDocuments)
+	templateVars["SearchFields"] = searchFields
+	templateVars["DocumentSearchFields"] = searchFields
+	templateVars["AuthorSearchFields"] = index.AuthorSearchFields{}
+	templateVars["SearchQuery"] = searchFields.Keywords
+	templateVars["Results"] = searchResults
+	templateVars["Title"] = "Search results"
+	templateVars["WordsPerMinute"] = wordsPerMinute
+	templateVars["SortBy"] = c.Query("sort-by")
+	templateVars["AdditionalSortOptions"] = documentSortOptions()
+
+	return s.renderSearch(c, templateVars, "partials/docs-list-fragments")
+}
+
+func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page int) error {
+	searchFields, err := parseAuthorSearchQuery(c)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrBadRequest
+	}
+
+	authorResults, err := s.idx.SearchAuthors(searchFields, page, int(model.ResultsPerPage))
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
+	documentCounts := map[string]uint64{}
+	if slugs := authorSlugs(authorResults.Hits()); len(slugs) > 0 {
+		if documentCounts, err = s.idx.DocumentCountsByAuthorSlugs(slugs); err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
+	}
+
+	keywords := searchFields.Name
+	templateVars := s.baseTemplateVars(c, TypeAuthors)
+	templateVars["SearchFields"] = searchFields
+	templateVars["AuthorSearchFields"] = searchFields
+	templateVars["DocumentSearchFields"] = index.SearchFields{Keywords: keywords}
+	templateVars["SearchQuery"] = keywords
+	templateVars["SelectedGender"] = c.Query("gender")
+	templateVars["Results"] = authorResults
+	templateVars["DocumentCounts"] = documentCounts
+	templateVars["Title"] = "Search authors"
+	templateVars["SortBy"] = c.Query("sort-by")
+	templateVars["AdditionalSortOptions"] = authorSortOptions()
+
+	return s.renderSearch(c, templateVars, "partials/authors-list-fragments")
+}
+
+func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string) fiber.Map {
+	return fiber.Map{
+		"SearchType": searchType,
+		"SearchPage": true,
+		"EmailFrom":  s.sender.From(),
+		"URL":        view.URL(c),
+		"SortURL":    view.BaseURLWithout(c, "sort-by", "page"),
+	}
+}
+
+func (s *Controller) renderSearch(c fiber.Ctx, templateVars fiber.Map, fragmentTemplate string) error {
+	if results, ok := templateVars["Results"]; ok {
+		switch r := results.(type) {
+		case result.Paginated[[]model.AugmentedDocument]:
+			templateVars["Paginator"] = view.Pagination(model.MaxPagesNavigator, r, c.Queries())
+		case result.Paginated[[]index.Author]:
+			templateVars["Paginator"] = view.Pagination(model.MaxPagesNavigator, r, c.Queries())
+		}
+	}
+
+	if c.Get("hx-request") == "true" {
+		if err := c.Render(fragmentTemplate, templateVars); err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
+		return nil
+	}
+
+	if err := c.Render("search/list", templateVars, "layout"); err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
+	return nil
+}
+
+func documentSortOptions() []struct {
+	Key   string
+	Value string
+} {
+	return []struct {
+		Key   string
+		Value string
+	}{
+		{"relevance", "relevance"},
+		{"pub-date-older-first", "older"},
+		{"pub-date-newer-first", "newer"},
+		{"est-read-time-shorter-first", "shorter"},
+		{"est-read-time-longer-first", "longer"},
+	}
+}
+
+func authorSortOptions() []struct {
+	Key   string
+	Value string
+} {
+	return []struct {
+		Key   string
+		Value string
+	}{
+		{"name-a-z", "name A-Z"},
+		{"name-z-a", "name Z-A"},
+		{"birth-older-first", "birth older first"},
+		{"birth-newer-first", "birth newer first"},
+		{"death-older-first", "death older first"},
+		{"death-newer-first", "death newer first"},
+		{"documents-more-first", "documents more first"},
+		{"documents-fewer-first", "documents fewer first"},
+	}
+}
