@@ -1,5 +1,5 @@
 {{$searchType := or .SearchType "documents"}}
-<div class="p-3 pb-3 search-filters-sidebar-sticky">
+<div class="search-filters-sidebar-sticky">
     <form id="search-filters-form" action="/search" method="get" role="search">
         <input type="hidden" name="type" id="search-type" value="{{$searchType}}">
         <ul class="nav nav-tabs nav-fill home-search-tabs mb-0" id="search-sidebar-tabs" role="tablist">

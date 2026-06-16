@@ -4,16 +4,12 @@ import (
 	"cmp"
 	"slices"
 	"strings"
-	"unicode"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/search"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v5/internal/result"
-	"golang.org/x/text/runes"
-	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
 )
 
 type AuthorSearchFields struct {
@@ -29,7 +25,7 @@ type AuthorSearchFields struct {
 func (b *BleveIndexer) SearchAuthors(searchFields AuthorSearchFields, page, resultsPerPage int) (result.Paginated[[]Author], error) {
 	filtersQuery := bleve.NewConjunctionQuery()
 
-	if q := authorNameQuery(searchFields.Name); q != nil {
+	if q := b.authorNameQuery(searchFields.Name); q != nil {
 		filtersQuery.AddQuery(q)
 	} else {
 		filtersQuery.AddQuery(bleve.NewMatchAllQuery())
@@ -40,13 +36,15 @@ func (b *BleveIndexer) SearchAuthors(searchFields AuthorSearchFields, page, resu
 	return b.runAuthorsPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 }
 
-func authorNameQuery(name string) query.Query {
+func (b *BleveIndexer) authorNameQuery(name string) query.Query {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil
 	}
 
 	disj := bleve.NewDisjunctionQuery()
+	terms := b.analyzedAuthorNameTerms(name)
+
 	for _, field := range []string{"Name", "BirthName"} {
 		match := bleve.NewMatchQuery(name)
 		match.SetField(field)
@@ -54,38 +52,37 @@ func authorNameQuery(name string) query.Query {
 		match.Operator = query.MatchQueryOperatorAnd
 		disj.AddQuery(match)
 
-		folded := foldAuthorName(name)
-		if !isSingleAuthorNameToken(folded) {
+		if len(terms) != 1 {
 			continue
 		}
 
-		prefix := bleve.NewPrefixQuery(folded)
+		term := terms[0]
+		prefix := bleve.NewPrefixQuery(term)
 		prefix.SetField(field)
 		disj.AddQuery(prefix)
 
-		wildcard := bleve.NewWildcardQuery("*" + escapeWildcard(folded) + "*")
+		wildcard := bleve.NewWildcardQuery("*" + escapeWildcard(term) + "*")
 		wildcard.SetField(field)
 		disj.AddQuery(wildcard)
 	}
 	return disj
 }
 
-func isSingleAuthorNameToken(folded string) bool {
-	if folded == "" {
-		return false
+func (b *BleveIndexer) analyzedAuthorNameTerms(name string) []string {
+	analyzer := b.authorsIdx.Mapping().AnalyzerNamed(defaultAnalyzer)
+	if analyzer == nil {
+		return nil
 	}
-	return !strings.ContainsAny(folded, " \t-")
-}
 
-func foldAuthorName(name string) string {
-	folded, _, err := transform.String(
-		transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC),
-		name,
-	)
-	if err != nil {
-		folded = name
+	tokens := analyzer.Analyze([]byte(name))
+	terms := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		if token == nil || len(token.Term) == 0 {
+			continue
+		}
+		terms = append(terms, string(token.Term))
 	}
-	return strings.ToLower(folded)
+	return terms
 }
 
 func escapeWildcard(value string) string {
