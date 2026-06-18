@@ -180,14 +180,6 @@ func parsePage(c fiber.Ctx) int {
 	return page
 }
 
-func authorSlugs(authors []index.Author) []string {
-	slugs := make([]string, len(authors))
-	for i, author := range authors {
-		slugs[i] = author.Slug
-	}
-	return slugs
-}
-
 // Subjects returns all subjects from the index grouped by slug, as JSON.
 func (s *Controller) Subjects(c fiber.Ctx) error {
 	bySlug, err := s.idx.Subjects()

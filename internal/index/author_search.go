@@ -1,8 +1,6 @@
 package index
 
 import (
-	"cmp"
-	"slices"
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
@@ -89,32 +87,6 @@ func (b *BleveIndexer) runAuthorsPaginatedQuery(q query.Query, page, resultsPerP
 		page = 1
 	}
 
-	if desc, ok := authorDocumentCountSortDesc(sortBy); ok {
-		countResult, err := b.authorsIdx.Search(bleve.NewSearchRequestOptions(q, 0, 0, false))
-		if err != nil {
-			return result.Paginated[[]Author]{}, err
-		}
-		total := int(countResult.Total)
-		if total == 0 {
-			return result.Paginated[[]Author]{}, nil
-		}
-
-		searchOptions := bleve.NewSearchRequestOptions(q, total, 0, false)
-		searchOptions.Fields = []string{"*"}
-		searchResult, err := b.authorsIdx.Search(searchOptions)
-		if err != nil {
-			return result.Paginated[[]Author]{}, err
-		}
-
-		authors := hydrateAuthors(searchResult.Hits)
-		counts, err := b.DocumentCountsByAuthorSlugs(authorSlugsFromAuthors(authors))
-		if err != nil {
-			return result.Paginated[[]Author]{}, err
-		}
-		sortAuthorsByDocumentCount(authors, counts, desc)
-		return result.Paginate(resultsPerPage, page, total, authors), nil
-	}
-
 	searchOptions := bleve.NewSearchRequestOptions(q, resultsPerPage, (page-1)*resultsPerPage, false)
 	searchOptions.SortBy(sortBy)
 	searchOptions.Fields = []string{"*"}
@@ -134,46 +106,10 @@ func (b *BleveIndexer) runAuthorsPaginatedQuery(q query.Query, page, resultsPerP
 	), nil
 }
 
-func authorDocumentCountSortDesc(sortBy []string) (desc bool, ok bool) {
-	if len(sortBy) != 1 {
-		return false, false
-	}
-	switch sortBy[0] {
-	case "DocumentCount":
-		return false, true
-	case "-DocumentCount":
-		return true, true
-	default:
-		return false, false
-	}
-}
-
 func hydrateAuthors(hits search.DocumentMatchCollection) []Author {
 	authors := make([]Author, len(hits))
 	for i, hit := range hits {
 		authors[i] = hydrateAuthor(hit)
 	}
 	return authors
-}
-
-func authorSlugsFromAuthors(authors []Author) []string {
-	slugs := make([]string, len(authors))
-	for i, author := range authors {
-		slugs[i] = author.Slug
-	}
-	return slugs
-}
-
-func sortAuthorsByDocumentCount(authors []Author, counts map[string]uint64, desc bool) {
-	slices.SortFunc(authors, func(a, b Author) int {
-		countA := counts[a.Slug]
-		countB := counts[b.Slug]
-		if countA != countB {
-			if desc {
-				return cmp.Compare(countB, countA)
-			}
-			return cmp.Compare(countA, countB)
-		}
-		return strings.Compare(a.Name, b.Name)
-	})
 }

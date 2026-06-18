@@ -24,6 +24,6 @@
             <dd class="col-sm-9"><time datetime='{{.Author.DateOfDeath.Date.FormatISO 6}}' class='locale'>{{.Author.DateOfDeath.FormatISO 6}}</time></dd>
             {{end}}
         </dl>
-        <p class="text-muted">{{.DocumentCount}} {{if eq .DocumentCount 1}}{{t .Lang "document"}}{{else}}{{t .Lang "documents"}}{{end}}</p>
+        <p class="text-muted">{{.Author.DocumentCount}} {{if eq .Author.DocumentCount 1}}{{t .Lang "document"}}{{else}}{{t .Lang "documents"}}{{end}}</p>
     </div>
 </div>

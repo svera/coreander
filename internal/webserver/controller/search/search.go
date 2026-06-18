@@ -87,14 +87,6 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 		return fiber.ErrInternalServerError
 	}
 
-	documentCounts := map[string]uint64{}
-	if slugs := authorSlugs(authorResults.Hits()); len(slugs) > 0 {
-		if documentCounts, err = s.idx.DocumentCountsByAuthorSlugs(slugs); err != nil {
-			log.Println(err)
-			return fiber.ErrInternalServerError
-		}
-	}
-
 	keywords := searchFields.Name
 	templateVars := s.baseTemplateVars(c, TypeAuthors)
 	templateVars["SearchFields"] = searchFields
@@ -103,7 +95,6 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	templateVars["SearchQuery"] = keywords
 	templateVars["SelectedGender"] = c.Query("gender")
 	templateVars["Results"] = authorResults
-	templateVars["DocumentCounts"] = documentCounts
 	templateVars["Title"] = "Search authors"
 	templateVars["SortBy"] = c.Query("sort-by")
 	templateVars["AdditionalSortOptions"] = authorSortOptions()

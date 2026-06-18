@@ -60,4 +60,15 @@ func TestRebuildAuthorsFromDocuments(t *testing.T) {
 	if err != nil || author.Name != "George Orwell" {
 		t.Fatalf("expected George Orwell, got %#v err=%v", author, err)
 	}
+	if author.DocumentCount != 1 {
+		t.Fatalf("expected DocumentCount=1 for George Orwell, got %d", author.DocumentCount)
+	}
+
+	illustrator, err := idx.Author("jane-austen", "en")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if illustrator.DocumentCount != 1 {
+		t.Fatalf("expected DocumentCount=1 for Jane Austen, got %d", illustrator.DocumentCount)
+	}
 }

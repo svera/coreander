@@ -177,6 +177,9 @@ func TestSearchAuthors(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		if err := idx.RebuildAuthorsFromDocuments(); err != nil {
+			t.Fatal(err)
+		}
 
 		moreFirst, err := idx.SearchAuthors(index.AuthorSearchFields{SortBy: []string{"-DocumentCount"}}, 1, 10)
 		if err != nil {

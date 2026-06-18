@@ -24,6 +24,7 @@ type Author struct {
 	DataSourceImage string
 	Gender          float64
 	Pseudonyms      []string
+	DocumentCount   uint64
 }
 
 func (a Author) YearOfBirthAbs() int {

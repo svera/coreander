@@ -596,24 +596,6 @@ func documentQueryByAuthorSlug(authorSlug string) query.Query {
 	return bleve.NewDisjunctionQuery(byAuthor, byIllustrator)
 }
 
-// DocumentCountsByAuthorSlugs returns document counts keyed by author slug.
-func (b *BleveIndexer) DocumentCountsByAuthorSlugs(slugs []string) (map[string]uint64, error) {
-	counts := make(map[string]uint64, len(slugs))
-	for _, authorSlug := range slugs {
-		if authorSlug == "" {
-			continue
-		}
-		searchRequest := bleve.NewSearchRequest(documentQueryByAuthorSlug(authorSlug))
-		searchRequest.Size = 0
-		searchResult, err := b.documentsIdx.Search(searchRequest)
-		if err != nil {
-			return nil, err
-		}
-		counts[authorSlug] = searchResult.Total
-	}
-	return counts, nil
-}
-
 func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 	aq := bleve.NewTermQuery(slug)
 	aq.SetField("Slug")
@@ -842,6 +824,13 @@ func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
 		}
 	}
 
+	documentCount := uint64(0)
+	if val, ok := fields["DocumentCount"]; ok && val != nil {
+		if num, ok := val.(float64); ok {
+			documentCount = uint64(num)
+		}
+	}
+
 	author := Author{
 		Name:            name,
 		BirthName:       birthName,
@@ -857,6 +846,7 @@ func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
 		DataSourceImage: dataSourceImage,
 		Gender:          gender,
 		Pseudonyms:      slicer(fields["Pseudonyms"]),
+		DocumentCount:   documentCount,
 	}
 
 	// Extract Wikipedia links and descriptions for all languages

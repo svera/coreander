@@ -18,7 +18,6 @@ type Sender interface {
 type IdxReader interface {
 	Search(searchFields index.SearchFields, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
 	SearchAuthors(searchFields index.AuthorSearchFields, page, resultsPerPage int) (result.Paginated[[]index.Author], error)
-	DocumentCountsByAuthorSlugs(slugs []string) (map[string]uint64, error)
 	Count() (uint64, error)
 	AuthorsCount() (uint64, error)
 	Subjects() (map[string][]string, error)

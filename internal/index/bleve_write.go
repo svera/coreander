@@ -65,18 +65,38 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
 	}
 
-	// Index authors in the separate authors index
-	authorsBatch := b.authorsIdx.NewBatch()
-	if err := b.indexAuthors(document, authorsBatch.Index, nil); err != nil {
-		return document.Slug, err
+	for i, name := range document.Authors {
+		if i < len(document.AuthorsSlugs) {
+			if err := b.incrementAuthorCount(name, document.AuthorsSlugs[i]); err != nil {
+				return document.Slug, err
+			}
+		}
 	}
-	if authorsBatch.Size() > 0 {
-		if err = b.authorsIdx.Batch(authorsBatch); err != nil {
+	for _, name := range document.Illustrators {
+		if err := b.incrementAuthorCount(name, slug.Make(name)); err != nil {
 			return document.Slug, err
 		}
 	}
 
 	return document.Slug, nil
+}
+
+// incrementAuthorCount creates the author with DocumentCount=1 if not yet indexed,
+// or increments their DocumentCount if they already exist.
+func (b *BleveIndexer) incrementAuthorCount(name, authorSlug string) error {
+	if name == "" || authorSlug == "" {
+		return nil
+	}
+	existing, err := b.Author(authorSlug, "")
+	if err != nil {
+		return err
+	}
+	if existing.Slug == "" {
+		existing = Author{Name: name, Slug: authorSlug, DocumentCount: 1}
+	} else {
+		existing.DocumentCount++
+	}
+	return b.authorsIdx.Index(authorSlug, existing)
 }
 
 // removeFile removes a file from the index
@@ -115,7 +135,26 @@ func (b *BleveIndexer) deleteDocumentFromIndex(document Document) error {
 	if err := b.documentsIdx.Delete(document.ID); err != nil {
 		return err
 	}
-	return b.removeOrphanAuthors(authorSlugsFromDocument(document))
+	for _, authorSlug := range authorSlugsFromDocument(document) {
+		author, err := b.Author(authorSlug, "")
+		if err != nil {
+			return err
+		}
+		if author.Slug == "" {
+			continue
+		}
+		if author.DocumentCount <= 1 {
+			if err := b.authorsIdx.Delete(authorSlug); err != nil {
+				return err
+			}
+		} else {
+			author.DocumentCount--
+			if err := b.authorsIdx.Index(authorSlug, author); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func authorSlugsFromDocument(document Document) []string {
@@ -132,25 +171,6 @@ func authorSlugsFromDocument(document Document) []string {
 		slugs = append(slugs, authorSlug)
 	}
 	return slugs
-}
-
-func (b *BleveIndexer) removeOrphanAuthors(slugs []string) error {
-	if len(slugs) == 0 {
-		return nil
-	}
-	counts, err := b.DocumentCountsByAuthorSlugs(slugs)
-	if err != nil {
-		return err
-	}
-	for _, authorSlug := range slugs {
-		if counts[authorSlug] != 0 {
-			continue
-		}
-		if err := b.authorsIdx.Delete(authorSlug); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // AddLibrary scans <libraryPath> for documents and adds them to the index in batches of <batchSize> if they
@@ -171,10 +191,8 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 	metaJobs := b.readMetadataForPaths(pending, metadataWorkers)
 
 	batch := b.documentsIdx.NewBatch()
-	authorsBatch := b.authorsIdx.NewBatch()
 	batchSlugs := make(map[string]struct{}, batchSize)
 	documentsSeen := make(map[string]Document, len(pending))
-	authorsSeen := make(map[string]struct{}, len(pending))
 
 	for _, job := range metaJobs {
 		if job.err != nil {
@@ -194,11 +212,6 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 			continue
 		}
 
-		if err = b.indexAuthors(document, authorsBatch.Index, authorsSeen); err != nil {
-			b.endIndexing()
-			return err
-		}
-
 		if batch.Size() >= batchSize {
 			if err = b.documentsIdx.Batch(batch); err != nil {
 				b.endIndexing()
@@ -206,14 +219,6 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 			}
 			batch.Reset()
 			batchSlugs = make(map[string]struct{}, batchSize)
-		}
-
-		if authorsBatch.Size() >= batchSize {
-			if err = b.authorsIdx.Batch(authorsBatch); err != nil {
-				b.endIndexing()
-				return err
-			}
-			authorsBatch.Reset()
 		}
 	}
 
@@ -225,21 +230,12 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 	batch.SetInternal(internalLanguages, []byte(languagesStr))
 	batch.SetInternal(internalIllustratedMinSize, []byte(strconv.FormatFloat(b.illustratedMinSize, 'g', -1, 64)))
 
-	// Flush remaining documents batch
 	if err := b.documentsIdx.Batch(batch); err != nil {
 		b.endIndexing()
 		return err
 	}
 
-	// Flush remaining authors batch
-	if authorsBatch.Size() > 0 {
-		if err := b.authorsIdx.Batch(authorsBatch); err != nil {
-			b.endIndexing()
-			return err
-		}
-	}
-
-	if err := b.rebuildAuthorsFromDocumentsIfEmpty(); err != nil {
+	if err := b.syncAuthorDocumentCounts(); err != nil {
 		b.endIndexing()
 		return err
 	}
@@ -248,71 +244,108 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 	return nil
 }
 
-// rebuildAuthorsFromDocumentsIfEmpty repopulates the authors index from indexed documents when
-// the authors index is empty but documents remain indexed (for example after a mapping version
-// bump recreates the authors index while the documents index is unchanged).
-func (b *BleveIndexer) rebuildAuthorsFromDocumentsIfEmpty() error {
-	authorCount, err := b.authorsIdx.DocCount()
-	if err != nil {
-		return err
-	}
-	if authorCount > 0 {
-		return nil
-	}
-
-	docCount, err := b.Count()
-	if err != nil {
-		return err
-	}
-	if docCount == 0 {
-		return nil
-	}
-
-	log.Println("Authors index is empty but documents are indexed, rebuilding authors from documents index.")
-	return b.RebuildAuthorsFromDocuments()
+// RebuildAuthorsFromDocuments rebuilds the authors index from the documents index,
+// setting the correct DocumentCount for each author.
+func (b *BleveIndexer) RebuildAuthorsFromDocuments() error {
+	return b.syncAuthorDocumentCounts()
 }
 
-// RebuildAuthorsFromDocuments indexes all authors and illustrators referenced by documents
-// in the documents index into the authors index.
-func (b *BleveIndexer) RebuildAuthorsFromDocuments() error {
-	countResult, err := b.documentsIdx.Search(bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), 0, 0, false))
+// syncAuthorDocumentCounts recalculates DocumentCount for every author from the documents
+// index, creating missing author entries and updating existing ones.
+func (b *BleveIndexer) syncAuthorDocumentCounts() error {
+	counts, names, err := b.countDocumentsPerAuthor()
 	if err != nil {
 		return err
 	}
-	total := int(countResult.Total)
-	if total == 0 {
+	if len(counts) == 0 {
 		return nil
 	}
 
-	searchOptions := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), total, 0, false)
-	searchOptions.Fields = []string{"*"}
-	searchResult, err := b.documentsIdx.Search(searchOptions)
+	// Fetch all existing authors so their enriched metadata is preserved.
+	authorDocCount, err := b.authorsIdx.DocCount()
 	if err != nil {
 		return err
 	}
-
-	authorsBatch := b.authorsIdx.NewBatch()
-	authorsSeen := make(map[string]struct{})
-
-	for _, hit := range searchResult.Hits {
-		document := hydrateDocument(hit)
-		if err := b.indexAuthors(document, authorsBatch.Index, authorsSeen); err != nil {
+	existingAuthors := make(map[string]Author, authorDocCount)
+	if authorDocCount > 0 {
+		req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), int(authorDocCount), 0, false)
+		req.Fields = []string{"*"}
+		result, err := b.authorsIdx.Search(req)
+		if err != nil {
 			return err
 		}
-		if authorsBatch.Size() >= 100 {
-			if err := b.authorsIdx.Batch(authorsBatch); err != nil {
+		for _, hit := range result.Hits {
+			a := hydrateAuthor(hit)
+			existingAuthors[a.Slug] = a
+		}
+	}
+
+	batch := b.authorsIdx.NewBatch()
+	for authorSlug, count := range counts {
+		author, exists := existingAuthors[authorSlug]
+		if !exists {
+			author = Author{Name: names[authorSlug], Slug: authorSlug}
+		}
+		author.DocumentCount = count
+		if err := batch.Index(authorSlug, author); err != nil {
+			return err
+		}
+		if batch.Size() >= 100 {
+			if err := b.authorsIdx.Batch(batch); err != nil {
 				return err
 			}
-			authorsBatch.Reset()
+			batch.Reset()
 		}
 	}
-
-	if authorsBatch.Size() > 0 {
-		if err := b.authorsIdx.Batch(authorsBatch); err != nil {
-			return err
-		}
+	if batch.Size() > 0 {
+		return b.authorsIdx.Batch(batch)
 	}
 	return nil
+}
+
+// countDocumentsPerAuthor scans the documents index and returns per-author document counts
+// and one representative name per author slug.
+func (b *BleveIndexer) countDocumentsPerAuthor() (counts map[string]uint64, names map[string]string, err error) {
+	docCount, err := b.documentsIdx.DocCount()
+	if err != nil {
+		return nil, nil, err
+	}
+	if docCount == 0 {
+		return map[string]uint64{}, map[string]string{}, nil
+	}
+
+	req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), int(docCount), 0, false)
+	req.Fields = []string{"*"}
+	result, err := b.documentsIdx.Search(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	counts = make(map[string]uint64)
+	names = make(map[string]string)
+	for _, hit := range result.Hits {
+		document := hydrateDocument(hit)
+		for i, authorSlug := range document.AuthorsSlugs {
+			if authorSlug == "" {
+				continue
+			}
+			counts[authorSlug]++
+			if _, seen := names[authorSlug]; !seen && i < len(document.Authors) {
+				names[authorSlug] = document.Authors[i]
+			}
+		}
+		for _, name := range document.Illustrators {
+			s := slug.Make(name)
+			if s == "" {
+				continue
+			}
+			counts[s]++
+			if _, seen := names[s]; !seen {
+				names[s] = name
+			}
+		}
+	}
+	return counts, names, nil
 }
 
 func (b *BleveIndexer) collectPendingLibraryPaths(forceIndexing bool) (pending []string, languages []string, err error) {
@@ -394,55 +427,6 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 	return out
 }
 
-// indexAuthors indexes document authors and illustrators in the authors index when missing.
-// authorsSeen, when non-nil, records author slugs already known or batched in this AddLibrary run
-// to avoid repeated authorsIdx.Document lookups.
-func (b *BleveIndexer) indexAuthors(document Document, index func(id string, data any) error, authorsSeen map[string]struct{}) error {
-	for i, name := range document.Authors {
-		if err := b.indexAuthorIfMissing(name, document.AuthorsSlugs[i], index, authorsSeen); err != nil {
-			return err
-		}
-	}
-	for _, name := range document.Illustrators {
-		if err := b.indexAuthorIfMissing(name, slug.Make(name), index, authorsSeen); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (b *BleveIndexer) indexAuthorIfMissing(name, authorSlug string, index func(id string, data any) error, authorsSeen map[string]struct{}) error {
-	if name == "" || authorSlug == "" {
-		return nil
-	}
-	if authorsSeen != nil {
-		if _, ok := authorsSeen[authorSlug]; ok {
-			return nil
-		}
-	}
-	indexedAuthor, err := b.authorsIdx.Document(authorSlug)
-	if err != nil {
-		return err
-	}
-	if indexedAuthor != nil {
-		if authorsSeen != nil {
-			authorsSeen[authorSlug] = struct{}{}
-		}
-		return nil
-	}
-	author := Author{
-		Name:        name,
-		Slug:        authorSlug,
-		RetrievedOn: time.Time{},
-	}
-	if err := index(author.Slug, author); err != nil {
-		log.Printf("Error indexing author %s: %s\n", name, err)
-	}
-	if authorsSeen != nil {
-		authorsSeen[authorSlug] = struct{}{}
-	}
-	return nil
-}
 
 func (b *BleveIndexer) IndexAuthor(author Author) error {
 	if err := b.authorsIdx.Index(author.Slug, author); err != nil {

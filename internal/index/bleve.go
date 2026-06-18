@@ -239,6 +239,7 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfDeath.Precision", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("InstanceOf", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Gender", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DocumentCount", numericFieldMapping)
 
 	return indexMapping
 }
