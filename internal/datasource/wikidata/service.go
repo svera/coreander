@@ -116,14 +116,14 @@ func (a WikidataSource) RetrieveAuthors(candidates map[string][]string, language
 	seen := make(map[string]struct{})
 	for _, ids := range candidates {
 		for _, id := range ids {
-			if !validateID(id) {
-				return nil, fmt.Errorf("invalid author ID %s", id)
-			}
 			if id == "" {
 				continue
 			}
 			if _, ok := seen[id]; ok {
 				continue
+			}
+			if !validateID(id) {
+				return nil, fmt.Errorf("invalid author ID %s", id)
 			}
 			seen[id] = struct{}{}
 			uniqueIDs = append(uniqueIDs, id)

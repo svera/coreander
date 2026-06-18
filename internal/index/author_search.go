@@ -43,7 +43,6 @@ func (b *BleveIndexer) authorNameQuery(name string) query.Query {
 	}
 
 	disj := bleve.NewDisjunctionQuery()
-	terms := b.analyzedAuthorNameTerms(name)
 
 	for _, field := range []string{"Name", "BirthName"} {
 		match := bleve.NewMatchQuery(name)
@@ -51,43 +50,8 @@ func (b *BleveIndexer) authorNameQuery(name string) query.Query {
 		match.Analyzer = defaultAnalyzer
 		match.Operator = query.MatchQueryOperatorAnd
 		disj.AddQuery(match)
-
-		if len(terms) != 1 {
-			continue
-		}
-
-		term := terms[0]
-		prefix := bleve.NewPrefixQuery(term)
-		prefix.SetField(field)
-		disj.AddQuery(prefix)
-
-		wildcard := bleve.NewWildcardQuery("*" + escapeWildcard(term) + "*")
-		wildcard.SetField(field)
-		disj.AddQuery(wildcard)
 	}
 	return disj
-}
-
-func (b *BleveIndexer) analyzedAuthorNameTerms(name string) []string {
-	analyzer := b.authorsIdx.Mapping().AnalyzerNamed(defaultAnalyzer)
-	if analyzer == nil {
-		return nil
-	}
-
-	tokens := analyzer.Analyze([]byte(name))
-	terms := make([]string, 0, len(tokens))
-	for _, token := range tokens {
-		if token == nil || len(token.Term) == 0 {
-			continue
-		}
-		terms = append(terms, string(token.Term))
-	}
-	return terms
-}
-
-func escapeWildcard(value string) string {
-	replacer := strings.NewReplacer(`\`, `\\`, `*`, `\*`, `?`, `\?`)
-	return replacer.Replace(value)
 }
 
 func addAuthorFilters(searchFields AuthorSearchFields, filtersQuery *query.ConjunctionQuery) {
