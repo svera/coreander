@@ -7,18 +7,6 @@ function setSearchType(type) {
     if (typeInput) typeInput.value = type
 }
 
-function syncQueryFields(fromType, toType) {
-    const searchInput = document.getElementById("sidebar-search")
-    const nameInput = document.getElementById("sidebar-name")
-    if (!searchInput || !nameInput) return
-    if (fromType === "documents" && toType === "authors" && !nameInput.value.trim()) {
-        nameInput.value = searchInput.value
-    }
-    if (fromType === "authors" && toType === "documents" && !searchInput.value.trim()) {
-        searchInput.value = nameInput.value
-    }
-}
-
 function tabTypeFromEvent(event) {
     const tabBtn = event.target?.closest?.("[data-search-tab]") ?? event.target
     const tabName = tabBtn?.dataset?.searchTab
@@ -49,7 +37,6 @@ function initSearchSidebarTabs() {
     tabs.addEventListener("show.bs.tab", (event) => {
         const nextType = tabTypeFromEvent(event)
         if (!nextType || nextType === activeType) return
-        syncQueryFields(activeType, nextType)
         activeType = nextType
         setSearchType(nextType)
         setActivePanelInputs(nextType)

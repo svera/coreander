@@ -46,6 +46,16 @@ function initSearchOffcanvasTabs() {
         setOffcanvasActivePanelInputs(tabName)
     })
 
+    tabs.addEventListener("shown.bs.tab", (event) => {
+        const tabName = tabTypeFromEvent(event)
+        if (!tabName) return
+        const sidebarTypeInput = document.getElementById("search-type")
+        if (sidebarTypeInput) sidebarTypeInput.value = tabName
+        if (window.htmx) {
+            window.htmx.trigger(document.body, "update")
+        }
+    })
+
     const form = tabs.closest("form")
     form?.addEventListener("submit", () => {
         syncOffcanvasSearchTypeFromPane()

@@ -11,7 +11,7 @@ import {
 
 function authorSyncOffcanvas() {
     syncSidebarFormToOffcanvas({
-        searchFieldName: 'name',
+        searchFieldName: 'search',
         offcanvasContainerId: 'author-search-filters',
     })
 }
