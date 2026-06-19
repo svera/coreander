@@ -72,9 +72,11 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 			}
 		}
 	}
-	for _, name := range document.Illustrators {
-		if err := b.incrementAuthorCount(name, slug.Make(name)); err != nil {
-			return document.Slug, err
+	for i, name := range document.Illustrators {
+		if i < len(document.IllustratorsSlugs) {
+			if err := b.incrementAuthorCount(name, document.IllustratorsSlugs[i]); err != nil {
+				return document.Slug, err
+			}
 		}
 	}
 
@@ -235,7 +237,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 		return err
 	}
 
-	if err := b.syncAuthorDocumentCounts(); err != nil {
+	if err := b.RebuildAuthorsFromDocuments(); err != nil {
 		b.endIndexing()
 		return err
 	}
@@ -244,15 +246,9 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 	return nil
 }
 
-// RebuildAuthorsFromDocuments rebuilds the authors index from the documents index,
-// setting the correct DocumentCount for each author.
-func (b *BleveIndexer) RebuildAuthorsFromDocuments() error {
-	return b.syncAuthorDocumentCounts()
-}
-
-// syncAuthorDocumentCounts recalculates DocumentCount for every author from the documents
+// RebuildAuthorsFromDocuments recalculates DocumentCount for every author from the documents
 // index, creating missing author entries and updating existing ones.
-func (b *BleveIndexer) syncAuthorDocumentCounts() error {
+func (b *BleveIndexer) RebuildAuthorsFromDocuments() error {
 	counts, names, err := b.countDocumentsPerAuthor()
 	if err != nil {
 		return err
@@ -334,14 +330,13 @@ func (b *BleveIndexer) countDocumentsPerAuthor() (counts map[string]uint64, name
 				names[authorSlug] = document.Authors[i]
 			}
 		}
-		for _, name := range document.Illustrators {
-			s := slug.Make(name)
-			if s == "" {
+		for i, illustratorSlug := range document.IllustratorsSlugs {
+			if illustratorSlug == "" {
 				continue
 			}
-			counts[s]++
-			if _, seen := names[s]; !seen {
-				names[s] = name
+			counts[illustratorSlug]++
+			if _, seen := names[illustratorSlug]; !seen && i < len(document.Illustrators) {
+				names[illustratorSlug] = document.Illustrators[i]
 			}
 		}
 	}

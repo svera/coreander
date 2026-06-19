@@ -5,8 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v5/internal/index"
-	"github.com/svera/coreander/v5/internal/result"
-	"github.com/svera/coreander/v5/internal/webserver/model"
+"github.com/svera/coreander/v5/internal/webserver/model"
 	"github.com/svera/coreander/v5/internal/webserver/view"
 )
 
@@ -63,12 +62,10 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 	templateVars := s.baseTemplateVars(c, TypeDocuments)
 	templateVars["SearchFields"] = searchFields
 	templateVars["DocumentSearchFields"] = searchFields
-	templateVars["AuthorSearchFields"] = index.AuthorSearchFields{}
 	templateVars["SearchQuery"] = searchFields.Keywords
 	templateVars["Results"] = searchResults
 	templateVars["Title"] = "Search results"
 	templateVars["WordsPerMinute"] = wordsPerMinute
-	templateVars["SortBy"] = c.Query("sort-by")
 	templateVars["AdditionalSortOptions"] = documentSortOptions()
 
 	return s.renderSearch(c, templateVars, "partials/docs-list-fragments")
@@ -96,7 +93,6 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	templateVars["SelectedGender"] = c.Query("gender")
 	templateVars["Results"] = authorResults
 	templateVars["Title"] = "Search authors"
-	templateVars["SortBy"] = c.Query("sort-by")
 	templateVars["AdditionalSortOptions"] = authorSortOptions()
 
 	return s.renderSearch(c, templateVars, "partials/authors-list-fragments")
@@ -104,22 +100,20 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 
 func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string) fiber.Map {
 	return fiber.Map{
-		"SearchType": searchType,
-		"SearchPage": true,
-		"EmailFrom":  s.sender.From(),
-		"URL":        view.URL(c),
-		"SortURL":    view.BaseURLWithout(c, "sort-by", "page"),
+		"SearchType":         searchType,
+		"SearchPage":         true,
+		"EmailFrom":          s.sender.From(),
+		"URL":                view.URL(c),
+		"SortURL":            view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":             c.Query("sort-by"),
+		"AuthorSearchFields": index.AuthorSearchFields{},
+		"DocumentSearchFields": index.SearchFields{},
 	}
 }
 
 func (s *Controller) renderSearch(c fiber.Ctx, templateVars fiber.Map, fragmentTemplate string) error {
-	if results, ok := templateVars["Results"]; ok {
-		switch r := results.(type) {
-		case result.Paginated[[]model.AugmentedDocument]:
-			templateVars["Paginator"] = view.Pagination(model.MaxPagesNavigator, r, c.Queries())
-		case result.Paginated[[]index.Author]:
-			templateVars["Paginator"] = view.Pagination(model.MaxPagesNavigator, r, c.Queries())
-		}
+	if results, ok := templateVars["Results"].(view.Paginatable); ok {
+		templateVars["Paginator"] = view.Pagination(model.MaxPagesNavigator, results, c.Queries())
 	}
 
 	if c.Get("hx-request") == "true" {
