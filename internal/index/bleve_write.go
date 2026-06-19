@@ -65,22 +65,25 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
 	}
 
-	for i, name := range document.Authors {
-		if i < len(document.AuthorsSlugs) {
-			if err := b.incrementAuthorCount(name, document.AuthorsSlugs[i]); err != nil {
-				return document.Slug, err
-			}
-		}
+	if err := b.incrementAuthorCounts(document.Authors, document.AuthorsSlugs); err != nil {
+		return document.Slug, err
 	}
-	for i, name := range document.Illustrators {
-		if i < len(document.IllustratorsSlugs) {
-			if err := b.incrementAuthorCount(name, document.IllustratorsSlugs[i]); err != nil {
-				return document.Slug, err
-			}
-		}
+	if err := b.incrementAuthorCounts(document.Illustrators, document.IllustratorsSlugs); err != nil {
+		return document.Slug, err
 	}
 
 	return document.Slug, nil
+}
+
+func (b *BleveIndexer) incrementAuthorCounts(names, slugs []string) error {
+	for i, name := range names {
+		if i < len(slugs) {
+			if err := b.incrementAuthorCount(name, slugs[i]); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // incrementAuthorCount creates the author with DocumentCount=1 if not yet indexed,
