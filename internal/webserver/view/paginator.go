@@ -1,6 +1,10 @@
 package view
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/svera/coreander/v5/internal/result"
+)
 
 // Page holds the URL of a results page, and if that page is the current one being shown
 type Page struct {
@@ -15,13 +19,7 @@ type PagesNavigator struct {
 	NextLink     string
 }
 
-// Paginatable is satisfied by any result type that exposes page navigation metadata.
-type Paginatable interface {
-	TotalPages() int
-	Page() int
-}
-
-func Pagination(size int, results Paginatable, params map[string]string) PagesNavigator {
+func Pagination[T any](size int, results result.Paginated[T], params map[string]string) PagesNavigator {
 	var nav PagesNavigator
 	start := 1
 	end := size

@@ -64,6 +64,7 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 	templateVars["DocumentSearchFields"] = searchFields
 	templateVars["SearchQuery"] = searchFields.Keywords
 	templateVars["Results"] = searchResults
+	templateVars["Paginator"] = view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries())
 	templateVars["Title"] = "Search results"
 	templateVars["WordsPerMinute"] = wordsPerMinute
 	templateVars["AdditionalSortOptions"] = documentSortOptions()
@@ -92,6 +93,7 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	templateVars["SearchQuery"] = keywords
 	templateVars["SelectedGender"] = c.Query("gender")
 	templateVars["Results"] = authorResults
+	templateVars["Paginator"] = view.Pagination(model.MaxPagesNavigator, authorResults, c.Queries())
 	templateVars["Title"] = "Search authors"
 	templateVars["AdditionalSortOptions"] = authorSortOptions()
 
@@ -112,10 +114,6 @@ func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string) fiber.Map 
 }
 
 func (s *Controller) renderSearch(c fiber.Ctx, templateVars fiber.Map, fragmentTemplate string) error {
-	if results, ok := templateVars["Results"].(view.Paginatable); ok {
-		templateVars["Paginator"] = view.Pagination(model.MaxPagesNavigator, results, c.Queries())
-	}
-
 	if c.Get("hx-request") == "true" {
 		if err := c.Render(fragmentTemplate, templateVars); err != nil {
 			log.Println(err)
