@@ -452,14 +452,7 @@ func addLanguage(lang string, languages []string) []string {
 	}
 
 	if _, ok := noStopWordsFilters[lang]; ok {
-		found := false
-		for i := range languages {
-			if languages[i] == lang {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(languages, lang) {
 			languages = append(languages, lang)
 		}
 	}
