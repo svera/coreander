@@ -170,7 +170,9 @@ func main() {
 		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accessible outside this system.\n")
 	}
 	log.Printf("Started listening on port %d\n", input.Port)
-	log.Fatal(app.Listen(fmt.Sprintf(":%d", input.Port), fiber.ListenConfig{DisableStartupMessage: true}))
+	if err := app.Listen(fmt.Sprintf(":%d", input.Port), fiber.ListenConfig{DisableStartupMessage: true}); err != nil {
+		log.Printf("Server stopped with error: %s", err)
+	}
 }
 
 func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWorkers int) {
