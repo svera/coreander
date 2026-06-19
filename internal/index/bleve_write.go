@@ -163,16 +163,11 @@ func (b *BleveIndexer) deleteDocumentFromIndex(document Document) error {
 }
 
 func authorSlugsFromDocument(document Document) []string {
-	seen := make(map[string]struct{})
 	slugs := make([]string, 0, len(document.AuthorsSlugs)+len(document.IllustratorsSlugs))
 	for _, authorSlug := range append(document.AuthorsSlugs, document.IllustratorsSlugs...) {
-		if authorSlug == "" {
+		if authorSlug == "" || slices.Contains(slugs, authorSlug) {
 			continue
 		}
-		if _, ok := seen[authorSlug]; ok {
-			continue
-		}
-		seen[authorSlug] = struct{}{}
 		slugs = append(slugs, authorSlug)
 	}
 	return slugs
