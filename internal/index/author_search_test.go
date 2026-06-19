@@ -177,7 +177,7 @@ func TestSearchAuthors(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		if err := idx.RebuildAuthorsFromDocuments(); err != nil {
+		if err := idx.RebuildAuthorsFromDocuments(10); err != nil {
 			t.Fatal(err)
 		}
 

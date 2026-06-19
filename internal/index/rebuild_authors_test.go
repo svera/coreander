@@ -46,7 +46,7 @@ func TestRebuildAuthorsFromDocuments(t *testing.T) {
 		t.Fatalf("expected empty authors index, got %d", count)
 	}
 
-	if err := idx.RebuildAuthorsFromDocuments(); err != nil {
+	if err := idx.RebuildAuthorsFromDocuments(10); err != nil {
 		t.Fatal(err)
 	}
 

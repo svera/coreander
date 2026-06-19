@@ -235,7 +235,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 		return err
 	}
 
-	if err := b.RebuildAuthorsFromDocuments(); err != nil {
+	if err := b.RebuildAuthorsFromDocuments(batchSize); err != nil {
 		b.endIndexing()
 		return err
 	}
@@ -246,7 +246,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 
 // RebuildAuthorsFromDocuments recalculates DocumentCount for every author from the documents
 // index, creating missing author entries and updating existing ones.
-func (b *BleveIndexer) RebuildAuthorsFromDocuments() error {
+func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 	counts, names, err := b.countDocumentsPerAuthor()
 	if err != nil {
 		return err
@@ -284,7 +284,7 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments() error {
 		if err := batch.Index(authorSlug, author); err != nil {
 			return err
 		}
-		if batch.Size() >= 100 {
+		if batch.Size() >= batchSize {
 			if err := b.authorsIdx.Batch(batch); err != nil {
 				return err
 			}
