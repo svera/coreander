@@ -172,6 +172,8 @@ func main() {
 	log.Printf("Started listening on port %d\n", input.Port)
 	if err := app.Listen(fmt.Sprintf(":%d", input.Port), fiber.ListenConfig{DisableStartupMessage: true}); err != nil {
 		log.Printf("Server stopped with error: %s", err)
+		idx.Close()
+		os.Exit(1)
 	}
 }
 

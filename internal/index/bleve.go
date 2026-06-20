@@ -246,10 +246,7 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 
 // Close closes both indexes
 func (b *BleveIndexer) Close() error {
-	if err := b.documentsIdx.Close(); err != nil {
-		return err
-	}
-	return b.authorsIdx.Close()
+	return errors.Join(b.documentsIdx.Close(), b.authorsIdx.Close())
 }
 
 // NeedsReindexForIllustratedConfig reports whether the documents index must be rebuilt because the stored
