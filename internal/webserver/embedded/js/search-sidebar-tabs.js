@@ -48,7 +48,9 @@ function initSearchSidebarTabs() {
         activeType = tabName
         setSearchType(tabName)
         setActivePanelInputs(tabName)
-        if (window.htmx) {
+        if (form._coreanderApplyFilters) {
+            form._coreanderApplyFilters()
+        } else if (window.htmx) {
             window.htmx.trigger(document.body, "update")
         }
     })

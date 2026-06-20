@@ -231,6 +231,10 @@ export function initFilterFormBehavior({
             for (const [k, v] of formData.entries()) {
                 if (v != null && String(v).trim() !== '') params.append(k, v)
             }
+            const sortEl = document.getElementById('sort-by')
+            if (sortEl && sortEl.value && !params.has('sort-by')) {
+                params.append('sort-by', sortEl.value)
+            }
             const queryString = params.toString()
             const url = resolvedListPath + (queryString ? '?' + queryString : '')
             history.replaceState(null, '', url)
@@ -260,7 +264,14 @@ export function initFilterFormBehavior({
         })
 
         searchFiltersForm.addEventListener('input', () => scheduleApplyFilters())
-        searchFiltersForm.addEventListener('change', () => scheduleApplyFilters())
+        searchFiltersForm.addEventListener('change', (e) => {
+            if (e.target.tagName === 'SELECT') {
+                if (applyFiltersDebounced) clearTimeout(applyFiltersDebounced)
+                applyFilters()
+            } else {
+                scheduleApplyFilters()
+            }
+        })
     } else {
         searchFiltersForm.addEventListener('submit', () => {
             composeDateControls()
@@ -272,6 +283,11 @@ export function initFilterFormBehavior({
 
     searchFiltersForm._coreanderComposeDates = searchFiltersForm._coreanderComposeDates || []
     searchFiltersForm._coreanderComposeDates.push(composeDateControls)
+
+    const sidebarForm = document.getElementById('search-filters-form')
+    if (sidebarForm && isListPage) {
+        sidebarForm._coreanderApplyFilters = applyFilters
+    }
 
     return { scheduleApplyFilters }
 }
