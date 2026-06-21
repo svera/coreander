@@ -4,6 +4,13 @@ function isLeapYear(year) {
     return (year % 4 === 0) && (year % 100 !== 0 || year % 400 === 0)
 }
 
+function padYear(yearStr) {
+    if (yearStr.startsWith('-') || yearStr.startsWith('+')) {
+        return yearStr.substring(0, 1) + yearStr.substring(1).padStart(4, '0')
+    }
+    return yearStr.padStart(4, '0')
+}
+
 export function updateHiddenDateInput(dateControl) {
     const yearInput = dateControl.querySelector('.input-year')
     const monthSelect = dateControl.querySelector('.input-month')
@@ -15,17 +22,10 @@ export function updateHiddenDateInput(dateControl) {
         return
     }
 
-    let year = yearInput.value
-    if (year.startsWith('-') || year.startsWith('+')) {
-        year = year.substring(0, 1) + year.substring(1).padStart(4, '0')
-    } else {
-        year = year.padStart(4, '0')
-    }
-
     const month = monthSelect.value || '01'
     const day = (dayInput.value || '1').padStart(2, '0')
 
-    hiddenDateInput.value = year + '-' + month + '-' + day
+    hiddenDateInput.value = padYear(yearInput.value) + '-' + month + '-' + day
 }
 
 function updateMaxDays(monthSelect, dayInput, yearInput, dateControl = null) {
@@ -137,15 +137,9 @@ export function initDateControls(searchFilters, searchFiltersForm) {
             if (!yearEl || yearEl.value === '' || yearEl.value === '0') return
             const composed = el.parentElement.querySelector('.date')
             if (!composed) return
-            let year = yearEl.value
-            if (year.startsWith('-') || year.startsWith('+')) {
-                year = year.substring(0, 1) + year.substring(1).padStart(4, '0')
-            } else {
-                year = year.padStart(4, '0')
-            }
             const month = el.querySelector('.input-month').value || '01'
             const day = (el.querySelector('.input-day').value || '1').padStart(2, '0')
-            composed.value = year + '-' + month + '-' + day
+            composed.value = padYear(yearEl.value) + '-' + month + '-' + day
         })
     }
 }
@@ -185,13 +179,28 @@ export function syncSidebarSearchTypeFromPane() {
     return syncSearchTypeFromPane('search-type', 'search-sidebar-authors-panel')
 }
 
-function composeAllDateControls(form, fallbackCompose) {
-    const composers = form?._coreanderComposeDates
-    if (composers?.length) {
-        composers.forEach((fn) => fn())
-        return
-    }
-    fallbackCompose()
+export function tabTypeFromEvent(event, attrSelector, datasetKey) {
+    const tabBtn = event.target?.closest?.(attrSelector) ?? event.target
+    const tabName = tabBtn?.dataset?.[datasetKey]
+    return tabName === "authors" || tabName === "documents" ? tabName : null
+}
+
+export function setActivePanelInputs(activeType, docPanelId, authorPanelId, typeInputId) {
+    const typeInput = document.getElementById(typeInputId)
+    if (typeInput) typeInput.value = activeType
+    const docPanel = document.getElementById(docPanelId)
+    const authorPanel = document.getElementById(authorPanelId)
+    docPanel?.querySelectorAll("input, select, textarea").forEach(el => {
+        if (el.id === typeInputId) return
+        el.disabled = activeType !== "documents"
+    })
+    authorPanel?.querySelectorAll("input, select, textarea").forEach(el => {
+        el.disabled = activeType !== "authors"
+    })
+}
+
+function composeAllDateControls(form) {
+    form._coreanderComposeDates?.forEach(fn => fn())
 }
 
 function activeSearchListPath(fallbackPath) {
@@ -221,7 +230,7 @@ export function initFilterFormBehavior({
         const sidebarForm = document.getElementById('search-filters-form')
         if (sidebarForm && isListPage) {
             syncSidebarSearchTypeFromPane()
-            composeAllDateControls(sidebarForm, composeDateControls)
+            composeAllDateControls(sidebarForm)
             if (searchFiltersForm !== sidebarForm) {
                 copyFormValues(searchFiltersForm, sidebarForm)
                 if (beforeSidebarApply) beforeSidebarApply()
@@ -241,7 +250,7 @@ export function initFilterFormBehavior({
             window.htmx.trigger(document.body, 'update')
             syncOffcanvas()
         } else {
-            composeAllDateControls(searchFiltersForm, composeDateControls)
+            composeAllDateControls(searchFiltersForm)
             const params = new URLSearchParams(new FormData(searchFiltersForm))
             window.location.href = resolvedListPath + '?' + params.toString()
         }
@@ -265,7 +274,7 @@ export function initFilterFormBehavior({
 
         searchFiltersForm.addEventListener('input', () => scheduleApplyFilters())
         searchFiltersForm.addEventListener('change', (e) => {
-            if (e.target.tagName === 'SELECT') {
+            if (e.target.tagName === 'SELECT' || e.target.type === 'checkbox') {
                 if (applyFiltersDebounced) clearTimeout(applyFiltersDebounced)
                 applyFilters()
             } else {
@@ -284,9 +293,8 @@ export function initFilterFormBehavior({
     searchFiltersForm._coreanderComposeDates = searchFiltersForm._coreanderComposeDates || []
     searchFiltersForm._coreanderComposeDates.push(composeDateControls)
 
-    const sidebarForm = document.getElementById('search-filters-form')
-    if (sidebarForm && isListPage) {
-        sidebarForm._coreanderApplyFilters = applyFilters
+    if (isListPage) {
+        document.getElementById('search-filters-form')._coreanderApplyFilters = applyFilters
     }
 
     return { scheduleApplyFilters }
@@ -313,4 +321,30 @@ export function bindOffcanvasFilterSync({ sidebarFormId, offcanvasContainerId, o
     if (offcanvasEl) {
         offcanvasEl.addEventListener('shown.bs.offcanvas', () => syncOffcanvas())
     }
+}
+
+export function initSearchFilters(searchFilters, { syncOffcanvas, beforeSidebarApply, onInit } = {}) {
+    if (!searchFilters) return
+    const searchFiltersForm = searchFilters.closest('form')
+    if (!searchFiltersForm) return
+
+    const composeDateControls = initDateControls(searchFilters, searchFiltersForm)
+
+    if (searchFiltersForm.dataset.coreanderFilterBehavior === 'true') {
+        searchFiltersForm._coreanderComposeDates = searchFiltersForm._coreanderComposeDates || []
+        searchFiltersForm._coreanderComposeDates.push(composeDateControls)
+        onInit?.(null)
+        return
+    }
+
+    const { scheduleApplyFilters } = initFilterFormBehavior({
+        searchFilters,
+        searchFiltersForm,
+        composeDateControls,
+        listPath: '/search',
+        syncOffcanvas,
+        beforeSidebarApply,
+    })
+    searchFiltersForm.dataset.coreanderFilterBehavior = 'true'
+    onInit?.(scheduleApplyFilters)
 }

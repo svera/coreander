@@ -3,8 +3,7 @@
 import {
     bindOffcanvasFilterSync,
     enableFilterInputsOnPageShow,
-    initDateControls,
-    initFilterFormBehavior,
+    initSearchFilters,
     syncSidebarFormToOffcanvas,
 } from './search-filter-utils.js'
 
@@ -35,31 +34,15 @@ function documentsSyncOffcanvas() {
 }
 
 function initDocumentSearchFilters(searchFilters) {
-    if (!searchFilters) return
-    const searchFiltersForm = searchFilters.closest('form')
-    if (!searchFiltersForm) return
-
-    const idPrefix = searchFilters.id === 'document-search-filters-sidebar' ? 'sidebar-' : ''
-    const composeDateControls = initDateControls(searchFilters, searchFiltersForm)
-
-    if (searchFiltersForm.dataset.coreanderFilterBehavior !== 'true') {
-        const { scheduleApplyFilters } = initFilterFormBehavior({
-            searchFilters,
-            searchFiltersForm,
-            composeDateControls,
-            listPath: '/search',
-            syncOffcanvas: documentsSyncOffcanvas,
-            beforeSidebarApply: () => {
-                const sidebarContainer = document.getElementById('document-search-filters-sidebar')
-                if (sidebarContainer) sidebarContainer.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
-            },
-        })
-        searchFiltersForm.dataset.coreanderFilterBehavior = 'true'
-        initSubjectsFilters(searchFilters, idPrefix, scheduleApplyFilters)
-        return
-    }
-
-    initSubjectsFilters(searchFilters, idPrefix, null)
+    const idPrefix = searchFilters?.id === 'document-search-filters-sidebar' ? 'sidebar-' : ''
+    initSearchFilters(searchFilters, {
+        syncOffcanvas: documentsSyncOffcanvas,
+        beforeSidebarApply: () => {
+            document.getElementById('document-search-filters-sidebar')
+                ?.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
+        },
+        onInit: (scheduleApplyFilters) => initSubjectsFilters(searchFilters, idPrefix, scheduleApplyFilters),
+    })
 }
 
 export function initSubjectsFilters(searchFilters, idPrefix, triggerSearchUpdate) {

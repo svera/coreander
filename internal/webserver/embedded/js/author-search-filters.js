@@ -4,8 +4,7 @@ import {
     applyHiddenDatesToVisible,
     bindOffcanvasFilterSync,
     enableFilterInputsOnPageShow,
-    initDateControls,
-    initFilterFormBehavior,
+    initSearchFilters,
     syncSidebarFormToOffcanvas,
 } from './search-filter-utils.js'
 
@@ -17,24 +16,7 @@ function authorSyncOffcanvas() {
 }
 
 function initAuthorSearchFilters(searchFilters) {
-    if (!searchFilters) return
-    const searchFiltersForm = searchFilters.closest('form')
-    if (!searchFiltersForm) return
-
-    const composeDateControls = initDateControls(searchFilters, searchFiltersForm)
-    searchFiltersForm._coreanderComposeDates = searchFiltersForm._coreanderComposeDates || []
-    searchFiltersForm._coreanderComposeDates.push(composeDateControls)
-    if (searchFiltersForm.dataset.coreanderFilterBehavior === 'true') {
-        return
-    }
-    initFilterFormBehavior({
-        searchFilters,
-        searchFiltersForm,
-        composeDateControls,
-        listPath: '/search',
-        syncOffcanvas: authorSyncOffcanvas,
-    })
-    searchFiltersForm.dataset.coreanderFilterBehavior = 'true'
+    initSearchFilters(searchFilters, { syncOffcanvas: authorSyncOffcanvas })
 }
 
 enableFilterInputsOnPageShow(['author-search-filters', 'author-search-filters-sidebar'])

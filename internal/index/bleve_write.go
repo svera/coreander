@@ -319,26 +319,22 @@ func (b *BleveIndexer) countDocumentsPerAuthor() (counts map[string]uint64, name
 	names = make(map[string]string)
 	for _, hit := range result.Hits {
 		document := hydrateDocument(hit)
-		for i, authorSlug := range document.AuthorsSlugs {
-			if authorSlug == "" {
-				continue
-			}
-			counts[authorSlug]++
-			if _, seen := names[authorSlug]; !seen && i < len(document.Authors) {
-				names[authorSlug] = document.Authors[i]
-			}
-		}
-		for i, illustratorSlug := range document.IllustratorsSlugs {
-			if illustratorSlug == "" {
-				continue
-			}
-			counts[illustratorSlug]++
-			if _, seen := names[illustratorSlug]; !seen && i < len(document.Illustrators) {
-				names[illustratorSlug] = document.Illustrators[i]
-			}
-		}
+		accumulateContributors(counts, names, document.AuthorsSlugs, document.Authors)
+		accumulateContributors(counts, names, document.IllustratorsSlugs, document.Illustrators)
 	}
 	return counts, names, nil
+}
+
+func accumulateContributors(counts map[string]uint64, names map[string]string, slugs []string, displayNames []string) {
+	for i, slug := range slugs {
+		if slug == "" {
+			continue
+		}
+		counts[slug]++
+		if _, seen := names[slug]; !seen && i < len(displayNames) {
+			names[slug] = displayNames[i]
+		}
+	}
 }
 
 func (b *BleveIndexer) collectPendingLibraryPaths(forceIndexing bool) (pending []string, languages []string, err error) {

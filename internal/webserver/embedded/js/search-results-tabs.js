@@ -1,11 +1,12 @@
 "use strict"
 
+import { setActivePanelInputs } from './search-filter-utils.js'
+
 function switchOffcanvasPanes(tabName) {
-    const docPane = document.getElementById("search-offcanvas-documents-panel")
+    const docPane  = document.getElementById("search-offcanvas-documents-panel")
     const authorPane = document.getElementById("search-offcanvas-authors-panel")
-    const docBtn = document.querySelector("#search-offcanvas-tabs [data-search-tab='documents']")
+    const docBtn   = document.querySelector("#search-offcanvas-tabs [data-search-tab='documents']")
     const authorBtn = document.querySelector("#search-offcanvas-tabs [data-search-tab='authors']")
-    const typeInput = document.getElementById("search-offcanvas-type")
 
     const toDoc = tabName === "documents"
     docPane?.classList.toggle("show", toDoc)
@@ -16,15 +17,8 @@ function switchOffcanvasPanes(tabName) {
     docBtn?.setAttribute("aria-selected", String(toDoc))
     authorBtn?.classList.toggle("active", !toDoc)
     authorBtn?.setAttribute("aria-selected", String(!toDoc))
-    if (typeInput) typeInput.value = tabName
 
-    docPane?.querySelectorAll("input, select, textarea").forEach(el => {
-        if (el.id === "search-offcanvas-type") return
-        el.disabled = !toDoc
-    })
-    authorPane?.querySelectorAll("input, select, textarea").forEach(el => {
-        el.disabled = toDoc
-    })
+    setActivePanelInputs(tabName, 'search-offcanvas-documents-panel', 'search-offcanvas-authors-panel', 'search-offcanvas-type')
 }
 
 document.addEventListener("click", (event) => {

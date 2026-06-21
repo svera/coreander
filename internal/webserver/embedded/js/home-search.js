@@ -1,8 +1,11 @@
 "use strict"
 
-import { initDateControls, syncSearchTypeFromPane } from './search-filter-utils.js'
+import { initDateControls, syncSearchTypeFromPane, tabTypeFromEvent, setActivePanelInputs } from './search-filter-utils.js'
 
 const STORAGE_KEY = "coreander-home-search-tab"
+const DOC_PANEL  = 'home-search-documents-panel'
+const AUTH_PANEL = 'home-search-authors-panel'
+const TYPE_INPUT = 'home-search-type'
 
 function getStoredTab() {
     try {
@@ -14,24 +17,6 @@ function getStoredTab() {
         // ignore storage errors
     }
     return "documents"
-}
-
-function setHomeSearchType(type) {
-    const typeInput = document.getElementById("home-search-type")
-    if (typeInput) typeInput.value = type
-}
-
-function setHomeActivePanelInputs(activeType) {
-    const docPanel = document.getElementById("home-search-documents-panel")
-    const authorPanel = document.getElementById("home-search-authors-panel")
-
-    docPanel?.querySelectorAll("input, select, textarea").forEach((el) => {
-        if (el.id === "home-search-type") return
-        el.disabled = activeType !== "documents"
-    })
-    authorPanel?.querySelectorAll("input, select, textarea").forEach((el) => {
-        el.disabled = activeType !== "authors"
-    })
 }
 
 function isAdvancedSearchOpen(collapse) {
@@ -71,12 +56,6 @@ function collectPanelParams(panel, composeDateControls, type) {
     return params
 }
 
-function tabTypeFromEvent(event) {
-    const tabBtn = event.target?.closest?.("[data-home-search-tab]") ?? event.target
-    const tabName = tabBtn?.dataset?.homeSearchTab
-    return tabName === "authors" || tabName === "documents" ? tabName : null
-}
-
 function restoreStoredTab() {
     try {
         const stored = sessionStorage.getItem(STORAGE_KEY)
@@ -95,15 +74,13 @@ function initHomeSearchTabs() {
     if (!tabs) return
 
     let activeType = getStoredTab()
-    setHomeSearchType(activeType)
-    setHomeActivePanelInputs(activeType)
+    setActivePanelInputs(activeType, DOC_PANEL, AUTH_PANEL, TYPE_INPUT)
 
     tabs.addEventListener("show.bs.tab", (event) => {
-        const tabName = tabTypeFromEvent(event)
+        const tabName = tabTypeFromEvent(event, '[data-home-search-tab]', 'homeSearchTab')
         if (!tabName) return
         activeType = tabName
-        setHomeSearchType(tabName)
-        setHomeActivePanelInputs(tabName)
+        setActivePanelInputs(tabName, DOC_PANEL, AUTH_PANEL, TYPE_INPUT)
     })
 
     tabs.addEventListener("shown.bs.tab", (event) => {
@@ -118,17 +95,7 @@ function initHomeSearchTabs() {
 
     restoreStoredTab()
     activeType = syncSearchTypeFromPane("home-search-type", "home-search-authors-panel")
-    setHomeActivePanelInputs(activeType)
-}
-
-function safeInitDateControls(panel, form) {
-    if (!panel) return () => {}
-    try {
-        return initDateControls(panel, form)
-    } catch (error) {
-        console.error("Error initializing date controls:", error)
-        return () => {}
-    }
+    setActivePanelInputs(activeType, DOC_PANEL, AUTH_PANEL, TYPE_INPUT)
 }
 
 function initHomeSearch() {
@@ -140,8 +107,8 @@ function initHomeSearch() {
     const authorPanel = document.getElementById("home-search-authors-panel")
     const searchbox = form.querySelector("#searchbox")
 
-    const composeDocumentDates = safeInitDateControls(docPanel, form)
-    const composeAuthorDates = safeInitDateControls(authorPanel, form)
+    const composeDocumentDates = docPanel ? initDateControls(docPanel, form) : () => {}
+    const composeAuthorDates = authorPanel ? initDateControls(authorPanel, form) : () => {}
     form._coreanderComposeDates = [composeDocumentDates, composeAuthorDates]
 
     form.addEventListener("submit", (event) => {

@@ -1,30 +1,10 @@
 "use strict"
 
-import { syncSidebarSearchTypeFromPane } from './search-filter-utils.js'
+import { syncSidebarSearchTypeFromPane, tabTypeFromEvent, setActivePanelInputs } from './search-filter-utils.js'
 
-function setSearchType(type) {
-    const typeInput = document.getElementById("search-type")
-    if (typeInput) typeInput.value = type
-}
-
-function tabTypeFromEvent(event) {
-    const tabBtn = event.target?.closest?.("[data-search-tab]") ?? event.target
-    const tabName = tabBtn?.dataset?.searchTab
-    return tabName === "authors" || tabName === "documents" ? tabName : null
-}
-
-function setActivePanelInputs(activeType) {
-    const docPanel = document.getElementById("search-sidebar-documents-panel")
-    const authorPanel = document.getElementById("search-sidebar-authors-panel")
-
-    docPanel?.querySelectorAll("input, select, textarea").forEach((el) => {
-        if (el.id === "search-type") return
-        el.disabled = activeType !== "documents"
-    })
-    authorPanel?.querySelectorAll("input, select, textarea").forEach((el) => {
-        el.disabled = activeType !== "authors"
-    })
-}
+const DOC_PANEL  = 'search-sidebar-documents-panel'
+const AUTH_PANEL = 'search-sidebar-authors-panel'
+const TYPE_INPUT = 'search-type'
 
 function initSearchSidebarTabs() {
     const tabs = document.getElementById("search-sidebar-tabs")
@@ -32,22 +12,20 @@ function initSearchSidebarTabs() {
     if (!tabs || !form) return
 
     let activeType = syncSidebarSearchTypeFromPane()
-    setActivePanelInputs(activeType)
+    setActivePanelInputs(activeType, DOC_PANEL, AUTH_PANEL, TYPE_INPUT)
 
     tabs.addEventListener("show.bs.tab", (event) => {
-        const nextType = tabTypeFromEvent(event)
+        const nextType = tabTypeFromEvent(event, '[data-search-tab]', 'searchTab')
         if (!nextType || nextType === activeType) return
         activeType = nextType
-        setSearchType(nextType)
-        setActivePanelInputs(nextType)
+        setActivePanelInputs(nextType, DOC_PANEL, AUTH_PANEL, TYPE_INPUT)
     })
 
     tabs.addEventListener("shown.bs.tab", (event) => {
-        const tabName = tabTypeFromEvent(event)
+        const tabName = tabTypeFromEvent(event, '[data-search-tab]', 'searchTab')
         if (!tabName) return
         activeType = tabName
-        setSearchType(tabName)
-        setActivePanelInputs(tabName)
+        setActivePanelInputs(tabName, DOC_PANEL, AUTH_PANEL, TYPE_INPUT)
         if (form._coreanderApplyFilters) {
             form._coreanderApplyFilters()
         } else if (window.htmx) {
