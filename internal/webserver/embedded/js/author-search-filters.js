@@ -15,14 +15,10 @@ function authorSyncOffcanvas() {
     })
 }
 
-function initAuthorSearchFilters(searchFilters) {
-    initSearchFilters(searchFilters, { syncOffcanvas: authorSyncOffcanvas })
-}
-
 enableFilterInputsOnPageShow(['author-search-filters', 'author-search-filters-sidebar'])
 
-initAuthorSearchFilters(document.getElementById('author-search-filters'))
-initAuthorSearchFilters(document.getElementById('author-search-filters-sidebar'))
+initSearchFilters(document.getElementById('author-search-filters'), { syncOffcanvas: authorSyncOffcanvas })
+initSearchFilters(document.getElementById('author-search-filters-sidebar'), { syncOffcanvas: authorSyncOffcanvas })
 
 bindOffcanvasFilterSync({
     sidebarFormId: 'search-filters-form',

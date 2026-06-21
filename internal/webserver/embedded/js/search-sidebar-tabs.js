@@ -22,10 +22,7 @@ function initSearchSidebarTabs() {
     })
 
     tabs.addEventListener("shown.bs.tab", (event) => {
-        const tabName = tabTypeFromEvent(event, '[data-search-tab]', 'searchTab')
-        if (!tabName) return
-        activeType = tabName
-        setActivePanelInputs(tabName, DOC_PANEL, AUTH_PANEL, TYPE_INPUT)
+        if (!tabTypeFromEvent(event, '[data-search-tab]', 'searchTab')) return
         if (form._coreanderApplyFilters) {
             form._coreanderApplyFilters()
         } else if (window.htmx) {

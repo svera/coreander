@@ -29,7 +29,8 @@ function resolveSearchType(collapse) {
     if (isAdvancedSearchOpen(collapse)) {
         return syncSearchTypeFromPane("home-search-type", "home-search-authors-panel")
     }
-    setHomeSearchType("documents")
+    const typeInput = document.getElementById(TYPE_INPUT)
+    if (typeInput) typeInput.value = "documents"
     return "documents"
 }
 
@@ -84,7 +85,7 @@ function initHomeSearchTabs() {
     })
 
     tabs.addEventListener("shown.bs.tab", (event) => {
-        const tabName = tabTypeFromEvent(event)
+        const tabName = tabTypeFromEvent(event, '[data-home-search-tab]', 'homeSearchTab')
         if (!tabName) return
         try {
             sessionStorage.setItem(STORAGE_KEY, tabName)
@@ -94,8 +95,6 @@ function initHomeSearchTabs() {
     })
 
     restoreStoredTab()
-    activeType = syncSearchTypeFromPane("home-search-type", "home-search-authors-panel")
-    setActivePanelInputs(activeType, DOC_PANEL, AUTH_PANEL, TYPE_INPUT)
 }
 
 function initHomeSearch() {

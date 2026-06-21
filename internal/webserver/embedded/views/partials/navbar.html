@@ -203,10 +203,8 @@
         {{$searchType := or .SearchType "documents"}}
         <form action="/search" method="get" role="search">
             <input type="hidden" name="type" id="search-offcanvas-type" value="{{$searchType}}">
-            <div class="row mb-3">
-                <div class="col-12">
-                    <input type="search" name="search" id="searchbox-offcanvas" class="form-control" maxlength="255" value="{{or .SearchQuery ""}}" placeholder="{{t .Lang "Search"}}...">
-                </div>
+            <div class="border border-bottom-0 rounded-top-4 p-3">
+                <input type="search" name="search" id="searchbox-offcanvas" class="form-control" maxlength="255" value="{{or .SearchQuery ""}}" placeholder="{{t .Lang "Search"}}...">
             </div>
             <ul class="nav nav-tabs nav-fill home-search-tabs mb-0 d-none" id="search-offcanvas-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
@@ -216,7 +214,7 @@
                     <button type="button" class="nav-link{{if eq $searchType "authors"}} active{{end}}" data-search-tab="authors" data-bs-toggle="tab" data-bs-target="#search-offcanvas-authors-panel" role="tab" aria-selected="{{if eq $searchType "authors"}}true{{else}}false{{end}}" aria-controls="search-offcanvas-authors-panel">{{t .Lang "Authors"}}</button>
                 </li>
             </ul>
-            <div class="tab-content home-search-tab-content border border-top-0 rounded-bottom-4 text-start">
+            <div class="tab-content home-search-tab-content border border-top-0 rounded-bottom-4">
                 <div class="tab-pane fade{{if eq $searchType "documents"}} show active{{end}}" id="search-offcanvas-documents-panel" role="tabpanel" tabindex="0">
                     {{template "partials/document-search-filters" dict "Lang" .Lang "SearchFields" .DocumentSearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "DocumentsSearchPage" .SearchPage}}
                 </div>
