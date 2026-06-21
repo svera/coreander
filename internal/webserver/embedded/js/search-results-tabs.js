@@ -1,12 +1,25 @@
 "use strict"
 
-import { setActivePanelInputs } from './search-filter-utils.js'
+import { syncSidebarSearchTypeFromPane, setActivePanelInputs } from './search-filter-utils.js'
+
+const SIDEBAR_DOC_PANEL  = 'search-sidebar-documents-panel'
+const SIDEBAR_AUTH_PANEL = 'search-sidebar-authors-panel'
+const SIDEBAR_TYPE_INPUT = 'search-type'
+
+function switchSidebarPanes(tabName) {
+    const sidebarTabId = tabName === "authors" ? "search-sidebar-tab-authors" : "search-sidebar-tab-documents"
+    const sidebarTab = document.getElementById(sidebarTabId)
+    if (sidebarTab && typeof bootstrap !== "undefined") {
+        bootstrap.Tab.getOrCreateInstance(sidebarTab).show()
+    }
+    setActivePanelInputs(tabName, SIDEBAR_DOC_PANEL, SIDEBAR_AUTH_PANEL, SIDEBAR_TYPE_INPUT)
+}
 
 function switchOffcanvasPanes(tabName) {
-    const docPane  = document.getElementById("search-offcanvas-documents-panel")
+    const docPane    = document.getElementById("search-offcanvas-documents-panel")
     const authorPane = document.getElementById("search-offcanvas-authors-panel")
-    const docBtn   = document.querySelector("#search-offcanvas-tabs [data-search-tab='documents']")
-    const authorBtn = document.querySelector("#search-offcanvas-tabs [data-search-tab='authors']")
+    const docBtn     = document.querySelector("#search-offcanvas-tabs [data-search-tab='documents']")
+    const authorBtn  = document.querySelector("#search-offcanvas-tabs [data-search-tab='authors']")
 
     const toDoc = tabName === "documents"
     docPane?.classList.toggle("show", toDoc)
@@ -21,17 +34,25 @@ function switchOffcanvasPanes(tabName) {
     setActivePanelInputs(tabName, 'search-offcanvas-documents-panel', 'search-offcanvas-authors-panel', 'search-offcanvas-type')
 }
 
+function applyFilters() {
+    const form = document.getElementById("search-filters-form")
+    if (form?._coreanderApplyFilters) {
+        form._coreanderApplyFilters()
+    } else if (window.htmx) {
+        window.htmx.trigger(document.body, "update")
+    }
+}
+
+const initialType = syncSidebarSearchTypeFromPane()
+setActivePanelInputs(initialType, SIDEBAR_DOC_PANEL, SIDEBAR_AUTH_PANEL, SIDEBAR_TYPE_INPUT)
+
 document.addEventListener("click", (event) => {
     const tabBtn = event.target?.closest("[data-search-type-tab]")
     if (!tabBtn) return
     const tabName = tabBtn.dataset.searchTypeTab
     if (tabName !== "documents" && tabName !== "authors") return
 
-    const sidebarTabId = tabName === "authors" ? "search-sidebar-tab-authors" : "search-sidebar-tab-documents"
-    const sidebarTab = document.getElementById(sidebarTabId)
-    if (sidebarTab && typeof bootstrap !== "undefined") {
-        bootstrap.Tab.getOrCreateInstance(sidebarTab).show()
-    }
-
+    switchSidebarPanes(tabName)
     switchOffcanvasPanes(tabName)
+    applyFilters()
 })
