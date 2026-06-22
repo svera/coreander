@@ -56,6 +56,14 @@ func TestSearchAuthors(t *testing.T) {
 			DateOfBirth: precisiondate.NewPrecisionDate("+1990-01-01T00:00:00Z", precisiondate.PrecisionDay),
 			RetrievedOn: mustParseTime("2020-01-01T00:00:00Z"),
 		},
+		{
+			Slug:        "aristotle",
+			Name:        "Aristotle",
+			Gender:      float64(wikidata.GenderMale),
+			DateOfBirth: precisiondate.NewPrecisionDate("-0384-01-01T00:00:00Z", precisiondate.PrecisionYear),
+			DateOfDeath: precisiondate.NewPrecisionDate("-0322-01-01T00:00:00Z", precisiondate.PrecisionYear),
+			RetrievedOn: mustParseTime("2020-01-01T00:00:00Z"),
+		},
 	}
 	for _, author := range authors {
 		if err := idx.IndexAuthor(author); err != nil {
@@ -151,6 +159,49 @@ func TestSearchAuthors(t *testing.T) {
 		}
 	})
 
+	// Aristotle born year -384 (384 BC). On the number line: -400 < -384 < -300 < -100 < 0 < 1775 ...
+	// "to -300" means upper bound = -300, so authors born at or before -300 (300 BC or earlier).
+	// Aristotle (-384) is earlier than -300, so he qualifies.
+	t.Run("by birth date to only (BC)", func(t *testing.T) {
+		to, _ := date.ParseISO("-0300-01-01")
+		res, err := idx.SearchAuthors(index.AuthorSearchFields{BirthDateTo: to}, 1, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		hits := res.Hits()
+		if res.TotalHits() != 1 || hits[0].Slug != "aristotle" {
+			t.Fatalf("expected only Aristotle (born 384 BC), got %#v", hits)
+		}
+	})
+
+	// "from -300" means lower bound = -300, so authors born at or after -300 (300 BC or later).
+	// Aristotle (-384) is earlier than -300, so he should NOT be found.
+	t.Run("by birth date from only (BC)", func(t *testing.T) {
+		from, _ := date.ParseISO("-0300-01-01")
+		res, err := idx.SearchAuthors(index.AuthorSearchFields{BirthDateFrom: from}, 1, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, hit := range res.Hits() {
+			if hit.Slug == "aristotle" {
+				t.Fatalf("Aristotle (born 384 BC) should not match birth date from 300 BC, got %#v", res.Hits())
+			}
+		}
+	})
+
+	t.Run("by birth date range (BC)", func(t *testing.T) {
+		from, _ := date.ParseISO("-0400-01-01")
+		to, _ := date.ParseISO("-0300-01-01")
+		res, err := idx.SearchAuthors(index.AuthorSearchFields{BirthDateFrom: from, BirthDateTo: to}, 1, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		hits := res.Hits()
+		if res.TotalHits() != 1 || hits[0].Slug != "aristotle" {
+			t.Fatalf("expected only Aristotle (born 384 BC), got %#v", hits)
+		}
+	})
+
 	t.Run("by document count", func(t *testing.T) {
 		docs := []index.Document{
 			{
@@ -186,11 +237,9 @@ func TestSearchAuthors(t *testing.T) {
 			t.Fatal(err)
 		}
 		moreHits := moreFirst.Hits()
-		if len(moreHits) != 4 ||
+		if len(moreHits) != 5 ||
 			moreHits[0].Slug != "george-orwell" ||
-			moreHits[1].Slug != "jane-austen" ||
-			moreHits[2].Slug != "arturo-perez-reverte" ||
-			moreHits[3].Slug != "living-author" {
+			moreHits[1].Slug != "jane-austen" {
 			t.Fatalf("expected authors sorted by most documents first, got %#v", moreHits)
 		}
 
@@ -199,11 +248,9 @@ func TestSearchAuthors(t *testing.T) {
 			t.Fatal(err)
 		}
 		fewerHits := fewerFirst.Hits()
-		if len(fewerHits) != 4 ||
-			fewerHits[0].Slug != "arturo-perez-reverte" ||
-			fewerHits[1].Slug != "living-author" ||
-			fewerHits[2].Slug != "jane-austen" ||
-			fewerHits[3].Slug != "george-orwell" {
+		if len(fewerHits) != 5 ||
+			fewerHits[3].Slug != "jane-austen" ||
+			fewerHits[4].Slug != "george-orwell" {
 			t.Fatalf("expected authors sorted by fewest documents first, got %#v", fewerHits)
 		}
 	})

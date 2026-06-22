@@ -85,12 +85,14 @@ export function applyHiddenDatesToVisible(container) {
     container.querySelectorAll('.date-control').forEach(dateControl => {
         const hiddenInput = dateControl.parentElement.querySelector('input.date')
         if (!hiddenInput || !hiddenInput.value) return
-        const parts = hiddenInput.value.split('-')
+        const val = hiddenInput.value
+        const isNegative = val.startsWith('-')
+        const parts = (isNegative ? val.slice(1) : val).split('-')
         if (parts.length < 3) return
         const yearInput = dateControl.querySelector('.input-year')
         const monthSelect = dateControl.querySelector('.input-month')
         const dayInput = dateControl.querySelector('.input-day')
-        if (yearInput) yearInput.value = yearForDisplay(parts[0])
+        if (yearInput) yearInput.value = yearForDisplay((isNegative ? '-' : '') + parts[0])
         if (monthSelect) monthSelect.value = parts[1]
         if (dayInput) dayInput.value = String(parseInt(parts[2], 10))
     })

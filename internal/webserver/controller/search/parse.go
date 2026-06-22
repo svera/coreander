@@ -96,10 +96,10 @@ func parseAuthorSearchQuery(c fiber.Ctx) (index.AuthorSearchFields, error) {
 		searchFields.DeathDateTo = deathDateTo
 	}
 
-	if searchFields.BirthDateTo != 0 && searchFields.BirthDateFrom > searchFields.BirthDateTo {
+	if searchFields.BirthDateFrom != 0 && searchFields.BirthDateTo != 0 && searchFields.BirthDateFrom > searchFields.BirthDateTo {
 		searchFields.BirthDateFrom, searchFields.BirthDateTo = searchFields.BirthDateTo, searchFields.BirthDateFrom
 	}
-	if searchFields.DeathDateTo != 0 && searchFields.DeathDateFrom > searchFields.DeathDateTo {
+	if searchFields.DeathDateFrom != 0 && searchFields.DeathDateTo != 0 && searchFields.DeathDateFrom > searchFields.DeathDateTo {
 		searchFields.DeathDateFrom, searchFields.DeathDateTo = searchFields.DeathDateTo, searchFields.DeathDateFrom
 	}
 
