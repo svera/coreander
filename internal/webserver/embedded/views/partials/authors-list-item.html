@@ -17,11 +17,11 @@
         <dl class="row mb-2">
             {{if ne .Author.DateOfBirth.Date 0}}
             <dt class="col-sm-3">{{t .Lang "Date of birth"}}</dt>
-            <dd class="col-sm-9"><time datetime='{{.Author.DateOfBirth.Date.FormatISO 6}}' class='locale'>{{.Author.DateOfBirth.FormatISO 6}}</time></dd>
+            <dd class="col-sm-9"><time datetime='{{.Author.DateOfBirth.Date.FormatISO 6}}' class='locale'>{{.Author.DateOfBirth.FormatISO 6}}</time>{{if lt .Author.DateOfBirth.Year 0}} <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>{{end}}</dd>
             {{end}}
             {{if ne .Author.DateOfDeath.Date 0}}
             <dt class="col-sm-3">{{t .Lang "Date of death"}}</dt>
-            <dd class="col-sm-9"><time datetime='{{.Author.DateOfDeath.Date.FormatISO 6}}' class='locale'>{{.Author.DateOfDeath.FormatISO 6}}</time></dd>
+            <dd class="col-sm-9"><time datetime='{{.Author.DateOfDeath.Date.FormatISO 6}}' class='locale'>{{.Author.DateOfDeath.FormatISO 6}}</time>{{if lt .Author.DateOfDeath.Year 0}} <abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>{{end}}</dd>
             {{end}}
         </dl>
         <p class="text-muted">{{.Author.DocumentCount}} {{if eq .Author.DocumentCount 1}}{{t .Lang "document"}}{{else}}{{t .Lang "documents"}}{{end}}</p>
