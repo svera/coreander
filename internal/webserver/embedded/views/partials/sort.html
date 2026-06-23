@@ -2,7 +2,7 @@
 {{$lang := .Lang}}
 <div class="form-floating">
     <select class="form-select form-select-sm" id="sort-by" name="sort-by"
-        onchange="window.location.href='{{.SortURL}}sort-by='+this.value;">
+        onchange="(function(v){var f=document.getElementById('search-filters-form');if(f&&f._coreanderApplyFilters){f._coreanderApplyFilters()}else{window.location.href='{{.SortURL}}sort-by='+v}})(this.value)">
         {{range $option := .AdditionalSortOptions}}
         <option value="{{$option.Key}}" {{if eq $sortBy $option.Key}}selected{{end}}>{{t $lang $option.Value}}</option>
         {{end}}

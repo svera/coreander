@@ -50,7 +50,7 @@ func (a *Controller) Update(c fiber.Ctx) error {
 			fmt.Println(err)
 		}
 
-		combineWithDataSource(&author, authorDataSource, supportedLanguages)
+		index.CombineWithDataSource(&author, authorDataSource, supportedLanguages)
 	}
 
 	if err := a.idx.IndexAuthor(author); err != nil {

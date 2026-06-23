@@ -143,7 +143,7 @@ func (a *Controller) readFromDataSource(path string) (image.Image, error) {
 		return nil, fmt.Errorf("failed to fetch image from %s: HTTP %d", path, res.StatusCode)
 	}
 
-	img, err := imaging.Decode(res.Body, imaging.Backends(imaging.GO_IMAGE))
+	img, err := imaging.Decode(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image from %s: %w", path, err)
 	}

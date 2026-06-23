@@ -23,6 +23,10 @@ func NewMockServer(t *testing.T, fixturePath string) *httptest.Server {
 			}
 			if queryValues.Get("action") == "wbgetentities" {
 				id := queryValues.Get("ids")
+				if strings.Contains(id, "|") {
+					parts := strings.Split(id, "|")
+					id = parts[0]
+				}
 				returnResponse(fmt.Sprintf("wbgetentities-%s", id), w, fixturePath)
 				return
 			}

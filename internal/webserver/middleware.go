@@ -77,6 +77,7 @@ func SetProgress(progress ProgressInfo) func(fiber.Ctx) error {
 		}
 		if progress.InProgress {
 			c.Locals("IndexingInProgress", true)
+			c.Locals("IndexingProgressKind", string(progress.Kind))
 			c.Locals("IndexingProgressPercentage", progress.Percentage)
 			if progress.RemainingTime > 0 {
 				c.Locals("RemainingIndexingTime", fmt.Sprintf("%d", progress.RemainingTime.Round(time.Minute)/time.Minute))
@@ -352,7 +353,7 @@ func updateUserLanguage(c fiber.Ctx, usersRepository *model.UserRepository, sess
 	}
 
 	// Early return if language is not supported
-	if !slices.Contains(getSupportedLanguages(), lang) {
+	if !slices.Contains(supportedLanguages, lang) {
 		return
 	}
 

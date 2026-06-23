@@ -1,0 +1,17 @@
+<div class="row mt-5 mb-2 pb-2 align-items-end">
+    <div class="col-12 col-xl p-0">
+        <ul class="nav nav-tabs mb-0" id="search-results-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link{{if ne .SearchType "authors"}} active{{end}}" data-search-type-tab="documents">{{t .Lang "Documents"}}{{if ne .SearchType "authors"}} ({{.Results.TotalHits}}){{end}}</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link{{if eq .SearchType "authors"}} active{{end}}" data-search-type-tab="authors">{{t .Lang "Authors"}}{{if eq .SearchType "authors"}} ({{.Results.TotalHits}}){{end}}</button>
+            </li>
+        </ul>
+    </div>
+    {{if ne .Results.TotalHits 0}}
+    <div class="col-12 col-xl-auto text-end mt-3 mt-xl-0">
+        {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "AdditionalSortOptions" .AdditionalSortOptions}}
+    </div>
+    {{end}}
+</div>

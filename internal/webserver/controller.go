@@ -10,6 +10,7 @@ import (
 	"github.com/svera/coreander/v5/internal/webserver/controller/document"
 	"github.com/svera/coreander/v5/internal/webserver/controller/highlight"
 	"github.com/svera/coreander/v5/internal/webserver/controller/home"
+	"github.com/svera/coreander/v5/internal/webserver/controller/search"
 	"github.com/svera/coreander/v5/internal/webserver/controller/series"
 	"github.com/svera/coreander/v5/internal/webserver/controller/user"
 	"github.com/svera/coreander/v5/internal/webserver/model"
@@ -24,6 +25,7 @@ type Controllers struct {
 	Documents  *document.Controller
 	Home       *home.Controller
 	Authors    *author.Controller
+	Search     *search.Controller
 	Series     *series.Controller
 }
 
@@ -85,6 +87,10 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		WordsPerMinute: cfg.WordsPerMinute,
 	}
 
+	searchCfg := search.Config{
+		WordsPerMinute: cfg.WordsPerMinute,
+	}
+
 	homeCfg := home.Config{
 		LibraryPath:     cfg.LibraryPath,
 		CoverMaxWidth:   cfg.CoverMaxWidth,
@@ -99,5 +105,6 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		Documents:  document.NewController(highlightsRepository, usersRepository, readingRepository, sender, idx, metadataReaders, appFs, documentsCfg, translator),
 		Home:       home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),
 		Authors:    author.NewController(highlightsRepository, readingRepository, sender, idx, authorsCfg, dataSource, appFs, imagesFS),
+		Search:     search.NewController(highlightsRepository, readingRepository, sender, idx, searchCfg),
 		Series:     series.NewController(highlightsRepository, readingRepository, sender, idx, seriesCfg, appFs)}
 }

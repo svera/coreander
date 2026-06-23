@@ -1,25 +1,26 @@
-package author
+package search
 
 import (
-	"io/fs"
-
-	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/result"
 	"github.com/svera/coreander/v5/internal/webserver/model"
+)
+
+const (
+	TypeDocuments = "documents"
+	TypeAuthors   = "authors"
 )
 
 type Sender interface {
 	From() string
 }
 
-// IdxReader defines a set of author reading operations over an index
 type IdxReader interface {
+	Search(searchFields index.SearchFields, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
 	SearchAuthors(searchFields index.AuthorSearchFields, page, resultsPerPage int) (result.Paginated[[]index.Author], error)
-	SearchByAuthor(searchFields index.SearchFields, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
-	Author(slug, lang string) (index.Author, error)
-	IndexAuthor(author index.Author) error
-	Languages() ([]string, error)
+	Count() (uint64, error)
+	AuthorsCount() (uint64, error)
+	Subjects() (map[string][]string, error)
 }
 
 type highlightsRepository interface {
@@ -31,11 +32,7 @@ type readingRepository interface {
 }
 
 type Config struct {
-	WordsPerMinute      float64
-	CacheDir            string
-	AuthorImageMaxWidth int
-	ClientImageCacheTTL int
-	ServerImageCacheTTL int
+	WordsPerMinute float64
 }
 
 type Controller struct {
@@ -44,20 +41,14 @@ type Controller struct {
 	idx               IdxReader
 	sender            Sender
 	config            Config
-	dataSource        DataSource
-	appFs             afero.Fs
-	embeddedImagesFS  fs.FS
 }
 
-func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReader, cfg Config, dataSource DataSource, appFs afero.Fs, embeddedImagesFS fs.FS) *Controller {
+func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReader, cfg Config) *Controller {
 	return &Controller{
 		hlRepository:      hlRepository,
 		readingRepository: readingRepository,
 		idx:               idx,
 		sender:            sender,
 		config:            cfg,
-		dataSource:        dataSource,
-		appFs:             appFs,
-		embeddedImagesFS:  embeddedImagesFS,
 	}
 }

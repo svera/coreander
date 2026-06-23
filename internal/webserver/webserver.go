@@ -103,8 +103,7 @@ func init() {
 	supportedLanguages = translator.SupportedLanguages()
 }
 
-// getSupportedLanguages returns the list of supported languages
-func getSupportedLanguages() []string {
+func SupportedLanguages() []string {
 	return supportedLanguages
 }
 

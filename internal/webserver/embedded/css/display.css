@@ -150,6 +150,15 @@ main .form-control:focus {
     white-space: nowrap;
 }
 
+.home-search-tab-content {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.search-filters-panel .row {
+    margin-inline: 0;
+}
+
 .search-filters-sidebar-sticky {
     position: sticky;
     top: 5rem; /* clear fixed-top navbar */
@@ -282,6 +291,24 @@ main .form-control:focus {
     overflow: hidden;
 }
 
+#searchbox-container .input-group .form-control:focus {
+    box-shadow: none !important;
+}
+
+.home-search-tabs {
+    --bs-nav-tabs-border-radius: var(--bs-border-radius-xl);
+    width: 100%;
+}
+
+.home-search-input-group:focus-within {
+    color: #212529;
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgb(13 110 253 / 25%);
+    z-index: 3;
+    border-radius: .25rem;
+}
+
 #searchbox-container .btn:hover {
     color: var(--bs-btn-color);
     background-color: rgba(0, 0, 0, 0);
@@ -294,14 +321,6 @@ main .form-control:focus {
     box-shadow: 0 0 0 0.25rem rgb(13 110 253 / 25%);
     z-index: 3;
     border-radius: .25rem;
-}
-
-#searchbox-container .input-group .form-control:focus {
-    box-shadow: none !important;
-}
-
-#latest-docs .carousel-indicators {
-    position: relative;
 }
 
 /* Completion checkbox and date styles */
