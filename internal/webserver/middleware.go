@@ -353,7 +353,7 @@ func updateUserLanguage(c fiber.Ctx, usersRepository *model.UserRepository, sess
 	}
 
 	// Early return if language is not supported
-	if !slices.Contains(getSupportedLanguages(), lang) {
+	if !slices.Contains(supportedLanguages, lang) {
 		return
 	}
 
