@@ -53,14 +53,14 @@
     <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Publishing date"}}</legend>
         <div class="row">
-            <div class="col-12 {{if .Responsive}}col-xl-6{{end}} mb-3 px-0">
+            <div class="col-12 {{if .TwoColumnDates}}col-xl-6{{end}} mb-3 px-0">
                 {{$pubDateFrom := ""}}
                 {{if .SearchFields}}
                     {{$pubDateFrom = .SearchFields.PubDateFrom}}
                 {{end}}
                 {{template "partials/date-control" dict "Name" "pub-date-from" "Lang" .Lang "Date" $pubDateFrom "Label" "From" "IdPrefix" $idPrefix }}
             </div>
-            <div class="col-12 {{if .Responsive}}col-xl-6 ps-xl-2{{end}} px-0">
+            <div class="col-12 {{if .TwoColumnDates}}col-xl-6 ps-xl-2{{end}} px-0">
                 {{$pubDateTo := ""}}
                 {{if .SearchFields}}
                     {{$pubDateTo = .SearchFields.PubDateTo}}
