@@ -40,7 +40,7 @@
                 {{if .SearchFields}}{{$birthDateFrom = .SearchFields.BirthDateFrom}}{{end}}
                 {{template "partials/date-control" dict "Name" "birthdate-from" "Lang" .Lang "Date" $birthDateFrom "Label" "From" "IdPrefix" $idPrefix }}
             </div>
-            <div class="col-12 {{if .Responsive}}col-xl-6{{end}} px-0 {{if .Responsive}}ps-xl-2{{end}}">
+            <div class="col-12 {{if .Responsive}}col-xl-6 ps-xl-2{{end}} px-0">
                 {{$birthDateTo := ""}}
                 {{if .SearchFields}}{{$birthDateTo = .SearchFields.BirthDateTo}}{{end}}
                 {{template "partials/date-control" dict "Name" "birthdate-to" "Lang" .Lang "Date" $birthDateTo "Label" "To" "IdPrefix" $idPrefix }}
@@ -55,7 +55,7 @@
                 {{if .SearchFields}}{{$deathDateFrom = .SearchFields.DeathDateFrom}}{{end}}
                 {{template "partials/date-control" dict "Name" "deathdate-from" "Lang" .Lang "Date" $deathDateFrom "Label" "From" "IdPrefix" $idPrefix }}
             </div>
-            <div class="col-12 {{if .Responsive}}col-xl-6{{end}} px-0 {{if .Responsive}}ps-xl-2{{end}}">
+            <div class="col-12 {{if .Responsive}}col-xl-6 ps-xl-2{{end}} px-0">
                 {{$deathDateTo := ""}}
                 {{if .SearchFields}}{{$deathDateTo = .SearchFields.DeathDateTo}}{{end}}
                 {{template "partials/date-control" dict "Name" "deathdate-to" "Lang" .Lang "Date" $deathDateTo "Label" "To" "IdPrefix" $idPrefix }}
