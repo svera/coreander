@@ -60,7 +60,7 @@
                 {{end}}
                 {{template "partials/date-control" dict "Name" "pub-date-from" "Lang" .Lang "Date" $pubDateFrom "Label" "From" "IdPrefix" $idPrefix }}
             </div>
-            <div class="col-12 {{if .Responsive}}col-xl-6{{end}} px-0">
+            <div class="col-12 {{if .Responsive}}col-xl-6{{end}} px-0 {{if .Responsive}}ps-xl-2{{end}}">
                 {{$pubDateTo := ""}}
                 {{if .SearchFields}}
                     {{$pubDateTo = .SearchFields.PubDateTo}}
