@@ -268,7 +268,7 @@ func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Ind
 		if !needsReindex {
 			// Authors mapping changed but documents are fine: rebuild authors from existing documents index.
 			tmpIdx := index.NewBleve(documentsIndex, authorsIndex, nil, "", nil, index.Config{})
-			if err = tmpIdx.RebuildAuthorsFromDocuments(500); err != nil {
+			if err = tmpIdx.RebuildAuthorsFromDocuments(input.BatchSize); err != nil {
 				log.Fatal(err)
 			}
 		}
