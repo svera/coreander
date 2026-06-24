@@ -63,16 +63,16 @@ func (m *mockAuthorDataSource) RetrieveAuthor(_ []string, _ []string) (datasourc
 	return nil, nil
 }
 
-func (m *mockAuthorDataSource) RetrieveAuthors(candidates map[string][]string, _ []string, _ time.Duration) (map[string]datasourcemodel.Author, error) {
+func (m *mockAuthorDataSource) RetrieveAuthors(candidates map[string][]string, _ []string, _ time.Duration, onResult func(string, datasourcemodel.Author) error) error {
 	m.calls++
 	m.retrieveCalls++
-	results := make(map[string]datasourcemodel.Author, len(candidates))
 	for slug := range candidates {
-		if author, ok := m.bySlug[slug]; ok {
-			results[slug] = author
+		author := m.bySlug[slug]
+		if err := onResult(slug, author); err != nil {
+			return err
 		}
 	}
-	return results, nil
+	return nil
 }
 
 type stubAuthor struct {
