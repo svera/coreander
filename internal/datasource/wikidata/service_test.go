@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
+	"github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
@@ -78,9 +79,13 @@ func TestRetrieveAuthorsBatch(t *testing.T) {
 	gowikidata.WikidataDomain = mockServer.URL
 
 	source := NewWikidataSource(Gowikidata{})
-	authors, err := source.RetrieveAuthors(map[string][]string{
+	authors := make(map[string]model.Author)
+	err := source.RetrieveAuthors(map[string][]string{
 		"miguel": {"Q1234"},
-	}, []string{"en"}, 0)
+	}, []string{"en"}, 0, func(slug string, a model.Author) error {
+		authors[slug] = a
+		return nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

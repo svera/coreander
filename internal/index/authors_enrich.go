@@ -18,7 +18,7 @@ type AuthorDataSource interface {
 	SearchAuthor(name string, languages []string) (datasourcemodel.Author, error)
 	SearchEntityIDs(name string) ([]string, error)
 	RetrieveAuthor(ids []string, languages []string) (datasourcemodel.Author, error)
-	RetrieveAuthors(candidates map[string][]string, languages []string, batchInterval time.Duration) (map[string]datasourcemodel.Author, error)
+	RetrieveAuthors(candidates map[string][]string, languages []string, batchInterval time.Duration, onResult func(slug string, author datasourcemodel.Author) error) error
 }
 
 // CombineWithDataSource merges external author metadata into an indexed author.
@@ -127,24 +127,20 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 		b.recordAuthorEnrichmentProgress()
 	}
 
-	enriched, err := dataSource.RetrieveAuthors(candidates, supportedLanguages, interval)
-	if err != nil {
-		return err
-	}
-
-	for slug, author := range authorsBySlug {
-		if authorDataSource, ok := enriched[slug]; ok {
-			CombineWithDataSource(&author, authorDataSource, supportedLanguages)
+	err = dataSource.RetrieveAuthors(candidates, supportedLanguages, interval, func(slug string, authorData datasourcemodel.Author) error {
+		author := authorsBySlug[slug]
+		if authorData != nil {
+			CombineWithDataSource(&author, authorData, supportedLanguages)
 		} else {
 			author.RetrievedOn = time.Now().UTC()
 		}
-
 		if err := b.IndexAuthor(author); err != nil {
 			log.Printf("Error indexing enriched author %s: %s", author.Name, err)
 		}
 		b.recordAuthorEnrichmentProgress()
-	}
+		return nil
+	})
 
 	log.Printf("Author enrichment finished")
-	return nil
+	return err
 }

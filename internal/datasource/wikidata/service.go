@@ -106,15 +106,25 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.
 
 // RetrieveAuthors fetches metadata for multiple authors in as few Wikidata requests as possible.
 // Keys are caller-defined identifiers (for example author slugs). Values are Wikidata entity ID
-// candidates for each author, in search-result order.
-func (a WikidataSource) RetrieveAuthors(candidates map[string][]string, languages []string, batchInterval time.Duration) (map[string]model.Author, error) {
+// candidates for each author, in search-result order. onResult is called for each author as soon
+// as all its candidate IDs have been requested, passing nil when no matching person was found.
+func (a WikidataSource) RetrieveAuthors(candidates map[string][]string, languages []string, batchInterval time.Duration, onResult func(slug string, author model.Author) error) error {
 	if len(candidates) == 0 {
-		return map[string]model.Author{}, nil
+		return nil
 	}
 
 	uniqueIDs := make([]string, 0)
 	seen := make(map[string]struct{})
-	for _, ids := range candidates {
+	pending := make(map[string][]string)
+
+	for slug, ids := range candidates {
+		if len(ids) == 0 {
+			if err := onResult(slug, nil); err != nil {
+				return err
+			}
+			continue
+		}
+		pending[slug] = ids
 		for _, id := range ids {
 			if id == "" {
 				continue
@@ -123,33 +133,85 @@ func (a WikidataSource) RetrieveAuthors(candidates map[string][]string, language
 				continue
 			}
 			if !validateID(id) {
-				return nil, fmt.Errorf("invalid author ID %s", id)
+				return fmt.Errorf("invalid author ID %s", id)
 			}
 			seen[id] = struct{}{}
 			uniqueIDs = append(uniqueIDs, id)
 		}
 	}
 
-	entities, err := a.fetchEntitiesBatched(uniqueIDs, languages, batchInterval)
-	if err != nil {
-		return nil, err
+	entities := make(map[string]gowikidata.Entity, len(uniqueIDs))
+	requested := make(map[string]struct{}, len(uniqueIDs))
+
+	for start := 0; start < len(uniqueIDs); start += maxEntitiesPerRequest {
+		if start > 0 && batchInterval > 0 {
+			time.Sleep(batchInterval)
+		}
+		end := start + maxEntitiesPerRequest
+		if end > len(uniqueIDs) {
+			end = len(uniqueIDs)
+		}
+		chunk := uniqueIDs[start:end]
+		for _, id := range chunk {
+			requested[id] = struct{}{}
+		}
+
+		entitiesReq, err := a.wikidata.NewGetEntities(chunk)
+		if err != nil {
+			return err
+		}
+		entitiesReq.SetProps(entityFetchProps)
+		entitiesReq.SetLanguages(languages)
+		batch, err := entitiesReq.Get()
+		if err != nil {
+			return err
+		}
+		for id, entity := range *batch {
+			entities[id] = entity
+		}
+
+		for slug, ids := range pending {
+			if !allIDsRequested(ids, requested) {
+				continue
+			}
+			if err := a.resolveAndNotify(slug, ids, entities, languages, onResult); err != nil {
+				return err
+			}
+			delete(pending, slug)
+		}
 	}
 
-	results := make(map[string]model.Author, len(candidates))
-	for key, ids := range candidates {
-		if len(ids) == 0 {
-			continue
+	for slug, ids := range pending {
+		if err := a.resolveAndNotify(slug, ids, entities, languages, onResult); err != nil {
+			return err
 		}
-		author, err := a.authorFromEntityIDs(ids, entities, languages)
-		if err != nil {
-			return nil, err
-		}
-		if author.instanceOf == InstanceUnknown {
-			continue
-		}
-		results[key] = author
 	}
-	return results, nil
+
+	return nil
+}
+
+func (a WikidataSource) resolveAndNotify(slug string, ids []string, entities map[string]gowikidata.Entity, languages []string, onResult func(string, model.Author) error) error {
+	author, err := a.authorFromEntityIDs(ids, entities, languages)
+	if err != nil {
+		return err
+	}
+	var result model.Author
+	if author.instanceOf != InstanceUnknown {
+		result = author
+	}
+	return onResult(slug, result)
+}
+
+func allIDsRequested(ids []string, requested map[string]struct{}) bool {
+	for _, id := range ids {
+		if id == "" {
+			continue
+		}
+		if _, ok := requested[id]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func (a WikidataSource) fetchEntitiesBatched(ids []string, languages []string, batchInterval time.Duration) (map[string]gowikidata.Entity, error) {
