@@ -15,7 +15,7 @@
 
             {{if .Document.Authors}}
                 <p class="fs-2 mb-0">
-                    {{join .Document.Authors ", "}}
+                    {{range $i, $author := .Document.Authors}}{{if $i}}, {{end}}<a href="/authors/{{index $.Document.AuthorsSlugs $i}}" class="text-decoration-none">{{$author}}</a>{{end}}
                 </p>
             {{else}}
                 <p class="fs-2 mb-0">{{t .Lang "Unknown author"}}</p>
@@ -52,7 +52,7 @@
                 {{if .Document.Description}}
                 <div class="mb-1 mt-3 lead">{{.Document.Description}}</div>
                 {{else}}
-                <div class="mb-1"><p><i>{{t .Lang "No description available"}}</i></p></div>
+                <div class="mb-1 mt-3"><p><i>{{t .Lang "No description available"}}</i></p></div>
                 {{end}}
             </div>
         </div>
@@ -100,34 +100,6 @@
                     <div class="col-6 col-lg-3 pe-0 mt-3">
                         {{template "partials/cover" dict "Lang" $.Lang "Document" $doc "Session" $.Session "Version" $.Version}}
                     </div>
-                {{end}}
-            </div>
-        </section>
-        {{end}}
-
-        {{ $length := len .SameAuthors }} {{ if gt $length 0 }}
-        <section class="row mt-5">
-            <div class="col-9">
-                <h2>
-                    {{t .Lang "Also by"}}
-                    {{join .Document.Authors ", "}}
-                </h2>
-            </div>
-            <div class="col-3 text-end">
-                {{if gt (len .Document.Authors) 1}}
-                <a  href='/documents?search=AuthorsSlugs&colon;{{join .Document.AuthorsSlugs ","}}'>
-                        {{t .Lang "See all" }}</a>
-                {{else}}
-                <a  href='/authors/{{index .Document.AuthorsSlugs 0}}'>
-                    {{t .Lang "See all" }}</a>
-                {{end}}
-            </div>
-
-            <div class="row pe-0 align-items-end">
-                {{range $i, $doc := .SameAuthors}}
-                <div class="col-6 col-lg-3 pe-0 mt-3">
-                    {{template "partials/cover" dict "Lang" $.Lang "Document" $doc "Session" $.Session "Version" $.Version}}
-                </div>
                 {{end}}
             </div>
         </section>

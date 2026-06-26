@@ -36,7 +36,7 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		title = fmt.Sprintf("%s - %s", strings.Join(document.Authors, ", "), document.Title)
 	}
 
-	sameSubjects, sameAuthors, sameSeries := d.related(document.Slug, int(session.ID))
+	sameSubjects, sameSeries := d.related(document.Slug, int(session.ID))
 
 	var completedOn *time.Time
 	result := model.AugmentedDocument{Document: document}
@@ -54,13 +54,12 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"Document":       result,
 		"EmailFrom":      d.sender.From(),
 		"SameSeries":     sameSeries,
-		"SameAuthors":    sameAuthors,
 		"SameSubjects":   sameSubjects,
 		"WordsPerMinute": d.config.WordsPerMinute,
 	}, "layout")
 }
 
-func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuthors, sameSeries []model.AugmentedDocument) {
+func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameSeries []model.AugmentedDocument) {
 	var err error
 	var subjects []index.Document
 	if subjects, err = d.idx.SameSubjects(slug, relatedDocuments); err != nil {
@@ -72,16 +71,6 @@ func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuth
 		sameSubjects = append(sameSubjects, result)
 	}
 
-	var authors []index.Document
-	if authors, err = d.idx.SameAuthors(slug, relatedDocuments); err != nil {
-		fmt.Println(err)
-	}
-	for i := range authors {
-		result := model.AugmentedDocument{Document: authors[i]}
-		result = d.hlRepository.Highlighted(sessionID, result)
-		sameAuthors = append(sameAuthors, result)
-	}
-
 	var series []index.Document
 	if series, err = d.idx.SameSeries(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
@@ -91,5 +80,5 @@ func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameAuth
 		result = d.hlRepository.Highlighted(sessionID, result)
 		sameSeries = append(sameSeries, result)
 	}
-	return sameSubjects, sameAuthors, sameSeries
+	return sameSubjects, sameSeries
 }

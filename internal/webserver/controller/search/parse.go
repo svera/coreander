@@ -144,7 +144,7 @@ func parseDocumentSortBy(c fiber.Ctx) []string {
 func parseAuthorSortBy(c fiber.Ctx) []string {
 	switch c.Query("sort-by") {
 	case "name-z-a":
-		return []string{"-Name"}
+		return []string{"-Slug"}
 	case "birth-older-first":
 		return []string{"DateOfBirth.Date"}
 	case "birth-newer-first":
@@ -158,7 +158,7 @@ func parseAuthorSortBy(c fiber.Ctx) []string {
 	case "documents-fewer-first":
 		return []string{"DocumentCount"}
 	default:
-		return []string{"Name"}
+		return []string{"Slug"}
 	}
 }
 

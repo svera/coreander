@@ -71,6 +71,40 @@ func TestSearchAuthors(t *testing.T) {
 		}
 	}
 
+	t.Run("alphabetical sort a-z", func(t *testing.T) {
+		res, err := idx.SearchAuthors(index.AuthorSearchFields{SortBy: []string{"Slug"}}, 1, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		hits := res.Hits()
+		expected := []string{"aristotle", "arturo-perez-reverte", "george-orwell", "jane-austen", "living-author"}
+		if len(hits) != len(expected) {
+			t.Fatalf("expected %d results, got %d", len(expected), len(hits))
+		}
+		for i, slug := range expected {
+			if hits[i].Slug != slug {
+				t.Fatalf("position %d: expected %q, got %q", i, slug, hits[i].Slug)
+			}
+		}
+	})
+
+	t.Run("alphabetical sort z-a", func(t *testing.T) {
+		res, err := idx.SearchAuthors(index.AuthorSearchFields{SortBy: []string{"-Slug"}}, 1, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		hits := res.Hits()
+		expected := []string{"living-author", "jane-austen", "george-orwell", "arturo-perez-reverte", "aristotle"}
+		if len(hits) != len(expected) {
+			t.Fatalf("expected %d results, got %d", len(expected), len(hits))
+		}
+		for i, slug := range expected {
+			if hits[i].Slug != slug {
+				t.Fatalf("position %d: expected %q, got %q", i, slug, hits[i].Slug)
+			}
+		}
+	})
+
 	t.Run("by name", func(t *testing.T) {
 		res, err := idx.SearchAuthors(index.AuthorSearchFields{Name: "Orwell"}, 1, 10)
 		if err != nil {
