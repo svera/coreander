@@ -59,6 +59,18 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 		searchResults = s.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
+	authorSearchFields, err := parseAuthorSearchQuery(c)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrBadRequest
+	}
+
+	docCount, authorCount, err := s.tabCounts(searchFields, authorSearchFields)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
 	templateVars := s.baseTemplateVars(c, TypeDocuments)
 	templateVars["SearchFields"] = searchFields
 	templateVars["DocumentSearchFields"] = searchFields
@@ -68,6 +80,8 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 	templateVars["Title"] = "Search results"
 	templateVars["WordsPerMinute"] = wordsPerMinute
 	templateVars["AdditionalSortOptions"] = documentSortOptions()
+	templateVars["DocumentsTotalHits"] = docCount
+	templateVars["AuthorsTotalHits"] = authorCount
 
 	return s.renderSearch(c, templateVars, "partials/docs-list-fragments")
 }
@@ -86,6 +100,18 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	}
 
 	keywords := searchFields.Name
+	documentSearchFields, err := parseDocumentSearchQuery(c, 0)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrBadRequest
+	}
+
+	docCount, authorCount, err := s.tabCounts(documentSearchFields, searchFields)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
 	templateVars := s.baseTemplateVars(c, TypeAuthors)
 	templateVars["SearchFields"] = searchFields
 	templateVars["AuthorSearchFields"] = searchFields
@@ -96,6 +122,8 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	templateVars["Paginator"] = view.Pagination(model.MaxPagesNavigator, authorResults, c.Queries())
 	templateVars["Title"] = "Search authors"
 	templateVars["AdditionalSortOptions"] = authorSortOptions()
+	templateVars["DocumentsTotalHits"] = docCount
+	templateVars["AuthorsTotalHits"] = authorCount
 
 	return s.renderSearch(c, templateVars, "partials/authors-list-fragments")
 }
@@ -128,6 +156,18 @@ func (s *Controller) renderSearch(c fiber.Ctx, templateVars fiber.Map, fragmentT
 	}
 
 	return nil
+}
+
+func (s *Controller) tabCounts(docFields index.SearchFields, authorFields index.AuthorSearchFields) (docCount, authorCount int, err error) {
+	docCount, err = s.idx.CountDocuments(docFields)
+	if err != nil {
+		return 0, 0, err
+	}
+	authorCount, err = s.idx.CountAuthors(authorFields)
+	if err != nil {
+		return 0, 0, err
+	}
+	return docCount, authorCount, nil
 }
 
 func documentSortOptions() []struct {

@@ -301,6 +301,15 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	), nil
 }
 
+// CountDocuments returns the total number of documents matching the given search fields, without fetching any hits.
+func (b *BleveIndexer) CountDocuments(searchFields SearchFields) (int, error) {
+	r, err := b.Search(searchFields, 1, 0)
+	if err != nil {
+		return 0, err
+	}
+	return r.TotalHits(), nil
+}
+
 // Count returns the number of indexed documents
 func (b *BleveIndexer) Count() (uint64, error) {
 	matchAllQuery := bleve.NewMatchAllQuery()

@@ -46,6 +46,21 @@ function applyFilters() {
 const initialType = syncSidebarSearchTypeFromPane()
 setActivePanelInputs(initialType, SIDEBAR_DOC_PANEL, SIDEBAR_AUTH_PANEL, SIDEBAR_TYPE_INPUT)
 
+document.body.addEventListener('htmx:configRequest', function (evt) {
+    const sidebarForm = document.getElementById('search-filters-form')
+    if (!sidebarForm) return
+    for (const el of sidebarForm.elements) {
+        if (!el.name || !el.disabled) continue
+        if (el.type === 'submit' || el.type === 'button' || el.type === 'reset' || el.type === 'image') continue
+        if ((el.type === 'checkbox' || el.type === 'radio') && !el.checked) continue
+        const v = el.value
+        if (v == null || String(v).trim() === '') continue
+        if (!(el.name in evt.detail.parameters)) {
+            evt.detail.parameters[el.name] = v
+        }
+    }
+})
+
 document.addEventListener("click", (event) => {
     const tabBtn = event.target?.closest("[data-search-type-tab]")
     if (!tabBtn) return
