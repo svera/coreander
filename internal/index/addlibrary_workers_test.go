@@ -38,7 +38,7 @@ func TestAddLibraryParallelMetadataWorkers(t *testing.T) {
 	if err := idx.AddLibrary(10, true, 4); err != nil {
 		t.Fatalf("AddLibrary: %v", err)
 	}
-	n, err := idx.Count()
+	n, err := idx.TotalDocs()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -310,8 +310,8 @@ func (b *BleveIndexer) CountDocuments(searchFields SearchFields) (int, error) {
 	return r.TotalHits(), nil
 }
 
-// Count returns the number of indexed documents
-func (b *BleveIndexer) Count() (uint64, error) {
+// TotalDocs returns the number of indexed documents
+func (b *BleveIndexer) TotalDocs() (uint64, error) {
 	matchAllQuery := bleve.NewMatchAllQuery()
 
 	searchRequest := bleve.NewSearchRequest(matchAllQuery)
@@ -322,8 +322,8 @@ func (b *BleveIndexer) Count() (uint64, error) {
 	return searchResult.Total, nil
 }
 
-// AuthorsCount returns the number of indexed authors.
-func (b *BleveIndexer) AuthorsCount() (uint64, error) {
+// TotalAuthors returns the number of indexed authors.
+func (b *BleveIndexer) TotalAuthors() (uint64, error) {
 	return b.authorsIdx.DocCount()
 }
 
