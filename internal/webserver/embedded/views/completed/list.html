@@ -1,6 +1,6 @@
 <h1 class="mt-5">{{t .Lang "Completions"}}</h1>
 
-{{template "partials/docs-list-placeholder" .}}
+{{template "partials/list-placeholder" .}}
 
 <div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator">
     {{ template "partials/completed-list" .}}

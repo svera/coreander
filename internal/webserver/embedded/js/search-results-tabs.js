@@ -69,5 +69,7 @@ document.addEventListener("click", (event) => {
 
     switchSidebarPanes(tabName)
     switchOffcanvasPanes(tabName)
+    document.querySelectorAll('.placeholder-skeleton-doc').forEach(el => el.classList.toggle('d-none', tabName === 'authors'))
+    document.querySelectorAll('.placeholder-skeleton-author').forEach(el => el.classList.toggle('d-none', tabName !== 'authors'))
     applyFilters()
 })
