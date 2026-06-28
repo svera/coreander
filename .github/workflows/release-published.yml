@@ -31,6 +31,6 @@ jobs:
         run: "$(go env GOPATH)/bin/mage Release"
 
       - name: Upload archives to release
-        uses: softprops/action-gh-release@v3
-        with:
-          files: coreander_*.zip
+        run: gh release upload ${{ github.ref_name }} coreander_*.zip
+        env:
+          GH_TOKEN: ${{ github.token }}
