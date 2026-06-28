@@ -1,43 +1,19 @@
 "use strict"
 
-import { syncSidebarSearchTypeFromPane, setActivePanelInputs } from './search-filter-utils.js'
+import { syncSidebarSearchTypeFromPane, syncSearchTypeFromPane, setActivePanelInputs } from './search-filter-utils.js'
 
-const SIDEBAR_DOC_PANEL        = 'search-sidebar-documents-panel'
-const SIDEBAR_AUTH_PANEL       = 'search-sidebar-authors-panel'
-const SIDEBAR_TYPE_INPUT       = 'search-type'
-const SIDEBAR_TAB_DOCS_ID      = 'search-sidebar-tab-documents'
-const SIDEBAR_TAB_AUTHORS_ID   = 'search-sidebar-tab-authors'
-const OFFCANVAS_DOC_PANEL      = 'search-offcanvas-documents-panel'
-const OFFCANVAS_AUTH_PANEL     = 'search-offcanvas-authors-panel'
-const OFFCANVAS_TYPE_INPUT     = 'search-offcanvas-type'
-const OFFCANVAS_TABS_ID        = 'search-offcanvas-tabs'
-const SIDEBAR_FORM_ID          = 'search-filters-form'
-const SKELETON_DOC_CLASS       = '.placeholder-skeleton-doc'
-const SKELETON_AUTH_CLASS      = '.placeholder-skeleton-author'
-
-function setOffcanvasSearchType(type) {
-    const typeInput = document.getElementById(OFFCANVAS_TYPE_INPUT)
-    if (typeInput) typeInput.value = type
-}
-
-function syncOffcanvasSearchTypeFromPane() {
-    const authorPane = document.getElementById(OFFCANVAS_AUTH_PANEL)
-    const type = authorPane?.classList.contains("active") ? "authors" : "documents"
-    setOffcanvasSearchType(type)
-    return type
-}
-
-function setOffcanvasActivePanelInputs(activeType) {
-    const docPanel    = document.getElementById(OFFCANVAS_DOC_PANEL)
-    const authorPanel = document.getElementById(OFFCANVAS_AUTH_PANEL)
-    docPanel?.querySelectorAll("input, select, textarea").forEach((el) => {
-        if (el.id === OFFCANVAS_TYPE_INPUT) return
-        el.disabled = activeType !== "documents"
-    })
-    authorPanel?.querySelectorAll("input, select, textarea").forEach((el) => {
-        el.disabled = activeType !== "authors"
-    })
-}
+const SIDEBAR_DOC_PANEL      = 'search-sidebar-documents-panel'
+const SIDEBAR_AUTH_PANEL     = 'search-sidebar-authors-panel'
+const SIDEBAR_TYPE_INPUT     = 'search-type'
+const SIDEBAR_TAB_DOCS_ID    = 'search-sidebar-tab-documents'
+const SIDEBAR_TAB_AUTHORS_ID = 'search-sidebar-tab-authors'
+const OFFCANVAS_DOC_PANEL    = 'search-offcanvas-documents-panel'
+const OFFCANVAS_AUTH_PANEL   = 'search-offcanvas-authors-panel'
+const OFFCANVAS_TYPE_INPUT   = 'search-offcanvas-type'
+const OFFCANVAS_TABS_ID      = 'search-offcanvas-tabs'
+const SIDEBAR_FORM_ID        = 'search-filters-form'
+const SKELETON_DOC_CLASS     = '.placeholder-skeleton-doc'
+const SKELETON_AUTH_CLASS    = '.placeholder-skeleton-author'
 
 function switchSidebarPanes(tabName) {
     const sidebarTabId = tabName === "authors" ? SIDEBAR_TAB_AUTHORS_ID : SIDEBAR_TAB_DOCS_ID
@@ -80,8 +56,8 @@ function applyFilters() {
 const offcanvasTabs = document.getElementById(OFFCANVAS_TABS_ID)
 
 if (offcanvasTabs) {
-    const activeType = syncOffcanvasSearchTypeFromPane()
-    setOffcanvasActivePanelInputs(activeType)
+    const activeType = syncSearchTypeFromPane(OFFCANVAS_TYPE_INPUT, OFFCANVAS_AUTH_PANEL)
+    setActivePanelInputs(activeType, OFFCANVAS_DOC_PANEL, OFFCANVAS_AUTH_PANEL, OFFCANVAS_TYPE_INPUT)
 }
 
 if (document.getElementById(SIDEBAR_FORM_ID)) {
@@ -126,6 +102,6 @@ if (document.getElementById(SIDEBAR_FORM_ID)) {
     })
 
     offcanvasTabs.closest("form")?.addEventListener("submit", () => {
-        syncOffcanvasSearchTypeFromPane()
+        syncSearchTypeFromPane(OFFCANVAS_TYPE_INPUT, OFFCANVAS_AUTH_PANEL)
     })
 }
