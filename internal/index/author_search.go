@@ -82,6 +82,15 @@ func addDeathDateRangeFilter(filtersQuery *query.ConjunctionQuery, from, to date
 	filtersQuery.AddQuery(excludeLiving)
 }
 
+// CountAuthors returns the total number of authors matching the given search fields, without fetching any hits.
+func (b *BleveIndexer) CountAuthors(searchFields AuthorSearchFields) (int, error) {
+	r, err := b.SearchAuthors(searchFields, 1, 0)
+	if err != nil {
+		return 0, err
+	}
+	return r.TotalHits(), nil
+}
+
 func (b *BleveIndexer) runAuthorsPaginatedQuery(q query.Query, page, resultsPerPage int, sortBy []string) (result.Paginated[[]Author], error) {
 	if page < 1 {
 		page = 1

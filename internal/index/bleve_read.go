@@ -301,20 +301,22 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	), nil
 }
 
-// Count returns the number of indexed documents
-func (b *BleveIndexer) Count() (uint64, error) {
-	matchAllQuery := bleve.NewMatchAllQuery()
-
-	searchRequest := bleve.NewSearchRequest(matchAllQuery)
-	searchResult, err := b.documentsIdx.Search(searchRequest)
+// CountDocuments returns the total number of documents matching the given search fields, without fetching any hits.
+func (b *BleveIndexer) CountDocuments(searchFields SearchFields) (int, error) {
+	r, err := b.Search(searchFields, 1, 0)
 	if err != nil {
 		return 0, err
 	}
-	return searchResult.Total, nil
+	return r.TotalHits(), nil
 }
 
-// AuthorsCount returns the number of indexed authors.
-func (b *BleveIndexer) AuthorsCount() (uint64, error) {
+// TotalDocs returns the number of indexed documents
+func (b *BleveIndexer) TotalDocs() (uint64, error) {
+	return b.documentsIdx.DocCount()
+}
+
+// TotalAuthors returns the number of indexed authors.
+func (b *BleveIndexer) TotalAuthors() (uint64, error) {
 	return b.authorsIdx.DocCount()
 }
 
