@@ -1,7 +1,7 @@
 {{$searchType := or .SearchType "documents"}}
 <li class="nav-item" role="presentation">
-    <button type="button" class="nav-link text-nowrap{{if ne $searchType "authors"}} active{{end}}" data-search-type-tab="documents">{{t .Lang "Documents"}}{{if .SearchPage}} ({{.DocumentsTotalHits}}){{end}}</button>
+    <button type="button" class="nav-link{{if ne $searchType "authors"}} active{{end}}" data-search-type-tab="documents">{{t .Lang "Documents"}}{{if .SearchPage}} ({{.DocumentsTotalHits}}){{end}}</button>
 </li>
 <li class="nav-item" role="presentation">
-    <button type="button" class="nav-link text-nowrap{{if eq $searchType "authors"}} active{{end}}" data-search-type-tab="authors">{{t .Lang "Authors"}}{{if .SearchPage}} ({{.AuthorsTotalHits}}){{end}}</button>
+    <button type="button" class="nav-link{{if eq $searchType "authors"}} active{{end}}" data-search-type-tab="authors">{{t .Lang "Authors"}}{{if .SearchPage}} ({{.AuthorsTotalHits}}){{end}}</button>
 </li>

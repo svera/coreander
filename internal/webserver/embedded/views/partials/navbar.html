@@ -202,7 +202,7 @@
         {{$searchType := or .SearchType "documents"}}
         <form action="/search" method="get" role="search">
             <input type="hidden" name="type" id="search-offcanvas-type" value="{{$searchType}}">
-            <ul class="nav nav-tabs nav-fill home-search-tabs mb-0" id="search-offcanvas-tabs" role="tablist">
+            <ul class="nav nav-tabs nav-fill home-search-tabs mb-0 flex-nowrap" id="search-offcanvas-tabs" role="tablist">
                 {{template "partials/search-tab-items" .}}
             </ul>
             <div class="border-start border-end p-3">
