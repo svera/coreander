@@ -22,7 +22,7 @@ type Sender interface {
 // IdxReaderWriter defines a set of reading and writing operations over an index
 type IdxReaderWriter interface {
 	Search(searchFields index.SearchFields, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
-	Count() (uint64, error)
+	TotalDocs() (uint64, error)
 	Close() error
 	Document(Slug string) (index.Document, error)
 	File(slug string) (*index.IndexedFile, error)

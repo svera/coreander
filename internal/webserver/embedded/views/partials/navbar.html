@@ -205,10 +205,10 @@
             <input type="hidden" name="type" id="search-offcanvas-type" value="{{$searchType}}">
             <ul class="nav nav-tabs nav-fill home-search-tabs mb-0" id="search-offcanvas-tabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button type="button" class="nav-link{{if eq $searchType "documents"}} active{{end}}" data-search-tab="documents" data-bs-toggle="tab" data-bs-target="#search-offcanvas-documents-panel" role="tab" aria-selected="{{if eq $searchType "documents"}}true{{else}}false{{end}}" aria-controls="search-offcanvas-documents-panel">{{t .Lang "Documents"}}</button>
+                    <button type="button" class="nav-link{{if eq $searchType "documents"}} active{{end}}" data-search-tab="documents" data-bs-toggle="tab" data-bs-target="#search-offcanvas-documents-panel" role="tab" aria-selected="{{if eq $searchType "documents"}}true{{else}}false{{end}}" aria-controls="search-offcanvas-documents-panel">{{t .Lang "Documents"}}{{if .DocumentsTotalHits}} ({{.DocumentsTotalHits}}){{end}}</button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button type="button" class="nav-link{{if eq $searchType "authors"}} active{{end}}" data-search-tab="authors" data-bs-toggle="tab" data-bs-target="#search-offcanvas-authors-panel" role="tab" aria-selected="{{if eq $searchType "authors"}}true{{else}}false{{end}}" aria-controls="search-offcanvas-authors-panel">{{t .Lang "Authors"}}</button>
+                    <button type="button" class="nav-link{{if eq $searchType "authors"}} active{{end}}" data-search-tab="authors" data-bs-toggle="tab" data-bs-target="#search-offcanvas-authors-panel" role="tab" aria-selected="{{if eq $searchType "authors"}}true{{else}}false{{end}}" aria-controls="search-offcanvas-authors-panel">{{t .Lang "Authors"}}{{if .AuthorsTotalHits}} ({{.AuthorsTotalHits}}){{end}}</button>
                 </li>
             </ul>
             <div class="border-start border-end p-3">
