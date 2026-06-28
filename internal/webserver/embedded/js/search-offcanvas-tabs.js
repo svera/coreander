@@ -5,12 +5,6 @@ function setOffcanvasSearchType(type) {
     if (typeInput) typeInput.value = type
 }
 
-function tabTypeFromEvent(event) {
-    const tabBtn = event.target?.closest?.("[data-search-tab]") ?? event.target
-    const tabName = tabBtn?.dataset?.searchTab
-    return tabName === "authors" || tabName === "documents" ? tabName : null
-}
-
 function syncOffcanvasSearchTypeFromPane() {
     const authorPane = document.getElementById("search-offcanvas-authors-panel")
     const type = authorPane?.classList.contains("active") ? "authors" : "documents"
@@ -19,9 +13,8 @@ function syncOffcanvasSearchTypeFromPane() {
 }
 
 function setOffcanvasActivePanelInputs(activeType) {
-    const docPanel = document.getElementById("search-offcanvas-documents-panel")
+    const docPanel    = document.getElementById("search-offcanvas-documents-panel")
     const authorPanel = document.getElementById("search-offcanvas-authors-panel")
-
     docPanel?.querySelectorAll("input, select, textarea").forEach((el) => {
         if (el.id === "search-offcanvas-type") return
         el.disabled = activeType !== "documents"
@@ -35,29 +28,37 @@ function initSearchOffcanvasTabs() {
     const tabs = document.getElementById("search-offcanvas-tabs")
     if (!tabs) return
 
-    let activeType = syncOffcanvasSearchTypeFromPane()
+    const activeType = syncOffcanvasSearchTypeFromPane()
     setOffcanvasActivePanelInputs(activeType)
 
-    tabs.addEventListener("show.bs.tab", (event) => {
-        const tabName = tabTypeFromEvent(event)
-        if (!tabName) return
-        activeType = tabName
+    // On the search results page search-results-tabs.js handles tab clicks
+    if (document.getElementById("search-filters-form")) return
+
+    tabs.addEventListener("click", (event) => {
+        const tabBtn = event.target?.closest("[data-search-type-tab]")
+        if (!tabBtn) return
+        const tabName = tabBtn.dataset.searchTypeTab
+        if (tabName !== "authors" && tabName !== "documents") return
+
+        const docPane    = document.getElementById("search-offcanvas-documents-panel")
+        const authorPane = document.getElementById("search-offcanvas-authors-panel")
+        const toDoc = tabName === "documents"
+        docPane?.classList.toggle("show", toDoc)
+        docPane?.classList.toggle("active", toDoc)
+        authorPane?.classList.toggle("show", !toDoc)
+        authorPane?.classList.toggle("active", !toDoc)
+
+        tabs.querySelectorAll("[data-search-type-tab]").forEach(btn => {
+            const active = btn.dataset.searchTypeTab === tabName
+            btn.classList.toggle("active", active)
+            btn.setAttribute("aria-selected", String(active))
+        })
+
         setOffcanvasSearchType(tabName)
         setOffcanvasActivePanelInputs(tabName)
     })
 
-    tabs.addEventListener("shown.bs.tab", (event) => {
-        const tabName = tabTypeFromEvent(event)
-        if (!tabName) return
-        const sidebarTypeInput = document.getElementById("search-type")
-        if (sidebarTypeInput) sidebarTypeInput.value = tabName
-        if (window.htmx) {
-            window.htmx.trigger(document.body, "update")
-        }
-    })
-
-    const form = tabs.closest("form")
-    form?.addEventListener("submit", () => {
+    tabs.closest("form")?.addEventListener("submit", () => {
         syncOffcanvasSearchTypeFromPane()
     })
 }

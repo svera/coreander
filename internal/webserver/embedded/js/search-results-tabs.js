@@ -18,8 +18,8 @@ function switchSidebarPanes(tabName) {
 function switchOffcanvasPanes(tabName) {
     const docPane    = document.getElementById("search-offcanvas-documents-panel")
     const authorPane = document.getElementById("search-offcanvas-authors-panel")
-    const docBtn     = document.querySelector("#search-offcanvas-tabs [data-search-tab='documents']")
-    const authorBtn  = document.querySelector("#search-offcanvas-tabs [data-search-tab='authors']")
+    const docBtn     = document.querySelector("#search-offcanvas-tabs [data-search-type-tab='documents']")
+    const authorBtn  = document.querySelector("#search-offcanvas-tabs [data-search-type-tab='authors']")
 
     const toDoc = tabName === "documents"
     docPane?.classList.toggle("show", toDoc)
