@@ -6,6 +6,8 @@
     </li>
     {{end}}
 </ul>
+{{else}}
+<p class="text-muted mt-5 text-center">{{t .Lang "No results found"}}</p>
 {{end}}
 
 {{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}

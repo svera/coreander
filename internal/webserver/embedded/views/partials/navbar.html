@@ -8,7 +8,7 @@
         </span>
         {{end}}
         {{if not .HomeNavbar}}
-        <div class="d-flex justify-content-center flex-fill flex-shrink-1 pe-2 {{if .SearchPage}}d-xl-none{{end}}" style="min-width: 0;">
+        <div class="d-flex justify-content-center flex-fill flex-shrink-1 pe-2 {{if .SearchPage}}d-none{{end}}" style="min-width: 0;">
             <form action="/search" class="w-100" role="search">
                 <input type="hidden" name="type" value="documents">
                 <div class="input-group input-group-sm w-100">
@@ -195,8 +195,7 @@
 
 {{if not .HomeNavbar}}
 <div class="offcanvas offcanvas-start" tabindex="-1" id="search-filters-offcanvas" aria-labelledby="search-filters-offcanvas-label">
-    <div class="offcanvas-header">
-        <h5>{{t .Lang "Advanced search"}}</h5>
+    <div class="offcanvas-header justify-content-end">
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body">
@@ -204,12 +203,7 @@
         <form action="/search" method="get" role="search">
             <input type="hidden" name="type" id="search-offcanvas-type" value="{{$searchType}}">
             <ul class="nav nav-tabs nav-fill home-search-tabs mb-0" id="search-offcanvas-tabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button type="button" class="nav-link{{if eq $searchType "documents"}} active{{end}}" data-search-tab="documents" data-bs-toggle="tab" data-bs-target="#search-offcanvas-documents-panel" role="tab" aria-selected="{{if eq $searchType "documents"}}true{{else}}false{{end}}" aria-controls="search-offcanvas-documents-panel">{{t .Lang "Documents"}}{{if .DocumentsTotalHits}} ({{.DocumentsTotalHits}}){{end}}</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button type="button" class="nav-link{{if eq $searchType "authors"}} active{{end}}" data-search-tab="authors" data-bs-toggle="tab" data-bs-target="#search-offcanvas-authors-panel" role="tab" aria-selected="{{if eq $searchType "authors"}}true{{else}}false{{end}}" aria-controls="search-offcanvas-authors-panel">{{t .Lang "Authors"}}{{if .AuthorsTotalHits}} ({{.AuthorsTotalHits}}){{end}}</button>
-                </li>
+                {{template "partials/search-tab-items" .}}
             </ul>
             <div class="border-start border-end p-3">
                 <input type="search" name="search" id="searchbox-offcanvas" class="form-control" maxlength="255" value="{{or .SearchQuery ""}}" placeholder="{{t .Lang "Search"}}...">
@@ -227,5 +221,5 @@
 </div>
 
 <script type="module" src="/js/search-filters-offcanvas.js{{versionParam .Version}}"></script>
-<script type="module" src="/js/search-offcanvas-tabs.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/search-tabs.js{{versionParam .Version}}"></script>
 {{end}}
