@@ -78,7 +78,7 @@ htmx.on('htmx:afterRequest', (evt) => {
 
     if (evt.detail.failed) {
         // Server error with response contents, equivalent to htmx:responseError
-        if (xhr.status === 401 || xhr.status === 403) {
+        if (xhr.status === 403) {
             return location.reload()
         }
 
