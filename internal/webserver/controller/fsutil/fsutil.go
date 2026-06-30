@@ -16,20 +16,11 @@ func Evict(appFs afero.Fs, cacheDir string, maxSizeMB int) {
 	}
 	maxBytes := int64(maxSizeMB) * 1024 * 1024
 
-	type entry struct {
-		path  string
-		mtime int64
-		size  int64
-	}
-
-	var entries []entry
 	var total int64
-
-	afero.Walk(appFs, cacheDir, func(path string, info os.FileInfo, err error) error {
+	afero.Walk(appFs, cacheDir, func(_ string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
-		entries = append(entries, entry{path, info.ModTime().Unix(), info.Size()})
 		total += info.Size()
 		return nil
 	})
@@ -37,6 +28,20 @@ func Evict(appFs afero.Fs, cacheDir string, maxSizeMB int) {
 	if total <= maxBytes {
 		return
 	}
+
+	type entry struct {
+		path  string
+		mtime int64
+		size  int64
+	}
+	var entries []entry
+	afero.Walk(appFs, cacheDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		entries = append(entries, entry{path, info.ModTime().Unix(), info.Size()})
+		return nil
+	})
 
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].mtime < entries[j].mtime
