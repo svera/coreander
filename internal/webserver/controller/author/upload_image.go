@@ -70,10 +70,8 @@ func (a *Controller) UploadImage(c fiber.Ctx) error {
 		img = imaging.Resize(img, a.config.AuthorImageMaxWidth, 0, imaging.Box)
 	}
 
-	// Save image as JPEG (always save as .jpg regardless of input format)
-	imageFileName := a.config.CacheDir + "/" + authorSlug + ".jpg"
+	imageFileName := a.config.CacheDir + "/" + authorSlug + ".webp"
 
-	// Delete old file first to ensure modification time changes
 	if exists, _ := afero.Exists(a.appFs, imageFileName); exists {
 		if err := a.appFs.Remove(imageFileName); err != nil {
 			log.Error(fmt.Errorf("error removing old author image '%s': %w", imageFileName, err))
@@ -85,13 +83,10 @@ func (a *Controller) UploadImage(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	// Set cache-busting timestamp in response header
-	// Get file info after saving to return the new modification time
 	fileInfo, statErr := a.appFs.Stat(imageFileName)
 	if statErr == nil {
 		c.Set("X-Image-Timestamp", fmt.Sprintf("%d", fileInfo.ModTime().Unix()))
 	} else {
-		// Fallback to current time if stat fails
 		c.Set("X-Image-Timestamp", fmt.Sprintf("%d", time.Now().Unix()))
 	}
 

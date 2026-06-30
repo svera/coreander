@@ -3,6 +3,7 @@ package author
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -46,7 +47,7 @@ func (a *Controller) Update(c fiber.Ctx) error {
 			return fiber.ErrNotFound
 		}
 
-		if err := a.appFs.Remove(a.config.CacheDir + "/" + author.Slug + ".jpg"); err != nil {
+		if err := a.appFs.Remove(a.config.CacheDir + "/" + author.Slug + ".webp"); err != nil && !os.IsNotExist(err) {
 			fmt.Println(err)
 		}
 

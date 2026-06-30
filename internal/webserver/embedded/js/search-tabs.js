@@ -79,11 +79,25 @@ if (document.getElementById(SIDEBAR_FORM_ID)) {
         }
     })
 
+    document.body.addEventListener('htmx:beforeRequest', (evt) => {
+        if (evt.detail.elt.id !== 'list') return
+        if (!document.querySelector('[data-search-type-tab].tab-loading')) {
+            document.querySelectorAll('[data-search-type-tab]').forEach(btn => btn.classList.add('tab-loading'))
+        }
+    })
+
+    document.body.addEventListener('htmx:afterRequest', (evt) => {
+        if (evt.detail.elt.id !== 'list') return
+        document.querySelectorAll('[data-search-type-tab]').forEach(btn => btn.classList.remove('tab-loading'))
+    })
+
     document.addEventListener("click", (event) => {
         const tabBtn = event.target?.closest("[data-search-type-tab]")
         if (!tabBtn) return
         const tabName = tabBtn.dataset.searchTypeTab
         if (tabName !== "documents" && tabName !== "authors") return
+
+        document.querySelectorAll(`[data-search-type-tab="${tabName}"]`).forEach(btn => btn.classList.add('tab-loading'))
 
         switchSidebarPanes(tabName)
         switchOffcanvasPanes(tabName)
