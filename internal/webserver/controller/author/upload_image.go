@@ -70,24 +70,30 @@ func (a *Controller) UploadImage(c fiber.Ctx) error {
 		img = imaging.Resize(img, a.config.AuthorImageMaxWidth, 0, imaging.Box)
 	}
 
-	// Save image as JPEG (always save as .jpg regardless of input format)
-	imageFileName := a.config.CacheDir + "/" + authorSlug + ".jpg"
+	jpgFileName := a.config.CacheDir + "/" + authorSlug + ".jpg"
+	webpFileName := a.config.CacheDir + "/" + authorSlug + ".webp"
 
-	// Delete old file first to ensure modification time changes
-	if exists, _ := afero.Exists(a.appFs, imageFileName); exists {
-		if err := a.appFs.Remove(imageFileName); err != nil {
-			log.Error(fmt.Errorf("error removing old author image '%s': %w", imageFileName, err))
+	// Delete old files first to ensure modification time changes
+	for _, f := range []string{jpgFileName, webpFileName} {
+		if exists, _ := afero.Exists(a.appFs, f); exists {
+			if err := a.appFs.Remove(f); err != nil {
+				log.Error(fmt.Errorf("error removing old author image '%s': %w", f, err))
+			}
 		}
 	}
 
-	if err = a.saveImage(img, imageFileName); err != nil {
-		log.Error(fmt.Errorf("error saving author image '%s': %w", imageFileName, err))
+	if err = a.saveImage(img, jpgFileName); err != nil {
+		log.Error(fmt.Errorf("error saving author image '%s': %w", jpgFileName, err))
 		return fiber.ErrInternalServerError
+	}
+
+	if err = a.saveImageWebP(img, webpFileName); err != nil {
+		log.Error(fmt.Errorf("error saving author webp image '%s': %w", webpFileName, err))
 	}
 
 	// Set cache-busting timestamp in response header
 	// Get file info after saving to return the new modification time
-	fileInfo, statErr := a.appFs.Stat(imageFileName)
+	fileInfo, statErr := a.appFs.Stat(jpgFileName)
 	if statErr == nil {
 		c.Set("X-Image-Timestamp", fmt.Sprintf("%d", fileInfo.ModTime().Unix()))
 	} else {

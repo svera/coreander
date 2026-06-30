@@ -38,6 +38,7 @@ require (
 	github.com/blevesearch/go-faiss v1.0.35 // indirect
 	github.com/blevesearch/zapx/v16 v16.3.4 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
+	github.com/deepteams/webp v1.2.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/glebarez/go-sqlite v1.22.0 // indirect
 	github.com/gofiber/schema v1.7.1 // indirect

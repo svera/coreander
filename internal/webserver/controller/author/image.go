@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/deepteams/webp"
 	"github.com/gofiber/fiber/v3"
 	"github.com/kovidgoyal/imaging"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
@@ -59,6 +60,10 @@ func (a *Controller) Image(c fiber.Ctx) error {
 
 			if err = a.saveImage(img, imageFileName); err != nil {
 				log.Println(fmt.Errorf("error saving image '%s' to cache: %w", imageFileName, err))
+			}
+			webpFileName := a.config.CacheDir + "/" + authorSlug + ".webp"
+			if err = a.saveImageWebP(img, webpFileName); err != nil {
+				log.Println(fmt.Errorf("error saving webp image '%s' to cache: %w", webpFileName, err))
 			}
 			// Get file info after saving
 			if info, statErr := a.appFs.Stat(imageFileName); statErr == nil {
@@ -179,6 +184,80 @@ func (a *Controller) saveImage(img image.Image, filename string, opts ...imaging
 		err = errc
 	}
 	return err
+}
+
+func (a *Controller) saveImageWebP(img image.Image, filename string) error {
+	file, err := a.appFs.Create(filename)
+	if err != nil {
+		return err
+	}
+	err = webp.Encode(file, img, &webp.EncoderOptions{Lossless: false, Quality: 80})
+	errc := file.Close()
+	if err == nil {
+		err = errc
+	}
+	return err
+}
+
+func (a *Controller) ImageWebP(c fiber.Ctx) error {
+	authorSlug := strings.Split(c.Params("slug"), "_")[0]
+	lang := c.Locals("Lang").(string)
+
+	webpFileName := a.config.CacheDir + "/" + authorSlug + ".webp"
+	img, err := a.openImage(webpFileName)
+
+	var fileInfo os.FileInfo
+	if err == nil {
+		if info, statErr := a.appFs.Stat(webpFileName); statErr == nil {
+			fileInfo = info
+		}
+	}
+
+	if err != nil {
+		// No cached WebP — fetch from data source
+		author, authorErr := a.idx.Author(authorSlug, lang)
+		if author.Name == "" {
+			return fiber.ErrNotFound
+		}
+		if authorErr != nil {
+			log.Println(fmt.Errorf("error getting author from index: %w", authorErr))
+			return fiber.ErrInternalServerError
+		}
+		if author.DataSourceImage == "" {
+			img, err = a.loadDefaultImage(author.Gender)
+			if err != nil {
+				log.Printf("author %s has no image and failed to load default: %v", authorSlug, err)
+				return fiber.ErrNotFound
+			}
+		} else {
+			img, err = a.readFromDataSource(author.DataSourceImage)
+			if err != nil {
+				log.Println(fmt.Errorf("error getting image from data source: %w", err))
+				return fiber.ErrInternalServerError
+			}
+		}
+
+		if saveErr := a.saveImageWebP(img, webpFileName); saveErr != nil {
+			log.Println(fmt.Errorf("error saving webp image '%s' to cache: %w", webpFileName, saveErr))
+		} else {
+			if info, statErr := a.appFs.Stat(webpFileName); statErr == nil {
+				fileInfo = info
+			}
+		}
+	}
+
+	if shouldReturn304 := a.setupClientCache(c, fileInfo); shouldReturn304 {
+		return c.Status(304).Send(nil)
+	}
+
+	buf := new(bytes.Buffer)
+	if err = webp.Encode(buf, img, &webp.EncoderOptions{Lossless: false, Quality: 80}); err != nil {
+		log.Println(fmt.Errorf("error encoding image to WebP: %w", err))
+		return fiber.ErrInternalServerError
+	}
+	c.Response().Header.Set(fiber.HeaderContentType, "image/webp")
+	c.Response().BodyWriter().Write(buf.Bytes())
+	return nil
 }
 
 func (a *Controller) loadDefaultImage(gender float64) (image.Image, error) {
