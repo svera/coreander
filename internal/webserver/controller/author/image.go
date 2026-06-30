@@ -88,7 +88,6 @@ func (a *Controller) Image(c fiber.Ctx) error {
 	return nil
 }
 
-
 func (a *Controller) setupClientCache(c fiber.Ctx, fileInfo os.FileInfo) bool {
 	if c.Query("t") != "" {
 		c.Set("Cache-Control", "no-cache, no-store, must-revalidate")

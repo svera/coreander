@@ -43,7 +43,7 @@ type Config struct {
 	Port                       int
 	HomeDir                    string
 	CacheDir                   string
-	CacheMaxSize             int
+	CacheMaxSize               int
 	LibraryPath                string
 	AuthorImageMaxWidth        int
 	CoverMaxWidth              int
