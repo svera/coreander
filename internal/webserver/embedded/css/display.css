@@ -230,8 +230,12 @@ main .form-control:focus {
     display: inline-block;
 }
 
-.htmx-request .tab-count {
+.tab-loading .tab-count {
     display: none;
+}
+
+.tab-loading .tab-count-spinner {
+    display: inline-block;
 }
 
 .htmx-request.spinner-border ~ .bi-envelope-fill {
