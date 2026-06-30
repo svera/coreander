@@ -25,7 +25,7 @@ func (a *Controller) Image(c fiber.Ctx) error {
 	// Cache hit: serve raw bytes, no re-encoding
 	if fileInfo, err := a.appFs.Stat(imageFileName); err == nil {
 		if a.setupClientCache(c, fileInfo) {
-			return c.Status(304).Send(nil)
+			return c.Status(http.StatusNotModified).Send(nil)
 		}
 		if data, _, err := util.ReadFileBytes(a.appFs, imageFileName); err == nil {
 			c.Response().Header.Set(fiber.HeaderContentType, "image/webp")
@@ -76,7 +76,7 @@ func (a *Controller) Image(c fiber.Ctx) error {
 	}
 
 	if a.setupClientCache(c, fileInfo) {
-		return c.Status(304).Send(nil)
+		return c.Status(http.StatusNotModified).Send(nil)
 	}
 	c.Response().Header.Set(fiber.HeaderContentType, "image/webp")
 	c.Response().BodyWriter().Write(data)
