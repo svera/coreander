@@ -132,6 +132,7 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`--illustrated-min-amount`           |`ILLUSTRATED_MIN_AMOUNT`  | Minimum number of illustrations (excluding cover) for a document to be considered illustrated. Only raster images in PNG, GIF and JPEG formats are taken into account. Defaults to 2.
 |`--illustrated-min-size`             |`ILLUSTRATED_MIN_SIZE`    | Minimum size in megapixels for an image to count as an illustration. Defaults to 0.25.
 |`-c` or `--cache-dir`                |`CACHE_DIR`                       | Directory where to store cache files. Defaults to `~/.coreander/cache`.
+|`--cache-max-size`                   |`CACHE_MAX_SIZE`                  | Maximum total size of the cache directory in megabytes. Oldest files are evicted first when the limit is reached. Set to 0 for unlimited. Defaults to 500.
 |`--client-static-cache-ttl`          |`CLIENT_STATIC_CACHE_TTL`         | Client-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 31536000 (1 year).
 |`--client-dynamic-image-cache-ttl`   |`CLIENT_DYNAMIC_IMAGE_CACHE_TTL`  | Client-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 86400 (24 hours).
 |`--server-static-cache-ttl`          |`SERVER_STATIC_CACHE_TTL`         | Server-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 31536000 (1 year).

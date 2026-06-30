@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v3/log"
 	"github.com/kovidgoyal/imaging"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/webserver/controller/fsutil"
 	"github.com/valyala/fasthttp"
 )
 
@@ -70,7 +71,7 @@ func (a *Controller) UploadImage(c fiber.Ctx) error {
 		img = imaging.Resize(img, a.config.AuthorImageMaxWidth, 0, imaging.Box)
 	}
 
-	imageFileName := a.config.CacheDir + "/" + authorSlug + ".webp"
+	imageFileName := a.config.CacheDir + "/authors/" + authorSlug + ".webp"
 
 	if exists, _ := afero.Exists(a.appFs, imageFileName); exists {
 		if err := a.appFs.Remove(imageFileName); err != nil {
@@ -82,6 +83,7 @@ func (a *Controller) UploadImage(c fiber.Ctx) error {
 		log.Error(fmt.Errorf("error saving author image '%s': %w", imageFileName, err))
 		return fiber.ErrInternalServerError
 	}
+	go fsutil.Evict(a.appFs, a.config.CacheDir, a.config.CacheMaxSize)
 
 	fileInfo, statErr := a.appFs.Stat(imageFileName)
 	if statErr == nil {

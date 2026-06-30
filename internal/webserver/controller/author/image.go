@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,7 +22,7 @@ import (
 
 func (a *Controller) Image(c fiber.Ctx) error {
 	authorSlug := strings.Split(c.Params("slug"), "_")[0]
-	imageFileName := a.config.CacheDir + "/" + authorSlug + ".webp"
+	imageFileName := a.config.CacheDir + "/authors/" + authorSlug + ".webp"
 
 	// Cache hit: serve raw bytes, no re-encoding
 	if fileInfo, err := a.appFs.Stat(imageFileName); err == nil {
@@ -76,6 +77,7 @@ func (a *Controller) Image(c fiber.Ctx) error {
 		log.Println(fmt.Errorf("error saving webp image '%s' to cache: %w", imageFileName, saveErr))
 	} else {
 		fileInfo, _ = a.appFs.Stat(imageFileName)
+		go fsutil.Evict(a.appFs, a.config.CacheDir, a.config.CacheMaxSize)
 	}
 
 	if a.setupClientCache(c, fileInfo) {
@@ -85,7 +87,6 @@ func (a *Controller) Image(c fiber.Ctx) error {
 	c.Response().BodyWriter().Write(data)
 	return nil
 }
-
 
 func (a *Controller) setupClientCache(c fiber.Ctx, fileInfo os.FileInfo) bool {
 	if c.Query("t") != "" {
@@ -159,6 +160,9 @@ func (a *Controller) openImage(filename string, opts ...imaging.DecodeOption) (i
 }
 
 func (a *Controller) saveImage(img image.Image, filename string) error {
+	if err := a.appFs.MkdirAll(filepath.Dir(filename), 0755); err != nil {
+		return err
+	}
 	file, err := a.appFs.Create(filename)
 	if err != nil {
 		return err

@@ -3,9 +3,52 @@ package fsutil
 import (
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/spf13/afero"
 )
+
+// Evict deletes the least-recently-modified files in cacheDir until the total
+// size is below maxSizeMB. No-op when maxSizeMB is 0.
+func Evict(appFs afero.Fs, cacheDir string, maxSizeMB int) {
+	if maxSizeMB <= 0 {
+		return
+	}
+	maxBytes := int64(maxSizeMB) * 1024 * 1024
+
+	type entry struct {
+		path  string
+		mtime int64
+		size  int64
+	}
+	var entries []entry
+	var total int64
+	afero.Walk(appFs, cacheDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		entries = append(entries, entry{path, info.ModTime().Unix(), info.Size()})
+		total += info.Size()
+		return nil
+	})
+
+	if total <= maxBytes {
+		return
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].mtime < entries[j].mtime
+	})
+
+	for _, e := range entries {
+		if total <= maxBytes {
+			break
+		}
+		if err := appFs.Remove(e.path); err == nil {
+			total -= e.size
+		}
+	}
+}
 
 // ReadFileBytes reads the raw bytes and file info for the given path.
 func ReadFileBytes(appFs afero.Fs, path string) ([]byte, os.FileInfo, error) {

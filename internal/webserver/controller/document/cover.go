@@ -40,6 +40,7 @@ func (d *Controller) Cover(c fiber.Ctx) error {
 		log.Println(fmt.Errorf("cover: cache save error for %s: %w", slug, err))
 	} else {
 		fileInfo, _ = d.appFs.Stat(webpPath)
+		go fsutil.Evict(d.appFs, d.config.CacheDir, d.config.CacheMaxSize)
 	}
 
 	return d.serveCover(c, data, fileInfo)

@@ -8,7 +8,8 @@ import (
 	"github.com/spf13/afero"
 )
 
-// MigrateJPEGsToWebP converts any cached .jpg author images to .webp and removes the originals.
+// MigrateJPEGsToWebP converts any cached .jpg author images to .webp in the authors/
+// subdirectory and removes the originals.
 // Intended to be called once as a goroutine at startup.
 // Remove on the next major version bump, after all users have had a chance to migrate.
 func (a *Controller) MigrateJPEGsToWebP() {
@@ -25,24 +26,24 @@ func (a *Controller) MigrateJPEGsToWebP() {
 		if !strings.HasSuffix(strings.ToLower(name), ".jpg") {
 			continue
 		}
-		jpgPath := a.config.CacheDir + "/" + name
-		webpPath := a.config.CacheDir + "/" + strings.TrimSuffix(name, ".jpg") + ".webp"
+		srcPath := a.config.CacheDir + "/" + name
+		dstPath := a.config.CacheDir + "/authors/" + strings.TrimSuffix(name, ".jpg") + ".webp"
 
-		if exists, _ := afero.Exists(a.appFs, webpPath); exists {
+		if exists, _ := afero.Exists(a.appFs, dstPath); exists {
+			a.appFs.Remove(srcPath)
 			continue
 		}
-
-		img, err := a.openImage(jpgPath)
+		img, err := a.openImage(srcPath)
 		if err != nil {
-			log.Println(fmt.Errorf("migrate: error opening %s: %w", jpgPath, err))
+			log.Println(fmt.Errorf("migrate: error opening %s: %w", srcPath, err))
 			continue
 		}
-		if err := a.saveImage(img, webpPath); err != nil {
-			log.Println(fmt.Errorf("migrate: error saving %s: %w", webpPath, err))
+		if err := a.saveImage(img, dstPath); err != nil {
+			log.Println(fmt.Errorf("migrate: error saving %s: %w", dstPath, err))
 			continue
 		}
-		if err := a.appFs.Remove(jpgPath); err != nil {
-			log.Println(fmt.Errorf("migrate: error removing %s: %w", jpgPath, err))
+		if err := a.appFs.Remove(srcPath); err != nil {
+			log.Println(fmt.Errorf("migrate: error removing %s: %w", srcPath, err))
 		}
 	}
 }
