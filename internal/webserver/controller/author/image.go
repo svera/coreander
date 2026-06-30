@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -45,20 +46,22 @@ func (a *Controller) Image(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	var img image.Image
-	var err error
 	if author.DataSourceImage == "" {
-		img, err = a.loadDefaultImage(author.Gender)
+		data, err := a.loadDefaultImage(author.Gender)
 		if err != nil {
 			log.Printf("author %s has no image and failed to load default: %v", authorSlug, err)
 			return fiber.ErrNotFound
 		}
-	} else {
-		img, err = a.readFromDataSource(author.DataSourceImage)
-		if err != nil {
-			log.Println(fmt.Errorf("error getting image from data source: %w", err))
-			return fiber.ErrInternalServerError
-		}
+		a.setupClientCache(c, nil)
+		c.Response().Header.Set(fiber.HeaderContentType, "image/webp")
+		c.Response().BodyWriter().Write(data)
+		return nil
+	}
+
+	img, err := a.readFromDataSource(author.DataSourceImage)
+	if err != nil {
+		log.Println(fmt.Errorf("error getting image from data source: %w", err))
+		return fiber.ErrInternalServerError
 	}
 
 	buf := new(bytes.Buffer)
@@ -168,7 +171,7 @@ func (a *Controller) saveImage(img image.Image, filename string) error {
 	return err
 }
 
-func (a *Controller) loadDefaultImage(gender float64) (image.Image, error) {
+func (a *Controller) loadDefaultImage(gender float64) ([]byte, error) {
 	var defaultImagePath string
 	switch gender {
 	case wikidata.GenderMale:
@@ -185,10 +188,10 @@ func (a *Controller) loadDefaultImage(gender float64) (image.Image, error) {
 	}
 	defer file.Close()
 
-	img, err := imaging.Decode(file, imaging.Backends(imaging.GO_IMAGE))
+	data, err := io.ReadAll(file)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode default image %s: %w", defaultImagePath, err)
+		return nil, fmt.Errorf("failed to read default image %s: %w", defaultImagePath, err)
 	}
 
-	return img, nil
+	return data, nil
 }
