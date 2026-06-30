@@ -19,52 +19,45 @@ import (
 
 func (a *Controller) Image(c fiber.Ctx) error {
 	authorSlug := strings.Split(c.Params("slug"), "_")[0]
-	lang := c.Locals("Lang").(string)
-
 	imageFileName := a.config.CacheDir + "/" + authorSlug + ".webp"
-	img, err := a.openImage(imageFileName)
 
-	var fileInfo os.FileInfo
-	if err == nil {
-		if info, statErr := a.appFs.Stat(imageFileName); statErr == nil {
-			fileInfo = info
+	// Cache hit: serve raw bytes, no re-encoding
+	if fileInfo, err := a.appFs.Stat(imageFileName); err == nil {
+		if a.setupClientCache(c, fileInfo) {
+			return c.Status(304).Send(nil)
+		}
+		if data, err := a.readFileBytes(imageFileName); err == nil {
+			c.Response().Header.Set(fiber.HeaderContentType, "image/webp")
+			c.Response().BodyWriter().Write(data)
+			return nil
 		}
 	}
 
-	if err != nil {
-		author, authorErr := a.idx.Author(authorSlug, lang)
-		if author.Name == "" {
+	// Cache miss: fetch, encode, save, serve
+	lang := c.Locals("Lang").(string)
+	author, authorErr := a.idx.Author(authorSlug, lang)
+	if author.Name == "" {
+		return fiber.ErrNotFound
+	}
+	if authorErr != nil {
+		log.Println(fmt.Errorf("error getting author from index: %w", authorErr))
+		return fiber.ErrInternalServerError
+	}
+
+	var img image.Image
+	var err error
+	if author.DataSourceImage == "" {
+		img, err = a.loadDefaultImage(author.Gender)
+		if err != nil {
+			log.Printf("author %s has no image and failed to load default: %v", authorSlug, err)
 			return fiber.ErrNotFound
 		}
-		if authorErr != nil {
-			log.Println(fmt.Errorf("error getting author from index: %w", authorErr))
+	} else {
+		img, err = a.readFromDataSource(author.DataSourceImage)
+		if err != nil {
+			log.Println(fmt.Errorf("error getting image from data source: %w", err))
 			return fiber.ErrInternalServerError
 		}
-		if author.DataSourceImage == "" {
-			img, err = a.loadDefaultImage(author.Gender)
-			if err != nil {
-				log.Printf("author %s has no image and failed to load default: %v", authorSlug, err)
-				return fiber.ErrNotFound
-			}
-		} else {
-			img, err = a.readFromDataSource(author.DataSourceImage)
-			if err != nil {
-				log.Println(fmt.Errorf("error getting image from data source: %w", err))
-				return fiber.ErrInternalServerError
-			}
-		}
-
-		if saveErr := a.saveImage(img, imageFileName); saveErr != nil {
-			log.Println(fmt.Errorf("error saving webp image '%s' to cache: %w", imageFileName, saveErr))
-		} else {
-			if info, statErr := a.appFs.Stat(imageFileName); statErr == nil {
-				fileInfo = info
-			}
-		}
-	}
-
-	if shouldReturn304 := a.setupClientCache(c, fileInfo); shouldReturn304 {
-		return c.Status(304).Send(nil)
 	}
 
 	buf := new(bytes.Buffer)
@@ -72,9 +65,36 @@ func (a *Controller) Image(c fiber.Ctx) error {
 		log.Println(fmt.Errorf("error encoding image to WebP: %w", err))
 		return fiber.ErrInternalServerError
 	}
+	data := buf.Bytes()
+
+	var fileInfo os.FileInfo
+	if saveErr := a.saveImage(img, imageFileName); saveErr != nil {
+		log.Println(fmt.Errorf("error saving webp image '%s' to cache: %w", imageFileName, saveErr))
+	} else {
+		fileInfo, _ = a.appFs.Stat(imageFileName)
+	}
+
+	if a.setupClientCache(c, fileInfo) {
+		return c.Status(304).Send(nil)
+	}
 	c.Response().Header.Set(fiber.HeaderContentType, "image/webp")
-	c.Response().BodyWriter().Write(buf.Bytes())
+	c.Response().BodyWriter().Write(data)
 	return nil
+}
+
+func (a *Controller) readFileBytes(filename string) ([]byte, error) {
+	f, err := a.appFs.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	data := make([]byte, info.Size())
+	_, err = f.Read(data)
+	return data, err
 }
 
 func (a *Controller) setupClientCache(c fiber.Ctx, fileInfo os.FileInfo) bool {
