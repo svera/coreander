@@ -149,6 +149,9 @@ func (a *Controller) openImage(filename string, opts ...imaging.DecodeOption) (i
 }
 
 func (a *Controller) saveImage(img image.Image, filename string, opts ...imaging.EncodeOption) (err error) {
+	if strings.HasSuffix(strings.ToLower(filename), ".webp") {
+		return a.saveImageWebP(img, filename)
+	}
 	f, err := imaging.FormatFromFilename(filename)
 	if err != nil {
 		return err
