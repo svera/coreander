@@ -21,12 +21,12 @@ func (a *Controller) Image(c fiber.Ctx) error {
 	authorSlug := strings.Split(c.Params("slug"), "_")[0]
 	lang := c.Locals("Lang").(string)
 
-	webpFileName := a.config.CacheDir + "/" + authorSlug + ".webp"
-	img, err := a.openImage(webpFileName)
+	imageFileName := a.config.CacheDir + "/" + authorSlug + ".webp"
+	img, err := a.openImage(imageFileName)
 
 	var fileInfo os.FileInfo
 	if err == nil {
-		if info, statErr := a.appFs.Stat(webpFileName); statErr == nil {
+		if info, statErr := a.appFs.Stat(imageFileName); statErr == nil {
 			fileInfo = info
 		}
 	}
@@ -54,10 +54,10 @@ func (a *Controller) Image(c fiber.Ctx) error {
 			}
 		}
 
-		if saveErr := a.saveImageWebP(img, webpFileName); saveErr != nil {
-			log.Println(fmt.Errorf("error saving webp image '%s' to cache: %w", webpFileName, saveErr))
+		if saveErr := a.saveImageWebP(img, imageFileName); saveErr != nil {
+			log.Println(fmt.Errorf("error saving webp image '%s' to cache: %w", imageFileName, saveErr))
 		} else {
-			if info, statErr := a.appFs.Stat(webpFileName); statErr == nil {
+			if info, statErr := a.appFs.Stat(imageFileName); statErr == nil {
 				fileInfo = info
 			}
 		}
@@ -146,6 +146,23 @@ func (a *Controller) openImage(filename string, opts ...imaging.DecodeOption) (i
 	defer file.Close()
 	decodeOpts := append([]imaging.DecodeOption{imaging.Backends(imaging.GO_IMAGE)}, opts...)
 	return imaging.Decode(file, decodeOpts...)
+}
+
+func (a *Controller) saveImage(img image.Image, filename string, opts ...imaging.EncodeOption) (err error) {
+	f, err := imaging.FormatFromFilename(filename)
+	if err != nil {
+		return err
+	}
+	file, err := a.appFs.Create(filename)
+	if err != nil {
+		return err
+	}
+	err = imaging.Encode(file, img, f, opts...)
+	errc := file.Close()
+	if err == nil {
+		err = errc
+	}
+	return err
 }
 
 func (a *Controller) saveImageWebP(img image.Image, filename string) error {
