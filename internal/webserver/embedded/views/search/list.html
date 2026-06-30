@@ -10,7 +10,7 @@
     </div>
     <div class="col-12 col-xl-9">
         {{template "partials/list-placeholder" .}}
-        <div id="list" hx-get="/search" hx-include="#search-filters-form, #sort-by" hx-select="#list-fragment-body" hx-swap="innerHTML" hx-trigger="update from:body" hx-indicator="#placeholder-indicator, #search-results-tabs, #search-offcanvas-tabs" class="list-group list-group-flush">
+        <div id="list" hx-get="/search" hx-include="#search-filters-form, #sort-by" hx-select="#list-fragment-body" hx-swap="innerHTML" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
             {{if eq .SearchType "authors"}}
             {{ template "partials/authors-list-content" . }}
             {{else}}
