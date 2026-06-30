@@ -63,6 +63,7 @@ type Config struct {
 	WordsPerMinute        float64
 	HomeDir               string
 	CoverMaxWidth         int
+	CacheDir              string
 	Hostname              string
 	Port                  int
 	UploadDocumentMaxSize int
