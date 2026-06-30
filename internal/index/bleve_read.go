@@ -3,6 +3,7 @@ package index
 import (
 	"errors"
 	"html/template"
+	"image"
 	"io/fs"
 	"math"
 	"net/url"
@@ -389,7 +390,7 @@ func (b *BleveIndexer) File(slug string) (*IndexedFile, error) {
 }
 
 // Cover returns the cover image for the document identified by slug, resized to at most coverMaxWidth pixels wide.
-func (b *BleveIndexer) Cover(slug string, coverMaxWidth int) ([]byte, error) {
+func (b *BleveIndexer) Cover(slug string, coverMaxWidth int) (image.Image, error) {
 	doc, err := b.Document(slug)
 	if err != nil || doc.ID == "" {
 		return nil, errors.New("document not found")

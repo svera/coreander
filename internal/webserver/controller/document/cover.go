@@ -9,30 +9,23 @@ import (
 
 	"github.com/deepteams/webp"
 	"github.com/gofiber/fiber/v3"
-	"github.com/kovidgoyal/imaging"
+	"github.com/svera/coreander/v5/internal/webserver/controller/fsutil"
 )
 
 func (d *Controller) Cover(c fiber.Ctx) error {
 	slug := c.Params("slug")
-	coversDir := d.config.CacheDir + "/covers"
-	webpPath := coversDir + "/" + slug + ".webp"
+	webpPath := d.config.CacheDir + "/covers/" + slug + ".webp"
 
 	// Serve from cache if available
-	if data, fileInfo, ok := d.readCoverCache(webpPath); ok {
+	if data, fileInfo, err := fsutil.ReadFileBytes(d.appFs, webpPath); err == nil {
 		return d.serveCover(c, data, fileInfo)
 	}
 
 	// Cache miss — extract from source
-	jpegBytes, err := d.idx.Cover(slug, d.config.CoverMaxWidth)
+	img, err := d.idx.Cover(slug, d.config.CoverMaxWidth)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrNotFound
-	}
-
-	img, err := imaging.Decode(bytes.NewReader(jpegBytes), imaging.Backends(imaging.GO_IMAGE))
-	if err != nil {
-		log.Println(fmt.Errorf("cover: decode error for %s: %w", slug, err))
-		return fiber.ErrInternalServerError
 	}
 
 	buf := new(bytes.Buffer)
@@ -42,48 +35,14 @@ func (d *Controller) Cover(c fiber.Ctx) error {
 	}
 	data := buf.Bytes()
 
-	// Save to cache (best-effort)
 	var fileInfo os.FileInfo
-	if err := d.saveCoverCache(coversDir, webpPath, data); err != nil {
+	if err := fsutil.WriteFileBytes(d.appFs, webpPath, data); err != nil {
 		log.Println(fmt.Errorf("cover: cache save error for %s: %w", slug, err))
 	} else {
 		fileInfo, _ = d.appFs.Stat(webpPath)
 	}
 
 	return d.serveCover(c, data, fileInfo)
-}
-
-func (d *Controller) readCoverCache(path string) ([]byte, os.FileInfo, bool) {
-	f, err := d.appFs.Open(path)
-	if err != nil {
-		return nil, nil, false
-	}
-	defer f.Close()
-	info, err := f.Stat()
-	if err != nil {
-		return nil, nil, false
-	}
-	data := make([]byte, info.Size())
-	if _, err := f.Read(data); err != nil {
-		return nil, nil, false
-	}
-	return data, info, true
-}
-
-func (d *Controller) saveCoverCache(dir, path string, data []byte) error {
-	if err := d.appFs.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-	f, err := d.appFs.Create(path)
-	if err != nil {
-		return err
-	}
-	_, err = f.Write(data)
-	errc := f.Close()
-	if err == nil {
-		err = errc
-	}
-	return err
 }
 
 func (d *Controller) serveCover(c fiber.Ctx, data []byte, fileInfo os.FileInfo) error {
@@ -94,7 +53,7 @@ func (d *Controller) serveCover(c fiber.Ctx, data []byte, fileInfo os.FileInfo) 
 		c.Set("ETag", etag)
 		c.Set("Last-Modified", fileInfo.ModTime().UTC().Format(http.TimeFormat))
 		if c.Get("If-None-Match") == etag {
-			return c.Status(304).Send(nil)
+			return c.Status(http.StatusNotModified).Send(nil)
 		}
 		c.Set("Cache-Control", fmt.Sprintf("public, max-age=%d, must-revalidate", d.config.ClientImageCacheTTL))
 	} else {

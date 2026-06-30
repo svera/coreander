@@ -1,6 +1,7 @@
 package index_test
 
 import (
+	"image"
 	"sync"
 	"testing"
 	"time"
@@ -20,7 +21,7 @@ func (r slowMetadataReader) Metadata(string) (metadata.Metadata, error) {
 	return metadata.Metadata{Title: "t", Authors: []string{"a"}, Format: "EPUB"}, nil
 }
 
-func (slowMetadataReader) Cover(string, int) ([]byte, error) {
+func (slowMetadataReader) Cover(string, int) (image.Image, error) {
 	return nil, nil
 }
 

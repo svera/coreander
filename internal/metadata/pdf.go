@@ -116,7 +116,7 @@ func normalizePDFDate(creation, modification string) string {
 }
 
 // Cover parses the document looking for a cover image and returns it
-func (p PdfReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
+func (p PdfReader) Cover(documentFullPath string, coverMaxWidth int) (image.Image, error) {
 	f, err := readFile(p.Fs, documentFullPath)
 	if err != nil {
 		return nil, err
@@ -131,7 +131,7 @@ func (p PdfReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, er
 		return nil, err
 	}
 
-	return resize(src, coverMaxWidth, err)
+	return resize(src, coverMaxWidth), nil
 }
 
 // Illustrations returns the number of distinct embedded images with pixel count >= minMegapixels.
