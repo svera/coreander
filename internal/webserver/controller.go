@@ -97,6 +97,9 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		LatestDocsLimit: 6,
 	}
 
+	authorsController := author.NewController(highlightsRepository, readingRepository, sender, idx, authorsCfg, dataSource, appFs, imagesFS)
+	go authorsController.MigrateJPEGsToWebP()
+
 	return Controllers{
 		Auth:       auth.NewController(usersRepository, sender, authCfg, translator),
 		Users:      user.NewController(usersRepository, invitationsRepository, usersCfg, sender, translator),
@@ -104,7 +107,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		Highlights: highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
 		Documents:  document.NewController(highlightsRepository, usersRepository, readingRepository, sender, idx, metadataReaders, appFs, documentsCfg, translator),
 		Home:       home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),
-		Authors:    author.NewController(highlightsRepository, readingRepository, sender, idx, authorsCfg, dataSource, appFs, imagesFS),
+		Authors:    authorsController,
 		Search:     search.NewController(highlightsRepository, readingRepository, sender, idx, searchCfg),
 		Series:     series.NewController(highlightsRepository, readingRepository, sender, idx, seriesCfg, appFs)}
 }
