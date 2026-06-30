@@ -15,7 +15,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/kovidgoyal/imaging"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
-	"github.com/svera/coreander/v5/internal/webserver/controller/util"
+	"github.com/svera/coreander/v5/internal/webserver/controller/fsutil"
 )
 
 func (a *Controller) Image(c fiber.Ctx) error {
@@ -27,7 +27,7 @@ func (a *Controller) Image(c fiber.Ctx) error {
 		if a.setupClientCache(c, fileInfo) {
 			return c.Status(http.StatusNotModified).Send(nil)
 		}
-		if data, _, err := util.ReadFileBytes(a.appFs, imageFileName); err == nil {
+		if data, _, err := fsutil.ReadFileBytes(a.appFs, imageFileName); err == nil {
 			c.Response().Header.Set(fiber.HeaderContentType, "image/webp")
 			c.Response().BodyWriter().Write(data)
 			return nil
