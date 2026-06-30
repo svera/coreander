@@ -65,6 +65,7 @@ type Config struct {
 	HomeDir               string
 	CoverMaxWidth         int
 	CacheDir              string
+	CacheMaxSize        int
 	Hostname              string
 	Port                  int
 	UploadDocumentMaxSize int

@@ -116,6 +116,7 @@ func main() {
 		Port:                       input.Port,
 		HomeDir:                    homeDir,
 		CacheDir:                   input.CacheDir,
+		CacheMaxSize:             input.CacheMaxSize,
 		LibraryPath:                input.LibPath,
 		AuthorImageMaxWidth:        input.AuthorImageMaxWidth,
 		CoverMaxWidth:              input.CoverMaxWidth,

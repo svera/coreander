@@ -67,6 +67,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		HomeDir:               cfg.HomeDir,
 		CoverMaxWidth:         cfg.CoverMaxWidth,
 		CacheDir:              cfg.CacheDir,
+		CacheMaxSize:        cfg.CacheMaxSize,
 		Hostname:              cfg.Hostname,
 		Port:                  cfg.Port,
 		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
@@ -79,6 +80,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 	authorsCfg := author.Config{
 		WordsPerMinute:      cfg.WordsPerMinute,
 		CacheDir:            cfg.CacheDir,
+		CacheMaxSize:      cfg.CacheMaxSize,
 		AuthorImageMaxWidth: cfg.AuthorImageMaxWidth,
 		ClientImageCacheTTL: cfg.ClientDynamicImageCacheTTL,
 		ServerImageCacheTTL: cfg.ServerDynamicImageCacheTTL,

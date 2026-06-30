@@ -89,7 +89,7 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 // getImageVersion returns the modification time of the cached image file as a cache-busting version
 // Returns empty string if file doesn't exist
 func (a *Controller) getImageVersion(authorSlug string) string {
-	imageFileName := a.config.CacheDir + "/" + authorSlug + ".webp"
+	imageFileName := a.config.CacheDir + "/authors/" + authorSlug + ".webp"
 	fileInfo, err := a.appFs.Stat(imageFileName)
 	if err != nil {
 		return ""
