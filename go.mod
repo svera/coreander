@@ -7,6 +7,7 @@ require (
 	github.com/alecthomas/kong v1.15.0
 	github.com/blevesearch/bleve/v2 v2.5.7
 	github.com/bmatcuk/doublestar/v4 v4.10.0
+	github.com/deepteams/webp v1.2.5
 	github.com/glebarez/sqlite v1.11.0
 	github.com/gofiber/contrib/v3/jwt v1.1.2
 	github.com/gofiber/fiber/v3 v3.3.0
@@ -38,7 +39,6 @@ require (
 	github.com/blevesearch/go-faiss v1.0.35 // indirect
 	github.com/blevesearch/zapx/v16 v16.3.4 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
-	github.com/deepteams/webp v1.2.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/glebarez/go-sqlite v1.22.0 // indirect
 	github.com/gofiber/schema v1.7.1 // indirect
@@ -114,4 +114,7 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
-replace github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.3
+replace (
+	github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.3
+	github.com/deepteams/webp => github.com/svera/webp v0.0.0-20260630171846-a1fa257ba419
+)
