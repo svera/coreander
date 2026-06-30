@@ -37,7 +37,7 @@ func (a *Controller) MigrateJPEGsToWebP() {
 			log.Println(fmt.Errorf("migrate: error opening %s: %w", jpgPath, err))
 			continue
 		}
-		if err := a.saveImageWebP(img, webpPath); err != nil {
+		if err := a.saveImage(img, webpPath); err != nil {
 			log.Println(fmt.Errorf("migrate: error saving %s: %w", webpPath, err))
 			continue
 		}

@@ -54,7 +54,7 @@ func (a *Controller) Image(c fiber.Ctx) error {
 			}
 		}
 
-		if saveErr := a.saveImageWebP(img, imageFileName); saveErr != nil {
+		if saveErr := a.saveImage(img, imageFileName); saveErr != nil {
 			log.Println(fmt.Errorf("error saving webp image '%s' to cache: %w", imageFileName, saveErr))
 		} else {
 			if info, statErr := a.appFs.Stat(imageFileName); statErr == nil {
@@ -148,27 +148,7 @@ func (a *Controller) openImage(filename string, opts ...imaging.DecodeOption) (i
 	return imaging.Decode(file, decodeOpts...)
 }
 
-func (a *Controller) saveImage(img image.Image, filename string, opts ...imaging.EncodeOption) (err error) {
-	if strings.HasSuffix(strings.ToLower(filename), ".webp") {
-		return a.saveImageWebP(img, filename)
-	}
-	f, err := imaging.FormatFromFilename(filename)
-	if err != nil {
-		return err
-	}
-	file, err := a.appFs.Create(filename)
-	if err != nil {
-		return err
-	}
-	err = imaging.Encode(file, img, f, opts...)
-	errc := file.Close()
-	if err == nil {
-		err = errc
-	}
-	return err
-}
-
-func (a *Controller) saveImageWebP(img image.Image, filename string) error {
+func (a *Controller) saveImage(img image.Image, filename string) error {
 	file, err := a.appFs.Create(filename)
 	if err != nil {
 		return err
