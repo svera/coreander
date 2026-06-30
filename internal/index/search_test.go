@@ -1,6 +1,7 @@
 package index_test
 
 import (
+	"image"
 	"reflect"
 	"testing"
 
@@ -150,7 +151,7 @@ func (m illustratedMockReader) Metadata(filename string) (metadata.Metadata, err
 	}, nil
 }
 
-func (m illustratedMockReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
+func (m illustratedMockReader) Cover(documentFullPath string, coverMaxWidth int) (image.Image, error) {
 	return nil, nil
 }
 

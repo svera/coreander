@@ -2,6 +2,7 @@ package fsutil
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/afero"
 )
@@ -22,4 +23,21 @@ func ReadFileBytes(appFs afero.Fs, path string) ([]byte, os.FileInfo, error) {
 		return nil, nil, err
 	}
 	return data, info, nil
+}
+
+// WriteFileBytes creates any missing parent directories and writes data to path.
+func WriteFileBytes(appFs afero.Fs, path string, data []byte) error {
+	if err := appFs.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	f, err := appFs.Create(path)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(data)
+	errc := f.Close()
+	if err == nil {
+		err = errc
+	}
+	return err
 }

@@ -2,6 +2,7 @@ package index_test
 
 import (
 	"fmt"
+	"image"
 
 	"github.com/pirmd/epub"
 	"github.com/svera/coreander/v5/internal/metadata"
@@ -28,7 +29,7 @@ func (r epubTestReader) Metadata(path string) (metadata.Metadata, error) {
 	return md, nil
 }
 
-func (r epubTestReader) Cover(string, int) ([]byte, error) {
+func (r epubTestReader) Cover(string, int) (image.Image, error) {
 	return nil, nil
 }
 

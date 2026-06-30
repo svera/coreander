@@ -3,6 +3,7 @@ package index_test
 import (
 	"fmt"
 	"html/template"
+	"image"
 	"path/filepath"
 	"testing"
 
@@ -29,7 +30,7 @@ func (benchmarkEpubReader) Metadata(file string) (metadata.Metadata, error) {
 	}, nil
 }
 
-func (benchmarkEpubReader) Cover(string, int) ([]byte, error) {
+func (benchmarkEpubReader) Cover(string, int) (image.Image, error) {
 	return nil, nil
 }
 

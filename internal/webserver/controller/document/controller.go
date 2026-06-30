@@ -1,6 +1,7 @@
 package document
 
 import (
+	"image"
 	"time"
 
 	"github.com/spf13/afero"
@@ -26,7 +27,7 @@ type IdxReaderWriter interface {
 	Close() error
 	Document(Slug string) (index.Document, error)
 	File(slug string) (*index.IndexedFile, error)
-	Cover(slug string, coverMaxWidth int) ([]byte, error)
+	Cover(slug string, coverMaxWidth int) (image.Image, error)
 	SameSubjects(slug string, quantity int) ([]index.Document, error)
 	SameAuthors(slug string, quantity int) ([]index.Document, error)
 	SameSeries(slug string, quantity int) ([]index.Document, error)
@@ -63,6 +64,7 @@ type Config struct {
 	WordsPerMinute        float64
 	HomeDir               string
 	CoverMaxWidth         int
+	CacheDir              string
 	Hostname              string
 	Port                  int
 	UploadDocumentMaxSize int
