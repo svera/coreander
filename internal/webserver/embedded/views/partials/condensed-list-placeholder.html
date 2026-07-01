@@ -1,10 +1,11 @@
+{{$version := .Version}}
 <div id="placeholder-indicator" class="list-group-placeholder htmx-indicator placeholder-glow" aria-hidden="true">
     <div class="row pe-0">
         {{if .Results}}{{range .Results.Hits}}
         <div class="col-6 col-md-3 col-xl-2 pe-0 mt-3">
             <div class="mb-3">
                 <div class="position-relative border border-2">
-                    <span class="placeholder d-block cover w-100"></span>
+                    <img src="/images/generic.webp{{versionParam $version}}" class="cover img-fluid w-100" />
                 </div>
             </div>
             <div class="d-grid">
