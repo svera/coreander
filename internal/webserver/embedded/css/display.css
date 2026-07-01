@@ -248,7 +248,7 @@ main .form-control:focus {
 
 .htmx-request .list-group-placeholder,
 .htmx-request.list-group-placeholder {
-    display: inline-block;
+    display: block;
 }
 
 .htmx-request.list-group-placeholder ~ #list {
@@ -256,7 +256,7 @@ main .form-control:focus {
 }
 
 .cover {
-    min-height: 200px;
+    min-height: 260px;
 }
 
 .cover-read-progress-layer {
@@ -272,7 +272,6 @@ main .form-control:focus {
     -moz-appearance: none;
     -webkit-appearance: none;
     border: none;
-    vertical-align: bottom;
     background-color: transparent;
 }
 
