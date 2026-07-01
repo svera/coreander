@@ -87,7 +87,7 @@ func (c *Controller) Completed(ctx fiber.Ctx) error {
 	}
 
 	if ctx.Get("hx-request") == "true" {
-		if err := ctx.Render("partials/completed-list", templateVars); err != nil {
+		if err := ctx.Render("partials/completed-list-results", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
