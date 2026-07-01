@@ -7,6 +7,7 @@ const loadCover = (elem) => {
 
     preloader.addEventListener("load", () => {
         elem.src = realSrc;
+        elem.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 250, easing: 'ease' });
         const overlay = document.getElementById(coverTitleId)
         if (overlay) {
             overlay.remove()
