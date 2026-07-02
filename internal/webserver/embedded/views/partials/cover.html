@@ -6,7 +6,11 @@
     {{end}}
     {{if not .DisableCoverMainLink}}<a href="/documents/{{.Document.Slug}}{{if eq .LinkToReader true}}/read{{end}}" class="text-decoration-none">
         <div class="zoomable cover">{{end}}
+            {{if .Eager}}
+            <img src="/documents/{{.Document.Slug}}/cover" fetchpriority="high" class="cover img-fluid w-100" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' onload="document.getElementById('cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}')?.remove()" onerror="this.onerror=null;this.src='/images/generic.webp{{versionParam .Version}}'" />
+            {{else}}
             <img src="/images/generic.webp{{versionParam .Version}}" data-src="/documents/{{.Document.Slug}}/cover" loading="lazy" class="cover img-fluid w-100" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}" />
+            {{end}}
             {{if not .DisableCoverMainLink}}</div>{{end}}
         <figcaption class="card-img-overlay card-body" id="cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}">
             <p class="card-title text-center text-truncate mx-2 fw-medium">{{.Document.Title}}</p>

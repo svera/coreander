@@ -3,7 +3,7 @@
         <div class="d-flex align-items-baseline">
             <h3><a href="/authors/{{.Author.Slug}}">{{.Author.Name}}</a></h3>
             {{if and (ne .Author.BirthName "") (not .Author.BirthNameIncludesName)}}
-                <p class="opacity-50 ms-3 float-start">{{.Author.BirthName}}</p>
+                <p class="text-body-secondary ms-3 float-start">{{.Author.BirthName}}</p>
             {{end}}
         </div>
         {{if eq .Author.DataSourceID ""}}
@@ -12,7 +12,7 @@
             <p class="capitalize lead">{{index .Author.Description .Lang}}</p>
         {{end}}
         {{if gt (len .Author.Pseudonyms) 0}}
-            <p class="opacity-50">{{t .Lang "Alias"}}
+            <p class="text-body-secondary">{{t .Lang "Alias"}}
                 {{join .Author.Pseudonyms ", "}}
             </p>
         {{end}}

@@ -56,6 +56,7 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 
 	templateVars := fiber.Map{
 		"Author":         author,
+		"ImageVersion":   a.getImageVersion(author.Slug),
 		"Results":        searchResults,
 		"Paginator":      view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
 		"Title":          author.Name,
