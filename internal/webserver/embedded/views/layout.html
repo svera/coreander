@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="">
+    <meta name="description" content="{{if .Description}}{{.Description}}{{else}}{{t .Lang "A personal documents server that indexes your EPUBs and PDFs and provides a web interface to search and read them."}}{{end}}">
     <meta name="author" content="Sergio Vera">
     <title>{{if .Title}}{{t .Lang .Title}} | {{end}}Coreander</title>
 

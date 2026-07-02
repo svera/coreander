@@ -146,6 +146,17 @@ main .form-control:focus {
     width: 10%;
 }
 
+/* Guarantee a WCAG 2.5.8-compliant touch target regardless of how small the
+   percentage-based cover badge or split-button caret would otherwise shrink to. */
+.icon-link {
+    min-width: 24px;
+    min-height: 24px;
+}
+
+.dropdown-toggle-split {
+    min-width: 24px;
+}
+
 .actions .dropdown-menu {
     white-space: nowrap;
 }
