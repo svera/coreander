@@ -1,4 +1,4 @@
-<div class="position-relative border border-2">
+<figure class="position-relative border border-2 mb-0">
     {{if eq .LinkToReader true}}
     <div class="position-absolute bottom-0 start-0 end-0 overflow-hidden cover-read-progress-layer">
         <progress class="cover-read-progress w-100" value="{{.ReadingPercentage}}" max="100" aria-label='{{t .Lang "Reading progress"}}'></progress>
@@ -8,12 +8,8 @@
         <div class="zoomable cover">{{end}}
             <img src="/images/generic.webp{{versionParam .Version}}" data-src="/documents/{{.Document.Slug}}/cover" loading="lazy" class="cover img-fluid w-100" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}" />
             {{if not .DisableCoverMainLink}}</div>{{end}}
-        <div class="card-img-overlay card-body" id="cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}">
-            {{if .CoverTitleIsDecorative}}
-            <p class="card-title text-center text-truncate mx-2" aria-hidden="true">{{.Document.Title}}</p>
-            {{else}}
-            <h5 class="card-title text-center text-truncate mx-2">{{.Document.Title}}</h5>
-            {{end}}
+        <figcaption class="card-img-overlay card-body" id="cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}">
+            <p class="card-title text-center text-truncate mx-2 fw-medium">{{.Document.Title}}</p>
             {{if .Document.Authors}}
                 <p class="card-text text-center text-truncate mx-2">
                     {{join .Document.Authors ", "}}
@@ -21,7 +17,7 @@
             {{else}}
                 <p class="card-text text-center">{{t .Lang "Unknown author"}}</p>
             {{end}}
-        </div>
+        </figcaption>
     {{if not .DisableCoverMainLink}}</a>{{end}}
 
     {{if and (.Session) (ne .Session.Name "") (not .DisableActions)}}
@@ -35,4 +31,4 @@
         </a>
     </div>
     {{end}}
-</div>
+</figure>
