@@ -1,4 +1,4 @@
-module github.com/svera/coreander/v4
+module github.com/svera/coreander/v5
 
 go 1.25.0
 
@@ -7,6 +7,7 @@ require (
 	github.com/alecthomas/kong v1.15.0
 	github.com/blevesearch/bleve/v2 v2.5.7
 	github.com/bmatcuk/doublestar/v4 v4.10.0
+	github.com/deepteams/webp v1.2.5
 	github.com/glebarez/sqlite v1.11.0
 	github.com/gofiber/contrib/v3/jwt v1.1.2
 	github.com/gofiber/fiber/v3 v3.3.0
@@ -113,4 +114,7 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
-replace github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.3
+replace (
+	github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.3
+	github.com/deepteams/webp => github.com/svera/webp v0.0.0-20260630171846-a1fa257ba419
+)

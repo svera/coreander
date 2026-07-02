@@ -1,7 +1,7 @@
 <div class="mt-3 row ms-0">
     <div class="col-9 ps-0">
         <div class="d-flex align-items-baseline">
-            <h3>{{.Author.Name}}</h3>
+            <h3><a href="/authors/{{.Author.Slug}}">{{.Author.Name}}</a></h3>
             {{if and (ne .Author.BirthName "") (not .Author.BirthNameIncludesName)}}
                 <p class="opacity-50 ms-3 float-start">{{.Author.BirthName}}</p>
             {{end}}
@@ -88,7 +88,7 @@
     </div>
     <div class="col-3 d-flex align-items-start px-0">
         <div class="ratio ratio-1x1">
-            <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg{{.ImageVersion}}" class="img-fluid object-fit-cover w-100 rounded-circle{{if and .Session (eq .Session.Role 2)}} author-image-upload cursor-pointer{{end}}" alt="{{.Author.Name}}"{{if and .Session (eq .Session.Role 2)}} data-author-slug="{{.Author.Slug}}" data-invalid-file-type='{{t .Lang "Invalid file type. Only JPEG and PNG images are allowed."}}' data-upload-failed='{{t .Lang "Failed to upload image"}}' data-upload-error='{{t .Lang "An error occurred while uploading the image"}}' title='{{t .Lang "Click to upload a custom image"}}'{{end}}>
+            <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.webp{{.ImageVersion}}" class="img-fluid object-fit-cover w-100 rounded-circle{{if and .Session (eq .Session.Role 2)}} author-image-upload cursor-pointer{{end}}" alt="{{.Author.Name}}"{{if and .Session (eq .Session.Role 2)}} data-author-slug="{{.Author.Slug}}" data-invalid-file-type='{{t .Lang "Invalid file type. Only JPEG and PNG images are allowed."}}' data-upload-failed='{{t .Lang "Failed to upload image"}}' data-upload-error='{{t .Lang "An error occurred while uploading the image"}}' title='{{t .Lang "Click to upload a custom image"}}'{{end}}>
         </div>
     </div>
 </div>

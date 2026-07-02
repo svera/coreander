@@ -1,6 +1,7 @@
 package index_test
 
 import (
+	"image"
 	"reflect"
 	"testing"
 
@@ -8,11 +9,11 @@ import (
 	"github.com/pirmd/epub"
 	"github.com/rickb777/date/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/precisiondate"
-	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 func TestIndexAndSearch(t *testing.T) {
@@ -150,7 +151,7 @@ func (m illustratedMockReader) Metadata(filename string) (metadata.Metadata, err
 	}, nil
 }
 
-func (m illustratedMockReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
+func (m illustratedMockReader) Cover(documentFullPath string, coverMaxWidth int) (image.Image, error) {
 	return nil, nil
 }
 

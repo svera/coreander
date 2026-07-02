@@ -1,12 +1,13 @@
-<div class="row">
+<div class="row mt-5">
     <div class="col-sm">
-        <form action="/documents" roles="search">
+        <form id="home-search-form" action="/search" method="get" role="search">
+            <input type="hidden" name="type" id="home-search-type" value="documents">
             <div id="searchbox-container">
-                <div class="input-group mb-3 mt-5 rounded-5">
+                <div class="input-group mb-3 rounded-5 home-search-input-group">
                     <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
-                    <input type="search" name="search" id="searchbox" class="form-control form-control-lg border-end-0 border rounded-start-5" placeholder={{t .Lang "Search in %d documents" .Count}} maxlength="255" value="{{.SearchFields.Keywords}}">
+                    <input type="search" name="search" id="searchbox" class="form-control form-control-lg border-end-0 border rounded-start-5" placeholder={{t .Lang "Search in %d documents and %d authors" .Count .AuthorsCount}} maxlength="255" value="{{if .SearchFields}}{{.SearchFields.Keywords}}{{end}}">
                     <span class="input-group-append">
-                        <button class="btn btn-outline-secondary border-start-0 rounded-start-0 rounded-end-5 p-3 border" type="button">
+                        <button class="btn btn-outline-secondary border-start-0 rounded-start-0 rounded-end-5 p-3 border" type="submit">
                             <i class="bi bi-search"></i>
                         </button>
                     </span>
@@ -15,14 +16,35 @@
             <p class="opacity-75 text-end">
                 <small>
                     <i class="bi-sliders me-2"></i>
-                    <a data-bs-toggle="collapse" href="#search-filters-collapse" aria-expanded="false">
+                    <a data-bs-toggle="collapse" href="#home-advanced-search-collapse" aria-expanded="false" aria-controls="home-advanced-search-collapse">
                         {{ t .Lang "Advanced search" }}
                     </a>
                 </small>
             </p>
-            <div class="collapse text-start card" id="search-filters-collapse">
-                {{template "partials/search-filters" dict "Lang" .Lang "Responsive" true "Version" .Version "AvailableLanguages" .AvailableLanguages}}
+            <div class="collapse" id="home-advanced-search-collapse">
+                <ul class="nav nav-tabs nav-fill home-search-tabs mb-0" id="home-search-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button type="button" class="nav-link active" id="home-search-tab-documents" data-bs-toggle="tab" data-bs-target="#home-search-documents-panel" data-home-search-tab="documents" role="tab" aria-selected="true" aria-controls="home-search-documents-panel">{{t .Lang "Documents"}}</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button type="button" class="nav-link" id="home-search-tab-authors" data-bs-toggle="tab" data-bs-target="#home-search-authors-panel" data-home-search-tab="authors" role="tab" aria-selected="false" aria-controls="home-search-authors-panel">{{t .Lang "Authors"}}</button>
+                    </li>
+                </ul>
+                <div class="tab-content home-search-tab-content border border-top-0 rounded-bottom-4 text-start">
+                    <div class="tab-pane fade show active" id="home-search-documents-panel" role="tabpanel" aria-labelledby="home-search-tab-documents" tabindex="0">
+                        {{template "partials/document-search-filters" dict "Lang" .Lang "HomeSearch" true "Version" .Version "AvailableLanguages" .AvailableLanguages}}
+                    </div>
+                    <div class="tab-pane fade" id="home-search-authors-panel" role="tabpanel" aria-labelledby="home-search-tab-authors" tabindex="0">
+                        {{template "partials/author-search-filters" dict "Lang" .Lang "HomeSearch" true "Version" .Version}}
+                    </div>
+                </div>
             </div>
         </form>
     </div>
 </div>
+
+<script id="i18n" type="application/json">{"i18n":{
+    "remove_subject": {{t .Lang "Remove subject: %s" "%s"}}
+}}</script>
+
+<script type="module" src="/js/home-search.js{{versionParam .Version}}"></script>

@@ -1,14 +1,15 @@
 package document
 
 import (
+	"image"
 	"time"
 
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/i18n"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/i18n"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 const relatedDocuments = 4
@@ -22,11 +23,11 @@ type Sender interface {
 // IdxReaderWriter defines a set of reading and writing operations over an index
 type IdxReaderWriter interface {
 	Search(searchFields index.SearchFields, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
-	Count() (uint64, error)
+	TotalDocs() (uint64, error)
 	Close() error
 	Document(Slug string) (index.Document, error)
 	File(slug string) (*index.IndexedFile, error)
-	Cover(slug string, coverMaxWidth int) ([]byte, error)
+	Cover(slug string, coverMaxWidth int) (image.Image, error)
 	SameSubjects(slug string, quantity int) ([]index.Document, error)
 	SameAuthors(slug string, quantity int) ([]index.Document, error)
 	SameSeries(slug string, quantity int) ([]index.Document, error)
@@ -63,6 +64,8 @@ type Config struct {
 	WordsPerMinute        float64
 	HomeDir               string
 	CoverMaxWidth         int
+	CacheDir              string
+	CacheMaxSize          int
 	Hostname              string
 	Port                  int
 	UploadDocumentMaxSize int

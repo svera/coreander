@@ -3,6 +3,7 @@ package index
 import (
 	"errors"
 	"html/template"
+	"image"
 	"io/fs"
 	"math"
 	"net/url"
@@ -18,18 +19,23 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/rickb777/date/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/precisiondate"
-	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/result"
 )
 
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
-	if b.indexStartNanos.Load() == 0 {
-		return Progress{}, nil
+	if b.indexStartNanos.Load() != 0 {
+		return b.progressFrom(ProgressDocuments, b.indexStartNanos.Load(), b.indexedEntries.Load(), b.indexTotalEntries.Load()), nil
 	}
-	processed := b.indexedEntries.Load()
-	total := b.indexTotalEntries.Load()
-	progress := Progress{InProgress: true}
+	if b.authorEnrichStartNanos.Load() != 0 {
+		return b.progressFrom(ProgressAuthors, b.authorEnrichStartNanos.Load(), b.authorEnrichProcessed.Load(), b.authorEnrichTotalEntries.Load()), nil
+	}
+	return Progress{}, nil
+}
+
+func (b *BleveIndexer) progressFrom(kind ProgressKind, startNanos int64, processed, total uint64) Progress {
+	progress := Progress{Kind: kind, InProgress: true}
 	if total > 0 {
 		progress.Percentage = math.Round(100 * float64(processed) / float64(total))
 		if progress.Percentage > 100 {
@@ -37,10 +43,10 @@ func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 		}
 	}
 	if processed > 0 && processed < total {
-		elapsed := float64(time.Now().UnixNano()) - float64(b.indexStartNanos.Load())
+		elapsed := float64(time.Now().UnixNano()) - float64(startNanos)
 		progress.RemainingTime = time.Duration(elapsed * float64(total-processed) / float64(processed))
 	}
-	return progress, nil
+	return progress
 }
 
 func (b *BleveIndexer) beginIndexing() {
@@ -53,6 +59,22 @@ func (b *BleveIndexer) endIndexing() {
 	b.indexStartNanos.Store(0)
 	b.indexedEntries.Store(0)
 	b.indexTotalEntries.Store(0)
+}
+
+func (b *BleveIndexer) beginAuthorEnrichment(total int) {
+	b.authorEnrichStartNanos.Store(time.Now().UnixNano())
+	b.authorEnrichProcessed.Store(0)
+	b.authorEnrichTotalEntries.Store(uint64(total))
+}
+
+func (b *BleveIndexer) endAuthorEnrichment() {
+	b.authorEnrichStartNanos.Store(0)
+	b.authorEnrichProcessed.Store(0)
+	b.authorEnrichTotalEntries.Store(0)
+}
+
+func (b *BleveIndexer) recordAuthorEnrichmentProgress() {
+	b.authorEnrichProcessed.Add(1)
 }
 
 func countFiles(dir string, fileSystem afero.Fs) (float64, error) {
@@ -160,20 +182,7 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 			filtersQuery.AddQuery(subjectQueries)
 		}
 	}
-	if searchFields.PubDateFrom != 0 || searchFields.PubDateTo != 0 {
-		minDate := float64(searchFields.PubDateFrom)
-		maxDate := float64(searchFields.PubDateTo)
-
-		q := bleve.NewNumericRangeQuery(nil, nil)
-		if minDate != 0 {
-			q.Min = &minDate
-		}
-		if maxDate != 0 {
-			q.Max = &maxDate
-		}
-		q.SetField("Publication.Date")
-		filtersQuery.AddQuery(q)
-	}
+	addDateRangeFilter(filtersQuery, "Publication.Date", searchFields.PubDateFrom, searchFields.PubDateTo)
 	if searchFields.EstReadTimeFrom > 0 || searchFields.EstReadTimeTo > 0 {
 		q := bleve.NewNumericRangeQuery(nil, nil)
 		if searchFields.EstReadTimeFrom > 0 {
@@ -293,22 +302,44 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	), nil
 }
 
-// Count returns the number of indexed documents
-func (b *BleveIndexer) Count() (uint64, error) {
-	matchAllQuery := bleve.NewMatchAllQuery()
-
-	searchRequest := bleve.NewSearchRequest(matchAllQuery)
-	searchResult, err := b.documentsIdx.Search(searchRequest)
+// CountDocuments returns the total number of documents matching the given search fields, without fetching any hits.
+func (b *BleveIndexer) CountDocuments(searchFields SearchFields) (int, error) {
+	r, err := b.Search(searchFields, 1, 0)
 	if err != nil {
 		return 0, err
 	}
-	return searchResult.Total, nil
+	return r.TotalHits(), nil
+}
+
+// TotalDocs returns the number of indexed documents
+func (b *BleveIndexer) TotalDocs() (uint64, error) {
+	return b.documentsIdx.DocCount()
+}
+
+// TotalAuthors returns the number of indexed authors.
+func (b *BleveIndexer) TotalAuthors() (uint64, error) {
+	return b.authorsIdx.DocCount()
 }
 
 func (b *BleveIndexer) Document(slug string) (Document, error) {
 	query := bleve.NewTermQuery(slug)
 	query.SetField("Slug")
 
+	searchOptions := bleve.NewSearchRequest(query)
+	searchOptions.Fields = []string{"*"}
+	searchResult, err := b.documentsIdx.Search(searchOptions)
+	if err != nil {
+		return Document{}, err
+	}
+	if searchResult.Total == 0 {
+		return Document{}, nil
+	}
+
+	return hydrateDocument(searchResult.Hits[0]), nil
+}
+
+func (b *BleveIndexer) documentByIndexID(id string) (Document, error) {
+	query := bleve.NewDocIDQuery([]string{id})
 	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.documentsIdx.Search(searchOptions)
@@ -359,7 +390,7 @@ func (b *BleveIndexer) File(slug string) (*IndexedFile, error) {
 }
 
 // Cover returns the cover image for the document identified by slug, resized to at most coverMaxWidth pixels wide.
-func (b *BleveIndexer) Cover(slug string, coverMaxWidth int) ([]byte, error) {
+func (b *BleveIndexer) Cover(slug string, coverMaxWidth int) (image.Image, error) {
 	doc, err := b.Document(slug)
 	if err != nil || doc.ID == "" {
 		return nil, errors.New("document not found")
@@ -557,14 +588,15 @@ func (b *BleveIndexer) Subjects() (map[string][]string, error) {
 }
 
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
-	slug := searchFields.Keywords
-	byAuthor := bleve.NewTermQuery(slug)
-	byAuthor.SetField("AuthorsSlugs")
-	byIllustrator := bleve.NewTermQuery(slug)
-	byIllustrator.SetField("IllustratorsSlugs")
-	dq := bleve.NewDisjunctionQuery(byAuthor, byIllustrator)
+	return b.runPaginatedQuery(documentQueryByAuthorSlug(searchFields.Keywords), page, resultsPerPage, searchFields.SortBy)
+}
 
-	return b.runPaginatedQuery(dq, page, resultsPerPage, searchFields.SortBy)
+func documentQueryByAuthorSlug(authorSlug string) query.Query {
+	byAuthor := bleve.NewTermQuery(authorSlug)
+	byAuthor.SetField("AuthorsSlugs")
+	byIllustrator := bleve.NewTermQuery(authorSlug)
+	byIllustrator.SetField("IllustratorsSlugs")
+	return bleve.NewDisjunctionQuery(byAuthor, byIllustrator)
 }
 
 func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
@@ -795,6 +827,13 @@ func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
 		}
 	}
 
+	documentCount := uint64(0)
+	if val, ok := fields["DocumentCount"]; ok && val != nil {
+		if num, ok := val.(float64); ok {
+			documentCount = uint64(num)
+		}
+	}
+
 	author := Author{
 		Name:            name,
 		BirthName:       birthName,
@@ -810,6 +849,7 @@ func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
 		DataSourceImage: dataSourceImage,
 		Gender:          gender,
 		Pseudonyms:      slicer(fields["Pseudonyms"]),
+		DocumentCount:   documentCount,
 	}
 
 	// Extract Wikipedia links and descriptions for all languages

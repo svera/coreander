@@ -1,2 +1,3 @@
-<div id="list-header" hx-swap-oob="true">{{template "partials/docs-list-header" .}}</div>
+<div id="list-header" hx-swap-oob="true">{{template "partials/search-type-tabs" .}}</div>
+<ul hx-swap-oob="innerHTML:#search-offcanvas-tabs">{{template "partials/search-tab-items" .}}</ul>
 <div id="list-fragment-body">{{template "partials/docs-list-content" .}}</div>

@@ -4,9 +4,9 @@ import (
 	"io/fs"
 
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 type Sender interface {
@@ -15,6 +15,7 @@ type Sender interface {
 
 // IdxReader defines a set of author reading operations over an index
 type IdxReader interface {
+	SearchAuthors(searchFields index.AuthorSearchFields, page, resultsPerPage int) (result.Paginated[[]index.Author], error)
 	SearchByAuthor(searchFields index.SearchFields, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
 	Author(slug, lang string) (index.Author, error)
 	IndexAuthor(author index.Author) error
@@ -32,6 +33,7 @@ type readingRepository interface {
 type Config struct {
 	WordsPerMinute      float64
 	CacheDir            string
+	CacheMaxSize        int
 	AuthorImageMaxWidth int
 	ClientImageCacheTTL int
 	ServerImageCacheTTL int

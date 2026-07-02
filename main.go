@@ -14,13 +14,13 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/datasource/wikidata"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/versioncheck"
-	"github.com/svera/coreander/v4/internal/webserver"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/versioncheck"
+	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 var version string = "unknown"
@@ -116,6 +116,7 @@ func main() {
 		Port:                       input.Port,
 		HomeDir:                    homeDir,
 		CacheDir:                   input.CacheDir,
+		CacheMaxSize:               input.CacheMaxSize,
 		LibraryPath:                input.LibPath,
 		AuthorImageMaxWidth:        input.AuthorImageMaxWidth,
 		CoverMaxWidth:              input.CoverMaxWidth,
@@ -170,7 +171,11 @@ func main() {
 		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accessible outside this system.\n")
 	}
 	log.Printf("Started listening on port %d\n", input.Port)
-	log.Fatal(app.Listen(fmt.Sprintf(":%d", input.Port), fiber.ListenConfig{DisableStartupMessage: true}))
+	if err := app.Listen(fmt.Sprintf(":%d", input.Port), fiber.ListenConfig{DisableStartupMessage: true}); err != nil {
+		log.Printf("Server stopped with error: %s", err)
+		idx.Close()
+		os.Exit(1)
+	}
 }
 
 func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWorkers int) {
@@ -183,6 +188,12 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWor
 	end := time.Now().Unix()
 	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 	log.Printf("Indexing finished, took %d seconds", int(dur.Seconds()))
+
+	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
+	if err := idx.EnrichAuthorsFromDataSource(dataSource, webserver.SupportedLanguages(), index.DefaultAuthorEnrichInterval); err != nil {
+		log.Printf("Error enriching authors from Wikidata: %s", err)
+	}
+
 	idx.StartFileWatcher()
 }
 
@@ -255,7 +266,13 @@ func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Ind
 			log.Fatal(err)
 		}
 		authorsIndex = index.CreateAuthorsIndex(homeDir + authorsIndexPath)
-		needsReindex = true
+		if !needsReindex {
+			// Authors mapping changed but documents are fine: rebuild authors from existing documents index.
+			tmpIdx := index.NewBleve(documentsIndex, authorsIndex, nil, "", nil, index.Config{})
+			if err = tmpIdx.RebuildAuthorsFromDocuments(input.BatchSize); err != nil {
+				log.Fatal(err)
+			}
+		}
 	}
 
 	return documentsIndex, authorsIndex, needsReindex

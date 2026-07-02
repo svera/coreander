@@ -3,10 +3,11 @@ package author
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/svera/coreander/v4/internal/index"
+	"github.com/svera/coreander/v5/internal/index"
 )
 
 func (a *Controller) Update(c fiber.Ctx) error {
@@ -46,11 +47,11 @@ func (a *Controller) Update(c fiber.Ctx) error {
 			return fiber.ErrNotFound
 		}
 
-		if err := a.appFs.Remove(a.config.CacheDir + "/" + author.Slug + ".jpg"); err != nil {
+		if err := a.appFs.Remove(a.config.CacheDir + "/authors/" + author.Slug + ".webp"); err != nil && !os.IsNotExist(err) {
 			fmt.Println(err)
 		}
 
-		combineWithDataSource(&author, authorDataSource, supportedLanguages)
+		index.CombineWithDataSource(&author, authorDataSource, supportedLanguages)
 	}
 
 	if err := a.idx.IndexAuthor(author); err != nil {

@@ -3,12 +3,13 @@ package webserver_test
 import (
 	"fmt"
 	"html/template"
+	"image"
 	"path/filepath"
 	"time"
 
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/precisiondate"
-	"github.com/svera/coreander/v4/internal/webserver"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/webserver"
 )
 
 const testLibraryDir = "testdata/library"
@@ -63,7 +64,7 @@ func (c catalogReader) Metadata(path string) (metadata.Metadata, error) {
 	return metadata.Metadata{}, fmt.Errorf("no test metadata for %s", path)
 }
 
-func (c catalogReader) Cover(string, int) ([]byte, error) {
+func (c catalogReader) Cover(string, int) (image.Image, error) {
 	return nil, nil
 }
 

@@ -3,10 +3,12 @@ package completed
 import (
 	"time"
 
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
+
+const resultsPerPage = 12 // matches cover grid: 6 cols × 2 rows at xl
 
 type idxReader interface {
 	Document(slug string) (index.Document, error)

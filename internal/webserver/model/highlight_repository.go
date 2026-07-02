@@ -4,7 +4,7 @@ import (
 	"errors"
 	"log"
 
-	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v5/internal/result"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -135,19 +135,12 @@ func (u *HighlightRepository) HighlightedPaginatedResult(userID int, results res
 }
 
 func (u *HighlightRepository) Highlighted(userID int, doc AugmentedDocument) AugmentedDocument {
-	var count int64
-
-	u.DB.Table("highlights").Where(
-		"user_id = ? AND slug = ?",
-		userID,
-		doc.Slug,
-	).Count(&count)
-
-	if count == 1 {
-		doc.Highlight = Highlight{
-			UserID: userID,
-			Slug:   doc.Slug,
-		}
+	var highlight Highlight
+	err := u.DB.Select("user_id", "slug").
+		Where("user_id = ? AND slug = ?", userID, doc.Slug).
+		Take(&highlight).Error
+	if err == nil {
+		doc.Highlight = highlight
 	}
 	return doc
 }

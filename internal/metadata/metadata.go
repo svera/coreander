@@ -3,9 +3,10 @@ package metadata
 import (
 	"fmt"
 	"html/template"
+	"image"
 	"time"
 
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 type Metadata struct {
@@ -54,5 +55,5 @@ func FmtDuration(d time.Duration) string {
 
 type Reader interface {
 	Metadata(file string) (Metadata, error)
-	Cover(documentFullPath string, coverMaxWidth int) ([]byte, error)
+	Cover(documentFullPath string, coverMaxWidth int) (image.Image, error)
 }

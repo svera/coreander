@@ -3,7 +3,7 @@ package view
 import (
 	"fmt"
 
-	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v5/internal/result"
 )
 
 // Page holds the URL of a results page, and if that page is the current one being shown

@@ -12,11 +12,11 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cache"
 	"github.com/gofiber/fiber/v3/middleware/favicon"
-	"github.com/svera/coreander/v4/internal/i18n"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/versioncheck"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/i18n"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/versioncheck"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 	"golang.org/x/exp/slices"
 )
 
@@ -43,6 +43,7 @@ type Config struct {
 	Port                       int
 	HomeDir                    string
 	CacheDir                   string
+	CacheMaxSize               int
 	LibraryPath                string
 	AuthorImageMaxWidth        int
 	CoverMaxWidth              int
@@ -103,8 +104,7 @@ func init() {
 	supportedLanguages = translator.SupportedLanguages()
 }
 
-// getSupportedLanguages returns the list of supported languages
-func getSupportedLanguages() []string {
+func SupportedLanguages() []string {
 	return supportedLanguages
 }
 

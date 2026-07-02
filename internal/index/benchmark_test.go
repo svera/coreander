@@ -3,13 +3,14 @@ package index_test
 import (
 	"fmt"
 	"html/template"
+	"image"
 	"path/filepath"
 	"testing"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
 )
 
 // benchmarkEpubReader returns cheap metadata so benchmarks measure indexer and
@@ -29,7 +30,7 @@ func (benchmarkEpubReader) Metadata(file string) (metadata.Metadata, error) {
 	}, nil
 }
 
-func (benchmarkEpubReader) Cover(string, int) ([]byte, error) {
+func (benchmarkEpubReader) Cover(string, int) (image.Image, error) {
 	return nil, nil
 }
 

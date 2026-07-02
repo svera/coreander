@@ -1,6 +1,6 @@
 package model
 
-import "github.com/svera/coreander/v4/internal/index"
+import "github.com/svera/coreander/v5/internal/index"
 
 // idxReader provides index-backed document lookups and word counts for repositories.
 type idxReader interface {

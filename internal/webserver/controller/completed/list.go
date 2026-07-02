@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/model"
-	"github.com/svera/coreander/v4/internal/webserver/view"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver/view"
 )
 
 // Completed renders the list of documents completed by the user
@@ -49,7 +49,7 @@ func (c *Controller) Completed(ctx fiber.Ctx) error {
 		e := time.Date(year, 12, 31, 23, 59, 59, 999999999, time.Local)
 		startDate, endDate = &s, &e
 	}
-	results, err = c.readingRepository.CompletedPaginatedBetweenDates(int(session.User.ID), startDate, endDate, page, int(model.ResultsPerPage), orderBy)
+	results, err = c.readingRepository.CompletedPaginatedBetweenDates(int(session.User.ID), startDate, endDate, page, resultsPerPage, orderBy)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
@@ -87,7 +87,7 @@ func (c *Controller) Completed(ctx fiber.Ctx) error {
 	}
 
 	if ctx.Get("hx-request") == "true" {
-		if err := ctx.Render("partials/completed-list", templateVars); err != nil {
+		if err := ctx.Render("partials/completed-list-results", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}

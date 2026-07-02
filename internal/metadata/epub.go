@@ -21,7 +21,7 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/pirmd/epub"
 	"github.com/rickb777/date/v2"
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 type EpubReader struct {
@@ -177,9 +177,7 @@ func (e EpubReader) coverFileNameFromOPF(opf *epub.PackageDocument, r *zip.ReadC
 }
 
 // Cover parses the document looking for a cover image and returns it
-func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, error) {
-	var cover []byte
-
+func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) (image.Image, error) {
 	book, err := epub.Open(documentFullPath)
 	if err != nil {
 		return nil, err
@@ -196,11 +194,7 @@ func (e EpubReader) Cover(documentFullPath string, coverMaxWidth int) ([]byte, e
 		return nil, err
 	}
 
-	cover, err = extractCover(book.ReadCloser, coverFileName, opfBaseDir(book.ReadCloser), coverMaxWidth)
-	if err != nil {
-		return nil, err
-	}
-	return cover, nil
+	return extractCover(book.ReadCloser, coverFileName, opfBaseDir(book.ReadCloser), coverMaxWidth)
 }
 
 // illustrationsWithZip counts images in the EPUB at least minMegapixels megapixels (excluding the cover)
@@ -329,7 +323,7 @@ func wordsFromZip(r *zip.ReadCloser) (int, error) {
 	return count, nil
 }
 
-func extractCover(r *zip.ReadCloser, coverFile, opfBaseDir string, coverMaxWidth int) ([]byte, error) {
+func extractCover(r *zip.ReadCloser, coverFile, opfBaseDir string, coverMaxWidth int) (image.Image, error) {
 	candidates := candidatePaths(coverFile, opfBaseDir)
 	for _, f := range r.File {
 		if _, ok := candidates[f.Name]; !ok {
@@ -343,7 +337,7 @@ func extractCover(r *zip.ReadCloser, coverFile, opfBaseDir string, coverMaxWidth
 		if err != nil {
 			return nil, err
 		}
-		return resize(src, coverMaxWidth, err)
+		return resize(src, coverMaxWidth), nil
 	}
 	return nil, fmt.Errorf("no cover image found")
 }

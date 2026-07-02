@@ -2,18 +2,30 @@ package home
 
 import (
 	"log"
+	"net/url"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 func (d *Controller) Index(c fiber.Ctx) error {
+	if query := strings.TrimSpace(c.Query("search")); query != "" {
+		return c.Redirect().To("/search?type=documents&search=" + url.QueryEscape(query))
+	}
+
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
 	}
 
-	totalDocumentsCount, err := d.idx.Count()
+	totalDocumentsCount, err := d.idx.TotalDocs()
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
+	totalAuthorsCount, err := d.idx.TotalAuthors()
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
@@ -46,10 +58,11 @@ func (d *Controller) Index(c fiber.Ctx) error {
 	}
 
 	return c.Render("index", fiber.Map{
-		"Count":      totalDocumentsCount,
-		"EmailFrom":  d.sender.From(),
-		"HomeNavbar": true,
-		"LatestDocs": latestDocs,
-		"Reading":    readingDocs,
+		"Count":        totalDocumentsCount,
+		"AuthorsCount": totalAuthorsCount,
+		"EmailFrom":    d.sender.From(),
+		"HomeNavbar":   true,
+		"LatestDocs":   latestDocs,
+		"Reading":      readingDocs,
 	}, "layout")
 }

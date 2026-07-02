@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v5/internal/result"
 	"gorm.io/gorm"
 )
 
@@ -18,9 +18,15 @@ type UserRepository struct {
 func (u *UserRepository) List(page int, resultsPerPage int, filter string) (result.Paginated[[]User], error) {
 	var users []User
 
-	query := u.DB
+	query := u.DB.Model(&User{})
 	if filter != "" {
 		query = query.Where("name LIKE ? OR email LIKE ? OR username LIKE ?", "%"+filter+"%", "%"+filter+"%", "%"+filter+"%")
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		log.Printf("error counting users: %s\n", err)
+		return result.Paginated[[]User]{}, err
 	}
 
 	res := query.Scopes(Paginate(page, resultsPerPage)).Order("email ASC").Find(&users)
@@ -32,7 +38,7 @@ func (u *UserRepository) List(page int, resultsPerPage int, filter string) (resu
 	return result.NewPaginated(
 		resultsPerPage,
 		page,
-		int(u.Total(filter)),
+		int(total),
 		users,
 	), nil
 }
@@ -87,19 +93,17 @@ func (u *UserRepository) Update(user *User) error {
 	return nil
 }
 
+const lastRequestUpdateInterval = time.Minute
+
 func (u *UserRepository) UpdateLastRequest(userID uint) error {
 	if userID == 0 {
 		return nil
 	}
-	var user User
-	if err := u.DB.First(&user, userID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
-		}
-		return err
-	}
-	user.LastRequest = time.Now().UTC()
-	return u.Update(&user)
+	now := time.Now().UTC()
+	cutoff := now.Add(-lastRequestUpdateInterval)
+	return u.DB.Model(&User{}).
+		Where("id = ? AND (last_request IS NULL OR last_request < ?)", userID, cutoff).
+		UpdateColumn("last_request", now).Error
 }
 
 func (u *UserRepository) FindByEmail(email string) (*User, error) {
@@ -116,7 +120,7 @@ func (u *UserRepository) FindByRecoveryUuid(recoveryUuid string) (*User, error) 
 
 func (u *UserRepository) Admins() int64 {
 	var totalRows int64
-	u.DB.Where("role = ?", RoleAdmin).Take(&[]User{}).Count(&totalRows)
+	u.DB.Model(&User{}).Where("role = ?", RoleAdmin).Count(&totalRows)
 	return totalRows
 }
 

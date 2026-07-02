@@ -1,9 +1,9 @@
 package home
 
 import (
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 type Sender interface {
@@ -14,7 +14,8 @@ type Sender interface {
 // IdxReaderWriter defines a set of reading and writing operations over an index
 type IdxReaderWriter interface {
 	Document(slug string) (index.Document, error)
-	Count() (uint64, error)
+	TotalDocs() (uint64, error)
+	TotalAuthors() (uint64, error)
 	LatestDocs(limit int) ([]index.Document, error)
 	Languages() ([]string, error)
 }

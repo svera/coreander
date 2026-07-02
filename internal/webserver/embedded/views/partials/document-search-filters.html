@@ -1,10 +1,10 @@
 {{$idPrefix := or .FilterIdPrefix ""}}
-<div class="row card-body" id="search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
-    {{if $idPrefix}}
+<div class="search-filters-panel p-3" id="document-search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
+    {{if and $idPrefix (not .HideSearch)}}
     <fieldset class="mb-4">
         <legend class="fs-5"><i class="bi bi-search me-3"></i>{{t .Lang "Search"}}</legend>
         <div class="row">
-            <div class="col-12">
+            <div class="col-12 px-0">
                 {{$keywords := ""}}
                 {{if .SearchFields}}
                     {{$keywords = .SearchFields.Keywords}}
@@ -19,7 +19,7 @@
     <fieldset>
         <legend class="fs-5"><i class="bi bi-translate me-3"></i>{{t .Lang "Language"}}</legend>
         <div class="row">
-            <div class="col-12">
+            <div class="col-12 px-0">
                 {{$language := ""}}
                 {{if .SearchFields}}
                     {{$language = .SearchFields.Language}}
@@ -37,7 +37,7 @@
     <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-tags me-3"></i>{{t .Lang "Subjects"}}</legend>
         <div class="row">
-            <div class="col-12">
+            <div class="col-12 px-0">
                 {{$subject := ""}}
                 {{if .SearchFields}}
                     {{$subject = .SearchFields.Subjects}}
@@ -53,14 +53,14 @@
     <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Publishing date"}}</legend>
         <div class="row">
-            <div class="col-12 {{if .Responsive}}col-xl-6{{end}} mb-3">
+            <div class="col-12 {{if .HomeSearch}}col-xl-6{{end}} mb-3 px-0">
                 {{$pubDateFrom := ""}}
                 {{if .SearchFields}}
                     {{$pubDateFrom = .SearchFields.PubDateFrom}}
                 {{end}}
                 {{template "partials/date-control" dict "Name" "pub-date-from" "Lang" .Lang "Date" $pubDateFrom "Label" "From" "IdPrefix" $idPrefix }}
             </div>
-            <div class="col-12 {{if .Responsive}}col-xl-6{{end}}">
+            <div class="col-12 {{if .HomeSearch}}col-xl-6 ps-xl-2{{end}} px-0">
                 {{$pubDateTo := ""}}
                 {{if .SearchFields}}
                     {{$pubDateTo = .SearchFields.PubDateTo}}
@@ -72,7 +72,7 @@
     <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-stopwatch me-3"></i>{{t .Lang "Estimated reading time"}}</legend>
         <div class="row">
-            <div class="col-12">
+            <div class="col-12 px-0">
                 <div class="input-group">
                     {{$estReadTimeFrom := ""}}
                     {{if .SearchFields}}
@@ -97,7 +97,7 @@
     </fieldset>
     <fieldset class="mt-4">
         <div class="row">
-            <div class="col-12">
+            <div class="col-12 px-0">
                 {{$illustratedOnly := false}}
                 {{if .SearchFields}}
                     {{$illustratedOnly = .SearchFields.IllustratedOnly}}
@@ -109,9 +109,9 @@
             </div>
         </div>
     </fieldset>
-    {{if not .DocumentsSearchPage}}
-    <div class="row mt-4 g-0 w-100 px-2">
-        <div class="col-12">
+    {{if or .HomeSearch (not .DocumentsSearchPage)}}
+    <div class="row mt-4 g-0 w-100">
+        <div class="col-12 px-0">
             <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
         </div>
     </div>
@@ -119,10 +119,10 @@
 </div>
 
 {{/* Include script and i18n from sidebar when on documents search page (so script runs after sidebar is in DOM); otherwise include from offcanvas. */}}
-{{if or $idPrefix (not .DocumentsSearchPage)}}
+{{if and (or $idPrefix (not .DocumentsSearchPage)) (not .HomeSearch)}}
 <script id="i18n" type="application/json">{"i18n":{
     "remove_subject": {{t .Lang "Remove subject: %s" "%s"}}
 }}</script>
 
-<script type="module" src="/js/search-filters.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/document-search-filters.js{{versionParam .Version}}"></script>
 {{end}}

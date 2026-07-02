@@ -8,12 +8,13 @@
         </span>
         {{end}}
         {{if not .HomeNavbar}}
-        <div class="d-flex justify-content-center flex-fill flex-shrink-1 pe-2 {{if .DocumentsSearchPage}}d-xl-none{{end}}" style="min-width: 0;">
-            <form action="/documents" class="w-100" roles="search">
+        <div class="d-flex justify-content-center flex-fill flex-shrink-1 pe-2 {{if .SearchPage}}d-none{{end}}" style="min-width: 0;">
+            <form action="/search" class="w-100" role="search">
+                <input type="hidden" name="type" value="documents">
                 <div class="input-group input-group-sm w-100">
                     <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
-                    <input type="search" name="search" id="searchbox" class="form-control rounded-start-1" maxlength="255" value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" id="search-filters-offcanvas-toggle" data-bs-auto-close="outside" aria-expanded="false" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders"></i></button>
+                    <input type="search" name="search" id="searchbox" class="form-control rounded-start-1" maxlength="255" value="{{or .SearchQuery ""}}" placeholder="{{t .Lang "Search"}}...">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" id="search-filters-offcanvas-toggle" data-bs-auto-close="outside" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders"></i></button>
                 </div>
             </form>
         </div>
@@ -194,21 +195,31 @@
 
 {{if not .HomeNavbar}}
 <div class="offcanvas offcanvas-start" tabindex="-1" id="search-filters-offcanvas" aria-labelledby="search-filters-offcanvas-label">
-    <div class="offcanvas-header">
-        <h5>{{t .Lang "Advanced search"}}</h5>
+    <div class="offcanvas-header justify-content-end">
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body">
-        <form action="/documents" roles="search">
-            <div class="row mb-5">
-                <div class="col-12">
-                    <input type="search" name="search" id="searchbox-offcanvas" class="form-control" maxlength="255" value="{{.SearchFields.Keywords}}" placeholder="{{t .Lang "Search"}}...">
+        {{$searchType := or .SearchType "documents"}}
+        <form action="/search" method="get" role="search">
+            <input type="hidden" name="type" id="search-offcanvas-type" value="{{$searchType}}">
+            <ul class="nav nav-tabs nav-fill home-search-tabs mb-0 flex-nowrap" id="search-offcanvas-tabs" role="tablist">
+                {{template "partials/search-tab-items" .}}
+            </ul>
+            <div class="border-start border-end p-3">
+                <input type="search" name="search" id="searchbox-offcanvas" class="form-control" maxlength="255" value="{{or .SearchQuery ""}}" placeholder="{{t .Lang "Search"}}...">
+            </div>
+            <div class="tab-content home-search-tab-content border border-top-0 rounded-bottom-4">
+                <div class="tab-pane fade{{if eq $searchType "documents"}} show active{{end}}" id="search-offcanvas-documents-panel" role="tabpanel" tabindex="0">
+                    {{template "partials/document-search-filters" dict "Lang" .Lang "SearchFields" .DocumentSearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "DocumentsSearchPage" .SearchPage}}
+                </div>
+                <div class="tab-pane fade{{if eq $searchType "authors"}} show active{{end}}" id="search-offcanvas-authors-panel" role="tabpanel" tabindex="0">
+                    {{template "partials/author-search-filters" dict "Lang" .Lang "SearchFields" .AuthorSearchFields "SelectedGender" .SelectedGender "Version" .Version "AuthorsSearchPage" .SearchPage}}
                 </div>
             </div>
-            {{template "partials/search-filters" dict "Lang" .Lang "SearchFields" .SearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "DocumentsSearchPage" .DocumentsSearchPage }}
         </form>
     </div>
 </div>
 
 <script type="module" src="/js/search-filters-offcanvas.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/search-tabs.js{{versionParam .Version}}"></script>
 {{end}}

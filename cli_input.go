@@ -21,6 +21,8 @@ type CLIInput struct {
 	AuthorImageMaxWidth int `env:"AUTHOR_IMAGE_MAX_WIDTH" default:"600" name:"author-image-max-width" help:"Maximum horizontal size for author images in pixels. Set to 0 to keep original image size"`
 	// CoverMaxWidth sets the maximum horizontal size for documents cover thumbnails in pixels
 	CoverMaxWidth int `env:"COVER_MAX_WIDTH" default:"600" name:"cover-max-width" help:"Maximum horizontal size for documents cover thumbnails in pixels"`
+	// CacheMaxSize sets the maximum total size of the cache directory in megabytes. Set to 0 for unlimited.
+	CacheMaxSize int `env:"CACHE_MAX_SIZE" default:"500" name:"cache-max-size" help:"Maximum total size of the cache directory in megabytes. Set to 0 for unlimited."`
 	// IllustratedMinAmount is the minimum number of illustrations (excluding cover) for a document to be considered illustrated
 	IllustratedMinAmount int `env:"ILLUSTRATED_MIN_AMOUNT" default:"2" name:"illustrated-min-amount" help:"Minimum number of illustrations (excluding cover) for a document to be considered illustrated"`
 	// IllustratedMinSize is the minimum size in megapixels for an image to count as an illustration

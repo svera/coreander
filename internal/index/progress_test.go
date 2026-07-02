@@ -1,14 +1,15 @@
 package index_test
 
 import (
+	"image"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
 )
 
 type slowMetadataReader struct {
@@ -20,7 +21,7 @@ func (r slowMetadataReader) Metadata(string) (metadata.Metadata, error) {
 	return metadata.Metadata{Title: "t", Authors: []string{"a"}, Format: "EPUB"}, nil
 }
 
-func (slowMetadataReader) Cover(string, int) ([]byte, error) {
+func (slowMetadataReader) Cover(string, int) (image.Image, error) {
 	return nil, nil
 }
 

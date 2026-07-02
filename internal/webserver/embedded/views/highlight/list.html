@@ -1,6 +1,6 @@
 <h1 class="mt-5">{{t .Lang "Highlights"}}</h1>
 
-{{template "partials/docs-list-placeholder" .}}
+{{template "partials/list-placeholder" .}}
 
 <div id="list" hx-get="{{.URL}}" hx-trigger="dehighlight, update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
     {{ template "partials/highlights-list" .}}
