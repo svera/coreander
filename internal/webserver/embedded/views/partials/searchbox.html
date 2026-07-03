@@ -7,7 +7,7 @@
                     <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
                     <input type="search" name="search" id="searchbox" class="form-control form-control-lg border-end-0 border rounded-start-5" placeholder={{t .Lang "Search in %d documents and %d authors" .Count .AuthorsCount}} maxlength="255" value="{{if .SearchFields}}{{.SearchFields.Keywords}}{{end}}">
                     <span class="input-group-append">
-                        <button class="btn btn-outline-secondary border-start-0 rounded-start-0 rounded-end-5 p-3 border" type="submit">
+                        <button class="btn btn-outline-secondary border-start-0 rounded-start-0 rounded-end-5 p-3 border" type="submit" aria-label='{{t .Lang "Search"}}'>
                             <i class="bi bi-search"></i>
                         </button>
                     </span>

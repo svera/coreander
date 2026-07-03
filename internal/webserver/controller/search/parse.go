@@ -187,5 +187,9 @@ func (s *Controller) Subjects(c fiber.Ctx) error {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
+	// Same-origin, session-independent data that only changes on reindex: safe to
+	// cache briefly so the preload hint and the sidebar/offcanvas filter instances
+	// (which each fetch this on page load) don't issue redundant requests.
+	c.Set("Cache-Control", "public, max-age=300")
 	return c.JSON(bySlug)
 }

@@ -24,6 +24,7 @@
                 {{if .SearchFields}}
                     {{$language = .SearchFields.Language}}
                 {{end}}
+                    <label class="visually-hidden" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}language">{{t .Lang "Language"}}</label>
                     <select class="form-select" name="language" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}language">
                         <option value="">{{t .Lang "All languages"}}</option>
                         {{range $lang := .AvailableLanguages}}

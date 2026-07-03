@@ -1,13 +1,24 @@
 {{if ne .Author.Name ""}}
-<div hx-get="/authors/{{.Author.Slug}}/summary" hx-trigger="load" hx-target="this">
-    <div class="card mb-3">
-        <div class="row">
-            <div class="card-body col-sm-6 col-md-9">
-                <h1 class="card-title ms-3">{{.Author.Name}}</h1>
+    {{if not .Author.RetrievedOn.IsZero}}
+        {{template "partials/author-summary" dict "Lang" .Lang "Author" .Author "Session" .Session "ImageVersion" .ImageVersion "Version" .Version}}
+    {{else}}
+    <div hx-get="/authors/{{.Author.Slug}}/summary" hx-trigger="load" hx-target="this">
+        <div class="card mb-3 bg-body-secondary placeholder-glow">
+            <div class="row">
+                <div class="card-body col-sm-6 col-md-6 col-lg-9">
+                    <h1 class="card-title ms-3">{{.Author.Name}}</h1>
+                    <p class="ms-3 mb-1"><span class="placeholder col-8"></span></p>
+                    <p class="ms-3"><span class="placeholder col-6"></span></p>
+                </div>
+                <div class="col-lg-3 col-md-6 col-sm-6 p-3 d-flex align-items-center">
+                    <div class="ratio ratio-1x1 w-100">
+                        <span class="placeholder rounded-circle w-100"></span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
+    {{end}}
 {{end}}
 
 {{template "partials/list-placeholder" .}}

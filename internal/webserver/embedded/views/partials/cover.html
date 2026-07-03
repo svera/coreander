@@ -1,4 +1,4 @@
-<div class="position-relative border border-2">
+<figure class="position-relative border border-2 mb-0">
     {{if eq .LinkToReader true}}
     <div class="position-absolute bottom-0 start-0 end-0 overflow-hidden cover-read-progress-layer">
         <progress class="cover-read-progress w-100" value="{{.ReadingPercentage}}" max="100" aria-label='{{t .Lang "Reading progress"}}'></progress>
@@ -6,10 +6,14 @@
     {{end}}
     {{if not .DisableCoverMainLink}}<a href="/documents/{{.Document.Slug}}{{if eq .LinkToReader true}}/read{{end}}" class="text-decoration-none">
         <div class="zoomable cover">{{end}}
+            {{if .Eager}}
+            <img src="/documents/{{.Document.Slug}}/cover" fetchpriority="high" class="cover img-fluid w-100" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' onload="document.getElementById('cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}')?.remove()" onerror="this.onerror=null;this.src='/images/generic.webp{{versionParam .Version}}'" />
+            {{else}}
             <img src="/images/generic.webp{{versionParam .Version}}" data-src="/documents/{{.Document.Slug}}/cover" loading="lazy" class="cover img-fluid w-100" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}" />
+            {{end}}
             {{if not .DisableCoverMainLink}}</div>{{end}}
-        <div class="card-img-overlay card-body" id="cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}">
-            <h5 class="card-title text-center text-truncate mx-2">{{.Document.Title}}</h5>
+        <figcaption class="card-img-overlay card-body" id="cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}">
+            <p class="card-title text-center text-truncate mx-2 fw-medium">{{.Document.Title}}</p>
             {{if .Document.Authors}}
                 <p class="card-text text-center text-truncate mx-2">
                     {{join .Document.Authors ", "}}
@@ -17,7 +21,7 @@
             {{else}}
                 <p class="card-text text-center">{{t .Lang "Unknown author"}}</p>
             {{end}}
-        </div>
+        </figcaption>
     {{if not .DisableCoverMainLink}}</a>{{end}}
 
     {{if and (.Session) (ne .Session.Name "") (not .DisableActions)}}
@@ -26,9 +30,9 @@
 
     {{if not .DisableActions}}
     <div class="position-absolute bottom-0 end-0 me-2 mb-1 cursor-pointer w-10">
-        <a href="/documents/{{.Document.Slug}}/read" class="icon-link" title='{{t .Lang "Read"}}' aria-label='{{t .Lang "Read"}}'>
+        <a href="/documents/{{.Document.Slug}}/read" class="icon-link" title='{{t .Lang "Read"}}' aria-label='{{t .Lang "Read \"%s\"" .Document.Title}}'>
             <img src="/images/eye-solid.svg{{versionParam .Version}}" class="img-fluid w-100" style="min-width: 1em" alt='' />
         </a>
     </div>
     {{end}}
-</div>
+</figure>

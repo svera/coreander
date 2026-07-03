@@ -55,7 +55,7 @@
 {{end}}
 
 {{define "partials/action-download"}}
-    <a href="{{.Href}}" class="{{.ButtonClass}}" download title='{{t .Lang "Download"}}'>
+    <a href="{{.Href}}" class="{{.ButtonClass}}" download title='{{t .Lang "Download"}}' {{if not .Label}}aria-label='{{t .Lang "Download \"%s\"" .Document.Title}}'{{end}}>
         <i class="{{.IconClass}}"></i>{{if .Label}}{{.Label}}{{end}}
         {{if .BadgeText}}<span class="{{.BadgeClass}}">{{.BadgeText}}</span>{{end}}
     </a>
@@ -71,7 +71,7 @@
             {{else if eq $defaultAction "copy"}}
                 {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-copy"}}
             {{else}}
-                {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download?format=%s" .Document.Slug $preferredEpub) "BadgeText" (uppercase $preferredEpub) "BadgeClass" "badge text-bg-primary"}}
+                {{template "partials/action-download" dict "Lang" .Lang "Document" .Document "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download?format=%s" .Document.Slug $preferredEpub) "BadgeText" (uppercase $preferredEpub) "BadgeClass" "badge text-bg-primary"}}
             {{end}}
             <button type="button" class="btn {{ $buttonSize }} {{ $buttonStyle }} dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Select download format"}}'></button>
             <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">
@@ -106,7 +106,7 @@
             {{else if eq $defaultAction "copy"}}
                 {{template "partials/action-copy" dict "Lang" .Lang "Document" .Document "FQDN" .FQDN "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-copy"}}
             {{else}}
-                {{template "partials/action-download" dict "Lang" .Lang "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download" .Document.Slug) "BadgeText" .Document.Format "BadgeClass" "badge text-bg-danger"}}
+                {{template "partials/action-download" dict "Lang" .Lang "Document" .Document "ButtonClass" (printf "btn %s %s w-100 text-nowrap" $buttonSize $buttonStyle) "Label" "" "IconClass" "bi-cloud-download" "Href" (printf "/documents/%s/download" .Document.Slug) "BadgeText" .Document.Format "BadgeClass" "badge text-bg-danger"}}
             {{end}}
             <button type="button" class="btn {{ $buttonSize }} {{ $buttonStyle }} dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" role="button" aria-haspopup="true" aria-controls="dropdown-menu-download-{{.Document.Slug}}" aria-label='{{t .Lang "Actions"}}'></button>
             <ul class="dropdown-menu dropdown-menu-end shadow" id="dropdown-menu-download-{{.Document.Slug}}">

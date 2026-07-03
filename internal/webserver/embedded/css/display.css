@@ -134,7 +134,7 @@ main .form-control:focus {
     }
 }
 
-.card-img-overlay a, .card-img-overlay p, .card-img-overlay h2, .card-img-overlay h3, .card-img-overlay h4, .card-img-overlay h5 {
+.card-img-overlay a, .card-img-overlay p {
     color: rgba(255,255,255,0.8);
 }
 
@@ -144,6 +144,17 @@ main .form-control:focus {
 
 .w-10 {
     width: 10%;
+}
+
+/* Guarantee a WCAG 2.5.8-compliant touch target regardless of how small the
+   percentage-based cover badge or split-button caret would otherwise shrink to. */
+.icon-link {
+    min-width: 24px;
+    min-height: 24px;
+}
+
+.dropdown-toggle-split {
+    min-width: 24px;
 }
 
 .actions .dropdown-menu {
@@ -256,7 +267,8 @@ main .form-control:focus {
 }
 
 .cover {
-    min-height: 260px;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
 }
 
 .cover-read-progress-layer {
