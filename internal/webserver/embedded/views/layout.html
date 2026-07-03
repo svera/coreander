@@ -12,6 +12,11 @@
     <link href="/css/bootstrap.min.css{{versionParam .Version}}" rel="stylesheet">
     <link href="/css/bootstrap-icons.min.css{{versionParam .Version}}" rel="stylesheet">
     <link href="/css/display.css{{versionParam .Version}}" rel="stylesheet">
+    <!-- Break the document-search-filters.js -> search-filter-utils.js -> /subjects critical
+         request chain: both are only discoverable after document-search-filters.js is fetched
+         and parsed, so fetch them in parallel with it instead of sequentially after it. -->
+    <link rel="modulepreload" href="/js/search-filter-utils.js{{versionParam .Version}}">
+    <link rel="preload" href="/subjects" as="fetch" crossorigin="use-credentials">
     <!-- Favicons -->
     <meta name="theme-color" content="#000">
     <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png{{versionParam .Version}}">
