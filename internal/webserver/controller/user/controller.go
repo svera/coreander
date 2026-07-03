@@ -23,6 +23,7 @@ type usersRepository interface {
 	Update(user *model.User) error
 	FindByEmail(email string) (*model.User, error)
 	Admins() int64
+	IsLastAdmin(user *model.User) bool
 	Delete(uuid string) error
 }
 

@@ -124,6 +124,14 @@ func (u *UserRepository) Admins() int64 {
 	return totalRows
 }
 
+// IsLastAdmin reports whether user is the only administrator.
+func (u *UserRepository) IsLastAdmin(user *User) bool {
+	if user == nil || user.Role != RoleAdmin {
+		return false
+	}
+	return u.Admins() == 1
+}
+
 func (u *UserRepository) Delete(uuid string) error {
 	var user User
 

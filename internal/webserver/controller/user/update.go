@@ -49,15 +49,7 @@ func (u *Controller) Update(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	vars := fiber.Map{
-		"Title":             "Edit user",
-		"User":              user,
-		"MinPasswordLength": u.config.MinPasswordLength,
-		"UsernamePattern":   model.UsernamePattern,
-		"Errors":            validationErrs,
-		"EmailFrom":         u.sender.From(),
-		"ActiveTab":         c.FormValue("tab"),
-	}
+	vars := u.buildEditUserVars(user, c.FormValue("tab"), validationErrs)
 
 	if len(validationErrs) > 0 {
 		c.Status(fiber.StatusBadRequest)

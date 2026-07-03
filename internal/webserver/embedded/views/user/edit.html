@@ -134,7 +134,7 @@
                     <button type="submit" class="btn btn-primary">{{t .Lang "Update"}}</button>
                 </div>
             </form>
-            {{if eq .Session.Uuid .User.Uuid}}
+            {{if and (eq .Session.Uuid .User.Uuid) (not .IsLastAdmin)}}
             <hr class="my-5">
             <div class="mb-3">
                 <h2 class="h5 text-danger">{{t .Lang "Danger zone"}}</h2>

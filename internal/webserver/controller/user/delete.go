@@ -31,7 +31,7 @@ func (u *Controller) Delete(c fiber.Ctx) error {
 	}
 
 	// Never delete the last admin (including self-service); must keep at least one admin account.
-	if user.Role == model.RoleAdmin && u.usersRepository.Admins() == 1 {
+	if u.usersRepository.IsLastAdmin(user) {
 		return fiber.ErrForbidden
 	}
 
