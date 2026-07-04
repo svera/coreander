@@ -5,45 +5,46 @@ go 1.25.0
 require (
 	github.com/Navid2zp/go-wikidata v1.0.1
 	github.com/alecthomas/kong v1.15.0
-	github.com/blevesearch/bleve/v2 v2.5.7
+	github.com/blevesearch/bleve/v2 v2.6.0
 	github.com/bmatcuk/doublestar/v4 v4.10.0
-	github.com/deepteams/webp v1.2.5
+	github.com/deepteams/webp v1.2.7
 	github.com/glebarez/sqlite v1.11.0
-	github.com/gofiber/contrib/v3/jwt v1.1.2
-	github.com/gofiber/fiber/v3 v3.3.0
-	github.com/gofiber/template/html/v3 v3.0.3
+	github.com/gofiber/contrib/v3/jwt v1.1.7
+	github.com/gofiber/fiber/v3 v3.4.0
+	github.com/gofiber/template/html/v3 v3.0.6
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
-	github.com/hhrutter/tiff v1.0.3
-	github.com/kovidgoyal/imaging v1.8.21
+	github.com/hhrutter/tiff v1.0.5
+	github.com/kovidgoyal/imaging v1.8.22
 	github.com/magefile/mage v1.17.2
 	github.com/microcosm-cc/bluemonday v1.0.27
-	github.com/pdfcpu/pdfcpu v0.12.0
-	github.com/rickb777/date/v2 v2.3.10
+	github.com/pdfcpu/pdfcpu v0.13.0
+	github.com/rickb777/date/v2 v2.3.12
 	github.com/rjeczalik/notify v0.9.3
 	github.com/spf13/afero v1.15.0
-	github.com/wneessen/go-mail v0.7.2
-	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
-	golang.org/x/mod v0.36.0
-	golang.org/x/text v0.37.0
+	github.com/wneessen/go-mail v0.8.0
+	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
+	golang.org/x/mod v0.37.0
+	golang.org/x/text v0.38.0
 	gopkg.in/yaml.v2 v2.4.0
-	gorm.io/gorm v1.31.1
+	gorm.io/gorm v1.31.2
 )
 
 require (
 	github.com/MicahParks/keyfunc/v2 v2.1.0 // indirect
-	github.com/RoaringBitmap/roaring/v2 v2.18.0 // indirect
+	github.com/RoaringBitmap/roaring/v2 v2.19.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/beevik/etree v1.6.0 // indirect
-	github.com/blevesearch/go-faiss v1.0.35 // indirect
+	github.com/blevesearch/go-faiss v1.1.5 // indirect
 	github.com/blevesearch/zapx/v16 v16.3.4 // indirect
+	github.com/blevesearch/zapx/v17 v17.1.9 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/glebarez/go-sqlite v1.22.0 // indirect
-	github.com/gofiber/schema v1.7.1 // indirect
+	github.com/gofiber/schema v1.8.0 // indirect
 	github.com/gofiber/template/v2 v2.1.0 // indirect
-	github.com/gofiber/utils/v2 v2.0.6 // indirect
+	github.com/gofiber/utils/v2 v2.1.1 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/govalues/decimal v0.1.36 // indirect
 	github.com/hhrutter/lzw v1.0.0 // indirect
@@ -64,20 +65,20 @@ require (
 	github.com/rickb777/plural v1.4.10 // indirect
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
-	golang.org/x/crypto v0.52.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	modernc.org/libc v1.72.1 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	modernc.org/libc v1.73.5 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.49.1 // indirect
+	modernc.org/sqlite v1.53.0 // indirect
 )
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.1
-	github.com/andybalholm/brotli v1.2.1 // indirect
+	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
-	github.com/bits-and-blooms/bitset v1.24.4 // indirect
-	github.com/blevesearch/bleve_index_api v1.3.11
+	github.com/bits-and-blooms/bitset v1.24.5 // indirect
+	github.com/blevesearch/bleve_index_api v1.4.0
 	github.com/blevesearch/geo v0.2.5 // indirect
 	github.com/blevesearch/go-porterstemmer v1.0.3 // indirect
 	github.com/blevesearch/gtreap v0.1.1 // indirect
@@ -96,21 +97,21 @@ require (
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/gosimple/slug v1.15.0
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.18.6 // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/klauspost/compress v1.19.0 // indirect
+	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
-	github.com/mattn/go-runewidth v0.0.23 // indirect
+	github.com/mattn/go-runewidth v0.0.24 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/pgaskin/kepubify/v4 v4.0.4
 	github.com/pirmd/epub v0.3.1
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.71.0
-	go.etcd.io/bbolt v1.4.3 // indirect
-	golang.org/x/image v0.39.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
+	github.com/valyala/fasthttp v1.72.0
+	go.etcd.io/bbolt v1.5.0 // indirect
+	golang.org/x/image v0.43.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
