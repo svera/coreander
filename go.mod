@@ -115,7 +115,4 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
-replace (
-	github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.3
-	github.com/deepteams/webp => github.com/svera/webp v0.0.0-20260630171846-a1fa257ba419
-)
+replace github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.3
