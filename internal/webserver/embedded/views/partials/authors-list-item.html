@@ -27,6 +27,9 @@
                 {{else}}
                     <time datetime='{{.Author.DateOfBirth.Date.FormatISO 6}}' class='locale'>{{.Author.DateOfBirth.FormatISO 6}}</time>
                     {{if lt .Author.DateOfBirth.Year 0}}<abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>{{end}}
+                    {{if and (gt .Author.Age 0) (eq .Author.DateOfDeath.Date 0) }}
+                        ({{t .Lang "%d years old" .Author.Age}})
+                    {{end}}
                 {{end}}
             </dd>
             {{end}}
@@ -42,6 +45,9 @@
                 {{else}}
                     <time datetime='{{.Author.DateOfDeath.Date.FormatISO 6}}' class='locale'>{{.Author.DateOfDeath.FormatISO 6}}</time>
                     {{if lt .Author.DateOfDeath.Year 0}}<abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>{{end}}
+                    {{if gt .Author.Age 0}}
+                        ({{t .Lang "%d years old" .Author.Age}})
+                    {{end}}
                 {{end}}
             </dd>
             {{end}}
