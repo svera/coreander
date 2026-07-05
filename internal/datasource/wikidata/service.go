@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -158,16 +159,18 @@ func (a WikidataSource) RetrieveAuthors(candidates map[string][]string, language
 
 		entitiesReq, err := a.wikidata.NewGetEntities(chunk)
 		if err != nil {
-			return err
-		}
-		entitiesReq.SetProps(entityFetchProps)
-		entitiesReq.SetLanguages(languages)
-		batch, err := entitiesReq.Get()
-		if err != nil {
-			return err
-		}
-		for id, entity := range *batch {
-			entities[id] = entity
+			log.Printf("Error creating Wikidata entities request: %s", err)
+		} else {
+			entitiesReq.SetProps(entityFetchProps)
+			entitiesReq.SetLanguages(languages)
+			batch, err := entitiesReq.Get()
+			if err != nil {
+				log.Printf("Error fetching Wikidata entities: %s", err)
+			} else {
+				for id, entity := range *batch {
+					entities[id] = entity
+				}
+			}
 		}
 
 		for slug, ids := range pending {
