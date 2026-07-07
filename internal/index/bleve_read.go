@@ -24,6 +24,11 @@ import (
 	"github.com/svera/coreander/v5/internal/result"
 )
 
+// titleBoost multiplies the score contribution of a Title match relative to a Series match, so a
+// document whose own title matches ranks above other entries in the same series that only match
+// because they share its series name.
+const titleBoost = 3.0
+
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 	if b.indexStartNanos.Load() != 0 {
 		return b.progressFrom(ProgressDocuments, b.indexStartNanos.Load(), b.indexedEntries.Load(), b.indexTotalEntries.Load()), nil
@@ -135,7 +140,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			return result.Paginated[[]Document]{}, err
 		}
 
-		query := composeQuery(searchFields.Keywords, analyzers)
+		query := b.composeQuery(searchFields.Keywords, analyzers)
 		filtersQuery.AddQuery(query)
 	} else {
 		// When no keywords are provided, use MatchAllQuery to return all documents
@@ -204,11 +209,19 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 	}
 }
 
-func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
+func (b *BleveIndexer) composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	langCompoundQuery := bleve.NewDisjunctionQuery()
 	// Special query for searches using partial title names and author names
 	authorTitleQuery := bleve.NewConjunctionQuery()
 	allLangsOrTitleQuery := bleve.NewDisjunctionQuery()
+
+	// meaningfulKeywords drops words that are stop words (e.g. Spanish "de", "el", "los") in any
+	// of the library's active languages. It's used only for the permissive OR-fallback queries
+	// below (orTitleQuery's defaultAnalyzer case and orAuthorQuery), which otherwise treat any
+	// single matching word, however common, as a strong match anchor across every document
+	// containing it. The stricter AND-based queries above keep the original keywords, since for
+	// those a literal connector word can be a meaningful part of an exact title/series match.
+	meaningfulKeywords := b.stripCommonWords(keywords, analyzers)
 
 	for _, analyzer := range analyzers {
 		noStopWordsAnalyzer := analyzer
@@ -220,6 +233,10 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 		qt.Analyzer = noStopWordsAnalyzer
 		qt.SetField("Title")
 		qt.Operator = query.MatchQueryOperatorAnd
+		// A document's own title matching the query is a stronger relevance signal than the
+		// query matching the name of the series it belongs to (which every entry in that series
+		// shares, whether or not it's the specific entry being searched for).
+		qt.SetBoost(titleBoost)
 
 		qs := bleve.NewMatchQuery(keywords)
 		qs.Analyzer = noStopWordsAnalyzer
@@ -237,6 +254,11 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 		orTitleQuery.SetField("Title")
 		orTitleQuery.Operator = query.MatchQueryOperatorOr
 		orTitleQuery.Analyzer = analyzer
+		if analyzer == defaultAnalyzer {
+			// default_analyzer has no stop-word filter of its own, so fall back to the
+			// cross-language filtered keywords to avoid matching on bare connector words.
+			orTitleQuery.Match = meaningfulKeywords
+		}
 
 		allLangsOrTitleQuery.AddQuery(orTitleQuery)
 	}
@@ -251,7 +273,9 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	qi.Operator = query.MatchQueryOperatorAnd
 	qi.Analyzer = defaultAnalyzer
 
-	orAuthorQuery := bleve.NewMatchQuery(keywords)
+	// Authors is always analyzed with defaultAnalyzer (it isn't language-specific), which has no
+	// stop-word filter, so it uses meaningfulKeywords for the same reason as orTitleQuery above.
+	orAuthorQuery := bleve.NewMatchQuery(meaningfulKeywords)
 	orAuthorQuery.SetField("Authors")
 	orAuthorQuery.Operator = query.MatchQueryOperatorOr
 	orAuthorQuery.Analyzer = defaultAnalyzer
@@ -259,6 +283,44 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	authorTitleQuery.AddQuery(orAuthorQuery, allLangsOrTitleQuery)
 
 	return bleve.NewDisjunctionQuery(qa, qi, langCompoundQuery, authorTitleQuery)
+}
+
+// stripCommonWords removes words from keywords that are treated as stop words by any of the
+// library's active (real, stop-word-aware) language analyzers. A word only survives if at least
+// one active language's analyzer keeps it, so genuinely meaningful words (author names, rare
+// terms) are preserved even if they happen to be a stop word in an unrelated language.
+func (b *BleveIndexer) stripCommonWords(keywords string, analyzers []string) string {
+	words := strings.Fields(keywords)
+	if len(words) <= 1 {
+		return keywords
+	}
+
+	mapping := b.documentsIdx.Mapping()
+	kept := make([]string, 0, len(words))
+	for _, word := range words {
+		isStopWord := false
+		for _, analyzerName := range analyzers {
+			if analyzerName == defaultAnalyzer {
+				continue
+			}
+			analyzer := mapping.AnalyzerNamed(analyzerName)
+			if analyzer == nil {
+				continue
+			}
+			if len(analyzer.Analyze([]byte(word))) == 0 {
+				isStopWord = true
+				break
+			}
+		}
+		if !isStopWord {
+			kept = append(kept, word)
+		}
+	}
+
+	if len(kept) == 0 {
+		return keywords
+	}
+	return strings.Join(kept, " ")
 }
 
 func (b *BleveIndexer) runQuery(query query.Query, results int, sortBy []string) ([]Document, error) {
@@ -277,7 +339,12 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	}
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
-	searchOptions.SortBy(sortBy)
+	// NewSearchRequestOptions defaults to sorting by relevance (-_score). Only override it when
+	// the caller actually asked for a specific order: SortBy([]string{}) replaces that default
+	// with an empty sort order, which falls back to arbitrary (index) order instead of relevance.
+	if len(sortBy) > 0 {
+		searchOptions.SortBy(sortBy)
+	}
 	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
