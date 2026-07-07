@@ -135,7 +135,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			return result.Paginated[[]Document]{}, err
 		}
 
-		query := composeQuery(searchFields.Keywords, analyzers)
+		query := b.composeQuery(searchFields.Keywords, analyzers)
 		filtersQuery.AddQuery(query)
 	} else {
 		// When no keywords are provided, use MatchAllQuery to return all documents
@@ -204,11 +204,19 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 	}
 }
 
-func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
+func (b *BleveIndexer) composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	langCompoundQuery := bleve.NewDisjunctionQuery()
 	// Special query for searches using partial title names and author names
 	authorTitleQuery := bleve.NewConjunctionQuery()
 	allLangsOrTitleQuery := bleve.NewDisjunctionQuery()
+
+	// meaningfulKeywords drops words that are stop words (e.g. Spanish "de", "el", "los") in any
+	// of the library's active languages. It's used only for the permissive OR-fallback queries
+	// below (orTitleQuery's defaultAnalyzer case and orAuthorQuery), which otherwise treat any
+	// single matching word, however common, as a strong match anchor across every document
+	// containing it. The stricter AND-based queries above keep the original keywords, since for
+	// those a literal connector word can be a meaningful part of an exact title/series match.
+	meaningfulKeywords := b.stripCommonWords(keywords, analyzers)
 
 	for _, analyzer := range analyzers {
 		noStopWordsAnalyzer := analyzer
@@ -237,6 +245,11 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 		orTitleQuery.SetField("Title")
 		orTitleQuery.Operator = query.MatchQueryOperatorOr
 		orTitleQuery.Analyzer = analyzer
+		if analyzer == defaultAnalyzer {
+			// default_analyzer has no stop-word filter of its own, so fall back to the
+			// cross-language filtered keywords to avoid matching on bare connector words.
+			orTitleQuery.Match = meaningfulKeywords
+		}
 
 		allLangsOrTitleQuery.AddQuery(orTitleQuery)
 	}
@@ -251,7 +264,9 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	qi.Operator = query.MatchQueryOperatorAnd
 	qi.Analyzer = defaultAnalyzer
 
-	orAuthorQuery := bleve.NewMatchQuery(keywords)
+	// Authors is always analyzed with defaultAnalyzer (it isn't language-specific), which has no
+	// stop-word filter, so it uses meaningfulKeywords for the same reason as orTitleQuery above.
+	orAuthorQuery := bleve.NewMatchQuery(meaningfulKeywords)
 	orAuthorQuery.SetField("Authors")
 	orAuthorQuery.Operator = query.MatchQueryOperatorOr
 	orAuthorQuery.Analyzer = defaultAnalyzer
@@ -259,6 +274,44 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	authorTitleQuery.AddQuery(orAuthorQuery, allLangsOrTitleQuery)
 
 	return bleve.NewDisjunctionQuery(qa, qi, langCompoundQuery, authorTitleQuery)
+}
+
+// stripCommonWords removes words from keywords that are treated as stop words by any of the
+// library's active (real, stop-word-aware) language analyzers. A word only survives if at least
+// one active language's analyzer keeps it, so genuinely meaningful words (author names, rare
+// terms) are preserved even if they happen to be a stop word in an unrelated language.
+func (b *BleveIndexer) stripCommonWords(keywords string, analyzers []string) string {
+	words := strings.Fields(keywords)
+	if len(words) <= 1 {
+		return keywords
+	}
+
+	mapping := b.documentsIdx.Mapping()
+	kept := make([]string, 0, len(words))
+	for _, word := range words {
+		isStopWord := false
+		for _, analyzerName := range analyzers {
+			if analyzerName == defaultAnalyzer {
+				continue
+			}
+			analyzer := mapping.AnalyzerNamed(analyzerName)
+			if analyzer == nil {
+				continue
+			}
+			if len(analyzer.Analyze([]byte(word))) == 0 {
+				isStopWord = true
+				break
+			}
+		}
+		if !isStopWord {
+			kept = append(kept, word)
+		}
+	}
+
+	if len(kept) == 0 {
+		return keywords
+	}
+	return strings.Join(kept, " ")
 }
 
 func (b *BleveIndexer) runQuery(query query.Query, results int, sortBy []string) ([]Document, error) {
