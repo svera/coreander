@@ -97,7 +97,11 @@ func (b *BleveIndexer) runAuthorsPaginatedQuery(q query.Query, page, resultsPerP
 	}
 
 	searchOptions := bleve.NewSearchRequestOptions(q, resultsPerPage, (page-1)*resultsPerPage, false)
-	searchOptions.SortBy(sortBy)
+	// See the equivalent comment in runPaginatedQuery: only override the default relevance sort
+	// when the caller actually asked for a specific order.
+	if len(sortBy) > 0 {
+		searchOptions.SortBy(sortBy)
+	}
 	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.authorsIdx.Search(searchOptions)
 	if err != nil {

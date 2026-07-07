@@ -24,6 +24,11 @@ import (
 	"github.com/svera/coreander/v5/internal/result"
 )
 
+// titleBoost multiplies the score contribution of a Title match relative to a Series match, so a
+// document whose own title matches ranks above other entries in the same series that only match
+// because they share its series name.
+const titleBoost = 3.0
+
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 	if b.indexStartNanos.Load() != 0 {
 		return b.progressFrom(ProgressDocuments, b.indexStartNanos.Load(), b.indexedEntries.Load(), b.indexTotalEntries.Load()), nil
@@ -228,6 +233,10 @@ func (b *BleveIndexer) composeQuery(keywords string, analyzers []string) *query.
 		qt.Analyzer = noStopWordsAnalyzer
 		qt.SetField("Title")
 		qt.Operator = query.MatchQueryOperatorAnd
+		// A document's own title matching the query is a stronger relevance signal than the
+		// query matching the name of the series it belongs to (which every entry in that series
+		// shares, whether or not it's the specific entry being searched for).
+		qt.SetBoost(titleBoost)
 
 		qs := bleve.NewMatchQuery(keywords)
 		qs.Analyzer = noStopWordsAnalyzer
@@ -330,7 +339,12 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	}
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
-	searchOptions.SortBy(sortBy)
+	// NewSearchRequestOptions defaults to sorting by relevance (-_score). Only override it when
+	// the caller actually asked for a specific order: SortBy([]string{}) replaces that default
+	// with an empty sort order, which falls back to arbitrary (index) order instead of relevance.
+	if len(sortBy) > 0 {
+		searchOptions.SortBy(sortBy)
+	}
 	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
