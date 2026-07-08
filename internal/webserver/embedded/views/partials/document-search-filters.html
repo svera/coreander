@@ -70,7 +70,7 @@
             </div>
         </div>
     </fieldset>
-    {{if .HasEPUB}}
+    {{if .HasReflowableDocs}}
     <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-stopwatch me-3"></i>{{t .Lang "Estimated reading time"}} <span class="reading-time-help-popover d-inline-block" role="button" tabindex="0" aria-label='{{t .Lang "This filter only applies to EPUB documents"}}' data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-content="{{t .Lang "This filter only applies to EPUB documents"}}"><i class="bi bi-info-circle text-muted"></i></span></legend>
         <div class="row">
@@ -98,7 +98,7 @@
         </div>
     </fieldset>
     {{end}}
-    {{if .HasPDF}}
+    {{if .HasFixedDocs}}
     <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-book me-3"></i>{{t .Lang "Pages"}} <span class="reading-time-help-popover d-inline-block" role="button" tabindex="0" aria-label='{{t .Lang "This filter only applies to PDF documents"}}' data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-content="{{t .Lang "This filter only applies to PDF documents"}}"><i class="bi bi-info-circle text-muted"></i></span></legend>
         <div class="row">
