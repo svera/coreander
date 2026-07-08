@@ -12,7 +12,6 @@ import (
 type epubTestReader struct {
 	info  map[string]*epub.Information
 	words map[string]float64
-	pages map[string]float64
 }
 
 func (r epubTestReader) Metadata(path string) (metadata.Metadata, error) {
@@ -26,9 +25,6 @@ func (r epubTestReader) Metadata(path string) (metadata.Metadata, error) {
 	}
 	if w, ok := r.words[path]; ok {
 		md.Words = w
-	}
-	if p, ok := r.pages[path]; ok {
-		md.Pages = p
 	}
 	return md, nil
 }

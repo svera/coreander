@@ -137,26 +137,43 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 			maxVal := searchFields.EstReadTimeTo * 60 * searchFields.WordsPerMinute
 			max = &maxVal
 		}
-		q := newInclusiveNumericRangeQuery(min, max)
-		q.SetField("Words")
-		filtersQuery.AddQuery(q)
+		wordsQuery := newInclusiveNumericRangeQuery(min, max)
+		wordsQuery.SetField("Words")
+
+		// PDF documents are always indexed with Words == 0, so a "Words in [x,y]" range with no
+		// lower bound would otherwise also match every PDF, as if it had zero reading time.
+		// Exclude PDFs explicitly rather than requiring Words > 0: some EPUBs are also indexed
+		// with Words == 0 when word-count extraction failed for them, and should still be
+		// findable rather than being silently hidden by every reading time filter.
+		excludePDF := bleve.NewTermQuery("pdf")
+		excludePDF.SetField("Format")
+
+		bq := bleve.NewBooleanQuery()
+		bq.AddMust(wordsQuery)
+		bq.AddMustNot(excludePDF)
+		filtersQuery.AddQuery(bq)
 	}
 	if searchFields.PagesFrom > 0 || searchFields.PagesTo > 0 {
-		// Pages is only populated for formats with a fixed page count (e.g. PDF); EPUB
-		// documents are always indexed with Pages == 0. Default the lower bound to 1 so
-		// this filter never matches EPUB documents, even when only "to" is specified.
-		minVal := searchFields.PagesFrom
-		if minVal <= 0 {
-			minVal = 1
+		var min, max *float64
+		if searchFields.PagesFrom > 0 {
+			min = &searchFields.PagesFrom
 		}
-		min := &minVal
-		var max *float64
 		if searchFields.PagesTo > 0 {
 			max = &searchFields.PagesTo
 		}
-		q := newInclusiveNumericRangeQuery(min, max)
-		q.SetField("Pages")
-		filtersQuery.AddQuery(q)
+		pagesQuery := newInclusiveNumericRangeQuery(min, max)
+		pagesQuery.SetField("Pages")
+
+		// EPUB documents are always indexed with Pages == 0, so a "Pages in [x,y]" range with no
+		// lower bound would otherwise also match every EPUB, as if it had zero pages. Exclude
+		// EPUBs explicitly rather than requiring Pages > 0, for the same reason as above.
+		excludeEPUB := bleve.NewTermQuery("epub")
+		excludeEPUB.SetField("Format")
+
+		bq := bleve.NewBooleanQuery()
+		bq.AddMust(pagesQuery)
+		bq.AddMustNot(excludeEPUB)
+		filtersQuery.AddQuery(bq)
 	}
 	if searchFields.IllustratedOnly && b.illustratedMinAmount > 0 {
 		minIllustrations := float64(b.illustratedMinAmount)

@@ -31,9 +31,6 @@ func TestIndexAndSearch(t *testing.T) {
 			if tcase.name == "Test estimated reading time range search" {
 				reader.words = map[string]float64{tcase.filename: 24000}
 			}
-			if tcase.name == "Test pages range search" {
-				reader.pages = map[string]float64{tcase.filename: 250}
-			}
 			mockMetadataReaders := map[string]metadata.Reader{".epub": reader}
 
 			appFS := afero.NewMemMapFs()
@@ -133,6 +130,7 @@ func TestLanguageFilter(t *testing.T) {
 type formatMockReader struct {
 	format string
 	pages  float64
+	words  float64
 }
 
 func (m formatMockReader) Metadata(filename string) (metadata.Metadata, error) {
@@ -143,6 +141,7 @@ func (m formatMockReader) Metadata(filename string) (metadata.Metadata, error) {
 		Language:    "en",
 		Format:      m.format,
 		Pages:       m.pages,
+		Words:       m.words,
 		Subjects:    []string{"Fiction"},
 		Publication: precisiondate.NewPrecisionDate("2020-01-01T00:00:00Z", precisiondate.PrecisionDay),
 	}, nil
@@ -208,6 +207,38 @@ func TestFormats(t *testing.T) {
 // TestPagesFilterExcludesEPUBs verifies that the pages filter never matches EPUB documents
 // (which are always indexed with Pages == 0), even when only "pages-to" is set and "pages-from"
 // is left at its zero value.
+// TestPagesRangeSearch verifies that a full PagesFrom/PagesTo range matches a PDF document
+// whose page count falls within it.
+func TestPagesRangeSearch(t *testing.T) {
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatalf("Error initialising index: %v", err)
+	}
+	mockMetadataReaders := map[string]metadata.Reader{
+		".pdf": formatMockReader{format: "PDF", pages: 250},
+	}
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+	afero.WriteFile(appFS, "lib/book.pdf", []byte(""), 0644)
+
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
+	if err = idx.AddLibrary(1, true, 0); err != nil {
+		t.Fatalf("Error indexing: %s", err.Error())
+	}
+
+	res, err := idx.Search(index.SearchFields{PagesFrom: 100, PagesTo: 300}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 1 {
+		t.Fatalf("Expected 1 document, got %d", res.TotalHits())
+	}
+	if res.Hits()[0].Pages != 250 {
+		t.Errorf("Expected a document with 250 pages, got %v", res.Hits()[0].Pages)
+	}
+}
+
 func TestPagesFilterExcludesEPUBs(t *testing.T) {
 	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
@@ -238,6 +269,72 @@ func TestPagesFilterExcludesEPUBs(t *testing.T) {
 	}
 	if res.Hits()[0].Format != "PDF" {
 		t.Errorf("Expected the PDF document, got %s", res.Hits()[0].Format)
+	}
+}
+
+// TestReadingTimeFilterExcludesPDFs verifies that the estimated reading time filter never
+// matches PDF documents (which are always indexed with Words == 0), even when only
+// "est-read-time-to" is set and "est-read-time-from" is left at its zero value.
+func TestReadingTimeFilterExcludesPDFs(t *testing.T) {
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatalf("Error initialising index: %v", err)
+	}
+	mockMetadataReaders := map[string]metadata.Reader{
+		".epub": formatMockReader{format: "EPUB", words: 24000},
+		".pdf":  formatMockReader{format: "PDF"},
+	}
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+	afero.WriteFile(appFS, "lib/book.epub", []byte(""), 0644)
+	afero.WriteFile(appFS, "lib/book.pdf", []byte(""), 0644)
+
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
+	if err = idx.AddLibrary(1, true, 0); err != nil {
+		t.Fatalf("Error indexing: %s", err.Error())
+	}
+
+	// Only "est-read-time-to" is set; "est-read-time-from" defaults to its zero value.
+	res, err := idx.Search(index.SearchFields{EstReadTimeTo: 3, WordsPerMinute: 200}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 1 {
+		t.Fatalf("Expected 1 document (the EPUB), got %d", res.TotalHits())
+	}
+	if res.Hits()[0].Format != "EPUB" {
+		t.Errorf("Expected the EPUB document, got %s", res.Hits()[0].Format)
+	}
+}
+
+// TestReadingTimeFilterKeepsEPUBsWithNoWordCount verifies that an EPUB indexed with Words == 0
+// (e.g. because word-count extraction failed for it) is not hidden by the reading time filter,
+// since excluding it can't be distinguished from legitimately excluding PDFs by word count alone.
+func TestReadingTimeFilterKeepsEPUBsWithNoWordCount(t *testing.T) {
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatalf("Error initialising index: %v", err)
+	}
+	mockMetadataReaders := map[string]metadata.Reader{
+		".epub": formatMockReader{format: "EPUB"}, // words left at zero, as if extraction failed
+	}
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+	afero.WriteFile(appFS, "lib/book.epub", []byte(""), 0644)
+
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
+	if err = idx.AddLibrary(1, true, 0); err != nil {
+		t.Fatalf("Error indexing: %s", err.Error())
+	}
+
+	res, err := idx.Search(index.SearchFields{EstReadTimeTo: 3, WordsPerMinute: 200}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 1 {
+		t.Fatalf("Expected 1 document (the EPUB with no word count), got %d", res.TotalHits())
 	}
 }
 
@@ -1409,57 +1506,6 @@ func testIndexAndSearchCases() []testCase {
 							Words:       24000, // 24000 words = 2 hours at 200 wpm
 						},
 						AuthorsSlugs:  []string{"medium-author"},
-						SeriesSlug:    "",
-						SubjectsSlugs: []string{"fiction"},
-					},
-				},
-			),
-		},
-		{
-			"Test pages range search",
-			"lib/book20.epub",
-			&epub.Information{
-				Title: []string{"Two Hundred Fifty Page Book"},
-				Creator: []epub.Author{
-					{
-						FullName: "Prolific Author",
-						Role:     "aut",
-					},
-				},
-				Description: []string{"A book with 250 pages"},
-				Language:    []string{"en"},
-				Subject:     []string{"Fiction"},
-				Date: []epub.Date{
-					{
-						Stamp: "2021-06-15",
-						Event: "publication",
-					},
-				},
-			},
-			index.SearchFields{
-				Keywords:  "",
-				PagesFrom: 100.0,
-				PagesTo:   300.0,
-			},
-			result.NewPaginated(
-				model.ResultsPerPage,
-				1,
-				1,
-				[]index.Document{
-					{
-						ID:   "book20.epub",
-						Slug: "prolific-author-two-hundred-fifty-page-book",
-						Metadata: metadata.Metadata{
-							Title:       "Two Hundred Fifty Page Book",
-							Authors:     []string{"Prolific Author"},
-							Description: "<p>A book with 250 pages</p>",
-							Language:    "en",
-							Subjects:    []string{"Fiction"},
-							Format:      "EPUB",
-							Publication: precisiondate.NewPrecisionDate("2021-06-15T00:00:00Z", precisiondate.PrecisionDay),
-							Pages:       250,
-						},
-						AuthorsSlugs:  []string{"prolific-author"},
 						SeriesSlug:    "",
 						SubjectsSlugs: []string{"fiction"},
 					},
