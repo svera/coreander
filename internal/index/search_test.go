@@ -2,6 +2,7 @@ package index_test
 
 import (
 	"image"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -152,61 +153,56 @@ func (m formatMockReader) Cover(documentFullPath string, coverMaxWidth int) (ima
 }
 
 func TestFormats(t *testing.T) {
-	t.Run("Library with only EPUBs reports only epub", func(t *testing.T) {
-		indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
-		if err != nil {
-			t.Fatalf("Error initialising index: %v", err)
-		}
-		mockMetadataReaders := map[string]metadata.Reader{
-			".epub": formatMockReader{format: "EPUB"},
-		}
-		appFS := afero.NewMemMapFs()
-		appFS.MkdirAll("lib", 0755)
-		afero.WriteFile(appFS, "lib/book.epub", []byte(""), 0644)
+	cases := []struct {
+		name  string
+		files map[string]string // file path -> format
+		want  []string
+	}{
+		{
+			name:  "Library with only EPUBs reports only epub",
+			files: map[string]string{"lib/book.epub": "EPUB"},
+			want:  []string{"epub"},
+		},
+		{
+			name: "Library with both EPUBs and PDFs reports both",
+			files: map[string]string{
+				"lib/book.epub": "EPUB",
+				"lib/book.pdf":  "PDF",
+			},
+			want: []string{"epub", "pdf"},
+		},
+	}
 
-		authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
-		idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
-		if err = idx.AddLibrary(1, true, 0); err != nil {
-			t.Fatalf("Error indexing: %s", err.Error())
-		}
+	for _, tcase := range cases {
+		t.Run(tcase.name, func(t *testing.T) {
+			indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+			if err != nil {
+				t.Fatalf("Error initialising index: %v", err)
+			}
 
-		formats, err := idx.Formats()
-		if err != nil {
-			t.Fatalf("Error getting formats: %s", err.Error())
-		}
-		if !reflect.DeepEqual(formats, []string{"epub"}) {
-			t.Errorf("Expected [epub], got %v", formats)
-		}
-	})
+			mockMetadataReaders := map[string]metadata.Reader{}
+			appFS := afero.NewMemMapFs()
+			appFS.MkdirAll("lib", 0755)
+			for file, format := range tcase.files {
+				mockMetadataReaders[filepath.Ext(file)] = formatMockReader{format: format}
+				afero.WriteFile(appFS, file, []byte(""), 0644)
+			}
 
-	t.Run("Library with both EPUBs and PDFs reports both", func(t *testing.T) {
-		indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
-		if err != nil {
-			t.Fatalf("Error initialising index: %v", err)
-		}
-		mockMetadataReaders := map[string]metadata.Reader{
-			".epub": formatMockReader{format: "EPUB"},
-			".pdf":  formatMockReader{format: "PDF"},
-		}
-		appFS := afero.NewMemMapFs()
-		appFS.MkdirAll("lib", 0755)
-		afero.WriteFile(appFS, "lib/book.epub", []byte(""), 0644)
-		afero.WriteFile(appFS, "lib/book.pdf", []byte(""), 0644)
+			authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+			idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
+			if err = idx.AddLibrary(1, true, 0); err != nil {
+				t.Fatalf("Error indexing: %s", err.Error())
+			}
 
-		authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
-		idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
-		if err = idx.AddLibrary(1, true, 0); err != nil {
-			t.Fatalf("Error indexing: %s", err.Error())
-		}
-
-		formats, err := idx.Formats()
-		if err != nil {
-			t.Fatalf("Error getting formats: %s", err.Error())
-		}
-		if !reflect.DeepEqual(formats, []string{"epub", "pdf"}) {
-			t.Errorf("Expected [epub pdf], got %v", formats)
-		}
-	})
+			formats, err := idx.Formats()
+			if err != nil {
+				t.Fatalf("Error getting formats: %s", err.Error())
+			}
+			if !reflect.DeepEqual(formats, tcase.want) {
+				t.Errorf("Expected %v, got %v", tcase.want, formats)
+			}
+		})
+	}
 }
 
 // TestPagesFilterExcludesEPUBs verifies that the pages filter never matches EPUB documents
