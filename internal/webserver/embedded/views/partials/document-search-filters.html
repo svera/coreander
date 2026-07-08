@@ -70,8 +70,9 @@
             </div>
         </div>
     </fieldset>
+    {{if .HasEPUB}}
     <fieldset class="mt-4">
-        <legend class="fs-5"><i class="bi bi-stopwatch me-3"></i>{{t .Lang "Estimated reading time"}}</legend>
+        <legend class="fs-5"><i class="bi bi-stopwatch me-3"></i>{{t .Lang "Estimated reading time"}} <span class="reading-time-help-popover d-inline-block" role="button" tabindex="0" aria-label='{{t .Lang "This filter only applies to EPUB documents"}}' data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-content="{{t .Lang "This filter only applies to EPUB documents"}}"><i class="bi bi-info-circle text-muted"></i></span></legend>
         <div class="row">
             <div class="col-12 px-0">
                 <div class="input-group">
@@ -96,6 +97,34 @@
             </div>
         </div>
     </fieldset>
+    {{end}}
+    {{if .HasPDF}}
+    <fieldset class="mt-4">
+        <legend class="fs-5"><i class="bi bi-book me-3"></i>{{t .Lang "Pages"}} <span class="reading-time-help-popover d-inline-block" role="button" tabindex="0" aria-label='{{t .Lang "This filter only applies to PDF documents"}}' data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-content="{{t .Lang "This filter only applies to PDF documents"}}"><i class="bi bi-info-circle text-muted"></i></span></legend>
+        <div class="row">
+            <div class="col-12 px-0">
+                <div class="input-group">
+                    {{$pagesFrom := ""}}
+                    {{if .SearchFields}}
+                        {{$pagesFrom = .SearchFields.PagesFrom}}
+                    {{end}}
+                    <div class="form-floating">
+                        <input class="col-9 col-sm-10 form-control" type="number" value="{{if $pagesFrom}}{{$pagesFrom}}{{end}}" min="0" max="10000" step="1" name="pages-from" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}pages-from" placeholder='{{t .Lang "From"}}'>
+                        <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}pages-from">{{t .Lang "From"}}</label>
+                    </div>
+                    {{$pagesTo := ""}}
+                    {{if .SearchFields}}
+                        {{$pagesTo = .SearchFields.PagesTo}}
+                    {{end}}
+                    <div class="form-floating">
+                        <input class="col-9 col-sm-10 form-control" type="number" value="{{if $pagesTo}}{{$pagesTo}}{{end}}" min="0" max="10000" step="1" name="pages-to" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}pages-to" placeholder='{{t .Lang "To"}}'>
+                        <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}pages-to">{{t .Lang "To"}}</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+    {{end}}
     <fieldset class="mt-4">
         <div class="row">
             <div class="col-12 px-0">

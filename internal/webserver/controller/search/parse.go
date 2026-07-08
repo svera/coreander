@@ -19,6 +19,8 @@ func parseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.Search
 		EstReadTimeFrom: fiber.Query[float64](c, "est-read-time-from", 0),
 		EstReadTimeTo:   fiber.Query[float64](c, "est-read-time-to", 0),
 		WordsPerMinute:  wordsPerMinute,
+		PagesFrom:       fiber.Query[float64](c, "pages-from", 0),
+		PagesTo:         fiber.Query[float64](c, "pages-to", 0),
 		IllustratedOnly: c.Query("illustrated-only") == "on" || c.Query("illustrated-only") == "1",
 	}
 
@@ -44,6 +46,10 @@ func parseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.Search
 
 	if searchFields.EstReadTimeTo != 0 && searchFields.EstReadTimeFrom > searchFields.EstReadTimeTo {
 		searchFields.EstReadTimeFrom, searchFields.EstReadTimeTo = searchFields.EstReadTimeTo, searchFields.EstReadTimeFrom
+	}
+
+	if searchFields.PagesTo != 0 && searchFields.PagesFrom > searchFields.PagesTo {
+		searchFields.PagesFrom, searchFields.PagesTo = searchFields.PagesTo, searchFields.PagesFrom
 	}
 
 	return searchFields, nil

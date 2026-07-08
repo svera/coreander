@@ -69,7 +69,7 @@ func SetFQDN(cfg Config) func(fiber.Ctx) error {
 
 // SetProgress retrieves indexing progress information from the index and sets it
 // as a local variable of the request
-func SetProgress(progress ProgressInfo) func(fiber.Ctx) error {
+func SetProgress(progress IndexInfo) func(fiber.Ctx) error {
 	return func(c fiber.Ctx) error {
 		progress, err := progress.IndexingProgress()
 		if err != nil {
@@ -260,7 +260,7 @@ func applyVersionUpdateNotice(c fiber.Ctx, checker *versioncheck.Checker) {
 
 // SetAvailableLanguages retrieves available languages from the index and sets them
 // as a local variable for use in templates
-func SetAvailableLanguages(idx ProgressInfo) func(fiber.Ctx) error {
+func SetAvailableLanguages(idx IndexInfo) func(fiber.Ctx) error {
 	return func(c fiber.Ctx) error {
 		availableLanguages, err := idx.Languages()
 		if err != nil {
@@ -268,6 +268,22 @@ func SetAvailableLanguages(idx ProgressInfo) func(fiber.Ctx) error {
 			availableLanguages = []string{}
 		}
 		c.Locals("AvailableLanguages", availableLanguages)
+		return c.Next()
+	}
+}
+
+// SetAvailableFormats retrieves the document formats present in the index and exposes HasEPUB/
+// HasPDF flags so templates can hide filters that don't apply to any indexed document, such as
+// the pages filter when the library has no PDFs, or the reading time filter when it has no EPUBs.
+func SetAvailableFormats(idx IndexInfo) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
+		formats, err := idx.Formats()
+		if err != nil {
+			fmt.Println(err)
+			formats = []string{}
+		}
+		c.Locals("HasEPUB", slices.Contains(formats, "epub"))
+		c.Locals("HasPDF", slices.Contains(formats, "pdf"))
 		return c.Next()
 	}
 }

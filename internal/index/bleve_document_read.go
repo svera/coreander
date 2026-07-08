@@ -85,6 +85,14 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 }
 
+// newInclusiveNumericRangeQuery builds a numeric range query inclusive on both ends.
+// bleve.NewNumericRangeQuery defaults to an exclusive upper bound ([min, max)), which would
+// silently drop documents whose value exactly equals the "to" boundary of a range filter.
+func newInclusiveNumericRangeQuery(min, max *float64) *query.NumericRangeQuery {
+	inclusive := true
+	return bleve.NewNumericRangeInclusiveQuery(min, max, &inclusive, &inclusive)
+}
+
 func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
 	// Only filter by language if a language is specified
 	if searchFields.Language != "" && strings.TrimSpace(searchFields.Language) != "" {
@@ -120,16 +128,34 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 	}
 	addDateRangeFilter(filtersQuery, "Publication.Date", searchFields.PubDateFrom, searchFields.PubDateTo)
 	if searchFields.EstReadTimeFrom > 0 || searchFields.EstReadTimeTo > 0 {
-		q := bleve.NewNumericRangeQuery(nil, nil)
+		var min, max *float64
 		if searchFields.EstReadTimeFrom > 0 {
-			min := searchFields.EstReadTimeFrom * 60 * searchFields.WordsPerMinute
-			q.Min = &min
+			minVal := searchFields.EstReadTimeFrom * 60 * searchFields.WordsPerMinute
+			min = &minVal
 		}
 		if searchFields.EstReadTimeTo > 0 {
-			max := searchFields.EstReadTimeTo * 60 * searchFields.WordsPerMinute
-			q.Max = &max
+			maxVal := searchFields.EstReadTimeTo * 60 * searchFields.WordsPerMinute
+			max = &maxVal
 		}
+		q := newInclusiveNumericRangeQuery(min, max)
 		q.SetField("Words")
+		filtersQuery.AddQuery(q)
+	}
+	if searchFields.PagesFrom > 0 || searchFields.PagesTo > 0 {
+		// Pages is only populated for formats with a fixed page count (e.g. PDF); EPUB
+		// documents are always indexed with Pages == 0. Default the lower bound to 1 so
+		// this filter never matches EPUB documents, even when only "to" is specified.
+		minVal := searchFields.PagesFrom
+		if minVal <= 0 {
+			minVal = 1
+		}
+		min := &minVal
+		var max *float64
+		if searchFields.PagesTo > 0 {
+			max = &searchFields.PagesTo
+		}
+		q := newInclusiveNumericRangeQuery(min, max)
+		q.SetField("Pages")
 		filtersQuery.AddQuery(q)
 	}
 	if searchFields.IllustratedOnly && b.illustratedMinAmount > 0 {
@@ -521,6 +547,39 @@ func (b *BleveIndexer) Languages() ([]string, error) {
 	slices.Sort(languages)
 
 	return languages, nil
+}
+
+// Formats returns the distinct document formats present in the index (e.g. "epub", "pdf"), using
+// faceted search. Callers can use it to decide whether to show format-specific search filters,
+// such as hiding the pages filter when the library has no PDFs.
+func (b *BleveIndexer) Formats() ([]string, error) {
+	if b.documentsIdx == nil {
+		return []string{}, nil
+	}
+
+	matchAllQuery := bleve.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
+	searchRequest.Size = 0 // We don't need document hits, only facets
+
+	formatsFacet := bleve.NewFacetRequest("Format", 10)
+	searchRequest.AddFacet("formats", formatsFacet)
+
+	searchResult, err := b.documentsIdx.Search(searchRequest)
+	if err != nil {
+		return []string{}, err
+	}
+
+	formats := []string{}
+	if formatsFacetResult, ok := searchResult.Facets["formats"]; ok && formatsFacetResult.Terms != nil {
+		for _, term := range formatsFacetResult.Terms.Terms() {
+			if term.Term != "" {
+				formats = append(formats, term.Term)
+			}
+		}
+	}
+
+	slices.Sort(formats)
+	return formats, nil
 }
 
 // normalizeSubjectName normalizes a subject name to have only the first letter capitalized.
