@@ -85,6 +85,14 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 }
 
+// newInclusiveNumericRangeQuery builds a numeric range query inclusive on both ends.
+// bleve.NewNumericRangeQuery defaults to an exclusive upper bound ([min, max)), which would
+// silently drop documents whose value exactly equals the "to" boundary of a range filter.
+func newInclusiveNumericRangeQuery(min, max *float64) *query.NumericRangeQuery {
+	inclusive := true
+	return bleve.NewNumericRangeInclusiveQuery(min, max, &inclusive, &inclusive)
+}
+
 func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
 	// Only filter by language if a language is specified
 	if searchFields.Language != "" && strings.TrimSpace(searchFields.Language) != "" {
@@ -120,17 +128,52 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 	}
 	addDateRangeFilter(filtersQuery, "Publication.Date", searchFields.PubDateFrom, searchFields.PubDateTo)
 	if searchFields.EstReadTimeFrom > 0 || searchFields.EstReadTimeTo > 0 {
-		q := bleve.NewNumericRangeQuery(nil, nil)
+		var min, max *float64
 		if searchFields.EstReadTimeFrom > 0 {
-			min := searchFields.EstReadTimeFrom * 60 * searchFields.WordsPerMinute
-			q.Min = &min
+			minVal := searchFields.EstReadTimeFrom * 60 * searchFields.WordsPerMinute
+			min = &minVal
 		}
 		if searchFields.EstReadTimeTo > 0 {
-			max := searchFields.EstReadTimeTo * 60 * searchFields.WordsPerMinute
-			q.Max = &max
+			maxVal := searchFields.EstReadTimeTo * 60 * searchFields.WordsPerMinute
+			max = &maxVal
 		}
-		q.SetField("Words")
-		filtersQuery.AddQuery(q)
+		wordsQuery := newInclusiveNumericRangeQuery(min, max)
+		wordsQuery.SetField("Words")
+
+		// PDF documents are always indexed with Words == 0, so a "Words in [x,y]" range with no
+		// lower bound would otherwise also match every PDF, as if it had zero reading time.
+		// Exclude PDFs explicitly rather than requiring Words > 0: some EPUBs are also indexed
+		// with Words == 0 when word-count extraction failed for them, and should still be
+		// findable rather than being silently hidden by every reading time filter.
+		excludePDF := bleve.NewTermQuery("pdf")
+		excludePDF.SetField("Format")
+
+		bq := bleve.NewBooleanQuery()
+		bq.AddMust(wordsQuery)
+		bq.AddMustNot(excludePDF)
+		filtersQuery.AddQuery(bq)
+	}
+	if searchFields.PagesFrom > 0 || searchFields.PagesTo > 0 {
+		var min, max *float64
+		if searchFields.PagesFrom > 0 {
+			min = &searchFields.PagesFrom
+		}
+		if searchFields.PagesTo > 0 {
+			max = &searchFields.PagesTo
+		}
+		pagesQuery := newInclusiveNumericRangeQuery(min, max)
+		pagesQuery.SetField("Pages")
+
+		// EPUB documents are always indexed with Pages == 0, so a "Pages in [x,y]" range with no
+		// lower bound would otherwise also match every EPUB, as if it had zero pages. Exclude
+		// EPUBs explicitly rather than requiring Pages > 0, for the same reason as above.
+		excludeEPUB := bleve.NewTermQuery("epub")
+		excludeEPUB.SetField("Format")
+
+		bq := bleve.NewBooleanQuery()
+		bq.AddMust(pagesQuery)
+		bq.AddMustNot(excludeEPUB)
+		filtersQuery.AddQuery(bq)
 	}
 	if searchFields.IllustratedOnly && b.illustratedMinAmount > 0 {
 		minIllustrations := float64(b.illustratedMinAmount)
@@ -521,6 +564,39 @@ func (b *BleveIndexer) Languages() ([]string, error) {
 	slices.Sort(languages)
 
 	return languages, nil
+}
+
+// Formats returns the distinct document formats present in the index (e.g. "epub", "pdf"), using
+// faceted search. Callers can use it to decide whether to show format-specific search filters,
+// such as hiding the pages filter when the library has no PDFs.
+func (b *BleveIndexer) Formats() ([]string, error) {
+	if b.documentsIdx == nil {
+		return []string{}, nil
+	}
+
+	matchAllQuery := bleve.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
+	searchRequest.Size = 0 // We don't need document hits, only facets
+
+	formatsFacet := bleve.NewFacetRequest("Format", 10)
+	searchRequest.AddFacet("formats", formatsFacet)
+
+	searchResult, err := b.documentsIdx.Search(searchRequest)
+	if err != nil {
+		return []string{}, err
+	}
+
+	formats := []string{}
+	if formatsFacetResult, ok := searchResult.Facets["formats"]; ok && formatsFacetResult.Terms != nil {
+		for _, term := range formatsFacetResult.Terms.Terms() {
+			if term.Term != "" {
+				formats = append(formats, term.Term)
+			}
+		}
+	}
+
+	slices.Sort(formats)
+	return formats, nil
 }
 
 // normalizeSubjectName normalizes a subject name to have only the first letter capitalized.

@@ -19,6 +19,8 @@
 "Only illustrated": "Seulement illustrés"
 "Reading time calculated using a speed of %s words per minute. You can change your reading speed in your profile.": "Temps de lecture calculé avec une vitesse de %s mots par minute. Vous pouvez modifier votre vitesse de lecture dans votre profil."
 "Reading time calculated using a speed of %s words per minute. Log in to customize this value": "Temps de lecture calculé avec une vitesse de %s mots par minute. Connectez-vous pour personnaliser cette valeur."
+"This filter only applies to EPUB documents": "Ce filtre s'applique uniquement aux documents EPUB"
+"This filter only applies to PDF documents": "Ce filtre s'applique uniquement aux documents PDF"
 "Coreander - search results": Coreander - résultats de la recherche
 "Made with words by Sergio Vera": Fait avec des mots par Sergio Vera
 "New version available": "Nouvelle version disponible"

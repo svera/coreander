@@ -68,9 +68,10 @@ type Sender interface {
 	From() string
 }
 
-type ProgressInfo interface {
+type IndexInfo interface {
 	IndexingProgress() (index.Progress, error)
 	Languages() ([]string, error)
+	Formats() ([]string, error)
 }
 
 func init() {
@@ -109,7 +110,7 @@ func SupportedLanguages() []string {
 }
 
 // New builds a new Fiber application and set up the required routes
-func New(cfg Config, controllers Controllers, sender Sender, idx ProgressInfo, usersRepository *model.UserRepository) *fiber.App {
+func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, usersRepository *model.UserRepository) *fiber.App {
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {
 		log.Fatal(err)
