@@ -232,15 +232,14 @@ func parseCommaSeparatedInviteEmails(raw string) []string {
 	seen := make(map[string]struct{})
 	var out []string
 	for _, p := range parts {
-		e := strings.TrimSpace(p)
+		e := strings.ToLower(strings.TrimSpace(p))
 		if e == "" {
 			continue
 		}
-		key := strings.ToLower(e)
-		if _, ok := seen[key]; ok {
+		if _, ok := seen[e]; ok {
 			continue
 		}
-		seen[key] = struct{}{}
+		seen[e] = struct{}{}
 		out = append(out, e)
 	}
 	return out

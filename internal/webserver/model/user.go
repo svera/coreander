@@ -24,7 +24,7 @@ type User struct {
 	Uuid               string `gorm:"uniqueIndex; not null"`
 	Name               string `gorm:"not null"`
 	Username           string `gorm:"type:text collate nocase; not null; unique"`
-	Email              string `gorm:"uniqueIndex; not null"`
+	Email              string `gorm:"type:text collate nocase; not null; uniqueIndex"`
 	SendToEmail        string
 	Password           string
 	Role               int `gorm:"not null"`
