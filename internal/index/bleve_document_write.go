@@ -3,6 +3,7 @@ package index
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/blevesearch/bleve/v2"
 	index "github.com/blevesearch/bleve_index_api"
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
@@ -21,6 +21,43 @@ import (
 
 // documentSlugCollisionPattern matches slugs like "title--2" used for disambiguation.
 var documentSlugCollisionPattern = regexp.MustCompile(`^[a-zA-Z0-9\-]+(--)[0-9]+$`)
+
+func (b *BleveIndexer) IndexingProgress() (Progress, error) {
+	if b.indexStartNanos.Load() != 0 {
+		return b.progressFrom(ProgressDocuments, b.indexStartNanos.Load(), b.indexedEntries.Load(), b.indexTotalEntries.Load()), nil
+	}
+	if b.authorEnrichStartNanos.Load() != 0 {
+		return b.progressFrom(ProgressAuthors, b.authorEnrichStartNanos.Load(), b.authorEnrichProcessed.Load(), b.authorEnrichTotalEntries.Load()), nil
+	}
+	return Progress{}, nil
+}
+
+func (b *BleveIndexer) progressFrom(kind ProgressKind, startNanos int64, processed, total uint64) Progress {
+	progress := Progress{Kind: kind, InProgress: true}
+	if total > 0 {
+		progress.Percentage = math.Round(100 * float64(processed) / float64(total))
+		if progress.Percentage > 100 {
+			progress.Percentage = 100
+		}
+	}
+	if processed > 0 && processed < total {
+		elapsed := float64(time.Now().UnixNano()) - float64(startNanos)
+		progress.RemainingTime = time.Duration(elapsed * float64(total-processed) / float64(processed))
+	}
+	return progress
+}
+
+func (b *BleveIndexer) beginIndexing() {
+	b.indexStartNanos.Store(time.Now().UnixNano())
+	b.indexedEntries.Store(0)
+	b.indexTotalEntries.Store(0)
+}
+
+func (b *BleveIndexer) endIndexing() {
+	b.indexStartNanos.Store(0)
+	b.indexedEntries.Store(0)
+	b.indexTotalEntries.Store(0)
+}
 
 // NewFile writes the given contents to the library as fileName, indexes it, and returns the document slug.
 func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error) {
@@ -73,35 +110,6 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 	}
 
 	return document.Slug, nil
-}
-
-func (b *BleveIndexer) incrementAuthorCounts(names, slugs []string) error {
-	for i, name := range names {
-		if i < len(slugs) {
-			if err := b.incrementAuthorCount(name, slugs[i]); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-// incrementAuthorCount creates the author with DocumentCount=1 if not yet indexed,
-// or increments their DocumentCount if they already exist.
-func (b *BleveIndexer) incrementAuthorCount(name, authorSlug string) error {
-	if name == "" || authorSlug == "" {
-		return nil
-	}
-	existing, err := b.Author(authorSlug, "")
-	if err != nil {
-		return err
-	}
-	if existing.Slug == "" {
-		existing = Author{Name: name, Slug: authorSlug, DocumentCount: 1}
-	} else {
-		existing.DocumentCount++
-	}
-	return b.authorsIdx.Index(authorSlug, existing)
 }
 
 // removeFile removes a file from the index
@@ -244,99 +252,6 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 	return nil
 }
 
-// RebuildAuthorsFromDocuments recalculates DocumentCount for every author from the documents
-// index, creating missing author entries and updating existing ones.
-func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
-	counts, names, err := b.countDocumentsPerAuthor()
-	if err != nil {
-		return err
-	}
-	if len(counts) == 0 {
-		return nil
-	}
-
-	// Fetch all existing authors so their enriched metadata is preserved.
-	authorDocCount, err := b.authorsIdx.DocCount()
-	if err != nil {
-		return err
-	}
-	existingAuthors := make(map[string]Author, authorDocCount)
-	if authorDocCount > 0 {
-		req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), int(authorDocCount), 0, false)
-		req.Fields = []string{"*"}
-		result, err := b.authorsIdx.Search(req)
-		if err != nil {
-			return err
-		}
-		for _, hit := range result.Hits {
-			a := hydrateAuthor(hit)
-			existingAuthors[a.Slug] = a
-		}
-	}
-
-	batch := b.authorsIdx.NewBatch()
-	for authorSlug, count := range counts {
-		author, exists := existingAuthors[authorSlug]
-		if !exists {
-			author = Author{Name: names[authorSlug], Slug: authorSlug}
-		}
-		author.DocumentCount = count
-		if err := batch.Index(authorSlug, author); err != nil {
-			return err
-		}
-		if batch.Size() >= batchSize {
-			if err := b.authorsIdx.Batch(batch); err != nil {
-				return err
-			}
-			batch.Reset()
-		}
-	}
-	if batch.Size() > 0 {
-		return b.authorsIdx.Batch(batch)
-	}
-	return nil
-}
-
-// countDocumentsPerAuthor scans the documents index and returns per-author document counts
-// and one representative name per author slug.
-func (b *BleveIndexer) countDocumentsPerAuthor() (counts map[string]uint64, names map[string]string, err error) {
-	docCount, err := b.documentsIdx.DocCount()
-	if err != nil {
-		return nil, nil, err
-	}
-	if docCount == 0 {
-		return map[string]uint64{}, map[string]string{}, nil
-	}
-
-	req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), int(docCount), 0, false)
-	req.Fields = []string{"*"}
-	result, err := b.documentsIdx.Search(req)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	counts = make(map[string]uint64)
-	names = make(map[string]string)
-	for _, hit := range result.Hits {
-		document := hydrateDocument(hit)
-		accumulateContributors(counts, names, document.AuthorsSlugs, document.Authors)
-		accumulateContributors(counts, names, document.IllustratorsSlugs, document.Illustrators)
-	}
-	return counts, names, nil
-}
-
-func accumulateContributors(counts map[string]uint64, names map[string]string, slugs []string, displayNames []string) {
-	for i, slug := range slugs {
-		if slug == "" {
-			continue
-		}
-		counts[slug]++
-		if _, seen := names[slug]; !seen && i < len(displayNames) {
-			names[slug] = displayNames[i]
-		}
-	}
-}
-
 func (b *BleveIndexer) collectPendingLibraryPaths(forceIndexing bool) (pending []string, languages []string, err error) {
 	languages = []string{}
 	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, walkErr error) error {
@@ -414,14 +329,6 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 	close(jobs)
 	wg.Wait()
 	return out
-}
-
-
-func (b *BleveIndexer) IndexAuthor(author Author) error {
-	if err := b.authorsIdx.Index(author.Slug, author); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {

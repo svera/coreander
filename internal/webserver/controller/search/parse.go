@@ -19,6 +19,8 @@ func parseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.Search
 		EstReadTimeFrom: fiber.Query[float64](c, "est-read-time-from", 0),
 		EstReadTimeTo:   fiber.Query[float64](c, "est-read-time-to", 0),
 		WordsPerMinute:  wordsPerMinute,
+		PagesFrom:       fiber.Query[float64](c, "pages-from", 0),
+		PagesTo:         fiber.Query[float64](c, "pages-to", 0),
 		IllustratedOnly: c.Query("illustrated-only") == "on" || c.Query("illustrated-only") == "1",
 	}
 
@@ -44,6 +46,10 @@ func parseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.Search
 
 	if searchFields.EstReadTimeTo != 0 && searchFields.EstReadTimeFrom > searchFields.EstReadTimeTo {
 		searchFields.EstReadTimeFrom, searchFields.EstReadTimeTo = searchFields.EstReadTimeTo, searchFields.EstReadTimeFrom
+	}
+
+	if searchFields.PagesTo != 0 && searchFields.PagesFrom > searchFields.PagesTo {
+		searchFields.PagesFrom, searchFields.PagesTo = searchFields.PagesTo, searchFields.PagesFrom
 	}
 
 	return searchFields, nil
@@ -187,5 +193,9 @@ func (s *Controller) Subjects(c fiber.Ctx) error {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
+	// Same-origin, session-independent data that only changes on reindex: safe to
+	// cache briefly so the preload hint and the sidebar/offcanvas filter instances
+	// (which each fetch this on page load) don't issue redundant requests.
+	c.Set("Cache-Control", "public, max-age=300")
 	return c.JSON(bySlug)
 }

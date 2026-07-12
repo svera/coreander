@@ -36,6 +36,7 @@ type IdxReaderWriter interface {
 	Documents(slugs []string) (map[string]index.Document, error)
 	Languages() ([]string, error)
 	Subjects() (map[string][]string, error)
+	Author(slug, lang string) (index.Author, error)
 }
 
 type highlightsRepository interface {

@@ -4,12 +4,12 @@ import (
 	"errors"
 	"html/template"
 	"image"
-	"io/fs"
 	"math"
 	"net/url"
 	"path"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -24,74 +24,10 @@ import (
 	"github.com/svera/coreander/v5/internal/result"
 )
 
-func (b *BleveIndexer) IndexingProgress() (Progress, error) {
-	if b.indexStartNanos.Load() != 0 {
-		return b.progressFrom(ProgressDocuments, b.indexStartNanos.Load(), b.indexedEntries.Load(), b.indexTotalEntries.Load()), nil
-	}
-	if b.authorEnrichStartNanos.Load() != 0 {
-		return b.progressFrom(ProgressAuthors, b.authorEnrichStartNanos.Load(), b.authorEnrichProcessed.Load(), b.authorEnrichTotalEntries.Load()), nil
-	}
-	return Progress{}, nil
-}
-
-func (b *BleveIndexer) progressFrom(kind ProgressKind, startNanos int64, processed, total uint64) Progress {
-	progress := Progress{Kind: kind, InProgress: true}
-	if total > 0 {
-		progress.Percentage = math.Round(100 * float64(processed) / float64(total))
-		if progress.Percentage > 100 {
-			progress.Percentage = 100
-		}
-	}
-	if processed > 0 && processed < total {
-		elapsed := float64(time.Now().UnixNano()) - float64(startNanos)
-		progress.RemainingTime = time.Duration(elapsed * float64(total-processed) / float64(processed))
-	}
-	return progress
-}
-
-func (b *BleveIndexer) beginIndexing() {
-	b.indexStartNanos.Store(time.Now().UnixNano())
-	b.indexedEntries.Store(0)
-	b.indexTotalEntries.Store(0)
-}
-
-func (b *BleveIndexer) endIndexing() {
-	b.indexStartNanos.Store(0)
-	b.indexedEntries.Store(0)
-	b.indexTotalEntries.Store(0)
-}
-
-func (b *BleveIndexer) beginAuthorEnrichment(total int) {
-	b.authorEnrichStartNanos.Store(time.Now().UnixNano())
-	b.authorEnrichProcessed.Store(0)
-	b.authorEnrichTotalEntries.Store(uint64(total))
-}
-
-func (b *BleveIndexer) endAuthorEnrichment() {
-	b.authorEnrichStartNanos.Store(0)
-	b.authorEnrichProcessed.Store(0)
-	b.authorEnrichTotalEntries.Store(0)
-}
-
-func (b *BleveIndexer) recordAuthorEnrichmentProgress() {
-	b.authorEnrichProcessed.Add(1)
-}
-
-func countFiles(dir string, fileSystem afero.Fs) (float64, error) {
-	var total float64
-
-	afero.Walk(fileSystem, dir, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return nil
-		}
-		total++
-		return nil
-	})
-	return total, nil
-}
+// titleBoost multiplies the score contribution of a Title match relative to a Series match, so a
+// document whose own title matches ranks above other entries in the same series that only match
+// because they share its series name.
+const titleBoost = 3.0
 
 // Search look for documents which match the passed keywords and filters.
 // Returns a maximum <resultsPerPage> documents, offset by <page>
@@ -135,7 +71,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			return result.Paginated[[]Document]{}, err
 		}
 
-		query := composeQuery(searchFields.Keywords, analyzers)
+		query := b.composeQuery(searchFields.Keywords, analyzers)
 		filtersQuery.AddQuery(query)
 	} else {
 		// When no keywords are provided, use MatchAllQuery to return all documents
@@ -147,6 +83,14 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 	b.addFilters(searchFields, filtersQuery)
 
 	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
+}
+
+// newInclusiveNumericRangeQuery builds a numeric range query inclusive on both ends.
+// bleve.NewNumericRangeQuery defaults to an exclusive upper bound ([min, max)), which would
+// silently drop documents whose value exactly equals the "to" boundary of a range filter.
+func newInclusiveNumericRangeQuery(min, max *float64) *query.NumericRangeQuery {
+	inclusive := true
+	return bleve.NewNumericRangeInclusiveQuery(min, max, &inclusive, &inclusive)
 }
 
 func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
@@ -184,17 +128,52 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 	}
 	addDateRangeFilter(filtersQuery, "Publication.Date", searchFields.PubDateFrom, searchFields.PubDateTo)
 	if searchFields.EstReadTimeFrom > 0 || searchFields.EstReadTimeTo > 0 {
-		q := bleve.NewNumericRangeQuery(nil, nil)
+		var min, max *float64
 		if searchFields.EstReadTimeFrom > 0 {
-			min := searchFields.EstReadTimeFrom * 60 * searchFields.WordsPerMinute
-			q.Min = &min
+			minVal := searchFields.EstReadTimeFrom * 60 * searchFields.WordsPerMinute
+			min = &minVal
 		}
 		if searchFields.EstReadTimeTo > 0 {
-			max := searchFields.EstReadTimeTo * 60 * searchFields.WordsPerMinute
-			q.Max = &max
+			maxVal := searchFields.EstReadTimeTo * 60 * searchFields.WordsPerMinute
+			max = &maxVal
 		}
-		q.SetField("Words")
-		filtersQuery.AddQuery(q)
+		wordsQuery := newInclusiveNumericRangeQuery(min, max)
+		wordsQuery.SetField("Words")
+
+		// PDF documents are always indexed with Words == 0, so a "Words in [x,y]" range with no
+		// lower bound would otherwise also match every PDF, as if it had zero reading time.
+		// Exclude PDFs explicitly rather than requiring Words > 0: some EPUBs are also indexed
+		// with Words == 0 when word-count extraction failed for them, and should still be
+		// findable rather than being silently hidden by every reading time filter.
+		excludePDF := bleve.NewTermQuery("pdf")
+		excludePDF.SetField("Format")
+
+		bq := bleve.NewBooleanQuery()
+		bq.AddMust(wordsQuery)
+		bq.AddMustNot(excludePDF)
+		filtersQuery.AddQuery(bq)
+	}
+	if searchFields.PagesFrom > 0 || searchFields.PagesTo > 0 {
+		var min, max *float64
+		if searchFields.PagesFrom > 0 {
+			min = &searchFields.PagesFrom
+		}
+		if searchFields.PagesTo > 0 {
+			max = &searchFields.PagesTo
+		}
+		pagesQuery := newInclusiveNumericRangeQuery(min, max)
+		pagesQuery.SetField("Pages")
+
+		// EPUB documents are always indexed with Pages == 0, so a "Pages in [x,y]" range with no
+		// lower bound would otherwise also match every EPUB, as if it had zero pages. Exclude
+		// EPUBs explicitly rather than requiring Pages > 0, for the same reason as above.
+		excludeEPUB := bleve.NewTermQuery("epub")
+		excludeEPUB.SetField("Format")
+
+		bq := bleve.NewBooleanQuery()
+		bq.AddMust(pagesQuery)
+		bq.AddMustNot(excludeEPUB)
+		filtersQuery.AddQuery(bq)
 	}
 	if searchFields.IllustratedOnly && b.illustratedMinAmount > 0 {
 		minIllustrations := float64(b.illustratedMinAmount)
@@ -204,11 +183,19 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 	}
 }
 
-func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
+func (b *BleveIndexer) composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	langCompoundQuery := bleve.NewDisjunctionQuery()
 	// Special query for searches using partial title names and author names
 	authorTitleQuery := bleve.NewConjunctionQuery()
 	allLangsOrTitleQuery := bleve.NewDisjunctionQuery()
+
+	// meaningfulKeywords drops words that are stop words (e.g. Spanish "de", "el", "los") in any
+	// of the library's active languages. It's used only for the permissive OR-fallback queries
+	// below (orTitleQuery's defaultAnalyzer case and orAuthorQuery), which otherwise treat any
+	// single matching word, however common, as a strong match anchor across every document
+	// containing it. The stricter AND-based queries above keep the original keywords, since for
+	// those a literal connector word can be a meaningful part of an exact title/series match.
+	meaningfulKeywords := b.stripCommonWords(keywords, analyzers)
 
 	for _, analyzer := range analyzers {
 		noStopWordsAnalyzer := analyzer
@@ -220,6 +207,10 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 		qt.Analyzer = noStopWordsAnalyzer
 		qt.SetField("Title")
 		qt.Operator = query.MatchQueryOperatorAnd
+		// A document's own title matching the query is a stronger relevance signal than the
+		// query matching the name of the series it belongs to (which every entry in that series
+		// shares, whether or not it's the specific entry being searched for).
+		qt.SetBoost(titleBoost)
 
 		qs := bleve.NewMatchQuery(keywords)
 		qs.Analyzer = noStopWordsAnalyzer
@@ -237,6 +228,11 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 		orTitleQuery.SetField("Title")
 		orTitleQuery.Operator = query.MatchQueryOperatorOr
 		orTitleQuery.Analyzer = analyzer
+		if analyzer == defaultAnalyzer {
+			// default_analyzer has no stop-word filter of its own, so fall back to the
+			// cross-language filtered keywords to avoid matching on bare connector words.
+			orTitleQuery.Match = meaningfulKeywords
+		}
 
 		allLangsOrTitleQuery.AddQuery(orTitleQuery)
 	}
@@ -251,7 +247,9 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	qi.Operator = query.MatchQueryOperatorAnd
 	qi.Analyzer = defaultAnalyzer
 
-	orAuthorQuery := bleve.NewMatchQuery(keywords)
+	// Authors is always analyzed with defaultAnalyzer (it isn't language-specific), which has no
+	// stop-word filter, so it uses meaningfulKeywords for the same reason as orTitleQuery above.
+	orAuthorQuery := bleve.NewMatchQuery(meaningfulKeywords)
 	orAuthorQuery.SetField("Authors")
 	orAuthorQuery.Operator = query.MatchQueryOperatorOr
 	orAuthorQuery.Analyzer = defaultAnalyzer
@@ -259,6 +257,44 @@ func composeQuery(keywords string, analyzers []string) *query.DisjunctionQuery {
 	authorTitleQuery.AddQuery(orAuthorQuery, allLangsOrTitleQuery)
 
 	return bleve.NewDisjunctionQuery(qa, qi, langCompoundQuery, authorTitleQuery)
+}
+
+// stripCommonWords removes words from keywords that are treated as stop words by any of the
+// library's active (real, stop-word-aware) language analyzers. A word only survives if at least
+// one active language's analyzer keeps it, so genuinely meaningful words (author names, rare
+// terms) are preserved even if they happen to be a stop word in an unrelated language.
+func (b *BleveIndexer) stripCommonWords(keywords string, analyzers []string) string {
+	words := strings.Fields(keywords)
+	if len(words) <= 1 {
+		return keywords
+	}
+
+	mapping := b.documentsIdx.Mapping()
+	kept := make([]string, 0, len(words))
+	for _, word := range words {
+		isStopWord := false
+		for _, analyzerName := range analyzers {
+			if analyzerName == defaultAnalyzer {
+				continue
+			}
+			analyzer := mapping.AnalyzerNamed(analyzerName)
+			if analyzer == nil {
+				continue
+			}
+			if len(analyzer.Analyze([]byte(word))) == 0 {
+				isStopWord = true
+				break
+			}
+		}
+		if !isStopWord {
+			kept = append(kept, word)
+		}
+	}
+
+	if len(kept) == 0 {
+		return keywords
+	}
+	return strings.Join(kept, " ")
 }
 
 func (b *BleveIndexer) runQuery(query query.Query, results int, sortBy []string) ([]Document, error) {
@@ -277,7 +313,12 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	}
 
 	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
-	searchOptions.SortBy(sortBy)
+	// NewSearchRequestOptions defaults to sorting by relevance (-_score). Only override it when
+	// the caller actually asked for a specific order: SortBy([]string{}) replaces that default
+	// with an empty sort order, which falls back to arbitrary (index) order instead of relevance.
+	if len(sortBy) > 0 {
+		searchOptions.SortBy(sortBy)
+	}
 	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
@@ -314,11 +355,6 @@ func (b *BleveIndexer) CountDocuments(searchFields SearchFields) (int, error) {
 // TotalDocs returns the number of indexed documents
 func (b *BleveIndexer) TotalDocs() (uint64, error) {
 	return b.documentsIdx.DocCount()
-}
-
-// TotalAuthors returns the number of indexed authors.
-func (b *BleveIndexer) TotalAuthors() (uint64, error) {
-	return b.authorsIdx.DocCount()
 }
 
 func (b *BleveIndexer) Document(slug string) (Document, error) {
@@ -530,6 +566,39 @@ func (b *BleveIndexer) Languages() ([]string, error) {
 	return languages, nil
 }
 
+// Formats returns the distinct document formats present in the index (e.g. "epub", "pdf"), using
+// faceted search. Callers can use it to decide whether to show format-specific search filters,
+// such as hiding the pages filter when the library has no PDFs.
+func (b *BleveIndexer) Formats() ([]string, error) {
+	if b.documentsIdx == nil {
+		return []string{}, nil
+	}
+
+	matchAllQuery := bleve.NewMatchAllQuery()
+	searchRequest := bleve.NewSearchRequest(matchAllQuery)
+	searchRequest.Size = 0 // We don't need document hits, only facets
+
+	formatsFacet := bleve.NewFacetRequest("Format", 10)
+	searchRequest.AddFacet("formats", formatsFacet)
+
+	searchResult, err := b.documentsIdx.Search(searchRequest)
+	if err != nil {
+		return []string{}, err
+	}
+
+	formats := []string{}
+	if formatsFacetResult, ok := searchResult.Facets["formats"]; ok && formatsFacetResult.Terms != nil {
+		for _, term := range formatsFacetResult.Terms.Terms() {
+			if term.Term != "" {
+				formats = append(formats, term.Term)
+			}
+		}
+	}
+
+	slices.Sort(formats)
+	return formats, nil
+}
+
 // normalizeSubjectName normalizes a subject name to have only the first letter capitalized.
 // For example: "Science Fiction" -> "Science fiction", "SCIENCE FICTION" -> "Science fiction"
 func normalizeSubjectName(subject string) string {
@@ -597,34 +666,6 @@ func documentQueryByAuthorSlug(authorSlug string) query.Query {
 	byIllustrator := bleve.NewTermQuery(authorSlug)
 	byIllustrator.SetField("IllustratorsSlugs")
 	return bleve.NewDisjunctionQuery(byAuthor, byIllustrator)
-}
-
-func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
-	aq := bleve.NewTermQuery(slug)
-	aq.SetField("Slug")
-
-	searchOptions := bleve.NewSearchRequest(aq)
-	searchOptions.Fields = []string{"*"}
-	searchResult, err := b.authorsIdx.Search(searchOptions)
-	if err != nil {
-		return Author{}, err
-	}
-	if searchResult.Total == 0 {
-		return Author{}, nil
-	}
-
-	// Use the shared hydrateAuthor function
-	author := hydrateAuthor(searchResult.Hits[0])
-
-	// Override language-specific fields if requested language is available
-	if value, ok := searchResult.Hits[0].Fields["WikipediaLink."+lang].(string); ok {
-		author.WikipediaLink[lang] = value
-	}
-	if value, ok := searchResult.Hits[0].Fields["Description."+lang].(string); ok {
-		author.Description[lang] = value
-	}
-
-	return author, nil
 }
 
 func (b *BleveIndexer) SearchBySeries(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
@@ -732,150 +773,177 @@ func slicer(val any) []string {
 	return termsStrings
 }
 
-// hydrateAuthorFromFields converts a fields map to an Author struct
-// This is the shared implementation used by hydrateAuthor
-func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
-	retrievedOn := time.Time{}
-	if val, ok := fields["RetrievedOn"]; ok && val != nil {
-		if str, ok := val.(string); ok && str != "" {
-			// Try RFC3339 format first (standard)
-			if t, err := time.Parse(time.RFC3339, str); err == nil {
-				retrievedOn = t
-			} else if t, err := time.Parse("2006-01-02T15:04:05Z", str); err == nil {
-				retrievedOn = t
-			}
-		}
+// SameSubjects returns an array of metadata of documents by other authors,
+// which have similar subjects as the passed one and does not belong to the same collection
+// They are sorted by subjects matching and date, the closest to the publishing date of the reference document first
+func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, error) {
+	doc, err := b.Document(slugID)
+	if err != nil {
+		return []Document{}, err
 	}
 
-	dateOfBirth := precisiondate.PrecisionDate{Date: date.Zero}
-	if val, ok := fields["DateOfBirth.Date"]; ok && val != nil {
-		if dateVal, ok := val.(float64); ok {
-			dateOfBirth.Date = date.Date(dateVal)
-			if precVal, ok := fields["DateOfBirth.Precision"]; ok && precVal != nil {
-				if prec, ok := precVal.(float64); ok {
-					dateOfBirth.Precision = prec
-				}
-			}
-		}
+	if len(doc.Subjects) == 0 {
+		return []Document{}, nil
 	}
 
-	dateOfDeath := precisiondate.PrecisionDate{Date: date.Zero}
-	if val, ok := fields["DateOfDeath.Date"]; ok && val != nil {
-		if dateVal, ok := val.(float64); ok {
-			dateOfDeath.Date = date.Date(dateVal)
-			if precVal, ok := fields["DateOfDeath.Precision"]; ok && precVal != nil {
-				if prec, ok := precVal.(float64); ok {
-					dateOfDeath.Precision = prec
-				}
-			}
+	dateLimit := float64(doc.Publication.Date)
+
+	if dateLimit == 0 {
+		bq := b.subjectsQuery(doc)
+		res, err := b.runQuery(bq, quantity, []string{"-_score"})
+		if err != nil {
+			return []Document{}, err
 		}
+		return res, nil
 	}
 
-	name := ""
-	if val, ok := fields["Name"]; ok && val != nil {
-		if str, ok := val.(string); ok {
-			name = str
-		}
+	olderQuery := b.dateRangeSubjectsQuery(doc, nil, &dateLimit)
+	olderResults, err := b.dateRangeResult(olderQuery, "-Publication.Date", quantity)
+	if err != nil {
+		return []Document{}, err
+	}
+	newerQuery := b.dateRangeSubjectsQuery(doc, &dateLimit, nil)
+	newerResults, err := b.dateRangeResult(newerQuery, "Publication.Date", quantity)
+	if err != nil {
+		return []Document{}, err
 	}
 
-	birthName := ""
-	if val, ok := fields["BirthName"]; ok && val != nil {
-		if str, ok := val.(string); ok {
-			birthName = str
-		}
-	}
-
-	slug := docID
-	if val, ok := fields["Slug"]; ok && val != nil {
-		if str, ok := val.(string); ok && str != "" {
-			slug = str
-		}
-	}
-
-	dataSourceID := ""
-	if val, ok := fields["DataSourceID"]; ok && val != nil {
-		if str, ok := val.(string); ok {
-			dataSourceID = str
-		}
-	}
-
-	website := ""
-	if val, ok := fields["Website"]; ok && val != nil {
-		if str, ok := val.(string); ok {
-			website = str
-		}
-	}
-
-	dataSourceImage := ""
-	if val, ok := fields["DataSourceImage"]; ok && val != nil {
-		if str, ok := val.(string); ok {
-			dataSourceImage = str
-		}
-	}
-
-	instanceOf := float64(0)
-	if val, ok := fields["InstanceOf"]; ok && val != nil {
-		if num, ok := val.(float64); ok {
-			instanceOf = num
-		}
-	}
-
-	gender := float64(0)
-	if val, ok := fields["Gender"]; ok && val != nil {
-		if num, ok := val.(float64); ok {
-			gender = num
-		}
-	}
-
-	documentCount := uint64(0)
-	if val, ok := fields["DocumentCount"]; ok && val != nil {
-		if num, ok := val.(float64); ok {
-			documentCount = uint64(num)
-		}
-	}
-
-	author := Author{
-		Name:            name,
-		BirthName:       birthName,
-		Slug:            slug,
-		DataSourceID:    dataSourceID,
-		RetrievedOn:     retrievedOn,
-		WikipediaLink:   make(map[string]string),
-		InstanceOf:      instanceOf,
-		Description:     make(map[string]string),
-		DateOfBirth:     dateOfBirth,
-		DateOfDeath:     dateOfDeath,
-		Website:         website,
-		DataSourceImage: dataSourceImage,
-		Gender:          gender,
-		Pseudonyms:      slicer(fields["Pseudonyms"]),
-		DocumentCount:   documentCount,
-	}
-
-	// Extract Wikipedia links and descriptions for all languages
-	for key, value := range fields {
-		if strings.HasPrefix(key, "WikipediaLink.") {
-			lang := strings.TrimPrefix(key, "WikipediaLink.")
-			if str, ok := value.(string); ok {
-				author.WikipediaLink[lang] = str
-			}
-		}
-		if strings.HasPrefix(key, "Description.") {
-			lang := strings.TrimPrefix(key, "Description.")
-			if str, ok := value.(string); ok {
-				author.Description[lang] = str
-			}
-		}
-	}
-
-	return author
+	return b.sortByTempDistance(float64(doc.Publication.Date), append(olderResults, newerResults...), quantity)
 }
 
-func hydrateAuthor(hit *search.DocumentMatch) Author {
-	// Convert search.DocumentMatch.Fields (map[string]interface{}) to the format expected by hydrateAuthorFromFields
-	fields := make(map[string]interface{})
-	for k, v := range hit.Fields {
-		fields[k] = v
+func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
+	bq := bleve.NewBooleanQuery()
+	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
+
+	for _, slug := range doc.SubjectsSlugs {
+		qu := bleve.NewTermQuery(slug)
+		qu.SetField("SubjectsSlugs")
+		subjectsCompoundQuery.AddQuery(qu)
 	}
-	return hydrateAuthorFromFields(fields, hit.ID)
+
+	if doc.SeriesSlug != "" {
+		sq := bleve.NewTermQuery(doc.SeriesSlug)
+		sq.SetField("SeriesSlug")
+		bq.AddMustNot(sq)
+	}
+
+	bq.AddMust(subjectsCompoundQuery)
+	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
+
+	authorsCompoundQuery := bleve.NewDisjunctionQuery()
+	for _, slug := range doc.AuthorsSlugs {
+		qa := bleve.NewTermQuery(slug)
+		qa.SetField("AuthorsSlugs")
+		authorsCompoundQuery.AddQuery(qa)
+	}
+	bq.AddMustNot(authorsCompoundQuery)
+
+	return bq
+}
+
+func (b *BleveIndexer) dateRangeSubjectsQuery(doc Document, minDate, maxDate *float64) *query.BooleanQuery {
+	bq := b.subjectsQuery(doc)
+
+	rangeQuery := bleve.NewNumericRangeQuery(minDate, maxDate)
+	// We set the boost to 0 to avoid it being used to calculate the score
+	rangeQuery.SetBoost(0)
+	rangeQuery.SetField("Publication.Date")
+	bq.AddMust(rangeQuery)
+
+	return bq
+}
+
+func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, dateSort string, quantity int) (search.DocumentMatchCollection, error) {
+	searchOptions := bleve.NewSearchRequestOptions(query, quantity, 0, false)
+	searchOptions.SortBy([]string{"-_score", dateSort})
+	searchOptions.Fields = []string{"*"}
+	result, err := b.documentsIdx.Search(searchOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return result.Hits, nil
+}
+
+func (b *BleveIndexer) sortByTempDistance(referenceDate float64, results search.DocumentMatchCollection, quantity int) ([]Document, error) {
+	if len(results) < quantity {
+		quantity = len(results)
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Score != results[j].Score {
+			return results[i].Score > results[j].Score
+		}
+
+		return distanceToDate(referenceDate, results[i]) < distanceToDate(referenceDate, results[j])
+	})
+
+	docs := make([]Document, 0, quantity)
+
+	for i := range quantity {
+		docs = append(docs, hydrateDocument(results[i]))
+	}
+
+	return docs, nil
+}
+
+func distanceToDate(referenceDate float64, match *search.DocumentMatch) float64 {
+	var date float64
+
+	if match.Fields["Publication.Date"] != nil {
+		date = match.Fields["Publication.Date"].(float64)
+	}
+	return math.Abs(date - referenceDate)
+}
+
+// SameAuthors returns an array of metadata of documents by the same authors which
+// does not belong to the same collection
+func (b *BleveIndexer) SameAuthors(slugID string, quantity int) ([]Document, error) {
+	doc, err := b.Document(slugID)
+	if err != nil {
+		return []Document{}, err
+	}
+
+	if len(doc.Authors) == 0 {
+		return []Document{}, err
+	}
+
+	authorsCompoundQuery := bleve.NewDisjunctionQuery()
+	for _, slug := range doc.AuthorsSlugs {
+		qu := bleve.NewTermQuery(slug)
+		qu.SetField("AuthorsSlugs")
+		authorsCompoundQuery.AddQuery(qu)
+	}
+	bq := bleve.NewBooleanQuery()
+	bq.AddMust(authorsCompoundQuery)
+	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
+
+	if doc.Series != "" {
+		sq := bleve.NewTermQuery(doc.SeriesSlug)
+		sq.SetField("SeriesSlug")
+		bq.AddMustNot(sq)
+	}
+
+	return b.runQuery(bq, quantity, []string{"-_score", "Series", "SeriesIndex"})
+}
+
+// SameSeries returns an array of metadata of documents in the same series
+func (b *BleveIndexer) SameSeries(slugID string, quantity int) ([]Document, error) {
+	doc, err := b.Document(slugID)
+	if err != nil {
+		return []Document{}, err
+	}
+
+	if doc.Series == "" {
+		return []Document{}, err
+	}
+
+	bq := bleve.NewBooleanQuery()
+	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
+
+	sq := bleve.NewTermQuery(doc.SeriesSlug)
+	sq.SetField("SeriesSlug")
+	bq.AddMust(sq)
+
+	return b.runQuery(bq, quantity, []string{"-_score", "Series", "SeriesIndex"})
 }

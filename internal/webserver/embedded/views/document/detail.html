@@ -27,7 +27,7 @@
     </div>
     <div class="col-12 col-md-4 mt-3 pe-3">
         <div class="mb-3">
-            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true "Version" .Version}}
+            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true "Version" .Version "Eager" true}}
         </div>
         {{template "partials/actions" dict "Lang" .Lang "Document" .Document "Session" .Session "FQDN" .fqdn "Version" .Version "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "EmailFrom" .EmailFrom "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize "ButtonSize" "btn-lg" "ButtonStyle" "btn-primary"}}
 
@@ -58,29 +58,24 @@
         </div>
 
 
-        {{if and (gt (len .Document.Authors) 0) (le (len .Document.Authors) 2) (ne (index .Document.Authors 0) "")}}
+        {{if gt (len .AuthorSummaries) 0}}
             <hr>
-            {{range $i, $author := .Document.Authors}}
-                <div class="row" hx-get="/authors/{{slugify $author}}/summary?style=clear" hx-trigger="load" hx-target="this">
-                </div>
+            {{range .AuthorSummaries}}
+                {{if not .Author.RetrievedOn.IsZero}}
+                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" .Author "Session" $.Session "ImageVersion" .ImageVersion "Version" $.Version}}
+                {{else}}
+                    {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" .Author.Slug}}
+                {{end}}
             {{end}}
         {{end}}
 
-        {{if and (gt (len .Document.Illustrators) 0) (le (len .Document.Illustrators) 2) (ne (index .Document.Illustrators 0) "")}}
-            {{range $i, $illustrator := .Document.Illustrators}}
-                {{if ne $illustrator ""}}
-                    {{$illSlug := slugify $illustrator}}
-                    {{$skipIll := false}}
-                    {{range $a := $.Document.Authors}}
-                        {{if eq (slugify $a) $illSlug}}{{$skipIll = true}}{{end}}
-                    {{end}}
-                    {{if not $skipIll}}
-                        {{if eq $i 0}}
-                        <hr>
-                        {{end}}
-                        <div class="row" hx-get="/authors/{{$illSlug}}/summary?style=clear" hx-trigger="load" hx-target="this">
-                        </div>
-                    {{end}}
+        {{if gt (len .IllustratorSummaries) 0}}
+            {{range $i, $entry := .IllustratorSummaries}}
+                {{if eq $i 0}}<hr>{{end}}
+                {{if not $entry.Author.RetrievedOn.IsZero}}
+                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" $entry.Author "Session" $.Session "ImageVersion" $entry.ImageVersion "Version" $.Version}}
+                {{else}}
+                    {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" $entry.Author.Slug}}
                 {{end}}
             {{end}}
         {{end}}

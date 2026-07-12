@@ -10,7 +10,7 @@ import (
 	"github.com/svera/coreander/v5/internal/webserver/view"
 )
 
-func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, translator i18n.Translator, cfg Config, idx ProgressInfo, usersRepository *model.UserRepository) {
+func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, translator i18n.Translator, cfg Config, idx IndexInfo, usersRepository *model.UserRepository) {
 	// Middlewares
 	var (
 		allowIfNotLoggedIn          = AllowIfNotLoggedIn(jwtSecret)
@@ -63,6 +63,9 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	// Set available languages for the language filter
 	app.Use(SetAvailableLanguages(idx))
+
+	// Set available document formats for format-dependent filters (pages, reading time)
+	app.Use(SetAvailableFormats(idx))
 
 	// Set email sending configuration (must be early so it's available in all routes)
 	app.Use(SetEmailSendingConfigured(sender))
