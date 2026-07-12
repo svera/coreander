@@ -140,7 +140,7 @@ func (u *Controller) refreshSession(session model.Session, user *model.User, c f
 func (u *Controller) updateUserData(c fiber.Ctx, user *model.User, session model.Session) (map[string]string, error) {
 	user.Name = strings.TrimSpace(c.FormValue("name"))
 	user.Username = strings.ToLower(c.FormValue("username"))
-	user.Email = c.FormValue("email")
+	user.Email = strings.ToLower(strings.TrimSpace(c.FormValue("email")))
 
 	validationErrs, err := u.validate(c, user, session)
 	if err != nil || len(validationErrs) > 0 {

@@ -16,7 +16,7 @@ func (u *Controller) Create(c fiber.Ctx) error {
 	user := model.User{
 		Name:           strings.TrimSpace(c.FormValue("name")),
 		Username:       strings.ToLower(c.FormValue("username")),
-		Email:          c.FormValue("email"),
+		Email:          strings.ToLower(strings.TrimSpace(c.FormValue("email"))),
 		Password:       c.FormValue("password"),
 		Role:           role,
 		Uuid:           uuid.NewString(),
@@ -26,7 +26,7 @@ func (u *Controller) Create(c fiber.Ctx) error {
 	}
 
 	errs := user.Validate(u.config.MinPasswordLength)
-	if exist, _ := u.usersRepository.FindByEmail(c.FormValue("email")); exist != nil {
+	if exist, _ := u.usersRepository.FindByEmail(user.Email); exist != nil {
 		errs["email"] = "A user with this email address already exists"
 	}
 
