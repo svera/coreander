@@ -6,7 +6,6 @@ import (
 	"image"
 	"math"
 	"net/url"
-	"path"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -721,7 +720,7 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 	}
 
 	doc := Document{
-		ID: path.Base(match.ID),
+		ID: match.ID,
 		Metadata: metadata.Metadata{
 			Title:         match.Fields["Title"].(string),
 			Authors:       slicer(match.Fields["Authors"]),
