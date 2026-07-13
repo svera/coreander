@@ -35,6 +35,7 @@ func slugForDeleteTest(t *testing.T, idx *index.BleveIndexer, keywords string) s
 	return hits[0].Slug
 }
 
+<<<<<<< HEAD
 // TestDeleteDocument_MissingFile covers a document whose file was already removed from disk
 // (e.g. manually, outside the app) before deletion is requested: DeleteDocument must still
 // succeed in removing the entry from the index.
@@ -111,5 +112,70 @@ func TestDeleteDocument_NestedFile(t *testing.T) {
 	}
 	if exists, _ := afero.Exists(fs, name); exists {
 		t.Errorf("expected file %s to be removed from filesystem, but it still exists", name)
+=======
+// TestDeleteDocument covers deleting a document whose bleve ID may be a full path relative to
+// the library root (e.g. "nested/book.epub"), including the case where the underlying file was
+// already removed from disk (e.g. manually, outside the app) before deletion is requested:
+// DeleteDocument must still succeed in removing the entry from the index in both cases.
+func TestDeleteDocument(t *testing.T) {
+	tests := map[string]struct {
+		relPath            string
+		removeBeforeDelete bool
+	}{
+		"flat file": {
+			relPath: "book.epub",
+		},
+		"nested file": {
+			relPath: filepath.Join("nested", "book.epub"),
+		},
+		"missing file": {
+			relPath:            "book.epub",
+			removeBeforeDelete: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			fs := afero.NewMemMapFs()
+			const lib = "lib"
+			if err := fs.MkdirAll(filepath.Join(lib, filepath.Dir(tc.relPath)), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			fullPath := filepath.Join(lib, tc.relPath)
+			if err := afero.WriteFile(fs, fullPath, []byte("x"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			idx := newDeleteTestIndex(t, fs, lib)
+			defer idx.Close()
+
+			if err := idx.AddLibrary(10, true, 1); err != nil {
+				t.Fatalf("AddLibrary: %v", err)
+			}
+
+			slug := slugForDeleteTest(t, idx, "book.epub")
+
+			if tc.removeBeforeDelete {
+				if err := fs.Remove(fullPath); err != nil {
+					t.Fatalf("failed to remove file to simulate missing file: %v", err)
+				}
+			}
+
+			if err := idx.DeleteDocument(slug); err != nil {
+				t.Fatalf("DeleteDocument returned error: %v", err)
+			}
+
+			n, err := idx.TotalDocs()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if n != 0 {
+				t.Errorf("expected document to be removed from index, but %d documents remain", n)
+			}
+			if exists, _ := afero.Exists(fs, fullPath); exists {
+				t.Errorf("expected file %s to be removed from filesystem, but it still exists", fullPath)
+			}
+		})
+>>>>>>> 428969a2f6ec0511364bd5ee6e7b1155efd08ab9
 	}
 }
