@@ -1,0 +1,115 @@
+package index_test
+
+import (
+	"path/filepath"
+	"testing"
+
+	"github.com/blevesearch/bleve/v2"
+	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/index"
+)
+
+func newDeleteTestIndex(t *testing.T, fs afero.Fs, lib string) *index.BleveIndexer {
+	t.Helper()
+	docIdx, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	authIdx, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return index.NewBleve(docIdx, authIdx, fs, lib, benchmarkReaders(), index.Config{})
+}
+
+func slugForDeleteTest(t *testing.T, idx *index.BleveIndexer, keywords string) string {
+	t.Helper()
+	results, err := idx.Search(index.SearchFields{Keywords: keywords}, 1, 10)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	hits := results.Hits()
+	if len(hits) != 1 {
+		t.Fatalf("expected 1 search result for %q, got %d", keywords, len(hits))
+	}
+	return hits[0].Slug
+}
+
+// TestDeleteDocument_MissingFile covers a document whose file was already removed from disk
+// (e.g. manually, outside the app) before deletion is requested: DeleteDocument must still
+// succeed in removing the entry from the index.
+func TestDeleteDocument_MissingFile(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	const lib = "lib"
+	if err := fs.MkdirAll(lib, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	name := filepath.Join(lib, "book.epub")
+	if err := afero.WriteFile(fs, name, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	idx := newDeleteTestIndex(t, fs, lib)
+	defer idx.Close()
+
+	if err := idx.AddLibrary(10, true, 1); err != nil {
+		t.Fatalf("AddLibrary: %v", err)
+	}
+
+	slug := slugForDeleteTest(t, idx, "book.epub")
+
+	if err := fs.Remove(name); err != nil {
+		t.Fatalf("failed to remove file to simulate missing file: %v", err)
+	}
+
+	if err := idx.DeleteDocument(slug); err != nil {
+		t.Errorf("DeleteDocument returned error when file was already missing: %v", err)
+	}
+
+	n, err := idx.TotalDocs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Errorf("expected document to be removed from index, but %d documents remain", n)
+	}
+}
+
+// TestDeleteDocument_NestedFile covers a document stored under a library subdirectory: its bleve
+// document ID is the full path relative to the library root (e.g. "nested/book.epub"), and
+// deletion must operate on that full ID rather than just the file's base name.
+func TestDeleteDocument_NestedFile(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	const lib = "lib"
+	if err := fs.MkdirAll(filepath.Join(lib, "nested"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	name := filepath.Join(lib, "nested", "book.epub")
+	if err := afero.WriteFile(fs, name, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	idx := newDeleteTestIndex(t, fs, lib)
+	defer idx.Close()
+
+	if err := idx.AddLibrary(10, true, 1); err != nil {
+		t.Fatalf("AddLibrary: %v", err)
+	}
+
+	slug := slugForDeleteTest(t, idx, "book.epub")
+
+	if err := idx.DeleteDocument(slug); err != nil {
+		t.Fatalf("DeleteDocument returned error: %v", err)
+	}
+
+	n, err := idx.TotalDocs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Errorf("expected document to be removed from index, but %d documents remain", n)
+	}
+	if exists, _ := afero.Exists(fs, name); exists {
+		t.Errorf("expected file %s to be removed from filesystem, but it still exists", name)
+	}
+}
