@@ -7,7 +7,7 @@
                     <label for="searchbox" class="visually-hidden">{{t .Lang "search"}}</label>
                     <input type="search" name="search" id="searchbox" class="form-control form-control-lg border-end-0 border rounded-start-5" placeholder={{t .Lang "Search in %d documents and %d authors" .Count .AuthorsCount}} maxlength="255" value="{{if .SearchFields}}{{.SearchFields.Keywords}}{{end}}">
                     <span class="input-group-append">
-                        <button class="btn btn-outline-secondary border-start-0 rounded-start-0 rounded-end-5 p-3 border" type="submit">
+                        <button class="btn btn-outline-secondary border-start-0 rounded-start-0 rounded-end-5 p-3 border" type="submit" aria-label='{{t .Lang "Search"}}'>
                             <i class="bi bi-search"></i>
                         </button>
                     </span>
@@ -32,7 +32,7 @@
                 </ul>
                 <div class="tab-content home-search-tab-content border border-top-0 rounded-bottom-4 text-start">
                     <div class="tab-pane fade show active" id="home-search-documents-panel" role="tabpanel" aria-labelledby="home-search-tab-documents" tabindex="0">
-                        {{template "partials/document-search-filters" dict "Lang" .Lang "HomeSearch" true "Version" .Version "AvailableLanguages" .AvailableLanguages}}
+                        {{template "partials/document-search-filters" dict "Lang" .Lang "HomeSearch" true "Version" .Version "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs}}
                     </div>
                     <div class="tab-pane fade" id="home-search-authors-panel" role="tabpanel" aria-labelledby="home-search-tab-authors" tabindex="0">
                         {{template "partials/author-search-filters" dict "Lang" .Lang "HomeSearch" true "Version" .Version}}

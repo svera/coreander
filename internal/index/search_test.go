@@ -2,6 +2,7 @@ package index_test
 
 import (
 	"image"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -122,6 +123,212 @@ func TestLanguageFilter(t *testing.T) {
 	}
 	if len(res.Hits()) > 0 && res.Hits()[0].Metadata.Language != "fr" {
 		t.Errorf("Expected French language, got %s", res.Hits()[0].Metadata.Language)
+	}
+}
+
+// formatMockReader returns metadata with a fixed Format, for testing Formats().
+type formatMockReader struct {
+	format string
+	pages  float64
+	words  float64
+}
+
+func (m formatMockReader) Metadata(filename string) (metadata.Metadata, error) {
+	return metadata.Metadata{
+		Title:       filename,
+		Authors:     []string{"Author"},
+		Description: "<p>Description</p>",
+		Language:    "en",
+		Format:      m.format,
+		Pages:       m.pages,
+		Words:       m.words,
+		Subjects:    []string{"Fiction"},
+		Publication: precisiondate.NewPrecisionDate("2020-01-01T00:00:00Z", precisiondate.PrecisionDay),
+	}, nil
+}
+
+func (m formatMockReader) Cover(documentFullPath string, coverMaxWidth int) (image.Image, error) {
+	return nil, nil
+}
+
+func TestFormats(t *testing.T) {
+	cases := []struct {
+		name  string
+		files map[string]string // file path -> format
+		want  []string
+	}{
+		{
+			name:  "Library with only EPUBs reports only epub",
+			files: map[string]string{"lib/book.epub": "EPUB"},
+			want:  []string{"epub"},
+		},
+		{
+			name: "Library with both EPUBs and PDFs reports both",
+			files: map[string]string{
+				"lib/book.epub": "EPUB",
+				"lib/book.pdf":  "PDF",
+			},
+			want: []string{"epub", "pdf"},
+		},
+	}
+
+	for _, tcase := range cases {
+		t.Run(tcase.name, func(t *testing.T) {
+			indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+			if err != nil {
+				t.Fatalf("Error initialising index: %v", err)
+			}
+
+			mockMetadataReaders := map[string]metadata.Reader{}
+			appFS := afero.NewMemMapFs()
+			appFS.MkdirAll("lib", 0755)
+			for file, format := range tcase.files {
+				mockMetadataReaders[filepath.Ext(file)] = formatMockReader{format: format}
+				afero.WriteFile(appFS, file, []byte(""), 0644)
+			}
+
+			authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+			idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
+			if err = idx.AddLibrary(1, true, 0); err != nil {
+				t.Fatalf("Error indexing: %s", err.Error())
+			}
+
+			formats, err := idx.Formats()
+			if err != nil {
+				t.Fatalf("Error getting formats: %s", err.Error())
+			}
+			if !reflect.DeepEqual(formats, tcase.want) {
+				t.Errorf("Expected %v, got %v", tcase.want, formats)
+			}
+		})
+	}
+}
+
+// TestPagesFilterExcludesEPUBs verifies that the pages filter never matches EPUB documents
+// (which are always indexed with Pages == 0), even when only "pages-to" is set and "pages-from"
+// is left at its zero value.
+// TestPagesRangeSearch verifies that a full PagesFrom/PagesTo range matches a PDF document
+// whose page count falls within it.
+func TestPagesRangeSearch(t *testing.T) {
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatalf("Error initialising index: %v", err)
+	}
+	mockMetadataReaders := map[string]metadata.Reader{
+		".pdf": formatMockReader{format: "PDF", pages: 250},
+	}
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+	afero.WriteFile(appFS, "lib/book.pdf", []byte(""), 0644)
+
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
+	if err = idx.AddLibrary(1, true, 0); err != nil {
+		t.Fatalf("Error indexing: %s", err.Error())
+	}
+
+	res, err := idx.Search(index.SearchFields{PagesFrom: 100, PagesTo: 300}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 1 {
+		t.Fatalf("Expected 1 document, got %d", res.TotalHits())
+	}
+	if res.Hits()[0].Pages != 250 {
+		t.Errorf("Expected a document with 250 pages, got %v", res.Hits()[0].Pages)
+	}
+}
+
+// TestRangeFilterExcludesWrongFormat verifies that the pages and estimated reading time filters
+// only ever match the document format that field applies to, even when only the "to" bound is
+// set and "from" is left at its zero value: the pages filter must never match EPUBs (always
+// indexed with Pages == 0), and the reading time filter must never match PDFs (always indexed
+// with Words == 0).
+func TestRangeFilterExcludesWrongFormat(t *testing.T) {
+	cases := []struct {
+		name         string
+		readers      map[string]metadata.Reader
+		searchFields index.SearchFields
+		wantFormat   string
+	}{
+		{
+			name: "Pages filter excludes EPUBs",
+			readers: map[string]metadata.Reader{
+				".epub": formatMockReader{format: "EPUB"},
+				".pdf":  formatMockReader{format: "PDF", pages: 100},
+			},
+			searchFields: index.SearchFields{PagesTo: 200},
+			wantFormat:   "PDF",
+		},
+		{
+			name: "Reading time filter excludes PDFs",
+			readers: map[string]metadata.Reader{
+				".epub": formatMockReader{format: "EPUB", words: 24000},
+				".pdf":  formatMockReader{format: "PDF"},
+			},
+			searchFields: index.SearchFields{EstReadTimeTo: 3, WordsPerMinute: 200},
+			wantFormat:   "EPUB",
+		},
+	}
+
+	for _, tcase := range cases {
+		t.Run(tcase.name, func(t *testing.T) {
+			indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+			if err != nil {
+				t.Fatalf("Error initialising index: %v", err)
+			}
+			appFS := afero.NewMemMapFs()
+			appFS.MkdirAll("lib", 0755)
+			afero.WriteFile(appFS, "lib/book.epub", []byte(""), 0644)
+			afero.WriteFile(appFS, "lib/book.pdf", []byte(""), 0644)
+
+			authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+			idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", tcase.readers, index.Config{})
+			if err = idx.AddLibrary(1, true, 0); err != nil {
+				t.Fatalf("Error indexing: %s", err.Error())
+			}
+
+			res, err := idx.Search(tcase.searchFields, 1, 10)
+			if err != nil {
+				t.Fatalf("Error searching: %s", err.Error())
+			}
+			if res.TotalHits() != 1 {
+				t.Fatalf("Expected 1 document, got %d", res.TotalHits())
+			}
+			if res.Hits()[0].Format != tcase.wantFormat {
+				t.Errorf("Expected the %s document, got %s", tcase.wantFormat, res.Hits()[0].Format)
+			}
+		})
+	}
+}
+
+// TestReadingTimeFilterKeepsEPUBsWithNoWordCount verifies that an EPUB indexed with Words == 0
+// (e.g. because word-count extraction failed for it) is not hidden by the reading time filter,
+// since excluding it can't be distinguished from legitimately excluding PDFs by word count alone.
+func TestReadingTimeFilterKeepsEPUBsWithNoWordCount(t *testing.T) {
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatalf("Error initialising index: %v", err)
+	}
+	mockMetadataReaders := map[string]metadata.Reader{
+		".epub": formatMockReader{format: "EPUB"}, // words left at zero, as if extraction failed
+	}
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+	afero.WriteFile(appFS, "lib/book.epub", []byte(""), 0644)
+
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
+	if err = idx.AddLibrary(1, true, 0); err != nil {
+		t.Fatalf("Error indexing: %s", err.Error())
+	}
+
+	res, err := idx.Search(index.SearchFields{EstReadTimeTo: 3, WordsPerMinute: 200}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 1 {
+		t.Fatalf("Expected 1 document (the EPUB with no word count), got %d", res.TotalHits())
 	}
 }
 

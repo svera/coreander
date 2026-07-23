@@ -32,12 +32,93 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 		log.Fatal(err)
 	}
 
-	if err := db.AutoMigrate(&model.User{}, &model.Highlight{}, &model.Reading{}, &model.Invitation{}); err != nil {
-		log.Fatal(err)
+	// AutoMigrate can decide a table needs a full rebuild (e.g. to add a missing/renamed constraint), which
+	// briefly drops and recreates it. If another table holds an enforced foreign key into it (highlights/
+	// readings -> users here) and has rows actually referencing it, SQLite correctly refuses that DROP with
+	// foreign keys on. gorm's own AlterColumn already guards itself against this (see fixEmailCollation
+	// below); AutoMigrate's own constraint-adding path does not, so it's wrapped the same way here.
+	migrateErr := runWithoutForeignKeys(db, func() error {
+		return db.AutoMigrate(&model.User{}, &model.Highlight{}, &model.Reading{}, &model.Invitation{})
+	})
+	if migrateErr != nil {
+		log.Fatal(migrateErr)
 	}
+	fixEmailCollation(db, "users", &model.User{})
+	fixEmailCollation(db, "invitations", &model.Invitation{})
 	applySQLiteIndexes(db)
 	addDefaultAdmin(db, wordsPerMinute)
 	return db
+}
+
+// fixEmailCollation brings table's email column in line with today's schema (declared "collate nocase", see
+// model.User/model.Invitation) for databases created before that change, since SQLite can't alter a column's
+// collation via a plain ALTER TABLE, and gorm's own AutoMigrate doesn't revisit a column's type/collation when
+// it only needs to add a missing constraint elsewhere.
+//
+// Uses gorm's own Migrator.AlterColumn, which rebuilds the table internally (rename/copy/drop, with foreign
+// keys disabled around it) while preserving the table's existing constraint names, e.g. fk_highlights_shared_by
+// - unlike a hand-rolled rebuild under a temporary table name, which bakes in new, table-specific names
+// instead. AlterColumn's rebuild also drops the table's standalone indexes as a side effect (it only
+// reconstructs what is declared directly on the CREATE TABLE statement), so a follow-up AutoMigrate restores
+// them, including the ones enforcing email/UUID uniqueness.
+//
+// Skipped (with a warning) if two existing rows' emails already only differ by case, since the restored
+// unique index would then reject one of them and this won't guess which one to keep.
+func fixEmailCollation(db *gorm.DB, table string, value any) {
+	var schemaSQL string
+	if err := db.Raw("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", table).Scan(&schemaSQL).Error; err != nil {
+		log.Printf("warning: could not read %s schema: %v\n", table, err)
+		return
+	}
+	if schemaSQL == "" {
+		return // table doesn't exist yet; AutoMigrate already created it with today's (correct) schema.
+	}
+	if strings.Contains(schemaSQL, "`email` text collate nocase") {
+		return // already migrated.
+	}
+
+	var collisions int64
+	if err := db.Raw(fmt.Sprintf(`
+		SELECT COUNT(*) FROM (
+			SELECT 1 FROM %s GROUP BY LOWER(email) HAVING COUNT(*) > 1
+		)
+	`, table)).Scan(&collisions).Error; err != nil {
+		log.Printf("warning: could not check %s for case-duplicate emails: %v\n", table, err)
+		return
+	}
+	if collisions > 0 {
+		log.Printf("warning: %s has rows whose email only differs by case; leaving email case-sensitive for this table until resolved manually\n", table)
+		return
+	}
+
+	// Lowercase data before fixing the column's collation below: once it's "collate nocase", a plain
+	// "email != LOWER(email)" always evaluates false (both sides compare equal under nocase), silently
+	// turning this into a no-op.
+	if err := db.Exec(fmt.Sprintf("UPDATE %s SET email = LOWER(email) WHERE email != LOWER(email)", table)).Error; err != nil {
+		log.Printf("warning: could not lowercase existing emails in %s: %v\n", table, err)
+		return
+	}
+	if err := db.Migrator().AlterColumn(value, "Email"); err != nil {
+		log.Printf("warning: could not fix %s.email collation: %v\n", table, err)
+		return
+	}
+	if err := db.AutoMigrate(value); err != nil {
+		log.Printf("warning: could not restore indexes on %s after collation fix: %v\n", table, err)
+	}
+}
+
+// runWithoutForeignKeys disables foreign key enforcement for the duration of fc, restoring it afterwards -
+// same technique gorm's own Migrator.AlterColumn uses internally (see fixEmailCollation above), needed here
+// because Migrator.AutoMigrate's own constraint-adding path doesn't guard itself the same way, and a table
+// rebuild it triggers can otherwise be rejected by a real foreign key reference from another table.
+func runWithoutForeignKeys(db *gorm.DB, fc func() error) error {
+	var enabled int
+	db.Raw("PRAGMA foreign_keys").Scan(&enabled)
+	if enabled == 1 {
+		db.Exec("PRAGMA foreign_keys = OFF")
+		defer db.Exec("PRAGMA foreign_keys = ON")
+	}
+	return fc()
 }
 
 func applySQLiteIndexes(db *gorm.DB) {

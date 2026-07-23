@@ -7,7 +7,7 @@
         {{if .Session}}
             {{$readingTimeHelpContent = t .Lang "Reading time calculated using a speed of %s words per minute. You can change your reading speed in your profile." (printf "%.0f" .WordsPerMinute)}}
         {{end}}
-        <li><i class="bi bi-stopwatch me-2" alt="{{t .Lang "Estimated reading time"}}" title="{{t .Lang "Estimated reading time"}}"></i><time class="fw-bold">{{.Document.ReadingTime .WordsPerMinute}}</time> <span class="reading-time-help-popover d-inline-block ms-1" role="button" tabindex="0" data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-content="{{$readingTimeHelpContent}}"><i class="bi bi-info-circle text-muted"></i></span></li>
+        <li><i class="bi bi-stopwatch me-2" alt="{{t .Lang "Reading time"}}" title="{{t .Lang "Estimated reading time"}}"></i><time class="fw-bold">{{.Document.ReadingTime .WordsPerMinute}}</time> <span class="reading-time-help-popover d-inline-block ms-1" role="button" tabindex="0" aria-label='{{t .Lang "About reading time"}}' data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-content="{{$readingTimeHelpContent}}"><i class="bi bi-info-circle text-muted"></i></span></li>
     {{ end }}
     {{ if .Document.Pages }}
         <li class="fw-bold"><i class="bi bi-book me-2" alt="{{t .Lang "Pages"}}" title="{{t .Lang "Pages"}}"></i>{{.Document.Pages}}</li>

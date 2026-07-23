@@ -110,6 +110,20 @@ func TestAuthentication(t *testing.T) {
 			t.Errorf("Expected redirect to /, received %s", location.Path)
 		}
 	})
+
+	t.Run("Log in using a different email case than the one stored", func(t *testing.T) {
+		mixedCaseData := url.Values{
+			"email":    {"Admin@Example.COM"},
+			"password": {"admin"},
+		}
+		response, err := postRequest(mixedCaseData, &http.Cookie{}, app, "/sessions", t)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected status 302 or 303, received %d", response.StatusCode)
+		}
+	})
 }
 
 func TestRecoverNoEmailService(t *testing.T) {

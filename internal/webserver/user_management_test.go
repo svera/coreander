@@ -198,6 +198,27 @@ func TestUserManagement(t *testing.T) {
 		checkErrorMessages(response, t, expectedErrorMessages)
 	})
 
+	t.Run("Try to add a user with an email that only differs in case from an existing one", func(t *testing.T) {
+		reset()
+
+		newUserData := url.Values{
+			"name":             {"Test user"},
+			"username":         {"testuser"},
+			"email":            {"Regular@Example.COM"},
+			"password":         {"test"},
+			"confirm-password": {"test"},
+			"role":             {fmt.Sprint(model.RoleRegular)},
+			"words-per-minute": {"250"},
+		}
+
+		response, err := postRequest(newUserData, adminCookie, app, "/users", t)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		checkErrorMessages(response, t, []string{"A user with this email address already exists"})
+	})
+
 	t.Run("Try to update a user without an active session", func(t *testing.T) {
 		reset()
 
