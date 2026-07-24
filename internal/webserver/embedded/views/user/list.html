@@ -33,10 +33,11 @@
         <tr>
             <th class="ps-0">
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <div class="col-12 col-sm-auto">
+                    <div class="col-12 col-sm-auto form-floating">
                         <input
                             type="text"
-                            class="form-control form-control-sm w-100"
+                            class="form-control"
+                            id="user-filter"
                             placeholder='{{t .Lang "Name"}}'
                             name="filter"
                             value="{{.Filter}}"
@@ -46,6 +47,7 @@
                             hx-indicator="#placeholder-indicator"
                             hx-params="filter"
                             hx-vals='{"page": "1"}'>
+                        <label for="user-filter">{{t .Lang "Name"}}</label>
                     </div>
                 </div>
             </th>
