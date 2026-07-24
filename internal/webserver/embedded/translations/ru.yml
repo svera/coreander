@@ -161,6 +161,7 @@
 "A user with this username already exists": "Пользователь с таким именем уже существует"
 "A user with this email address already exists": "Пользователь с таким e‑mail уже существует"
 "Username can only have letters, numbers, _, - and .": "Имя пользователя может содержать только буквы, цифры, _, - и ."
+"There are no users matching the current filter": "Нет пользователей, соответствующих текущему фильтру"
 "Only letters, numbers, _, - and . allowed": "Разрешены только буквы, цифры, _, - и ."
 "The recovery link will expire after %s hours.": "Ссылка для восстановления истечёт через %s ч."
 "Paginated": "Постраничный"
