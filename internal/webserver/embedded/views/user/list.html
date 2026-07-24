@@ -31,14 +31,13 @@
 <table class="table table-striped">
     <thead>
         <tr>
-            <th>
+            <th class="ps-0">
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <span>{{t .Lang "Name"}}</span>
                     <div class="col-12 col-sm-auto">
                         <input
                             type="text"
                             class="form-control form-control-sm w-100"
-                            placeholder='{{t .Lang "Filter by name..."}}'
+                            placeholder='{{t .Lang "Name"}}'
                             name="filter"
                             value="{{.Filter}}"
                             hx-get="/users"
