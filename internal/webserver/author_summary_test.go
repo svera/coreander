@@ -6,15 +6,15 @@ import (
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/svera/coreander/v4/internal/datasource/wikidata"
-	"github.com/svera/coreander/v4/internal/webserver"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
 
 func TestAuthorSummary(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	smtpMock := &infrastructure.SMTPMock{}
-	appFS := loadDirInMemoryFs("fixtures/library")
+	appFS := loadDirInMemoryFs("testdata/library")
 	mockDataSourceServer := wikidata.NewMockServer(t, "fixtures/datasource/wikidata")
 
 	gowikidata.WikidataDomain = mockDataSourceServer.URL

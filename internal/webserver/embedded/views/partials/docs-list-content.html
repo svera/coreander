@@ -1,0 +1,15 @@
+{{if gt .Results.TotalHits 0}}
+<ul class="list-group rounded-0">
+    {{range $i, $document := .Results.Hits}}
+    <li class="list-group-item border border-0 p-0 mt-5">
+        {{template "partials/docs-list-item" dict "Lang" $.Lang "Document" $document "Session" $.Session "FQDN" $.fqdn "Version" $.Version "WordsPerMinute" $.WordsPerMinute "EmailSendingConfigured" $.EmailSendingConfigured "EmailFrom" $.EmailFrom "DefaultAction" $.DefaultAction "CanShare" $.CanShare "PreferredEpub" $.PreferredEpub "ShareMaxRecipients" $.ShareMaxRecipients "ShareCommentMaxSize" $.ShareCommentMaxSize "IllustratedMinAmount" $.IllustratedMinAmount "Eager" (eq $i 0)}}
+    </li>
+    {{end}}
+</ul>
+{{else}}
+<p class="text-muted mt-5 text-center">{{t .Lang "No results found"}}</p>
+{{end}}
+
+{{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
+{{template "partials/pagination" .}}
+{{end}}

@@ -1,0 +1,32 @@
+<div class="row">
+    <div id="list-header" class="col-12">
+        {{template "partials/search-type-tabs" .}}
+    </div>
+</div>
+
+<div class="row">
+    <div id="search-filters-sidebar-col" class="col-12 col-xl-3 mt-5 d-none d-xl-block p-0">
+        {{template "partials/search-filters-sidebar" .}}
+    </div>
+    <div class="col-12 col-xl-9">
+        {{template "partials/list-placeholder" .}}
+        <div id="list" hx-get="/search" hx-include="#search-filters-form, #sort-by" hx-select="#list-fragment-body" hx-swap="innerHTML" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
+            {{if eq .SearchType "authors"}}
+            {{ template "partials/authors-list-content" . }}
+            {{else}}
+            {{ template "partials/docs-list-content" . }}
+            {{end}}
+        </div>
+    </div>
+</div>
+
+{{if ne .SearchType "authors"}}
+{{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
+<script type="module" src="/js/delete.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/highlight.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/complete.js{{versionParam .Version}}"></script>
+{{else}}
+<script type="module" src="/js/datetime.js{{versionParam .Version}}"></script>
+{{end}}
+<script type="module" src="/js/cover.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/search-filters-sidebar-pin.js{{versionParam .Version}}"></script>

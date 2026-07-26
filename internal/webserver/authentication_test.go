@@ -10,16 +10,16 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/webserver"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 	"gorm.io/gorm"
 )
 
 func TestAuthentication(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250)
+	db := infrastructure.Connect(":memory:?cache=shared", 250)
 	app := bootstrapApp(db, &infrastructure.SMTP{}, afero.NewMemMapFs(), webserver.Config{})
 
 	data := url.Values{
@@ -65,8 +65,8 @@ func TestAuthentication(t *testing.T) {
 		if response == nil {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
-		if response.StatusCode != http.StatusFound {
-			t.Errorf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected status 302 or 303, received %d", response.StatusCode)
 		}
 
 		// Check that user is redirected to the home after a successful log in
@@ -77,6 +77,51 @@ func TestAuthentication(t *testing.T) {
 		}
 		if url.Path != "/" {
 			t.Errorf("Expected location %s, received %s", "/", url.Path)
+		}
+
+		sessionCookie := ""
+		for _, cookie := range response.Cookies() {
+			if cookie.Name == "session" {
+				sessionCookie = cookie.Value
+				break
+			}
+		}
+		if sessionCookie == "" {
+			t.Fatal("Expected session cookie after login")
+		}
+
+		req, err = http.NewRequest(http.MethodGet, "/sessions/new", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		req.AddCookie(&http.Cookie{Name: "session", Value: sessionCookie})
+		response, err = app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected redirect when logged in, received %d", response.StatusCode)
+		}
+		location, err := response.Location()
+		if err != nil {
+			t.Fatal("No location header on redirect")
+		}
+		if location.Path != "/" {
+			t.Errorf("Expected redirect to /, received %s", location.Path)
+		}
+	})
+
+	t.Run("Log in using a different email case than the one stored", func(t *testing.T) {
+		mixedCaseData := url.Values{
+			"email":    {"Admin@Example.COM"},
+			"password": {"admin"},
+		}
+		response, err := postRequest(mixedCaseData, &http.Cookie{}, app, "/sessions", t)
+		if response == nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected status 302 or 303, received %d", response.StatusCode)
 		}
 	})
 }
@@ -113,7 +158,7 @@ func TestRecover(t *testing.T) {
 		webserverConfig := webserver.Config{
 			SessionTimeout:        24 * time.Hour,
 			RecoveryTimeout:       recoveryTimeout,
-			LibraryPath:           "fixtures/library",
+			LibraryPath:           "testdata/library",
 			UploadDocumentMaxSize: 1,
 		}
 		db = infrastructure.Connect(":memory:?cache=shared", 250)
@@ -193,8 +238,8 @@ func TestRecover(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
-			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected status 302 or 303, received %d", response.StatusCode)
 		}
 
 		if smtpMock.CalledSend() {
@@ -233,8 +278,8 @@ func TestRecover(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
-			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected status 302 or 303, received %d", response.StatusCode)
 		}
 
 		if !smtpMock.CalledSend() {
@@ -262,8 +307,8 @@ func TestRecover(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
-			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected status 302 or 303, received %d", response.StatusCode)
 		}
 
 		url, err := response.Location()
@@ -312,8 +357,8 @@ func TestRecover(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err.Error())
 		}
 
-		if expectedStatus := http.StatusFound; response.StatusCode != expectedStatus {
-			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		if response.StatusCode != http.StatusFound && response.StatusCode != http.StatusSeeOther {
+			t.Errorf("Expected status 302 or 303, received %d", response.StatusCode)
 		}
 
 		// trying to access the reset password page using a time out ID returns an error
@@ -357,4 +402,40 @@ func TestRecover(t *testing.T) {
 			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
 		}
 	})
+}
+
+func TestDeletedUserSessionIsRejected(t *testing.T) {
+	db := infrastructure.Connect(":memory:?cache=shared", 250)
+	app := bootstrapApp(db, &infrastructure.SMTP{}, afero.NewMemMapFs(), webserver.Config{})
+
+	cookie, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+
+	admin := fetchUserByEmail(t, db, "admin@example.com")
+	usersRepository := &model.UserRepository{DB: db}
+	if err := usersRepository.Delete(admin.Uuid); err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+
+	response, err := getRequest(cookie, app, "/users", t)
+	if response == nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	mustReturnForbiddenAndShowLogin(response, t)
+}
+
+func fetchUserByEmail(t *testing.T, db *gorm.DB, email string) *model.User {
+	t.Helper()
+
+	usersRepository := &model.UserRepository{DB: db}
+	user, err := usersRepository.FindByEmail(email)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if user == nil {
+		t.Fatalf("Expected user with email %s", email)
+	}
+	return user
 }

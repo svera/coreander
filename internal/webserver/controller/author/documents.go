@@ -4,20 +4,14 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
-	"github.com/svera/coreander/v4/internal/webserver/view"
+	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver/view"
 )
 
-func (a *Controller) Documents(c *fiber.Ctx) error {
-	emailSendingConfigured := true
-	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
+func (a *Controller) Documents(c fiber.Ctx) error {
 	var session model.Session
 	if val, ok := c.Locals("Session").(model.Session); ok {
 		session = val
@@ -27,7 +21,7 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		a.config.WordsPerMinute = session.WordsPerMinute
 	}
 
-	var searchResults result.Paginated[[]index.Document]
+	var documentResults result.Paginated[[]index.Document]
 	authorSlug := c.Params("slug")
 
 	if authorSlug == "" {
@@ -49,28 +43,28 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		SortBy:   a.parseSortBy(c),
 	}
 
-	if searchResults, err = a.idx.SearchByAuthor(searchFields, page, model.ResultsPerPage); err != nil {
+	if documentResults, err = a.idx.SearchByAuthor(searchFields, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
+	searchResults := model.AugmentedDocumentsFromDocuments(documentResults)
 	if session.ID > 0 {
-		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 		searchResults = a.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
+		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
 	templateVars := fiber.Map{
-		"Author":                 author,
-		"Results":                searchResults,
-		"Paginator":              view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":                  author.Name,
-		"EmailSendingConfigured": emailSendingConfigured,
-		"EmailFrom":              a.sender.From(),
-		"WordsPerMinute":         a.config.WordsPerMinute,
-		"URL":                    view.URL(c),
-		"SortURL":                view.SortURL(c),
-		"SortBy":                 c.Query("sort-by"),
-		"AvailableLanguages":     c.Locals("AvailableLanguages"),
+		"Author":         author,
+		"ImageVersion":   a.getImageVersion(author.Slug),
+		"Results":        searchResults,
+		"Paginator":      view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":          author.Name,
+		"EmailFrom":      a.sender.From(),
+		"WordsPerMinute": a.config.WordsPerMinute,
+		"URL":            view.URL(c),
+		"SortURL":        view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":         c.Query("sort-by"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
@@ -90,14 +84,14 @@ func (a *Controller) Documents(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if err = c.Render("author/results", templateVars, "layout"); err != nil {
+	if err = c.Render("author/list", templateVars, "layout"); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 	return nil
 }
 
-func (d *Controller) parseSortBy(c *fiber.Ctx) []string {
+func (d *Controller) parseSortBy(c fiber.Ctx) []string {
 	if c.Query("sort-by") != "" {
 		switch c.Query("sort-by") {
 		case "pub-date-newer-first":

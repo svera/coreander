@@ -1,44 +1,46 @@
 {{$lang := .Lang}}
-{{$emailSendingConfigured := .EmailSendingConfigured}}
-{{$session := .Session}}
-{{$emailFrom := .EmailFrom}}
-{{$document := .Document}}
-
 <div class="row mt-5">
     <div class="col-12">
+        <div class="mb-2">
+            <a href="#" class="text-decoration-none" onclick="event.preventDefault(); history.back();">&larr; {{t $lang "Return"}}</a>
+        </div>
+        <hr />
         {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s" .Document.Series}}
             <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</p>
         {{ end }}
         <header>
-            <h1 class="text-start">
+            <h1>
                 {{.Document.Title}}
             </h1>
 
             {{if .Document.Authors}}
-                <h2>
-                    {{join $document.Authors ", "}}
-                </h2>
+                <p class="fs-2 mb-0">
+                    {{range $i, $author := .Document.Authors}}{{if $i}}, {{end}}<a href="/authors/{{index $.Document.AuthorsSlugs $i}}" class="text-decoration-none">{{$author}}</a>{{end}}
+                </p>
             {{else}}
-                <h2>{{t $lang "Unknown author"}}</h2>
+                <p class="fs-2 mb-0">{{t .Lang "Unknown author"}}</p>
+            {{end}}
+            {{if .Document.Illustrators}}
+                <p class="fs-2"><span class="text-muted">{{t $lang "Illustrations"}}:</span> {{join .Document.Illustrators ", "}}</p>
             {{end}}
         </header>
     </div>
     <div class="col-12 col-md-4 mt-3 pe-3">
         <div class="mb-3">
-            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true "Version" .Version}}
+            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true "Version" .Version "Eager" true}}
         </div>
-        {{template "partials/actions" dict "Lang" $lang "Document" .Document "Session" $session "EmailSendingConfigured" .EmailSendingConfigured "EmailFrom" $emailFrom}}
+        {{template "partials/actions" dict "Lang" .Lang "Document" .Document "Session" .Session "FQDN" .fqdn "Version" .Version "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "EmailFrom" .EmailFrom "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize "ButtonSize" "btn-lg" "ButtonStyle" "btn-primary"}}
 
         <div id="document-metadata-{{.Document.Slug}}">
-            {{template "partials/document-metadata" dict "Lang" $lang "Document" .Document "Session" $session "WordsPerMinute" .WordsPerMinute}}
+            {{template "partials/document-metadata" dict "Lang" .Lang "Document" .Document "Session" .Session "WordsPerMinute" .WordsPerMinute "IllustratedMinAmount" .IllustratedMinAmount}}
         </div>
 
 
         {{ if .Document.Subjects }}
         <ul class="list-inline">
             {{range $i, $subject := .Document.Subjects}}
-            {{$subjectTitle := t $lang "Search for more titles in %s" $subject}}
-            <li class="list-inline-item"><a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?search=SubjectsSlugs&colon;{{index $document.SubjectsSlugs $i}}"
+            {{$subjectTitle := t $.Lang "Search for more titles in %s" $subject}}
+            <li class="list-inline-item"><a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?subjects={{urlquery $subject}}"
                 title={{$subjectTitle}}>{{$subject}}</a></li>
             {{end}}
         </ul>
@@ -50,7 +52,7 @@
                 {{if .Document.Description}}
                 <div class="mb-1 mt-3 lead">{{.Document.Description}}</div>
                 {{else}}
-                <div class="mb-1"><em>{{t $lang "No description available"}}</em></div>
+                <div class="mb-1 mt-3"><p><i>{{t .Lang "No description available"}}</i></p></div>
                 {{end}}
             </div>
         </div>
@@ -91,57 +93,43 @@
         </div>
         {{end}}
 
-        {{if and (gt (len .Document.Authors) 0) (le (len .Document.Authors) 2) (ne (index .Document.Authors 0) "")}}
+        {{if gt (len .AuthorSummaries) 0}}
             <hr>
-            {{range $i, $author := .Document.Authors}}
-                <div class="row" hx-get="/authors/{{slugify $author}}/summary?style=clear" hx-trigger="load" hx-target="this">
-                </div>
+            {{range .AuthorSummaries}}
+                {{if not .Author.RetrievedOn.IsZero}}
+                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" .Author "Session" $.Session "ImageVersion" .ImageVersion "Version" $.Version}}
+                {{else}}
+                    {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" .Author.Slug}}
+                {{end}}
+            {{end}}
+        {{end}}
+
+        {{if gt (len .IllustratorSummaries) 0}}
+            {{range $i, $entry := .IllustratorSummaries}}
+                {{if eq $i 0}}<hr>{{end}}
+                {{if not $entry.Author.RetrievedOn.IsZero}}
+                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" $entry.Author "Session" $.Session "ImageVersion" $entry.ImageVersion "Version" $.Version}}
+                {{else}}
+                    {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" $entry.Author.Slug}}
+                {{end}}
             {{end}}
         {{end}}
 
         {{ $length := len .SameSeries }} {{ if gt $length 0 }}
         <section class="row mt-5">
             <div class="col-9">
-                <h3>{{t $lang "Other titles in collection \"%s\"" .Document.Series}}</h3>
+                <h2>{{t .Lang "Other titles in collection \"%s\"" .Document.Series}}</h2>
             </div>
             <div class="col-3 text-end">
                 <a  href="/series/{{.Document.SeriesSlug}}">
-                        {{t $lang "See all" }}</a>
+                        {{t .Lang "See all" }}</a>
             </div>
 
             <div class="row pe-0 align-items-end">
                 {{range $i, $doc := .SameSeries}}
                     <div class="col-6 col-lg-3 pe-0 mt-3">
-                        {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session "Version" $.Version}}
+                        {{template "partials/cover" dict "Lang" $.Lang "Document" $doc "Session" $.Session "Version" $.Version}}
                     </div>
-                {{end}}
-            </div>
-        </section>
-        {{end}}
-
-        {{ $length := len .SameAuthors }} {{ if gt $length 0 }}
-        <section class="row mt-5">
-            <div class="col-9">
-                <h3>
-                    {{t $lang "Also by"}}
-                    {{join $document.Authors ", "}}
-                </h3>
-            </div>
-            <div class="col-3 text-end">
-                {{if gt (len $document.Authors) 1}}
-                <a  href='/documents?search=AuthorsSlugs&colon;{{join $document.AuthorsSlugs ","}}'>
-                        {{t $lang "See all" }}</a>
-                {{else}}
-                <a  href='/authors/{{index $document.AuthorsSlugs 0}}'>
-                    {{t $lang "See all" }}</a>
-                {{end}}
-            </div>
-
-            <div class="row pe-0 align-items-end">
-                {{range $i, $doc := .SameAuthors}}
-                <div class="col-6 col-lg-3 pe-0 mt-3">
-                    {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session "Version" $.Version}}
-                </div>
                 {{end}}
             </div>
         </section>
@@ -150,17 +138,17 @@
         {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
         <section class="row mt-5">
             <div class="col-9">
-                <h3>{{t $lang "With similar subjects"}}</h3>
+                <h2>{{t .Lang "With similar subjects"}}</h2>
             </div>
             <div class="col-3 text-end">
-                <a  href='/documents?search=SubjectsSlugs&colon;{{join $document.SubjectsSlugs ","}}'>
-                        {{t $lang "See all" }}</a>
+                <a  href='/documents?subjects={{range $i, $s := .Document.Subjects}}{{if $i}},{{end}}{{urlquery $s}}{{end}}'>
+                        {{t .Lang "See all" }}</a>
             </div>
 
             <div class="row pe-0 align-items-end">
                 {{range $i, $doc := .SameSubjects}}
                 <div class="col-6 col-lg-3 pe-0 mt-3">
-                    {{template "partials/cover" dict "Lang" $lang "Document" $doc "Session" $session "Version" $.Version}}
+                    {{template "partials/cover" dict "Lang" $.Lang "Document" $doc "Session" $.Session "Version" $.Version}}
                 </div>
                 {{end}}
             </div>
@@ -169,7 +157,6 @@
     </div>
 </div>
 
-<script type="module" src="/js/send-email.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/highlight.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/complete.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/cover.js{{versionParam .Version}}"></script>

@@ -9,18 +9,18 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/svera/coreander/v4/internal/webserver"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 func TestRemoveDocument(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	smtpMock := &infrastructure.SMTPMock{}
-	appFS := loadDirInMemoryFs("fixtures/library")
+	appFS := loadDirInMemoryFs("testdata/library")
 	app := bootstrapApp(db, smtpMock, appFS, webserver.Config{})
 
-	assertSearchResults(app, t, "john+doe", 4)
+	assertDocumentResults(app, t, "john+doe", 4)
 
 	user := &model.User{
 		Uuid:           uuid.NewString(),
@@ -70,7 +70,9 @@ func TestRemoveDocument(t *testing.T) {
 					t.Errorf("Expected 'file not exist' error when trying to access a file that should have been removed")
 				}
 
-				assertSearchResults(app, t, "john+doe", 3)
+				assertDocumentResults(app, t, "john+doe", 3)
+				assertAuthorSearchResults(app, t, "john", 1)
+				assertAuthorDocuments(app, t, "john-doe", 3)
 			}
 
 			if response.StatusCode != tcase.expectedHTTPStatus {
@@ -78,4 +80,30 @@ func TestRemoveDocument(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("Remove document removes orphan author", func(t *testing.T) {
+		assertAuthorSearchResults(app, t, "sergio", 1)
+		assertAuthorDocuments(app, t, "sergio-vera", 1)
+
+		cookie, err := login(app, "admin@example.com", "admin", t)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+
+		slug := documentSearchFirstSlug(app, t, "sergio+vera")
+		response, err := deleteRequest(url.Values{}, cookie, app, fmt.Sprintf("/documents/%s", slug), t)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err.Error())
+		}
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+		}
+
+		if _, err := appFS.Stat("empty.pdf"); !os.IsNotExist(err) {
+			t.Errorf("Expected 'file not exist' error when trying to access a file that should have been removed")
+		}
+
+		assertDocumentResults(app, t, "sergio+vera", 0)
+		assertAuthorSearchResults(app, t, "sergio", 0)
+	})
 }

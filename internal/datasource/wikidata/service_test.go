@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/datasource/model"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 func TestAuthor(t *testing.T) {
@@ -69,5 +70,29 @@ func testCases(t *testing.T) []testCase {
 			search:        "Q1234",
 			expectedValue: Author{},
 		},
+	}
+}
+
+func TestRetrieveAuthorsBatch(t *testing.T) {
+	mockServer := NewMockServer(t, "fixtures")
+	defer mockServer.Close()
+	gowikidata.WikidataDomain = mockServer.URL
+
+	source := NewWikidataSource(Gowikidata{})
+	authors := make(map[string]model.Author)
+	err := source.RetrieveAuthors(map[string][]string{
+		"miguel": {"Q1234"},
+	}, []string{"en"}, 0, func(slug string, a model.Author) error {
+		authors[slug] = a
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(authors) != 1 {
+		t.Fatalf("expected 1 author from batch retrieve, got %d", len(authors))
+	}
+	if authors["miguel"].SourceID() != "Q1234" {
+		t.Fatalf("expected Q1234, got %q", authors["miguel"].SourceID())
 	}
 }

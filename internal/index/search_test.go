@@ -1,8 +1,8 @@
 package index_test
 
 import (
-	"fmt"
-	"html/template"
+	"image"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -10,11 +10,11 @@ import (
 	"github.com/pirmd/epub"
 	"github.com/rickb777/date/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/precisiondate"
-	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 func TestIndexAndSearch(t *testing.T) {
@@ -25,30 +25,13 @@ func TestIndexAndSearch(t *testing.T) {
 				t.Errorf("Error initialising index")
 			}
 
-			var mockMetadataReaders map[string]metadata.Reader
-
-			// Use custom mockEpubReader for reading time tests that need specific word counts
-			if tcase.name == "Test estimated reading time range search" {
-				mockMetadataReaders = map[string]metadata.Reader{
-					".epub": mockEpubReader{
-						EpubReader: metadata.EpubReader{
-							GetMetadataFromFile: func(file string) (*epub.Information, error) {
-								return tcase.mockedMeta, nil
-							},
-							GetPackageFromFile: epub.GetPackageFromFile,
-						},
-					},
-				}
-			} else {
-				mockMetadataReaders = map[string]metadata.Reader{
-					".epub": metadata.EpubReader{
-						GetMetadataFromFile: func(file string) (*epub.Information, error) {
-							return tcase.mockedMeta, nil
-						},
-						GetPackageFromFile: epub.GetPackageFromFile,
-					},
-				}
+			reader := epubTestReader{
+				info: map[string]*epub.Information{tcase.filename: tcase.mockedMeta},
 			}
+			if tcase.name == "Test estimated reading time range search" {
+				reader.words = map[string]float64{tcase.filename: 24000}
+			}
+			mockMetadataReaders := map[string]metadata.Reader{".epub": reader}
 
 			appFS := afero.NewMemMapFs()
 			// create test files and directories
@@ -58,9 +41,9 @@ func TestIndexAndSearch(t *testing.T) {
 			}
 
 			authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
-			idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
+			idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
-			if err = idx.AddLibrary(1, true); err != nil {
+			if err = idx.AddLibrary(1, true, 0); err != nil {
 				t.Errorf("Error indexing: %s", err.Error())
 			}
 			res, err := idx.Search(tcase.search, 1, 10)
@@ -81,40 +64,7 @@ func TestLanguageFilter(t *testing.T) {
 	}
 
 	mockMetadataReaders := map[string]metadata.Reader{
-		".epub": mockEpubReader{
-			EpubReader: metadata.EpubReader{
-				GetMetadataFromFile: func(file string) (*epub.Information, error) {
-					switch file {
-					case "lib/english_book.epub":
-						return &epub.Information{
-							Title:       []string{"English Book"},
-							Creator:     []epub.Author{{FullName: "English Author", Role: "aut"}},
-							Description: []string{"A book in English"},
-							Language:    []string{"en"},
-							Subject:     []string{"Fiction"},
-						}, nil
-					case "lib/spanish_book.epub":
-						return &epub.Information{
-							Title:       []string{"Spanish Book"},
-							Creator:     []epub.Author{{FullName: "Spanish Author", Role: "aut"}},
-							Description: []string{"A book in Spanish"},
-							Language:    []string{"es"},
-							Subject:     []string{"Fiction"},
-						}, nil
-					case "lib/french_book.epub":
-						return &epub.Information{
-							Title:       []string{"French Book"},
-							Creator:     []epub.Author{{FullName: "French Author", Role: "aut"}},
-							Description: []string{"A book in French"},
-							Language:    []string{"fr"},
-							Subject:     []string{"Fiction"},
-						}, nil
-					}
-					return nil, fmt.Errorf("file not found")
-				},
-				GetPackageFromFile: epub.GetPackageFromFile,
-			},
-		},
+		".epub": epubTestReader{info: languageFilterLibrary()},
 	}
 
 	appFS := afero.NewMemMapFs()
@@ -124,9 +74,9 @@ func TestLanguageFilter(t *testing.T) {
 	afero.WriteFile(appFS, "lib/french_book.epub", []byte(""), 0644)
 
 	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
-	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
-	if err = idx.AddLibrary(1, true); err != nil {
+	if err = idx.AddLibrary(1, true, 0); err != nil {
 		t.Fatalf("Error indexing: %s", err.Error())
 	}
 
@@ -154,8 +104,8 @@ func TestLanguageFilter(t *testing.T) {
 		t.Errorf("Expected English language, got %s", res.Hits()[0].Metadata.Language)
 	}
 
-	// Test searching with keyword but no language filter - should return all matching documents
-	res, err = idx.Search(index.SearchFields{Keywords: "fiction"}, 1, 10)
+	// Test searching by subject but no language filter - should return all matching documents
+	res, err = idx.Search(index.SearchFields{Subjects: "Fiction"}, 1, 10)
 	if err != nil {
 		t.Fatalf("Error searching: %s", err.Error())
 	}
@@ -163,8 +113,8 @@ func TestLanguageFilter(t *testing.T) {
 		t.Errorf("Expected 3 documents (all languages with 'fiction' subject), got %d", res.TotalHits())
 	}
 
-	// Test combining language filter with keyword search - French
-	res, err = idx.Search(index.SearchFields{Keywords: "fiction", Language: "fr"}, 1, 10)
+	// Test combining language filter with subject search - French
+	res, err = idx.Search(index.SearchFields{Subjects: "Fiction", Language: "fr"}, 1, 10)
 	if err != nil {
 		t.Fatalf("Error searching: %s", err.Error())
 	}
@@ -176,6 +126,324 @@ func TestLanguageFilter(t *testing.T) {
 	}
 }
 
+// formatMockReader returns metadata with a fixed Format, for testing Formats().
+type formatMockReader struct {
+	format string
+	pages  float64
+	words  float64
+}
+
+func (m formatMockReader) Metadata(filename string) (metadata.Metadata, error) {
+	return metadata.Metadata{
+		Title:       filename,
+		Authors:     []string{"Author"},
+		Description: "<p>Description</p>",
+		Language:    "en",
+		Format:      m.format,
+		Pages:       m.pages,
+		Words:       m.words,
+		Subjects:    []string{"Fiction"},
+		Publication: precisiondate.NewPrecisionDate("2020-01-01T00:00:00Z", precisiondate.PrecisionDay),
+	}, nil
+}
+
+func (m formatMockReader) Cover(documentFullPath string, coverMaxWidth int) (image.Image, error) {
+	return nil, nil
+}
+
+func TestFormats(t *testing.T) {
+	cases := []struct {
+		name  string
+		files map[string]string // file path -> format
+		want  []string
+	}{
+		{
+			name:  "Library with only EPUBs reports only epub",
+			files: map[string]string{"lib/book.epub": "EPUB"},
+			want:  []string{"epub"},
+		},
+		{
+			name: "Library with both EPUBs and PDFs reports both",
+			files: map[string]string{
+				"lib/book.epub": "EPUB",
+				"lib/book.pdf":  "PDF",
+			},
+			want: []string{"epub", "pdf"},
+		},
+	}
+
+	for _, tcase := range cases {
+		t.Run(tcase.name, func(t *testing.T) {
+			indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+			if err != nil {
+				t.Fatalf("Error initialising index: %v", err)
+			}
+
+			mockMetadataReaders := map[string]metadata.Reader{}
+			appFS := afero.NewMemMapFs()
+			appFS.MkdirAll("lib", 0755)
+			for file, format := range tcase.files {
+				mockMetadataReaders[filepath.Ext(file)] = formatMockReader{format: format}
+				afero.WriteFile(appFS, file, []byte(""), 0644)
+			}
+
+			authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+			idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
+			if err = idx.AddLibrary(1, true, 0); err != nil {
+				t.Fatalf("Error indexing: %s", err.Error())
+			}
+
+			formats, err := idx.Formats()
+			if err != nil {
+				t.Fatalf("Error getting formats: %s", err.Error())
+			}
+			if !reflect.DeepEqual(formats, tcase.want) {
+				t.Errorf("Expected %v, got %v", tcase.want, formats)
+			}
+		})
+	}
+}
+
+// TestPagesFilterExcludesEPUBs verifies that the pages filter never matches EPUB documents
+// (which are always indexed with Pages == 0), even when only "pages-to" is set and "pages-from"
+// is left at its zero value.
+// TestPagesRangeSearch verifies that a full PagesFrom/PagesTo range matches a PDF document
+// whose page count falls within it.
+func TestPagesRangeSearch(t *testing.T) {
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatalf("Error initialising index: %v", err)
+	}
+	mockMetadataReaders := map[string]metadata.Reader{
+		".pdf": formatMockReader{format: "PDF", pages: 250},
+	}
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+	afero.WriteFile(appFS, "lib/book.pdf", []byte(""), 0644)
+
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
+	if err = idx.AddLibrary(1, true, 0); err != nil {
+		t.Fatalf("Error indexing: %s", err.Error())
+	}
+
+	res, err := idx.Search(index.SearchFields{PagesFrom: 100, PagesTo: 300}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 1 {
+		t.Fatalf("Expected 1 document, got %d", res.TotalHits())
+	}
+	if res.Hits()[0].Pages != 250 {
+		t.Errorf("Expected a document with 250 pages, got %v", res.Hits()[0].Pages)
+	}
+}
+
+// TestRangeFilterExcludesWrongFormat verifies that the pages and estimated reading time filters
+// only ever match the document format that field applies to, even when only the "to" bound is
+// set and "from" is left at its zero value: the pages filter must never match EPUBs (always
+// indexed with Pages == 0), and the reading time filter must never match PDFs (always indexed
+// with Words == 0).
+func TestRangeFilterExcludesWrongFormat(t *testing.T) {
+	cases := []struct {
+		name         string
+		readers      map[string]metadata.Reader
+		searchFields index.SearchFields
+		wantFormat   string
+	}{
+		{
+			name: "Pages filter excludes EPUBs",
+			readers: map[string]metadata.Reader{
+				".epub": formatMockReader{format: "EPUB"},
+				".pdf":  formatMockReader{format: "PDF", pages: 100},
+			},
+			searchFields: index.SearchFields{PagesTo: 200},
+			wantFormat:   "PDF",
+		},
+		{
+			name: "Reading time filter excludes PDFs",
+			readers: map[string]metadata.Reader{
+				".epub": formatMockReader{format: "EPUB", words: 24000},
+				".pdf":  formatMockReader{format: "PDF"},
+			},
+			searchFields: index.SearchFields{EstReadTimeTo: 3, WordsPerMinute: 200},
+			wantFormat:   "EPUB",
+		},
+	}
+
+	for _, tcase := range cases {
+		t.Run(tcase.name, func(t *testing.T) {
+			indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+			if err != nil {
+				t.Fatalf("Error initialising index: %v", err)
+			}
+			appFS := afero.NewMemMapFs()
+			appFS.MkdirAll("lib", 0755)
+			afero.WriteFile(appFS, "lib/book.epub", []byte(""), 0644)
+			afero.WriteFile(appFS, "lib/book.pdf", []byte(""), 0644)
+
+			authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+			idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", tcase.readers, index.Config{})
+			if err = idx.AddLibrary(1, true, 0); err != nil {
+				t.Fatalf("Error indexing: %s", err.Error())
+			}
+
+			res, err := idx.Search(tcase.searchFields, 1, 10)
+			if err != nil {
+				t.Fatalf("Error searching: %s", err.Error())
+			}
+			if res.TotalHits() != 1 {
+				t.Fatalf("Expected 1 document, got %d", res.TotalHits())
+			}
+			if res.Hits()[0].Format != tcase.wantFormat {
+				t.Errorf("Expected the %s document, got %s", tcase.wantFormat, res.Hits()[0].Format)
+			}
+		})
+	}
+}
+
+// TestReadingTimeFilterKeepsEPUBsWithNoWordCount verifies that an EPUB indexed with Words == 0
+// (e.g. because word-count extraction failed for it) is not hidden by the reading time filter,
+// since excluding it can't be distinguished from legitimately excluding PDFs by word count alone.
+func TestReadingTimeFilterKeepsEPUBsWithNoWordCount(t *testing.T) {
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatalf("Error initialising index: %v", err)
+	}
+	mockMetadataReaders := map[string]metadata.Reader{
+		".epub": formatMockReader{format: "EPUB"}, // words left at zero, as if extraction failed
+	}
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+	afero.WriteFile(appFS, "lib/book.epub", []byte(""), 0644)
+
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
+	if err = idx.AddLibrary(1, true, 0); err != nil {
+		t.Fatalf("Error indexing: %s", err.Error())
+	}
+
+	res, err := idx.Search(index.SearchFields{EstReadTimeTo: 3, WordsPerMinute: 200}, 1, 10)
+	if err != nil {
+		t.Fatalf("Error searching: %s", err.Error())
+	}
+	if res.TotalHits() != 1 {
+		t.Fatalf("Expected 1 document (the EPUB with no word count), got %d", res.TotalHits())
+	}
+}
+
+// illustratedMockReader returns metadata with configurable Illustrations per file (for testing IllustratedOnly filter).
+type illustratedMockReader struct {
+	illustrationsByFile map[string]int
+}
+
+func (m illustratedMockReader) Metadata(filename string) (metadata.Metadata, error) {
+	illustrations := 0
+	if n, ok := m.illustrationsByFile[filename]; ok {
+		illustrations = n
+	}
+	base := "book"
+	if len(filename) > 0 {
+		base = filename
+	}
+	return metadata.Metadata{
+		Title:         base,
+		Authors:       []string{"Author"},
+		Description:   "<p>Description</p>",
+		Language:      "en",
+		Format:        "EPUB",
+		Subjects:      []string{"Fiction"},
+		Illustrations: illustrations,
+		Publication:   precisiondate.NewPrecisionDate("2020-01-01T00:00:00Z", precisiondate.PrecisionDay),
+	}, nil
+}
+
+func (m illustratedMockReader) Cover(documentFullPath string, coverMaxWidth int) (image.Image, error) {
+	return nil, nil
+}
+
+func TestSearchIllustratedDocuments(t *testing.T) {
+	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatalf("Error initialising index: %v", err)
+	}
+
+	mockReader := illustratedMockReader{
+		illustrationsByFile: map[string]int{
+			"lib/no-illustrations.epub":   0,
+			"lib/few-illustrations.epub":  2,
+			"lib/many-illustrations.epub": 5,
+		},
+	}
+	mockMetadataReaders := map[string]metadata.Reader{
+		".epub": mockReader,
+	}
+
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+	for _, f := range []string{"lib/no-illustrations.epub", "lib/few-illustrations.epub", "lib/many-illustrations.epub"} {
+		if err = afero.WriteFile(appFS, f, []byte(""), 0644); err != nil {
+			t.Fatalf("Couldn't write file %s: %v", f, err)
+		}
+	}
+
+	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{
+		IllustratedMinAmount: 2,
+	})
+
+	if err = idx.AddLibrary(1, true, 0); err != nil {
+		t.Fatalf("Error indexing: %v", err)
+	}
+
+	t.Run("Without IllustratedOnly filter returns all documents", func(t *testing.T) {
+		res, err := idx.Search(index.SearchFields{}, 1, 10)
+		if err != nil {
+			t.Fatalf("Error searching: %v", err)
+		}
+		if res.TotalHits() != 3 {
+			t.Errorf("Expected 3 results without filter, got %d", res.TotalHits())
+		}
+	})
+
+	t.Run("With IllustratedOnly filter returns only documents with at least IllustratedMinAmount illustrations", func(t *testing.T) {
+		res, err := idx.Search(index.SearchFields{
+			IllustratedOnly: true,
+		}, 1, 10)
+		if err != nil {
+			t.Fatalf("Error searching: %v", err)
+		}
+		if res.TotalHits() != 2 {
+			t.Errorf("Expected 2 illustrated documents (few and many), got %d", res.TotalHits())
+		}
+		for _, doc := range res.Hits() {
+			if doc.Illustrations < 2 {
+				t.Errorf("Expected Illustrations >= 2 for %s, got %d", doc.ID, doc.Illustrations)
+			}
+		}
+	})
+
+	t.Run("With IllustratedOnly and IllustratedMinAmount 0 returns all documents", func(t *testing.T) {
+		indexMem2, _ := bleve.NewMemOnly(index.CreateDocumentsMapping())
+		authorsIndexMem2, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
+		idx2 := index.NewBleve(indexMem2, authorsIndexMem2, appFS, "lib", mockMetadataReaders, index.Config{
+			IllustratedMinAmount: 0,
+		})
+		if err = idx2.AddLibrary(1, true, 0); err != nil {
+			t.Fatalf("Error indexing: %v", err)
+		}
+		res, err := idx2.Search(index.SearchFields{
+			IllustratedOnly: true,
+		}, 1, 10)
+		if err != nil {
+			t.Fatalf("Error searching: %v", err)
+		}
+		if res.TotalHits() != 3 {
+			t.Errorf("Expected 3 results when IllustratedMinAmount is 0, got %d", res.TotalHits())
+		}
+	})
+}
+
 func TestSearchResultsSortedByDate(t *testing.T) {
 	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
@@ -183,78 +451,7 @@ func TestSearchResultsSortedByDate(t *testing.T) {
 	}
 
 	mockMetadataReaders := map[string]metadata.Reader{
-		".epub": metadata.EpubReader{
-			GetMetadataFromFile: func(file string) (*epub.Information, error) {
-				switch file {
-				case "lib/oldest.epub":
-					return &epub.Information{
-						Title: []string{"Oldest Book"},
-						Creator: []epub.Author{
-							{FullName: "Ancient Author", Role: "aut"},
-						},
-						Description: []string{"The oldest book"},
-						Language:    []string{"en"},
-						Subject:     []string{"History"},
-						Date: []epub.Date{
-							{Stamp: "1800-01-01", Event: "publication"},
-						},
-					}, nil
-				case "lib/older.epub":
-					return &epub.Information{
-						Title: []string{"Older Book"},
-						Creator: []epub.Author{
-							{FullName: "Old Author", Role: "aut"},
-						},
-						Description: []string{"An older book"},
-						Language:    []string{"en"},
-						Subject:     []string{"History"},
-						Date: []epub.Date{
-							{Stamp: "1900-06-15", Event: "publication"},
-						},
-					}, nil
-				case "lib/newer.epub":
-					return &epub.Information{
-						Title: []string{"Newer Book"},
-						Creator: []epub.Author{
-							{FullName: "New Author", Role: "aut"},
-						},
-						Description: []string{"A newer book"},
-						Language:    []string{"en"},
-						Subject:     []string{"History"},
-						Date: []epub.Date{
-							{Stamp: "2000-12-31", Event: "publication"},
-						},
-					}, nil
-				case "lib/newest.epub":
-					return &epub.Information{
-						Title: []string{"Newest Book"},
-						Creator: []epub.Author{
-							{FullName: "Modern Author", Role: "aut"},
-						},
-						Description: []string{"The newest book"},
-						Language:    []string{"en"},
-						Subject:     []string{"History"},
-						Date: []epub.Date{
-							{Stamp: "2023-03-20", Event: "publication"},
-						},
-					}, nil
-				case "lib/no-date.epub":
-					return &epub.Information{
-						Title: []string{"No Date Book"},
-						Creator: []epub.Author{
-							{FullName: "Unknown Author", Role: "aut"},
-						},
-						Description: []string{"A book without publication date"},
-						Language:    []string{"en"},
-						Subject:     []string{"History"},
-						Date:        []epub.Date{},
-					}, nil
-				default:
-					return nil, fmt.Errorf("unknown file: %s", file)
-				}
-			},
-			GetPackageFromFile: epub.GetPackageFromFile,
-		},
+		".epub": epubTestReader{info: publicationDateSortLibrary()},
 	}
 
 	appFS := afero.NewMemMapFs()
@@ -269,15 +466,15 @@ func TestSearchResultsSortedByDate(t *testing.T) {
 	}
 
 	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
-	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
-	if err = idx.AddLibrary(1, true); err != nil {
+	if err = idx.AddLibrary(1, true, 0); err != nil {
 		t.Fatalf("Error indexing: %v", err)
 	}
 
 	t.Run("Test search results sorted by publication date older first", func(t *testing.T) {
 		res, err := idx.Search(index.SearchFields{
-			Keywords: "history",
+			Subjects: "History",
 			SortBy:   []string{"Publication.Date"},
 		}, 1, 10)
 
@@ -300,7 +497,7 @@ func TestSearchResultsSortedByDate(t *testing.T) {
 
 	t.Run("Test search results sorted by publication date newer first", func(t *testing.T) {
 		res, err := idx.Search(index.SearchFields{
-			Keywords: "history",
+			Subjects: "History",
 			SortBy:   []string{"-Publication.Date"},
 		}, 1, 10)
 
@@ -322,84 +519,6 @@ func TestSearchResultsSortedByDate(t *testing.T) {
 	})
 }
 
-// Create a custom metadata reader that sets different word counts
-type mockEpubReader struct {
-	metadata.EpubReader
-}
-
-func (m mockEpubReader) Metadata(filename string) (metadata.Metadata, error) {
-	// Get the base metadata from the mock
-	meta, err := m.GetMetadataFromFile(filename)
-	if err != nil {
-		return metadata.Metadata{}, err
-	}
-
-	// Create metadata with custom word counts based on filename
-	var wordCount float64
-	switch filename {
-	case "lib/shortest.epub":
-		wordCount = 1000 // 1000 words
-	case "lib/shorter.epub":
-		wordCount = 5000 // 5000 words
-	case "lib/longer.epub":
-		wordCount = 15000 // 15000 words
-	case "lib/longest.epub":
-		wordCount = 50000 // 50000 words
-	case "lib/no-words.epub":
-		wordCount = 0 // 0 words
-	case "lib/book19.epub":
-		wordCount = 24000 // 24000 words = 2 hours at 200 wpm
-	default:
-		wordCount = 1000 // Default to 1000 words for other files
-	}
-
-	// Create the metadata manually
-	title := meta.Title[0]
-	var authors []string
-	for _, creator := range meta.Creator {
-		if creator.Role == "aut" || creator.Role == "" {
-			authors = append(authors, creator.FullName)
-		}
-	}
-	if len(authors) == 0 {
-		authors = []string{""}
-	}
-
-	description := ""
-	if len(meta.Description) > 0 {
-		description = "<p>" + meta.Description[0] + "</p>"
-	}
-
-	lang := ""
-	if len(meta.Language) > 0 {
-		lang = meta.Language[0]
-	}
-
-	publication := precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay}
-	for _, currentDate := range meta.Date {
-		if currentDate.Event == "publication" || currentDate.Event == "" {
-			if publication.Date, err = date.ParseISO(currentDate.Stamp); err != nil {
-				publication.Precision = precisiondate.PrecisionYear
-				publication.Date, _ = date.Parse("2006", currentDate.Stamp)
-			}
-			break
-		}
-	}
-
-	return metadata.Metadata{
-		Title:       title,
-		Authors:     authors,
-		Description: template.HTML(description),
-		Language:    lang,
-		Publication: publication,
-		Series:      meta.Series,
-		SeriesIndex: 0,
-		Format:      "EPUB",
-		Subjects:    meta.Subject,
-		Words:       wordCount,
-	}, nil
-}
-
 func TestSearchResultsSortedByReadingTime(t *testing.T) {
 	indexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
@@ -407,80 +526,7 @@ func TestSearchResultsSortedByReadingTime(t *testing.T) {
 	}
 
 	mockMetadataReaders := map[string]metadata.Reader{
-		".epub": mockEpubReader{
-			EpubReader: metadata.EpubReader{
-				GetMetadataFromFile: func(file string) (*epub.Information, error) {
-					switch file {
-					case "lib/shortest.epub":
-						return &epub.Information{
-							Title: []string{"Shortest Book"},
-							Creator: []epub.Author{
-								{FullName: "Short Author", Role: "aut"},
-							},
-							Description: []string{"The shortest book"},
-							Language:    []string{"en"},
-							Subject:     []string{"Short Stories"},
-							Date: []epub.Date{
-								{Stamp: "2020-01-01", Event: "publication"},
-							},
-						}, nil
-					case "lib/shorter.epub":
-						return &epub.Information{
-							Title: []string{"Shorter Book"},
-							Creator: []epub.Author{
-								{FullName: "Medium Author", Role: "aut"},
-							},
-							Description: []string{"A shorter book"},
-							Language:    []string{"en"},
-							Subject:     []string{"Short Stories"},
-							Date: []epub.Date{
-								{Stamp: "2020-06-15", Event: "publication"},
-							},
-						}, nil
-					case "lib/longer.epub":
-						return &epub.Information{
-							Title: []string{"Longer Book"},
-							Creator: []epub.Author{
-								{FullName: "Long Author", Role: "aut"},
-							},
-							Description: []string{"A longer book"},
-							Language:    []string{"en"},
-							Subject:     []string{"Novels"},
-							Date: []epub.Date{
-								{Stamp: "2020-12-31", Event: "publication"},
-							},
-						}, nil
-					case "lib/longest.epub":
-						return &epub.Information{
-							Title: []string{"Longest Book"},
-							Creator: []epub.Author{
-								{FullName: "Epic Author", Role: "aut"},
-							},
-							Description: []string{"The longest book"},
-							Language:    []string{"en"},
-							Subject:     []string{"Epic Novels"},
-							Date: []epub.Date{
-								{Stamp: "2023-03-20", Event: "publication"},
-							},
-						}, nil
-					case "lib/no-words.epub":
-						return &epub.Information{
-							Title: []string{"No Words Book"},
-							Creator: []epub.Author{
-								{FullName: "Unknown Author", Role: "aut"},
-							},
-							Description: []string{"A book without word count"},
-							Language:    []string{"en"},
-							Subject:     []string{"Mystery"},
-							Date:        []epub.Date{},
-						}, nil
-					default:
-						return nil, fmt.Errorf("unknown file: %s", file)
-					}
-				},
-				GetPackageFromFile: epub.GetPackageFromFile,
-			},
-		},
+		".epub": readingTimeSortReader(),
 	}
 
 	appFS := afero.NewMemMapFs()
@@ -495,9 +541,9 @@ func TestSearchResultsSortedByReadingTime(t *testing.T) {
 	}
 
 	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
-	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
-	if err = idx.AddLibrary(1, true); err != nil {
+	if err = idx.AddLibrary(1, true, 0); err != nil {
 		t.Fatalf("Error indexing: %v", err)
 	}
 
@@ -1136,7 +1182,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{
-				Keywords: "history",
+				Subjects: "History",
 				SortBy:   []string{"Publication.Date"},
 			},
 			result.NewPaginated(
@@ -1185,7 +1231,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{
-				Keywords: "technology",
+				Subjects: "Technology",
 				SortBy:   []string{"-Publication.Date"},
 			},
 			result.NewPaginated(
@@ -1234,7 +1280,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{
-				Keywords: "literature",
+				Subjects: "Literature",
 				SortBy:   []string{"Publication.Date"},
 			},
 			result.NewPaginated(
@@ -1283,7 +1329,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{
-				Keywords: "history",
+				Subjects: "History",
 				SortBy:   []string{"Publication.Date"},
 			},
 			result.NewPaginated(

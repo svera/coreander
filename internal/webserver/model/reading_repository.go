@@ -1,135 +1,179 @@
 package model
 
 import (
+	"errors"
+	"fmt"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/result"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 type ReadingRepository struct {
-	DB *gorm.DB
+	DB  *gorm.DB
+	Idx idxReader
 }
 
-func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error) {
-	docs := []string{}
-	var total int64
+func (u *ReadingRepository) Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]AugmentedDocument], error) {
+	if u.Idx == nil {
+		return result.Paginated[[]AugmentedDocument]{}, errors.New("reading repository: idx required for Latest")
+	}
+	query := u.DB.Model(&Reading{}).Where("user_id = ? AND completed_on IS NULL", userID)
 
-	res := u.DB.Scopes(Paginate(page, resultsPerPage)).Table("readings").Select("path").Where("user_id = ?", userID).Order("updated_at DESC").Pluck("path", &docs)
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		log.Printf("error counting documents in progress: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
+
+	var rows []Reading
+	res := query.Order("updated_at DESC").Scopes(Paginate(page, resultsPerPage)).Find(&rows)
 	if res.Error != nil {
 		log.Printf("error listing documents in progress: %s\n", res.Error)
-		return result.Paginated[[]string]{}, res.Error
+		return result.Paginated[[]AugmentedDocument]{}, res.Error
 	}
-	u.DB.Table("readings").Where("user_id = ?", userID).Count(&total)
+
+	slugs := make([]string, 0, len(rows))
+	for _, r := range rows {
+		slugs = append(slugs, r.Slug)
+	}
+	if len(slugs) == 0 {
+		return result.NewPaginated(resultsPerPage, page, int(total), []AugmentedDocument{}), nil
+	}
+
+	docBySlug, err := u.Idx.Documents(slugs)
+	if err != nil {
+		log.Printf("error loading documents for in-progress list: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
+
+	augmented := make([]AugmentedDocument, 0, len(rows))
+	for _, r := range rows {
+		doc, ok := docBySlug[r.Slug]
+		if !ok || doc.Slug == "" {
+			continue
+		}
+		augmented = append(augmented, AugmentedDocument{
+			Document:          doc,
+			ReadingPercentage: ClampReadingPercentage(r.Percentage),
+		})
+	}
 
 	return result.NewPaginated(
 		resultsPerPage,
 		page,
 		int(total),
-		docs,
+		augmented,
 	), nil
 }
 
-func (u *ReadingRepository) Get(userID int, documentPath string) (Reading, error) {
+func (u *ReadingRepository) Get(userID int, documentSlug string) (Reading, error) {
 	var reading Reading
-	err := u.DB.Where("user_id = ? AND path = ?", userID, documentPath).First(&reading).Error
+	err := u.DB.Where("user_id = ? AND slug = ?", userID, documentSlug).First(&reading).Error
 	return reading, err
 }
 
-func (u *ReadingRepository) Update(userID int, documentPath, position string) error {
-	progress := Reading{
+func (u *ReadingRepository) Update(userID int, documentSlug, position string, percentage *int) error {
+	row := Reading{
 		UserID:   userID,
-		Path:     documentPath,
+		Slug:     documentSlug,
 		Position: position,
 	}
-	return u.DB.Clauses(clause.OnConflict{UpdateAll: true}).Create(&progress).Error
+	columns := []string{"position", "updated_at"}
+	if position == "" {
+		row.Percentage = 0
+		columns = append(columns, "percentage")
+	} else if percentage != nil {
+		row.Percentage = ClampReadingPercentage(*percentage)
+		columns = append(columns, "percentage")
+	}
+	return u.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "user_id"}, {Name: "slug"}},
+		DoUpdates: clause.AssignmentColumns(columns),
+	}).Create(&row).Error
 }
 
 // Touch creates a reading record if it doesn't exist, but doesn't update it if it does.
 // This is used to track that a document has been opened without overwriting existing positions.
 // Sets updated_at to NULL initially - it will only be set when the reading position is actually updated.
-func (u *ReadingRepository) Touch(userID int, documentPath string) error {
-	// Check if record already exists
-	var count int64
-	u.DB.Model(&Reading{}).Where("user_id = ? AND path = ?", userID, documentPath).Count(&count)
-	if count > 0 {
-		return nil // Record already exists, do nothing
-	}
-
-	// Create new record with updated_at set to NULL
-	now := time.Now()
-	return u.DB.Exec(
-		"INSERT INTO readings (user_id, path, position, created_at, updated_at, completed_on) VALUES (?, ?, ?, ?, ?, ?)",
-		userID, documentPath, "", now, nil, nil,
-	).Error
+func (u *ReadingRepository) Touch(userID int, documentSlug string) error {
+	return u.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&Reading{
+		UserID: userID,
+		Slug:   documentSlug,
+	}).Error
 }
 
-func (u *ReadingRepository) RemoveDocument(documentPath string) error {
-	return u.DB.Where("path = ?", documentPath).Delete(&Reading{}).Error
+func (u *ReadingRepository) RemoveDocument(documentSlug string) error {
+	return u.DB.Where("slug = ?", documentSlug).Delete(&Reading{}).Error
 }
 
-func (u *ReadingRepository) UpdateCompletionDate(userID int, documentPath string, completedAt *time.Time) error {
+func (u *ReadingRepository) UpdateCompletionDate(userID int, documentSlug string, completedAt *time.Time) error {
 	return u.DB.Model(&Reading{}).
-		Where("user_id = ? AND path = ?", userID, documentPath).
+		Where("user_id = ? AND slug = ?", userID, documentSlug).
 		UpdateColumn("completed_on", completedAt).Error
 }
 
-func (u *ReadingRepository) Completed(userID int, doc index.Document) index.Document {
+func (u *ReadingRepository) CompletedOn(userID int, documentSlug string) (*time.Time, error) {
 	var reading Reading
-	err := u.DB.Where("user_id = ? AND path = ? AND completed_on IS NOT NULL", userID, doc.ID).First(&reading).Error
-	if err == nil && reading.CompletedOn != nil {
-		doc.CompletedOn = reading.CompletedOn
+	err := u.DB.Where("user_id = ? AND slug = ? AND completed_on IS NOT NULL", userID, documentSlug).First(&reading).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
 	}
-	return doc
+	return reading.CompletedOn, nil
 }
 
-func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document] {
-	paths := make([]string, 0, len(results.Hits()))
-	documents := make([]index.Document, len(results.Hits()))
+func (u *ReadingRepository) CompletedPaginatedResult(userID int, results result.Paginated[[]AugmentedDocument]) result.Paginated[[]AugmentedDocument] {
+	slugs := make([]string, 0, len(results.Hits()))
+	searchResults := make([]AugmentedDocument, len(results.Hits()))
 
-	for _, doc := range results.Hits() {
-		paths = append(paths, doc.ID)
+	for _, searchResult := range results.Hits() {
+		slugs = append(slugs, searchResult.Slug)
 	}
 
 	var readings []Reading
 	u.DB.Where(
-		"user_id = ? AND path IN (?) AND completed_on IS NOT NULL",
+		"user_id = ? AND slug IN (?) AND completed_on IS NOT NULL",
 		userID,
-		paths,
+		slugs,
 	).Find(&readings)
 
 	// Create a map for quick lookup
 	readingMap := make(map[string]*time.Time)
 	for _, r := range readings {
 		if r.CompletedOn != nil {
-			readingMap[r.Path] = r.CompletedOn
+			readingMap[r.Slug] = r.CompletedOn
 		}
 	}
 
-	for i, doc := range results.Hits() {
-		documents[i] = doc
-		if completedOn, exists := readingMap[doc.ID]; exists {
-			documents[i].CompletedOn = completedOn
+	for i, searchResult := range results.Hits() {
+		if completedOn, exists := readingMap[searchResult.Slug]; exists {
+			searchResult.CompletedOn = completedOn
 		}
+		searchResults[i] = searchResult
 	}
 
 	return result.NewPaginated(
 		ResultsPerPage,
 		results.Page(),
 		results.TotalHits(),
-		documents,
+		searchResults,
 	)
 }
 
-// CompletedBetweenDates returns paths of all readings completed by a user.
+// CompletedBetweenDates returns slugs of all readings completed by a user.
 // If startDate and endDate are provided, it filters readings completed between those dates (inclusive).
 // If startDate or endDate are nil, they are not used as filters.
 func (u *ReadingRepository) CompletedBetweenDates(userID int, startDate, endDate *time.Time) ([]string, error) {
-	var paths []string
-	query := u.DB.Table("readings").Select("path").Where("user_id = ? AND completed_on IS NOT NULL", userID)
+	var slugs []string
+	query := u.DB.Table("readings").Select("slug").Where("user_id = ? AND completed_on IS NOT NULL", userID)
 
 	if startDate != nil {
 		query = query.Where("completed_on >= ?", startDate)
@@ -139,12 +183,152 @@ func (u *ReadingRepository) CompletedBetweenDates(userID int, startDate, endDate
 		query = query.Where("completed_on <= ?", endDate)
 	}
 
-	err := query.Order("completed_on DESC").Pluck("path", &paths).Error
+	err := query.Order("completed_on DESC").Pluck("slug", &slugs).Error
 
 	if err != nil {
 		log.Printf("error getting completed readings: %s\n", err)
 		return nil, err
 	}
 
-	return paths, nil
+	return slugs, nil
+}
+
+// CompletedPaginatedBetweenDates returns paginated completed readings for a user as AugmentedDocuments, optionally filtered by date range (inclusive).
+// When startDate and endDate are both nil, all completed readings are returned.
+// orderBy is e.g. "completed_on DESC" or "completed_on ASC"; if empty, "completed_on DESC" is used.
+// Requires Idx to be set; documents missing from the index are skipped from the page but total count is the DB count.
+func (u *ReadingRepository) CompletedPaginatedBetweenDates(userID int, startDate, endDate *time.Time, page int, resultsPerPage int, orderBy string) (result.Paginated[[]AugmentedDocument], error) {
+	if u.Idx == nil {
+		return result.Paginated[[]AugmentedDocument]{}, errors.New("reading repository: idx required for CompletedPaginatedBetweenDates")
+	}
+	var readings []Reading
+
+	if orderBy == "" {
+		orderBy = "completed_on DESC"
+	}
+
+	baseQuery := u.DB.Model(&Reading{}).Where("user_id = ? AND completed_on IS NOT NULL", userID)
+	if startDate != nil {
+		baseQuery = baseQuery.Where("completed_on >= ?", startDate)
+	}
+	if endDate != nil {
+		baseQuery = baseQuery.Where("completed_on <= ?", endDate)
+	}
+
+	var total int64
+	if err := baseQuery.Count(&total).Error; err != nil {
+		log.Printf("error counting completed readings: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
+
+	res := baseQuery.Order(orderBy).Scopes(Paginate(page, resultsPerPage)).Find(&readings)
+	if res.Error != nil {
+		log.Printf("error listing completed readings: %s\n", res.Error)
+		return result.Paginated[[]AugmentedDocument]{}, res.Error
+	}
+
+	slugs := make([]string, 0, len(readings))
+	for _, r := range readings {
+		slugs = append(slugs, r.Slug)
+	}
+	docBySlug, err := u.Idx.Documents(slugs)
+	if err != nil {
+		log.Printf("error getting documents: %s\n", err)
+		return result.Paginated[[]AugmentedDocument]{}, err
+	}
+	augmented := make([]AugmentedDocument, 0, len(readings))
+	for _, r := range readings {
+		if doc, ok := docBySlug[r.Slug]; ok {
+			augmented = append(augmented, AugmentedDocument{Document: doc, CompletedOn: r.CompletedOn})
+		}
+	}
+
+	return result.NewPaginated(
+		resultsPerPage,
+		page,
+		int(total),
+		augmented,
+	), nil
+}
+
+// CompletedYears returns the years with completed readings for a user.
+func (u *ReadingRepository) CompletedYears(userID uint) ([]int, error) {
+	var yearStrings []string
+	err := u.DB.Raw(
+		"SELECT DISTINCT strftime('%Y', completed_on) AS year FROM readings WHERE user_id = ? AND completed_on IS NOT NULL AND strftime('%Y', completed_on) <> strftime('%Y', 'now') ORDER BY year DESC",
+		userID,
+	).Scan(&yearStrings).Error
+	if err != nil {
+		log.Printf("error getting completed years: %s\n", err)
+		return nil, err
+	}
+
+	years := make([]int, 0, len(yearStrings))
+	for _, yearString := range yearStrings {
+		if year, convErr := strconv.Atoi(yearString); convErr == nil {
+			years = append(years, year)
+		}
+	}
+
+	return years, nil
+}
+
+// completedStatsByYearRow is used to scan the raw SQL result.
+type completedStatsByYearRow struct {
+	Year    string
+	SlugsCS string
+}
+
+// CompletedStatsByYear returns aggregated stats per year (and "all time" as year 0) including estimated reading time.
+// wordsPerMinute is used to compute ReadingTime for each year. Requires Idx (TotalWordCount) to be set.
+func (u *ReadingRepository) CompletedStatsByYear(userID int, wordsPerMinute float64) ([]CompletedYearStats, error) {
+	if u.Idx == nil {
+		return nil, errors.New("reading repository: idx required for CompletedStatsByYear")
+	}
+	var rows []completedStatsByYearRow
+	err := u.DB.Raw(
+		`SELECT strftime('%Y', completed_on) AS year, group_concat(slug) AS slugs_cs
+		 FROM readings
+		 WHERE user_id = ? AND completed_on IS NOT NULL
+		 GROUP BY strftime('%Y', completed_on)
+		 ORDER BY year DESC`,
+		userID,
+	).Scan(&rows).Error
+	if err != nil {
+		log.Printf("error getting completed stats by year: %s\n", err)
+		return nil, err
+	}
+
+	var allSlugs []string
+	yearStats := make([]CompletedYearStats, 0, len(rows))
+	for _, r := range rows {
+		year, _ := strconv.Atoi(r.Year)
+		slugs := []string{}
+		if r.SlugsCS != "" {
+			slugs = strings.Split(r.SlugsCS, ",")
+		}
+		allSlugs = append(allSlugs, slugs...)
+		words, _ := u.Idx.TotalWordCount(slugs)
+		yearStats = append(yearStats, CompletedYearStats{
+			Year:          year,
+			DocumentCount: len(slugs),
+			ReadingTime:   wordsToReadingTime(words, wordsPerMinute),
+		})
+	}
+	allWords, _ := u.Idx.TotalWordCount(allSlugs)
+	return append([]CompletedYearStats{{
+		Year:          0,
+		DocumentCount: len(allSlugs),
+		ReadingTime:   wordsToReadingTime(allWords, wordsPerMinute),
+	}}, yearStats...), nil
+}
+
+func wordsToReadingTime(words, wordsPerMinute float64) string {
+	if words <= 0 || wordsPerMinute <= 0 {
+		return ""
+	}
+	if readingTime, err := time.ParseDuration(fmt.Sprintf("%fm", words/wordsPerMinute)); err == nil {
+		return metadata.FmtDuration(readingTime)
+	}
+	return ""
 }

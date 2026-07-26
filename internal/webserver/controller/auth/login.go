@@ -1,19 +1,12 @@
 package auth
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/gofiber/fiber/v3"
 )
 
-func (a *Controller) Login(c *fiber.Ctx) error {
-	emailSendingConfigured := true
-	if _, ok := a.sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
-	}
-
+func (a *Controller) Login(c fiber.Ctx) error {
 	return c.Render("auth/login", fiber.Map{
-		"Title":                  a.translator.T(c.Locals("Lang").(string), "Sign in"),
-		"EmailSendingConfigured": emailSendingConfigured,
-		"DisableLoginLink":       true,
+		"Title":            a.translator.T(c.Locals("Lang").(string), "Sign in"),
+		"DisableLoginLink": true,
 	}, "layout")
 }

@@ -3,11 +3,11 @@ package highlight
 import (
 	"log"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
-func (h *Controller) Create(c *fiber.Ctx) error {
+func (h *Controller) Create(c fiber.Ctx) error {
 	user := c.Locals("Session").(model.Session)
 
 	document, err := h.idx.Document(c.Params("slug"))
@@ -15,7 +15,7 @@ func (h *Controller) Create(c *fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	if err = h.hlRepository.Highlight(int(user.ID), document.ID); err != nil {
+	if err = h.hlRepository.Highlight(int(user.ID), document.Slug); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}

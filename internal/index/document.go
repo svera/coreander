@@ -4,30 +4,33 @@ import (
 	"time"
 
 	"github.com/rickb777/date/v2"
-	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v5/internal/metadata"
 )
 
 type SearchFields struct {
 	Keywords        string
 	Language        string
+	Subjects        string
 	PubDateFrom     date.Date
 	PubDateTo       date.Date
 	EstReadTimeFrom float64
 	EstReadTimeTo   float64
 	WordsPerMinute  float64
+	PagesFrom       float64
+	PagesTo         float64
+	IllustratedOnly bool
 	SortBy          []string
 }
 
 type Document struct {
 	metadata.Metadata
-	ID            string
-	Slug          string
-	AuthorsSlugs  []string
-	SeriesSlug    string
-	SubjectsSlugs []string
-	Highlighted   bool
-	CompletedOn   *time.Time
-	AddedOn       time.Time
+	ID                string
+	Slug              string
+	AuthorsSlugs      []string
+	IllustratorsSlugs []string
+	SeriesSlug        string
+	SubjectsSlugs     []string
+	AddedOn           time.Time
 }
 
 // BleveType is part of the bleve.Classifier interface and its purpose is to tell the indexer

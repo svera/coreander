@@ -1,0 +1,158 @@
+{{$idPrefix := or .FilterIdPrefix ""}}
+<div class="search-filters-panel p-3" id="document-search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
+    {{if and $idPrefix (not .HideSearch)}}
+    <fieldset class="mb-4">
+        <legend class="fs-5"><i class="bi bi-search me-3"></i>{{t .Lang "Search"}}</legend>
+        <div class="row">
+            <div class="col-12 px-0">
+                {{$keywords := ""}}
+                {{if .SearchFields}}
+                    {{$keywords = .SearchFields.Keywords}}
+                {{end}}
+                <label for="{{$idPrefix}}-search" class="visually-hidden">{{t .Lang "search"}}</label>
+                <input type="search" name="search" id="{{$idPrefix}}-search" class="form-control" maxlength="255" value="{{$keywords}}" placeholder="{{t .Lang "Search"}}..." aria-label="{{t .Lang "Search"}}">
+            </div>
+        </div>
+    </fieldset>
+    {{end}}
+    {{if .AvailableLanguages}}
+    <fieldset>
+        <legend class="fs-5"><i class="bi bi-translate me-3"></i>{{t .Lang "Language"}}</legend>
+        <div class="row">
+            <div class="col-12 px-0">
+                {{$language := ""}}
+                {{if .SearchFields}}
+                    {{$language = .SearchFields.Language}}
+                {{end}}
+                    <label class="visually-hidden" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}language">{{t .Lang "Language"}}</label>
+                    <select class="form-select" name="language" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}language">
+                        <option value="">{{t .Lang "All languages"}}</option>
+                        {{range $lang := .AvailableLanguages}}
+                        <option value="{{$lang}}" {{if eq $lang $language}}selected{{end}}>{{languageName $lang}}</option>
+                        {{end}}
+                    </select>
+            </div>
+        </div>
+    </fieldset>
+    {{end}}
+    <fieldset class="mt-4">
+        <legend class="fs-5"><i class="bi bi-tags me-3"></i>{{t .Lang "Subjects"}}</legend>
+        <div class="row">
+            <div class="col-12 px-0">
+                {{$subject := ""}}
+                {{if .SearchFields}}
+                    {{$subject = .SearchFields.Subjects}}
+                {{end}}
+                <input type="hidden" name="subjects" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}subjects-hidden" value="{{$subject}}">
+                <input type="text" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}subjects" class="form-control" placeholder='{{t .Lang "Filter subjects..."}}' maxlength="255" list="{{if $idPrefix}}{{$idPrefix}}-{{end}}subjects-list" autocomplete="off">
+                <datalist id="{{if $idPrefix}}{{$idPrefix}}-{{end}}subjects-list"></datalist>
+                <div id="{{if $idPrefix}}{{$idPrefix}}-{{end}}subjects-badges-container" class="d-flex flex-wrap gap-2 mt-2 d-none">
+                </div>
+            </div>
+        </div>
+    </fieldset>
+    <fieldset class="mt-4">
+        <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Publishing date"}}</legend>
+        <div class="row">
+            <div class="col-12 {{if .HomeSearch}}col-xl-6{{end}} mb-3 px-0">
+                {{$pubDateFrom := ""}}
+                {{if .SearchFields}}
+                    {{$pubDateFrom = .SearchFields.PubDateFrom}}
+                {{end}}
+                {{template "partials/date-control" dict "Name" "pub-date-from" "Lang" .Lang "Date" $pubDateFrom "Label" "From" "IdPrefix" $idPrefix }}
+            </div>
+            <div class="col-12 {{if .HomeSearch}}col-xl-6 ps-xl-2{{end}} px-0">
+                {{$pubDateTo := ""}}
+                {{if .SearchFields}}
+                    {{$pubDateTo = .SearchFields.PubDateTo}}
+                {{end}}
+                {{template "partials/date-control" dict "Name" "pub-date-to" "Lang" .Lang "Date" $pubDateTo "Label" "To" "IdPrefix" $idPrefix }}
+            </div>
+        </div>
+    </fieldset>
+    {{if .HasReflowableDocs}}
+    <fieldset class="mt-4">
+        <legend class="fs-5"><i class="bi bi-stopwatch me-3"></i>{{t .Lang "Reading time"}} <span class="reading-time-help-popover d-inline-block" role="button" tabindex="0" aria-label='{{t .Lang "This filter only applies to EPUB documents"}}' data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-content="{{t .Lang "This filter only applies to EPUB documents"}}"><i class="bi bi-info-circle text-muted ms-1 small"></i></span></legend>
+        <div class="row">
+            <div class="col-12 px-0">
+                <div class="input-group">
+                    {{$estReadTimeFrom := ""}}
+                    {{if .SearchFields}}
+                        {{$estReadTimeFrom = .SearchFields.EstReadTimeFrom}}
+                    {{end}}
+                    <div class="form-floating">
+                        <input class="col-9 col-sm-10 form-control" type="number" value="{{if $estReadTimeFrom}}{{$estReadTimeFrom}}{{end}}" min="0" max="1000" step="1" name="est-read-time-from" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}est-read-time-from" placeholder='{{t .Lang "From"}}'>
+                        <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}est-read-time-from">{{t .Lang "From"}}</label>
+                    </div>
+                    {{$estReadTimeTo := ""}}
+                    {{if .SearchFields}}
+                        {{$estReadTimeTo = .SearchFields.EstReadTimeTo}}
+                    {{end}}
+                    <div class="form-floating">
+                        <input class="col-9 col-sm-10 form-control" type="number" value="{{if $estReadTimeTo}}{{$estReadTimeTo}}{{end}}" min="0" max="1000" step="1" name="est-read-time-to" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}est-read-time-to" placeholder='{{t .Lang "To"}}'>
+                        <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}est-read-time-to">{{t .Lang "To"}}</label>
+                    </div>
+                    <span class="input-group-text">{{t .Lang "Hours"}}</span>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+    {{end}}
+    {{if .HasFixedDocs}}
+    <fieldset class="mt-4">
+        <legend class="fs-5"><i class="bi bi-book me-3"></i>{{t .Lang "Pages"}} <span class="reading-time-help-popover d-inline-block" role="button" tabindex="0" aria-label='{{t .Lang "This filter only applies to PDF documents"}}' data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-content="{{t .Lang "This filter only applies to PDF documents"}}"><i class="bi bi-info-circle text-muted ms-1 small"></i></span></legend>
+        <div class="row">
+            <div class="col-12 px-0">
+                <div class="input-group">
+                    {{$pagesFrom := ""}}
+                    {{if .SearchFields}}
+                        {{$pagesFrom = .SearchFields.PagesFrom}}
+                    {{end}}
+                    <div class="form-floating">
+                        <input class="col-9 col-sm-10 form-control" type="number" value="{{if $pagesFrom}}{{$pagesFrom}}{{end}}" min="0" max="10000" step="1" name="pages-from" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}pages-from" placeholder='{{t .Lang "From"}}'>
+                        <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}pages-from">{{t .Lang "From"}}</label>
+                    </div>
+                    {{$pagesTo := ""}}
+                    {{if .SearchFields}}
+                        {{$pagesTo = .SearchFields.PagesTo}}
+                    {{end}}
+                    <div class="form-floating">
+                        <input class="col-9 col-sm-10 form-control" type="number" value="{{if $pagesTo}}{{$pagesTo}}{{end}}" min="0" max="10000" step="1" name="pages-to" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}pages-to" placeholder='{{t .Lang "To"}}'>
+                        <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}pages-to">{{t .Lang "To"}}</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+    {{end}}
+    <fieldset class="mt-4">
+        <div class="row">
+            <div class="col-12 px-0">
+                {{$illustratedOnly := false}}
+                {{if .SearchFields}}
+                    {{$illustratedOnly = .SearchFields.IllustratedOnly}}
+                {{end}}
+                <div class="form-check fs-5">
+                    <input class="form-check-input" type="checkbox" name="illustrated-only" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}illustrated-only" value="on" {{if $illustratedOnly}}checked{{end}}>
+                    <label class="form-check-label big" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}illustrated-only">{{t .Lang "Only illustrated"}}</label>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+    {{if or .HomeSearch (not .DocumentsSearchPage)}}
+    <div class="row mt-4 g-0 w-100">
+        <div class="col-12 px-0">
+            <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
+        </div>
+    </div>
+    {{end}}
+</div>
+
+{{/* Include script and i18n from sidebar when on documents search page (so script runs after sidebar is in DOM); otherwise include from offcanvas. */}}
+{{if and (or $idPrefix (not .DocumentsSearchPage)) (not .HomeSearch)}}
+<script id="i18n" type="application/json">{"i18n":{
+    "remove_subject": {{t .Lang "Remove subject: %s" "%s"}}
+}}</script>
+
+<script type="module" src="/js/document-search-filters.js{{versionParam .Version}}"></script>
+{{end}}

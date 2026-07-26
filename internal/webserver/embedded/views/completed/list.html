@@ -1,0 +1,12 @@
+<h1 class="mt-5">{{t .Lang "Completions"}}</h1>
+
+{{template "partials/completed-list" .}}
+
+{{template "partials/condensed-list-placeholder" .}}
+
+<div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator">
+    {{template "partials/completed-list-results" .}}
+</div>
+
+<script type="module" src="/js/highlight.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/cover.js{{versionParam .Version}}"></script>

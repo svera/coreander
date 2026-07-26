@@ -2,53 +2,53 @@ package webserver
 
 import (
 	"fmt"
-	"net/http"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
-	"github.com/svera/coreander/v4/internal/i18n"
-	"github.com/svera/coreander/v4/internal/webserver/view"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/static"
+	"github.com/svera/coreander/v5/internal/i18n"
+	"github.com/svera/coreander/v5/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver/view"
 )
 
-func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, translator i18n.Translator, cfg Config, idx ProgressInfo) {
+func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, translator i18n.Translator, cfg Config, idx IndexInfo, usersRepository *model.UserRepository) {
 	// Middlewares
 	var (
 		allowIfNotLoggedIn          = AllowIfNotLoggedIn(jwtSecret)
-		alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender, translator)
-		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, translator, cfg.RequireAuth)
+		alwaysRequireAuthentication = AlwaysRequireAuthentication(jwtSecret, sender, translator, usersRepository, cfg.VersionChecker)
+		configurableAuthentication  = ConfigurableAuthentication(jwtSecret, sender, translator, cfg.RequireAuth, usersRepository, cfg.VersionChecker)
 	)
 
 	staticCacheControl := fmt.Sprintf("public, max-age=%d, immutable", cfg.ClientStaticCacheTTL)
 	staticCacheTime := fmt.Sprintf("%d", cfg.ServerStaticCacheTTL)
 
-	app.Use("/css", func(c *fiber.Ctx) error {
+	app.Use("/css", func(c fiber.Ctx) error {
 		// Set cache control headers for CSS and font files
 		c.Set("Cache-Control", staticCacheControl)
 		c.Append("Cache-Time", staticCacheTime)
 		return c.Next()
-	}, filesystem.New(filesystem.Config{
-		Root: http.FS(cssFS),
+	}, static.New("", static.Config{
+		FS: cssFS,
 	}))
 
-	app.Use("/js", func(c *fiber.Ctx) error {
+	app.Use("/js", func(c fiber.Ctx) error {
 		// Set cache control headers for JS files
 		c.Set("Cache-Control", staticCacheControl)
 		c.Append("Cache-Time", staticCacheTime)
 		return c.Next()
-	}, filesystem.New(filesystem.Config{
-		Root: http.FS(jsFS),
+	}, static.New("", static.Config{
+		FS: jsFS,
 	}))
 
-	app.Use("/images", func(c *fiber.Ctx) error {
+	app.Use("/images", func(c fiber.Ctx) error {
 		// Set cache control headers for image files
 		c.Set("Cache-Control", staticCacheControl)
 		c.Append("Cache-Time", staticCacheTime)
 		return c.Next()
-	}, filesystem.New(filesystem.Config{
-		Root: http.FS(imagesFS),
+	}, static.New("", static.Config{
+		FS: imagesFS,
 	}))
 
-	app.Use(func(c *fiber.Ctx) error {
+	app.Use(func(c fiber.Ctx) error {
 		c.Locals("Version", c.App().Config().AppName)
 		c.Locals("SupportedLanguages", supportedLanguages)
 		c.Locals("Lang", chooseBestLanguage(c))
@@ -59,8 +59,16 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		return c.Next()
 	})
 
+	app.Use(SetConfigLocals(cfg))
+
 	// Set available languages for the language filter
 	app.Use(SetAvailableLanguages(idx))
+
+	// Set available document formats for format-dependent filters (pages, reading time)
+	app.Use(SetAvailableFormats(idx))
+
+	// Set email sending configuration (must be early so it's available in all routes)
+	app.Use(SetEmailSendingConfigured(sender))
 
 	app.Get("/sessions/new", allowIfNotLoggedIn, controllers.Auth.Login)
 	app.Post("/sessions", allowIfNotLoggedIn, controllers.Auth.SignIn)
@@ -79,16 +87,12 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	usersGroup.Get("/", RequireAdmin, controllers.Users.List)
 	usersGroup.Get("/new", RequireAdmin, controllers.Users.New)
 	usersGroup.Post("/", RequireAdmin, controllers.Users.Create)
-	usersGroup.Get("/invite", RequireAdmin, controllers.Users.InviteForm)
 	usersGroup.Post("/invite", RequireAdmin, controllers.Users.SendInvite)
+	usersGroup.Get("/share-recipients", controllers.Users.ShareRecipients)
+	app.Get("/completed", alwaysRequireAuthentication, controllers.Completed.Completed)
 	usersGroup.Get("/:username", controllers.Users.Edit)
 	usersGroup.Put("/:username", controllers.Users.Update)
-	usersGroup.Delete("/:username", RequireAdmin, controllers.Users.Delete)
-
-	highlightsGroup := app.Group("/highlights", alwaysRequireAuthentication)
-	highlightsGroup.Get("/", controllers.Highlights.List)
-	highlightsGroup.Post("/:slug", controllers.Highlights.Create)
-	highlightsGroup.Delete("/:slug", controllers.Highlights.Delete)
+	usersGroup.Delete("/:username", controllers.Users.Delete)
 
 	docsGroup := app.Group("/documents")
 	app.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
@@ -98,23 +102,38 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	// Authentication requirement is configurable for all routes below this middleware
 	app.Use(configurableAuthentication)
 
+	// Set action preferences for templates (after authentication so Session is available)
+	app.Use(SetActionPreferences(sender))
+
+	highlightsGroup := app.Group("/highlights", alwaysRequireAuthentication)
+	highlightsGroup.Get("/", controllers.Highlights.List)
+	highlightsGroup.Post("/:slug", controllers.Highlights.Create)
+	highlightsGroup.Delete("/:slug", controllers.Highlights.Delete)
+
 	docsGroup.Get("/:slug/cover", controllers.Documents.Cover)
 	docsGroup.Get("/:slug/read", controllers.Documents.Reader)
 	docsGroup.Get("/:slug/position", alwaysRequireAuthentication, controllers.Documents.GetPosition)
 	docsGroup.Put("/:slug/position", alwaysRequireAuthentication, controllers.Documents.UpdatePosition)
-	docsGroup.Post("/:slug/complete", alwaysRequireAuthentication, controllers.Documents.ToggleComplete)
-	docsGroup.Put("/:slug/complete", alwaysRequireAuthentication, controllers.Documents.ToggleComplete)
+	docsGroup.Post("/:slug/complete", alwaysRequireAuthentication, controllers.Completed.ToggleComplete)
+	docsGroup.Put("/:slug/complete", alwaysRequireAuthentication, controllers.Completed.ToggleComplete)
 	docsGroup.Get("/:slug/download", controllers.Documents.Download)
 	docsGroup.Post("/:slug/send", alwaysRequireAuthentication, controllers.Documents.Send)
+	docsGroup.Post("/:slug/share", alwaysRequireAuthentication, controllers.Documents.Share)
 	docsGroup.Get("/:slug", controllers.Documents.Detail)
-	docsGroup.Get("/", controllers.Documents.Search)
+	docsGroup.Get("/", controllers.Search.SearchDocuments)
 
-	app.Get("/authors/:slug.:extension<regex(jpg)$/i>", controllers.Authors.Image)
+	app.Get("/subjects", controllers.Search.Subjects)
+
+	app.Get("/authors/:slug.:extension<regex(webp)$/i>", controllers.Authors.Image)
+	app.Get("/authors", controllers.Search.SearchAuthors)
 	app.Get("/authors/:slug", controllers.Authors.Documents)
 	app.Get("/authors/:slug/summary", controllers.Authors.Summary)
 	app.Put("/authors/:slug", controllers.Authors.Update, alwaysRequireAuthentication, RequireAdmin)
+	app.Post("/authors/:slug/image", alwaysRequireAuthentication, RequireAdmin, controllers.Authors.UploadImage)
 
 	app.Get("/series/:slug", controllers.Series.Documents)
 
+	app.Get("/resume-reading", alwaysRequireAuthentication, controllers.Home.ResumeReading)
+	app.Get("/search", controllers.Search.Search)
 	app.Get("/", controllers.Home.Index)
 }

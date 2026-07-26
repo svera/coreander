@@ -1,0 +1,20 @@
+{{if eq .Results.TotalHits 0}}
+<div class="col-12 text-center mt-5">
+    <p>{{t .Lang "No completed documents yet"}}</p>
+</div>
+{{else}}
+<div class="row pe-0">
+    {{range $i, $result := .Results.Hits}}
+    <div class="col-6 col-md-3 col-xl-2 pe-0 mt-3">
+        <div class="mb-3">
+            {{template "partials/cover" dict "Lang" $.Lang "Document" $result "Session" $.Session "Version" $.Version}}
+        </div>
+        {{template "partials/actions" dict "Lang" $.Lang "Document" $result "Session" $.Session "FQDN" $.fqdn "Version" $.Version "EmailSendingConfigured" $.EmailSendingConfigured "DefaultAction" $.DefaultAction "CanShare" $.CanShare "PreferredEpub" $.PreferredEpub "ShareMaxRecipients" $.ShareMaxRecipients "ShareCommentMaxSize" $.ShareCommentMaxSize}}
+    </div>
+    {{end}}
+</div>
+
+{{ $length := len .Paginator.Pages }} {{ if gt $length 1 }}
+{{template "partials/pagination" .}}
+{{end}}
+{{end}}

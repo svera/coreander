@@ -24,6 +24,7 @@
 
   uploadForm.addEventListener('submit', (event) => {
     let spinner = document.querySelector('.spinner-border');
-    spinner.classList.remove('visually-hidden')
+    spinner.classList.remove('visually-hidden');
+    spinner.classList.add('htmx-request');
     fileSubmit.setAttribute('disabled', '');
   });

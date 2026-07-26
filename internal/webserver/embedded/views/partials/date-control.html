@@ -7,7 +7,8 @@
 {{end}}
 
 {{define "month"}}
-<select class="form-control input-month">
+<label class="visually-hidden" for="{{if .IdPrefix}}{{.IdPrefix}}-{{end}}{{.Name}}-month">{{t .Lang "Month"}}</label>
+<select class="form-control input-month" id="{{if .IdPrefix}}{{.IdPrefix}}-{{end}}{{.Name}}-month">
     <option value="01" {{if and (.Date) (eq .Date.Month 1)}}selected{{end}}>{{t .Lang "January"}}</option>
     <option value="02" {{if and (.Date) (eq .Date.Month 2)}}selected{{end}}>{{t .Lang "February"}}</option>
     <option value="03" {{if and (.Date) (eq .Date.Month 3)}}selected{{end}}>{{t .Lang "March"}}</option>
@@ -25,20 +26,21 @@
 
 {{define "day"}}
 <div class="form-floating">
-    <input type="number" maxlength="2" max="31" min="1" class="form-control input-day" oninput="this.value=this.value.slice(0,this.maxLength)" value="{{if .Date}}{{.Date.Day}}{{else}}1{{end}}" placeholder='{{t .Lang "Day"}}'>
-    <label class="form-label" for="input-day">{{t .Lang .Label}}</label>
+    <input type="number" maxlength="2" max="31" min="1" class="form-control input-day" id="{{if .IdPrefix}}{{.IdPrefix}}-{{end}}{{.Name}}-day" oninput="this.value=this.value.slice(0,this.maxLength)" value="{{if .Date}}{{.Date.Day}}{{else}}1{{end}}" placeholder='{{t .Lang "Day"}}'>
+    <label class="form-label" for="{{if .IdPrefix}}{{.IdPrefix}}-{{end}}{{.Name}}-day">{{t .Lang .Label}}</label>
 </div>
 {{end}}
 
 <div class="input-group input-group-sm date-control">
 {{if eq .Lang "en"}}
     {{template "year" dict "Name" .Name "Lang" .Lang "Date" .Date}}
-    {{template "month" dict "Name" .Name "Lang" .Lang "Date" .Date}}
-    {{template "day" dict "Name" .Name "Lang" .Lang "Date" .Date "Label" .Label}}
+    {{template "month" dict "Name" .Name "Lang" .Lang "Date" .Date "IdPrefix" .IdPrefix}}
+    {{template "day" dict "Name" .Name "Lang" .Lang "Date" .Date "Label" .Label "IdPrefix" .IdPrefix}}
 {{else}}
-    {{template "day" dict "Name" .Name "Lang" .Lang "Date" .Date "Label" .Label}}
-    {{template "month" dict "Name" .Name "Lang" .Lang "Date" .Date}}
+    {{template "day" dict "Name" .Name "Lang" .Lang "Date" .Date "Label" .Label "IdPrefix" .IdPrefix}}
+    {{template "month" dict "Name" .Name "Lang" .Lang "Date" .Date "IdPrefix" .IdPrefix}}
     {{template "year" dict "Name" .Name "Lang" .Lang "Date" .Date}}
 {{end}}
-    <input type="hidden" id="{{.Name}}" name="{{.Name}}" class="date">
 </div>
+
+<input type="hidden" id="{{if .IdPrefix}}{{.IdPrefix}}-{{end}}{{.Name}}" name="{{.Name}}" class="date">

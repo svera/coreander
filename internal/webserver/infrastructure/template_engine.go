@@ -5,12 +5,13 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 
-	"github.com/gofiber/template/html/v2"
+	"github.com/gofiber/template/html/v3"
 	"github.com/gosimple/slug"
-	"github.com/svera/coreander/v4/internal/i18n"
+	"github.com/svera/coreander/v5/internal/i18n"
 )
 
 func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, error) {
@@ -108,11 +109,30 @@ func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, er
 			"lt": "Lietuvių",
 			"lv": "Latviešu",
 			"et": "Eesti",
+			"eu": "Euskera",
+			"gl": "Galego",
 		}
 		if name, ok := languageNames[code]; ok {
 			return name
 		}
 		return strings.ToUpper(code)
+	})
+
+	engine.AddFunc("urlquery", func(text string) string {
+		return url.QueryEscape(text)
+	})
+
+	engine.AddFunc("sprintfHTML", func(format interface{}, values ...any) template.HTML {
+		formatStr := ""
+		switch v := format.(type) {
+		case string:
+			formatStr = v
+		case template.HTML:
+			formatStr = string(v)
+		default:
+			formatStr = fmt.Sprintf("%v", v)
+		}
+		return template.HTML(fmt.Sprintf(formatStr, values...))
 	})
 
 	return engine, nil

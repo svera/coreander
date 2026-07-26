@@ -1,15 +1,20 @@
-html,
-body {
+/* Scroll on `body`, not `html`: Bootstrap modals set `overflow: hidden` on `body` and add
+   padding for the scrollbar width. If the scrollbar actually lives on `html`, that padding
+   stays while the bar remains — content jumps left. With `html` locked and `body` scrolling,
+   the bar disappears with body overflow and the padding matches. */
+html {
     height: 100%;
+    overflow: hidden;
 }
 
 body {
+    height: 100%;
+    overflow-y: auto;
     align-items: center;
     padding-bottom: 40px;
 }
 
 main {
-    padding-top: 40px;
     width: 100%;
     padding: 15px;
 }
@@ -28,9 +33,49 @@ main .form-control:focus {
     font-size: 0.65em;
 }
 
-.nav-item .bi {
+/* Only toggles directly under .nav-item; do not target icons inside .dropdown-menu. */
+.navbar-nav > .nav-item > .nav-link .bi {
     width: 1em;
     height: 1em;
+}
+
+/* Offcanvas nav (mobile): icon column lines up with label text */
+.offcanvas-nav-flat .navbar-nav .nav-link > i:first-child,
+#bd-theme .theme-icon-active {
+    flex-shrink: 0;
+    width: 1.1em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    color: inherit;
+}
+
+/*
+ * .dropdown-item.active uses primary fill; theme JS uses .active for the stored choice only.
+ * Use the same subtle row highlight as hover so it matches other menus visually.
+ */
+#bd-theme + .dropdown-menu .dropdown-item.active,
+#bd-theme + .dropdown-menu .dropdown-item:active {
+    color: var(--bs-dropdown-link-color);
+    background-color: var(--bs-dropdown-link-hover-bg);
+}
+
+/* .dropdown-divider uses dropdown-menu CSS variables; offcanvas nav is outside any menu. */
+#offcanvasNavbar .offcanvas-nav-flat hr.dropdown-divider {
+    margin: 0.5rem 0;
+    border-top: 1px solid var(--bs-border-color-translucent);
+    opacity: 1;
+}
+
+.offcanvas-style-btn-group {
+    display: flex;
+    width: 100%;
+}
+
+.offcanvas-style-btn-group > .btn {
+    flex: 1 1 0;
+    min-width: 0;
 }
 
 :root, [data-bs-theme=light] {
@@ -89,7 +134,7 @@ main .form-control:focus {
     }
 }
 
-.card-img-overlay a, .card-img-overlay p, .card-img-overlay h2, .card-img-overlay h3, .card-img-overlay h4, .card-img-overlay h5 {
+.card-img-overlay a, .card-img-overlay p {
     color: rgba(255,255,255,0.8);
 }
 
@@ -101,8 +146,55 @@ main .form-control:focus {
     width: 10%;
 }
 
+/* Guarantee a WCAG 2.5.8-compliant touch target regardless of how small the
+   percentage-based cover badge or split-button caret would otherwise shrink to. */
+.icon-link {
+    min-width: 24px;
+    min-height: 24px;
+}
+
+.dropdown-toggle-split {
+    min-width: 24px;
+}
+
 .actions .dropdown-menu {
     white-space: nowrap;
+}
+
+.home-search-tab-content {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.search-filters-panel .row {
+    margin-inline: 0;
+}
+
+.search-filters-sidebar-sticky {
+    position: sticky;
+    top: 5rem; /* clear fixed-top navbar */
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
+}
+
+.search-filters-sidebar-sticky.is-pinned {
+    position: fixed;
+    /* top, left, width set by script (6rem clearance) so box stays below navbar */
+    z-index: 1030; /* above Bootstrap fixed navbar (1030) content */
+}
+
+/* Visible divider between main action and dropdown toggle (same-color buttons e.g. document detail) */
+.actions .btn-group .btn-primary + .dropdown-toggle-split,
+.actions .btn-group .btn-primary + .dropdown-toggle {
+    border-left: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+.actions .btn-group .btn-outline-secondary + .dropdown-toggle-split,
+.actions .btn-group .btn-outline-secondary + .dropdown-toggle {
+    border-left: 1px solid rgba(0, 0, 0, 0.12) !important;
+}
+[data-bs-theme=dark] .actions .btn-group .btn-outline-secondary + .dropdown-toggle-split,
+[data-bs-theme=dark] .actions .btn-group .btn-outline-secondary + .dropdown-toggle {
+    border-left-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 .capitalize::first-letter {
@@ -144,11 +236,16 @@ main .form-control:focus {
     display: none;
 }
 
-.htmx-request .spinner-border {
+.htmx-request .spinner-border,
+.htmx-request.spinner-border {
     display: inline-block;
 }
 
-.htmx-request.spinner-border {
+.tab-loading .tab-count {
+    display: none;
+}
+
+.tab-loading .tab-count-spinner {
     display: inline-block;
 }
 
@@ -160,20 +257,49 @@ main .form-control:focus {
     display: none;
 }
 
-.htmx-request .list-group-placeholder {
-    display: inline-block;
-}
-
+.htmx-request .list-group-placeholder,
 .htmx-request.list-group-placeholder {
-    display: inline-block;
+    display: block;
 }
 
-.htmx-request.list-group-placeholder ~ div {
+.htmx-request.list-group-placeholder ~ #list {
     display: none;
 }
 
 .cover {
-    min-height: 200px;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+}
+
+.cover-read-progress-layer {
+    z-index: 4;
+}
+
+.cover-read-progress {
+    display: block;
+    width: 100%;
+    height: 6px;
+    margin: 0;
+    appearance: none;
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background-color: transparent;
+}
+
+.cover-read-progress::-webkit-progress-bar {
+    background-color: transparent;
+    border-radius: 0;
+}
+
+.cover-read-progress::-webkit-progress-value {
+    background-color: var(--bs-primary);
+    border-radius: 0;
+}
+
+.cover-read-progress::-moz-progress-bar {
+    background-color: var(--bs-primary);
+    border-radius: 0;
 }
 
 .clamp {
@@ -182,6 +308,24 @@ main .form-control:focus {
     -webkit-line-clamp: 6;
     line-clamp: 6;
     overflow: hidden;
+}
+
+#searchbox-container .input-group .form-control:focus {
+    box-shadow: none !important;
+}
+
+.home-search-tabs {
+    --bs-nav-tabs-border-radius: var(--bs-border-radius-xl);
+    width: 100%;
+}
+
+.home-search-input-group:focus-within {
+    color: #212529;
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgb(13 110 253 / 25%);
+    z-index: 3;
+    border-radius: .25rem;
 }
 
 #searchbox-container .btn:hover {
@@ -196,14 +340,6 @@ main .form-control:focus {
     box-shadow: 0 0 0 0.25rem rgb(13 110 253 / 25%);
     z-index: 3;
     border-radius: .25rem;
-}
-
-#searchbox-container .input-group .form-control:focus {
-    box-shadow: none !important;
-}
-
-#latest-docs .carousel-indicators {
-    position: relative;
 }
 
 /* Completion checkbox and date styles */

@@ -3,11 +3,16 @@ package document
 import (
 	"log"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
-func (d *Controller) UpdatePosition(c *fiber.Ctx) error {
+type updateReadingPositionBody struct {
+	Position   string `json:"position"`
+	Percentage *int   `json:"percentage"`
+}
+
+func (d *Controller) UpdatePosition(c fiber.Ctx) error {
 	document, err := d.idx.Document(c.Params("slug"))
 	if err != nil {
 		log.Println(err)
@@ -18,24 +23,14 @@ func (d *Controller) UpdatePosition(c *fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	var session model.Session
-	if val, ok := c.Locals("Session").(model.Session); ok {
-		session = val
-	}
+	session, _ := c.Locals("Session").(model.Session)
 
-	if session.ID == 0 {
-		return fiber.ErrUnauthorized
-	}
-
-	var body struct {
-		Position string `json:"position"`
-	}
-
-	if err := c.BodyParser(&body); err != nil {
+	var body updateReadingPositionBody
+	if err := c.Bind().Body(&body); err != nil {
 		return fiber.ErrBadRequest
 	}
 
-	if err := d.readingRepository.Update(int(session.ID), document.ID, body.Position); err != nil {
+	if err := d.readingRepository.Update(int(session.ID), document.Slug, body.Position, body.Percentage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}

@@ -9,14 +9,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cache"
-	"github.com/gofiber/fiber/v2/middleware/compress"
-	"github.com/gofiber/fiber/v2/middleware/favicon"
-	"github.com/svera/coreander/v4/internal/i18n"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cache"
+	"github.com/gofiber/fiber/v3/middleware/favicon"
+	"github.com/svera/coreander/v5/internal/i18n"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/versioncheck"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 	"golang.org/x/exp/slices"
 )
 
@@ -43,6 +43,7 @@ type Config struct {
 	Port                       int
 	HomeDir                    string
 	CacheDir                   string
+	CacheMaxSize               int
 	LibraryPath                string
 	AuthorImageMaxWidth        int
 	CoverMaxWidth              int
@@ -52,17 +53,25 @@ type Config struct {
 	ClientDynamicImageCacheTTL int
 	ServerStaticCacheTTL       int
 	ServerDynamicImageCacheTTL int
+	ShareCommentMaxSize        int
+	ShareMaxRecipients         int
+	IllustratedMinAmount       int
+	InviteEmailListMaxLength   int
+	InviteMaxRecipients        int
+	VersionChecker             *versioncheck.Checker
 }
 
 type Sender interface {
 	Send(address, subject, body string) error
-	SendDocument(address, subject, libraryPath, fileName string) error
+	SendBCC(addresses []string, subject, body string) error
+	SendDocument(address, subject string, file []byte, fileName string) error
 	From() string
 }
 
-type ProgressInfo interface {
+type IndexInfo interface {
 	IndexingProgress() (index.Progress, error)
 	Languages() ([]string, error)
+	Formats() ([]string, error)
 }
 
 func init() {
@@ -96,8 +105,12 @@ func init() {
 	supportedLanguages = translator.SupportedLanguages()
 }
 
+func SupportedLanguages() []string {
+	return supportedLanguages
+}
+
 // New builds a new Fiber application and set up the required routes
-func New(cfg Config, controllers Controllers, sender Sender, idx ProgressInfo) *fiber.App {
+func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, usersRepository *model.UserRepository) *fiber.App {
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
 	if err != nil {
 		log.Fatal(err)
@@ -109,9 +122,7 @@ func New(cfg Config, controllers Controllers, sender Sender, idx ProgressInfo) *
 	}
 
 	app := fiber.New(fiber.Config{
-		Views:                        engine,
-		DisableStartupMessage:        true,
-		AppName:                      cfg.Version,
+		Views: engine, AppName: cfg.Version,
 		PassLocalsToViews:            true,
 		ErrorHandler:                 errorHandler,
 		BodyLimit:                    cfg.UploadDocumentMaxSize * 1024 * 1024,
@@ -124,20 +135,20 @@ func New(cfg Config, controllers Controllers, sender Sender, idx ProgressInfo) *
 		SetProgress(idx),
 		favicon.New(),
 		cache.New(cache.Config{
-			ExpirationGenerator: func(c *fiber.Ctx, cfg *cache.Config) time.Duration {
+			ExpirationGenerator: func(c fiber.Ctx, cfg *cache.Config) time.Duration {
 				newCacheTime, _ := strconv.Atoi(c.GetRespHeader("Cache-Time", "0"))
 				return time.Second * time.Duration(newCacheTime)
 			},
 		}),
 		OneTimeMessages(),
-		compress.New(),
 	)
+	addCompressMiddleware(app)
 
-	routes(app, controllers, cfg.JwtSecret, sender, translator, cfg, idx)
+	routes(app, controllers, cfg.JwtSecret, sender, translator, cfg, idx, usersRepository)
 	return app
 }
 
-func chooseBestLanguage(c *fiber.Ctx) string {
+func chooseBestLanguage(c fiber.Ctx) string {
 	lang := c.Query("l")
 	if lang != "" {
 		c.Cookie(&fiber.Cookie{
@@ -161,7 +172,7 @@ func chooseBestLanguage(c *fiber.Ctx) string {
 	return lang
 }
 
-func errorHandler(c *fiber.Ctx, err error) error {
+func errorHandler(c fiber.Ctx, err error) error {
 	// Status code defaults to 500
 	code := fiber.StatusInternalServerError
 	// Retrieve the custom status code if it's a *fiber.Error

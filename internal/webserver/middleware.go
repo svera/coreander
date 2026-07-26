@@ -1,19 +1,26 @@
 package webserver
 
 import (
+	"errors"
 	"fmt"
+	"log"
+	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	jwtware "github.com/gofiber/jwt/v3"
-	"github.com/svera/coreander/v4/internal/i18n"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/gofiber/fiber/v3/extractors"
+
+	jwtware "github.com/gofiber/contrib/v3/jwt"
+	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/i18n"
+	"github.com/svera/coreander/v5/internal/versioncheck"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/webserver/model"
+	"golang.org/x/exp/slices"
 )
 
 // RequireAdmin returns HTTP forbidden if the user requesting access
 // is not an admin
-func RequireAdmin(c *fiber.Ctx) error {
+func RequireAdmin(c fiber.Ctx) error {
 	if c.Locals("Session") == nil {
 		return fiber.ErrForbidden
 	}
@@ -27,12 +34,33 @@ func RequireAdmin(c *fiber.Ctx) error {
 	return c.Next()
 }
 
+// SetConfigLocals sets config values in c.Locals() for template access
+func SetConfigLocals(cfg Config) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
+		c.Locals("ShareCommentMaxSize", cfg.ShareCommentMaxSize)
+		c.Locals("ShareMaxRecipients", cfg.ShareMaxRecipients)
+		c.Locals("IllustratedMinAmount", cfg.IllustratedMinAmount)
+		return c.Next()
+	}
+}
+
 // SetFQDN composes the Fully Qualified Domain Name of the host running the app and sets it
-// as a local variable of the request
-func SetFQDN(cfg Config) func(*fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
+// as a local variable of the request. When behind a reverse proxy, X-Forwarded-Proto is
+// used so that HTTPS is preserved and mixed-content is avoided (e.g. reader download URL).
+func SetFQDN(cfg Config) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
+		protocol := "http"
+		if proto := c.Get("X-Forwarded-Proto"); proto != "" {
+			// Proxy may send comma-separated list; first value is client-facing
+			if strings.ToLower(strings.TrimSpace(strings.Split(proto, ",")[0])) == "https" {
+				protocol = "https"
+			}
+		}
+		if protocol == "http" && c.Secure() {
+			protocol = "https"
+		}
 		c.Locals("fqdn", fmt.Sprintf("%s://%s",
-			c.Protocol(),
+			protocol,
 			cfg.FQDN,
 		))
 		return c.Next()
@@ -41,30 +69,33 @@ func SetFQDN(cfg Config) func(*fiber.Ctx) error {
 
 // SetProgress retrieves indexing progress information from the index and sets it
 // as a local variable of the request
-func SetProgress(progress ProgressInfo) func(*fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
+func SetProgress(progress IndexInfo) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		progress, err := progress.IndexingProgress()
 		if err != nil {
 			fmt.Println(err)
 		}
-		if progress.RemainingTime > 0 {
-			c.Locals("RemainingIndexingTime", fmt.Sprintf("%d", progress.RemainingTime.Round(time.Minute)/time.Minute))
+		if progress.InProgress {
+			c.Locals("IndexingInProgress", true)
+			c.Locals("IndexingProgressKind", string(progress.Kind))
 			c.Locals("IndexingProgressPercentage", progress.Percentage)
+			if progress.RemainingTime > 0 {
+				c.Locals("RemainingIndexingTime", fmt.Sprintf("%d", progress.RemainingTime.Round(time.Minute)/time.Minute))
+			}
 		}
 		return c.Next()
 	}
 }
 
 // AllowIfNotLoggedIn only allows processing the request if there is no session
-func AllowIfNotLoggedIn(jwtSecret []byte) func(*fiber.Ctx) error {
+func AllowIfNotLoggedIn(jwtSecret []byte) func(fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
-		SigningKey:    jwtSecret,
-		SigningMethod: "HS256",
-		TokenLookup:   "cookie:session",
-		SuccessHandler: func(c *fiber.Ctx) error {
-			return fiber.ErrForbidden
+		SigningKey: jwtware.SigningKey{JWTAlg: "HS256", Key: jwtSecret},
+		Extractor:  extractors.FromCookie("session"),
+		SuccessHandler: func(c fiber.Ctx) error {
+			return c.Redirect().To("/")
 		},
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
+		ErrorHandler: func(c fiber.Ctx, err error) error {
 			return c.Next()
 		},
 	})
@@ -72,32 +103,53 @@ func AllowIfNotLoggedIn(jwtSecret []byte) func(*fiber.Ctx) error {
 
 // AlwaysRequireAuthentication returns forbidden and renders the login page
 // if the user trying to access has not logged in
-func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator) func(*fiber.Ctx) error {
+func AlwaysRequireAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, usersRepository *model.UserRepository, versionChecker *versioncheck.Checker) func(fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
-		SigningKey:    jwtSecret,
-		SigningMethod: "HS256",
-		TokenLookup:   "cookie:session",
-		SuccessHandler: func(c *fiber.Ctx) error {
-			c.Locals("Session", sessionData(c))
+		SigningKey: jwtware.SigningKey{JWTAlg: "HS256", Key: jwtSecret},
+		Extractor:  extractors.FromCookie("session"),
+		SuccessHandler: func(c fiber.Ctx) error {
+			session := sessionData(c)
+			if err := ensureSessionUser(c, usersRepository, session, true, sender, translator); err != nil {
+				if errors.Is(err, errSessionRejected) {
+					return nil
+				}
+				return err
+			}
+			c.Locals("Session", session)
+			usersRepository.UpdateLastRequest(session.ID)
+			updateUserLanguage(c, usersRepository, session)
+			applyVersionUpdateNotice(c, versionChecker)
 			return c.Next()
 		},
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
+		ErrorHandler: func(c fiber.Ctx, err error) error {
 			return forbidden(c, sender, translator, err)
 		},
 	})
 }
 
 // ConfigurableAuthentication allows to enable or disable authentication on routes which may or may not require it
-func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, requireAuth bool) func(*fiber.Ctx) error {
+func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n.Translator, requireAuth bool, usersRepository *model.UserRepository, versionChecker *versioncheck.Checker) func(fiber.Ctx) error {
 	return jwtware.New(jwtware.Config{
-		SigningKey:    jwtSecret,
-		SigningMethod: "HS256",
-		TokenLookup:   "cookie:session",
-		SuccessHandler: func(c *fiber.Ctx) error {
-			c.Locals("Session", sessionData(c))
+		SigningKey: jwtware.SigningKey{JWTAlg: "HS256", Key: jwtSecret},
+		Extractor:  extractors.FromCookie("session"),
+		SuccessHandler: func(c fiber.Ctx) error {
+			session := sessionData(c)
+			if err := ensureSessionUser(c, usersRepository, session, requireAuth, sender, translator); err != nil {
+				if errors.Is(err, errSessionCleared) {
+					return c.Next()
+				}
+				if errors.Is(err, errSessionRejected) {
+					return nil
+				}
+				return err
+			}
+			c.Locals("Session", session)
+			usersRepository.UpdateLastRequest(session.ID)
+			updateUserLanguage(c, usersRepository, session)
+			applyVersionUpdateNotice(c, versionChecker)
 			return c.Next()
 		},
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
+		ErrorHandler: func(c fiber.Ctx, err error) error {
 			if requireAuth {
 				return forbidden(c, sender, translator, err)
 			}
@@ -106,7 +158,48 @@ func ConfigurableAuthentication(jwtSecret []byte, sender Sender, translator i18n
 	})
 }
 
-func forbidden(c *fiber.Ctx, sender Sender, translator i18n.Translator, err error) error {
+var errSessionRejected = errors.New("session rejected")
+var errSessionCleared = errors.New("session cleared")
+
+func ensureSessionUser(c fiber.Ctx, usersRepository *model.UserRepository, session model.Session, requireAuth bool, sender Sender, translator i18n.Translator) error {
+	if session.Uuid == "" {
+		if requireAuth {
+			clearSessionCookie(c)
+			_ = forbidden(c, sender, translator, fiber.ErrForbidden)
+			return errSessionRejected
+		}
+		return errSessionCleared
+	}
+
+	user, err := usersRepository.FindByUuid(session.Uuid)
+	if err != nil {
+		log.Println(err)
+		if requireAuth {
+			clearSessionCookie(c)
+			_ = forbidden(c, sender, translator, fiber.ErrForbidden)
+			return errSessionRejected
+		}
+		return errSessionCleared
+	}
+	if user == nil {
+		clearSessionCookie(c)
+		if requireAuth {
+			_ = forbidden(c, sender, translator, fiber.ErrForbidden)
+			return errSessionRejected
+		}
+		return errSessionCleared
+	}
+	return nil
+}
+
+func clearSessionCookie(c fiber.Ctx) {
+	c.Cookie(&fiber.Cookie{
+		Name:    "session",
+		Expires: time.Now().Add(-(time.Hour * 2)),
+	})
+}
+
+func forbidden(c fiber.Ctx, sender Sender, translator i18n.Translator, err error) error {
 	emailSendingConfigured := true
 	if _, ok := sender.(*infrastructure.NoEmail); ok {
 		emailSendingConfigured = false
@@ -124,8 +217,8 @@ func forbidden(c *fiber.Ctx, sender Sender, translator i18n.Translator, err erro
 	}, "layout")
 }
 
-func OneTimeMessages() func(c *fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
+func OneTimeMessages() func(c fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		msg := ""
 		if c.Cookies("warning-once") != "" {
 			msg = c.Cookies("warning-once")
@@ -150,10 +243,25 @@ func OneTimeMessages() func(c *fiber.Ctx) error {
 	}
 }
 
+func applyVersionUpdateNotice(c fiber.Ctx, checker *versioncheck.Checker) {
+	if checker == nil {
+		return
+	}
+	session, ok := c.Locals("Session").(model.Session)
+	if !ok || session.Role != model.RoleAdmin {
+		return
+	}
+	latest, outdated := checker.Outdated()
+	if outdated {
+		c.Locals("NewVersionAvailable", latest)
+		c.Locals("NewVersionDownloadURL", versioncheck.ReleasesPageURL)
+	}
+}
+
 // SetAvailableLanguages retrieves available languages from the index and sets them
 // as a local variable for use in templates
-func SetAvailableLanguages(idx ProgressInfo) func(*fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
+func SetAvailableLanguages(idx IndexInfo) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		availableLanguages, err := idx.Languages()
 		if err != nil {
 			fmt.Println(err)
@@ -161,5 +269,125 @@ func SetAvailableLanguages(idx ProgressInfo) func(*fiber.Ctx) error {
 		}
 		c.Locals("AvailableLanguages", availableLanguages)
 		return c.Next()
+	}
+}
+
+// SetAvailableFormats retrieves the document formats present in the index and exposes HasReflowableDocs/
+// HasFixedDocs flags so templates can hide filters that don't apply to any indexed document, such as
+// the pages filter when the library has no PDFs, or the reading time filter when it has no EPUBs.
+func SetAvailableFormats(idx IndexInfo) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
+		formats, err := idx.Formats()
+		if err != nil {
+			fmt.Println(err)
+			formats = []string{}
+		}
+		c.Locals("HasReflowableDocs", slices.Contains(formats, "epub"))
+		c.Locals("HasFixedDocs", slices.Contains(formats, "pdf"))
+		return c.Next()
+	}
+}
+
+// SetEmailSendingConfigured sets EmailSendingConfigured in c.Locals() based on the sender type
+// This should be run early in the middleware chain so it's available in all routes
+func SetEmailSendingConfigured(sender Sender) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
+		emailSendingConfigured := true
+		if _, ok := sender.(*infrastructure.NoEmail); ok {
+			emailSendingConfigured = false
+		}
+		c.Locals("EmailSendingConfigured", emailSendingConfigured)
+		return c.Next()
+	}
+}
+
+// SetActionPreferences computes and sets action-related preferences based on session and email configuration
+// These values are used in templates to determine default actions, available options, and EPUB preferences
+func SetActionPreferences(sender Sender) func(fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
+		emailSendingConfigured, ok := c.Locals("EmailSendingConfigured").(bool)
+		if !ok {
+			emailSendingConfigured = false // Default to false if not set
+		}
+
+		var session model.Session
+		if val, ok := c.Locals("Session").(model.Session); ok {
+			session = val
+		}
+
+		// Compute default action
+		defaultAction := "download"
+		if session.ID > 0 && session.DefaultAction != "" {
+			defaultAction = session.DefaultAction
+		} else if session.ID > 0 && session.SendToEmail != "" && emailSendingConfigured {
+			defaultAction = "send"
+		}
+
+		// Override to download if user has private profile and default action is share
+		if session.ID > 0 && session.PrivateProfile != 0 && defaultAction == "share" {
+			defaultAction = "download"
+		}
+
+		// Compute canShare
+		canShare := session.ID > 0 && session.PrivateProfile == 0 && emailSendingConfigured
+
+		// Compute actual action (may be overridden based on availability)
+		actualAction := defaultAction
+		switch defaultAction {
+		case "send":
+			if session.ID == 0 || session.SendToEmail == "" || !emailSendingConfigured {
+				actualAction = "download"
+			}
+		case "share":
+			if !emailSendingConfigured || !canShare {
+				actualAction = "download"
+			}
+		}
+
+		// Compute preferred EPUB type
+		preferredEpub := "epub"
+		if session.ID > 0 && session.PreferredEpubType != "" {
+			preferredEpub = session.PreferredEpubType
+		}
+
+		// Store computed values in locals for template access
+		c.Locals("DefaultAction", actualAction)
+		c.Locals("CanShare", canShare)
+		c.Locals("PreferredEpub", preferredEpub)
+
+		return c.Next()
+	}
+}
+
+// updateUserLanguage updates the authenticated user's language preference in the database
+// when the language query parameter (?l=) is present
+func updateUserLanguage(c fiber.Ctx, usersRepository *model.UserRepository, session model.Session) {
+	// Early return if language query parameter is not present
+	lang := c.Query("l")
+	if lang == "" {
+		return
+	}
+
+	// Early return if language is not supported
+	if !slices.Contains(supportedLanguages, lang) {
+		return
+	}
+
+	// Get user and update language preference
+	user, err := usersRepository.FindByUuid(session.Uuid)
+	if err != nil || user == nil {
+		return
+	}
+
+	// Only update if language has changed
+	if user.Language == lang {
+		return
+	}
+
+	// Update language field explicitly using Model().Update() to ensure it's saved
+	result := usersRepository.DB.Model(user).Update("language", lang)
+	if result.Error != nil {
+		log.Printf("error updating user language for user %s: %v\n", session.Uuid, result.Error)
+		// Continue anyway, don't fail the request
 	}
 }

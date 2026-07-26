@@ -7,11 +7,11 @@ import (
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/webserver"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 func TestDocumentDetail(t *testing.T) {
@@ -48,7 +48,7 @@ func TestDocumentDetail(t *testing.T) {
 
 func TestDocumentReadAndDeleteDocumentAfterwards(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
-	appFS := loadFilesInMemoryFs([]string{"fixtures/library/quijote.epub"})
+	appFS := loadFilesInMemoryFs([]string{"testdata/library/quijote.epub"})
 	smtpMock := &infrastructure.SMTPMock{}
 	app := bootstrapApp(db, smtpMock, appFS, webserver.Config{})
 
@@ -101,7 +101,7 @@ func TestDocumentReadAndDeleteDocumentAfterwards(t *testing.T) {
 			}
 
 			var total int64
-			if db.Table("readings").Where("path = ?", "quijote.epub").Count(&total); total != 0 {
+			if db.Table("readings").Where("slug = ?", "miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha").Count(&total); total != 0 {
 				t.Errorf("Expected no entries in DB readings table for document, got %d", total)
 			}
 		})
@@ -110,7 +110,7 @@ func TestDocumentReadAndDeleteDocumentAfterwards(t *testing.T) {
 
 func TestDocumentReadAndDeleteUserAfterwards(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
-	appFS := loadFilesInMemoryFs([]string{"fixtures/library/quijote.epub"})
+	appFS := loadFilesInMemoryFs([]string{"testdata/library/quijote.epub"})
 	smtpMock := &infrastructure.SMTPMock{}
 	app := bootstrapApp(db, smtpMock, appFS, webserver.Config{})
 

@@ -1,5 +1,4 @@
 //go:build mage
-// +build mage
 
 package main
 
@@ -8,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/magefile/mage/sh"
 )
@@ -18,7 +18,7 @@ func Install() error {
 	if err != nil {
 		return err
 	}
-	return sh.Run("go", "install", "-ldflags", "-X main.version="+version)
+	return sh.Run("go", "install", "-ldflags", "-s -w -X main.version="+version)
 }
 
 // Creates an executable for the given platform.
@@ -51,7 +51,7 @@ func Release() error {
 		if err != nil {
 			return err
 		}
-		err = createZip("coreander", "coreander_"+platform+".zip")
+		err = createZip(binaryName(platform), "coreander_"+platform+".zip")
 		if err != nil {
 			return err
 		}
@@ -60,7 +60,14 @@ func Release() error {
 }
 
 func buildEnv(platform, version string, envMap map[string]string) error {
-	return sh.RunWith(envMap, "go", "build", "-ldflags", "-X main.version="+version)
+	return sh.RunWith(envMap, "go", "build", "-o", binaryName(platform), "-ldflags", "-s -w -X main.version="+version)
+}
+
+func binaryName(platform string) string {
+	if strings.HasPrefix(platform, "win") {
+		return "coreander.exe"
+	}
+	return "coreander"
 }
 
 func env(platform string) (map[string]string, error) {

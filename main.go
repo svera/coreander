@@ -4,39 +4,41 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/pirmd/epub"
+	"github.com/gofiber/fiber/v3"
 	"gorm.io/gorm"
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/datasource/wikidata"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/webserver"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/versioncheck"
+	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 var version string = "unknown"
 
 const documentsIndexPath = "/.coreander/documents_index"
 const authorsIndexPath = "/.coreander/authors_index"
-const legacyIndexPath = "/.coreander/index" // Old single index path
 const databasePath = "/.coreander/database.db"
 
 var (
-	input               CLIInput
-	appFs               afero.Fs
-	idx                 *index.BleveIndexer
-	db                  *gorm.DB
-	homeDir             string
-	err                 error
-	metadataReaders     map[string]metadata.Reader
-	sender              webserver.Sender
-	migrationSuccessful bool
+	input                CLIInput
+	appFs                afero.Fs
+	idx                  *index.BleveIndexer
+	db                   *gorm.DB
+	homeDir              string
+	err                  error
+	metadataReaders      map[string]metadata.Reader
+	sender               webserver.Sender
+	resolvedIndexWorkers int
 )
 
 func init() {
@@ -53,6 +55,12 @@ func init() {
 	}
 
 	log.Printf("Coreander version %s starting\n", version)
+
+	resolvedIndexWorkers = index.ResolveMetadataWorkers(input.IndexWorkers)
+	if input.IndexWorkers == 0 {
+		log.Printf("INDEX_WORKERS is 0 (automatic), using %d metadata workers (%d CPUs)", resolvedIndexWorkers, runtime.NumCPU())
+	}
+
 	homeDir, err = os.UserHomeDir()
 	if err != nil {
 		log.Fatal("Error retrieving user home dir")
@@ -62,22 +70,21 @@ func init() {
 		log.Fatalf("Directory '%s' does not exist, exiting", input.LibPath)
 	}
 
-	metadataReaders = map[string]metadata.Reader{
-		".epub": metadata.EpubReader{
-			GetMetadataFromFile: epub.GetMetadataFromFile,
-			GetPackageFromFile:  epub.GetPackageFromFile,
-		},
-		".pdf": metadata.PdfReader{},
-	}
-
 	appFs = afero.NewOsFs()
+	metadataReaders = map[string]metadata.Reader{
+		".epub": metadata.NewEpubReader(),
+		".pdf":  metadata.PdfReader{Fs: appFs},
+	}
 
 	var documentsIndex, authorsIndex bleve.Index
 	var needsReindex bool
-	documentsIndex, authorsIndex, needsReindex, migrationSuccessful = getIndexes(appFs)
-	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders)
+	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize)
+	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
+		IllustratedMinAmount: input.IllustratedMinAmount,
+		IllustratedMinSize:   input.IllustratedMinSize,
+	})
 
-	// If index was migrated or newly created, force reindexing
+	// If index was newly created or recreated, force reindexing
 	if needsReindex {
 		input.ForceIndexing = true
 	}
@@ -88,7 +95,7 @@ func init() {
 func main() {
 	defer idx.Close()
 
-	go startIndex(idx, input.BatchSize, input.LibPath)
+	go startIndex(idx, input.BatchSize, input.LibPath, resolvedIndexWorkers)
 
 	sender = &infrastructure.NoEmail{}
 	if input.SmtpServer != "" && input.SmtpUser != "" && input.SmtpPassword != "" {
@@ -109,6 +116,7 @@ func main() {
 		Port:                       input.Port,
 		HomeDir:                    homeDir,
 		CacheDir:                   input.CacheDir,
+		CacheMaxSize:               input.CacheMaxSize,
 		LibraryPath:                input.LibPath,
 		AuthorImageMaxWidth:        input.AuthorImageMaxWidth,
 		CoverMaxWidth:              input.CoverMaxWidth,
@@ -118,6 +126,11 @@ func main() {
 		ClientDynamicImageCacheTTL: input.ClientDynamicImageCacheTTL,
 		ServerStaticCacheTTL:       input.ServerStaticCacheTTL,
 		ServerDynamicImageCacheTTL: input.ServerDynamicImageCacheTTL,
+		ShareCommentMaxSize:        input.ShareCommentMaxSize,
+		ShareMaxRecipients:         input.ShareMaxRecipients,
+		IllustratedMinAmount:       input.IllustratedMinAmount,
+		InviteEmailListMaxLength:   input.InviteEmailListMaxLength,
+		InviteMaxRecipients:        input.InviteMaxRecipients,
 	}
 
 	webserverConfig.SessionTimeout, err = time.ParseDuration(fmt.Sprintf("%fh", input.SessionTimeout))
@@ -145,51 +158,47 @@ func main() {
 		}
 	}
 
+	versionChecker := versioncheck.New(version)
+	versionChecker.Start()
+	webserverConfig.VersionChecker = versionChecker
+
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
 	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs, dataSource)
-	app := webserver.New(webserverConfig, controllers, sender, idx)
+	usersRepository := &model.UserRepository{DB: db}
+	app := webserver.New(webserverConfig, controllers, sender, idx, usersRepository)
 	if strings.ToLower(input.FQDN) == "localhost" {
 		fmt.Printf("Warning: using \"localhost\" as FQDN. Links using this FQDN won't be accessible outside this system.\n")
 	}
 	log.Printf("Started listening on port %d\n", input.Port)
-	log.Fatal(app.Listen(fmt.Sprintf(":%d", input.Port)))
+	if err := app.Listen(fmt.Sprintf(":%d", input.Port), fiber.ListenConfig{DisableStartupMessage: true}); err != nil {
+		log.Printf("Server stopped with error: %s", err)
+		idx.Close()
+		os.Exit(1)
+	}
 }
 
-func startIndex(idx *index.BleveIndexer, batchSize int, libPath string) {
-	// Skip indexing if migration was successful - documents are already in the new index
-	if migrationSuccessful {
-		log.Println("Documents were successfully migrated from legacy index. Skipping library indexing.")
-		fileWatcher(idx, libPath)
-		return
-	}
-
+func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWorkers int) {
 	start := time.Now().Unix()
 	log.Printf("Indexing documents at %s, this can take a while depending on the size of your library.", libPath)
-	err := idx.AddLibrary(batchSize, input.ForceIndexing)
+	err := idx.AddLibrary(batchSize, input.ForceIndexing, indexWorkers)
 	if err != nil {
 		log.Fatal(err)
 	}
 	end := time.Now().Unix()
 	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 	log.Printf("Indexing finished, took %d seconds", int(dur.Seconds()))
-	fileWatcher(idx, libPath)
+
+	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
+	if err := idx.EnrichAuthorsFromDataSource(dataSource, webserver.SupportedLanguages(), index.DefaultAuthorEnrichInterval); err != nil {
+		log.Printf("Error enriching authors from Wikidata: %s", err)
+	}
+
+	idx.StartFileWatcher()
 }
 
-func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool, bool) {
+func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Index, bool) {
 	needsReindex := false
-	migrationSuccessful := false
-
-	// Check if legacy single index exists (migration scenario)
-	legacyExists, _ := afero.DirExists(fs, homeDir+legacyIndexPath)
-	if legacyExists {
-		log.Println("Detected legacy single index format. Migrating to separate indexes...")
-		needsReindex = migrateLegacyIndex(fs, homeDir, legacyIndexPath, documentsIndexPath, authorsIndexPath)
-		// Migration is successful if we don't need to reindex
-		if !needsReindex {
-			migrationSuccessful = true
-		}
-	}
 
 	// Open or create documents index
 	documentsIndex, err := bleve.Open(homeDir + documentsIndexPath)
@@ -212,7 +221,7 @@ func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool, bool) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if string(version) == "" || string(version) < index.DocumentVersion {
+	if string(version) == "" || string(version) != index.DocumentVersion {
 		log.Println("Old version documents index found, recreating with new mapping.")
 		if err = documentsIndex.Close(); err != nil {
 			log.Fatal(err)
@@ -224,12 +233,31 @@ func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool, bool) {
 		needsReindex = true
 	}
 
+	// Rebuild index if illustrated-min-size config changed (stored in index metadata)
+	if !needsReindex {
+		reindexForConfig, err := index.NeedsReindexForIllustratedConfig(documentsIndex, illustratedMinSize)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if reindexForConfig {
+			log.Println("Illustrated min size config changed, recreating documents index.")
+			if err = documentsIndex.Close(); err != nil {
+				log.Fatal(err)
+			}
+			if err = fs.RemoveAll(homeDir + documentsIndexPath); err != nil {
+				log.Fatal(err)
+			}
+			documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)
+			needsReindex = true
+		}
+	}
+
 	// Check authors index version
 	version, err = authorsIndex.GetInternal([]byte("version"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	if string(version) == "" || string(version) < index.AuthorVersion {
+	if string(version) == "" || string(version) != index.AuthorVersion {
 		log.Println("Old version authors index found, recreating with new mapping.")
 		if err = authorsIndex.Close(); err != nil {
 			log.Fatal(err)
@@ -238,8 +266,14 @@ func getIndexes(fs afero.Fs) (bleve.Index, bleve.Index, bool, bool) {
 			log.Fatal(err)
 		}
 		authorsIndex = index.CreateAuthorsIndex(homeDir + authorsIndexPath)
-		needsReindex = true
+		if !needsReindex {
+			// Authors mapping changed but documents are fine: rebuild authors from existing documents index.
+			tmpIdx := index.NewBleve(documentsIndex, authorsIndex, nil, "", nil, index.Config{})
+			if err = tmpIdx.RebuildAuthorsFromDocuments(input.BatchSize); err != nil {
+				log.Fatal(err)
+			}
+		}
 	}
 
-	return documentsIndex, authorsIndex, needsReindex, migrationSuccessful
+	return documentsIndex, authorsIndex, needsReindex
 }

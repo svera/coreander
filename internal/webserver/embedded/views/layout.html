@@ -4,13 +4,19 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="">
+    <meta name="description" content="{{if .Description}}{{.Description}}{{else}}{{t .Lang "A personal documents server that indexes your EPUBs and PDFs and provides a web interface to search and read them."}}{{end}}">
     <meta name="author" content="Sergio Vera">
     <title>{{if .Title}}{{t .Lang .Title}} | {{end}}Coreander</title>
 
     <!-- Bootstrap core CSS -->
     <link href="/css/bootstrap.min.css{{versionParam .Version}}" rel="stylesheet">
+    <link href="/css/bootstrap-icons.min.css{{versionParam .Version}}" rel="stylesheet">
     <link href="/css/display.css{{versionParam .Version}}" rel="stylesheet">
+    <!-- Break the document-search-filters.js -> search-filter-utils.js -> /subjects critical
+         request chain: both are only discoverable after document-search-filters.js is fetched
+         and parsed, so fetch them in parallel with it instead of sequentially after it. -->
+    <link rel="modulepreload" href="/js/search-filter-utils.js{{versionParam .Version}}">
+    <link rel="preload" href="/subjects" as="fetch" crossorigin="use-credentials">
     <!-- Favicons -->
     <meta name="theme-color" content="#000">
     <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png{{versionParam .Version}}">
@@ -22,20 +28,15 @@
     <script src="/js/color-mode-toggler.js{{versionParam .Version}}"></script>
 </head>
 
-<body class="d-flex flex-column h-100" hx-ext="response-targets">
+<body class="d-flex flex-column h-100" hx-ext="response-targets"{{if and .Session (ne .Session.Name "")}} data-profile-url="/users/{{.Session.Username}}"{{end}}{{if and .Session (eq .Session.Role 2)}} data-admin="true"{{end}}>
     <header>
         {{template "partials/navbar" .}}
     </header>
     <main class="mt-5" data-unexpected-server-error='{{t .Lang "Unexpected server error"}}'>
-        {{template "partials/main"
-            dict "Lang" .Lang
-            "RemainingIndexingTime" .RemainingIndexingTime
-            "IndexingProgressPercentage" .IndexingProgressPercentage
-            "Error" .Error
-            "Warning" .Warning
-            "Success" .Success
-            "Embed" .Embed}}
+        {{template "partials/main" dict "Lang" .Lang "IndexingInProgress" .IndexingInProgress "IndexingProgressKind" .IndexingProgressKind "RemainingIndexingTime" .RemainingIndexingTime "IndexingProgressPercentage" .IndexingProgressPercentage "Error" .Error "Warning" .Warning "Success" .Success "Embed" .Embed}}
     </main>
+    {{template "partials/share-modal" .}}
+    {{template "partials/keyboard-shortcuts-modal" .}}
     <footer class="footer mt-auto py-5">
         <div class="container">
             <span class="text-muted"><small>{{t .Lang "Made with words by Sergio Vera"}} - <a
@@ -45,10 +46,20 @@
     </footer>
     <script src="/js/bootstrap.bundle.min.js{{versionParam .Version}}"></script>
     <script src="/js/htmx.min.js{{versionParam .Version}}"></script>
+    <script src="/js/keyboard-shortcuts.js{{versionParam .Version}}"></script>
+    <script>
+    function initReadingTimePopovers() {
+        document.querySelectorAll('.reading-time-help-popover').forEach(function (el) {
+            if (!bootstrap.Popover.getInstance(el)) {
+                new bootstrap.Popover(el);
+            }
+        });
+    }
+    document.addEventListener('DOMContentLoaded', initReadingTimePopovers);
+    document.body.addEventListener('htmx:afterSettle', initReadingTimePopovers);
+    </script>
+    <script type="module" src="/js/share-recipients.js{{versionParam .Version}}"></script>
     <script type="module" src="/js/feedback.js{{versionParam .Version}}"></script>
-    <link rel="preload" href="/css/bootstrap-icons.min.css{{versionParam .Version}}" as="style" onload="this.onload=null;this.rel='stylesheet'">
-
-    <noscript><link rel="stylesheet" href="/css/bootstrap-icons.min.css{{versionParam .Version}}"></noscript>
 </body>
 
 </html>

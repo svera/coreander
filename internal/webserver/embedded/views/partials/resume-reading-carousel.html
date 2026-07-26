@@ -1,0 +1,19 @@
+{{/* CarouselID, CarouselClass (optional extra classes), Reading, Limit (0 = all items), SuffixPrefix, Lang, Session, Version */}}
+<div id="{{.CarouselID}}" class="carousel slide{{if .CarouselClass}} {{.CarouselClass}}{{end}}" data-bs-ride="carousel">
+    <div class="carousel-inner">
+        {{range $i, $document := .Reading}}
+        {{if or (eq $.Limit 0) (lt $i $.Limit)}}
+        <div class="carousel-item {{if eq $i 0}}active{{end}}">
+            {{template "partials/cover" dict "Lang" $.Lang "Document" $document "Session" $.Session "DisableActions" true "LinkToReader" true "Version" $.Version "ReadingPercentage" $document.ReadingPercentage "CoverTitleSuffix" (printf "%s-%d" $.SuffixPrefix $i)}}
+        </div>
+        {{end}}
+        {{end}}
+    </div>
+    <div class="carousel-indicators position-relative pt-3">
+        {{range $i, $document := .Reading}}
+        {{if or (eq $.Limit 0) (lt $i $.Limit)}}
+        <button type="button" data-bs-target="#{{$.CarouselID}}" data-bs-slide-to="{{$i}}" class="{{if eq $i 0}}active{{end}}" aria-current="{{if eq $i 0}}true{{end}}" aria-label="Slide {{$i}}"></button>
+        {{end}}
+        {{end}}
+    </div>
+</div>

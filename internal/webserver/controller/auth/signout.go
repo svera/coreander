@@ -1,11 +1,11 @@
 package auth
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // Logs out user and removes their JWT.
-func (a *Controller) SignOut(c *fiber.Ctx) error {
+func (a *Controller) SignOut(c fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
 		Name:     "session",
 		Value:    "",

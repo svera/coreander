@@ -4,7 +4,7 @@
             <div class="d-flex align-items-baseline">
                 <h2 class="card-title ms-3 float-start">{{.Author.Name}}</h2>
                 {{if and (ne .Author.BirthName "") (not .Author.BirthNameIncludesName)}}
-                    <p class="opacity-50 ms-3 float-start">{{.Author.BirthName}}</p>
+                    <p class="text-body-secondary ms-3 float-start">{{.Author.BirthName}}</p>
                 {{end}}
             </div>
             {{if eq .Author.DataSourceID ""}}
@@ -13,7 +13,7 @@
                 <p class="card-text ms-3 capitalize lead">{{index .Author.Description .Lang}}</p>
             {{end}}
             {{if gt (len .Author.Pseudonyms) 0}}
-                <p class="opacity-50 ms-3">{{t .Lang "Alias"}}
+                <p class="text-body-secondary ms-3">{{t .Lang "Alias"}}
                     {{join .Author.Pseudonyms ", "}}
                 </p>
             {{end}}
@@ -87,21 +87,22 @@
             </ul>
             {{end}}
         </div>
-        {{if .Author.DataSourceImage}}
         <div class="col-lg-3 col-md-6 col-sm-6 p-3 d-flex align-items-center">
             <div class="ratio ratio-1x1">
-                <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.jpg" class="img-fluid object-fit-cover w-100 rounded-circle p-3" alt="{{.Author.Name}}">
+                <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.webp{{.ImageVersion}}" fetchpriority="high" class="img-fluid object-fit-cover w-100 rounded-circle p-3{{if and .Session (eq .Session.Role 2)}} author-image-upload cursor-pointer{{end}}" alt="{{.Author.Name}}"{{if and .Session (eq .Session.Role 2)}} data-author-slug="{{.Author.Slug}}" data-invalid-file-type='{{t .Lang "Invalid file type. Only JPEG and PNG images are allowed."}}' data-upload-failed='{{t .Lang "Failed to upload image"}}' data-upload-error='{{t .Lang "An error occurred while uploading the image"}}' title='{{t .Lang "Click to upload a custom image"}}'{{end}}>
             </div>
         </div>
-        {{end}}
     </div>
-    {{if eq .Session.Role 2}}
+    {{if and .Session (eq .Session.Role 2)}}
         {{if not .Author.RetrievedOn.IsZero }}
             <div class="row">
                 <div class="col-12 px-4">
-                    {{template "partials/author-update-form" dict "Lang" .Lang "Author" .Author}}
+                    {{template "partials/author-update-form" dict "Lang" .Lang "Author" .Author "Style" ""}}
                 </div>
             </div>
         {{end}}
     {{end}}
 </div>
+{{if and .Session (eq .Session.Role 2)}}
+<script src="/js/author-image-upload.js{{versionParam .Version}}"></script>
+{{end}}

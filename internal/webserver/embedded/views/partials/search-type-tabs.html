@@ -1,0 +1,19 @@
+<div class="row mt-5 mb-2 pb-2 align-items-end">
+    <div class="col-12 col-xl p-0">
+        <ul class="nav nav-tabs mb-0 flex-nowrap" id="search-results-tabs" role="tablist">
+            {{template "partials/search-tab-items" .}}
+        </ul>
+    </div>
+    <div class="col-12 col-xl-auto mt-3 mt-xl-0">
+        <div class="row g-2 align-items-stretch justify-content-end">
+            <div class="{{if ne .Results.TotalHits 0}}col-4{{else}}col-12{{end}} d-xl-none">
+                <button type="button" class="btn btn-outline-secondary w-100 h-100" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" data-bs-auto-close="outside" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders me-2"></i>{{t .Lang "Filters"}}</button>
+            </div>
+            {{if ne .Results.TotalHits 0}}
+            <div class="col-8 col-xl-auto text-end">
+                {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "AdditionalSortOptions" .AdditionalSortOptions}}
+            </div>
+            {{end}}
+        </div>
+    </div>
+</div>

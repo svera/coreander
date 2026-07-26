@@ -2,17 +2,16 @@ package home
 
 import (
 	"log"
+	"net/url"
+	"strings"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
-func (d *Controller) Index(c *fiber.Ctx) error {
-	emailSendingConfigured := true
-	if _, ok := d.sender.(*infrastructure.NoEmail); ok {
-		emailSendingConfigured = false
+func (d *Controller) Index(c fiber.Ctx) error {
+	if query := strings.TrimSpace(c.Query("search")); query != "" {
+		return c.Redirect().To("/search?type=documents&search=" + url.QueryEscape(query))
 	}
 
 	var session model.Session
@@ -20,51 +19,50 @@ func (d *Controller) Index(c *fiber.Ctx) error {
 		session = val
 	}
 
-	totalDocumentsCount, err := d.idx.Count()
+	totalDocumentsCount, err := d.idx.TotalDocs()
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	latestDocs, err := d.idx.LatestDocs(d.config.LatestDocsLimit)
+	totalAuthorsCount, err := d.idx.TotalAuthors()
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	var readingDocs []index.Document
+	latestDocsRaw, err := d.idx.LatestDocs(d.config.LatestDocsLimit)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
+	latestDocs := make([]model.AugmentedDocument, 0, len(latestDocsRaw))
+	for _, doc := range latestDocsRaw {
+		latestDocs = append(latestDocs, model.AugmentedDocument{Document: doc})
+	}
+
+	var readingDocs []model.AugmentedDocument
 	if session.ID > 0 {
 		for i := range latestDocs {
-			latestDocs[i] = d.hlRepository.Highlighted(int(session.ID), latestDocs[i])
-			latestDocs[i] = d.readingRepository.Completed(int(session.ID), latestDocs[i])
+			result := model.AugmentedDocument{Document: latestDocs[i].Document}
+			result = d.hlRepository.Highlighted(int(session.ID), result)
+			latestDocs[i] = result
 		}
 
-		readingList, err := d.readingRepository.Latest(int(session.ID), 1, d.config.LatestDocsLimit)
+		readingDocs, err = d.readingDocs(int(session.ID))
 		if err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
-		for _, ID := range readingList.Hits() {
-			doc, err := d.idx.DocumentByID(ID)
-			if err != nil {
-				log.Println(err)
-				return fiber.ErrInternalServerError
-			}
-			if doc.ID == "" {
-				continue
-			}
-			doc = d.readingRepository.Completed(int(session.ID), doc)
-			readingDocs = append(readingDocs, doc)
-		}
 	}
 
 	return c.Render("index", fiber.Map{
-		"Count":                  totalDocumentsCount,
-		"EmailSendingConfigured": emailSendingConfigured,
-		"EmailFrom":              d.sender.From(),
-		"HomeNavbar":             true,
-		"LatestDocs":             latestDocs,
-		"Reading":                readingDocs,
-		"AvailableLanguages":     c.Locals("AvailableLanguages"),
+		"Count":        totalDocumentsCount,
+		"AuthorsCount": totalAuthorsCount,
+		"EmailFrom":    d.sender.From(),
+		"HomeNavbar":   true,
+		"LatestDocs":   latestDocs,
+		"Reading":      readingDocs,
 	}, "layout")
 }

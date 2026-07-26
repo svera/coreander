@@ -6,31 +6,42 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"path/filepath"
 	"slices"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/log"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/log"
 	"github.com/valyala/fasthttp"
 )
 
-func (d *Controller) UploadForm(c *fiber.Ctx) error {
+func (d *Controller) UploadForm(c fiber.Ctx) error {
 	return c.Render("document/upload", fiber.Map{
 		"Title":   "Upload document",
 		"MaxSize": d.config.UploadDocumentMaxSize,
 	}, "layout")
 }
 
-func (d *Controller) Upload(c *fiber.Ctx) error {
+func (d *Controller) Upload(c fiber.Ctx) error {
 	templateVars := fiber.Map{
 		"Title":   "Upload document",
 		"MaxSize": d.config.UploadDocumentMaxSize,
 	}
 
 	file, err := c.FormFile("filename")
-	if errors.Is(err, fasthttp.ErrMissingFile) {
-		templateVars["Error"] = "Invalid file type"
+	if err != nil {
+		if errors.Is(err, fasthttp.ErrMissingFile) {
+			templateVars["Error"] = "Invalid file type"
+			return c.Status(fiber.StatusBadRequest).Render("document/upload", templateVars, "layout")
+		}
+		if errors.Is(err, fasthttp.ErrBodyTooLarge) {
+			// Body was truncated while parsing multipart; remaining bytes must not be
+			// interpreted as the next HTTP request on a keep-alive connection.
+			c.RequestCtx().SetConnectionClose()
+			templateVars["Error"] = fmt.Sprintf("Document too large, the maximum allowed size is %d megabytes", d.config.UploadDocumentMaxSize)
+			return c.Status(fiber.StatusRequestEntityTooLarge).Render("document/upload", templateVars, "layout")
+		}
+		log.Error(err)
+		templateVars["Error"] = "Could not read uploaded file"
 		return c.Status(fiber.StatusBadRequest).Render("document/upload", templateVars, "layout")
 	}
 
@@ -45,36 +56,21 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusRequestEntityTooLarge).Render("document/upload", templateVars, "layout")
 	}
 
-	destination := filepath.Join(d.config.LibraryPath, file.Filename)
 	internalServerErrorStatus := c.Status(fiber.StatusInternalServerError).Render("document/upload", fiber.Map{
 		"Title":   "Upload Document",
 		"Error":   "Error uploading document",
 		"MaxSize": d.config.UploadDocumentMaxSize,
 	}, "layout")
 
-	bytes, err := fileToBytes(file)
+	contents, err := fileToBytes(file)
 	if err != nil {
 		log.Error(err)
 		return internalServerErrorStatus
 	}
 
-	destFile, err := d.appFs.Create(destination)
+	slug, err := d.idx.NewFile(file.Filename, contents)
 	if err != nil {
 		log.Error(err)
-		return internalServerErrorStatus
-	}
-
-	defer destFile.Close()
-
-	if _, err := destFile.Write(bytes); err != nil {
-		log.Error(err)
-		return internalServerErrorStatus
-	}
-
-	slug, err := d.idx.AddFile(destination)
-	if err != nil {
-		log.Error(err)
-		d.appFs.Remove(destination)
 		return internalServerErrorStatus
 	}
 
@@ -83,7 +79,7 @@ func (d *Controller) Upload(c *fiber.Ctx) error {
 		Value:   "Document uploaded successfully.",
 		Expires: time.Now().Add(24 * time.Hour),
 	})
-	return c.Redirect(fmt.Sprintf("/documents/%s", slug))
+	return c.Redirect().To(fmt.Sprintf("/documents/%s", slug))
 }
 
 func fileToBytes(fileHeader *multipart.FileHeader) ([]byte, error) {

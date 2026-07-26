@@ -7,9 +7,9 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/pirmd/epub"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 func TestSameSubjects(t *testing.T) {
@@ -20,12 +20,7 @@ func TestSameSubjects(t *testing.T) {
 	library := mockedLibrary()
 
 	mockMetadataReaders := map[string]metadata.Reader{
-		".epub": metadata.EpubReader{
-			GetMetadataFromFile: func(file string) (*epub.Information, error) {
-				return library[file], nil
-			},
-			GetPackageFromFile: epub.GetPackageFromFile,
-		},
+		".epub": epubTestReader{info: library},
 	}
 
 	appFS := afero.NewMemMapFs()
@@ -38,9 +33,9 @@ func TestSameSubjects(t *testing.T) {
 	}
 
 	authorsIndexMem, _ := bleve.NewMemOnly(index.CreateAuthorsMapping())
-	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders)
+	idx := index.NewBleve(indexMem, authorsIndexMem, appFS, "lib", mockMetadataReaders, index.Config{})
 
-	if err = idx.AddLibrary(1, true); err != nil {
+	if err = idx.AddLibrary(1, true, 0); err != nil {
 		t.Errorf("Error indexing: %s", err.Error())
 	}
 

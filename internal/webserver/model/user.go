@@ -3,6 +3,7 @@ package model
 import (
 	"net/mail"
 	"regexp"
+	"slices"
 	"time"
 )
 
@@ -14,6 +15,8 @@ const (
 
 const UsernamePattern = `^[A-z0-9_\-.]+$`
 
+var AllowedDefaultActions = []string{"download", "send", "share", "copy"}
+
 type User struct {
 	ID                 uint `gorm:"primarykey"`
 	CreatedAt          time.Time
@@ -21,7 +24,7 @@ type User struct {
 	Uuid               string `gorm:"uniqueIndex; not null"`
 	Name               string `gorm:"not null"`
 	Username           string `gorm:"type:text collate nocase; not null; unique"`
-	Email              string `gorm:"uniqueIndex; not null"`
+	Email              string `gorm:"type:text collate nocase; not null; uniqueIndex"`
 	SendToEmail        string
 	Password           string
 	Role               int `gorm:"not null"`
@@ -30,9 +33,12 @@ type User struct {
 	RecoveryValidUntil time.Time
 	Highlights         []Highlight `gorm:"constraint:OnDelete:CASCADE"`
 	Readings           []Reading   `gorm:"constraint:OnDelete:CASCADE"`
-	LastLogin          time.Time
+	LastRequest        time.Time
 	ShowFileName       bool   `gorm:"default:false; not null"`
+	PrivateProfile     int    `gorm:"default:0; not null"`
 	PreferredEpubType  string `gorm:"default:'epub'; not null"`
+	DefaultAction      string `gorm:"default:'download'; not null"`
+	Language           string
 }
 
 // Validate checks all user's fields to ensure they are in the required format
@@ -81,6 +87,10 @@ func (u User) Validate(minPasswordLength int) map[string]string {
 
 	if u.Role < RoleRegular || u.Role > RoleAdmin {
 		errs["role"] = "Incorrect role"
+	}
+
+	if !slices.Contains(AllowedDefaultActions, u.DefaultAction) {
+		errs["defaultaction"] = "Incorrect default action"
 	}
 
 	if len(u.Password) < minPasswordLength {

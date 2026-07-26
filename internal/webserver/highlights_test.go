@@ -7,10 +7,10 @@ import (
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/webserver"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 	"gorm.io/gorm"
 )
 
@@ -26,7 +26,7 @@ func TestHighlights(t *testing.T) {
 		var err error
 
 		db = infrastructure.Connect(":memory:", 250)
-		appFS := loadFilesInMemoryFs([]string{"fixtures/library/metadata.epub"})
+		appFS := loadFilesInMemoryFs([]string{"testdata/library/metadata.epub"})
 		app = bootstrapApp(db, &infrastructure.NoEmail{}, appFS, webserver.Config{})
 		adminCookie, err = login(app, "admin@example.com", "admin", t)
 		if err != nil {

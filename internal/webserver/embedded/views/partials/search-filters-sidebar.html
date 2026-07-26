@@ -1,0 +1,30 @@
+{{$searchType := or .SearchType "documents"}}
+<div class="search-filters-sidebar-sticky">
+    <form id="search-filters-form" action="/search" method="get" role="search">
+        <input type="hidden" name="type" id="search-type" value="{{$searchType}}">
+        <div class="border border-bottom-0 rounded-top-4 p-3">
+            <label for="sidebar-search" class="visually-hidden">{{t .Lang "Search"}}</label>
+            <input type="search" name="search" id="sidebar-search" class="form-control" maxlength="255" value="{{or .SearchQuery ""}}" placeholder="{{t .Lang "Search"}}...">
+        </div>
+        <ul class="nav nav-tabs nav-fill home-search-tabs mb-0 d-none" id="search-sidebar-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link{{if eq $searchType "documents"}} active{{end}}" id="search-sidebar-tab-documents" data-search-tab="documents" data-bs-toggle="tab" data-bs-target="#search-sidebar-documents-panel" role="tab" aria-selected="{{if eq $searchType "documents"}}true{{else}}false{{end}}" aria-controls="search-sidebar-documents-panel">{{t .Lang "Documents"}}</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button type="button" class="nav-link{{if eq $searchType "authors"}} active{{end}}" id="search-sidebar-tab-authors" data-search-tab="authors" data-bs-toggle="tab" data-bs-target="#search-sidebar-authors-panel" role="tab" aria-selected="{{if eq $searchType "authors"}}true{{else}}false{{end}}" aria-controls="search-sidebar-authors-panel">{{t .Lang "Authors"}}</button>
+            </li>
+        </ul>
+        <div class="tab-content home-search-tab-content border border-top-0 rounded-bottom-4">
+            <div class="tab-pane fade{{if eq $searchType "documents"}} show active{{end}}" id="search-sidebar-documents-panel" role="tabpanel" aria-labelledby="search-sidebar-tab-documents" tabindex="0">
+                {{template "partials/document-search-filters" dict "Lang" .Lang "FilterIdPrefix" "sidebar" "SearchFields" .DocumentSearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs "DocumentsSearchPage" true "HideSearch" true}}
+            </div>
+            <div class="tab-pane fade{{if eq $searchType "authors"}} show active{{end}}" id="search-sidebar-authors-panel" role="tabpanel" aria-labelledby="search-sidebar-tab-authors" tabindex="0">
+                {{template "partials/author-search-filters" dict "Lang" .Lang "FilterIdPrefix" "sidebar" "SearchFields" .AuthorSearchFields "SelectedGender" .SelectedGender "Version" .Version "AuthorsSearchPage" true "HideSearch" true}}
+            </div>
+        </div>
+    </form>
+</div>
+
+<script id="i18n" type="application/json">{"i18n":{
+    "remove_subject": {{t .Lang "Remove subject: %s" "%s"}}
+}}</script>

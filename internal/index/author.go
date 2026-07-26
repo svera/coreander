@@ -6,7 +6,7 @@ import (
 
 	"github.com/rickb777/date/v2"
 	"github.com/rickb777/date/v2/timespan"
-	"github.com/svera/coreander/v4/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 type Author struct {
@@ -24,6 +24,7 @@ type Author struct {
 	DataSourceImage string
 	Gender          float64
 	Pseudonyms      []string
+	DocumentCount   uint64
 }
 
 func (a Author) YearOfBirthAbs() int {

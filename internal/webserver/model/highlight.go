@@ -1,12 +1,13 @@
 package model
 
-import (
-	"time"
-)
+import "time"
 
 type Highlight struct {
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	UserID    int    `gorm:"primaryKey"`
-	Path      string `gorm:"primaryKey"`
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	UserID     int    `gorm:"primaryKey;index;not null"`
+	Slug       string `gorm:"primaryKey;index;not null"`
+	SharedByID *int   `gorm:"index"`
+	Comment    string `gorm:"type:text"`
+	SharedBy   *User  `gorm:"foreignKey:SharedByID"`
 }

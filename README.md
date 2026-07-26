@@ -1,5 +1,7 @@
 A personal documents server, Coreander indexes the documents (EPUBs and PDFs with no DRM) that it finds in the passed folder, and provides a web interface to search and access them.
 
+[![Follow us on Bluesky](https://img.shields.io/badge/Bluesky-0285FF?logo=bluesky&logoColor=fff&label=Follow%20me%20on&color=0285FF)](https://bsky.app/profile/coreanderapp.bsky.social)
+
 ![Coreander home](assets/home.png)
 *Coreander home*
 
@@ -8,7 +10,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Search by author, title and even document series ([Calibre's](https://calibre-ebook.com/) `series` meta supported)
 * Improved search for documents with metadata in English, Spanish, French, Italian, German and Portuguese, including genre and singular/plural forms of words in the results among others.
 * Estimated reading time calculation.
-* Responsive web interface available in English, Spanish, German and French, more languages can be easily added.
+* Responsive web interface available in English, Spanish, German, Russian and French, more languages can be easily added.
 * New documents added or removed to/from the library folder are automatically indexed (Linux only).
 * [Send to email supported](#send-to-email).
 * Read indexed epubs and PDFs from Coreander's interface thanks to [foliate-js](https://github.com/johnfactotum/foliate-js).
@@ -124,9 +126,13 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |                                     |`LIB_PATH`                | Absolute path to the folder containing the documents.
 |`-p` or `--port`                     |`PORT`                    | Port number in which the webserver listens for requests. Defaults to 3000.
 |`-b` or `--batch-size`               |`BATCH_SIZE`              | Number of documents persisted by the indexer in one write operation. Defaults to 100.
+|`--index-workers`                    |`INDEX_WORKERS`           | Parallel workers for metadata extraction during indexing. `0` (default) uses an automatic count based on CPUs (capped at 64); `1` is sequential; `2` or higher sets an explicit pool size (also capped at 64).
 |`--cover-max-width`                  |`COVER_MAX_WIDTH`         | Maximum horizontal size for documents cover thumbnails in pixels. Defaults to 600.
 |`--author-image-max-width`           |`AUTHOR_IMAGE_MAX_WIDTH`  | Maximum horizontal size for author images in pixels. Set to 0 to keep original image size. Defaults to 600.
+|`--illustrated-min-amount`           |`ILLUSTRATED_MIN_AMOUNT`  | Minimum number of illustrations (excluding cover) for a document to be considered illustrated. Only raster images in PNG, GIF and JPEG formats are taken into account. Defaults to 2.
+|`--illustrated-min-size`             |`ILLUSTRATED_MIN_SIZE`    | Minimum size in megapixels for an image to count as an illustration. Defaults to 0.25.
 |`-c` or `--cache-dir`                |`CACHE_DIR`                       | Directory where to store cache files. Defaults to `~/.coreander/cache`.
+|`--cache-max-size`                   |`CACHE_MAX_SIZE`                  | Maximum total size of the cache directory in megabytes. Oldest files are evicted first when the limit is reached. Set to 0 for unlimited. Defaults to 500.
 |`--client-static-cache-ttl`          |`CLIENT_STATIC_CACHE_TTL`         | Client-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 31536000 (1 year).
 |`--client-dynamic-image-cache-ttl`   |`CLIENT_DYNAMIC_IMAGE_CACHE_TTL`  | Client-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 86400 (24 hours).
 |`--server-static-cache-ttl`          |`SERVER_STATIC_CACHE_TTL`         | Server-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 31536000 (1 year).
@@ -143,7 +149,11 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`--session-timeout`                  |`SESSION_TIMEOUT`         | Specifies the maximum time a user session may last, in hours. Floating-point values are allowed. Defaults to 24 hours.
 |`--recovery-timeout`                 |`RECOVERY_TIMEOUT`        | Specifies the maximum time a user recovery link may last, in hours. Floating-point values are allowed. Defaults to 2 hours.
 |`--invitation-timeout`               |`INVITATION_TIMEOUT`      | Specifies the maximum time a user invitation link may last, in hours. Floating-point values are allowed. Defaults to 72 hours.
+|`--invite-email-list-max-length`     |`INVITE_EMAIL_LIST_MAX_LENGTH` | Maximum length in bytes of the comma-separated invitation email list field (admin invite form). Defaults to 2000.
+|`--invite-max-recipients`           |`INVITE_MAX_RECIPIENTS`   | Maximum number of distinct email addresses allowed in one invitation submit. Defaults to 50.
 |`-u` or `--upload-document-max-size` |`UPLOAD_DOCUMENT_MAX_SIZE`| Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
+|`-m` or `--share-comment-max-size`   |`SHARE_COMMENT_MAX_SIZE`  | Maximum length for share comments in characters. Defaults to 280.
+|`--share-max-recipients`             |`SHARE_MAX_RECIPIENTS`    | Maximum number of recipients allowed when sharing a document. Defaults to 10.
 |`-d` or `--fqdn`                     |`FQDN`                    | Domain name of the server. If Coreander is listening to a non-standard HTTP / HTTPS port, include it using a colon (e. g. example.com:3000). Defaults to `localhost`.
 |`-v` or `--version`                  |                          | Show version number.
 

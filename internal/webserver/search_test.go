@@ -2,18 +2,69 @@ package webserver_test
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gofiber/fiber/v2"
-	"github.com/svera/coreander/v4/internal/webserver"
-	"github.com/svera/coreander/v4/internal/webserver/infrastructure"
+	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
+
+func TestUnifiedSearch(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	smtpMock := &infrastructure.SMTPMock{}
+	appFS := loadDirInMemoryFs("testdata/library")
+
+	app := bootstrapApp(db, smtpMock, appFS, webserver.Config{})
+
+	req, err := http.NewRequest(http.MethodGet, "/search?search=john&type=documents", nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	response, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Errorf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if documentResults := doc.Find("#list .list-group-item").Length(); documentResults == 0 {
+		t.Error("Expected document search results for john")
+	}
+
+	req, err = http.NewRequest(http.MethodGet, "/search?search=john&type=authors", nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	response, err = app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Errorf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+
+	doc, err = goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if authorResults := doc.Find("#list .list-group-item").Length(); authorResults == 0 {
+		t.Error("Expected author search results for john")
+	}
+}
 
 func TestSearch(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	smtpMock := &infrastructure.SMTPMock{}
-	appFS := loadDirInMemoryFs("fixtures/library")
+	appFS := loadDirInMemoryFs("testdata/library")
 
 	app := bootstrapApp(db, smtpMock, appFS, webserver.Config{})
 
@@ -54,7 +105,7 @@ func TestSearch(t *testing.T) {
 	}
 }
 
-func assertSearchResults(app *fiber.App, t *testing.T, search string, expectedResults int) {
+func assertDocumentResults(app *fiber.App, t *testing.T, search string, expectedResults int) {
 	t.Helper()
 
 	req, err := http.NewRequest(http.MethodGet, "/documents?search="+search, nil)
@@ -76,5 +127,83 @@ func assertSearchResults(app *fiber.App, t *testing.T, search string, expectedRe
 
 	if actualResults := doc.Find("#list .list-group-item").Length(); actualResults != expectedResults {
 		t.Errorf("Expected %d results, got %d", expectedResults, actualResults)
+	}
+}
+
+func assertAuthorSearchResults(app *fiber.App, t *testing.T, name string, expectedResults int) {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodGet, "/authors?name="+name, nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	response, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if expectedStatus := http.StatusOK; response.StatusCode != expectedStatus {
+		t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualResults := doc.Find("#list .list-group-item").Length(); actualResults != expectedResults {
+		t.Errorf("Expected %d author results, got %d", expectedResults, actualResults)
+	}
+}
+
+func documentSearchFirstSlug(app *fiber.App, t *testing.T, search string) string {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodGet, "/documents?search="+search, nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	response, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	href, ok := doc.Find("#list .list-group-item a").First().Attr("href")
+	if !ok {
+		t.Fatalf("Expected a document link for search %q", search)
+	}
+
+	return strings.TrimPrefix(href, "/documents/")
+}
+
+func assertAuthorDocuments(app *fiber.App, t *testing.T, authorSlug string, expectedResults int) {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodGet, "/authors/"+authorSlug, nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	response, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actualResults := doc.Find("#list .list-group-item").Length(); actualResults != expectedResults {
+		t.Errorf("Expected %d documents for author %q, got %d", expectedResults, authorSlug, actualResults)
 	}
 }

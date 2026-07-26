@@ -1,0 +1,51 @@
+{{if ne .Author.Name ""}}
+    {{if not .Author.RetrievedOn.IsZero}}
+        {{template "partials/author-summary" dict "Lang" .Lang "Author" .Author "Session" .Session "ImageVersion" .ImageVersion "Version" .Version}}
+    {{else}}
+    <div hx-get="/authors/{{.Author.Slug}}/summary" hx-trigger="load" hx-target="this">
+        <div class="card mb-3 bg-body-secondary placeholder-glow">
+            <div class="row">
+                <div class="card-body col-sm-6 col-md-6 col-lg-9">
+                    <h1 class="card-title ms-3">{{.Author.Name}}</h1>
+                    <p class="ms-3 mb-1"><span class="placeholder col-8"></span></p>
+                    <p class="ms-3"><span class="placeholder col-6"></span></p>
+                </div>
+                <div class="col-lg-3 col-md-6 col-sm-6 p-3 d-flex align-items-center">
+                    <div class="ratio ratio-1x1 w-100">
+                        <span class="placeholder rounded-circle w-100"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {{end}}
+{{end}}
+
+{{template "partials/list-placeholder" .}}
+
+<div class="row mt-5 mb-2 pb-2 border-bottom d-flex">
+    {{if eq .Results.TotalHits 0}}
+    <div class="col-12 align-content-end">
+        <p class="text-center">{{t .Lang "No documents found"}}</p>
+    </div>
+    {{else}}
+    <div class="col-6 col-md-8 align-content-end">
+        <p class="text-start">{{t .Lang "%d documents found" .Results.TotalHits}}</p>
+    </div>
+    <div class="col-6 col-md-4 text-end">
+        {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "AdditionalSortOptions" .AdditionalSortOptions}}
+    </div>
+    {{end}}
+</div>
+
+<div id="list" hx-get="{{.URL}}" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
+    {{ template "partials/docs-list" . }}
+</div>
+
+{{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
+
+<script type="module" src="/js/delete.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/highlight.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/complete.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/cover.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/datetime.js{{versionParam .Version}}"></script>

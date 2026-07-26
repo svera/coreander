@@ -15,10 +15,18 @@ type CLIInput struct {
 	Port int `env:"PORT" short:"p" default:"3000" name:"port" help:"Port number in which the webserver listens for requests"`
 	// BatchSize indicates the number of documents persisted by the indexer in one operation
 	BatchSize int `env:"BATCH_SIZE" short:"b" default:"100" name:"batch-size" help:"Number of documents persisted by the indexer in one operation"`
+	// IndexWorkers is the number of goroutines used to extract metadata in parallel during indexing. 0 (default) chooses CPU count; 1 is sequential; 2+ sets an explicit pool size.
+	IndexWorkers int `env:"INDEX_WORKERS" name:"index-workers" default:"0" help:"Parallel workers for metadata extraction during indexing. 0 = automatic (CPU count); 1 = sequential; 2+ = explicit pool size."`
 	// AuthorImageMaxWidth sets the maximum horizontal size for author images in pixels. Set to 0 to keep original image size
 	AuthorImageMaxWidth int `env:"AUTHOR_IMAGE_MAX_WIDTH" default:"600" name:"author-image-max-width" help:"Maximum horizontal size for author images in pixels. Set to 0 to keep original image size"`
 	// CoverMaxWidth sets the maximum horizontal size for documents cover thumbnails in pixels
 	CoverMaxWidth int `env:"COVER_MAX_WIDTH" default:"600" name:"cover-max-width" help:"Maximum horizontal size for documents cover thumbnails in pixels"`
+	// CacheMaxSize sets the maximum total size of the cache directory in megabytes. Set to 0 for unlimited.
+	CacheMaxSize int `env:"CACHE_MAX_SIZE" default:"500" name:"cache-max-size" help:"Maximum total size of the cache directory in megabytes. Set to 0 for unlimited."`
+	// IllustratedMinAmount is the minimum number of illustrations (excluding cover) for a document to be considered illustrated
+	IllustratedMinAmount int `env:"ILLUSTRATED_MIN_AMOUNT" default:"2" name:"illustrated-min-amount" help:"Minimum number of illustrations (excluding cover) for a document to be considered illustrated"`
+	// IllustratedMinSize is the minimum size in megapixels for an image to count as an illustration
+	IllustratedMinSize float64 `env:"ILLUSTRATED_MIN_SIZE" default:"0.25" name:"illustrated-min-size" help:"Minimum size in megapixels for an image to count as an illustration"`
 	// ForceIndexing signals whether to force indexing already indexed documents or not
 	ForceIndexing bool `env:"FORCE_INDEXING" short:"f" default:"false" name:"force-indexing" help:"Force indexing already indexed documents"`
 	// SmtpServer points to the address of the send mail server
@@ -54,4 +62,12 @@ type CLIInput struct {
 	ServerStaticCacheTTL int `env:"SERVER_STATIC_CACHE_TTL" default:"31536000" name:"server-static-cache-ttl" help:"Server-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 1 year (31536000 seconds)."`
 	// ServerDynamicImageCacheTTL defines the server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours.
 	ServerDynamicImageCacheTTL int `env:"SERVER_DYNAMIC_IMAGE_CACHE_TTL" default:"86400" name:"server-dynamic-image-cache-ttl" help:"Server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours (86400 seconds)."`
+	// ShareCommentMaxSize defines the maximum length for share comments in characters. Defaults to 280.
+	ShareCommentMaxSize int `env:"SHARE_COMMENT_MAX_SIZE" short:"m" default:"280" name:"share-comment-max-size" help:"Maximum length for share comments in characters. Defaults to 280."`
+	// ShareMaxRecipients defines the maximum number of recipients allowed when sharing a document. Defaults to 10.
+	ShareMaxRecipients int `env:"SHARE_MAX_RECIPIENTS" default:"10" name:"share-max-recipients" help:"Maximum number of recipients allowed when sharing a document. Defaults to 10."`
+	// InviteEmailListMaxLength is the maximum length (in bytes) of the comma-separated invite email field. Defaults to 2000.
+	InviteEmailListMaxLength int `env:"INVITE_EMAIL_LIST_MAX_LENGTH" default:"2000" name:"invite-email-list-max-length" help:"Maximum length in bytes of the invitation email list field. Defaults to 2000."`
+	// InviteMaxRecipients is the maximum number of distinct addresses per invitation submit. Defaults to 50.
+	InviteMaxRecipients int `env:"INVITE_MAX_RECIPIENTS" default:"50" name:"invite-max-recipients" help:"Maximum number of distinct email addresses per invitation form submit. Defaults to 50."`
 }

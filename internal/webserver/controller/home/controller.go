@@ -1,30 +1,31 @@
 package home
 
 import (
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/result"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 type Sender interface {
-	SendDocument(address, subject, libraryPath, fileName string) error
+	SendDocument(address, subject string, file []byte, fileName string) error
 	From() string
 }
 
 // IdxReaderWriter defines a set of reading and writing operations over an index
 type IdxReaderWriter interface {
-	DocumentByID(ID string) (index.Document, error)
-	Count() (uint64, error)
+	Document(slug string) (index.Document, error)
+	TotalDocs() (uint64, error)
+	TotalAuthors() (uint64, error)
 	LatestDocs(limit int) ([]index.Document, error)
 	Languages() ([]string, error)
 }
 
 type highlightsRepository interface {
-	Highlighted(userID int, doc index.Document) index.Document
+	Highlighted(userID int, doc model.AugmentedDocument) model.AugmentedDocument
 }
 
 type readingRepository interface {
-	Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]string], error)
-	Completed(userID int, doc index.Document) index.Document
+	Latest(userID int, page int, resultsPerPage int) (result.Paginated[[]model.AugmentedDocument], error)
 }
 
 type Config struct {

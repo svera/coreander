@@ -1,9 +1,10 @@
 <div class="row mb-3 mt-5">
     <div class="col mb-3">
-        <h2>{{t .Lang "New user"}}</h2>
+        <h1>{{t .Lang "New user"}}</h1>
     </div>
 
     <form hx-post="/users" hx-swap="outerHTML" hx-target="closest div" autocomplete="off">
+        <input type="hidden" name="language" value="{{.Lang}}">
         <div class="mb-3">
             <div class="form-floating">
                 <input type="text" name="name" class='form-control {{if ne (index .Errors "name") ""}}is-invalid{{end}}' id="name" required="required" value="{{.User.Name}}" maxlength="50" placeholder='{{t .Lang "Name"}}'>
@@ -76,7 +77,8 @@
             {{end}}
         </div>
 
-        <div class="d-grid d-sm-block">
+        <div class="d-grid gap-2 d-sm-inline-flex">
+            <a href="/users" class="btn btn-secondary">{{t .Lang "Cancel"}}</a>
             <button type="submit" class="btn btn-primary">{{t .Lang "Create"}}</button>
         </div>
     </form>

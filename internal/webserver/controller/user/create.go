@@ -5,26 +5,28 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 // Create gathers information coming from the new user form and creates a new user
-func (u *Controller) Create(c *fiber.Ctx) error {
+func (u *Controller) Create(c fiber.Ctx) error {
 	role, _ := strconv.Atoi(c.FormValue("role"))
 	user := model.User{
 		Name:           strings.TrimSpace(c.FormValue("name")),
 		Username:       strings.ToLower(c.FormValue("username")),
-		Email:          c.FormValue("email"),
+		Email:          strings.ToLower(strings.TrimSpace(c.FormValue("email"))),
 		Password:       c.FormValue("password"),
 		Role:           role,
 		Uuid:           uuid.NewString(),
 		WordsPerMinute: u.config.WordsPerMinute,
+		DefaultAction:  "download",
+		Language:       c.FormValue("language"),
 	}
 
 	errs := user.Validate(u.config.MinPasswordLength)
-	if exist, _ := u.usersRepository.FindByEmail(c.FormValue("email")); exist != nil {
+	if exist, _ := u.usersRepository.FindByEmail(user.Email); exist != nil {
 		errs["email"] = "A user with this email address already exists"
 	}
 

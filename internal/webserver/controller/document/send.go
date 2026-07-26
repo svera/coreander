@@ -1,38 +1,28 @@
 package document
 
 import (
+	"errors"
 	"log"
 	"net/mail"
-	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/index"
 )
 
-func (d *Controller) Send(c *fiber.Ctx) error {
-	slug := ""
-	if slug = strings.Trim(c.Params("slug"), " "); slug == "" {
-		return fiber.ErrBadRequest
-	}
+func (d *Controller) Send(c fiber.Ctx) error {
+	slug := c.Params("slug")
 
 	if _, err := mail.ParseAddress(c.FormValue("email")); err != nil {
 		return fiber.ErrBadRequest
 	}
 
-	document, err := d.idx.Document(slug)
-	if err != nil {
-		return fiber.ErrInternalServerError
-	}
-
-	if document.Slug == "" {
+	file, err := d.idx.File(slug)
+	if errors.Is(err, index.ErrDocumentNotFound) {
 		return fiber.ErrNotFound
-	}
-
-	if _, err := os.Stat(filepath.Join(d.config.LibraryPath, document.ID)); err != nil {
+	} else if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	return d.sender.SendDocument(c.FormValue("email"), document.Title, d.config.LibraryPath, document.ID)
+	return d.sender.SendDocument(c.FormValue("email"), file.Document.Title, file.Data, file.FileName)
 }

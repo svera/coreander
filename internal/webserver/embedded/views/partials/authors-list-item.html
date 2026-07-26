@@ -1,0 +1,57 @@
+<div class="row">
+    <div class="col-12 col-md-4 col-lg-3 mb-3 d-flex align-items-start">
+        <a href="/authors/{{.Author.Slug}}" class="w-100">
+            <div class="ratio ratio-1x1">
+                <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.webp{{versionParam .Version}}" class="img-fluid object-fit-cover w-100 rounded-circle" alt="{{.Author.Name}}" loading="lazy">
+            </div>
+        </a>
+    </div>
+    <div class="col-12 col-md-8 col-lg-9">
+        <h2 class="mb-1"><a href="/authors/{{.Author.Slug}}">{{.Author.Name}}</a></h2>
+        {{if and (ne .Author.BirthName "") (not .Author.BirthNameIncludesName)}}
+            <p class="text-muted mb-2">{{.Author.BirthName}}</p>
+        {{end}}
+        {{if index .Author.Description .Lang}}
+            <p class="lead">{{index .Author.Description .Lang}}</p>
+        {{end}}
+        <dl class="row mb-2">
+            {{if ne .Author.DateOfBirth.Date 0}}
+            <dt class="col-sm-3">{{t .Lang "Date of birth"}}</dt>
+            <dd class="col-sm-9">
+                {{if .Author.DateOfBirth.IsPrecisionCentury}}
+                    {{t .Lang "%d century" .Author.DateOfBirth.CenturyAbs}}
+                    {{if lt .Author.DateOfBirth.Century 0}}<abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>{{end}}
+                {{else if (or .Author.DateOfBirth.IsPrecisionYear .Author.DateOfBirth.IsPrecisionDecade)}}
+                    {{.Author.YearOfBirthAbs}}
+                    {{if lt .Author.DateOfBirth.Year 0}}<abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>{{end}}
+                {{else}}
+                    <time datetime='{{.Author.DateOfBirth.Date.FormatISO 6}}' class='locale'>{{.Author.DateOfBirth.FormatISO 6}}</time>
+                    {{if lt .Author.DateOfBirth.Year 0}}<abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>{{end}}
+                    {{if and (gt .Author.Age 0) (eq .Author.DateOfDeath.Date 0) }}
+                        ({{t .Lang "%d years old" .Author.Age}})
+                    {{end}}
+                {{end}}
+            </dd>
+            {{end}}
+            {{if ne .Author.DateOfDeath.Date 0}}
+            <dt class="col-sm-3">{{t .Lang "Date of death"}}</dt>
+            <dd class="col-sm-9">
+                {{if .Author.DateOfDeath.IsPrecisionCentury}}
+                    {{t .Lang "%d century" .Author.DateOfDeath.CenturyAbs}}
+                    {{if lt .Author.DateOfDeath.Century 0}}<abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>{{end}}
+                {{else if (or .Author.DateOfDeath.IsPrecisionYear .Author.DateOfDeath.IsPrecisionDecade)}}
+                    {{.Author.YearOfDeathAbs}}
+                    {{if lt .Author.DateOfDeath.Year 0}}<abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>{{end}}
+                {{else}}
+                    <time datetime='{{.Author.DateOfDeath.Date.FormatISO 6}}' class='locale'>{{.Author.DateOfDeath.FormatISO 6}}</time>
+                    {{if lt .Author.DateOfDeath.Year 0}}<abbr title='{{t .Lang "Before Christ"}}'>{{t .Lang "BC"}}</abbr>{{end}}
+                    {{if gt .Author.Age 0}}
+                        ({{t .Lang "%d years old" .Author.Age}})
+                    {{end}}
+                {{end}}
+            </dd>
+            {{end}}
+        </dl>
+        <p class="text-muted">{{.Author.DocumentCount}} {{if eq .Author.DocumentCount 1}}{{t .Lang "document"}}{{else}}{{t .Lang "documents"}}{{end}}</p>
+    </div>
+</div>

@@ -25,18 +25,19 @@ export class ReaderSync {
         const saved = storage.getItem(slug)
         
         if (!saved) {
-            return { position: null, updated: null }
+            return { position: null, updated: null, percentage: null }
         }
         
         try {
             const parsed = JSON.parse(saved)
+            const p = parsed.percentage
             return {
                 position: parsed.position || null,
-                updated: parsed.updated || null
+                updated: parsed.updated || null,
+                percentage: typeof p === 'number' && !Number.isNaN(p) ? p : null
             }
         } catch {
-            // Old format: plain string (position only)
-            return { position: saved, updated: null }
+            return { position: saved, updated: null, percentage: null }
         }
     }
 
@@ -67,14 +68,20 @@ export class ReaderSync {
         }
     }
 
-    async syncPositionToServer(slug, position) {
+    async syncPositionToServer(slug, position, percentage) {
+        let pct = 0
+        if (position !== '') {
+            const n = Number(percentage)
+            pct = Math.min(100, Math.max(0, Math.round(Number.isFinite(n) ? n : 0)))
+        }
+        const payload = { position, percentage: pct }
         try {
             const response = await fetch(`/documents/${slug}/position`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ position })
+                body: JSON.stringify(payload)
             })
             
             if (response.status === 403) {
@@ -121,11 +128,14 @@ export class ReaderSync {
                 // Check if position actually changed
                 const positionChanged = localData.position !== serverData.position
                 
-                // Server position is newer, update localStorage
-                storage.setItem(slug, JSON.stringify({
+                const merged = {
                     position: serverData.position,
                     updated: serverData.updated
-                }))
+                }
+                if (typeof serverData.percentage === 'number' && !Number.isNaN(serverData.percentage)) {
+                    merged.percentage = serverData.percentage
+                }
+                storage.setItem(slug, JSON.stringify(merged))
                 
                 // Navigate to the new position
                 try {
@@ -141,11 +151,10 @@ export class ReaderSync {
         }
     }
 
-    schedulePositionUpdate(slug, position) {        
+    schedulePositionUpdate(slug, position, percentage) {
         clearTimeout(this.#updatePositionTimeout)
         this.#updatePositionTimeout = setTimeout(() => {
-            this.syncPositionToServer(slug, position)
+            this.syncPositionToServer(slug, position, percentage)
         }, 1000) // Wait 1 second after last position change
     }
 }
-

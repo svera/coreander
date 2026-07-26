@@ -1,84 +1,104 @@
 package document
 
 import (
+	"image"
 	"time"
 
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/result"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/i18n"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 const relatedDocuments = 4
 
 type Sender interface {
-	SendDocument(address, subject, libraryPath, fileName string) error
+	SendBCC(addresses []string, subject, body string) error
+	SendDocument(address, subject string, file []byte, fileName string) error
 	From() string
 }
 
 // IdxReaderWriter defines a set of reading and writing operations over an index
 type IdxReaderWriter interface {
 	Search(searchFields index.SearchFields, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
-	Count() (uint64, error)
+	TotalDocs() (uint64, error)
 	Close() error
 	Document(Slug string) (index.Document, error)
+	File(slug string) (*index.IndexedFile, error)
+	Cover(slug string, coverMaxWidth int) (image.Image, error)
 	SameSubjects(slug string, quantity int) ([]index.Document, error)
 	SameAuthors(slug string, quantity int) ([]index.Document, error)
 	SameSeries(slug string, quantity int) ([]index.Document, error)
-	AddFile(file string) (string, error)
-	RemoveFile(file string) error
-	Documents(IDs []string, sortBy []string) ([]index.Document, error)
+	NewFile(fileName string, contents []byte) (string, error)
+	DeleteDocument(slug string) error
+	Documents(slugs []string) (map[string]index.Document, error)
 	Languages() ([]string, error)
+	Subjects() (map[string][]string, error)
+	Author(slug, lang string) (index.Author, error)
 }
 
 type highlightsRepository interface {
-	Highlights(userID int, page int, resultsPerPage int, sortBy string) (result.Paginated[[]string], error)
-	Highlighted(userID int, doc index.Document) index.Document
-	HighlightedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
-	RemoveDocument(documentPath string) error
+	Highlighted(userID int, doc model.AugmentedDocument) model.AugmentedDocument
+	HighlightedPaginatedResult(userID int, results result.Paginated[[]model.AugmentedDocument]) result.Paginated[[]model.AugmentedDocument]
+	RemoveDocument(documentSlug string) error
+	Share(senderID int, documentSlug, comment string, recipientIDs []int) error
+}
+
+type usersRepository interface {
+	FindByEmail(email string) (*model.User, error)
+	FindByUsername(username string) (*model.User, error)
 }
 
 type readingRepository interface {
-	Get(userID int, documentPath string) (model.Reading, error)
-	Update(userID int, documentPath, position string) error
-	Touch(userID int, documentPath string) error
-	RemoveDocument(documentPath string) error
-	UpdateCompletionDate(userID int, documentPath string, completedAt *time.Time) error
-	Completed(userID int, doc index.Document) index.Document
-	CompletedPaginatedResult(userID int, results result.Paginated[[]index.Document]) result.Paginated[[]index.Document]
+	Get(userID int, documentSlug string) (model.Reading, error)
+	Update(userID int, documentSlug, position string, percentage *int) error
+	Touch(userID int, documentSlug string) error
+	RemoveDocument(documentSlug string) error
+	UpdateCompletionDate(userID int, documentSlug string, completedAt *time.Time) error
+	CompletedOn(userID int, documentSlug string) (*time.Time, error)
+	CompletedPaginatedResult(userID int, results result.Paginated[[]model.AugmentedDocument]) result.Paginated[[]model.AugmentedDocument]
 }
 
 type Config struct {
 	WordsPerMinute        float64
-	LibraryPath           string
 	HomeDir               string
+	LibraryPath           string
 	CoverMaxWidth         int
+	CacheDir              string
+	CacheMaxSize          int
 	Hostname              string
 	Port                  int
 	UploadDocumentMaxSize int
 	ClientImageCacheTTL   int
 	ServerImageCacheTTL   int
+	ShareCommentMaxSize   int
+	ShareMaxRecipients    int
 }
 
 type Controller struct {
 	hlRepository      highlightsRepository
+	usersRepository   usersRepository
 	readingRepository readingRepository
 	idx               IdxReaderWriter
 	sender            Sender
 	config            Config
 	metadataReaders   map[string]metadata.Reader
 	appFs             afero.Fs
+	translator        i18n.Translator
 }
 
-func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config) *Controller {
+func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config, translator i18n.Translator) *Controller {
 	return &Controller{
 		hlRepository:      hlRepository,
+		usersRepository:   usersRepository,
 		readingRepository: readingRepository,
 		idx:               idx,
 		sender:            sender,
 		config:            cfg,
 		metadataReaders:   metadataReaders,
 		appFs:             appFs,
+		translator:        translator,
 	}
 }

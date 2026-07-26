@@ -1,0 +1,93 @@
+{{$ctx := .}}
+{{if and .Document.Highlight .Document.Highlight.SharedByID}}
+    {{$sharedByName := ""}}
+    {{if .Document.Highlight.SharedBy}}
+        {{$sharedByName = .Document.Highlight.SharedBy.Name}}
+    {{end}}
+    {{if eq $sharedByName ""}}
+        {{if .Document.Highlight.SharedBy}}
+            {{$sharedByName = .Document.Highlight.SharedBy.Username}}
+        {{end}}
+    {{end}}
+    {{if eq $sharedByName ""}}
+        {{$sharedByName = t .Lang "Deleted user"}}
+    {{end}}
+    <div class="alert alert-primary mb-3" role="alert">
+        <p class="text-start text-muted mb-1">{{t .Lang "<b>%s</b> shared <cite>%s</cite> with you" $sharedByName .Document.Title}}
+            {{if .Document.Highlight.Comment}}
+                <blockquote class="fst-italic fw-light">{{.Document.Highlight.Comment}}</blockquote>
+            {{end}}
+        </p>
+    </div>
+{{end}}
+<div class="row">
+    <div class="col-12 col-md-4 col-lg-3 mb-3">
+        <div class="mb-3">
+            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "Version" .Version "Eager" .Eager}}
+        </div>
+        {{template "partials/actions" dict "Lang" .Lang "Document" .Document "Session" .Session "FQDN" .FQDN "Version" .Version "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize}}
+    </div>
+    <div class="col-12 col-md-8 col-lg-9">
+        <div class="row">
+            <div class="col-7">
+                {{ if ne .Document.Series "" }} {{$seriesTitle := t .Lang "Search for more titles belonging to %s"
+                .Document.Series}}
+                <p class="text-start text-muted text-uppercase mb-0"><a
+                        href="/series/{{.Document.SeriesSlug}}"
+                        title={{$seriesTitle}}>{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</a></p>
+                {{ end }}
+                <h2>
+                    <a href="/documents/{{.Document.Slug}}">{{.Document.Title}}</a>
+                </h2>
+            </div>
+            {{if and .Session (eq .Session.Role 2)}}
+            <div class="col-5 text-end">
+                <button href="#" data-bs-toggle="modal" data-bs-target="#delete-modal" data-url="/documents/{{.Document.Slug}}" class="btn btn-sm btn-danger" title="{{.Document.ID}}">
+                    <i class="bi-trash3-fill"></i>
+                </button>
+            </div>
+            {{end}}
+        </div>
+        <div class="row">
+            <div class="col-12 text-start">
+                {{if .Document.Authors}}
+                <p class="fs-5 mb-0">
+                    {{range $i, $author := .Document.Authors}}
+                    {{$authorTitle := t $ctx.Lang "Search for more titles by %s" $author}}
+                    <a href="/authors/{{index $ctx.Document.AuthorsSlugs $i}}" title={{$authorTitle}}>{{$author}}</a>{{if notLast $ctx.Document.Authors $i}}, {{end}}
+                    {{end}}
+                </p>
+                {{else}}
+                    <p class="fs-5 mb-0">{{t .Lang "Unknown author"}}</p>
+                {{end}}
+
+                {{if .Document.Illustrators}}
+                <p class="fs-5">
+                    <span class="text-muted">{{t .Lang "Illustrations"}}:</span>
+                    {{range $i, $ill := .Document.Illustrators}}
+                    {{$illTitle := t $ctx.Lang "Search for more titles by %s" $ill}}
+                    <a href="/authors/{{slugify $ill}}" title={{$illTitle}}>{{$ill}}</a>{{if notLast $ctx.Document.Illustrators $i}}, {{end}}
+                    {{end}}
+                </p>
+                {{end}}
+
+                {{template "partials/document-metadata" dict "Lang" .Lang "Document" .Document "Session" .Session "WordsPerMinute" .WordsPerMinute "IllustratedMinAmount" .IllustratedMinAmount}}
+
+                {{ if .Document.Subjects }}
+                <ul class="list-inline mt-3">
+                    {{range $i, $subject := .Document.Subjects}}
+                        {{$subjectTitle := t $ctx.Lang "Search for more titles in %s" $subject}}
+                        <li class="list-inline-item"><a class="btn btn-secondary btn-sm mb-1 mr-1" href="/documents?subjects={{urlquery $subject}}" title={{$subjectTitle}}>{{$subject}}</a></li>
+                    {{end}}
+                </ul>
+                {{ end }}
+
+                {{if .Document.Description}}
+                <div class="mb-1 mt-3 clamp">{{.Document.Description}}</div>
+                {{else}}
+                <div class="mb-1 mt-3"><em>{{t .Lang "No description available"}}</em></div>
+                {{end}}
+            </div>
+        </div>
+    </div>
+</div>

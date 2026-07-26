@@ -1,9 +1,12 @@
 package index
 
 import (
+	"errors"
 	"log"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
@@ -20,22 +23,26 @@ import (
 	"github.com/blevesearch/bleve/v2/mapping"
 	index "github.com/blevesearch/bleve_index_api"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/metadata"
+	"github.com/svera/coreander/v5/internal/metadata"
 )
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v9"
+const DocumentVersion = "v12"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const AuthorVersion = "1"
+const AuthorVersion = "2"
 
 // Metadata fields
 var (
-	internalLanguages = []byte("languages")
-	internalVersion   = []byte("version")
+	internalLanguages          = []byte("languages")
+	internalVersion            = []byte("version")
+	internalIllustratedMinSize = []byte("illustrated_min_size")
 )
+
+// ErrDocumentNotFound is returned when a document cannot be found by slug.
+var ErrDocumentNotFound = errors.New("document not found")
 
 var noStopWordsFilters = map[string][]string{
 	es.AnalyzerName: {lowercase.Name, es.NormalizeName, es.LightStemmerName},
@@ -48,26 +55,40 @@ var noStopWordsFilters = map[string][]string{
 
 const defaultAnalyzer = "default_analyzer"
 
+// Config holds indexer configuration.
+type Config struct {
+	// IllustratedMinAmount is the minimum number of illustrations (excluding cover) for a document to be considered illustrated.
+	IllustratedMinAmount int
+	// IllustratedMinSize is the minimum size in megapixels for an image to count as an illustration.
+	IllustratedMinSize float64
+}
+
 type BleveIndexer struct {
-	fs             afero.Fs
-	documentsIdx   bleve.Index // Documents index
-	authorsIdx     bleve.Index // Authors index
-	libraryPath    string
-	reader         map[string]metadata.Reader
-	indexStartTime float64
-	indexedEntries float64
+	fs                       afero.Fs
+	documentsIdx             bleve.Index // Documents index
+	authorsIdx               bleve.Index // Authors index
+	libraryPath              string
+	reader                   map[string]metadata.Reader
+	indexStartNanos          atomic.Int64
+	indexedEntries           atomic.Uint64
+	indexTotalEntries        atomic.Uint64
+	authorEnrichStartNanos   atomic.Int64
+	authorEnrichProcessed    atomic.Uint64
+	authorEnrichTotalEntries atomic.Uint64
+	illustratedMinAmount     int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
+	illustratedMinSize       float64 // minimum size in megapixels for an image to count as an illustration
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
-func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs, libraryPath string, read map[string]metadata.Reader) *BleveIndexer {
+func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs, libraryPath string, read map[string]metadata.Reader, cfg Config) *BleveIndexer {
 	return &BleveIndexer{
-		fs:             fs,
-		documentsIdx:   documentsIndex,
-		authorsIdx:     authorsIndex,
-		libraryPath:    strings.TrimSuffix(libraryPath, string(filepath.Separator)),
-		reader:         read,
-		indexStartTime: 0,
-		indexedEntries: 0,
+		fs:                   fs,
+		documentsIdx:         documentsIndex,
+		authorsIdx:           authorsIndex,
+		libraryPath:          strings.TrimSuffix(libraryPath, string(filepath.Separator)),
+		reader:               read,
+		illustratedMinAmount: cfg.IllustratedMinAmount,
+		illustratedMinSize:   cfg.IllustratedMinSize,
 	}
 }
 
@@ -137,8 +158,10 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Title", noStopWordsTextFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Authors", simpleTextFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AuthorsSlugs", keywordFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("IllustratorsSlugs", keywordFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrators", simpleTextFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Description", textFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Subjects", textFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Subjects", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("SubjectsSlugs", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Series", noStopWordsTextFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("SeriesSlug", keywordFieldMapping)
@@ -147,6 +170,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Publication.Precision", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Words", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Pages", numericFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrations", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	}
 
@@ -155,8 +179,10 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Title", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Authors", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AuthorsSlugs", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("IllustratorsSlugs", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Illustrators", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Description", simpleTextFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("Subjects", simpleTextFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Subjects", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("SubjectsSlugs", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Series", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("SeriesSlug", keywordFieldMapping)
@@ -165,6 +191,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Publication.Precision", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Words", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Pages", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Illustrations", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 
 	return indexMapping
@@ -173,16 +200,35 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 func CreateAuthorsMapping() mapping.IndexMapping {
 	indexMapping := bleve.NewIndexMapping()
 
+	err := indexMapping.AddCustomAnalyzer(defaultAnalyzer,
+		map[string]any{
+			"type": custom.Name,
+			"char_filters": []string{
+				asciifolding.Name,
+			},
+			"tokenizer": unicode.Name,
+			"token_filters": []string{
+				lowercase.Name,
+			},
+		})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	keywordFieldMapping := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable.Index = false
 
+	simpleTextFieldMapping := bleve.NewTextFieldMapping()
+	simpleTextFieldMapping.Analyzer = defaultAnalyzer
+
 	numericFieldMapping := bleve.NewNumericFieldMapping()
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
 
+	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Slug", keywordFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("Name", keywordFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("BirthName", keywordFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("Name", simpleTextFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("BirthName", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("RetrievedOn", dateTimeFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceID", keywordFieldMappingNotIndexable)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceImage", keywordFieldMappingNotIndexable)
@@ -193,14 +239,29 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfDeath.Precision", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("InstanceOf", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Gender", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DocumentCount", numericFieldMapping)
 
 	return indexMapping
 }
 
 // Close closes both indexes
 func (b *BleveIndexer) Close() error {
-	if err := b.documentsIdx.Close(); err != nil {
-		return err
+	return errors.Join(b.documentsIdx.Close(), b.authorsIdx.Close())
+}
+
+// NeedsReindexForIllustratedConfig reports whether the documents index must be rebuilt because the stored
+// illustrated-min-size config differs from currentMinSize (or is missing).
+func NeedsReindexForIllustratedConfig(documentsIndex bleve.Index, currentMinSize float64) (bool, error) {
+	stored, err := documentsIndex.GetInternal(internalIllustratedMinSize)
+	if err != nil {
+		return true, err
 	}
-	return b.authorsIdx.Close()
+	if len(stored) == 0 {
+		return true, nil
+	}
+	storedSize, err := strconv.ParseFloat(string(stored), 64)
+	if err != nil {
+		return true, err
+	}
+	return storedSize != currentMinSize, nil
 }

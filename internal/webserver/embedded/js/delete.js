@@ -10,15 +10,20 @@
 const deleteModal = document.getElementById('delete-modal');
 const deleteForm = document.getElementById('delete-form');
 
-deleteModal.addEventListener('show.bs.modal', event => {
-    const link = event.relatedTarget
-    deleteForm.setAttribute('hx-delete', link.getAttribute('data-url'))
-    htmx.process(deleteForm)
-})
+if (deleteModal && deleteForm) {
+    deleteModal.addEventListener('show.bs.modal', event => {
+        const link = event.relatedTarget
+        deleteForm.setAttribute('hx-delete', link.getAttribute('data-url'))
+        htmx.process(deleteForm)
+    })
+}
 
 document.body.addEventListener('htmx:afterRequest', function (evt) {
     const del = evt.detail.elt.getAttribute("hx-delete")
     if (!evt.detail.failed && del && !del.includes("/highlights")) {
-        htmx.trigger("#list", "update")
+        const list = document.getElementById('list')
+        if (list) {
+            htmx.trigger("#list", "update")
+        }
     }
 })

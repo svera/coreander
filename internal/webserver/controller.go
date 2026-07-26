@@ -2,34 +2,38 @@ package webserver
 
 import (
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v4/internal/index"
-	"github.com/svera/coreander/v4/internal/metadata"
-	"github.com/svera/coreander/v4/internal/webserver/controller/auth"
-	"github.com/svera/coreander/v4/internal/webserver/controller/author"
-	"github.com/svera/coreander/v4/internal/webserver/controller/document"
-	"github.com/svera/coreander/v4/internal/webserver/controller/highlight"
-	"github.com/svera/coreander/v4/internal/webserver/controller/home"
-	"github.com/svera/coreander/v4/internal/webserver/controller/series"
-	"github.com/svera/coreander/v4/internal/webserver/controller/user"
-	"github.com/svera/coreander/v4/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/webserver/controller/auth"
+	"github.com/svera/coreander/v5/internal/webserver/controller/author"
+	"github.com/svera/coreander/v5/internal/webserver/controller/completed"
+	"github.com/svera/coreander/v5/internal/webserver/controller/document"
+	"github.com/svera/coreander/v5/internal/webserver/controller/highlight"
+	"github.com/svera/coreander/v5/internal/webserver/controller/home"
+	"github.com/svera/coreander/v5/internal/webserver/controller/search"
+	"github.com/svera/coreander/v5/internal/webserver/controller/series"
+	"github.com/svera/coreander/v5/internal/webserver/controller/user"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 	"gorm.io/gorm"
 )
 
 type Controllers struct {
 	Auth       *auth.Controller
 	Users      *user.Controller
+	Completed  *completed.Controller
 	Highlights *highlight.Controller
 	Documents  *document.Controller
 	Home       *home.Controller
 	Authors    *author.Controller
+	Search     *search.Controller
 	Series     *series.Controller
 }
 
 func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {
 	usersRepository := &model.UserRepository{DB: db}
 	invitationsRepository := &model.InvitationRepository{DB: db}
-	highlightsRepository := &model.HighlightRepository{DB: db}
-	readingRepository := &model.ReadingRepository{DB: db}
+	highlightsRepository := &model.HighlightRepository{DB: db, Idx: idx}
+	readingRepository := &model.ReadingRepository{DB: db, Idx: idx}
 
 	authCfg := auth.Config{
 		MinPasswordLength: cfg.MinPasswordLength,
@@ -40,29 +44,44 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		RecoveryTimeout:   cfg.RecoveryTimeout,
 	}
 
+	inviteListMax := cfg.InviteEmailListMaxLength
+	if inviteListMax <= 0 {
+		inviteListMax = 2000
+	}
+	inviteMaxRec := cfg.InviteMaxRecipients
+	if inviteMaxRec <= 0 {
+		inviteMaxRec = 50
+	}
 	usersCfg := user.Config{
-		MinPasswordLength: cfg.MinPasswordLength,
-		WordsPerMinute:    cfg.WordsPerMinute,
-		Secret:            cfg.JwtSecret,
-		InvitationTimeout: cfg.InvitationTimeout,
-		FQDN:              cfg.FQDN,
+		MinPasswordLength:        cfg.MinPasswordLength,
+		WordsPerMinute:           cfg.WordsPerMinute,
+		Secret:                   cfg.JwtSecret,
+		InvitationTimeout:        cfg.InvitationTimeout,
+		FQDN:                     cfg.FQDN,
+		InviteEmailListMaxLength: inviteListMax,
+		InviteMaxRecipients:      inviteMaxRec,
 	}
 
 	documentsCfg := document.Config{
 		WordsPerMinute:        cfg.WordsPerMinute,
-		LibraryPath:           cfg.LibraryPath,
 		HomeDir:               cfg.HomeDir,
+		LibraryPath:           cfg.LibraryPath,
 		CoverMaxWidth:         cfg.CoverMaxWidth,
+		CacheDir:              cfg.CacheDir,
+		CacheMaxSize:          cfg.CacheMaxSize,
 		Hostname:              cfg.Hostname,
 		Port:                  cfg.Port,
 		UploadDocumentMaxSize: cfg.UploadDocumentMaxSize,
 		ClientImageCacheTTL:   cfg.ClientDynamicImageCacheTTL,
 		ServerImageCacheTTL:   cfg.ServerDynamicImageCacheTTL,
+		ShareCommentMaxSize:   cfg.ShareCommentMaxSize,
+		ShareMaxRecipients:    cfg.ShareMaxRecipients,
 	}
 
 	authorsCfg := author.Config{
 		WordsPerMinute:      cfg.WordsPerMinute,
 		CacheDir:            cfg.CacheDir,
+		CacheMaxSize:        cfg.CacheMaxSize,
 		AuthorImageMaxWidth: cfg.AuthorImageMaxWidth,
 		ClientImageCacheTTL: cfg.ClientDynamicImageCacheTTL,
 		ServerImageCacheTTL: cfg.ServerDynamicImageCacheTTL,
@@ -72,18 +91,27 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		WordsPerMinute: cfg.WordsPerMinute,
 	}
 
+	searchCfg := search.Config{
+		WordsPerMinute: cfg.WordsPerMinute,
+	}
+
 	homeCfg := home.Config{
 		LibraryPath:     cfg.LibraryPath,
 		CoverMaxWidth:   cfg.CoverMaxWidth,
 		LatestDocsLimit: 6,
 	}
 
+	authorsController := author.NewController(highlightsRepository, readingRepository, sender, idx, authorsCfg, dataSource, appFs, imagesFS)
+	go authorsController.MigrateJPEGsToWebP()
+
 	return Controllers{
 		Auth:       auth.NewController(usersRepository, sender, authCfg, translator),
-		Users:      user.NewController(usersRepository, invitationsRepository, readingRepository, idx, usersCfg, sender, translator),
+		Users:      user.NewController(usersRepository, invitationsRepository, usersCfg, sender, translator),
+		Completed:  completed.NewController(readingRepository, idx),
 		Highlights: highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
-		Documents:  document.NewController(highlightsRepository, readingRepository, sender, idx, metadataReaders, appFs, documentsCfg),
+		Documents:  document.NewController(highlightsRepository, usersRepository, readingRepository, sender, idx, metadataReaders, appFs, documentsCfg, translator),
 		Home:       home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),
-		Authors:    author.NewController(highlightsRepository, readingRepository, sender, idx, authorsCfg, dataSource, appFs),
+		Authors:    authorsController,
+		Search:     search.NewController(highlightsRepository, readingRepository, sender, idx, searchCfg),
 		Series:     series.NewController(highlightsRepository, readingRepository, sender, idx, seriesCfg, appFs)}
 }
