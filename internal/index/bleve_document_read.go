@@ -33,6 +33,16 @@ const titleBoost = 3.0
 func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
 	filtersQuery := bleve.NewConjunctionQuery()
 
+	if searchFields.SimilarTo != "" {
+		doc, err := b.Document(searchFields.SimilarTo)
+		if err != nil {
+			return result.Paginated[[]Document]{}, err
+		}
+		filtersQuery.AddQuery(b.subjectsQuery(doc))
+		b.addFilters(searchFields, filtersQuery)
+		return b.runSimilarityQuery(filtersQuery, page, resultsPerPage)
+	}
+
 	if searchFields.Keywords != "" {
 		for _, prefix := range []string{"Authors:", "Illustrators:", "Series:", "Title:", "Subjects:", "\""} {
 			if strings.HasPrefix(strings.Trim(searchFields.Keywords, " "), prefix) {
@@ -344,6 +354,63 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 		page,
 		int(searchResult.Total),
 		docs,
+	), nil
+}
+
+// maxSimilarityCandidates caps how many top-scoring matches runSimilarityQuery
+// considers before applying minSimilarityScoreRatio and paginating, so a very
+// broad match (e.g. a common shared keyword) can't force an unbounded query.
+const maxSimilarityCandidates = 200
+
+// minSimilarityScoreRatio is the minimum fraction of the best match's score
+// a document must reach to be considered similar enough to show. Documents
+// that only weakly overlap (e.g. a single common word, rather than several
+// shared subjects/keywords) score far lower than the best match and are
+// pruned, rather than padding out the results.
+const minSimilarityScoreRatio = 0.2
+
+// runSimilarityQuery is like runPaginatedQuery, but for score-based "similar document"
+// queries (see SearchFields.SimilarTo): relying on Bleve's own offset/limit pagination
+// isn't enough here, since a document weakly matching on only one shared term would
+// otherwise take up a page slot next to strongly related ones. Instead this fetches up
+// to maxSimilarityCandidates top-scoring matches, drops any scoring below
+// minSimilarityScoreRatio of the best match, and paginates over what's left.
+func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPage int) (result.Paginated[[]Document], error) {
+	if page < 1 {
+		page = 1
+	}
+
+	searchOptions := bleve.NewSearchRequestOptions(query, maxSimilarityCandidates, 0, false)
+	searchOptions.Fields = []string{"*"}
+	searchResult, err := b.documentsIdx.Search(searchOptions)
+	if err != nil {
+		return result.Paginated[[]Document]{}, err
+	}
+
+	if searchResult.Total == 0 || len(searchResult.Hits) == 0 {
+		return result.Paginated[[]Document]{}, nil
+	}
+
+	// Hits are already sorted by -_score (NewSearchRequestOptions' default), so the
+	// first hit's score is the best match's.
+	threshold := searchResult.Hits[0].Score * minSimilarityScoreRatio
+
+	docs := make([]Document, 0, len(searchResult.Hits))
+	for _, hit := range searchResult.Hits {
+		if hit.Score < threshold {
+			continue
+		}
+		docs = append(docs, hydrateDocument(hit))
+	}
+
+	start := min((page-1)*resultsPerPage, len(docs))
+	end := min(start+resultsPerPage, len(docs))
+
+	return result.NewPaginated(
+		resultsPerPage,
+		page,
+		len(docs),
+		docs[start:end],
 	), nil
 }
 

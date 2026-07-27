@@ -8,9 +8,15 @@ import (
 )
 
 type SearchFields struct {
-	Keywords        string
-	Language        string
-	Subjects        string
+	Keywords string
+	Language string
+	Subjects string
+	// SimilarTo, when set to a document slug, ignores Keywords/Subjects and
+	// instead returns documents related to that document exactly as SameSubjects
+	// would (shared subjects or TextRank keywords, excluding the document
+	// itself, its own author and its own series) - powers the "See all" link
+	// on a document's "With similar subjects" section, so results match.
+	SimilarTo       string
 	PubDateFrom     date.Date
 	PubDateTo       date.Date
 	EstReadTimeFrom float64
