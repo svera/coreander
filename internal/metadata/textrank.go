@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"unicode"
 
 	textrank "github.com/DavidBelicza/TextRank/v2"
@@ -15,6 +16,23 @@ import (
 //go:embed stopwords-iso.json
 var stopWordsJSON []byte
 
+var (
+	stopWordsMapOnce sync.Once
+	stopWordsMap     map[string][]string
+	stopWordsMapErr  error
+)
+
+// parsedStopWordsMap parses stopWordsJSON once and caches the result, since
+// RankText (and thus this) now runs once per EPUB during indexing rather than
+// once per page view, so re-parsing the ~200KB embedded file on every call
+// would otherwise repeat across an entire library scan.
+func parsedStopWordsMap() (map[string][]string, error) {
+	stopWordsMapOnce.Do(func() {
+		stopWordsMapErr = json.Unmarshal(stopWordsJSON, &stopWordsMap)
+	})
+	return stopWordsMap, stopWordsMapErr
+}
+
 // TextRankResult represents the result of text ranking analysis
 // Phrases and SingleWords are returned as slices from TextRank
 type TextRankResult struct {
@@ -22,10 +40,19 @@ type TextRankResult struct {
 	SingleWords []rank.SingleWord
 }
 
-// RankText performs TextRank analysis on an EPUB file
-// It extracts the text content, detects languages in the document,
-// and fetches appropriate stop words from all detected languages
-func (e EpubReader) RankText(filename string) (*TextRankResult, error) {
+// TextRanker is implemented by Reader types that can perform TextRank
+// analysis on already-extracted text content (currently just EpubReader).
+// Callers holding a plain Reader can type-assert against this capability
+// interface instead of the concrete EpubReader type. Pair it with
+// TextExtractor to get that text without extracting it a second time.
+type TextRanker interface {
+	RankText(textContent, filename string) (*TextRankResult, error)
+}
+
+// RankText performs TextRank analysis on textContent, previously extracted
+// from filename (e.g. via MetadataAndText) - detecting its language(s) and
+// fetching appropriate stop words for all of them.
+func (e EpubReader) RankText(textContent, filename string) (*TextRankResult, error) {
 	// A zero ratio disables text ranking altogether, rather than meaning "no
 	// filtering": since every phrase/word occurs at least once, a ratio of 0
 	// would otherwise keep everything, which is rarely what's wanted and
@@ -34,19 +61,11 @@ func (e EpubReader) RankText(filename string) (*TextRankResult, error) {
 		return nil, nil
 	}
 
-	// Extract text content from EPUB
-	textContent, err := extractText(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract text: %w", err)
-	}
-
 	if textContent == "" {
 		return nil, fmt.Errorf("no text content found in EPUB")
 	}
 
-	// Always detect languages in the document using full text. Reuses the
-	// textContent already extracted above instead of calling DetectLanguage,
-	// which would re-extract (and re-sanitize) the whole EPUB from scratch.
+	// Always detect languages in the document using full text.
 	langResult, err := DetectLanguageFromText(textContent)
 	if err != nil {
 		// If language detection fails, fall back to metadata language
@@ -156,11 +175,11 @@ func (e EpubReader) RankText(filename string) (*TextRankResult, error) {
 	// phrase's: Weight is normalized against this document's own min/max
 	// occurrence counts, so it can't tell a genuinely rare phrase from one
 	// that just occurs once in a document where most phrases do.
-	phrases = filterPhrasesByOccurrenceRatio(phrases, e.MinPhraseOccurrenceRatio)
+	phrases = filterByOccurrenceRatio(phrases, e.MinPhraseOccurrenceRatio, func(p rank.Phrase) int { return p.Qty })
 
 	// Filter out single words that are far less frequent than the most
 	// frequent word, for the same reason phrases are filtered above.
-	singleWords = filterSingleWordsByOccurrenceRatio(singleWords, e.MinWordOccurrenceRatio)
+	singleWords = filterByOccurrenceRatio(singleWords, e.MinWordOccurrenceRatio, func(w rank.SingleWord) int { return w.Qty })
 
 	return &TextRankResult{
 		Phrases:     phrases,
@@ -304,53 +323,27 @@ func (r *punctuationAwareRule) IsWordSeparator(rune rune) bool {
 	return unicode.IsPunct(rune) && rune != '\'' && rune != '-'
 }
 
-// filterPhrasesByOccurrenceRatio removes phrases whose occurrence count is
-// below ratio of the most frequent phrase's occurrence count. Weight alone
+// filterByOccurrenceRatio removes items whose occurrence count (via qty) is
+// below ratio of the most frequent item's occurrence count. Weight alone
 // can't be used for this: it's normalized against the document's own
 // min/max occurrence counts, not an absolute measure of relevance.
-func filterPhrasesByOccurrenceRatio(phrases []rank.Phrase, ratio float64) []rank.Phrase {
-	if len(phrases) == 0 {
-		return phrases
+func filterByOccurrenceRatio[T any](items []T, ratio float64, qty func(T) int) []T {
+	if len(items) == 0 {
+		return items
 	}
 
 	maxQty := 0
-	for _, phrase := range phrases {
-		if phrase.Qty > maxQty {
-			maxQty = phrase.Qty
+	for _, item := range items {
+		if q := qty(item); q > maxQty {
+			maxQty = q
 		}
 	}
 	threshold := float64(maxQty) * ratio
 
-	filtered := make([]rank.Phrase, 0, len(phrases))
-	for _, phrase := range phrases {
-		if float64(phrase.Qty) >= threshold {
-			filtered = append(filtered, phrase)
-		}
-	}
-
-	return filtered
-}
-
-// filterSingleWordsByOccurrenceRatio removes single words whose occurrence
-// count is below ratio of the most frequent word's occurrence count.
-// See filterPhrasesByOccurrenceRatio for why Weight alone isn't enough.
-func filterSingleWordsByOccurrenceRatio(words []rank.SingleWord, ratio float64) []rank.SingleWord {
-	if len(words) == 0 {
-		return words
-	}
-
-	maxQty := 0
-	for _, word := range words {
-		if word.Qty > maxQty {
-			maxQty = word.Qty
-		}
-	}
-	threshold := float64(maxQty) * ratio
-
-	filtered := make([]rank.SingleWord, 0, len(words))
-	for _, word := range words {
-		if float64(word.Qty) >= threshold {
-			filtered = append(filtered, word)
+	filtered := make([]T, 0, len(items))
+	for _, item := range items {
+		if float64(qty(item)) >= threshold {
+			filtered = append(filtered, item)
 		}
 	}
 
@@ -365,9 +358,8 @@ func fetchStopWordsForLanguages(langCodes []string) ([]string, error) {
 		return []string{}, nil
 	}
 
-	// Parse embedded JSON data
-	var stopWordsMap map[string][]string
-	if err := json.Unmarshal(stopWordsJSON, &stopWordsMap); err != nil {
+	stopWordsMap, err := parsedStopWordsMap()
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse stop words JSON: %w", err)
 	}
 

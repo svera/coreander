@@ -47,36 +47,46 @@ func NewEpubReader(minPhraseOccurrenceRatio, minWordOccurrenceRatio float64) Epu
 }
 
 func (e EpubReader) Metadata(filename string) (Metadata, error) {
+	meta, _, err := e.MetadataAndText(filename)
+	return meta, err
+}
+
+// MetadataAndText is like Metadata, but also returns the document's full
+// extracted, sanitized text content (the same text Words is counted from),
+// letting callers that also need TextRanker's analysis (which needs the same
+// text) avoid extracting and sanitizing the whole EPUB a second time.
+func (e EpubReader) MetadataAndText(filename string) (Metadata, string, error) {
 	book, err := epub.Open(filename)
 	if err != nil {
-		return Metadata{}, err
+		return Metadata{}, "", err
 	}
 	defer book.Close()
 
 	info, err := book.Information()
 	if err != nil {
-		return Metadata{}, err
+		return Metadata{}, "", err
 	}
 	bk, err := BuildEpubMetadataFields(info, filename)
 	if err != nil {
-		return Metadata{}, err
+		return Metadata{}, "", err
 	}
 	opf, err := book.Package()
 	if err != nil {
 		log.Printf("Cannot load package for illustrations/words in %s: %s\n", filename, err)
-		return bk, nil
+		return bk, "", nil
 	}
 	illustrations, err := e.illustrationsWithZip(book.ReadCloser, opf, 0.25)
 	if err != nil {
 		log.Printf("Cannot count illustrations in %s: %s\n", filename, err)
 	}
 	bk.Illustrations = illustrations
-	w, err := wordsFromZip(book.ReadCloser)
+	text, err := textFromZip(book.ReadCloser)
 	if err != nil {
-		log.Printf("Cannot count words in %s: %s\n", filename, err)
+		log.Printf("Cannot extract text in %s: %s\n", filename, err)
+		return bk, "", nil
 	}
-	bk.Words = float64(w)
-	return bk, nil
+	bk.Words = float64(len(strings.Fields(text)))
+	return bk, text, nil
 }
 
 // BuildEpubMetadataFields maps pirmd/epub Information into Metadata (title, authors, dates, etc.).
@@ -357,25 +367,6 @@ func textFromZip(r *zip.ReadCloser) (string, error) {
 	}
 
 	return strings.Join(textParts, "\n\n"), nil
-}
-
-func wordsFromZip(r *zip.ReadCloser) (int, error) {
-	text, err := textFromZip(r)
-	if err != nil {
-		return 0, err
-	}
-	return len(strings.Fields(text)), nil
-}
-
-// extractText extracts all text content from an EPUB file
-func extractText(documentFullPath string) (string, error) {
-	r, err := zip.OpenReader(documentFullPath)
-	if err != nil {
-		return "", err
-	}
-	defer r.Close()
-
-	return textFromZip(r)
 }
 
 func extractCover(r *zip.ReadCloser, coverFile, opfBaseDir string, coverMaxWidth int) (image.Image, error) {

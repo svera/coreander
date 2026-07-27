@@ -376,10 +376,6 @@ const minSimilarityScoreRatio = 0.2
 // to maxSimilarityCandidates top-scoring matches, drops any scoring below
 // minSimilarityScoreRatio of the best match, and paginates over what's left.
 func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPage int) (result.Paginated[[]Document], error) {
-	if page < 1 {
-		page = 1
-	}
-
 	searchOptions := bleve.NewSearchRequestOptions(query, maxSimilarityCandidates, 0, false)
 	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.documentsIdx.Search(searchOptions)
@@ -403,15 +399,7 @@ func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPag
 		docs = append(docs, hydrateDocument(hit))
 	}
 
-	start := min((page-1)*resultsPerPage, len(docs))
-	end := min(start+resultsPerPage, len(docs))
-
-	return result.NewPaginated(
-		resultsPerPage,
-		page,
-		len(docs),
-		docs[start:end],
-	), nil
+	return result.Paginate(resultsPerPage, page, len(docs), docs), nil
 }
 
 // CountDocuments returns the total number of documents matching the given search fields, without fetching any hits.

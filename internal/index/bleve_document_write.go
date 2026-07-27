@@ -90,14 +90,14 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 	if _, ok := b.reader[ext]; !ok {
 		return "", fmt.Errorf("file extension %s not supported", ext)
 	}
-	meta, err := b.reader[ext].Metadata(file)
+	meta, textRankKeywords, err := b.metadataAndKeywordsFor(ext, file)
 	if err != nil {
 		return "", fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
 
 	document := b.createDocument(meta, file, nil, nil)
 	document.AddedOn = time.Now().UTC()
-	document.TextRankKeywords = b.rankTextForFile(ext, file)
+	document.TextRankKeywords = textRankKeywords
 
 	if err = b.documentsIdx.Index(document.ID, document); err != nil {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
@@ -285,6 +285,15 @@ type metadataJobResult struct {
 	err              error
 }
 
+// metadataJobResultFor extracts metadata and (if applicable) TextRank
+// keywords for a single path, shared by readMetadataForPaths' sequential and
+// worker-pool branches.
+func (b *BleveIndexer) metadataJobResultFor(path string) metadataJobResult {
+	ext := strings.ToLower(filepath.Ext(path))
+	meta, textRankKeywords, err := b.metadataAndKeywordsFor(ext, path)
+	return metadataJobResult{path: path, meta: meta, textRankKeywords: textRankKeywords, err: err}
+}
+
 func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metadataJobResult {
 	out := make([]metadataJobResult, len(paths))
 	if len(paths) == 0 {
@@ -295,13 +304,7 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 	}
 	if workers <= 1 {
 		for i, p := range paths {
-			ext := strings.ToLower(filepath.Ext(p))
-			meta, err := b.reader[ext].Metadata(p)
-			textRankKeywords := ""
-			if err == nil {
-				textRankKeywords = b.rankTextForFile(ext, p)
-			}
-			out[i] = metadataJobResult{path: p, meta: meta, textRankKeywords: textRankKeywords, err: err}
+			out[i] = b.metadataJobResultFor(p)
 			recordProgress()
 		}
 		return out
@@ -323,13 +326,7 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 		go func() {
 			defer wg.Done()
 			for j := range jobs {
-				ext := strings.ToLower(filepath.Ext(j.path))
-				meta, err := b.reader[ext].Metadata(j.path)
-				textRankKeywords := ""
-				if err == nil {
-					textRankKeywords = b.rankTextForFile(ext, j.path)
-				}
-				out[j.i] = metadataJobResult{path: j.path, meta: meta, textRankKeywords: textRankKeywords, err: err}
+				out[j.i] = b.metadataJobResultFor(j.path)
 				recordProgress()
 			}
 		}()
@@ -342,18 +339,39 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 	return out
 }
 
-// rankTextForFile computes TextRank analysis for fullPath and returns its
-// phrases/words as plain, space-separated text, ready to store in
-// Document.TextRankKeywords for full-text search. Returns "" (logging any
-// error non-fatally) if the reader registered for ext isn't a
-// metadata.EpubReader, ranking is disabled via its occurrence ratio config,
-// or the analysis fails.
-func (b *BleveIndexer) rankTextForFile(ext, fullPath string) string {
-	epubReader, ok := b.reader[ext].(metadata.EpubReader)
+// metadataAndKeywordsFor extracts fullPath's metadata and, if the registered
+// reader for ext supports it, its TextRank keywords. When the reader also
+// implements metadata.TextExtractor, its already-extracted text is reused
+// for ranking instead of extracting and sanitizing the document a second
+// time (see metadata.EpubReader.MetadataAndText).
+func (b *BleveIndexer) metadataAndKeywordsFor(ext, fullPath string) (metadata.Metadata, string, error) {
+	reader := b.reader[ext]
+
+	extractor, ok := reader.(metadata.TextExtractor)
+	if !ok {
+		meta, err := reader.Metadata(fullPath)
+		return meta, "", err
+	}
+
+	meta, text, err := extractor.MetadataAndText(fullPath)
+	if err != nil {
+		return meta, "", err
+	}
+	return meta, b.rankTextFromContent(reader, text, fullPath), nil
+}
+
+// rankTextFromContent runs TextRank analysis on textContent (already
+// extracted from fullPath) and returns its phrases/single words as plain,
+// space-separated text, ready to store in Document.TextRankKeywords for
+// full-text search. Returns "" (logging any error non-fatally) if reader
+// doesn't implement metadata.TextRanker, ranking is disabled via its
+// occurrence ratio config, or the analysis fails.
+func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, fullPath string) string {
+	textRanker, ok := reader.(metadata.TextRanker)
 	if !ok {
 		return ""
 	}
-	result, err := epubReader.RankText(fullPath)
+	result, err := textRanker.RankText(textContent, fullPath)
 	if err != nil {
 		log.Printf("Error ranking text for file %s: %s\n", fullPath, err)
 		return ""

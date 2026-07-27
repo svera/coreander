@@ -12,10 +12,12 @@ type SearchFields struct {
 	Language string
 	Subjects string
 	// SimilarTo, when set to a document slug, ignores Keywords/Subjects and
-	// instead returns documents related to that document exactly as SameSubjects
-	// would (shared subjects or TextRank keywords, excluding the document
-	// itself, its own author and its own series) - powers the "See all" link
-	// on a document's "With similar subjects" section, so results match.
+	// instead returns documents matching that document's subjects/TextRank
+	// keywords (via the same subjectsQuery used by SameSubjects, excluding
+	// the document itself, its own author and its own series), ranked by
+	// score and pruned to those scoring close enough to the best match
+	// (see runSimilarityQuery). Powers the "See all" link on a document's
+	// "With similar subjects" section.
 	SimilarTo       string
 	PubDateFrom     date.Date
 	PubDateTo       date.Date

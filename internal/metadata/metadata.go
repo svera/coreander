@@ -57,3 +57,12 @@ type Reader interface {
 	Metadata(file string) (Metadata, error)
 	Cover(documentFullPath string, coverMaxWidth int) (image.Image, error)
 }
+
+// TextExtractor is implemented by Reader types that can return their full
+// extracted text content alongside Metadata in a single pass (currently just
+// EpubReader). Callers that also need a TextRanker's analysis should use
+// this instead of Metadata, and feed the returned text into RankText, to
+// avoid extracting and sanitizing the same document's content twice.
+type TextExtractor interface {
+	MetadataAndText(file string) (Metadata, string, error)
+}
