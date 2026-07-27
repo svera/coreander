@@ -57,42 +57,6 @@
             </div>
         </div>
 
-        {{if .TextRank}}
-        <div class="row mt-4">
-            <div class="col-12">
-                {{if and .TextRank.Phrases (gt (len .TextRank.Phrases) 0)}}
-                <section class="mb-4">
-                    <h4>{{t $lang "Key Phrases"}}</h4>
-                    <div class="d-flex flex-wrap gap-2">
-                        {{range $i, $phrase := .TextRank.Phrases}}
-                            {{if lt $i 20}}
-                            <span class="badge bg-primary" title="{{printf "Weight: %.2f, Occurrences: %d" $phrase.Weight $phrase.Qty}}">
-                                {{$phrase.Left}} {{$phrase.Right}}
-                            </span>
-                            {{end}}
-                        {{end}}
-                    </div>
-                </section>
-                {{end}}
-
-                {{if and .TextRank.SingleWords (gt (len .TextRank.SingleWords) 0)}}
-                <section class="mb-4">
-                    <h4>{{t $lang "Key Words"}}</h4>
-                    <div class="d-flex flex-wrap gap-2">
-                        {{range $i, $word := .TextRank.SingleWords}}
-                            {{if lt $i 30}}
-                            <span class="badge bg-secondary" title="{{printf "Weight: %.2f, Occurrences: %d" $word.Weight $word.Qty}}">
-                                {{$word.Word}}
-                            </span>
-                            {{end}}
-                        {{end}}
-                    </div>
-                </section>
-                {{end}}
-            </div>
-        </div>
-        {{end}}
-
         {{if gt (len .AuthorSummaries) 0}}
             <hr>
             {{range .AuthorSummaries}}

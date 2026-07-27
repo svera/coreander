@@ -72,7 +72,7 @@ func init() {
 
 	appFs = afero.NewOsFs()
 	metadataReaders = map[string]metadata.Reader{
-		".epub": metadata.NewEpubReader(),
+		".epub": metadata.NewEpubReader(input.MinPhraseOccurrenceRatio, input.MinWordOccurrenceRatio),
 		".pdf":  metadata.PdfReader{Fs: appFs},
 	}
 
@@ -164,7 +164,7 @@ func main() {
 
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
-	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs, dataSource)
+	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource)
 	usersRepository := &model.UserRepository{DB: db}
 	app := webserver.New(webserverConfig, controllers, sender, idx, usersRepository)
 	if strings.ToLower(input.FQDN) == "localhost" {

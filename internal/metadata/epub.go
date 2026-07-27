@@ -27,12 +27,22 @@ import (
 type EpubReader struct {
 	GetMetadataFromFile func(path string) (*epub.Information, error)
 	GetPackageFromFile  func(path string) (*epub.PackageDocument, error)
+	// MinPhraseOccurrenceRatio is the minimum fraction of the most frequent
+	// phrase's occurrence count that a phrase must reach to be considered
+	// worth showing in RankText's results. See filterPhrasesByOccurrenceRatio.
+	// A value of 0 disables text ranking entirely.
+	MinPhraseOccurrenceRatio float64
+	// MinWordOccurrenceRatio is the same as MinPhraseOccurrenceRatio, but for
+	// single words. A value of 0 disables text ranking entirely.
+	MinWordOccurrenceRatio float64
 }
 
-func NewEpubReader() EpubReader {
+func NewEpubReader(minPhraseOccurrenceRatio, minWordOccurrenceRatio float64) EpubReader {
 	return EpubReader{
-		GetMetadataFromFile: epub.GetMetadataFromFile,
-		GetPackageFromFile:  epub.GetPackageFromFile,
+		GetMetadataFromFile:      epub.GetMetadataFromFile,
+		GetPackageFromFile:       epub.GetPackageFromFile,
+		MinPhraseOccurrenceRatio: minPhraseOccurrenceRatio,
+		MinWordOccurrenceRatio:   minWordOccurrenceRatio,
 	}
 }
 
@@ -290,37 +300,82 @@ func readZipFileReader(r *zip.ReadCloser, name string) (io.ReadCloser, error) {
 	return nil, fmt.Errorf("epub: no zip entry %q", name)
 }
 
-func wordsFromZip(r *zip.ReadCloser) (int, error) {
-	count := 0
+// rawTextSelfClosingTag matches XHTML-style self-closing tags for the HTML
+// elements that Go's net/html tokenizer (which bluemonday sits on top of)
+// treats as raw text: script, style, title, textarea, etc. The tokenizer
+// flags the *next* token as raw text as soon as it sees one of these tag
+// names, before checking whether the tag is self-closed, so a self-closed
+// occurrence (e.g. an empty "<title/>") with no later literal closing tag
+// makes it swallow the rest of the document as a single text node — which
+// then survives bluemonday's sanitization as escaped, garbled text.
+var rawTextSelfClosingTag = regexp.MustCompile(`(?i)<(script|style|title|textarea|iframe|noembed|noframes|noscript|xmp)([^>]*)/>`)
+
+// normalizeRawTextSelfClosingTags rewrites self-closed raw-text tags (e.g.
+// "<title/>") into explicit open/close pairs (e.g. "<title></title>"), so
+// they can't trigger the tokenizer quirk described in rawTextSelfClosingTag.
+func normalizeRawTextSelfClosingTags(content string) string {
+	return rawTextSelfClosingTag.ReplaceAllString(content, "<$1$2></$1>")
+}
+
+// textFromZip extracts and sanitizes all EPUB content text (skipping navigation
+// and table of contents files) from an already-open zip, joining it with blank lines.
+func textFromZip(r *zip.ReadCloser) (string, error) {
+	var textParts []string
+	p := bluemonday.StrictPolicy()
+
 	for _, f := range r.File {
 		isContent, err := doublestar.PathMatch("O*PS/**/*.*htm*", f.Name)
 		if err != nil {
-			return 0, err
+			return "", err
 		}
 		if !isContent {
 			continue
 		}
 
-		if filepath.Base(f.Name) == "nav.xhtml" {
+		// Skip navigation and table of contents files
+		baseName := strings.ToLower(filepath.Base(f.Name))
+		if baseName == "nav.xhtml" || baseName == "toc.xhtml" {
 			continue
 		}
 
 		rc, err := f.Open()
 		if err != nil {
-			return 0, err
-		}
-		content, err := io.ReadAll(rc)
-		if err != nil {
-			return 0, err
+			return "", err
 		}
 
-		p := bluemonday.StrictPolicy()
-		text := p.Sanitize(string(content))
-		words := strings.Fields(text)
-		count += len(words)
+		content, err := io.ReadAll(rc)
 		rc.Close()
+		if err != nil {
+			return "", err
+		}
+
+		// Sanitize HTML to get plain text
+		text := p.Sanitize(normalizeRawTextSelfClosingTags(string(content)))
+		if strings.TrimSpace(text) != "" {
+			textParts = append(textParts, text)
+		}
 	}
-	return count, nil
+
+	return strings.Join(textParts, "\n\n"), nil
+}
+
+func wordsFromZip(r *zip.ReadCloser) (int, error) {
+	text, err := textFromZip(r)
+	if err != nil {
+		return 0, err
+	}
+	return len(strings.Fields(text)), nil
+}
+
+// extractText extracts all text content from an EPUB file
+func extractText(documentFullPath string) (string, error) {
+	r, err := zip.OpenReader(documentFullPath)
+	if err != nil {
+		return "", err
+	}
+	defer r.Close()
+
+	return textFromZip(r)
 }
 
 func extractCover(r *zip.ReadCloser, coverFile, opfBaseDir string, coverMaxWidth int) (image.Image, error) {

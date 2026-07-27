@@ -221,7 +221,12 @@ func (b *BleveIndexer) composeQuery(keywords string, analyzers []string) *query.
 		qd.SetField("Description")
 		qd.Operator = query.MatchQueryOperatorAnd
 
-		langCompoundQuery.AddQuery(qt, qs, qd)
+		qtr := bleve.NewMatchQuery(keywords)
+		qtr.Analyzer = analyzer
+		qtr.SetField("TextRankKeywords")
+		qtr.Operator = query.MatchQueryOperatorAnd
+
+		langCompoundQuery.AddQuery(qt, qs, qd, qtr)
 
 		orTitleQuery := bleve.NewMatchQuery(keywords)
 		orTitleQuery.SetField("Title")
@@ -719,6 +724,11 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		illustratorsSlugs = nil
 	}
 
+	textRankKeywords := ""
+	if match.Fields["TextRankKeywords"] != nil {
+		textRankKeywords = match.Fields["TextRankKeywords"].(string)
+	}
+
 	doc := Document{
 		ID: match.ID,
 		Metadata: metadata.Metadata{
@@ -742,6 +752,7 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		SeriesSlug:        match.Fields["SeriesSlug"].(string),
 		SubjectsSlugs:     slicer(match.Fields["SubjectsSlugs"]),
 		AddedOn:           addedOn,
+		TextRankKeywords:  textRankKeywords,
 	}
 
 	return doc
@@ -781,7 +792,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		return []Document{}, err
 	}
 
-	if len(doc.Subjects) == 0 {
+	if len(doc.Subjects) == 0 && doc.TextRankKeywords == "" {
 		return []Document{}, nil
 	}
 
@@ -818,6 +829,18 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 		qu := bleve.NewTermQuery(slug)
 		qu.SetField("SubjectsSlugs")
 		subjectsCompoundQuery.AddQuery(qu)
+	}
+
+	// A document can also qualify as "related" by sharing key phrases/words
+	// extracted via TextRank analysis at indexing time (EPUB only), rather
+	// than an exact subject term - documents that match on both score higher
+	// naturally, since DisjunctionQuery sums the scores of matching clauses.
+	if doc.TextRankKeywords != "" {
+		kq := bleve.NewMatchQuery(doc.TextRankKeywords)
+		kq.SetField("TextRankKeywords")
+		kq.Analyzer = defaultAnalyzer
+		kq.Operator = query.MatchQueryOperatorOr
+		subjectsCompoundQuery.AddQuery(kq)
 	}
 
 	if doc.SeriesSlug != "" {
@@ -946,3 +969,4 @@ func (b *BleveIndexer) SameSeries(slugID string, quantity int) ([]Document, erro
 
 	return b.runQuery(bq, quantity, []string{"-_score", "Series", "SeriesIndex"})
 }
+

@@ -89,7 +89,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 	if err != nil {
 		log.Fatal(err)
 	}
-	controllers := webserver.SetupControllers(webserverConfig, db, readers, idx, sender, appFs, dataSource)
+	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource)
 	usersRepository := &model.UserRepository{DB: db}
 	return webserver.New(webserverConfig, controllers, sender, idx, usersRepository)
 }

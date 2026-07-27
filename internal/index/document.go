@@ -31,6 +31,11 @@ type Document struct {
 	SeriesSlug        string
 	SubjectsSlugs     []string
 	AddedOn           time.Time
+	// TextRankKeywords holds the phrases/words extracted by TextRank analysis
+	// at indexing time (EPUB only) as plain, space-separated text, analyzed
+	// and indexed so a document can be found by its key topics/phrases even
+	// when they don't appear in Title/Authors/Description/Subjects.
+	TextRankKeywords string
 }
 
 // BleveType is part of the bleve.Classifier interface and its purpose is to tell the indexer

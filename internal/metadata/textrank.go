@@ -1,29 +1,24 @@
 package metadata
 
 import (
-	"archive/zip"
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io"
-	"path/filepath"
 	"strings"
 	"unicode"
 
 	textrank "github.com/DavidBelicza/TextRank/v2"
+	"github.com/DavidBelicza/TextRank/v2/parse"
 	"github.com/DavidBelicza/TextRank/v2/rank"
-	"github.com/bmatcuk/doublestar/v4"
-	"github.com/microcosm-cc/bluemonday"
 )
 
 //go:embed stopwords-iso.json
 var stopWordsJSON []byte
 
 // TextRankResult represents the result of text ranking analysis
-// Phrases, Sentences, and SingleWords are returned as slices from TextRank
+// Phrases and SingleWords are returned as slices from TextRank
 type TextRankResult struct {
 	Phrases     []rank.Phrase
-	Sentences   []rank.Sentence
 	SingleWords []rank.SingleWord
 }
 
@@ -31,8 +26,16 @@ type TextRankResult struct {
 // It extracts the text content, detects languages in the document,
 // and fetches appropriate stop words from all detected languages
 func (e EpubReader) RankText(filename string) (*TextRankResult, error) {
+	// A zero ratio disables text ranking altogether, rather than meaning "no
+	// filtering": since every phrase/word occurs at least once, a ratio of 0
+	// would otherwise keep everything, which is rarely what's wanted and
+	// wastes the cost of the analysis for nothing.
+	if e.MinPhraseOccurrenceRatio == 0 || e.MinWordOccurrenceRatio == 0 {
+		return nil, nil
+	}
+
 	// Extract text content from EPUB
-	textContent, err := extractTextFromEPUB(filename)
+	textContent, err := extractText(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract text: %w", err)
 	}
@@ -41,8 +44,10 @@ func (e EpubReader) RankText(filename string) (*TextRankResult, error) {
 		return nil, fmt.Errorf("no text content found in EPUB")
 	}
 
-	// Always detect languages in the document using full text
-	langResult, err := e.DetectLanguage(filename)
+	// Always detect languages in the document using full text. Reuses the
+	// textContent already extracted above instead of calling DetectLanguage,
+	// which would re-extract (and re-sanitize) the whole EPUB from scratch.
+	langResult, err := DetectLanguageFromText(textContent)
 	if err != nil {
 		// If language detection fails, fall back to metadata language
 		meta, metaErr := e.GetMetadataFromFile(filename)
@@ -75,8 +80,10 @@ func (e EpubReader) RankText(filename string) (*TextRankResult, error) {
 		}
 	}
 
-	// Collect all detected languages
-	detectedLanguages := make(map[string]bool)
+	// Collect all detected languages, always including English so its stop
+	// words are filtered even when English isn't one of the document's
+	// detected languages.
+	detectedLanguages := map[string]bool{"en": true}
 
 	// Add primary language if detected
 	if langResult.PrimaryLanguageExists && langResult.PrimaryLanguage != "" {
@@ -114,20 +121,19 @@ func (e EpubReader) RankText(filename string) (*TextRankResult, error) {
 
 	// Create language with stop words
 	language := textrank.NewDefaultLanguage()
-	if len(stopWords) > 0 && len(langCodes) > 0 {
-		// Use the primary language as the active language, or first detected language
-		activeLang := langResult.PrimaryLanguage
-		if activeLang == "" && len(langCodes) > 0 {
-			activeLang = langCodes[0]
-		}
-		if activeLang != "" {
-			language.SetWords(activeLang, stopWords)
-			language.SetActiveLanguage(activeLang)
-		}
+	if len(stopWords) > 0 {
+		// TextRank's LanguageDefault only filters stop words for the
+		// currently active key, so English and the document's detected
+		// languages' words must be merged into this single key rather than
+		// loaded under separate per-language keys.
+		language.SetWords("multi", stopWords)
+		language.SetActiveLanguage("multi")
 	}
 
-	// Use default rule for parsing
-	rule := textrank.NewDefaultRule()
+	// Use a rule that also treats punctuation (em dashes, ellipses, quotation
+	// marks, etc.) as a word separator, so it never becomes part of a single
+	// word or phrase in the first place.
+	rule := newPunctuationAwareRule()
 
 	// Use default algorithm for ranking
 	algorithm := textrank.NewDefaultAlgorithm()
@@ -146,62 +152,20 @@ func (e EpubReader) RankText(filename string) (*TextRankResult, error) {
 	rankData := tr.GetRankData()
 	phrases = fixPhraseOrder(phrases, rankData)
 
-	// Filter out phrases containing punctuation
-	phrases = filterPhrasesWithPunctuation(phrases)
+	// Filter out phrases whose occurrence count is far from the most frequent
+	// phrase's: Weight is normalized against this document's own min/max
+	// occurrence counts, so it can't tell a genuinely rare phrase from one
+	// that just occurs once in a document where most phrases do.
+	phrases = filterPhrasesByOccurrenceRatio(phrases, e.MinPhraseOccurrenceRatio)
+
+	// Filter out single words that are far less frequent than the most
+	// frequent word, for the same reason phrases are filtered above.
+	singleWords = filterSingleWordsByOccurrenceRatio(singleWords, e.MinWordOccurrenceRatio)
 
 	return &TextRankResult{
 		Phrases:     phrases,
-		Sentences:   nil, // Sentences are not computed
 		SingleWords: singleWords,
 	}, nil
-}
-
-// extractTextFromEPUB extracts all text content from an EPUB file
-// Similar to the words() function but returns the full text instead of counting
-func extractTextFromEPUB(documentFullPath string) (string, error) {
-	r, err := zip.OpenReader(documentFullPath)
-	if err != nil {
-		return "", err
-	}
-	defer r.Close()
-
-	var textParts []string
-	p := bluemonday.StrictPolicy()
-
-	for _, f := range r.File {
-		isContent, err := doublestar.PathMatch("O*PS/**/*.*htm*", f.Name)
-		if err != nil {
-			return "", err
-		}
-		if !isContent {
-			continue
-		}
-
-		// Skip navigation and table of contents files
-		baseName := strings.ToLower(filepath.Base(f.Name))
-		if baseName == "nav.xhtml" || baseName == "toc.xhtml" {
-			continue
-		}
-
-		rc, err := f.Open()
-		if err != nil {
-			return "", err
-		}
-
-		content, err := io.ReadAll(rc)
-		rc.Close()
-		if err != nil {
-			return "", err
-		}
-
-		// Sanitize HTML to get plain text
-		text := p.Sanitize(string(content))
-		if strings.TrimSpace(text) != "" {
-			textParts = append(textParts, text)
-		}
-	}
-
-	return strings.Join(textParts, "\n\n"), nil
 }
 
 // fixPhraseOrder corrects the order of words in phrases based on their actual connection data
@@ -312,34 +276,81 @@ func checkSentenceOrder(leftWord, rightWord *rank.Word, rankData *rank.Rank, lef
 	return rightFirstCount > leftFirstCount
 }
 
-// filterPhrasesWithPunctuation removes phrases that contain punctuation characters
-// This filters out phrases like "word — word" or "word-word" that contain dashes, em dashes, etc.
-func filterPhrasesWithPunctuation(phrases []rank.Phrase) []rank.Phrase {
-	filtered := make([]rank.Phrase, 0, len(phrases))
+// punctuationAwareRule extends the library's default word/sentence
+// separators with general punctuation (em dashes, en dashes, ellipses,
+// quotation marks, etc.), which the default rule leaves attached to
+// whatever word or phrase they're adjacent to.
+type punctuationAwareRule struct {
+	*parse.RuleDefault
+}
 
+func newPunctuationAwareRule() *punctuationAwareRule {
+	return &punctuationAwareRule{parse.NewRule()}
+}
+
+// IsWordSeparator reports whether rune should split words, treating any
+// punctuation other than apostrophes and hyphens (which can be part of
+// legitimate words, e.g. "don't", "well-known") as a separator too.
+func (r *punctuationAwareRule) IsWordSeparator(rune rune) bool {
+	if r.RuleDefault.IsWordSeparator(rune) {
+		return true
+	}
+	if unicode.IsSpace(rune) {
+		// The default rule only treats a literal space and newline as
+		// separators, leaving other whitespace (tabs, carriage returns, etc.
+		// left over from indentation in the source HTML) attached to words.
+		return true
+	}
+	return unicode.IsPunct(rune) && rune != '\'' && rune != '-'
+}
+
+// filterPhrasesByOccurrenceRatio removes phrases whose occurrence count is
+// below ratio of the most frequent phrase's occurrence count. Weight alone
+// can't be used for this: it's normalized against the document's own
+// min/max occurrence counts, not an absolute measure of relevance.
+func filterPhrasesByOccurrenceRatio(phrases []rank.Phrase, ratio float64) []rank.Phrase {
+	if len(phrases) == 0 {
+		return phrases
+	}
+
+	maxQty := 0
 	for _, phrase := range phrases {
-		// Combine left and right words to check the full phrase
-		fullPhrase := phrase.Left + " " + phrase.Right
-
-		// Check if phrase contains punctuation characters
-		hasPunctuation := false
-		for _, r := range fullPhrase {
-			// Check for various punctuation marks including em dash, en dash, etc.
-			if unicode.IsPunct(r) && r != '\'' && r != '-' {
-				// Allow apostrophes and regular hyphens, but filter others
-				hasPunctuation = true
-				break
-			}
-			// Also check for specific dash characters
-			if r == '—' || r == '–' || r == '…' {
-				hasPunctuation = true
-				break
-			}
+		if phrase.Qty > maxQty {
+			maxQty = phrase.Qty
 		}
+	}
+	threshold := float64(maxQty) * ratio
 
-		// Only include phrases without punctuation
-		if !hasPunctuation {
+	filtered := make([]rank.Phrase, 0, len(phrases))
+	for _, phrase := range phrases {
+		if float64(phrase.Qty) >= threshold {
 			filtered = append(filtered, phrase)
+		}
+	}
+
+	return filtered
+}
+
+// filterSingleWordsByOccurrenceRatio removes single words whose occurrence
+// count is below ratio of the most frequent word's occurrence count.
+// See filterPhrasesByOccurrenceRatio for why Weight alone isn't enough.
+func filterSingleWordsByOccurrenceRatio(words []rank.SingleWord, ratio float64) []rank.SingleWord {
+	if len(words) == 0 {
+		return words
+	}
+
+	maxQty := 0
+	for _, word := range words {
+		if word.Qty > maxQty {
+			maxQty = word.Qty
+		}
+	}
+	threshold := float64(maxQty) * ratio
+
+	filtered := make([]rank.SingleWord, 0, len(words))
+	for _, word := range words {
+		if float64(word.Qty) >= threshold {
+			filtered = append(filtered, word)
 		}
 	}
 

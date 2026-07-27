@@ -27,6 +27,10 @@ type CLIInput struct {
 	IllustratedMinAmount int `env:"ILLUSTRATED_MIN_AMOUNT" default:"2" name:"illustrated-min-amount" help:"Minimum number of illustrations (excluding cover) for a document to be considered illustrated"`
 	// IllustratedMinSize is the minimum size in megapixels for an image to count as an illustration
 	IllustratedMinSize float64 `env:"ILLUSTRATED_MIN_SIZE" default:"0.25" name:"illustrated-min-size" help:"Minimum size in megapixels for an image to count as an illustration"`
+	// MinPhraseOccurrenceRatio is the minimum fraction of the most frequent phrase's occurrence count that a phrase must reach to be shown as a key phrase in EPUB documents. A value of 0 disables text ranking entirely.
+	MinPhraseOccurrenceRatio float64 `env:"MIN_PHRASE_OCCURRENCE_RATIO" default:"0.1" name:"min-phrase-occurrence-ratio" help:"Minimum fraction of the most frequent phrase's occurrence count that a phrase must reach to be shown as a key phrase in EPUB documents. Set to 0 to disable text ranking."`
+	// MinWordOccurrenceRatio is the minimum fraction of the most frequent word's occurrence count that a word must reach to be shown as a key word in EPUB documents. A value of 0 disables text ranking entirely.
+	MinWordOccurrenceRatio float64 `env:"MIN_WORD_OCCURRENCE_RATIO" default:"0.1" name:"min-word-occurrence-ratio" help:"Minimum fraction of the most frequent word's occurrence count that a word must reach to be shown as a key word in EPUB documents. Set to 0 to disable text ranking."`
 	// ForceIndexing signals whether to force indexing already indexed documents or not
 	ForceIndexing bool `env:"FORCE_INDEXING" short:"f" default:"false" name:"force-indexing" help:"Force indexing already indexed documents"`
 	// SmtpServer points to the address of the send mail server

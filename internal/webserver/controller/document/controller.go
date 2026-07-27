@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/i18n"
 	"github.com/svera/coreander/v5/internal/index"
-	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/result"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
@@ -64,7 +63,6 @@ type readingRepository interface {
 type Config struct {
 	WordsPerMinute        float64
 	HomeDir               string
-	LibraryPath           string
 	CoverMaxWidth         int
 	CacheDir              string
 	CacheMaxSize          int
@@ -84,12 +82,11 @@ type Controller struct {
 	idx               IdxReaderWriter
 	sender            Sender
 	config            Config
-	metadataReaders   map[string]metadata.Reader
 	appFs             afero.Fs
 	translator        i18n.Translator
 }
 
-func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, metadataReaders map[string]metadata.Reader, appFs afero.Fs, cfg Config, translator i18n.Translator) *Controller {
+func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, sender Sender, idx IdxReaderWriter, appFs afero.Fs, cfg Config, translator i18n.Translator) *Controller {
 	return &Controller{
 		hlRepository:      hlRepository,
 		usersRepository:   usersRepository,
@@ -97,7 +94,6 @@ func NewController(hlRepository highlightsRepository, usersRepository usersRepos
 		idx:               idx,
 		sender:            sender,
 		config:            cfg,
-		metadataReaders:   metadataReaders,
 		appFs:             appFs,
 		translator:        translator,
 	}

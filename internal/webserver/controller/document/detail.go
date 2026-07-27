@@ -3,14 +3,12 @@ package document
 import (
 	"fmt"
 	"log"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gosimple/slug"
 	"github.com/svera/coreander/v5/internal/index"
-	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
@@ -62,24 +60,6 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		}
 	}
 
-	// Get text ranking for EPUB files
-	var textRankResult *metadata.TextRankResult
-	if document.Format == "EPUB" {
-		ext := filepath.Ext(document.ID)
-		if reader, ok := d.metadataReaders[ext]; ok {
-			if epubReader, ok := reader.(metadata.EpubReader); ok {
-				fullPath := filepath.Join(d.config.LibraryPath, document.ID)
-				rankResult, err := epubReader.RankText(fullPath)
-				if err != nil {
-					// Log error but don't fail the page load
-					log.Printf("Failed to get text ranking for %s: %v\n", document.ID, err)
-				} else {
-					textRankResult = rankResult
-				}
-			}
-		}
-	}
-
 	result.CompletedOn = completedOn
 	return c.Render("document/detail", fiber.Map{
 		"Title":                title,
@@ -90,7 +70,6 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"WordsPerMinute":       d.config.WordsPerMinute,
 		"AuthorSummaries":      authorSummaries,
 		"IllustratorSummaries": illustratorSummaries,
-		"TextRank":             textRankResult,
 	}, "layout")
 }
 
@@ -173,5 +152,6 @@ func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameSeri
 		result = d.hlRepository.Highlighted(sessionID, result)
 		sameSeries = append(sameSeries, result)
 	}
+
 	return sameSubjects, sameSeries
 }

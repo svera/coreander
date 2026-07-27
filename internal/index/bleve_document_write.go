@@ -97,6 +97,7 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 
 	document := b.createDocument(meta, file, nil, nil)
 	document.AddedOn = time.Now().UTC()
+	document.TextRankKeywords = b.rankTextForFile(ext, file)
 
 	if err = b.documentsIdx.Index(document.ID, document); err != nil {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
@@ -214,6 +215,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 		batchSlugs[document.Slug] = struct{}{}
 		languages = addLanguage(meta.Language, languages)
 		document.AddedOn = time.Time{}
+		document.TextRankKeywords = job.textRankKeywords
 
 		if err = batch.Index(document.ID, document); err != nil {
 			log.Printf("Error indexing file %s: %s\n", fullPath, err)
@@ -277,9 +279,10 @@ func (b *BleveIndexer) collectPendingLibraryPaths(forceIndexing bool) (pending [
 }
 
 type metadataJobResult struct {
-	path string
-	meta metadata.Metadata
-	err  error
+	path             string
+	meta             metadata.Metadata
+	textRankKeywords string
+	err              error
 }
 
 func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metadataJobResult {
@@ -294,7 +297,11 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 		for i, p := range paths {
 			ext := strings.ToLower(filepath.Ext(p))
 			meta, err := b.reader[ext].Metadata(p)
-			out[i] = metadataJobResult{path: p, meta: meta, err: err}
+			textRankKeywords := ""
+			if err == nil {
+				textRankKeywords = b.rankTextForFile(ext, p)
+			}
+			out[i] = metadataJobResult{path: p, meta: meta, textRankKeywords: textRankKeywords, err: err}
 			recordProgress()
 		}
 		return out
@@ -318,7 +325,11 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 			for j := range jobs {
 				ext := strings.ToLower(filepath.Ext(j.path))
 				meta, err := b.reader[ext].Metadata(j.path)
-				out[j.i] = metadataJobResult{path: j.path, meta: meta, err: err}
+				textRankKeywords := ""
+				if err == nil {
+					textRankKeywords = b.rankTextForFile(ext, j.path)
+				}
+				out[j.i] = metadataJobResult{path: j.path, meta: meta, textRankKeywords: textRankKeywords, err: err}
 				recordProgress()
 			}
 		}()
@@ -329,6 +340,45 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 	close(jobs)
 	wg.Wait()
 	return out
+}
+
+// rankTextForFile computes TextRank analysis for fullPath and returns its
+// phrases/words as plain, space-separated text, ready to store in
+// Document.TextRankKeywords for full-text search. Returns "" (logging any
+// error non-fatally) if the reader registered for ext isn't a
+// metadata.EpubReader, ranking is disabled via its occurrence ratio config,
+// or the analysis fails.
+func (b *BleveIndexer) rankTextForFile(ext, fullPath string) string {
+	epubReader, ok := b.reader[ext].(metadata.EpubReader)
+	if !ok {
+		return ""
+	}
+	result, err := epubReader.RankText(fullPath)
+	if err != nil {
+		log.Printf("Error ranking text for file %s: %s\n", fullPath, err)
+		return ""
+	}
+	if result == nil {
+		return ""
+	}
+	return textRankKeywords(result)
+}
+
+// textRankKeywords flattens a TextRankResult's phrases and single words into
+// plain, space-separated text suitable for a full-text analyzed field.
+func textRankKeywords(result *metadata.TextRankResult) string {
+	var b strings.Builder
+	for _, phrase := range result.Phrases {
+		b.WriteString(phrase.Left)
+		b.WriteByte(' ')
+		b.WriteString(phrase.Right)
+		b.WriteByte(' ')
+	}
+	for _, word := range result.SingleWords {
+		b.WriteString(word.Word)
+		b.WriteByte(' ')
+	}
+	return strings.TrimSpace(b.String())
 }
 
 func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {
