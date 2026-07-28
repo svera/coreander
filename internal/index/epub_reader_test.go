@@ -33,6 +33,23 @@ func (r epubTestReader) Cover(string, int) (image.Image, error) {
 	return nil, nil
 }
 
+// MetadataAndText, Text and RankText make epubTestReader satisfy
+// metadata.TextExtractor, metadata.TextSource and metadata.TextRanker,
+// mirroring the real EpubReader so tests exercise the same "needs TextRank
+// enrichment" path as production .epub files.
+func (r epubTestReader) MetadataAndText(path string) (metadata.Metadata, string, error) {
+	md, err := r.Metadata(path)
+	return md, "", err
+}
+
+func (r epubTestReader) Text(path string) (string, error) {
+	return "", nil
+}
+
+func (r epubTestReader) RankText(textContent, filename string) (*metadata.TextRankResult, error) {
+	return nil, nil
+}
+
 func languageFilterLibrary() map[string]*epub.Information {
 	return map[string]*epub.Information{
 		"lib/english_book.epub": {

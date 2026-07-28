@@ -60,9 +60,20 @@ type Reader interface {
 
 // TextExtractor is implemented by Reader types that can return their full
 // extracted text content alongside Metadata in a single pass (currently just
-// EpubReader). Callers that also need a TextRanker's analysis should use
-// this instead of Metadata, and feed the returned text into RankText, to
-// avoid extracting and sanitizing the same document's content twice.
+// EpubReader). Callers that also need a TextRanker's analysis right after
+// reading Metadata (e.g. indexing a single uploaded file) should use this
+// instead of Metadata, and feed the returned text into RankText, to avoid
+// extracting and sanitizing the same document's content twice.
 type TextExtractor interface {
 	MetadataAndText(file string) (Metadata, string, error)
+}
+
+// TextSource is implemented by Reader types that can extract just their text
+// content (currently just EpubReader), without repeating the metadata/OPF
+// parsing and illustration counting that TextExtractor's MetadataAndText also
+// does. Callers that already have Metadata and only need text for TextRanker
+// (e.g. background enrichment run well after indexing) should use this
+// instead of TextExtractor, to avoid redoing that unrelated work.
+type TextSource interface {
+	Text(file string) (string, error)
 }

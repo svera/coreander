@@ -784,6 +784,13 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		textRankKeywords = match.Fields["TextRankKeywords"].(string)
 	}
 
+	// Absent for documents indexed before this field existed, which are
+	// therefore correctly treated as not yet enriched (its zero value).
+	textRankEnriched := false
+	if match.Fields["TextRankEnriched"] != nil {
+		textRankEnriched = match.Fields["TextRankEnriched"].(bool)
+	}
+
 	doc := Document{
 		ID: match.ID,
 		Metadata: metadata.Metadata{
@@ -808,6 +815,7 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		SubjectsSlugs:     slicer(match.Fields["SubjectsSlugs"]),
 		AddedOn:           addedOn,
 		TextRankKeywords:  textRankKeywords,
+		TextRankEnriched:  textRankEnriched,
 	}
 
 	return doc

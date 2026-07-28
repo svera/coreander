@@ -44,6 +44,14 @@ type Document struct {
 	// and indexed so a document can be found by its key topics/phrases even
 	// when they don't appear in Title/Authors/Description/Subjects.
 	TextRankKeywords string
+	// TextRankEnriched is false until EnrichTextRankKeywords has processed
+	// this document (or immediately true at indexing time for formats that
+	// can never support it, e.g. PDF). AddLibrary intentionally skips TextRank
+	// analysis so the library becomes searchable as fast as possible;
+	// EnrichTextRankKeywords fills TextRankKeywords in afterward, in the
+	// background. See documentsNeedingTextRank, which drives that pass off
+	// this field so it survives (and resumes correctly across) restarts.
+	TextRankEnriched bool
 }
 
 // BleveType is part of the bleve.Classifier interface and its purpose is to tell the indexer

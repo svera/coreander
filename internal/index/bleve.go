@@ -28,7 +28,7 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v15"
+const DocumentVersion = "v16"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
@@ -64,19 +64,22 @@ type Config struct {
 }
 
 type BleveIndexer struct {
-	fs                       afero.Fs
-	documentsIdx             bleve.Index // Documents index
-	authorsIdx               bleve.Index // Authors index
-	libraryPath              string
-	reader                   map[string]metadata.Reader
-	indexStartNanos          atomic.Int64
-	indexedEntries           atomic.Uint64
-	indexTotalEntries        atomic.Uint64
-	authorEnrichStartNanos   atomic.Int64
-	authorEnrichProcessed    atomic.Uint64
-	authorEnrichTotalEntries atomic.Uint64
-	illustratedMinAmount     int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
-	illustratedMinSize       float64 // minimum size in megapixels for an image to count as an illustration
+	fs                         afero.Fs
+	documentsIdx               bleve.Index // Documents index
+	authorsIdx                 bleve.Index // Authors index
+	libraryPath                string
+	reader                     map[string]metadata.Reader
+	indexStartNanos            atomic.Int64
+	indexedEntries             atomic.Uint64
+	indexTotalEntries          atomic.Uint64
+	authorEnrichStartNanos     atomic.Int64
+	authorEnrichProcessed      atomic.Uint64
+	authorEnrichTotalEntries   atomic.Uint64
+	textRankEnrichStartNanos   atomic.Int64
+	textRankEnrichProcessed    atomic.Uint64
+	textRankEnrichTotalEntries atomic.Uint64
+	illustratedMinAmount       int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
+	illustratedMinSize         float64 // minimum size in megapixels for an image to count as an illustration
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
@@ -136,6 +139,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 
 	numericFieldMapping := bleve.NewNumericFieldMapping()
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
+	booleanFieldMapping := bleve.NewBooleanFieldMapping()
 
 	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()
@@ -171,6 +175,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Pages", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrations", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
 	}
 
 	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
@@ -193,6 +198,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Pages", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Illustrations", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
 
 	return indexMapping
 }

@@ -89,6 +89,20 @@ func (e EpubReader) MetadataAndText(filename string) (Metadata, string, error) {
 	return bk, text, nil
 }
 
+// Text extracts and sanitizes filename's text content on its own, skipping
+// the metadata/OPF parsing and illustration counting MetadataAndText also
+// does, for callers that already have Metadata and only need text (e.g.
+// EnrichTextRankKeywords, run well after indexing).
+func (e EpubReader) Text(filename string) (string, error) {
+	book, err := epub.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer book.Close()
+
+	return textFromZip(book.ReadCloser)
+}
+
 // BuildEpubMetadataFields maps pirmd/epub Information into Metadata (title, authors, dates, etc.).
 // It does not open the EPUB: Illustrations and Words are left at zero unless set elsewhere.
 // EpubReader.Metadata uses this then fills illustrations and word count from the package/zip.
