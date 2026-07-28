@@ -33,8 +33,8 @@ func parsedStopWordsMap() (map[string][]string, error) {
 	return stopWordsMap, stopWordsMapErr
 }
 
-// TextRankResult represents the result of text ranking analysis
-// Phrases and SingleWords are returned as slices from TextRank
+// TextRankResult represents the result of text ranking analysis.
+// Phrases and SingleWords are returned as slices from TextRank.
 type TextRankResult struct {
 	Phrases     []rank.Phrase
 	SingleWords []rank.SingleWord

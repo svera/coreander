@@ -371,40 +371,40 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 // implements metadata.TextExtractor, its already-extracted text is reused
 // for ranking instead of extracting and sanitizing the document a second
 // time (see metadata.EpubReader.MetadataAndText).
-func (b *BleveIndexer) metadataAndKeywordsFor(ext, fullPath string) (metadata.Metadata, string, error) {
+func (b *BleveIndexer) metadataAndKeywordsFor(ext, fullPath string) (metadata.Metadata, []string, error) {
 	reader := b.reader[ext]
 
 	extractor, ok := reader.(metadata.TextExtractor)
 	if !ok {
 		meta, err := reader.Metadata(fullPath)
-		return meta, "", err
+		return meta, nil, err
 	}
 
 	meta, text, err := extractor.MetadataAndText(fullPath)
 	if err != nil {
-		return meta, "", err
+		return meta, nil, err
 	}
 	return meta, b.rankTextFromContent(reader, text, fullPath), nil
 }
 
 // rankTextFromContent runs TextRank analysis on textContent (already
-// extracted from fullPath) and returns its phrases/single words as plain,
-// space-separated text, ready to store in Document.TextRankKeywords for
-// full-text search. Returns "" (logging any error non-fatally) if reader
-// doesn't implement metadata.TextRanker, ranking is disabled via its
-// occurrence ratio config, or the analysis fails.
-func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, fullPath string) string {
+// extracted from fullPath) and returns its word pairs, one per element,
+// ready to store in Document.TextRankKeywords for full-text search. Returns
+// nil (logging any error non-fatally) if reader doesn't implement
+// metadata.TextRanker, ranking is disabled via its occurrence ratio config,
+// or the analysis fails.
+func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, fullPath string) []string {
 	textRanker, ok := reader.(metadata.TextRanker)
 	if !ok {
-		return ""
+		return nil
 	}
 	result, err := textRanker.RankText(textContent, fullPath)
 	if err != nil {
 		log.Printf("Error ranking text for file %s: %s\n", fullPath, err)
-		return ""
+		return nil
 	}
 	if result == nil {
-		return ""
+		return nil
 	}
 	return textRankKeywords(result)
 }
@@ -549,21 +549,22 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 	return nil
 }
 
-// textRankKeywords flattens a TextRankResult's phrases and single words into
-// plain, space-separated text suitable for a full-text analyzed field.
-func textRankKeywords(result *metadata.TextRankResult) string {
-	var b strings.Builder
+// textRankKeywords turns a TextRankResult's phrases and single words into one
+// string per phrase/word, one per slice element (rather than a single
+// flattened string), so each lands in its own array entry - see the
+// Document.TextRankKeywords doc comment for why that separation matters.
+func textRankKeywords(result *metadata.TextRankResult) []string {
+	if len(result.Phrases) == 0 && len(result.SingleWords) == 0 {
+		return nil
+	}
+	keywords := make([]string, 0, len(result.Phrases)+len(result.SingleWords))
 	for _, phrase := range result.Phrases {
-		b.WriteString(phrase.Left)
-		b.WriteByte(' ')
-		b.WriteString(phrase.Right)
-		b.WriteByte(' ')
+		keywords = append(keywords, phrase.Left+" "+phrase.Right)
 	}
 	for _, word := range result.SingleWords {
-		b.WriteString(word.Word)
-		b.WriteByte(' ')
+		keywords = append(keywords, word.Word)
 	}
-	return strings.TrimSpace(b.String())
+	return keywords
 }
 
 func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {

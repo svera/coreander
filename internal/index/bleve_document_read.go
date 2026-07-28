@@ -779,9 +779,9 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		illustratorsSlugs = nil
 	}
 
-	textRankKeywords := ""
-	if match.Fields["TextRankKeywords"] != nil {
-		textRankKeywords = match.Fields["TextRankKeywords"].(string)
+	textRankKeywords := slicer(match.Fields["TextRankKeywords"])
+	if len(textRankKeywords) == 0 {
+		textRankKeywords = nil
 	}
 
 	// Absent for documents indexed before this field existed, which are
@@ -855,7 +855,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		return []Document{}, err
 	}
 
-	if len(doc.Subjects) == 0 && doc.TextRankKeywords == "" {
+	if len(doc.Subjects) == 0 && len(doc.TextRankKeywords) == 0 {
 		return []Document{}, nil
 	}
 
@@ -894,15 +894,20 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 		subjectsCompoundQuery.AddQuery(qu)
 	}
 
-	// A document can also qualify as "related" by sharing key phrases/words
-	// extracted via TextRank analysis at indexing time (EPUB only), rather
-	// than an exact subject term - documents that match on both score higher
-	// naturally, since DisjunctionQuery sums the scores of matching clauses.
-	if doc.TextRankKeywords != "" {
-		kq := bleve.NewMatchQuery(doc.TextRankKeywords)
+	// A document can also qualify as "related" by sharing a TextRank word
+	// pair or single word extracted at indexing time (EPUB only), rather
+	// than an exact subject term - one MatchPhraseQuery per entry, since each
+	// is stored as its own array entry (see the Document.TextRankKeywords
+	// doc comment), so a pair only ever matches an actual adjacent pair in
+	// the candidate document, never two words from unrelated pairs (a single
+	// word entry is just a one-term phrase, so it matches normally).
+	// Documents that match on both subjects and keywords, or on more shared
+	// entries, score higher naturally, since DisjunctionQuery sums the
+	// scores of matching clauses.
+	for _, keyword := range doc.TextRankKeywords {
+		kq := bleve.NewMatchPhraseQuery(keyword)
 		kq.SetField("TextRankKeywords")
 		kq.Analyzer = defaultAnalyzer
-		kq.Operator = query.MatchQueryOperatorOr
 		subjectsCompoundQuery.AddQuery(kq)
 	}
 

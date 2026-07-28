@@ -2,6 +2,7 @@ package index_test
 
 import (
 	"image"
+	"slices"
 	"testing"
 
 	"github.com/DavidBelicza/TextRank/v2/rank"
@@ -32,7 +33,8 @@ func (rankableTestReader) Text(path string) (string, error) {
 
 func (rankableTestReader) RankText(textContent, filename string) (*metadata.TextRankResult, error) {
 	return &metadata.TextRankResult{
-		SingleWords: []rank.SingleWord{{Word: "keyword"}},
+		Phrases:     []rank.Phrase{{Left: "some", Right: "keyword"}},
+		SingleWords: []rank.SingleWord{{Word: "standalone"}},
 	}, nil
 }
 
@@ -85,7 +87,7 @@ func TestAddLibraryDefersTextRankToEnrichment(t *testing.T) {
 	if rankable.TextRankEnriched {
 		t.Errorf("expected rankable document to not be TextRank-enriched right after AddLibrary")
 	}
-	if rankable.TextRankKeywords != "" {
+	if len(rankable.TextRankKeywords) != 0 {
 		t.Errorf("expected rankable document to have no TextRankKeywords yet, got %q", rankable.TextRankKeywords)
 	}
 
@@ -108,8 +110,9 @@ func TestAddLibraryDefersTextRankToEnrichment(t *testing.T) {
 	if !rankable.TextRankEnriched {
 		t.Errorf("expected rankable document to be TextRank-enriched after EnrichTextRankKeywords")
 	}
-	if rankable.TextRankKeywords != "keyword" {
-		t.Errorf("expected rankable document to have TextRankKeywords %q, got %q", "keyword", rankable.TextRankKeywords)
+	wantKeywords := []string{"some keyword", "standalone"}
+	if !slices.Equal(rankable.TextRankKeywords, wantKeywords) {
+		t.Errorf("expected rankable document to have TextRankKeywords %q, got %q", wantKeywords, rankable.TextRankKeywords)
 	}
 
 	nonRankable, err = idx.Document("author-two-non-rankable-book")

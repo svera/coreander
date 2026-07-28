@@ -39,11 +39,17 @@ type Document struct {
 	SeriesSlug        string
 	SubjectsSlugs     []string
 	AddedOn           time.Time
-	// TextRankKeywords holds the phrases/words extracted by TextRank analysis
-	// at indexing time (EPUB only) as plain, space-separated text, analyzed
-	// and indexed so a document can be found by its key topics/phrases even
+	// TextRankKeywords holds the word pairs (two-word phrases, e.g. "robert
+	// oppenheimer") and single words extracted by TextRank analysis at
+	// indexing time (EPUB only), one phrase/word per element. Storing one
+	// entry per phrase/word (rather than flattening them all into a single
+	// string) matters: Bleve resets term positions at each array element, so
+	// a MatchPhraseQuery against this field only ever matches an actual
+	// adjacent pair, never two words from different, unrelated pairs that
+	// just ended up next to each other after flattening. This field is
+	// analyzed and indexed so a document can be found by its key topics even
 	// when they don't appear in Title/Authors/Description/Subjects.
-	TextRankKeywords string
+	TextRankKeywords []string
 	// TextRankEnriched is false until EnrichTextRankKeywords has processed
 	// this document (or immediately true at indexing time for formats that
 	// can never support it, e.g. PDF). AddLibrary intentionally skips TextRank

@@ -1,6 +1,7 @@
 package index
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/DavidBelicza/TextRank/v2/rank"
@@ -8,7 +9,7 @@ import (
 )
 
 func TestTextRankKeywords(t *testing.T) {
-	t.Run("flattens phrases and single words into space-separated text", func(t *testing.T) {
+	t.Run("returns one \"left right\" string per phrase, followed by one string per single word", func(t *testing.T) {
 		result := &metadata.TextRankResult{
 			Phrases: []rank.Phrase{
 				{Left: "robert", Right: "oppenheimer"},
@@ -21,16 +22,16 @@ func TestTextRankKeywords(t *testing.T) {
 		}
 
 		got := textRankKeywords(result)
-		want := "robert oppenheimer manhattan project physics chevalier"
-		if got != want {
-			t.Errorf("expected %q, got %q", want, got)
+		want := []string{"robert oppenheimer", "manhattan project", "physics", "chevalier"}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("expected %#v, got %#v", want, got)
 		}
 	})
 
-	t.Run("empty phrases and words yield an empty string", func(t *testing.T) {
+	t.Run("no phrases or words yield a nil slice", func(t *testing.T) {
 		got := textRankKeywords(&metadata.TextRankResult{})
-		if got != "" {
-			t.Errorf("expected empty string, got %q", got)
+		if got != nil {
+			t.Errorf("expected nil, got %#v", got)
 		}
 	})
 }
