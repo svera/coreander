@@ -57,7 +57,7 @@ func (e EpubReader) RankText(textContent, filename string) (*TextRankResult, err
 	// filtering": since every phrase/word occurs at least once, a ratio of 0
 	// would otherwise keep everything, which is rarely what's wanted and
 	// wastes the cost of the analysis for nothing.
-	if e.MinPhraseOccurrenceRatio == 0 || e.MinWordOccurrenceRatio == 0 {
+	if e.MinOccurrenceRatio == 0 {
 		return nil, nil
 	}
 
@@ -175,11 +175,11 @@ func (e EpubReader) RankText(textContent, filename string) (*TextRankResult, err
 	// phrase's: Weight is normalized against this document's own min/max
 	// occurrence counts, so it can't tell a genuinely rare phrase from one
 	// that just occurs once in a document where most phrases do.
-	phrases = filterByOccurrenceRatio(phrases, e.MinPhraseOccurrenceRatio, func(p rank.Phrase) int { return p.Qty })
+	phrases = filterByOccurrenceRatio(phrases, e.MinOccurrenceRatio, func(p rank.Phrase) int { return p.Qty })
 
 	// Filter out single words that are far less frequent than the most
 	// frequent word, for the same reason phrases are filtered above.
-	singleWords = filterByOccurrenceRatio(singleWords, e.MinWordOccurrenceRatio, func(w rank.SingleWord) int { return w.Qty })
+	singleWords = filterByOccurrenceRatio(singleWords, e.MinOccurrenceRatio, func(w rank.SingleWord) int { return w.Qty })
 
 	return &TextRankResult{
 		Phrases:     phrases,

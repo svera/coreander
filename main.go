@@ -72,7 +72,7 @@ func init() {
 
 	appFs = afero.NewOsFs()
 	metadataReaders = map[string]metadata.Reader{
-		".epub": metadata.NewEpubReader(input.MinPhraseOccurrenceRatio, input.MinWordOccurrenceRatio),
+		".epub": metadata.NewEpubReader(input.MinOccurrenceRatio),
 		".pdf":  metadata.PdfReader{Fs: appFs},
 	}
 

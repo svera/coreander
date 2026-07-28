@@ -219,7 +219,7 @@ func TestUpload(t *testing.T) {
 	t.Run("Returns 302 for correct document", func(t *testing.T) {
 		fs := afero.NewOsFs()
 		readers := map[string]metadata.Reader{
-			".epub": metadata.NewEpubReader(0.1, 0.1),
+			".epub": metadata.NewEpubReader(0.1),
 			".pdf":  metadata.PdfReader{Fs: fs},
 		}
 		app := bootstrapApp(db, &infrastructure.NoEmail{}, fs, webserver.Config{}, readers)

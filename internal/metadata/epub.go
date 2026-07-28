@@ -27,22 +27,18 @@ import (
 type EpubReader struct {
 	GetMetadataFromFile func(path string) (*epub.Information, error)
 	GetPackageFromFile  func(path string) (*epub.PackageDocument, error)
-	// MinPhraseOccurrenceRatio is the minimum fraction of the most frequent
-	// phrase's occurrence count that a phrase must reach to be considered
-	// worth showing in RankText's results. See filterByOccurrenceRatio.
-	// A value of 0 disables text ranking entirely.
-	MinPhraseOccurrenceRatio float64
-	// MinWordOccurrenceRatio is the same as MinPhraseOccurrenceRatio, but for
-	// single words. A value of 0 disables text ranking entirely.
-	MinWordOccurrenceRatio float64
+	// MinOccurrenceRatio is the minimum fraction of the most frequent
+	// phrase's (or word's) occurrence count that a phrase or single word
+	// must reach to be considered worth showing in RankText's results. See
+	// filterByOccurrenceRatio. A value of 0 disables text ranking entirely.
+	MinOccurrenceRatio float64
 }
 
-func NewEpubReader(minPhraseOccurrenceRatio, minWordOccurrenceRatio float64) EpubReader {
+func NewEpubReader(minOccurrenceRatio float64) EpubReader {
 	return EpubReader{
-		GetMetadataFromFile:      epub.GetMetadataFromFile,
-		GetPackageFromFile:       epub.GetPackageFromFile,
-		MinPhraseOccurrenceRatio: minPhraseOccurrenceRatio,
-		MinWordOccurrenceRatio:   minWordOccurrenceRatio,
+		GetMetadataFromFile: epub.GetMetadataFromFile,
+		GetPackageFromFile:  epub.GetPackageFromFile,
+		MinOccurrenceRatio:  minOccurrenceRatio,
 	}
 }
 
