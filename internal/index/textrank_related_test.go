@@ -7,6 +7,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
 // newTextRankTestIndex builds an in-memory documents index (bypassing AddLibrary
@@ -219,5 +220,65 @@ func TestSearchSimilarToPrunesWeakMatches(t *testing.T) {
 	}
 	if slices.Contains(gotSlugs, "unrelated") {
 		t.Errorf("did not expect unrelated document to match, got %v", gotSlugs)
+	}
+}
+
+// TestSearchSimilarToRespectsSortBy guards against runSimilarityQuery
+// ignoring SearchFields.SortBy: pruning weak matches needs the underlying
+// Bleve query sorted by score (to find the best match's score), so the
+// user's chosen display order can't just be handed to Bleve like
+// runPaginatedQuery does - it has to be applied afterwards, over the
+// already-pruned documents. All three documents here score similarly enough
+// to survive pruning, so any difference in order is down to SortBy alone.
+func TestSearchSimilarToRespectsSortBy(t *testing.T) {
+	sharedPairs := []string{"oppenheimer manhattan", "project atomic", "los alamos"}
+
+	docA := index.Document{
+		ID:               "a.epub",
+		Slug:             "doc-a",
+		Metadata:         metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
+		AuthorsSlugs:     []string{"author-one"},
+		TextRankKeywords: sharedPairs,
+	}
+	docOldest := index.Document{
+		ID:               "oldest.epub",
+		Slug:             "oldest",
+		Metadata:         metadata.Metadata{Title: "Oldest", Authors: []string{"Author Two"}, Format: "EPUB", Publication: precisiondate.NewPrecisionDate("2000-01-01T00:00:00Z", precisiondate.PrecisionDay)},
+		AuthorsSlugs:     []string{"author-two"},
+		TextRankKeywords: sharedPairs,
+	}
+	docMiddle := index.Document{
+		ID:               "middle.epub",
+		Slug:             "middle",
+		Metadata:         metadata.Metadata{Title: "Middle", Authors: []string{"Author Three"}, Format: "EPUB", Publication: precisiondate.NewPrecisionDate("2010-01-01T00:00:00Z", precisiondate.PrecisionDay)},
+		AuthorsSlugs:     []string{"author-three"},
+		TextRankKeywords: sharedPairs,
+	}
+	docNewest := index.Document{
+		ID:               "newest.epub",
+		Slug:             "newest",
+		Metadata:         metadata.Metadata{Title: "Newest", Authors: []string{"Author Four"}, Format: "EPUB", Publication: precisiondate.NewPrecisionDate("2020-01-01T00:00:00Z", precisiondate.PrecisionDay)},
+		AuthorsSlugs:     []string{"author-four"},
+		TextRankKeywords: sharedPairs,
+	}
+
+	idx := newTextRankTestIndex(t, []index.Document{docA, docOldest, docMiddle, docNewest})
+
+	older, err := idx.Search(index.SearchFields{SimilarTo: "doc-a", SortBy: []string{"Publication.Date"}}, 1, 10)
+	if err != nil {
+		t.Fatalf("Search returned an error: %s", err)
+	}
+	wantOlderFirst := []string{"oldest", "middle", "newest"}
+	if got := slugsOf(older.Hits()); !slices.Equal(got, wantOlderFirst) {
+		t.Errorf("expected order (oldest first) %v, got %v", wantOlderFirst, got)
+	}
+
+	newer, err := idx.Search(index.SearchFields{SimilarTo: "doc-a", SortBy: []string{"-Publication.Date"}}, 1, 10)
+	if err != nil {
+		t.Fatalf("Search returned an error: %s", err)
+	}
+	wantNewerFirst := []string{"newest", "middle", "oldest"}
+	if got := slugsOf(newer.Hits()); !slices.Equal(got, wantNewerFirst) {
+		t.Errorf("expected order (newest first) %v, got %v", wantNewerFirst, got)
 	}
 }

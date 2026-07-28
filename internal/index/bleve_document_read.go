@@ -1,6 +1,7 @@
 package index
 
 import (
+	"cmp"
 	"errors"
 	"html/template"
 	"image"
@@ -40,7 +41,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		}
 		filtersQuery.AddQuery(b.subjectsQuery(doc))
 		b.addFilters(searchFields, filtersQuery)
-		return b.runSimilarityQuery(filtersQuery, page, resultsPerPage)
+		return b.runSimilarityQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 	}
 
 	if searchFields.Keywords != "" {
@@ -392,7 +393,12 @@ const minSimilarityScoreRatio = 0.2
 // otherwise take up a page slot next to strongly related ones. Instead this fetches up
 // to maxSimilarityCandidates top-scoring matches, drops any scoring below
 // minSimilarityScoreRatio of the best match, and paginates over what's left.
-func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPage int) (result.Paginated[[]Document], error) {
+//
+// Pruning always needs the underlying Bleve query sorted by score, to find the best
+// match's score - so sortBy (the user's chosen display order, e.g. by publication date)
+// can't be handed to Bleve the way runPaginatedQuery does. Instead it's applied
+// afterwards, in Go, over the already-pruned documents; see sortSimilarityResults.
+func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPage int, sortBy []string) (result.Paginated[[]Document], error) {
 	searchOptions := bleve.NewSearchRequestOptions(query, maxSimilarityCandidates, 0, false)
 	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.documentsIdx.Search(searchOptions)
@@ -416,7 +422,54 @@ func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPag
 		docs = append(docs, hydrateDocument(hit))
 	}
 
+	sortSimilarityResults(docs, sortBy)
+
 	return result.Paginate(resultsPerPage, page, len(docs), docs), nil
+}
+
+// sortSimilarityResults re-sorts docs (already pruned and, going in, ordered by
+// -_score) according to sortBy - the same field-name syntax parseDocumentSortBy
+// produces for Bleve's own SortBy, since these are the only fields it ever
+// generates (see documentSortOptions). "_score" is a no-op here: docs is already
+// in that order coming in, and sort.SliceStable leaves equally-ranked documents in
+// their existing relative order, so it naturally acts as the lowest-priority
+// tiebreaker without needing its own comparator.
+func sortSimilarityResults(docs []Document, sortBy []string) {
+	if len(sortBy) == 0 {
+		return
+	}
+	sort.SliceStable(docs, func(i, j int) bool {
+		for _, key := range sortBy {
+			if c := compareDocumentsBySortKey(docs[i], docs[j], key); c != 0 {
+				return c < 0
+			}
+		}
+		return false
+	})
+}
+
+// compareDocumentsBySortKey compares a and b by key, one of the field names (an
+// optional "-" prefix reverses the comparison) parseDocumentSortBy produces.
+// Returns <0, 0 or >0, like strings.Compare/cmp.Compare.
+func compareDocumentsBySortKey(a, b Document, key string) int {
+	desc := strings.HasPrefix(key, "-")
+	field := strings.TrimPrefix(key, "-")
+
+	var c int
+	switch field {
+	case "Publication.Date":
+		c = cmp.Compare(a.Publication.Date, b.Publication.Date)
+	case "Words":
+		c = cmp.Compare(a.Words, b.Words)
+	case "Series":
+		c = cmp.Compare(a.Series, b.Series)
+	case "SeriesIndex":
+		c = cmp.Compare(a.SeriesIndex, b.SeriesIndex)
+	}
+	if desc {
+		c = -c
+	}
+	return c
 }
 
 // CountDocuments returns the total number of documents matching the given search fields, without fetching any hits.
