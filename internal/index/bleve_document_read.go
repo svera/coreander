@@ -102,6 +102,15 @@ func newInclusiveNumericRangeQuery(min, max *float64) *query.NumericRangeQuery {
 	return bleve.NewNumericRangeInclusiveQuery(min, max, &inclusive, &inclusive)
 }
 
+// addFilters narrows filtersQuery to searchFields' constraints (language, subjects,
+// date/reading-time/pages ranges, illustrated-only). Every query added here has its
+// boost explicitly zeroed: filtersQuery is a ConjunctionQuery, which sums the scores of
+// all its matching clauses, so an unboosted filter would otherwise inject its own
+// relevance score (e.g. a PrefixQuery's IDF-based score, which varies per document
+// depending on how many other documents share its exact field value) into the result
+// ranking, on top of whatever relevance query (keyword search, TextRank similarity...)
+// filtersQuery is also being used for. A filter should only ever narrow which documents
+// match, never influence how they're ordered.
 func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query.ConjunctionQuery) {
 	// Only filter by language if a language is specified
 	if searchFields.Language != "" && strings.TrimSpace(searchFields.Language) != "" {
@@ -109,6 +118,7 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 		// e.g., selecting "es" will match "es", "es_MX", "es-ES", "es-CL", etc.
 		q := bleve.NewPrefixQuery(strings.TrimSpace(searchFields.Language))
 		q.SetField("Language")
+		q.SetBoost(0)
 		filtersQuery.AddQuery(q)
 	}
 	// Only filter by subject if a subject is specified
@@ -127,11 +137,13 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 			// Use TermQuery for exact match on SubjectsSlugs (keyword field, not analyzed)
 			q := bleve.NewTermQuery(subjectSlug)
 			q.SetField("SubjectsSlugs")
+			q.SetBoost(0)
 			subjectQueries.AddQuery(q)
 		}
 
 		// Only add query if we have at least one valid subject
 		if len(subjectQueries.Conjuncts) > 0 {
+			subjectQueries.SetBoost(0)
 			filtersQuery.AddQuery(subjectQueries)
 		}
 	}
@@ -148,6 +160,7 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 		}
 		wordsQuery := newInclusiveNumericRangeQuery(min, max)
 		wordsQuery.SetField("Words")
+		wordsQuery.SetBoost(0)
 
 		// PDF documents are always indexed with Words == 0, so a "Words in [x,y]" range with no
 		// lower bound would otherwise also match every PDF, as if it had zero reading time.
@@ -160,6 +173,7 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 		bq := bleve.NewBooleanQuery()
 		bq.AddMust(wordsQuery)
 		bq.AddMustNot(excludePDF)
+		bq.SetBoost(0)
 		filtersQuery.AddQuery(bq)
 	}
 	if searchFields.PagesFrom > 0 || searchFields.PagesTo > 0 {
@@ -172,6 +186,7 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 		}
 		pagesQuery := newInclusiveNumericRangeQuery(min, max)
 		pagesQuery.SetField("Pages")
+		pagesQuery.SetBoost(0)
 
 		// EPUB documents are always indexed with Pages == 0, so a "Pages in [x,y]" range with no
 		// lower bound would otherwise also match every EPUB, as if it had zero pages. Exclude
@@ -182,12 +197,14 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 		bq := bleve.NewBooleanQuery()
 		bq.AddMust(pagesQuery)
 		bq.AddMustNot(excludeEPUB)
+		bq.SetBoost(0)
 		filtersQuery.AddQuery(bq)
 	}
 	if searchFields.IllustratedOnly && b.illustratedMinAmount > 0 {
 		minIllustrations := float64(b.illustratedMinAmount)
 		q := bleve.NewNumericRangeQuery(&minIllustrations, nil)
 		q.SetField("Illustrations")
+		q.SetBoost(0)
 		filtersQuery.AddQuery(q)
 	}
 }

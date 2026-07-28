@@ -23,6 +23,7 @@ type IdxReader interface {
 	TotalDocs() (uint64, error)
 	TotalAuthors() (uint64, error)
 	Subjects() (map[string][]string, error)
+	Document(slug string) (index.Document, error)
 }
 
 type highlightsRepository interface {

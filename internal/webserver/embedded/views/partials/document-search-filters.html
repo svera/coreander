@@ -1,5 +1,10 @@
 {{$idPrefix := or .FilterIdPrefix ""}}
 <div class="search-filters-panel p-3" id="document-search-filters{{if $idPrefix}}-{{$idPrefix}}{{end}}">
+    {{$similarTo := ""}}
+    {{if .SearchFields}}
+        {{$similarTo = .SearchFields.SimilarTo}}
+    {{end}}
+    <input type="hidden" name="similar" value="{{$similarTo}}">
     {{if and $idPrefix (not .HideSearch)}}
     <fieldset class="mb-4">
         <legend class="fs-5"><i class="bi bi-search me-3"></i>{{t .Lang "Search"}}</legend>

@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v5/internal/index"
-"github.com/svera/coreander/v5/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 	"github.com/svera/coreander/v5/internal/webserver/view"
 )
 
@@ -71,6 +71,12 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 		return fiber.ErrInternalServerError
 	}
 
+	similarToDocument, err := s.similarToDocument(searchFields.SimilarTo)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
 	templateVars := s.baseTemplateVars(c, TypeDocuments)
 	templateVars["SearchFields"] = searchFields
 	templateVars["DocumentSearchFields"] = searchFields
@@ -82,6 +88,7 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 	templateVars["AdditionalSortOptions"] = documentSortOptions()
 	templateVars["DocumentsTotalHits"] = docCount
 	templateVars["AuthorsTotalHits"] = authorCount
+	templateVars["SimilarToDocument"] = similarToDocument
 
 	return s.renderSearch(c, templateVars, "partials/docs-list-fragments")
 }
@@ -112,10 +119,16 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 		return fiber.ErrInternalServerError
 	}
 
+	similarToDocument, err := s.similarToDocument(documentSearchFields.SimilarTo)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
 	templateVars := s.baseTemplateVars(c, TypeAuthors)
 	templateVars["SearchFields"] = searchFields
 	templateVars["AuthorSearchFields"] = searchFields
-	templateVars["DocumentSearchFields"] = index.SearchFields{Keywords: keywords}
+	templateVars["DocumentSearchFields"] = index.SearchFields{Keywords: keywords, SimilarTo: documentSearchFields.SimilarTo}
 	templateVars["SearchQuery"] = keywords
 	templateVars["SelectedGender"] = c.Query("gender")
 	templateVars["Results"] = authorResults
@@ -124,21 +137,43 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	templateVars["AdditionalSortOptions"] = authorSortOptions()
 	templateVars["DocumentsTotalHits"] = docCount
 	templateVars["AuthorsTotalHits"] = authorCount
+	templateVars["SimilarToDocument"] = similarToDocument
 
 	return s.renderSearch(c, templateVars, "partials/authors-list-fragments")
 }
 
 func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string) fiber.Map {
 	return fiber.Map{
-		"SearchType":         searchType,
-		"SearchPage":         true,
-		"EmailFrom":          s.sender.From(),
-		"URL":                view.URL(c),
-		"SortURL":            view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":             c.Query("sort-by"),
-		"AuthorSearchFields": index.AuthorSearchFields{},
+		"SearchType":           searchType,
+		"SearchPage":           true,
+		"EmailFrom":            s.sender.From(),
+		"URL":                  view.URL(c),
+		"SortURL":              view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":               c.Query("sort-by"),
+		"AuthorSearchFields":   index.AuthorSearchFields{},
 		"DocumentSearchFields": index.SearchFields{},
+		"SimilarToDocument":    index.Document{},
+		// ClearSimilarURL drops back to a regular search, keeping every other
+		// filter as-is: the current URL without "similar" (a "similar to"
+		// search is meaningless without it) or "page" (a page number from the
+		// old, similarity-scored result set doesn't carry over to a regular one).
+		"ClearSimilarURL": view.BaseURLWithout(c, "similar", "page"),
 	}
+}
+
+// similarToDocument looks up the document a "similar to" search is scoped
+// to, so templates can show which document the results/filters relate to
+// (see the Document.Slug guard used wherever SimilarToDocument reaches a
+// template - Document() returns a zero Document, not an error, when slug
+// doesn't match anything, e.g. if it was deleted after the link was
+// generated). Returns a zero Document without querying the index at all
+// when slug is empty, which is the common case (most searches aren't
+// "similar to" searches).
+func (s *Controller) similarToDocument(slug string) (index.Document, error) {
+	if slug == "" {
+		return index.Document{}, nil
+	}
+	return s.idx.Document(slug)
 }
 
 func (s *Controller) renderSearch(c fiber.Ctx, templateVars fiber.Map, fragmentTemplate string) error {
