@@ -27,18 +27,12 @@ import (
 type EpubReader struct {
 	GetMetadataFromFile func(path string) (*epub.Information, error)
 	GetPackageFromFile  func(path string) (*epub.PackageDocument, error)
-	// MinOccurrenceRatio is the minimum fraction of the most frequent
-	// phrase's (or word's) occurrence count that a phrase or single word
-	// must reach to be considered worth showing in RankText's results. See
-	// filterByOccurrenceRatio. A value of 0 disables text ranking entirely.
-	MinOccurrenceRatio float64
 }
 
-func NewEpubReader(minOccurrenceRatio float64) EpubReader {
+func NewEpubReader() EpubReader {
 	return EpubReader{
 		GetMetadataFromFile: epub.GetMetadataFromFile,
 		GetPackageFromFile:  epub.GetPackageFromFile,
-		MinOccurrenceRatio:  minOccurrenceRatio,
 	}
 }
 
@@ -97,6 +91,29 @@ func (e EpubReader) Text(filename string) (string, error) {
 	defer book.Close()
 
 	return textFromZip(book.ReadCloser)
+}
+
+// RankText implements TextRanker by delegating to rankText, the
+// format-agnostic implementation, providing filename's EPUB metadata
+// language as the fallback used only if language detection on textContent
+// fails. GetMetadataFromFile is only called in that case, to avoid
+// re-reading filename from disk on the common path where detection succeeds.
+func (e EpubReader) RankText(minOccurrenceRatio float64, textContent, filename string) (*TextRankResult, error) {
+	return rankText(minOccurrenceRatio, textContent, func() (string, error) {
+		meta, err := e.GetMetadataFromFile(filename)
+		if err != nil {
+			return "", err
+		}
+		if len(meta.Language) == 0 {
+			return "", nil
+		}
+		// Normalize language code (e.g., "en-US" -> "en")
+		lang := meta.Language[0]
+		if idx := strings.Index(lang, "-"); idx != -1 {
+			lang = lang[:idx]
+		}
+		return strings.ToLower(lang), nil
+	})
 }
 
 // BuildEpubMetadataFields maps pirmd/epub Information into Metadata (title, authors, dates, etc.).

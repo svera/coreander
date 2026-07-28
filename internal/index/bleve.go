@@ -61,6 +61,13 @@ type Config struct {
 	IllustratedMinAmount int
 	// IllustratedMinSize is the minimum size in megapixels for an image to count as an illustration.
 	IllustratedMinSize float64
+	// MinOccurrenceRatio is the minimum fraction of the most frequent
+	// phrase's (or word's) occurrence count that a phrase or single word
+	// must reach to be kept as a search/related-document keyword. It's the
+	// indexer's call, not any particular Reader's, since it governs how
+	// TextRanker.RankText results are filtered regardless of document
+	// format. A value of 0 disables text ranking entirely.
+	MinOccurrenceRatio float64
 }
 
 type BleveIndexer struct {
@@ -80,6 +87,7 @@ type BleveIndexer struct {
 	textRankEnrichTotalEntries atomic.Uint64
 	illustratedMinAmount       int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
 	illustratedMinSize         float64 // minimum size in megapixels for an image to count as an illustration
+	minOccurrenceRatio         float64 // minimum occurrence ratio for a TextRank phrase/word to be kept; see Config.MinOccurrenceRatio
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
@@ -92,6 +100,7 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		reader:               read,
 		illustratedMinAmount: cfg.IllustratedMinAmount,
 		illustratedMinSize:   cfg.IllustratedMinSize,
+		minOccurrenceRatio:   cfg.MinOccurrenceRatio,
 	}
 }
 

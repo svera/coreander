@@ -391,14 +391,14 @@ func (b *BleveIndexer) metadataAndKeywordsFor(ext, fullPath string) (metadata.Me
 // extracted from fullPath) and returns its word pairs, one per element,
 // ready to store in Document.TextRankKeywords for full-text search. Returns
 // nil (logging any error non-fatally) if reader doesn't implement
-// metadata.TextRanker, ranking is disabled via its occurrence ratio config,
-// or the analysis fails.
+// metadata.TextRanker, ranking is disabled via b.minOccurrenceRatio, or the
+// analysis fails.
 func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, fullPath string) []string {
 	textRanker, ok := reader.(metadata.TextRanker)
 	if !ok {
 		return nil
 	}
-	result, err := textRanker.RankText(textContent, fullPath)
+	result, err := textRanker.RankText(b.minOccurrenceRatio, textContent, fullPath)
 	if err != nil {
 		log.Printf("Error ranking text for file %s: %s\n", fullPath, err)
 		return nil

@@ -45,57 +45,56 @@ type TextRankResult struct {
 // Callers holding a plain Reader can type-assert against this capability
 // interface instead of the concrete EpubReader type. Pair it with
 // TextExtractor to get that text without extracting it a second time.
+// minOccurrenceRatio is supplied by the caller (the indexer) rather than
+// carried by the Reader: it's a ranking-orchestration policy - how
+// aggressively to filter results - not something intrinsic to any document
+// format, and it's the same value regardless of which Reader is asked to
+// rank. See rankText for what it does.
 type TextRanker interface {
-	RankText(textContent, filename string) (*TextRankResult, error)
+	RankText(minOccurrenceRatio float64, textContent, filename string) (*TextRankResult, error)
 }
 
-// RankText performs TextRank analysis on textContent, previously extracted
-// from filename (e.g. via MetadataAndText) - detecting its language(s) and
-// fetching appropriate stop words for all of them.
-func (e EpubReader) RankText(textContent, filename string) (*TextRankResult, error) {
+// rankText performs TextRank analysis on textContent, detecting its
+// language(s) and fetching appropriate stop words for all of them. It has no
+// dependency on any particular document format: fallbackLanguage is called
+// only if language detection on textContent fails, to get a language hint
+// from wherever the caller's format stores one (e.g. EPUB metadata) - it
+// should return "" (not an error) if no such hint is available. This is the
+// shared implementation behind every format's TextRanker.RankText (currently
+// just EpubReader.RankText).
+func rankText(minOccurrenceRatio float64, textContent string, fallbackLanguage func() (string, error)) (*TextRankResult, error) {
 	// A zero ratio disables text ranking altogether, rather than meaning "no
 	// filtering": since every phrase/word occurs at least once, a ratio of 0
 	// would otherwise keep everything, which is rarely what's wanted and
 	// wastes the cost of the analysis for nothing.
-	if e.MinOccurrenceRatio == 0 {
+	if minOccurrenceRatio == 0 {
 		return nil, nil
 	}
 
 	if textContent == "" {
-		return nil, fmt.Errorf("no text content found in EPUB")
+		return nil, fmt.Errorf("no text content provided for ranking")
 	}
 
 	// Always detect languages in the document using full text.
 	langResult, err := DetectLanguageFromText(textContent)
 	if err != nil {
-		// If language detection fails, fall back to metadata language
-		meta, metaErr := e.GetMetadataFromFile(filename)
-		if metaErr != nil {
-			return nil, fmt.Errorf("failed to detect language and get metadata: %w", err)
+		// If language detection fails, fall back to the caller-provided language hint.
+		fallback, fbErr := fallbackLanguage()
+		if fbErr != nil {
+			return nil, fmt.Errorf("failed to detect language and get fallback language: %w", err)
 		}
-		metadataLang := ""
-		if len(meta.Language) > 0 {
-			metadataLang = meta.Language[0]
-			// Normalize language code (e.g., "en-US" -> "en")
-			if idx := strings.Index(metadataLang, "-"); idx != -1 {
-				metadataLang = strings.ToLower(metadataLang[:idx])
-			} else {
-				metadataLang = strings.ToLower(metadataLang)
-			}
+		if fallback == "" {
+			return nil, fmt.Errorf("failed to detect language and no fallback language available: %w", err)
 		}
-		if metadataLang != "" {
-			langResult = &LanguageDetectionResult{
-				PrimaryLanguage:       metadataLang,
-				PrimaryLanguageExists: true,
-				ConfidenceValues: []LanguageConfidence{
-					{
-						Language:   metadataLang,
-						Confidence: 1.0,
-					},
+		langResult = &LanguageDetectionResult{
+			PrimaryLanguage:       fallback,
+			PrimaryLanguageExists: true,
+			ConfidenceValues: []LanguageConfidence{
+				{
+					Language:   fallback,
+					Confidence: 1.0,
 				},
-			}
-		} else {
-			return nil, fmt.Errorf("failed to detect language and no metadata language available: %w", err)
+			},
 		}
 	}
 
@@ -175,11 +174,11 @@ func (e EpubReader) RankText(textContent, filename string) (*TextRankResult, err
 	// phrase's: Weight is normalized against this document's own min/max
 	// occurrence counts, so it can't tell a genuinely rare phrase from one
 	// that just occurs once in a document where most phrases do.
-	phrases = filterByOccurrenceRatio(phrases, e.MinOccurrenceRatio, func(p rank.Phrase) int { return p.Qty })
+	phrases = filterByOccurrenceRatio(phrases, minOccurrenceRatio, func(p rank.Phrase) int { return p.Qty })
 
 	// Filter out single words that are far less frequent than the most
 	// frequent word, for the same reason phrases are filtered above.
-	singleWords = filterByOccurrenceRatio(singleWords, e.MinOccurrenceRatio, func(w rank.SingleWord) int { return w.Qty })
+	singleWords = filterByOccurrenceRatio(singleWords, minOccurrenceRatio, func(w rank.SingleWord) int { return w.Qty })
 
 	return &TextRankResult{
 		Phrases:     phrases,

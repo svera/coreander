@@ -72,7 +72,7 @@ func init() {
 
 	appFs = afero.NewOsFs()
 	metadataReaders = map[string]metadata.Reader{
-		".epub": metadata.NewEpubReader(input.MinOccurrenceRatio),
+		".epub": metadata.NewEpubReader(),
 		".pdf":  metadata.PdfReader{Fs: appFs},
 	}
 
@@ -82,6 +82,7 @@ func init() {
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
 		IllustratedMinAmount: input.IllustratedMinAmount,
 		IllustratedMinSize:   input.IllustratedMinSize,
+		MinOccurrenceRatio:   input.MinOccurrenceRatio,
 	})
 
 	// If index was newly created or recreated, force reindexing
