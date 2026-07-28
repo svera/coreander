@@ -65,7 +65,12 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 		return fiber.ErrBadRequest
 	}
 
-	docCount, authorCount, err := s.tabCounts(searchFields, authorSearchFields)
+	// docCount reuses documentResults' own total instead of running searchFields
+	// through s.idx.CountDocuments (and thus s.idx.Search) a second time - for a
+	// "similar to" search in particular, that would mean redoing the whole
+	// (expensive, score-based) similarity search just to read its total.
+	docCount := documentResults.TotalHits()
+	authorCount, err := s.idx.CountAuthors(authorSearchFields)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
