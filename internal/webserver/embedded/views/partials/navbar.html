@@ -206,7 +206,7 @@
             <ul class="nav nav-tabs nav-fill home-search-tabs mb-0 flex-nowrap" id="search-offcanvas-tabs" role="tablist">
                 {{template "partials/search-tab-items" .}}
             </ul>
-            {{if not (and .SimilarToDocument .SimilarToDocument.Slug)}}
+            {{if not .SimilarToActive}}
             <div class="border-start border-end p-3">
                 <input type="search" name="search" id="searchbox-offcanvas" class="form-control" maxlength="255" value="{{or .SearchQuery ""}}" placeholder="{{t .Lang "Search"}}...">
             </div>

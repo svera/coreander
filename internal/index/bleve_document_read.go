@@ -337,14 +337,13 @@ func (b *BleveIndexer) runQuery(query query.Query, results int, sortBy []string)
 	return res.Hits(), nil
 }
 
-func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage int, sortBy []string) (result.Paginated[[]Document], error) {
-	var res result.Paginated[[]Document]
-
-	if page < 1 {
-		page = 1
-	}
-
-	searchOptions := bleve.NewSearchRequestOptions(query, resultsPerPage, (page-1)*resultsPerPage, false)
+// searchAndHydrate runs a Bleve search for query (size hits starting at offset,
+// fetching every stored field), sorted by sortBy if non-empty or else Bleve's
+// default relevance order, and hydrates every hit into a Document. Shared by
+// runPaginatedQuery and runSimilarityQuery, which differ only in how they turn
+// the resulting hits into a paginated result.
+func (b *BleveIndexer) searchAndHydrate(query query.Query, size, offset int, sortBy []string) (*bleve.SearchResult, []Document, error) {
+	searchOptions := bleve.NewSearchRequestOptions(query, size, offset, false)
 	// NewSearchRequestOptions defaults to sorting by relevance (-_score). Only override it when
 	// the caller actually asked for a specific order: SortBy([]string{}) replaces that default
 	// with an empty sort order, which falls back to arbitrary (index) order instead of relevance.
@@ -354,17 +353,29 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	searchOptions.Fields = []string{"*"}
 	searchResult, err := b.documentsIdx.Search(searchOptions)
 	if err != nil {
+		return nil, nil, err
+	}
+
+	docs := make([]Document, len(searchResult.Hits))
+	for i, hit := range searchResult.Hits {
+		docs[i] = hydrateDocument(hit)
+	}
+
+	return searchResult, docs, nil
+}
+
+func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage int, sortBy []string) (result.Paginated[[]Document], error) {
+	if page < 1 {
+		page = 1
+	}
+
+	searchResult, docs, err := b.searchAndHydrate(query, resultsPerPage, (page-1)*resultsPerPage, sortBy)
+	if err != nil {
 		return result.Paginated[[]Document]{}, err
 	}
 
 	if searchResult.Total == 0 {
-		return res, nil
-	}
-
-	docs := make([]Document, len(searchResult.Hits))
-
-	for i, val := range searchResult.Hits {
-		docs[i] = hydrateDocument(val)
+		return result.Paginated[[]Document]{}, nil
 	}
 
 	return result.NewPaginated(
@@ -399,9 +410,9 @@ const minSimilarityScoreRatio = 0.2
 // can't be handed to Bleve the way runPaginatedQuery does. Instead it's applied
 // afterwards, in Go, over the already-pruned documents; see sortSimilarityResults.
 func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPage int, sortBy []string) (result.Paginated[[]Document], error) {
-	searchOptions := bleve.NewSearchRequestOptions(query, maxSimilarityCandidates, 0, false)
-	searchOptions.Fields = []string{"*"}
-	searchResult, err := b.documentsIdx.Search(searchOptions)
+	// sortBy is deliberately not passed to searchAndHydrate: pruning below needs the
+	// underlying Bleve query sorted by score, to find the best match's score.
+	searchResult, hydratedDocs, err := b.searchAndHydrate(query, maxSimilarityCandidates, 0, nil)
 	if err != nil {
 		return result.Paginated[[]Document]{}, err
 	}
@@ -414,12 +425,12 @@ func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPag
 	// first hit's score is the best match's.
 	threshold := searchResult.Hits[0].Score * minSimilarityScoreRatio
 
-	docs := make([]Document, 0, len(searchResult.Hits))
-	for _, hit := range searchResult.Hits {
+	docs := make([]Document, 0, len(hydratedDocs))
+	for i, hit := range searchResult.Hits {
 		if hit.Score < threshold {
 			continue
 		}
-		docs = append(docs, hydrateDocument(hit))
+		docs = append(docs, hydratedDocs[i])
 	}
 
 	sortSimilarityResults(docs, sortBy)

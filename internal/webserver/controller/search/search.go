@@ -89,6 +89,7 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 	templateVars["DocumentsTotalHits"] = docCount
 	templateVars["AuthorsTotalHits"] = authorCount
 	templateVars["SimilarToDocument"] = similarToDocument
+	templateVars["SimilarToActive"] = similarToDocument.Slug != ""
 
 	return s.renderSearch(c, templateVars, "partials/docs-list-fragments")
 }
@@ -138,6 +139,7 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	templateVars["DocumentsTotalHits"] = docCount
 	templateVars["AuthorsTotalHits"] = authorCount
 	templateVars["SimilarToDocument"] = similarToDocument
+	templateVars["SimilarToActive"] = similarToDocument.Slug != ""
 
 	return s.renderSearch(c, templateVars, "partials/authors-list-fragments")
 }
@@ -153,6 +155,7 @@ func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string) fiber.Map 
 		"AuthorSearchFields":   index.AuthorSearchFields{},
 		"DocumentSearchFields": index.SearchFields{},
 		"SimilarToDocument":    index.Document{},
+		"SimilarToActive":      false,
 		// ClearSimilarURL drops back to a regular search, keeping every other
 		// filter as-is: the current URL without "similar" (a "similar to"
 		// search is meaningless without it) or "page" (a page number from the

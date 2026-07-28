@@ -3,7 +3,7 @@
     <button type="button" role="tab" aria-selected="{{if ne $searchType "authors"}}true{{else}}false{{end}}" class="nav-link{{if ne $searchType "authors"}} active{{end}}" data-search-type-tab="documents">{{t .Lang "Documents"}}{{if .SearchPage}} (<span class="tab-count">{{.DocumentsTotalHits}}</span><span class="spinner-border spinner-border-sm tab-count-spinner" role="status" aria-hidden="true"></span>){{end}}</button>
 </li>
 {{/* Author search has no "similar to" concept, so this tab is meaningless while browsing documents similar to a reference one. */}}
-{{if not (and .SimilarToDocument .SimilarToDocument.Slug)}}
+{{if not .SimilarToActive}}
 <li class="nav-item" role="presentation">
     <button type="button" role="tab" aria-selected="{{if eq $searchType "authors"}}true{{else}}false{{end}}" class="nav-link{{if eq $searchType "authors"}} active{{end}}" data-search-type-tab="authors">{{t .Lang "Authors"}}{{if .SearchPage}} (<span class="tab-count">{{.AuthorsTotalHits}}</span><span class="spinner-border spinner-border-sm tab-count-spinner" role="status" aria-hidden="true"></span>){{end}}</button>
 </li>
