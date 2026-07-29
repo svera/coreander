@@ -145,7 +145,7 @@ func parseDocumentSortBy(c fiber.Ctx) []string {
 			return []string{"-Words"}
 		}
 	}
-	return []string{"-_score", "Series", "SeriesIndex"}
+	return index.DefaultDocumentSortBy
 }
 
 func parseAuthorSortBy(c fiber.Ctx) []string {

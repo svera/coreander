@@ -29,6 +29,14 @@ import (
 // because they share its series name.
 const titleBoost = 3.0
 
+// DefaultDocumentSortBy is the "relevance" sort order applied whenever no explicit
+// sort is requested: highest score first, then by series/series index for
+// documents that tie on score (e.g. several entries of the same series matching
+// a keyword search equally). SearchFields.SimilarTo callers and SameSubjects both
+// use it, so a document appears in the same relative order in search-similar
+// results and in the "related documents" section.
+var DefaultDocumentSortBy = []string{"-_score", "Series", "SeriesIndex"}
+
 // Search look for documents which match the passed keywords and filters.
 // Returns a maximum <resultsPerPage> documents, offset by <page>
 func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
@@ -41,7 +49,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		}
 		filtersQuery.AddQuery(b.subjectsQuery(doc))
 		b.addFilters(searchFields, filtersQuery)
-		return b.runSimilarityQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
+		return b.runSimilarityQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy, float64(doc.Publication.Date))
 	}
 
 	if searchFields.Keywords != "" {
@@ -401,7 +409,9 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 // match's score - so sortBy (the user's chosen display order, e.g. by publication date)
 // can't be handed to Bleve the way runPaginatedQuery does. Instead it's applied
 // afterwards, in Go, over the already-pruned documents; see sortSimilarityResults.
-func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPage int, sortBy []string) (result.Paginated[[]Document], error) {
+// referenceDate, if non-zero, is the publication date of the document these results are
+// similar to, used as a tiebreaker (closest first) between equally-ranked documents.
+func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPage int, sortBy []string, referenceDate float64) (result.Paginated[[]Document], error) {
 	// sortBy is deliberately not passed to searchAndHydrate: pruning below needs the
 	// underlying Bleve query sorted by score, to find the best match's score.
 	searchResult, hydratedDocs, err := b.searchAndHydrate(query, b.maxSimilarityCandidates, 0, nil)
@@ -417,37 +427,70 @@ func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPag
 	// first hit's score is the best match's.
 	threshold := searchResult.Hits[0].Score * b.minSimilarityScoreRatio
 
-	docs := make([]Document, 0, len(hydratedDocs))
+	hits := make([]similarityHit, 0, len(hydratedDocs))
 	for i, hit := range searchResult.Hits {
 		if hit.Score < threshold {
 			continue
 		}
-		docs = append(docs, hydratedDocs[i])
+		hits = append(hits, similarityHit{doc: hydratedDocs[i], score: hit.Score})
 	}
 
-	sortSimilarityResults(docs, sortBy)
+	sortSimilarityResults(hits, sortBy, referenceDate)
+
+	docs := make([]Document, len(hits))
+	for i, h := range hits {
+		docs[i] = h.doc
+	}
 
 	return result.Paginate(resultsPerPage, page, len(docs), docs), nil
 }
 
-// sortSimilarityResults re-sorts docs (already pruned and, going in, ordered by
+// similarityHit pairs a hydrated Document with the raw Bleve score of the match it
+// came from, so sortSimilarityResults can use the score as a sort key without
+// re-querying Bleve.
+type similarityHit struct {
+	doc   Document
+	score float64
+}
+
+// sortSimilarityResults re-sorts hits (already pruned and, going in, ordered by
 // -_score) according to sortBy - the same field-name syntax parseDocumentSortBy
 // produces for Bleve's own SortBy, since these are the only fields it ever
-// generates (see documentSortOptions). "_score" is a no-op here: docs is already
-// in that order coming in, and sort.SliceStable leaves equally-ranked documents in
-// their existing relative order, so it naturally acts as the lowest-priority
-// tiebreaker without needing its own comparator.
-func sortSimilarityResults(docs []Document, sortBy []string) {
-	if len(sortBy) == 0 {
+// generates (see documentSortOptions). "_score"/"-_score" compares the raw Bleve
+// score carried in each hit, since that isn't a Document field
+// compareDocumentsBySortKey can read.
+//
+// If sortBy doesn't fully order two hits (e.g. it's empty, or made up of fields
+// like Series/SeriesIndex that are blank for most documents), the tie is broken by
+// distance between each document's publication date and referenceDate, closest
+// first, so documents from around the same time as the reference document rank
+// above equally-ranked ones from further away. If referenceDate is zero (the
+// reference document has no publication date), that tiebreak is skipped.
+func sortSimilarityResults(hits []similarityHit, sortBy []string, referenceDate float64) {
+	if len(sortBy) == 0 && referenceDate == 0 {
 		return
 	}
-	sort.SliceStable(docs, func(i, j int) bool {
+	sort.SliceStable(hits, func(i, j int) bool {
 		for _, key := range sortBy {
-			if c := compareDocumentsBySortKey(docs[i], docs[j], key); c != 0 {
+			if strings.TrimPrefix(key, "-") == "_score" {
+				if hits[i].score == hits[j].score {
+					continue
+				}
+				if strings.HasPrefix(key, "-") {
+					return hits[i].score > hits[j].score
+				}
+				return hits[i].score < hits[j].score
+			}
+			if c := compareDocumentsBySortKey(hits[i].doc, hits[j].doc, key); c != 0 {
 				return c < 0
 			}
 		}
-		return false
+		if referenceDate == 0 {
+			return false
+		}
+		di := math.Abs(float64(hits[i].doc.Publication.Date) - referenceDate)
+		dj := math.Abs(float64(hits[j].doc.Publication.Date) - referenceDate)
+		return di < dj
 	})
 }
 
@@ -934,8 +977,10 @@ func slicer(val any) []string {
 }
 
 // SameSubjects returns an array of metadata of documents by other authors,
-// which have similar subjects as the passed one and does not belong to the same collection
-// They are sorted by subjects matching and date, the closest to the publishing date of the reference document first
+// which have similar subjects as the passed one and does not belong to the same collection.
+// They are sorted by subjects matching score, ties broken by closeness to the
+// publication date of the reference document - the same ranking used by
+// SearchFields.SimilarTo, so both surfaces show related documents in the same order.
 func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, error) {
 	doc, err := b.Document(slugID)
 	if err != nil {
@@ -946,29 +991,13 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		return []Document{}, nil
 	}
 
-	dateLimit := float64(doc.Publication.Date)
-
-	if dateLimit == 0 {
-		bq := b.subjectsQuery(doc)
-		res, err := b.runQuery(bq, quantity, []string{"-_score"})
-		if err != nil {
-			return []Document{}, err
-		}
-		return res, nil
-	}
-
-	olderQuery := b.dateRangeSubjectsQuery(doc, nil, &dateLimit)
-	olderResults, err := b.dateRangeResult(olderQuery, "-Publication.Date", quantity)
-	if err != nil {
-		return []Document{}, err
-	}
-	newerQuery := b.dateRangeSubjectsQuery(doc, &dateLimit, nil)
-	newerResults, err := b.dateRangeResult(newerQuery, "Publication.Date", quantity)
+	bq := b.subjectsQuery(doc)
+	paginated, err := b.runSimilarityQuery(bq, 1, quantity, DefaultDocumentSortBy, float64(doc.Publication.Date))
 	if err != nil {
 		return []Document{}, err
 	}
 
-	return b.sortByTempDistance(float64(doc.Publication.Date), append(olderResults, newerResults...), quantity)
+	return paginated.Hits(), nil
 }
 
 func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
@@ -1016,63 +1045,6 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 	bq.AddMustNot(authorsCompoundQuery)
 
 	return bq
-}
-
-func (b *BleveIndexer) dateRangeSubjectsQuery(doc Document, minDate, maxDate *float64) *query.BooleanQuery {
-	bq := b.subjectsQuery(doc)
-
-	rangeQuery := bleve.NewNumericRangeQuery(minDate, maxDate)
-	// We set the boost to 0 to avoid it being used to calculate the score
-	rangeQuery.SetBoost(0)
-	rangeQuery.SetField("Publication.Date")
-	bq.AddMust(rangeQuery)
-
-	return bq
-}
-
-func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, dateSort string, quantity int) (search.DocumentMatchCollection, error) {
-	searchOptions := bleve.NewSearchRequestOptions(query, quantity, 0, false)
-	searchOptions.SortBy([]string{"-_score", dateSort})
-	searchOptions.Fields = []string{"*"}
-	b.documentsMu.RLock()
-	result, err := b.documentsIdx.Search(searchOptions)
-	b.documentsMu.RUnlock()
-	if err != nil {
-		return nil, err
-	}
-
-	return result.Hits, nil
-}
-
-func (b *BleveIndexer) sortByTempDistance(referenceDate float64, results search.DocumentMatchCollection, quantity int) ([]Document, error) {
-	if len(results) < quantity {
-		quantity = len(results)
-	}
-
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Score != results[j].Score {
-			return results[i].Score > results[j].Score
-		}
-
-		return distanceToDate(referenceDate, results[i]) < distanceToDate(referenceDate, results[j])
-	})
-
-	docs := make([]Document, 0, quantity)
-
-	for i := range quantity {
-		docs = append(docs, hydrateDocument(results[i]))
-	}
-
-	return docs, nil
-}
-
-func distanceToDate(referenceDate float64, match *search.DocumentMatch) float64 {
-	var date float64
-
-	if match.Fields["Publication.Date"] != nil {
-		date = match.Fields["Publication.Date"].(float64)
-	}
-	return math.Abs(date - referenceDate)
 }
 
 // SameAuthors returns an array of metadata of documents by the same authors which
