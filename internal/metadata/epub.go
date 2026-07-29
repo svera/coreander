@@ -94,12 +94,11 @@ func (e EpubReader) Text(filename string) (string, error) {
 }
 
 // RankText implements TextRanker by delegating to rankText, the
-// format-agnostic implementation, providing filename's EPUB metadata
-// language as the fallback used only if language detection on textContent
-// fails. GetMetadataFromFile is only called in that case, to avoid
-// re-reading filename from disk on the common path where detection succeeds.
-func (e EpubReader) RankText(minOccurrenceRatio float64, textContent, filename string) (*TextRankResult, error) {
-	return rankText(minOccurrenceRatio, textContent, func() (string, error) {
+// format-agnostic implementation, providing filename's EPUB metadata language
+// as the language hint: used directly when preferMetadataLanguage is set, and
+// otherwise only as the fallback if language detection on textContent fails.
+func (e EpubReader) RankText(minOccurrenceRatio float64, preferMetadataLanguage bool, textContent, filename string) (*TextRankResult, error) {
+	return rankText(minOccurrenceRatio, preferMetadataLanguage, textContent, func() (string, error) {
 		meta, err := e.GetMetadataFromFile(filename)
 		if err != nil {
 			return "", err

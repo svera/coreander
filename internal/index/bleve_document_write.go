@@ -119,7 +119,10 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 	document.AddedOn = time.Now().UTC()
 	document.TextRankKeywords = textRankKeywords
 
-	if err = b.documentsIdx.Index(document.ID, document); err != nil {
+	b.documentsMu.Lock()
+	err = b.documentsIdx.Index(document.ID, document)
+	b.documentsMu.Unlock()
+	if err != nil {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
 	}
 
@@ -143,6 +146,8 @@ func (b *BleveIndexer) removeFile(file string) error {
 	if document.ID != "" {
 		return b.deleteDocumentFromIndex(document)
 	}
+	b.documentsMu.Lock()
+	defer b.documentsMu.Unlock()
 	return b.documentsIdx.Delete(id)
 }
 
@@ -166,7 +171,10 @@ func (b *BleveIndexer) DeleteDocument(slug string) error {
 }
 
 func (b *BleveIndexer) deleteDocumentFromIndex(document Document) error {
-	if err := b.documentsIdx.Delete(document.ID); err != nil {
+	b.documentsMu.Lock()
+	err := b.documentsIdx.Delete(document.ID)
+	b.documentsMu.Unlock()
+	if err != nil {
 		return err
 	}
 	for _, authorSlug := range authorSlugsFromDocument(document) {
@@ -177,15 +185,16 @@ func (b *BleveIndexer) deleteDocumentFromIndex(document Document) error {
 		if author.Slug == "" {
 			continue
 		}
+		b.authorsMu.Lock()
 		if author.DocumentCount <= 1 {
-			if err := b.authorsIdx.Delete(authorSlug); err != nil {
-				return err
-			}
+			err = b.authorsIdx.Delete(authorSlug)
 		} else {
 			author.DocumentCount--
-			if err := b.authorsIdx.Index(authorSlug, author); err != nil {
-				return err
-			}
+			err = b.authorsIdx.Index(authorSlug, author)
+		}
+		b.authorsMu.Unlock()
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -253,7 +262,10 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 			}
 		}
 
-		if err = b.documentsIdx.Batch(batch); err != nil {
+		b.documentsMu.Lock()
+		err = b.documentsIdx.Batch(batch)
+		b.documentsMu.Unlock()
+		if err != nil {
 			b.endIndexing()
 			return err
 		}
@@ -267,7 +279,10 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 	internalBatch := b.documentsIdx.NewBatch()
 	internalBatch.SetInternal(internalLanguages, []byte(languagesStr))
 	internalBatch.SetInternal(internalIllustratedMinSize, []byte(strconv.FormatFloat(b.illustratedMinSize, 'g', -1, 64)))
-	if err := b.documentsIdx.Batch(internalBatch); err != nil {
+	b.documentsMu.Lock()
+	err = b.documentsIdx.Batch(internalBatch)
+	b.documentsMu.Unlock()
+	if err != nil {
 		b.endIndexing()
 		return err
 	}
@@ -398,7 +413,7 @@ func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, 
 	if !ok {
 		return nil
 	}
-	result, err := textRanker.RankText(b.minOccurrenceRatio, textContent, fullPath)
+	result, err := textRanker.RankText(b.minOccurrenceRatio, b.preferMetadataLanguage, textContent, fullPath)
 	if err != nil {
 		log.Printf("Error ranking text for file %s: %s\n", fullPath, err)
 		return nil
@@ -425,14 +440,17 @@ func (b *BleveIndexer) documentsNeedingTextRank() ([]Document, error) {
 	notEnriched := bleve.NewBoolFieldQuery(false)
 	notEnriched.SetField("TextRankEnriched")
 
+	b.documentsMu.RLock()
 	count, err := b.documentsIdx.DocCount()
 	if err != nil {
+		b.documentsMu.RUnlock()
 		return nil, err
 	}
 	searchReq := bleve.NewSearchRequest(notEnriched)
 	searchReq.Fields = []string{"*"}
 	searchReq.Size = int(count)
 	searchResult, err := b.documentsIdx.Search(searchReq)
+	b.documentsMu.RUnlock()
 	if err != nil {
 		return nil, err
 	}
@@ -540,7 +558,10 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 			}
 		}
 
-		if err := b.documentsIdx.Batch(batch); err != nil {
+		b.documentsMu.Lock()
+		err := b.documentsIdx.Batch(batch)
+		b.documentsMu.Unlock()
+		if err != nil {
 			return err
 		}
 	}
@@ -568,7 +589,9 @@ func textRankKeywords(result *metadata.TextRankResult) []string {
 }
 
 func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {
+	b.documentsMu.RLock()
 	doc, err := b.documentsIdx.Document(b.id(fullPath))
+	b.documentsMu.RUnlock()
 	if err != nil {
 		log.Fatalln(err)
 	}

@@ -14,6 +14,8 @@ import (
 
 // TotalAuthors returns the number of indexed authors.
 func (b *BleveIndexer) TotalAuthors() (uint64, error) {
+	b.authorsMu.RLock()
+	defer b.authorsMu.RUnlock()
 	return b.authorsIdx.DocCount()
 }
 
@@ -23,7 +25,9 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 
 	searchOptions := bleve.NewSearchRequest(aq)
 	searchOptions.Fields = []string{"*"}
+	b.authorsMu.RLock()
 	searchResult, err := b.authorsIdx.Search(searchOptions)
+	b.authorsMu.RUnlock()
 	if err != nil {
 		return Author{}, err
 	}
@@ -286,7 +290,9 @@ func (b *BleveIndexer) runAuthorsPaginatedQuery(q query.Query, page, resultsPerP
 		searchOptions.SortBy(sortBy)
 	}
 	searchOptions.Fields = []string{"*"}
+	b.authorsMu.RLock()
 	searchResult, err := b.authorsIdx.Search(searchOptions)
+	b.authorsMu.RUnlock()
 	if err != nil {
 		return result.Paginated[[]Author]{}, err
 	}
@@ -312,11 +318,14 @@ func hydrateAuthors(hits search.DocumentMatchCollection) []Author {
 
 // AuthorsWithoutInfo returns indexed authors that have not been enriched from an external source yet.
 func (b *BleveIndexer) AuthorsWithoutInfo() ([]Author, error) {
+	b.authorsMu.RLock()
 	count, err := b.authorsIdx.DocCount()
 	if err != nil {
+		b.authorsMu.RUnlock()
 		return nil, err
 	}
 	if count == 0 {
+		b.authorsMu.RUnlock()
 		return nil, nil
 	}
 
@@ -325,6 +334,7 @@ func (b *BleveIndexer) AuthorsWithoutInfo() ([]Author, error) {
 	searchReq.Size = int(count)
 
 	searchResult, err := b.authorsIdx.Search(searchReq)
+	b.authorsMu.RUnlock()
 	if err != nil {
 		return nil, err
 	}

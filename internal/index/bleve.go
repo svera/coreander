@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	"github.com/blevesearch/bleve/v2"
@@ -55,6 +56,14 @@ var noStopWordsFilters = map[string][]string{
 
 const defaultAnalyzer = "default_analyzer"
 
+// Defaults for Config.MaxSimilarityCandidates and Config.MinSimilarityScoreRatio,
+// applied by NewBleve when the caller leaves them unset (e.g. tests constructing
+// a bare Config{}), since a zero value would otherwise mean "no similarity results".
+const (
+	defaultMaxSimilarityCandidates = 200
+	defaultMinSimilarityScoreRatio = 0.2
+)
+
 // Config holds indexer configuration.
 type Config struct {
 	// IllustratedMinAmount is the minimum number of illustrations (excluding cover) for a document to be considered illustrated.
@@ -68,12 +77,36 @@ type Config struct {
 	// TextRanker.RankText results are filtered regardless of document
 	// format. A value of 0 disables text ranking entirely.
 	MinOccurrenceRatio float64
+	// MaxSimilarityCandidates caps how many top-scoring matches a "similar
+	// document" query considers before applying MinSimilarityScoreRatio and
+	// paginating, so a very broad match (e.g. a common shared keyword) can't
+	// force an unbounded query.
+	MaxSimilarityCandidates int
+	// MinSimilarityScoreRatio is the minimum fraction of the best match's
+	// score a document must reach to be considered similar enough to show
+	// in a "similar document" query.
+	MinSimilarityScoreRatio float64
+	// PreferMetadataLanguage makes TextRank trust a document's own metadata
+	// language (e.g. an EPUB's declared language) directly instead of running
+	// full text language detection, which is the most expensive part of
+	// ranking. This misses secondary/mixed languages that full detection
+	// would otherwise find (and their stop words), trading that for
+	// materially faster indexing.
+	PreferMetadataLanguage bool
 }
 
 type BleveIndexer struct {
-	fs                         afero.Fs
-	documentsIdx               bleve.Index // Documents index
-	authorsIdx                 bleve.Index // Authors index
+	fs           afero.Fs
+	documentsIdx bleve.Index // Documents index
+	authorsIdx   bleve.Index // Authors index
+	// documentsMu and authorsMu serialize access to documentsIdx/authorsIdx
+	// respectively: AddLibrary/EnrichTextRankKeywords/RebuildAuthorsFromDocuments
+	// write to these indexes from a background goroutine (see main.startIndex)
+	// while the webserver concurrently searches them, and without this guard
+	// concurrent Batch/Search calls have been observed to panic inside
+	// bleve/zapx (an out-of-range read while decoding a segment being merged).
+	documentsMu                sync.RWMutex
+	authorsMu                  sync.RWMutex
 	libraryPath                string
 	reader                     map[string]metadata.Reader
 	indexStartNanos            atomic.Int64
@@ -88,19 +121,35 @@ type BleveIndexer struct {
 	illustratedMinAmount       int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
 	illustratedMinSize         float64 // minimum size in megapixels for an image to count as an illustration
 	minOccurrenceRatio         float64 // minimum occurrence ratio for a TextRank phrase/word to be kept; see Config.MinOccurrenceRatio
+	maxSimilarityCandidates    int     // cap on top-scoring matches considered by a "similar document" query; see Config.MaxSimilarityCandidates
+	minSimilarityScoreRatio    float64 // minimum fraction of the best match's score to be considered similar; see Config.MinSimilarityScoreRatio
+	preferMetadataLanguage     bool    // trust a document's own metadata language over full text detection for TextRank; see Config.PreferMetadataLanguage
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
 func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs, libraryPath string, read map[string]metadata.Reader, cfg Config) *BleveIndexer {
+	maxSimilarityCandidates := cfg.MaxSimilarityCandidates
+	if maxSimilarityCandidates == 0 {
+		maxSimilarityCandidates = defaultMaxSimilarityCandidates
+	}
+
+	minSimilarityScoreRatio := cfg.MinSimilarityScoreRatio
+	if minSimilarityScoreRatio == 0 {
+		minSimilarityScoreRatio = defaultMinSimilarityScoreRatio
+	}
+
 	return &BleveIndexer{
-		fs:                   fs,
-		documentsIdx:         documentsIndex,
-		authorsIdx:           authorsIndex,
-		libraryPath:          strings.TrimSuffix(libraryPath, string(filepath.Separator)),
-		reader:               read,
-		illustratedMinAmount: cfg.IllustratedMinAmount,
-		illustratedMinSize:   cfg.IllustratedMinSize,
-		minOccurrenceRatio:   cfg.MinOccurrenceRatio,
+		fs:                      fs,
+		documentsIdx:            documentsIndex,
+		authorsIdx:              authorsIndex,
+		libraryPath:             strings.TrimSuffix(libraryPath, string(filepath.Separator)),
+		reader:                  read,
+		illustratedMinAmount:    cfg.IllustratedMinAmount,
+		illustratedMinSize:      cfg.IllustratedMinSize,
+		minOccurrenceRatio:      cfg.MinOccurrenceRatio,
+		maxSimilarityCandidates: maxSimilarityCandidates,
+		minSimilarityScoreRatio: minSimilarityScoreRatio,
+		preferMetadataLanguage:  cfg.PreferMetadataLanguage,
 	}
 }
 
@@ -261,6 +310,10 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 
 // Close closes both indexes
 func (b *BleveIndexer) Close() error {
+	b.documentsMu.Lock()
+	defer b.documentsMu.Unlock()
+	b.authorsMu.Lock()
+	defer b.authorsMu.Unlock()
 	return errors.Join(b.documentsIdx.Close(), b.authorsIdx.Close())
 }
 

@@ -45,24 +45,24 @@ type TextRankResult struct {
 // Callers holding a plain Reader can type-assert against this capability
 // interface instead of the concrete EpubReader type. Pair it with
 // TextExtractor to get that text without extracting it a second time.
-// minOccurrenceRatio is supplied by the caller (the indexer) rather than
-// carried by the Reader: it's a ranking-orchestration policy - how
-// aggressively to filter results - not something intrinsic to any document
-// format, and it's the same value regardless of which Reader is asked to
-// rank. See rankText for what it does.
+// minOccurrenceRatio and preferMetadataLanguage are supplied by the caller
+// (the indexer) rather than carried by the Reader: they're ranking-
+// orchestration policy - how aggressively to filter results, and whether to
+// trust a format's own metadata language over full text detection - not
+// something intrinsic to any document format, and they're the same
+// regardless of which Reader is asked to rank. See rankText for what they do.
 type TextRanker interface {
-	RankText(minOccurrenceRatio float64, textContent, filename string) (*TextRankResult, error)
+	RankText(minOccurrenceRatio float64, preferMetadataLanguage bool, textContent, filename string) (*TextRankResult, error)
 }
 
 // rankText performs TextRank analysis on textContent, detecting its
 // language(s) and fetching appropriate stop words for all of them. It has no
-// dependency on any particular document format: fallbackLanguage is called
-// only if language detection on textContent fails, to get a language hint
-// from wherever the caller's format stores one (e.g. EPUB metadata) - it
-// should return "" (not an error) if no such hint is available. This is the
-// shared implementation behind every format's TextRanker.RankText (currently
-// just EpubReader.RankText).
-func rankText(minOccurrenceRatio float64, textContent string, fallbackLanguage func() (string, error)) (*TextRankResult, error) {
+// dependency on any particular document format: fallbackLanguage gets a
+// language hint from wherever the caller's format stores one (e.g. EPUB
+// metadata) - it should return "" (not an error) if no such hint is
+// available. This is the shared implementation behind every format's
+// TextRanker.RankText (currently just EpubReader.RankText).
+func rankText(minOccurrenceRatio float64, preferMetadataLanguage bool, textContent string, fallbackLanguage func() (string, error)) (*TextRankResult, error) {
 	// A zero ratio disables text ranking altogether, rather than meaning "no
 	// filtering": since every phrase/word occurs at least once, a ratio of 0
 	// would otherwise keep everything, which is rarely what's wanted and
@@ -75,27 +75,9 @@ func rankText(minOccurrenceRatio float64, textContent string, fallbackLanguage f
 		return nil, fmt.Errorf("no text content provided for ranking")
 	}
 
-	// Always detect languages in the document using full text.
-	langResult, err := DetectLanguageFromText(textContent)
+	langResult, err := resolveLanguage(textContent, preferMetadataLanguage, fallbackLanguage)
 	if err != nil {
-		// If language detection fails, fall back to the caller-provided language hint.
-		fallback, fbErr := fallbackLanguage()
-		if fbErr != nil {
-			return nil, fmt.Errorf("failed to detect language and get fallback language: %w", err)
-		}
-		if fallback == "" {
-			return nil, fmt.Errorf("failed to detect language and no fallback language available: %w", err)
-		}
-		langResult = &LanguageDetectionResult{
-			PrimaryLanguage:       fallback,
-			PrimaryLanguageExists: true,
-			ConfidenceValues: []LanguageConfidence{
-				{
-					Language:   fallback,
-					Confidence: 1.0,
-				},
-			},
-		}
+		return nil, err
 	}
 
 	// Collect all detected languages, always including English so its stop
@@ -183,6 +165,52 @@ func rankText(minOccurrenceRatio float64, textContent string, fallbackLanguage f
 	return &TextRankResult{
 		Phrases:     phrases,
 		SingleWords: singleWords,
+	}, nil
+}
+
+// resolveLanguage decides which language(s) to run stop-word filtering with. Full
+// text detection (DetectLanguageFromText) finds every language actually present in
+// textContent, including secondary/mixed-language sections, but running it (three
+// full passes over up to a 10KB sample, across ~75 languages) is the most expensive
+// part of RankText and is repeated once per document across an entire library scan.
+//
+// When preferMetadataLanguage is set, fallbackLanguage's hint (e.g. an EPUB's own
+// declared language) is trusted directly and detection is skipped altogether -
+// trading detection of secondary/mixed languages for materially faster indexing.
+// Detection still runs whenever preferMetadataLanguage is false, or the hint isn't
+// available, or it fails.
+func resolveLanguage(textContent string, preferMetadataLanguage bool, fallbackLanguage func() (string, error)) (*LanguageDetectionResult, error) {
+	if preferMetadataLanguage {
+		if lang, err := fallbackLanguage(); err == nil && lang != "" {
+			return &LanguageDetectionResult{
+				PrimaryLanguage:       lang,
+				PrimaryLanguageExists: true,
+				ConfidenceValues: []LanguageConfidence{
+					{Language: lang, Confidence: 1.0},
+				},
+			}, nil
+		}
+	}
+
+	langResult, err := DetectLanguageFromText(textContent)
+	if err == nil {
+		return langResult, nil
+	}
+
+	// If language detection fails, fall back to the caller-provided language hint.
+	fallback, fbErr := fallbackLanguage()
+	if fbErr != nil {
+		return nil, fmt.Errorf("failed to detect language and get fallback language: %w", err)
+	}
+	if fallback == "" {
+		return nil, fmt.Errorf("failed to detect language and no fallback language available: %w", err)
+	}
+	return &LanguageDetectionResult{
+		PrimaryLanguage:       fallback,
+		PrimaryLanguageExists: true,
+		ConfidenceValues: []LanguageConfidence{
+			{Language: fallback, Confidence: 1.0},
+		},
 	}, nil
 }
 
@@ -391,14 +419,4 @@ func fetchStopWordsForLanguages(langCodes []string) ([]string, error) {
 	}
 
 	return combinedStopWords, nil
-}
-
-// fetchStopWords reads stop words for a given language from the embedded stopwords-iso JSON file
-// Deprecated: Use fetchStopWordsForLanguages instead for multiple languages
-func fetchStopWords(lang string) ([]string, error) {
-	langCodes := []string{}
-	if lang != "" {
-		langCodes = append(langCodes, lang)
-	}
-	return fetchStopWordsForLanguages(langCodes)
 }

@@ -301,7 +301,9 @@ func (b *BleveIndexer) stripCommonWords(keywords string, analyzers []string) str
 		return keywords
 	}
 
+	b.documentsMu.RLock()
 	mapping := b.documentsIdx.Mapping()
+	b.documentsMu.RUnlock()
 	kept := make([]string, 0, len(words))
 	for _, word := range words {
 		isStopWord := false
@@ -351,7 +353,9 @@ func (b *BleveIndexer) searchAndHydrate(query query.Query, size, offset int, sor
 		searchOptions.SortBy(sortBy)
 	}
 	searchOptions.Fields = []string{"*"}
+	b.documentsMu.RLock()
 	searchResult, err := b.documentsIdx.Search(searchOptions)
+	b.documentsMu.RUnlock()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -386,24 +390,12 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 	), nil
 }
 
-// maxSimilarityCandidates caps how many top-scoring matches runSimilarityQuery
-// considers before applying minSimilarityScoreRatio and paginating, so a very
-// broad match (e.g. a common shared keyword) can't force an unbounded query.
-const maxSimilarityCandidates = 200
-
-// minSimilarityScoreRatio is the minimum fraction of the best match's score
-// a document must reach to be considered similar enough to show. Documents
-// that only weakly overlap (e.g. a single common word, rather than several
-// shared subjects/keywords) score far lower than the best match and are
-// pruned, rather than padding out the results.
-const minSimilarityScoreRatio = 0.2
-
 // runSimilarityQuery is like runPaginatedQuery, but for score-based "similar document"
 // queries (see SearchFields.SimilarTo): relying on Bleve's own offset/limit pagination
 // isn't enough here, since a document weakly matching on only one shared term would
 // otherwise take up a page slot next to strongly related ones. Instead this fetches up
-// to maxSimilarityCandidates top-scoring matches, drops any scoring below
-// minSimilarityScoreRatio of the best match, and paginates over what's left.
+// to b.maxSimilarityCandidates top-scoring matches, drops any scoring below
+// b.minSimilarityScoreRatio of the best match, and paginates over what's left.
 //
 // Pruning always needs the underlying Bleve query sorted by score, to find the best
 // match's score - so sortBy (the user's chosen display order, e.g. by publication date)
@@ -412,7 +404,7 @@ const minSimilarityScoreRatio = 0.2
 func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPage int, sortBy []string) (result.Paginated[[]Document], error) {
 	// sortBy is deliberately not passed to searchAndHydrate: pruning below needs the
 	// underlying Bleve query sorted by score, to find the best match's score.
-	searchResult, hydratedDocs, err := b.searchAndHydrate(query, maxSimilarityCandidates, 0, nil)
+	searchResult, hydratedDocs, err := b.searchAndHydrate(query, b.maxSimilarityCandidates, 0, nil)
 	if err != nil {
 		return result.Paginated[[]Document]{}, err
 	}
@@ -423,7 +415,7 @@ func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPag
 
 	// Hits are already sorted by -_score (NewSearchRequestOptions' default), so the
 	// first hit's score is the best match's.
-	threshold := searchResult.Hits[0].Score * minSimilarityScoreRatio
+	threshold := searchResult.Hits[0].Score * b.minSimilarityScoreRatio
 
 	docs := make([]Document, 0, len(hydratedDocs))
 	for i, hit := range searchResult.Hits {
@@ -494,6 +486,8 @@ func (b *BleveIndexer) CountDocuments(searchFields SearchFields) (int, error) {
 
 // TotalDocs returns the number of indexed documents
 func (b *BleveIndexer) TotalDocs() (uint64, error) {
+	b.documentsMu.RLock()
+	defer b.documentsMu.RUnlock()
 	return b.documentsIdx.DocCount()
 }
 
@@ -503,7 +497,9 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 
 	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
+	b.documentsMu.RLock()
 	searchResult, err := b.documentsIdx.Search(searchOptions)
+	b.documentsMu.RUnlock()
 	if err != nil {
 		return Document{}, err
 	}
@@ -518,7 +514,9 @@ func (b *BleveIndexer) documentByIndexID(id string) (Document, error) {
 	query := bleve.NewDocIDQuery([]string{id})
 	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
+	b.documentsMu.RLock()
 	searchResult, err := b.documentsIdx.Search(searchOptions)
+	b.documentsMu.RUnlock()
 	if err != nil {
 		return Document{}, err
 	}
@@ -601,7 +599,9 @@ func (b *BleveIndexer) Documents(slugs []string) (map[string]Document, error) {
 	searchOptions := bleve.NewSearchRequest(disq)
 	searchOptions.Fields = []string{"*"}
 	searchOptions.Size = len(slugs)
+	b.documentsMu.RLock()
 	searchResult, err := b.documentsIdx.Search(searchOptions)
+	b.documentsMu.RUnlock()
 	if err != nil {
 		return nil, err
 	}
@@ -672,7 +672,9 @@ func (b *BleveIndexer) Languages() ([]string, error) {
 	languageFacet := bleve.NewFacetRequest("Language", 10000)
 	searchRequest.AddFacet("languages", languageFacet)
 
+	b.documentsMu.RLock()
 	searchResult, err := b.documentsIdx.Search(searchRequest)
+	b.documentsMu.RUnlock()
 	if err != nil {
 		return []string{}, err
 	}
@@ -721,7 +723,9 @@ func (b *BleveIndexer) Formats() ([]string, error) {
 	formatsFacet := bleve.NewFacetRequest("Format", 10)
 	searchRequest.AddFacet("formats", formatsFacet)
 
+	b.documentsMu.RLock()
 	searchResult, err := b.documentsIdx.Search(searchRequest)
+	b.documentsMu.RUnlock()
 	if err != nil {
 		return []string{}, err
 	}
@@ -772,7 +776,9 @@ func (b *BleveIndexer) Subjects() (map[string][]string, error) {
 	subjectsFacet := bleve.NewFacetRequest("Subjects", 10000)
 	searchRequest.AddFacet("subjects", subjectsFacet)
 
+	b.documentsMu.RLock()
 	searchResult, err := b.documentsIdx.Search(searchRequest)
+	b.documentsMu.RUnlock()
 	if err != nil {
 		return nil, err
 	}
@@ -1028,7 +1034,9 @@ func (b *BleveIndexer) dateRangeResult(query *query.BooleanQuery, dateSort strin
 	searchOptions := bleve.NewSearchRequestOptions(query, quantity, 0, false)
 	searchOptions.SortBy([]string{"-_score", dateSort})
 	searchOptions.Fields = []string{"*"}
+	b.documentsMu.RLock()
 	result, err := b.documentsIdx.Search(searchOptions)
+	b.documentsMu.RUnlock()
 	if err != nil {
 		return nil, err
 	}
@@ -1118,4 +1126,3 @@ func (b *BleveIndexer) SameSeries(slugID string, quantity int) ([]Document, erro
 
 	return b.runQuery(bq, quantity, []string{"-_score", "Series", "SeriesIndex"})
 }
-
