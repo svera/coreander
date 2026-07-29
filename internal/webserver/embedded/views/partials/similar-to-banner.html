@@ -1,7 +1,7 @@
 {{if .SimilarToActive}}
-<div class="alert alert-primary d-flex align-items-center mb-3" role="alert">
+<div class="alert alert-primary d-flex align-items-center mb-0" role="alert">
     <i class="bi bi-diagram-3 me-2"></i>
-    <div class="flex-grow-1">{{t .Lang "Showing documents similar to %s" (printf `<cite><a href="/documents/%s">%s</a></cite>` .SimilarToDocument.Slug .SimilarToDocument.Title)}}</div>
+    <div class="flex-grow-1">{{t .Lang "Showing %d documents similar to %s" .DocumentsTotalHits (printf `<cite><a href="/documents/%s">%s</a></cite>` .SimilarToDocument.Slug .SimilarToDocument.Title)}}</div>
     <a href="{{.ClearSimilarURL}}" class="btn-close ms-2" aria-label='{{t .Lang "Clear similar to filter"}}' title='{{t .Lang "Clear similar to filter"}}'></a>
 </div>
 {{end}}

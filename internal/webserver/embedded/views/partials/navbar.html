@@ -199,19 +199,18 @@
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body">
-        {{template "partials/similar-to-banner" .}}
         {{$searchType := or .SearchType "documents"}}
         <form action="/search" method="get" role="search">
             <input type="hidden" name="type" id="search-offcanvas-type" value="{{$searchType}}">
+            {{if not .SimilarToActive}}
             <ul class="nav nav-tabs nav-fill home-search-tabs mb-0 flex-nowrap" id="search-offcanvas-tabs" role="tablist">
                 {{template "partials/search-tab-items" .}}
             </ul>
-            {{if not .SimilarToActive}}
             <div class="border-start border-end p-3">
                 <input type="search" name="search" id="searchbox-offcanvas" class="form-control" maxlength="255" value="{{or .SearchQuery ""}}" placeholder="{{t .Lang "Search"}}...">
             </div>
             {{end}}
-            <div class="tab-content home-search-tab-content border border-top-0 rounded-bottom-4">
+            <div class="tab-content home-search-tab-content border{{if .SimilarToActive}} rounded-top-4{{else}} border-top-0{{end}} rounded-bottom-4">
                 <div class="tab-pane fade{{if eq $searchType "documents"}} show active{{end}}" id="search-offcanvas-documents-panel" role="tabpanel" tabindex="0">
                     {{template "partials/document-search-filters" dict "Lang" .Lang "SearchFields" .DocumentSearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs "DocumentsSearchPage" .SearchPage}}
                 </div>

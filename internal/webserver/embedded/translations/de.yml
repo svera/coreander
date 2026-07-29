@@ -119,7 +119,7 @@
 "Also by": "Auch von"
 "Other titles in collection \"%s\"": "Weitere Titel in der Sammlung \"%s\""
 "See all": "Alle anzeigen"
-"Showing documents similar to %s": "Dokumente ähnlich zu %s werden angezeigt"
+"Showing %d documents similar to %s": "%d Dokumente ähnlich zu %s werden angezeigt"
 "Clear similar to filter": "Ähnlichkeitsfilter entfernen"
 "Style": "Stil"
 "Light": "Hell"

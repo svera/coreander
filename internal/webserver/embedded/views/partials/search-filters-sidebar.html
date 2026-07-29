@@ -1,6 +1,5 @@
 {{$searchType := or .SearchType "documents"}}
 <div class="search-filters-sidebar-sticky">
-    {{template "partials/similar-to-banner" .}}
     <form id="search-filters-form" action="/search" method="get" role="search">
         <input type="hidden" name="type" id="search-type" value="{{$searchType}}">
         {{if not .SimilarToActive}}
