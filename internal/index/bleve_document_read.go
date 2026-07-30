@@ -49,8 +49,18 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		}
 		subjectsQuery := b.subjectsQuery(doc)
 		filtersQuery.AddQuery(subjectsQuery)
+		conjunctsBeforeFilters := len(filtersQuery.Conjuncts)
 		b.addFilters(searchFields, filtersQuery)
-		return b.runSimilarityQuery(subjectsQuery, filtersQuery, page, resultsPerPage, searchFields.SortBy, float64(doc.Publication.Date))
+
+		// Only score subjectsQuery on its own when addFilters actually added
+		// something to filtersQuery: otherwise the two queries are equivalent, and
+		// scoring subjectsQuery separately would just make Bleve evaluate the same
+		// matches twice for no benefit - see runSimilarityQuery.
+		var scoringQuery query.Query
+		if len(filtersQuery.Conjuncts) > conjunctsBeforeFilters {
+			scoringQuery = subjectsQuery
+		}
+		return b.runSimilarityQuery(scoringQuery, filtersQuery, page, resultsPerPage, searchFields.SortBy, float64(doc.Publication.Date))
 	}
 
 	if searchFields.Keywords != "" {
@@ -407,16 +417,17 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 // scoring below b.minSimilarityScoreRatio of the best match, and paginates over what's
 // left.
 //
-// The best match's score is taken from scoringQuery, not from candidateQuery's own
-// results: candidateQuery is filtersQuery, subjectsQuery plus whatever extra filters
-// (language, publication date range, etc.) the caller applied, and those filters can
-// shrink the candidate pool without the reference document actually having fewer or
-// weaker true matches. If the threshold were based on candidateQuery's own best score,
-// filtering to a language with only a weak match would lower the bar and let other
-// weak, effectively unrelated matches in that language through - the ratio should stay
-// anchored to how well the best actually-similar document (in any language) matches,
-// not shift depending on which of those matches survive the filters. scoringQuery is
-// subjectsQuery alone, unaffected by such filters.
+// The best match's score is normally just candidateQuery's own top hit. But when
+// scoringQuery is non-nil (candidateQuery is subjectsQuery plus extra filters -
+// language, publication date range, etc. - that scoringQuery, subjectsQuery alone,
+// doesn't have) the best score is taken from scoringQuery instead, at the cost of
+// evaluating that query too: those filters can shrink the candidate pool without the
+// reference document actually having fewer or weaker true matches, and if the
+// threshold were based on candidateQuery's own best score, filtering to a language
+// with only a weak match would lower the bar and let other weak, effectively
+// unrelated matches in that language through. The ratio should stay anchored to how
+// well the best actually-similar document (in any language) matches, not shift
+// depending on which of those matches survive the filters.
 //
 // Pruning always needs the underlying Bleve query sorted by score, to find the best
 // match's score - so sortBy (the user's chosen display order, e.g. by publication date)
@@ -425,14 +436,6 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 // referenceDate, if non-zero, is the publication date of the document these results are
 // similar to, used as a tiebreaker (closest first) between equally-ranked documents.
 func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Query, page, resultsPerPage int, sortBy []string, referenceDate float64) (result.Paginated[[]Document], error) {
-	bestScore, err := b.bestScore(scoringQuery)
-	if err != nil {
-		return result.Paginated[[]Document]{}, err
-	}
-	if bestScore == 0 {
-		return result.Paginated[[]Document]{}, nil
-	}
-
 	// sortBy is deliberately not passed to searchAndHydrate: pruning below needs the
 	// underlying Bleve query sorted by score.
 	searchResult, hydratedDocs, err := b.searchAndHydrate(candidateQuery, b.maxSimilarityCandidates, 0, nil)
@@ -442,6 +445,17 @@ func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Que
 
 	if searchResult.Total == 0 || len(searchResult.Hits) == 0 {
 		return result.Paginated[[]Document]{}, nil
+	}
+
+	bestScore := searchResult.Hits[0].Score
+	if scoringQuery != nil {
+		bestScore, err = b.bestScore(scoringQuery)
+		if err != nil {
+			return result.Paginated[[]Document]{}, err
+		}
+		if bestScore == 0 {
+			return result.Paginated[[]Document]{}, nil
+		}
 	}
 
 	threshold := bestScore * b.minSimilarityScoreRatio
@@ -1026,7 +1040,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	}
 
 	bq := b.subjectsQuery(doc)
-	paginated, err := b.runSimilarityQuery(bq, bq, 1, quantity, DefaultDocumentSortBy, float64(doc.Publication.Date))
+	paginated, err := b.runSimilarityQuery(nil, bq, 1, quantity, DefaultDocumentSortBy, float64(doc.Publication.Date))
 	if err != nil {
 		return []Document{}, err
 	}
