@@ -1068,7 +1068,22 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 	// Documents that match on both subjects and keywords, or on more shared
 	// entries, score higher naturally, since DisjunctionQuery sums the
 	// scores of matching clauses.
-	for _, keyword := range doc.TextRankKeywords {
+	//
+	// TextRankKeywords has no upper bound, and a long or repetitive document
+	// can end up with hundreds of entries (a real one observed while
+	// diagnosing slow similarity queries had 782) - ORing all of them together
+	// is expensive for Bleve to evaluate regardless of how common any single
+	// keyword is, since it has to poll every one of those clauses for every
+	// candidate document. Capped at Config.MaxSimilarityKeywords to bound that
+	// cost; which particular keywords get used beyond the cap is arbitrary
+	// (TextRankKeywords doesn't preserve TextRank's relative weighting), but
+	// bounding the query is more important here than which exact subset of a
+	// document with hundreds of keywords gets used.
+	keywords := doc.TextRankKeywords
+	if len(keywords) > b.maxSimilarityKeywords {
+		keywords = keywords[:b.maxSimilarityKeywords]
+	}
+	for _, keyword := range keywords {
 		kq := bleve.NewMatchPhraseQuery(keyword)
 		kq.SetField("TextRankKeywords")
 		kq.Analyzer = defaultAnalyzer

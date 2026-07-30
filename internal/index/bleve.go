@@ -62,6 +62,7 @@ const defaultAnalyzer = "default_analyzer"
 const (
 	defaultMaxSimilarityCandidates = 200
 	defaultMinSimilarityScoreRatio = 0.2
+	defaultMaxSimilarityKeywords   = 30
 )
 
 // Config holds indexer configuration.
@@ -86,6 +87,14 @@ type Config struct {
 	// score a document must reach to be considered similar enough to show
 	// in a "similar document" query.
 	MinSimilarityScoreRatio float64
+	// MaxSimilarityKeywords caps how many of a document's TextRankKeywords are
+	// used, at most, to find "similar" documents. TextRankKeywords has no upper
+	// bound (a long or repetitive document can end up with hundreds of
+	// candidate phrases/words), and a "similar document" query ORs all of them
+	// together - a wide disjunction like that is expensive to evaluate
+	// regardless of how common any single keyword is, since Bleve has to poll
+	// every one of those clauses for every candidate document.
+	MaxSimilarityKeywords int
 	// PreferMetadataLanguage makes TextRank trust a document's own metadata
 	// language (e.g. an EPUB's declared language) directly instead of running
 	// full text language detection, which is the most expensive part of
@@ -123,6 +132,7 @@ type BleveIndexer struct {
 	minOccurrenceRatio         float64 // minimum occurrence ratio for a TextRank phrase/word to be kept; see Config.MinOccurrenceRatio
 	maxSimilarityCandidates    int     // cap on top-scoring matches considered by a "similar document" query; see Config.MaxSimilarityCandidates
 	minSimilarityScoreRatio    float64 // minimum fraction of the best match's score to be considered similar; see Config.MinSimilarityScoreRatio
+	maxSimilarityKeywords      int     // cap on how many TextRankKeywords are used to find "similar" documents; see Config.MaxSimilarityKeywords
 	preferMetadataLanguage     bool    // trust a document's own metadata language over full text detection for TextRank; see Config.PreferMetadataLanguage
 }
 
@@ -138,6 +148,11 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		minSimilarityScoreRatio = defaultMinSimilarityScoreRatio
 	}
 
+	maxSimilarityKeywords := cfg.MaxSimilarityKeywords
+	if maxSimilarityKeywords == 0 {
+		maxSimilarityKeywords = defaultMaxSimilarityKeywords
+	}
+
 	return &BleveIndexer{
 		fs:                      fs,
 		documentsIdx:            documentsIndex,
@@ -149,6 +164,7 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		minOccurrenceRatio:      cfg.MinOccurrenceRatio,
 		maxSimilarityCandidates: maxSimilarityCandidates,
 		minSimilarityScoreRatio: minSimilarityScoreRatio,
+		maxSimilarityKeywords:   maxSimilarityKeywords,
 		preferMetadataLanguage:  cfg.PreferMetadataLanguage,
 	}
 }

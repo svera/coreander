@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -574,16 +575,44 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 // string per phrase/word, one per slice element (rather than a single
 // flattened string), so each lands in its own array entry - see the
 // Document.TextRankKeywords doc comment for why that separation matters.
+//
+// Phrases and single words are merged into a single list ordered by
+// descending Weight (TextRank's own, per-document-normalized importance
+// score - Left/Right/Word text aside, the only signal available for ranking
+// one keyword above another), rather than kept as two separately-sorted lists
+// concatenated end to end: FindPhrases/FindSingleWords each return their own
+// results already weight-sorted, but simply appending all phrases before all
+// single words would bury a highly-weighted single word behind every
+// phrase - regardless of which one is actually more representative of the
+// document - since the two lists were never sorted against each other. This
+// matters beyond cosmetic ordering: a similarity query (see subjectsQuery)
+// only ever uses the first Config.MaxSimilarityKeywords entries of this list,
+// so the order here directly determines which keywords influence "similar
+// document" results for documents with more keywords than that cap.
 func textRankKeywords(result *metadata.TextRankResult) []string {
 	if len(result.Phrases) == 0 && len(result.SingleWords) == 0 {
 		return nil
 	}
-	keywords := make([]string, 0, len(result.Phrases)+len(result.SingleWords))
+
+	type weighted struct {
+		text   string
+		weight float32
+	}
+	entries := make([]weighted, 0, len(result.Phrases)+len(result.SingleWords))
 	for _, phrase := range result.Phrases {
-		keywords = append(keywords, phrase.Left+" "+phrase.Right)
+		entries = append(entries, weighted{phrase.Left + " " + phrase.Right, phrase.Weight})
 	}
 	for _, word := range result.SingleWords {
-		keywords = append(keywords, word.Word)
+		entries = append(entries, weighted{word.Word, word.Weight})
+	}
+
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].weight > entries[j].weight
+	})
+
+	keywords := make([]string, len(entries))
+	for i, e := range entries {
+		keywords[i] = e.text
 	}
 	return keywords
 }

@@ -41,10 +41,14 @@ type Document struct {
 	AddedOn           time.Time
 	// TextRankKeywords holds the word pairs (two-word phrases, e.g. "robert
 	// oppenheimer") and single words extracted by TextRank analysis at
-	// indexing time (EPUB only), one phrase/word per element. Storing one
-	// entry per phrase/word (rather than flattening them all into a single
-	// string) matters: Bleve resets term positions at each array element, so
-	// a MatchPhraseQuery against this field only ever matches an actual
+	// indexing time (EPUB only), one phrase/word per element, ordered by
+	// descending TextRank weight (see textRankKeywords) - callers that only
+	// use a prefix of this slice (e.g. subjectsQuery's
+	// Config.MaxSimilarityKeywords cap) get the most representative keywords
+	// first rather than an arbitrary subset. Storing one entry per
+	// phrase/word (rather than flattening them all into a single string)
+	// matters: Bleve resets term positions at each array element, so a
+	// MatchPhraseQuery against this field only ever matches an actual
 	// adjacent pair, never two words from different, unrelated pairs that
 	// just ended up next to each other after flattening. This field is
 	// analyzed and indexed so a document can be found by its key topics even
