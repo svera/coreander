@@ -47,9 +47,10 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		if err != nil {
 			return result.Paginated[[]Document]{}, err
 		}
-		filtersQuery.AddQuery(b.subjectsQuery(doc))
+		subjectsQuery := b.subjectsQuery(doc)
+		filtersQuery.AddQuery(subjectsQuery)
 		b.addFilters(searchFields, filtersQuery)
-		return b.runSimilarityQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy, float64(doc.Publication.Date))
+		return b.runSimilarityQuery(subjectsQuery, filtersQuery, page, resultsPerPage, searchFields.SortBy, float64(doc.Publication.Date))
 	}
 
 	if searchFields.Keywords != "" {
@@ -402,8 +403,20 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 // queries (see SearchFields.SimilarTo): relying on Bleve's own offset/limit pagination
 // isn't enough here, since a document weakly matching on only one shared term would
 // otherwise take up a page slot next to strongly related ones. Instead this fetches up
-// to b.maxSimilarityCandidates top-scoring matches, drops any scoring below
-// b.minSimilarityScoreRatio of the best match, and paginates over what's left.
+// to b.maxSimilarityCandidates top-scoring matches from candidateQuery, drops any
+// scoring below b.minSimilarityScoreRatio of the best match, and paginates over what's
+// left.
+//
+// The best match's score is taken from scoringQuery, not from candidateQuery's own
+// results: candidateQuery is filtersQuery, subjectsQuery plus whatever extra filters
+// (language, publication date range, etc.) the caller applied, and those filters can
+// shrink the candidate pool without the reference document actually having fewer or
+// weaker true matches. If the threshold were based on candidateQuery's own best score,
+// filtering to a language with only a weak match would lower the bar and let other
+// weak, effectively unrelated matches in that language through - the ratio should stay
+// anchored to how well the best actually-similar document (in any language) matches,
+// not shift depending on which of those matches survive the filters. scoringQuery is
+// subjectsQuery alone, unaffected by such filters.
 //
 // Pruning always needs the underlying Bleve query sorted by score, to find the best
 // match's score - so sortBy (the user's chosen display order, e.g. by publication date)
@@ -411,10 +424,18 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 // afterwards, in Go, over the already-pruned documents; see sortSimilarityResults.
 // referenceDate, if non-zero, is the publication date of the document these results are
 // similar to, used as a tiebreaker (closest first) between equally-ranked documents.
-func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPage int, sortBy []string, referenceDate float64) (result.Paginated[[]Document], error) {
+func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Query, page, resultsPerPage int, sortBy []string, referenceDate float64) (result.Paginated[[]Document], error) {
+	bestScore, err := b.bestScore(scoringQuery)
+	if err != nil {
+		return result.Paginated[[]Document]{}, err
+	}
+	if bestScore == 0 {
+		return result.Paginated[[]Document]{}, nil
+	}
+
 	// sortBy is deliberately not passed to searchAndHydrate: pruning below needs the
-	// underlying Bleve query sorted by score, to find the best match's score.
-	searchResult, hydratedDocs, err := b.searchAndHydrate(query, b.maxSimilarityCandidates, 0, nil)
+	// underlying Bleve query sorted by score.
+	searchResult, hydratedDocs, err := b.searchAndHydrate(candidateQuery, b.maxSimilarityCandidates, 0, nil)
 	if err != nil {
 		return result.Paginated[[]Document]{}, err
 	}
@@ -423,9 +444,7 @@ func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPag
 		return result.Paginated[[]Document]{}, nil
 	}
 
-	// Hits are already sorted by -_score (NewSearchRequestOptions' default), so the
-	// first hit's score is the best match's.
-	threshold := searchResult.Hits[0].Score * b.minSimilarityScoreRatio
+	threshold := bestScore * b.minSimilarityScoreRatio
 
 	hits := make([]similarityHit, 0, len(hydratedDocs))
 	for i, hit := range searchResult.Hits {
@@ -443,6 +462,21 @@ func (b *BleveIndexer) runSimilarityQuery(query query.Query, page, resultsPerPag
 	}
 
 	return result.Paginate(resultsPerPage, page, len(docs), docs), nil
+}
+
+// bestScore returns the top score query would produce, or 0 if it has no matches.
+func (b *BleveIndexer) bestScore(query query.Query) (float64, error) {
+	searchOptions := bleve.NewSearchRequestOptions(query, 1, 0, false)
+	b.documentsMu.RLock()
+	searchResult, err := b.documentsIdx.Search(searchOptions)
+	b.documentsMu.RUnlock()
+	if err != nil {
+		return 0, err
+	}
+	if len(searchResult.Hits) == 0 {
+		return 0, nil
+	}
+	return searchResult.Hits[0].Score, nil
 }
 
 // similarityHit pairs a hydrated Document with the raw Bleve score of the match it
@@ -992,7 +1026,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	}
 
 	bq := b.subjectsQuery(doc)
-	paginated, err := b.runSimilarityQuery(bq, 1, quantity, DefaultDocumentSortBy, float64(doc.Publication.Date))
+	paginated, err := b.runSimilarityQuery(bq, bq, 1, quantity, DefaultDocumentSortBy, float64(doc.Publication.Date))
 	if err != nil {
 		return []Document{}, err
 	}
