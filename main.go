@@ -85,6 +85,7 @@ func init() {
 		MinOccurrenceRatio:      input.MinOccurrenceRatio,
 		MaxSimilarityCandidates: input.MaxSimilarityCandidates,
 		MinSimilarityScoreRatio: input.MinSimilarityScoreRatio,
+		MaxSimilarityKeywords:   input.MaxSimilarityKeywords,
 		PreferMetadataLanguage:  input.PreferMetadataLanguage,
 	})
 

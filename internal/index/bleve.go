@@ -56,13 +56,19 @@ var noStopWordsFilters = map[string][]string{
 
 const defaultAnalyzer = "default_analyzer"
 
-// Defaults for Config.MaxSimilarityCandidates and Config.MinSimilarityScoreRatio,
+// Defaults for Config.MaxSimilarityCandidates and Config.MinSimilarityScoreRatio are set here, and then
 // applied by NewBleve when the caller leaves them unset (e.g. tests constructing
 // a bare Config{}), since a zero value would otherwise mean "no similarity results".
 const (
+	// The bigger the value of defaultMaxSimilarityCandidates, the less likely a genuinely
+	// similar document is cut off before MinSimilarityScoreRatio gets a chance to prune by
+	// score, but the more matches Bleve has to score and rank per "similar document" query.
 	defaultMaxSimilarityCandidates = 200
+	// The bigger the value of defaultMinSimilarityScoreRatio, the stricter "similar enough"
+	// is: a document must reach this fraction of the best match's score (0.2 = at least 20%)
+	// to be shown at all, which prunes weak, mostly-coincidental matches out of the
+	// maxSimilarityCandidates pool before it's paginated.
 	defaultMinSimilarityScoreRatio = 0.2
-	defaultMaxSimilarityKeywords   = 30
 )
 
 // Config holds indexer configuration.
@@ -93,7 +99,8 @@ type Config struct {
 	// candidate phrases/words), and a "similar document" query ORs all of them
 	// together - a wide disjunction like that is expensive to evaluate
 	// regardless of how common any single keyword is, since Bleve has to poll
-	// every one of those clauses for every candidate document.
+	// every one of those clauses for every candidate document. A value of 0
+	// disables the cap.
 	MaxSimilarityKeywords int
 	// PreferMetadataLanguage makes TextRank trust a document's own metadata
 	// language (e.g. an EPUB's declared language) directly instead of running
@@ -148,10 +155,14 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		minSimilarityScoreRatio = defaultMinSimilarityScoreRatio
 	}
 
+	// Unlike MaxSimilarityCandidates/MinSimilarityScoreRatio above, cfg.MaxSimilarityKeywords
+	// is passed straight through with no zero-substitution: 0 is a legitimate, documented
+	// choice here (disable the cap - see Config.MaxSimilarityKeywords), the same as
+	// Config.MinOccurrenceRatio's "0 disables this" elsewhere in this Config. The normal
+	// (production) case still gets defaultMaxSimilarityKeywords via the CLI flag's own
+	// default, not a substitution here; only callers that construct a bare Config{}
+	// directly (e.g. tests) get 0 (uncapped) rather than defaultMaxSimilarityKeywords.
 	maxSimilarityKeywords := cfg.MaxSimilarityKeywords
-	if maxSimilarityKeywords == 0 {
-		maxSimilarityKeywords = defaultMaxSimilarityKeywords
-	}
 
 	return &BleveIndexer{
 		fs:                      fs,

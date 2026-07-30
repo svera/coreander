@@ -1075,12 +1075,13 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 	// is expensive for Bleve to evaluate regardless of how common any single
 	// keyword is, since it has to poll every one of those clauses for every
 	// candidate document. Capped at Config.MaxSimilarityKeywords to bound that
-	// cost; which particular keywords get used beyond the cap is arbitrary
-	// (TextRankKeywords doesn't preserve TextRank's relative weighting), but
-	// bounding the query is more important here than which exact subset of a
-	// document with hundreds of keywords gets used.
+	// cost; since TextRankKeywords is stored ordered by descending TextRank
+	// weight (see textRankKeywords), taking a prefix keeps the keywords most
+	// representative of the document, not an arbitrary subset. A cap of 0
+	// means uncapped, matching Config.MinOccurrenceRatio's "0 disables this"
+	// convention elsewhere in this same Config struct.
 	keywords := doc.TextRankKeywords
-	if len(keywords) > b.maxSimilarityKeywords {
+	if b.maxSimilarityKeywords > 0 && len(keywords) > b.maxSimilarityKeywords {
 		keywords = keywords[:b.maxSimilarityKeywords]
 	}
 	for _, keyword := range keywords {
