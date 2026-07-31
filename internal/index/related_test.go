@@ -223,22 +223,11 @@ func testSameSubjectsCases() []sameSubjectsTestCase {
 					SeriesSlug:    "",
 					SubjectsSlugs: []string{"history", "middle-age"},
 				},
-				{
-					ID:   "file5.epub",
-					Slug: "giacomo-leopardi-test-e",
-					Metadata: metadata.Metadata{
-						Title:       "Test E",
-						Authors:     []string{"Giacomo Leopardi"},
-						Description: "<p>Just test metadata</p>",
-						Language:    "en",
-						Subjects:    []string{"History"},
-						Format:      "EPUB",
-						Publication: precisiondate.NewPrecisionDate("2010-11-05T00:00:00Z", precisiondate.PrecisionDay),
-					},
-					AuthorsSlugs:  []string{"giacomo-leopardi"},
-					SeriesSlug:    "",
-					SubjectsSlugs: []string{"history"},
-				},
+				// file5 (Test E) only shares one of the two reference subjects
+				// ("History", not "Middle age"), so with defaultMinSimilarityScoreRatio
+				// raised to 0.4 its score no longer meets the "similar enough"
+				// threshold relative to the full two-subject matches above, and it's
+				// pruned rather than returned.
 			},
 		},
 		{
@@ -293,22 +282,11 @@ func testSameSubjectsCases() []sameSubjectsTestCase {
 					SeriesSlug:    "",
 					SubjectsSlugs: []string{"history", "middle-age"},
 				},
-				{
-					ID:   "file5.epub",
-					Slug: "giacomo-leopardi-test-e",
-					Metadata: metadata.Metadata{
-						Title:       "Test E",
-						Authors:     []string{"Giacomo Leopardi"},
-						Description: "<p>Just test metadata</p>",
-						Language:    "en",
-						Subjects:    []string{"History"},
-						Format:      "EPUB",
-						Publication: precisiondate.NewPrecisionDate("2010-11-05T00:00:00Z", precisiondate.PrecisionDay),
-					},
-					AuthorsSlugs:  []string{"giacomo-leopardi"},
-					SeriesSlug:    "",
-					SubjectsSlugs: []string{"history"},
-				},
+				// file5 (Test E) only shares one of the two reference subjects
+				// ("History", not "Middle age"), so with defaultMinSimilarityScoreRatio
+				// raised to 0.4 its score no longer meets the "similar enough"
+				// threshold relative to the full two-subject matches above, and it's
+				// pruned rather than returned.
 			},
 		},
 	}

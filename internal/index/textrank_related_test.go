@@ -71,8 +71,12 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 		Metadata:      metadata.Metadata{Title: "Shared Subject", Authors: []string{"Author Two"}, Format: "EPUB", Subjects: []string{"History"}},
 		AuthorsSlugs:  []string{"author-two"},
 		SubjectsSlugs: []string{"history"},
-		// No TextRankKeywords: this document should still be found by a
-		// formal subject match, same as before TextRank keywords existed.
+		// No TextRankKeywords, so this document only matches on the single
+		// subject clause. docSharedKeywordsOnly below matches all three
+		// keyword clauses and scores much higher, so with
+		// defaultMinSimilarityScoreRatio raised to 0.4 this weaker,
+		// subject-only match now falls below the "similar enough" threshold
+		// and is pruned - see the assertions below.
 	}
 	docSharedKeywordsOnly := index.Document{
 		ID:               "shared-keywords.epub",
@@ -106,11 +110,11 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 	}
 
 	gotSlugs := slugsOf(got)
-	wantSlugs := []string{"shared-subject", "shared-keywords"}
-	for _, want := range wantSlugs {
-		if !slices.Contains(gotSlugs, want) {
-			t.Errorf("expected %q to be present in results %v", want, gotSlugs)
-		}
+	if !slices.Contains(gotSlugs, "shared-keywords") {
+		t.Errorf("expected %q to be present in results %v", "shared-keywords", gotSlugs)
+	}
+	if slices.Contains(gotSlugs, "shared-subject") {
+		t.Errorf("expected shared-subject to be pruned as a weak match relative to shared-keywords, got %v", gotSlugs)
 	}
 	if slices.Contains(gotSlugs, "unrelated") {
 		t.Errorf("did not expect unrelated document to match, got %v", gotSlugs)
