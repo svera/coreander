@@ -36,33 +36,68 @@ func NewEpubReader() EpubReader {
 	}
 }
 
-func (e EpubReader) Metadata(filename string) (Metadata, error) {
-	meta, _, err := e.MetadataAndText(filename)
-	return meta, err
+// bookMetadata opens filename and returns its base metadata (title, authors,
+// illustration count, etc.) along with the still-open book and its parsed OPF
+// package, so Metadata and MetadataAndText can share this setup without
+// either extracting/sanitizing the EPUB's text: Metadata never needs it, and
+// Words is instead computed later from the TextSource.Text also used for
+// TextRank analysis - see EnrichTextRankKeywords/rankDocument. opf is nil (with
+// no error) if the package couldn't be loaded, since illustrations just stay
+// at zero in that case; err is only non-nil for failures that leave the book
+// unusable at all. Callers must close the returned book.
+func (e EpubReader) bookMetadata(filename string) (Metadata, *epub.Epub, *epub.PackageDocument, error) {
+	book, err := epub.Open(filename)
+	if err != nil {
+		return Metadata{}, nil, nil, err
+	}
+	info, err := book.Information()
+	if err != nil {
+		book.Close()
+		return Metadata{}, nil, nil, err
+	}
+	bk, err := BuildEpubMetadataFields(info, filename)
+	if err != nil {
+		book.Close()
+		return Metadata{}, nil, nil, err
+	}
+	opf, err := book.Package()
+	if err != nil {
+		log.Printf("Cannot load package for illustrations in %s: %s\n", filename, err)
+		return bk, book, nil, nil
+	}
+	return bk, book, opf, nil
 }
 
-// MetadataAndText is like Metadata, but also returns the document's full
-// extracted, sanitized text content (the same text Words is counted from),
-// letting callers that also need TextRanker's analysis (which needs the same
-// text) avoid extracting and sanitizing the whole EPUB a second time.
+func (e EpubReader) Metadata(filename string) (Metadata, error) {
+	bk, book, opf, err := e.bookMetadata(filename)
+	if err != nil {
+		return Metadata{}, err
+	}
+	defer book.Close()
+
+	if opf == nil {
+		return bk, nil
+	}
+	illustrations, err := e.illustrationsWithZip(book.ReadCloser, opf, 0.25)
+	if err != nil {
+		log.Printf("Cannot count illustrations in %s: %s\n", filename, err)
+	}
+	bk.Illustrations = illustrations
+	return bk, nil
+}
+
+// MetadataAndText is like Metadata, but also extracts and sanitizes the
+// document's full text content and counts Words from it, letting callers
+// that also need TextRanker's analysis (which needs the same text) avoid
+// extracting and sanitizing the whole EPUB a second time.
 func (e EpubReader) MetadataAndText(filename string) (Metadata, string, error) {
-	book, err := epub.Open(filename)
+	bk, book, opf, err := e.bookMetadata(filename)
 	if err != nil {
 		return Metadata{}, "", err
 	}
 	defer book.Close()
 
-	info, err := book.Information()
-	if err != nil {
-		return Metadata{}, "", err
-	}
-	bk, err := BuildEpubMetadataFields(info, filename)
-	if err != nil {
-		return Metadata{}, "", err
-	}
-	opf, err := book.Package()
-	if err != nil {
-		log.Printf("Cannot load package for illustrations/words in %s: %s\n", filename, err)
+	if opf == nil {
 		return bk, "", nil
 	}
 	illustrations, err := e.illustrationsWithZip(book.ReadCloser, opf, 0.25)

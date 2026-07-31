@@ -330,8 +330,8 @@ type metadataJobResult struct {
 
 // metadataJobResultFor extracts metadata (only) for a single path, shared by
 // readMetadataForPaths' sequential and worker-pool branches. TextRank
-// analysis is deliberately not run here - see AddLibrary and
-// EnrichTextRankKeywords.
+// analysis, and for EPUBs the Words count, are deliberately not run here -
+// see AddLibrary, EnrichTextRankKeywords and rankDocument.
 func (b *BleveIndexer) metadataJobResultFor(path string) metadataJobResult {
 	ext := strings.ToLower(filepath.Ext(path))
 	meta, err := b.reader[ext].Metadata(path)
@@ -464,10 +464,14 @@ func (b *BleveIndexer) documentsNeedingTextRank() ([]Document, error) {
 	return documents, nil
 }
 
-// rankDocument runs TextRank analysis for document (re-extracting its text
-// via metadata.TextSource, if its reader supports it) and returns it with
-// TextRankKeywords and TextRankEnriched set. Safe to call concurrently across
-// documents, since it only reads from b and returns a modified copy.
+// rankDocument runs TextRank analysis for document (extracting its text via
+// metadata.TextSource, if its reader supports it) and returns it with
+// TextRankKeywords, Words and TextRankEnriched set. Words is computed here
+// rather than at AddLibrary time so that pass doesn't need to extract each
+// EPUB's full text just to count words (see metadata.EpubReader.Metadata);
+// it's instead counted from the same text this pass already extracts for
+// TextRank. Safe to call concurrently across documents, since it only reads
+// from b and returns a modified copy.
 func (b *BleveIndexer) rankDocument(document Document) Document {
 	fullPath := filepath.Join(b.libraryPath, document.ID)
 	ext := strings.ToLower(filepath.Ext(fullPath))
@@ -478,6 +482,7 @@ func (b *BleveIndexer) rankDocument(document Document) Document {
 			log.Printf("Error extracting text for %s: %s\n", fullPath, err)
 		} else {
 			document.TextRankKeywords = b.rankTextFromContent(reader, text, fullPath)
+			document.Words = float64(len(strings.Fields(text)))
 		}
 	}
 	document.TextRankEnriched = true
