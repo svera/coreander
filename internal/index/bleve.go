@@ -336,37 +336,36 @@ func (b *BleveIndexer) Close() error {
 	return errors.Join(b.documentsIdx.Close(), b.authorsIdx.Close())
 }
 
-// NeedsReindexForIllustratedConfig reports whether the documents index must be rebuilt because the stored
-// illustrated-min-size config differs from currentMinSize (or is missing).
-func NeedsReindexForIllustratedConfig(documentsIndex bleve.Index, currentMinSize float64) (bool, error) {
-	stored, err := documentsIndex.GetInternal(internalIllustratedMinSize)
+// NeedsReindex reports whether the documents index must be rebuilt because a stored config value
+// differs from its current counterpart (or is missing): illustrated-min-size, or min-occurrence-ratio,
+// which decides which TextRank keywords get stored per document at indexing time (see
+// Config.MinOccurrenceRatio).
+func NeedsReindex(documentsIndex bleve.Index, currentMinSize float64, currentMinOccurrenceRatio float64) (bool, error) {
+	storedMinSize, err := documentsIndex.GetInternal(internalIllustratedMinSize)
 	if err != nil {
 		return true, err
 	}
-	if len(stored) == 0 {
+	if len(storedMinSize) == 0 {
 		return true, nil
 	}
-	storedSize, err := strconv.ParseFloat(string(stored), 64)
+	minSize, err := strconv.ParseFloat(string(storedMinSize), 64)
 	if err != nil {
 		return true, err
 	}
-	return storedSize != currentMinSize, nil
-}
+	if minSize != currentMinSize {
+		return true, nil
+	}
 
-// NeedsReindexForOccurrenceRatioConfig reports whether the documents index must be rebuilt because the stored
-// min-occurrence-ratio config differs from currentMinOccurrenceRatio (or is missing), since that ratio decides
-// which TextRank keywords get stored per document at indexing time (see Config.MinOccurrenceRatio).
-func NeedsReindexForOccurrenceRatioConfig(documentsIndex bleve.Index, currentMinOccurrenceRatio float64) (bool, error) {
-	stored, err := documentsIndex.GetInternal(internalMinOccurrenceRatio)
+	storedRatio, err := documentsIndex.GetInternal(internalMinOccurrenceRatio)
 	if err != nil {
 		return true, err
 	}
-	if len(stored) == 0 {
+	if len(storedRatio) == 0 {
 		return true, nil
 	}
-	storedRatio, err := strconv.ParseFloat(string(stored), 64)
+	ratio, err := strconv.ParseFloat(string(storedRatio), 64)
 	if err != nil {
 		return true, err
 	}
-	return storedRatio != currentMinOccurrenceRatio, nil
+	return ratio != currentMinOccurrenceRatio, nil
 }

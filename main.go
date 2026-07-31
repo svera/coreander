@@ -241,33 +241,14 @@ func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64) (bl
 		needsReindex = true
 	}
 
-	// Rebuild index if illustrated-min-size config changed (stored in index metadata)
+	// Rebuild index if illustrated-min-size or min-occurrence-ratio config changed (stored in index metadata)
 	if !needsReindex {
-		reindexForConfig, err := index.NeedsReindexForIllustratedConfig(documentsIndex, illustratedMinSize)
+		reindexForConfig, err := index.NeedsReindex(documentsIndex, illustratedMinSize, minOccurrenceRatio)
 		if err != nil {
 			log.Fatal(err)
 		}
 		if reindexForConfig {
-			log.Println("Illustrated min size config changed, recreating documents index.")
-			if err = documentsIndex.Close(); err != nil {
-				log.Fatal(err)
-			}
-			if err = fs.RemoveAll(homeDir + documentsIndexPath); err != nil {
-				log.Fatal(err)
-			}
-			documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)
-			needsReindex = true
-		}
-	}
-
-	// Rebuild index if min-occurrence-ratio config changed (stored in index metadata)
-	if !needsReindex {
-		reindexForConfig, err := index.NeedsReindexForOccurrenceRatioConfig(documentsIndex, minOccurrenceRatio)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if reindexForConfig {
-			log.Println("Min occurrence ratio config changed, recreating documents index.")
+			log.Println("Illustrated min size or min occurrence ratio config changed, recreating documents index.")
 			if err = documentsIndex.Close(); err != nil {
 				log.Fatal(err)
 			}
