@@ -475,7 +475,8 @@ func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Que
 		docs[i] = h.doc
 	}
 
-	return result.Paginate(resultsPerPage, page, len(docs), docs), nil
+	paginated := result.Paginate(resultsPerPage, page, len(docs), docs)
+	return paginated.WithCandidates(int(searchResult.Total), b.maxSimilarityCandidates), nil
 }
 
 // bestScore returns the top score query would produce, or 0 if it has no matches.

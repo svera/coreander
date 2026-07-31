@@ -78,7 +78,7 @@ func init() {
 
 	var documentsIndex, authorsIndex bleve.Index
 	var needsReindex bool
-	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize)
+	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize, input.MinOccurrenceRatio)
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
 		IllustratedMinAmount:    input.IllustratedMinAmount,
 		IllustratedMinSize:      input.IllustratedMinSize,
@@ -206,7 +206,7 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWor
 	idx.StartFileWatcher()
 }
 
-func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Index, bool) {
+func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64) (bleve.Index, bleve.Index, bool) {
 	needsReindex := false
 
 	// Open or create documents index
@@ -250,6 +250,25 @@ func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Ind
 		}
 		if reindexForConfig {
 			log.Println("Illustrated min size config changed, recreating documents index.")
+			if err = documentsIndex.Close(); err != nil {
+				log.Fatal(err)
+			}
+			if err = fs.RemoveAll(homeDir + documentsIndexPath); err != nil {
+				log.Fatal(err)
+			}
+			documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)
+			needsReindex = true
+		}
+	}
+
+	// Rebuild index if min-occurrence-ratio config changed (stored in index metadata)
+	if !needsReindex {
+		reindexForConfig, err := index.NeedsReindexForOccurrenceRatioConfig(documentsIndex, minOccurrenceRatio)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if reindexForConfig {
+			log.Println("Min occurrence ratio config changed, recreating documents index.")
 			if err = documentsIndex.Close(); err != nil {
 				log.Fatal(err)
 			}

@@ -280,6 +280,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 	internalBatch := b.documentsIdx.NewBatch()
 	internalBatch.SetInternal(internalLanguages, []byte(languagesStr))
 	internalBatch.SetInternal(internalIllustratedMinSize, []byte(strconv.FormatFloat(b.illustratedMinSize, 'g', -1, 64)))
+	internalBatch.SetInternal(internalMinOccurrenceRatio, []byte(strconv.FormatFloat(b.minOccurrenceRatio, 'g', -1, 64)))
 	b.documentsMu.Lock()
 	err = b.documentsIdx.Batch(internalBatch)
 	b.documentsMu.Unlock()

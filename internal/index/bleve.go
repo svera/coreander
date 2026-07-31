@@ -40,6 +40,7 @@ var (
 	internalLanguages          = []byte("languages")
 	internalVersion            = []byte("version")
 	internalIllustratedMinSize = []byte("illustrated_min_size")
+	internalMinOccurrenceRatio = []byte("min_occurrence_ratio")
 )
 
 // ErrDocumentNotFound is returned when a document cannot be found by slug.
@@ -359,4 +360,22 @@ func NeedsReindexForIllustratedConfig(documentsIndex bleve.Index, currentMinSize
 		return true, err
 	}
 	return storedSize != currentMinSize, nil
+}
+
+// NeedsReindexForOccurrenceRatioConfig reports whether the documents index must be rebuilt because the stored
+// min-occurrence-ratio config differs from currentMinOccurrenceRatio (or is missing), since that ratio decides
+// which TextRank keywords get stored per document at indexing time (see Config.MinOccurrenceRatio).
+func NeedsReindexForOccurrenceRatioConfig(documentsIndex bleve.Index, currentMinOccurrenceRatio float64) (bool, error) {
+	stored, err := documentsIndex.GetInternal(internalMinOccurrenceRatio)
+	if err != nil {
+		return true, err
+	}
+	if len(stored) == 0 {
+		return true, nil
+	}
+	storedRatio, err := strconv.ParseFloat(string(stored), 64)
+	if err != nil {
+		return true, err
+	}
+	return storedRatio != currentMinOccurrenceRatio, nil
 }

@@ -1,6 +1,7 @@
 package index_test
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 
@@ -16,6 +17,11 @@ import (
 // needing a real EPUB file and EpubReader.RankText run.
 func newTextRankTestIndex(t *testing.T, docs []index.Document) *index.BleveIndexer {
 	t.Helper()
+	return newTextRankTestIndexWithConfig(t, docs, index.Config{})
+}
+
+func newTextRankTestIndexWithConfig(t *testing.T, docs []index.Document, cfg index.Config) *index.BleveIndexer {
+	t.Helper()
 
 	documentsIndexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
@@ -26,7 +32,7 @@ func newTextRankTestIndex(t *testing.T, docs []index.Document) *index.BleveIndex
 		t.Fatal(err)
 	}
 
-	idx := index.NewBleve(documentsIndexMem, authorsIndexMem, nil, "", nil, index.Config{})
+	idx := index.NewBleve(documentsIndexMem, authorsIndexMem, nil, "", nil, cfg)
 
 	for _, doc := range docs {
 		if err := documentsIndexMem.Index(doc.ID, doc); err != nil {
@@ -220,6 +226,54 @@ func TestSearchSimilarToPrunesWeakMatches(t *testing.T) {
 	}
 	if slices.Contains(gotSlugs, "unrelated") {
 		t.Errorf("did not expect unrelated document to match, got %v", gotSlugs)
+	}
+}
+
+// TestSearchSimilarToReportsCappedCandidates checks that when a "similar
+// document" query has more matches than MaxSimilarityCandidates, the
+// resulting Paginated reports the cap was hit (CandidatesCapped) along with
+// the true, uncapped match count (CandidatesTotal) - so a caller (e.g. the
+// search UI's "similar to" banner) can tell the user some matches weren't
+// even considered, rather than silently dropping them.
+func TestSearchSimilarToReportsCappedCandidates(t *testing.T) {
+	sharedKeywords := []string{"oppenheimer manhattan", "project atomic", "los alamos"}
+
+	docA := index.Document{
+		ID:               "a.epub",
+		Slug:             "doc-a",
+		Metadata:         metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
+		AuthorsSlugs:     []string{"author-one"},
+		TextRankKeywords: sharedKeywords,
+	}
+	docs := []index.Document{docA}
+	for i := 1; i <= 4; i++ {
+		docs = append(docs, index.Document{
+			ID:               fmt.Sprintf("match%d.epub", i),
+			Slug:             fmt.Sprintf("match-%d", i),
+			Metadata:         metadata.Metadata{Title: fmt.Sprintf("Match %d", i), Authors: []string{fmt.Sprintf("Author %d", i)}, Format: "EPUB"},
+			AuthorsSlugs:     []string{fmt.Sprintf("author-%d", i)},
+			TextRankKeywords: sharedKeywords,
+		})
+	}
+
+	idx := newTextRankTestIndexWithConfig(t, docs, index.Config{
+		MaxSimilarityCandidates: 2,
+		MinSimilarityScoreRatio: 0.01,
+	})
+
+	res, err := idx.Search(index.SearchFields{SimilarTo: "doc-a"}, 1, 10)
+	if err != nil {
+		t.Fatalf("Search returned an error: %s", err)
+	}
+
+	if !res.CandidatesCapped() {
+		t.Errorf("expected CandidatesCapped to report true with 4 matches and a cap of 2, got false (CandidatesTotal=%d, CandidatesCap=%d)", res.CandidatesTotal(), res.CandidatesCap())
+	}
+	if res.CandidatesTotal() != 4 {
+		t.Errorf("expected CandidatesTotal to report the uncapped match count 4, got %d", res.CandidatesTotal())
+	}
+	if res.CandidatesCap() != 2 {
+		t.Errorf("expected CandidatesCap to report the configured cap 2, got %d", res.CandidatesCap())
 	}
 }
 

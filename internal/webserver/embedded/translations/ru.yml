@@ -120,6 +120,7 @@
 "Other titles in collection \"%s\"": "Другие произведения в коллекции \"%s\""
 "See all": "Показать все"
 "Showing %d documents similar to %s": "Показано %d документов, похожих на %s"
+"%d documents matched in total; only the top %d were considered": "Всего найдено %d документов; учтены только первые %d"
 "Clear similar to filter": "Убрать фильтр похожих"
 "Style": "Стиль"
 "Light": "Светлая"

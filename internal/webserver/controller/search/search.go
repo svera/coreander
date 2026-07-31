@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/result"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 	"github.com/svera/coreander/v5/internal/webserver/view"
 )
@@ -91,6 +92,9 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 	templateVars["AuthorsTotalHits"] = authorCount
 	templateVars["SimilarToDocument"] = similarToDocument
 	templateVars["SimilarToActive"] = similarToDocument.Slug != ""
+	templateVars["SimilarCandidatesCapped"] = documentResults.CandidatesCapped()
+	templateVars["SimilarCandidatesTotal"] = documentResults.CandidatesTotal()
+	templateVars["SimilarCandidatesCap"] = documentResults.CandidatesCap()
 
 	return s.renderSearch(c, templateVars, "partials/docs-list-fragments")
 }
@@ -115,11 +119,12 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 		return fiber.ErrBadRequest
 	}
 
-	docCount, authorCount, err := s.tabCounts(documentSearchFields, searchFields)
+	documentTabResults, authorCount, err := s.tabCounts(documentSearchFields, searchFields)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
+	docCount := documentTabResults.TotalHits()
 
 	similarToDocument, err := s.similarToDocument(documentSearchFields.SimilarTo)
 	if err != nil {
@@ -141,6 +146,9 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	templateVars["AuthorsTotalHits"] = authorCount
 	templateVars["SimilarToDocument"] = similarToDocument
 	templateVars["SimilarToActive"] = similarToDocument.Slug != ""
+	templateVars["SimilarCandidatesCapped"] = documentTabResults.CandidatesCapped()
+	templateVars["SimilarCandidatesTotal"] = documentTabResults.CandidatesTotal()
+	templateVars["SimilarCandidatesCap"] = documentTabResults.CandidatesCap()
 
 	return s.renderSearch(c, templateVars, "partials/authors-list-fragments")
 }
@@ -197,16 +205,16 @@ func (s *Controller) renderSearch(c fiber.Ctx, templateVars fiber.Map, fragmentT
 	return nil
 }
 
-func (s *Controller) tabCounts(docFields index.SearchFields, authorFields index.AuthorSearchFields) (docCount, authorCount int, err error) {
-	docCount, err = s.idx.CountDocuments(docFields)
+func (s *Controller) tabCounts(docFields index.SearchFields, authorFields index.AuthorSearchFields) (docResults result.Paginated[[]index.Document], authorCount int, err error) {
+	docResults, err = s.idx.Search(docFields, 1, 0)
 	if err != nil {
-		return 0, 0, err
+		return result.Paginated[[]index.Document]{}, 0, err
 	}
 	authorCount, err = s.idx.CountAuthors(authorFields)
 	if err != nil {
-		return 0, 0, err
+		return result.Paginated[[]index.Document]{}, 0, err
 	}
-	return docCount, authorCount, nil
+	return docResults, authorCount, nil
 }
 
 func documentSortOptions() []struct {

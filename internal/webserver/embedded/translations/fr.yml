@@ -120,6 +120,7 @@
 "Other titles in collection \"%s\"": "Autres titres de la collection \"%s\""
 "See all": "Voir tout"
 "Showing %d documents similar to %s": "Affichage de %d documents similaires à %s"
+"%d documents matched in total; only the top %d were considered": "%d documents correspondaient au total ; seuls les %d premiers ont été pris en compte"
 "Clear similar to filter": "Supprimer le filtre de similarité"
 "Light": "Clair"
 "Dark": "Noir"
