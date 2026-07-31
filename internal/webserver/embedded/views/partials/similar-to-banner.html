@@ -1,9 +1,11 @@
 <div class="alert alert-primary mb-0" role="alert">
     <div class="d-flex align-items-center">
-        <i class="bi bi-diagram-3 me-2"></i>
+        <div class="col-4 col-sm-2 col-md-1 me-2">
+            {{template "partials/cover" dict "Lang" .Lang "Document" .SimilarToDocument "Session" .Session "Version" .Version "DisableCoverMainLink" true "DisableActions" true "CoverTitleSuffix" "similar-banner"}}
+        </div>
         <div class="flex-grow-1">
-            {{t .Lang "Showing %d documents similar to %s" .DocumentsTotalHits (printf `<cite><a href="/documents/%s">%s</a></cite>` .SimilarToDocument.Slug .SimilarToDocument.Title)}}
-            {{if .SimilarCandidatesCapped}}<br><small>{{t .Lang "%d documents matched in total; only the top %d were considered" .SimilarCandidatesTotal .SimilarCandidatesCap}}</small>{{end}}
+            <p class="lead">{{t .Lang "Showing %d documents similar to %s" .DocumentsTotalHits (printf `<cite><a href="/documents/%s">%s</a></cite>` .SimilarToDocument.Slug .SimilarToDocument.Title)}}</p>
+            {{if .SimilarCandidatesCapped}}<p>{{t .Lang "%d documents matched in total; only the top %d were considered" .SimilarCandidatesTotal .SimilarCandidatesCap}}</p>{{end}}
         </div>
         {{if ne .Results.TotalHits 0}}
         <div class="d-none d-xl-block ms-2">
