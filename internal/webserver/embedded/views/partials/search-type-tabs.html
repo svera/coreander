@@ -8,6 +8,7 @@
         </ul>
         {{end}}
     </div>
+    {{if not .SimilarToActive}}
     <div class="col-12 col-xl-auto mt-3 mt-xl-0">
         <div class="row g-2 align-items-stretch justify-content-end">
             <div class="{{if ne .Results.TotalHits 0}}col-4{{else}}col-12{{end}} d-xl-none">
@@ -20,4 +21,5 @@
             {{end}}
         </div>
     </div>
+    {{end}}
 </div>
