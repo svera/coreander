@@ -415,7 +415,7 @@ func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, 
 	if !ok {
 		return nil
 	}
-	result, err := textRanker.RankText(b.minOccurrenceRatio, b.preferMetadataLanguage, textContent, fullPath)
+	result, err := textRanker.RankText(b.minOccurrenceRatio, textContent, fullPath)
 	if err != nil {
 		log.Printf("Error ranking text for file %s: %s\n", fullPath, err)
 		return nil

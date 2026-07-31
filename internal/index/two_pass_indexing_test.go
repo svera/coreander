@@ -31,7 +31,7 @@ func (rankableTestReader) Text(path string) (string, error) {
 	return "some content", nil
 }
 
-func (rankableTestReader) RankText(minOccurrenceRatio float64, preferMetadataLanguage bool, textContent, filename string) (*metadata.TextRankResult, error) {
+func (rankableTestReader) RankText(minOccurrenceRatio float64, textContent, filename string) (*metadata.TextRankResult, error) {
 	return &metadata.TextRankResult{
 		Phrases:     []rank.Phrase{{Left: "some", Right: "keyword"}},
 		SingleWords: []rank.SingleWord{{Word: "standalone"}},

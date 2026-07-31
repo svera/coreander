@@ -103,13 +103,6 @@ type Config struct {
 	// every one of those clauses for every candidate document. A value of 0
 	// disables the cap.
 	MaxSimilarityKeywords int
-	// PreferMetadataLanguage makes TextRank trust a document's own metadata
-	// language (e.g. an EPUB's declared language) directly instead of running
-	// full text language detection, which is the most expensive part of
-	// ranking. This misses secondary/mixed languages that full detection
-	// would otherwise find (and their stop words), trading that for
-	// materially faster indexing.
-	PreferMetadataLanguage bool
 }
 
 type BleveIndexer struct {
@@ -141,7 +134,6 @@ type BleveIndexer struct {
 	maxSimilarityCandidates    int     // cap on top-scoring matches considered by a "similar document" query; see Config.MaxSimilarityCandidates
 	minSimilarityScoreRatio    float64 // minimum fraction of the best match's score to be considered similar; see Config.MinSimilarityScoreRatio
 	maxSimilarityKeywords      int     // cap on how many TextRankKeywords are used to find "similar" documents; see Config.MaxSimilarityKeywords
-	preferMetadataLanguage     bool    // trust a document's own metadata language over full text detection for TextRank; see Config.PreferMetadataLanguage
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
@@ -177,7 +169,6 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		maxSimilarityCandidates: maxSimilarityCandidates,
 		minSimilarityScoreRatio: minSimilarityScoreRatio,
 		maxSimilarityKeywords:   maxSimilarityKeywords,
-		preferMetadataLanguage:  cfg.PreferMetadataLanguage,
 	}
 }
 

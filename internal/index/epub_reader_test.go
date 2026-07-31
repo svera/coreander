@@ -46,7 +46,7 @@ func (r epubTestReader) Text(path string) (string, error) {
 	return "", nil
 }
 
-func (r epubTestReader) RankText(minOccurrenceRatio float64, preferMetadataLanguage bool, textContent, filename string) (*metadata.TextRankResult, error) {
+func (r epubTestReader) RankText(minOccurrenceRatio float64, textContent, filename string) (*metadata.TextRankResult, error) {
 	return nil, nil
 }
 

@@ -45,14 +45,13 @@ type TextRankResult struct {
 // Callers holding a plain Reader can type-assert against this capability
 // interface instead of the concrete EpubReader type. Pair it with
 // TextExtractor to get that text without extracting it a second time.
-// minOccurrenceRatio and preferMetadataLanguage are supplied by the caller
-// (the indexer) rather than carried by the Reader: they're ranking-
-// orchestration policy - how aggressively to filter results, and whether to
-// trust a format's own metadata language over full text detection - not
-// something intrinsic to any document format, and they're the same
-// regardless of which Reader is asked to rank. See rankText for what they do.
+// minOccurrenceRatio is supplied by the caller (the indexer) rather than
+// carried by the Reader: it's ranking-orchestration policy - how
+// aggressively to filter results - not something intrinsic to any document
+// format, and it's the same regardless of which Reader is asked to rank.
+// See rankText for what it does.
 type TextRanker interface {
-	RankText(minOccurrenceRatio float64, preferMetadataLanguage bool, textContent, filename string) (*TextRankResult, error)
+	RankText(minOccurrenceRatio float64, textContent, filename string) (*TextRankResult, error)
 }
 
 // rankText performs TextRank analysis on textContent, detecting its
@@ -62,7 +61,7 @@ type TextRanker interface {
 // metadata) - it should return "" (not an error) if no such hint is
 // available. This is the shared implementation behind every format's
 // TextRanker.RankText (currently just EpubReader.RankText).
-func rankText(minOccurrenceRatio float64, preferMetadataLanguage bool, textContent string, fallbackLanguage func() (string, error)) (*TextRankResult, error) {
+func rankText(minOccurrenceRatio float64, textContent string, fallbackLanguage func() (string, error)) (*TextRankResult, error) {
 	// A zero ratio disables text ranking altogether, rather than meaning "no
 	// filtering": since every phrase/word occurs at least once, a ratio of 0
 	// would otherwise keep everything, which is rarely what's wanted and
@@ -75,7 +74,7 @@ func rankText(minOccurrenceRatio float64, preferMetadataLanguage bool, textConte
 		return nil, fmt.Errorf("no text content provided for ranking")
 	}
 
-	langResult, err := resolveLanguage(textContent, preferMetadataLanguage, fallbackLanguage)
+	langResult, err := resolveLanguage(textContent, fallbackLanguage)
 	if err != nil {
 		return nil, err
 	}
@@ -168,50 +167,30 @@ func rankText(minOccurrenceRatio float64, preferMetadataLanguage bool, textConte
 	}, nil
 }
 
-// resolveLanguage decides which language(s) to run stop-word filtering with. Full
-// text detection (DetectLanguageFromText) finds every language actually present in
-// textContent, including secondary/mixed-language sections, but running it (three
-// full passes over up to a 10KB sample, across ~75 languages) is the most expensive
-// part of RankText and is repeated once per document across an entire library scan.
-//
-// When preferMetadataLanguage is set, fallbackLanguage's hint (e.g. an EPUB's own
-// declared language) is trusted directly and detection is skipped altogether -
-// trading detection of secondary/mixed languages for materially faster indexing.
-// Detection still runs whenever preferMetadataLanguage is false, or the hint isn't
-// available, or it fails.
-func resolveLanguage(textContent string, preferMetadataLanguage bool, fallbackLanguage func() (string, error)) (*LanguageDetectionResult, error) {
-	if preferMetadataLanguage {
-		if lang, err := fallbackLanguage(); err == nil && lang != "" {
-			return &LanguageDetectionResult{
-				PrimaryLanguage:       lang,
-				PrimaryLanguageExists: true,
-				ConfidenceValues: []LanguageConfidence{
-					{Language: lang, Confidence: 1.0},
-				},
-			}, nil
-		}
+// resolveLanguage decides which language(s) to run stop-word filtering with.
+// fallbackLanguage's hint (e.g. an EPUB's own declared language) is trusted
+// directly whenever it's available, since it's free and skips full text
+// detection - the most expensive part of RankText (three full passes over up
+// to a 10KB sample, across ~75 languages), repeated once per document across
+// an entire library scan. Full text detection (DetectLanguageFromText), which
+// also finds secondary/mixed-language sections that a single metadata hint
+// can't, only runs when no hint is available.
+func resolveLanguage(textContent string, fallbackLanguage func() (string, error)) (*LanguageDetectionResult, error) {
+	if lang, err := fallbackLanguage(); err == nil && lang != "" {
+		return &LanguageDetectionResult{
+			PrimaryLanguage:       lang,
+			PrimaryLanguageExists: true,
+			ConfidenceValues: []LanguageConfidence{
+				{Language: lang, Confidence: 1.0},
+			},
+		}, nil
 	}
 
 	langResult, err := DetectLanguageFromText(textContent)
-	if err == nil {
-		return langResult, nil
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect language: %w", err)
 	}
-
-	// If language detection fails, fall back to the caller-provided language hint.
-	fallback, fbErr := fallbackLanguage()
-	if fbErr != nil {
-		return nil, fmt.Errorf("failed to detect language and get fallback language: %w", err)
-	}
-	if fallback == "" {
-		return nil, fmt.Errorf("failed to detect language and no fallback language available: %w", err)
-	}
-	return &LanguageDetectionResult{
-		PrimaryLanguage:       fallback,
-		PrimaryLanguageExists: true,
-		ConfidenceValues: []LanguageConfidence{
-			{Language: fallback, Confidence: 1.0},
-		},
-	}, nil
+	return langResult, nil
 }
 
 // fixPhraseOrder corrects the order of words in phrases based on their actual connection data
