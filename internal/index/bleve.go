@@ -29,7 +29,7 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v17"
+const DocumentVersion = "v13"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
@@ -69,7 +69,7 @@ const (
 	// is: a document must reach this fraction of the best match's score (0.2 = at least 20%)
 	// to be shown at all, which prunes weak, mostly-coincidental matches out of the
 	// maxSimilarityCandidates pool before it's paginated.
-	defaultMinSimilarityScoreRatio = 0.2
+	defaultMinSimilarityScoreRatio = 0.4
 )
 
 // Config holds indexer configuration.
