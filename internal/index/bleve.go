@@ -69,7 +69,7 @@ const (
 	// is: a document must reach this fraction of the best match's score (0.2 = at least 20%)
 	// to be shown at all, which prunes weak, mostly-coincidental matches out of the
 	// maxSimilarityCandidates pool before it's paginated.
-	defaultMinSimilarityScoreRatio = 0.4
+	defaultMinSimilarityScoreRatio = 0.3
 )
 
 // Config holds indexer configuration.

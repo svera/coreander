@@ -115,6 +115,27 @@ On first run, Coreander creates an admin user with the following credentials:
 > [!CAUTION]
 > For security reasons, it is strongly encouraged to add a new admin and remove the default one as soon as possible.
 
+### TextRank keyword extraction
+
+Coreander uses [TextRank](https://github.com/DavidBelicza/TextRank) to automatically extract keywords (single words and two-word phrases) from the text of EPUB documents during indexing. TextRank builds a graph where words are nodes and an edge connects two words whenever they appear near each other in the text; words that co-occur with many other important words end up with a higher rank, similarly to how Google's PageRank ranks web pages by how many other important pages link to them. The highest-ranked words and phrases become a document's keywords.
+
+These extracted keywords power two features:
+
+* **Search**: keywords are indexed alongside title, author and other metadata, so a document can be found by searching for a term that appears frequently in its text even if it's not part of its declared metadata.
+* **Similar documents**: when viewing a document, Coreander suggests others that share a meaningful number of its top keywords.
+
+Before ranking, Coreander detects the document's language(s) (falling back to full text detection if the EPUB doesn't declare one) and filters out stop words (common words like "the" or "and" that carry no distinctive meaning) for each detected language, plus English stop words always, since documents often mix in English terms regardless of their main language.
+
+Not every word or phrase TextRank finds is kept: only those whose occurrence count is close enough to the most frequent one survive, controlled by `--min-occurrence-ratio` (see table below). This avoids keeping words that only appear once or twice in an otherwise repetitive document, which would otherwise look important simply because they're compared against a low baseline.
+
+You can fine-tune this behavior with the following flags:
+
+* `--min-occurrence-ratio`: raise it to keep only the most frequent, most representative keywords per document (fewer, more precise search/similarity matches); lower it (down to 0, which disables text ranking altogether) to keep more of the long tail of less frequent keywords (broader matches, more noise).
+* `--max-similarity-keywords`: raise it so documents with many keywords are matched more accurately when looking for similar documents, at the cost of slower queries; lower it for faster queries that only rely on each document's most important keywords.
+* `--max-similarity-candidates` and `--min-similarity-score-ratio`: these don't affect TextRank extraction itself, but control how strict the "similar documents" feature is once keywords exist — see the table below for details.
+
+Since keyword extraction runs once per document during indexing, changing `--min-occurrence-ratio` only affects documents indexed (or re-indexed with `--force-indexing`) after the change.
+
 ### Settings
 
 Run `coreander -h` or `coreander --help` to see help.
@@ -133,7 +154,7 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`--illustrated-min-size`             |`ILLUSTRATED_MIN_SIZE`    | Minimum size in megapixels for an image to count as an illustration. Defaults to 0.25.
 |`--min-occurrence-ratio`             |`MIN_OCCURRENCE_RATIO`        | Minimum fraction of the most frequent phrase's (or word's) occurrence count that a phrase or single word must reach to be kept as a search/related-document keyword for EPUB documents. Set to 0 to disable text ranking. Defaults to 0.1.
 |`--max-similarity-candidates`        |`MAX_SIMILARITY_CANDIDATES`   | Maximum number of top-scoring matches a "similar document" query considers before pruning by `min-similarity-score-ratio` and paginating. Higher values lower the chance of a genuinely similar document being cut off before scoring, at the cost of slower queries; lower values speed queries up but risk missing weaker true matches. Defaults to 200.
-|`--min-similarity-score-ratio`       |`MIN_SIMILARITY_SCORE_RATIO`  | Minimum fraction of the best match's score a document must reach to be considered similar enough to show in a "similar document" query. Higher values give fewer but more relevant results (a "similar documents" list can end up empty); lower values show more results but risk weak, coincidental matches. Defaults to 0.2.
+|`--min-similarity-score-ratio`       |`MIN_SIMILARITY_SCORE_RATIO`  | Minimum fraction of the best match's score a document must reach to be considered similar enough to show in a "similar document" query. Higher values give fewer but more relevant results (a "similar documents" list can end up empty); lower values show more results but risk weak, coincidental matches. Defaults to 0.3.
 |`--max-similarity-keywords`          |`MAX_SIMILARITY_KEYWORDS`     | Maximum number of a document's TextRank keywords used to find "similar" documents. Set to 0 to disable the cap. Higher values improve matching accuracy for documents with many keywords but slow those queries down. Lower values are faster but only match a document on its most representative keywords (they're ranked by importance, so the top ones are used first). Defaults to 60.
 |`-c` or `--cache-dir`                |`CACHE_DIR`                       | Directory where to store cache files. Defaults to `~/.coreander/cache`.
 |`--cache-max-size`                   |`CACHE_MAX_SIZE`                  | Maximum total size of the cache directory in megabytes. Oldest files are evicted first when the limit is reached. Set to 0 for unlimited. Defaults to 500.
