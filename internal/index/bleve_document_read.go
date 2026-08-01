@@ -39,13 +39,13 @@ var DefaultDocumentSortBy = []string{"-_score", "Series", "SeriesIndex"}
 
 // Search look for documents which match the passed keywords and filters.
 // Returns a maximum <resultsPerPage> documents, offset by <page>
-func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
+func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage int) (result.SimilarityResult[[]Document], error) {
 	filtersQuery := bleve.NewConjunctionQuery()
 
 	if searchFields.SimilarTo != "" {
 		doc, err := b.Document(searchFields.SimilarTo)
 		if err != nil {
-			return result.Paginated[[]Document]{}, err
+			return result.SimilarityResult[[]Document]{}, err
 		}
 		subjectsQuery := b.subjectsQuery(doc)
 		filtersQuery.AddQuery(subjectsQuery)
@@ -70,7 +70,8 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 				filtersQuery.AddQuery(query)
 				b.addFilters(searchFields, filtersQuery)
 
-				return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
+				paginated, err := b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
+				return result.SimilarityResult[[]Document]{Paginated: paginated}, err
 			}
 		}
 
@@ -92,12 +93,13 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			}
 			filtersQuery.AddQuery(qb)
 			b.addFilters(searchFields, filtersQuery)
-			return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
+			paginated, err := b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
+			return result.SimilarityResult[[]Document]{Paginated: paginated}, err
 		}
 
 		analyzers, err := b.analyzers()
 		if err != nil {
-			return result.Paginated[[]Document]{}, err
+			return result.SimilarityResult[[]Document]{}, err
 		}
 
 		query := b.composeQuery(searchFields.Keywords, analyzers)
@@ -111,7 +113,8 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 
 	b.addFilters(searchFields, filtersQuery)
 
-	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
+	paginated, err := b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
+	return result.SimilarityResult[[]Document]{Paginated: paginated}, err
 }
 
 // newInclusiveNumericRangeQuery builds a numeric range query inclusive on both ends.
@@ -435,26 +438,26 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 // afterwards, in Go, over the already-pruned documents; see sortSimilarityResults.
 // referenceDate, if non-zero, is the publication date of the document these results are
 // similar to, used as a tiebreaker (closest first) between equally-ranked documents.
-func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Query, page, resultsPerPage int, sortBy []string, referenceDate float64) (result.Paginated[[]Document], error) {
+func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Query, page, resultsPerPage int, sortBy []string, referenceDate float64) (result.SimilarityResult[[]Document], error) {
 	// sortBy is deliberately not passed to searchAndHydrate: pruning below needs the
 	// underlying Bleve query sorted by score.
 	searchResult, hydratedDocs, err := b.searchAndHydrate(candidateQuery, b.maxSimilarityCandidates, 0, nil)
 	if err != nil {
-		return result.Paginated[[]Document]{}, err
+		return result.SimilarityResult[[]Document]{}, err
 	}
 
 	if searchResult.Total == 0 || len(searchResult.Hits) == 0 {
-		return result.Paginated[[]Document]{}, nil
+		return result.SimilarityResult[[]Document]{}, nil
 	}
 
 	bestScore := searchResult.Hits[0].Score
 	if scoringQuery != nil {
 		bestScore, err = b.bestScore(scoringQuery)
 		if err != nil {
-			return result.Paginated[[]Document]{}, err
+			return result.SimilarityResult[[]Document]{}, err
 		}
 		if bestScore == 0 {
-			return result.Paginated[[]Document]{}, nil
+			return result.SimilarityResult[[]Document]{}, nil
 		}
 	}
 
@@ -476,7 +479,10 @@ func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Que
 	}
 
 	paginated := result.Paginate(resultsPerPage, page, len(docs), docs)
-	return paginated.WithCandidates(int(searchResult.Total), b.maxSimilarityCandidates), nil
+	return result.SimilarityResult[[]Document]{
+		Paginated:  paginated,
+		Candidates: result.NewCandidatePool(int(searchResult.Total), len(hits), b.maxSimilarityCandidates),
+	}, nil
 }
 
 // bestScore returns the top score query would produce, or 0 if it has no matches.

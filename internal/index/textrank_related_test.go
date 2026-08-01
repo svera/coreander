@@ -73,10 +73,10 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 		SubjectsSlugs: []string{"history"},
 		// No TextRankKeywords, so this document only matches on the single
 		// subject clause. docSharedKeywordsOnly below matches all three
-		// keyword clauses and scores much higher, so with
-		// defaultMinSimilarityScoreRatio raised to 0.4 this weaker,
-		// subject-only match now falls below the "similar enough" threshold
-		// and is pruned - see the assertions below.
+		// keyword clauses and scores much higher, so with the
+		// minSimilarityScoreRatio configured below this weaker, subject-only
+		// match falls below the "similar enough" threshold and is pruned -
+		// see the assertions below.
 	}
 	docSharedKeywordsOnly := index.Document{
 		ID:               "shared-keywords.epub",
@@ -100,9 +100,9 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 		TextRankKeywords: sharedPairs,
 	}
 
-	idx := newTextRankTestIndex(t, []index.Document{
+	idx := newTextRankTestIndexWithConfig(t, []index.Document{
 		docWithSubject, docSharedSubject, docSharedKeywordsOnly, docUnrelated, docSameAuthor,
-	})
+	}, index.Config{MinSimilarityScoreRatio: 0.4})
 
 	got, err := idx.SameSubjects("with-subject", 10)
 	if err != nil {
@@ -235,10 +235,10 @@ func TestSearchSimilarToPrunesWeakMatches(t *testing.T) {
 
 // TestSearchSimilarToReportsCappedCandidates checks that when a "similar
 // document" query has more matches than MaxSimilarityCandidates, the
-// resulting Paginated reports the cap was hit (CandidatesCapped) along with
-// the true, uncapped match count (CandidatesTotal) - so a caller (e.g. the
-// search UI's "similar to" banner) can tell the user some matches weren't
-// even considered, rather than silently dropping them.
+// resulting SimilarityResult reports the cap was hit (Candidates.Capped)
+// along with the true, uncapped match count (Candidates.Total) - so a caller
+// (e.g. the search UI's "similar to" banner) can tell the user some matches
+// weren't even considered, rather than silently dropping them.
 func TestSearchSimilarToReportsCappedCandidates(t *testing.T) {
 	sharedKeywords := []string{"oppenheimer manhattan", "project atomic", "los alamos"}
 
@@ -270,14 +270,62 @@ func TestSearchSimilarToReportsCappedCandidates(t *testing.T) {
 		t.Fatalf("Search returned an error: %s", err)
 	}
 
-	if !res.CandidatesCapped() {
-		t.Errorf("expected CandidatesCapped to report true with 4 matches and a cap of 2, got false (CandidatesTotal=%d, CandidatesCap=%d)", res.CandidatesTotal(), res.CandidatesCap())
+	if !res.Candidates.Capped() {
+		t.Errorf("expected Candidates.Capped to report true with 4 matches and a cap of 2, got false (Total=%d, Cap=%d)", res.Candidates.Total(), res.Candidates.Cap())
 	}
-	if res.CandidatesTotal() != 4 {
-		t.Errorf("expected CandidatesTotal to report the uncapped match count 4, got %d", res.CandidatesTotal())
+	if res.Candidates.Total() != 4 {
+		t.Errorf("expected Candidates.Total to report the uncapped match count 4, got %d", res.Candidates.Total())
 	}
-	if res.CandidatesCap() != 2 {
-		t.Errorf("expected CandidatesCap to report the configured cap 2, got %d", res.CandidatesCap())
+	if res.Candidates.Cap() != 2 {
+		t.Errorf("expected Candidates.Cap to report the configured cap 2, got %d", res.Candidates.Cap())
+	}
+}
+
+// TestSearchSimilarToDoesNotReportCappedWhenThresholdIsTheLimit checks that
+// Candidates.Capped reports false when the raw candidate pool exceeds
+// MaxSimilarityCandidates but the similarity threshold - not the cap - is
+// what limits the result: if fewer of the capped candidates pass the
+// threshold than the cap allowed, widening the cap wouldn't have surfaced
+// more matches, so the "some candidates weren't considered" warning would be
+// misleading.
+func TestSearchSimilarToDoesNotReportCappedWhenThresholdIsTheLimit(t *testing.T) {
+	docA := index.Document{
+		ID:               "a.epub",
+		Slug:             "doc-a",
+		Metadata:         metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
+		AuthorsSlugs:     []string{"author-one"},
+		TextRankKeywords: []string{"oppenheimer manhattan", "project atomic", "los alamos"},
+	}
+	docStrong := index.Document{
+		ID:               "strong.epub",
+		Slug:             "strong-match",
+		Metadata:         metadata.Metadata{Title: "Strong Match", Authors: []string{"Author Strong"}, Format: "EPUB"},
+		AuthorsSlugs:     []string{"author-strong"},
+		TextRankKeywords: []string{"oppenheimer manhattan", "project atomic", "los alamos"},
+	}
+	docs := []index.Document{docA, docStrong}
+	for i := 1; i <= 3; i++ {
+		docs = append(docs, index.Document{
+			ID:               fmt.Sprintf("weak%d.epub", i),
+			Slug:             fmt.Sprintf("weak-%d", i),
+			Metadata:         metadata.Metadata{Title: fmt.Sprintf("Weak %d", i), Authors: []string{fmt.Sprintf("Author Weak %d", i)}, Format: "EPUB"},
+			AuthorsSlugs:     []string{fmt.Sprintf("author-weak-%d", i)},
+			TextRankKeywords: []string{"oppenheimer manhattan"},
+		})
+	}
+
+	idx := newTextRankTestIndexWithConfig(t, docs, index.Config{
+		MaxSimilarityCandidates: 2,
+		MinSimilarityScoreRatio: 0.6,
+	})
+
+	res, err := idx.Search(index.SearchFields{SimilarTo: "doc-a"}, 1, 10)
+	if err != nil {
+		t.Fatalf("Search returned an error: %s", err)
+	}
+
+	if res.Candidates.Capped() {
+		t.Errorf("expected Candidates.Capped to report false when the threshold, not the cap, limited the result (Total=%d, Cap=%d)", res.Candidates.Total(), res.Candidates.Cap())
 	}
 }
 

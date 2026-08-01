@@ -54,7 +54,7 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 		return fiber.ErrInternalServerError
 	}
 
-	searchResults := model.AugmentedDocumentsFromDocuments(documentResults)
+	searchResults := model.AugmentedDocumentsFromDocuments(documentResults.Paginated)
 	if session.ID > 0 {
 		searchResults = s.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
 		searchResults = s.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
@@ -92,9 +92,9 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 	templateVars["AuthorsTotalHits"] = authorCount
 	templateVars["SimilarToDocument"] = similarToDocument
 	templateVars["SimilarToActive"] = similarToDocument.Slug != ""
-	templateVars["SimilarCandidatesCapped"] = documentResults.CandidatesCapped()
-	templateVars["SimilarCandidatesTotal"] = documentResults.CandidatesTotal()
-	templateVars["SimilarCandidatesCap"] = documentResults.CandidatesCap()
+	templateVars["SimilarCandidatesCapped"] = documentResults.Candidates.Capped()
+	templateVars["SimilarCandidatesTotal"] = documentResults.Candidates.Total()
+	templateVars["SimilarCandidatesCap"] = documentResults.Candidates.Cap()
 
 	return s.renderSearch(c, templateVars, "partials/docs-list-fragments")
 }
@@ -146,9 +146,9 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	templateVars["AuthorsTotalHits"] = authorCount
 	templateVars["SimilarToDocument"] = similarToDocument
 	templateVars["SimilarToActive"] = similarToDocument.Slug != ""
-	templateVars["SimilarCandidatesCapped"] = documentTabResults.CandidatesCapped()
-	templateVars["SimilarCandidatesTotal"] = documentTabResults.CandidatesTotal()
-	templateVars["SimilarCandidatesCap"] = documentTabResults.CandidatesCap()
+	templateVars["SimilarCandidatesCapped"] = documentTabResults.Candidates.Capped()
+	templateVars["SimilarCandidatesTotal"] = documentTabResults.Candidates.Total()
+	templateVars["SimilarCandidatesCap"] = documentTabResults.Candidates.Cap()
 
 	return s.renderSearch(c, templateVars, "partials/authors-list-fragments")
 }
@@ -205,14 +205,14 @@ func (s *Controller) renderSearch(c fiber.Ctx, templateVars fiber.Map, fragmentT
 	return nil
 }
 
-func (s *Controller) tabCounts(docFields index.SearchFields, authorFields index.AuthorSearchFields) (docResults result.Paginated[[]index.Document], authorCount int, err error) {
+func (s *Controller) tabCounts(docFields index.SearchFields, authorFields index.AuthorSearchFields) (docResults result.SimilarityResult[[]index.Document], authorCount int, err error) {
 	docResults, err = s.idx.Search(docFields, 1, 0)
 	if err != nil {
-		return result.Paginated[[]index.Document]{}, 0, err
+		return result.SimilarityResult[[]index.Document]{}, 0, err
 	}
 	authorCount, err = s.idx.CountAuthors(authorFields)
 	if err != nil {
-		return result.Paginated[[]index.Document]{}, 0, err
+		return result.SimilarityResult[[]index.Document]{}, 0, err
 	}
 	return docResults, authorCount, nil
 }
