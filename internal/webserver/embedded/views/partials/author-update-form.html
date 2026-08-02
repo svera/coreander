@@ -10,7 +10,7 @@
     <p class="opacity-75"><small>{{ t .Lang "Leave it blank if the author does not have a Wikidata entry yet."}}</small></p>
     <div class="row pb-3">
         <div class="col-12 col-lg-6">
-            <form hx-put="/authors/{{.Author.Slug}}{{if ne .Style ""}}?style={{.Style}}{{end}}">
+            <form hx-put="/authors/{{.Author.Slug}}{{if ne .Style ""}}?style={{.Style}}{{end}}" hx-target="#author-{{.Author.Slug}}" hx-swap="outerHTML">
                 <div class="input-group input-group-sm">
                     <input class="form-control" type="text" name="sourceID" value="{{.Author.DataSourceID}}" maxlength="10" pattern="^[Qq]\d+$">
                     <button type="submit" class="btn btn-secondary">{{t .Lang "Update"}}</button>

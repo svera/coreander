@@ -1,3 +1,4 @@
+<div id="author-{{.Author.Slug}}">
 <div class="mt-3 row ms-0">
     <div class="col-9 ps-0">
         <div class="d-flex align-items-baseline">
@@ -104,3 +105,4 @@
 {{if and .Session (eq .Session.Role 2)}}
 <script src="/js/author-image-upload.js{{versionParam .Version}}"></script>
 {{end}}
+</div>
