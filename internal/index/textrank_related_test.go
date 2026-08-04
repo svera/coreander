@@ -124,6 +124,54 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 	}
 }
 
+// TestSameSubjectsIgnoresSingleWordKeywords guards against a real bug: a
+// single-word TextRankKeywords entry can rank highly within one document's
+// own TextRank weights while still being a generic word that appears across
+// a large fraction of an unrelated library (e.g. "house", "life"), which
+// used to pull thousands of unrelated documents into the candidate pool for
+// a single reference book. Two-word pairs don't have this problem - sharing
+// both words of a pair with another document is a much stronger, more
+// specific signal - so subjectsQuery only considers pairs, never single
+// words, for similarity matching.
+func TestSameSubjectsIgnoresSingleWordKeywords(t *testing.T) {
+	docA := index.Document{
+		ID:               "a.epub",
+		Slug:             "doc-a",
+		Metadata:         metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
+		AuthorsSlugs:     []string{"author-one"},
+		TextRankKeywords: []string{"house", "oppenheimer manhattan"},
+	}
+	docSharesOnlySingleWord := index.Document{
+		ID:               "single-word.epub",
+		Slug:             "single-word",
+		Metadata:         metadata.Metadata{Title: "Single Word", Authors: []string{"Author Two"}, Format: "EPUB"},
+		AuthorsSlugs:     []string{"author-two"},
+		TextRankKeywords: []string{"house", "cooking recipes", "bread baking"},
+	}
+	docSharesPair := index.Document{
+		ID:               "shared-pair.epub",
+		Slug:             "shared-pair",
+		Metadata:         metadata.Metadata{Title: "Shared Pair", Authors: []string{"Author Three"}, Format: "EPUB"},
+		AuthorsSlugs:     []string{"author-three"},
+		TextRankKeywords: []string{"oppenheimer manhattan", "cooking recipes"},
+	}
+
+	idx := newTextRankTestIndex(t, []index.Document{docA, docSharesOnlySingleWord, docSharesPair})
+
+	got, err := idx.SameSubjects("doc-a", 10)
+	if err != nil {
+		t.Fatalf("SameSubjects returned an error: %s", err)
+	}
+
+	gotSlugs := slugsOf(got)
+	if slices.Contains(gotSlugs, "single-word") {
+		t.Errorf("did not expect a document sharing only a single word to match, got %v", gotSlugs)
+	}
+	if !slices.Contains(gotSlugs, "shared-pair") {
+		t.Errorf("expected a document sharing a two-word pair to match, got %v", gotSlugs)
+	}
+}
+
 func TestSearchSimilarToMatchesSameSubjectsResults(t *testing.T) {
 	docA := index.Document{
 		ID:               "a.epub",

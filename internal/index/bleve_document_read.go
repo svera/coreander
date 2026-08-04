@@ -1066,15 +1066,22 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 	}
 
 	// A document can also qualify as "related" by sharing a TextRank word
-	// pair or single word extracted at indexing time (EPUB only), rather
-	// than an exact subject term - one MatchPhraseQuery per entry, since each
-	// is stored as its own array entry (see the Document.TextRankKeywords
-	// doc comment), so a pair only ever matches an actual adjacent pair in
-	// the candidate document, never two words from unrelated pairs (a single
-	// word entry is just a one-term phrase, so it matches normally).
-	// Documents that match on both subjects and keywords, or on more shared
-	// entries, score higher naturally, since DisjunctionQuery sums the
-	// scores of matching clauses.
+	// pair extracted at indexing time (EPUB only), rather than an exact
+	// subject term - one MatchPhraseQuery per entry, since each is stored as
+	// its own array entry (see the Document.TextRankKeywords doc comment),
+	// so a pair only ever matches an actual adjacent pair in the candidate
+	// document, never two words from unrelated pairs. Documents that match
+	// on both subjects and keywords, or on more shared entries, score higher
+	// naturally, since DisjunctionQuery sums the scores of matching clauses.
+	//
+	// Single-word entries in TextRankKeywords are deliberately skipped here:
+	// unlike a two-word pair, a single word has no way to be distinctive on
+	// its own - common nouns (e.g. "casa", "vida") can rank highly within a
+	// document's own TextRank weights while still appearing in a large
+	// fraction of the whole library, which pulled in tens of thousands of
+	// unrelated documents as "candidates" for a single reference book. A
+	// word pair sharing both words with another document is far less likely
+	// to be a coincidence.
 	//
 	// TextRankKeywords has no upper bound, and a long or repetitive document
 	// can end up with hundreds of entries (a real one observed while
@@ -1086,8 +1093,16 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 	// weight (see textRankKeywords), taking a prefix keeps the keywords most
 	// representative of the document, not an arbitrary subset. A cap of 0
 	// means uncapped, matching Config.MinOccurrenceRatio's "0 disables this"
-	// convention elsewhere in this same Config struct.
-	keywords := doc.TextRankKeywords
+	// convention elsewhere in this same Config struct. The cap is applied
+	// after dropping single words, so it bounds the number of actual phrase
+	// clauses evaluated rather than being partly spent on entries that would
+	// be discarded anyway.
+	keywords := make([]string, 0, len(doc.TextRankKeywords))
+	for _, keyword := range doc.TextRankKeywords {
+		if strings.Contains(keyword, " ") {
+			keywords = append(keywords, keyword)
+		}
+	}
 	if b.maxSimilarityKeywords > 0 && len(keywords) > b.maxSimilarityKeywords {
 		keywords = keywords[:b.maxSimilarityKeywords]
 	}
