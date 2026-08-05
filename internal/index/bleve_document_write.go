@@ -577,6 +577,20 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 	return nil
 }
 
+// maxIndexedTextRankKeywords hard-caps how many entries textRankKeywords ever
+// returns, regardless of Config.MaxSimilarityKeywords (which only bounds how
+// many of them a similarity query reads back, and can be set to 0 for "no
+// cap"). TextRankKeywords is indexed as a multi-valued, term-vectored Bleve
+// field (one array position per entry - see Document.TextRankKeywords), and a
+// long or repetitive document's uncapped word/phrase graph can produce
+// thousands of entries; a field value that large has been observed to
+// corrupt zapx's location encoding for that segment (a stray out-of-range
+// field ID surfacing later in unrelated Search calls, since corruption lives
+// in the segment, not the query). This limit is deliberately far above
+// MaxSimilarityKeywords' own default so it only ever trims the pathological
+// tail, not the keywords any real feature uses.
+const maxIndexedTextRankKeywords = 500
+
 // textRankKeywords turns a TextRankResult's phrases and single words into one
 // string per phrase/word, one per slice element (rather than a single
 // flattened string), so each lands in its own array entry - see the
@@ -594,7 +608,8 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 // matters beyond cosmetic ordering: a similarity query (see subjectsQuery)
 // only ever uses the first Config.MaxSimilarityKeywords entries of this list,
 // so the order here directly determines which keywords influence "similar
-// document" results for documents with more keywords than that cap.
+// document" results for documents with more keywords than that cap. It also
+// determines which entries survive maxIndexedTextRankKeywords below.
 func textRankKeywords(result *metadata.TextRankResult) []string {
 	if len(result.Phrases) == 0 && len(result.SingleWords) == 0 {
 		return nil
@@ -615,6 +630,10 @@ func textRankKeywords(result *metadata.TextRankResult) []string {
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].weight > entries[j].weight
 	})
+
+	if len(entries) > maxIndexedTextRankKeywords {
+		entries = entries[:maxIndexedTextRankKeywords]
+	}
 
 	keywords := make([]string, len(entries))
 	for i, e := range entries {
