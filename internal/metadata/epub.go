@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"archive/zip"
+	"encoding/xml"
 	"fmt"
 	"html/template"
 	"image"
@@ -105,7 +106,7 @@ func (e EpubReader) MetadataAndText(filename string) (Metadata, string, error) {
 		log.Printf("Cannot count illustrations in %s: %s\n", filename, err)
 	}
 	bk.Illustrations = illustrations
-	text, err := textFromZip(book.ReadCloser)
+	text, err := textFromZip(book.ReadCloser, opf)
 	if err != nil {
 		log.Printf("Cannot extract text in %s: %s\n", filename, err)
 		return bk, "", nil
@@ -125,7 +126,12 @@ func (e EpubReader) Text(filename string) (string, error) {
 	}
 	defer book.Close()
 
-	return textFromZip(book.ReadCloser)
+	opf, err := book.Package()
+	if err != nil {
+		opf = nil
+	}
+
+	return textFromZip(book.ReadCloser, opf)
 }
 
 // RankText implements TextRanker by delegating to rankText, the
@@ -390,9 +396,10 @@ func normalizeRawTextSelfClosingTags(content string) string {
 
 // textFromZip extracts and sanitizes all EPUB content text (skipping navigation
 // and table of contents files) from an already-open zip, joining it with blank lines.
-func textFromZip(r *zip.ReadCloser) (string, error) {
+func textFromZip(r *zip.ReadCloser, opf *epub.PackageDocument) (string, error) {
 	var textParts []string
 	p := bluemonday.StrictPolicy()
+	backmatter := backmatterHrefs(r, opf)
 
 	for _, f := range r.File {
 		isContent, err := doublestar.PathMatch("O*PS/**/*.*htm*", f.Name)
@@ -406,6 +413,14 @@ func textFromZip(r *zip.ReadCloser) (string, error) {
 		// Skip navigation and table of contents files
 		baseName := strings.ToLower(filepath.Base(f.Name))
 		if baseName == "nav.xhtml" || baseName == "toc.xhtml" {
+			continue
+		}
+
+		// Skip bibliography/notes/glossary/index files: they're not
+		// narrative content, and citations repeated across many footnotes
+		// can otherwise dominate TextRank's keyword extraction for a
+		// document - see backmatterHrefs.
+		if _, isBackmatter := backmatter[f.Name]; isBackmatter {
 			continue
 		}
 
@@ -428,6 +443,203 @@ func textFromZip(r *zip.ReadCloser) (string, error) {
 	}
 
 	return strings.Join(textParts, "\n\n"), nil
+}
+
+// backmatterTypes lists epub:type/guide "type" values (per the EPUB3
+// structural semantics vocabulary and its EPUB2 guide equivalents) for
+// sections that aren't narrative content. Citations repeated across many
+// footnotes, or an index/glossary's short repetitive entries, can otherwise
+// dominate TextRank's per-document keyword ranking despite carrying no real
+// topical signal - see textFromZip and backmatterHrefs.
+var backmatterTypes = map[string]struct{}{
+	"bibliography": {},
+	"notes":        {},
+	"endnotes":     {},
+	"footnotes":    {},
+	"glossary":     {},
+	"index":        {},
+	"colophon":     {},
+}
+
+// backmatterHrefs returns the zip paths of files identified as bibliography,
+// notes, glossary, index or colophon sections, via the EPUB2 OPF <guide>
+// element and/or the EPUB3 nav document's <nav epub:type="landmarks">,
+// whichever the EPUB provides. pirmd/epub's PackageDocument exposes neither,
+// so both are parsed directly from the raw XML/XHTML.
+func backmatterHrefs(r *zip.ReadCloser, opf *epub.PackageDocument) map[string]struct{} {
+	hrefs := map[string]struct{}{}
+
+	if opf != nil {
+		baseDir := opfBaseDir(r)
+
+		if opfPath := findOpfPath(r); opfPath != "" {
+			if raw, err := readZipFile(r, opfPath); err == nil {
+				for href := range guideBackmatterHrefs(raw) {
+					addBackmatterHref(r, hrefs, href, baseDir)
+				}
+			}
+		}
+
+		if opf.Manifest != nil {
+			for _, item := range opf.Manifest.Items {
+				if !hasProperty(item.Properties, "nav") {
+					continue
+				}
+				navZipPath := findZipEntryPath(r, candidatePaths(resolveHref(item.Href, baseDir), ""))
+				if navZipPath == "" {
+					continue
+				}
+				raw, err := readZipFile(r, navZipPath)
+				if err != nil {
+					continue
+				}
+				navDir := path.Dir(navZipPath)
+				if navDir == "." {
+					navDir = ""
+				}
+				for href := range landmarksBackmatterHrefs(raw) {
+					addBackmatterHref(r, hrefs, href, navDir)
+				}
+			}
+		}
+	}
+
+	// Many real-world EPUBs (especially fan/community conversions) never
+	// bother filling in guide references or nav landmarks beyond the cover,
+	// even though their spine plainly contains files named "Notas1.xhtml",
+	// "Bibliografia.xhtml", etc. When the EPUB's own metadata pointed to
+	// nothing, fall back to matching backmatterFilenamePatterns against
+	// spine file names, so those books aren't left with the metadata-only
+	// approach doing nothing for them.
+	if len(hrefs) == 0 {
+		hrefs = backmatterFilenameHrefs(r)
+	}
+
+	return hrefs
+}
+
+// backmatterFilenamePatterns lists substrings (Spanish and English) commonly
+// found in the file names of bibliography/notes/glossary/index/appendix
+// sections, for backmatterFilenameHrefs' fallback when an EPUB declares no
+// guide references or nav landmarks at all.
+var backmatterFilenamePatterns = []string{
+	"notas", "nota", "endnote", "footnote", "note",
+	"bibliografia", "bibliography",
+	"glosario", "glossary",
+	"indice", "index",
+	"apendice", "appendix",
+	"abreviatura", "abbreviation",
+	"colofon", "colophon",
+}
+
+// backmatterFilenameHrefs returns the zip paths of spine content files whose
+// name (ignoring extension) matches one of backmatterFilenamePatterns. Used
+// only as a fallback when backmatterHrefs finds no guide/landmarks
+// references, since matching on name alone risks false positives a
+// properly-declared EPUB wouldn't need to risk.
+func backmatterFilenameHrefs(r *zip.ReadCloser) map[string]struct{} {
+	hrefs := map[string]struct{}{}
+	for _, f := range r.File {
+		isContent, err := doublestar.PathMatch("O*PS/**/*.*htm*", f.Name)
+		if err != nil || !isContent {
+			continue
+		}
+		baseName := strings.ToLower(filepath.Base(f.Name))
+		if baseName == "nav.xhtml" || baseName == "toc.xhtml" {
+			continue
+		}
+		nameWithoutExt := strings.TrimSuffix(baseName, filepath.Ext(baseName))
+		for _, pattern := range backmatterFilenamePatterns {
+			if strings.Contains(nameWithoutExt, pattern) {
+				hrefs[f.Name] = struct{}{}
+				break
+			}
+		}
+	}
+	return hrefs
+}
+
+// addBackmatterHref resolves href (stripping any #fragment) against baseDir
+// and, if it matches an actual zip entry, adds that entry's path to hrefs.
+func addBackmatterHref(r *zip.ReadCloser, hrefs map[string]struct{}, href, baseDir string) {
+	href, _, _ = strings.Cut(href, "#")
+	if href == "" {
+		return
+	}
+	resolved := resolveHref(href, baseDir)
+	if zipPath := findZipEntryPath(r, candidatePaths(resolved, "")); zipPath != "" {
+		hrefs[zipPath] = struct{}{}
+	}
+}
+
+func hasProperty(properties, want string) bool {
+	for _, p := range strings.Fields(properties) {
+		if p == want {
+			return true
+		}
+	}
+	return false
+}
+
+// guideBackmatterHrefs parses an EPUB2 OPF's <guide> element (not exposed by
+// pirmd/epub's PackageDocument) for <reference type="..." href="..."/>
+// entries whose type is in backmatterTypes.
+func guideBackmatterHrefs(rawOPF []byte) map[string]struct{} {
+	var doc struct {
+		Guide struct {
+			References []struct {
+				Type string `xml:"type,attr"`
+				Href string `xml:"href,attr"`
+			} `xml:"reference"`
+		} `xml:"guide"`
+	}
+	hrefs := map[string]struct{}{}
+	if err := xml.Unmarshal(rawOPF, &doc); err != nil {
+		return hrefs
+	}
+	for _, ref := range doc.Guide.References {
+		if _, ok := backmatterTypes[strings.ToLower(ref.Type)]; ok {
+			hrefs[ref.Href] = struct{}{}
+		}
+	}
+	return hrefs
+}
+
+// landmarksSection isolates an EPUB3 nav document's <nav epub:type="landmarks">
+// element; landmarksAnchor then finds each <a> tag within it, and hrefAttr/
+// epubTypeAttr pull out its href/epub:type attributes regardless of the order
+// they appear in.
+var (
+	landmarksSection = regexp.MustCompile(`(?is)<nav[^>]+epub:type="landmarks"[^>]*>(.*?)</nav>`)
+	landmarksAnchor  = regexp.MustCompile(`(?i)<a\b[^>]*>`)
+	hrefAttr         = regexp.MustCompile(`(?i)href="([^"]+)"`)
+	epubTypeAttr     = regexp.MustCompile(`(?i)epub:type="([^"]+)"`)
+)
+
+// landmarksBackmatterHrefs parses an EPUB3 nav document for its
+// <nav epub:type="landmarks"> section, returning the href of every entry
+// whose epub:type is in backmatterTypes.
+func landmarksBackmatterHrefs(rawNav []byte) map[string]struct{} {
+	hrefs := map[string]struct{}{}
+	section := landmarksSection.FindSubmatch(rawNav)
+	if section == nil {
+		return hrefs
+	}
+	for _, anchor := range landmarksAnchor.FindAll(section[1], -1) {
+		typeMatch := epubTypeAttr.FindSubmatch(anchor)
+		if typeMatch == nil {
+			continue
+		}
+		if _, ok := backmatterTypes[strings.ToLower(string(typeMatch[1]))]; !ok {
+			continue
+		}
+		hrefMatch := hrefAttr.FindSubmatch(anchor)
+		if hrefMatch == nil {
+			continue
+		}
+		hrefs[string(hrefMatch[1])] = struct{}{}
+	}
+	return hrefs
 }
 
 func extractCover(r *zip.ReadCloser, coverFile, opfBaseDir string, coverMaxWidth int) (image.Image, error) {

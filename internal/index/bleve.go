@@ -29,7 +29,7 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v13"
+const DocumentVersion = "v15"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
@@ -192,6 +192,16 @@ func CreateAuthorsIndex(path string) bleve.Index {
 
 func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping := bleve.NewIndexMapping()
+	// BM25 saturates term frequency and normalizes by how a field's length
+	// compares to the index's average, rather than classic TF-IDF's raw
+	// 1/sqrt(fieldLength) norm - which systematically penalizes documents
+	// with a longer TextRankKeywords list (e.g. a book yielding many TextRank
+	// phrases) relative to shorter ones, regardless of relevance. This is set
+	// at the index level because bleve only supports choosing the scoring
+	// model here, via IndexMappingImpl.ScoringModel - per-field
+	// FieldMapping.Similarity (see below) is for KNN vector fields only and
+	// has no effect on text scoring.
+	indexMapping.ScoringModel = index.BM25Scoring
 
 	err := indexMapping.AddCustomAnalyzer(defaultAnalyzer,
 		map[string]any{
@@ -212,7 +222,6 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
-	simpleTextFieldMapping.Similarity = index.BM25Scoring
 
 	numericFieldMapping := bleve.NewNumericFieldMapping()
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
@@ -221,7 +230,6 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()
 		textFieldMapping.Analyzer = lang
-		textFieldMapping.Similarity = index.BM25Scoring
 
 		err := addNoStopWordsAnalyzer(lang, indexMapping)
 		if err != nil {
@@ -229,7 +237,6 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		}
 		noStopWordsTextFieldMapping := bleve.NewTextFieldMapping()
 		noStopWordsTextFieldMapping.Analyzer = lang + "_no_stop_words"
-		noStopWordsTextFieldMapping.Similarity = index.BM25Scoring
 
 		indexMapping.AddDocumentMapping(lang, bleve.NewDocumentMapping())
 		indexMapping.TypeMapping[lang].DefaultAnalyzer = lang
@@ -240,7 +247,19 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("IllustratorsSlugs", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrators", simpleTextFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Description", textFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankKeywords", textFieldMapping)
+		// TextRankKeywords is compared via exact-phrase MatchPhraseQuery in
+		// subjectsQuery (see bleve_document_read.go), which analyzes its query
+		// terms with defaultAnalyzer (no stemming). Mapping this field to the
+		// per-language textFieldMapping here - which does stem, e.g. Spanish's
+		// light stemmer - would silently break most phrase matches: the query
+		// tokenizes "occidental" as "occidental", but the index may have
+		// stored a stemmed form, so tokens never line up. Since this field
+		// exists specifically to detect exact recurring phrase reuse across
+		// documents (not fuzzy keyword search), it should never stem in the
+		// first place - simpleTextFieldMapping (defaultAnalyzer) keeps
+		// index-time and query-time tokenization identical for every
+		// document, regardless of its language.
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankKeywords", simpleTextFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Subjects", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("SubjectsSlugs", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Series", noStopWordsTextFieldMapping)
