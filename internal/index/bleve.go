@@ -29,7 +29,7 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v15"
+const DocumentVersion = "v16"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
@@ -94,15 +94,15 @@ type Config struct {
 	// score a document must reach to be considered similar enough to show
 	// in a "similar document" query.
 	MinSimilarityScoreRatio float64
-	// MaxSimilarityKeywords caps how many of a document's TextRankKeywords are
-	// used, at most, to find "similar" documents. TextRankKeywords has no upper
+	// MaxSimilarityPhrases caps how many of a document's TextRankPhrases are
+	// used, at most, to find "similar" documents. TextRankPhrases has no upper
 	// bound (a long or repetitive document can end up with hundreds of
-	// candidate phrases/words), and a "similar document" query ORs all of them
+	// candidate phrases), and a "similar document" query ORs all of them
 	// together - a wide disjunction like that is expensive to evaluate
-	// regardless of how common any single keyword is, since Bleve has to poll
+	// regardless of how common any single phrase is, since Bleve has to poll
 	// every one of those clauses for every candidate document. A value of 0
 	// disables the cap.
-	MaxSimilarityKeywords int
+	MaxSimilarityPhrases int
 }
 
 type BleveIndexer struct {
@@ -133,7 +133,7 @@ type BleveIndexer struct {
 	minOccurrenceRatio         float64 // minimum occurrence ratio for a TextRank phrase/word to be kept; see Config.MinOccurrenceRatio
 	maxSimilarityCandidates    int     // cap on top-scoring matches considered by a "similar document" query; see Config.MaxSimilarityCandidates
 	minSimilarityScoreRatio    float64 // minimum fraction of the best match's score to be considered similar; see Config.MinSimilarityScoreRatio
-	maxSimilarityKeywords      int     // cap on how many TextRankKeywords are used to find "similar" documents; see Config.MaxSimilarityKeywords
+	maxSimilarityPhrases       int     // cap on how many TextRankPhrases are used to find "similar" documents; see Config.MaxSimilarityPhrases
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
@@ -148,14 +148,14 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		minSimilarityScoreRatio = defaultMinSimilarityScoreRatio
 	}
 
-	// Unlike MaxSimilarityCandidates/MinSimilarityScoreRatio above, cfg.MaxSimilarityKeywords
+	// Unlike MaxSimilarityCandidates/MinSimilarityScoreRatio above, cfg.MaxSimilarityPhrases
 	// is passed straight through with no zero-substitution: 0 is a legitimate, documented
-	// choice here (disable the cap - see Config.MaxSimilarityKeywords), the same as
+	// choice here (disable the cap - see Config.MaxSimilarityPhrases), the same as
 	// Config.MinOccurrenceRatio's "0 disables this" elsewhere in this Config. The normal
-	// (production) case still gets defaultMaxSimilarityKeywords via the CLI flag's own
+	// (production) case still gets defaultMaxSimilarityPhrases via the CLI flag's own
 	// default, not a substitution here; only callers that construct a bare Config{}
-	// directly (e.g. tests) get 0 (uncapped) rather than defaultMaxSimilarityKeywords.
-	maxSimilarityKeywords := cfg.MaxSimilarityKeywords
+	// directly (e.g. tests) get 0 (uncapped) rather than defaultMaxSimilarityPhrases.
+	maxSimilarityPhrases := cfg.MaxSimilarityPhrases
 
 	return &BleveIndexer{
 		fs:                      fs,
@@ -168,7 +168,7 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		minOccurrenceRatio:      cfg.MinOccurrenceRatio,
 		maxSimilarityCandidates: maxSimilarityCandidates,
 		minSimilarityScoreRatio: minSimilarityScoreRatio,
-		maxSimilarityKeywords:   maxSimilarityKeywords,
+		maxSimilarityPhrases:    maxSimilarityPhrases,
 	}
 }
 
@@ -195,8 +195,8 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	// BM25 saturates term frequency and normalizes by how a field's length
 	// compares to the index's average, rather than classic TF-IDF's raw
 	// 1/sqrt(fieldLength) norm - which systematically penalizes documents
-	// with a longer TextRankKeywords list (e.g. a book yielding many TextRank
-	// phrases) relative to shorter ones, regardless of relevance. This is set
+	// with a longer TextRankPhrases/TextRankWords list (e.g. a book yielding many
+	// TextRank phrases) relative to shorter ones, regardless of relevance. This is set
 	// at the index level because bleve only supports choosing the scoring
 	// model here, via IndexMappingImpl.ScoringModel - per-field
 	// FieldMapping.Similarity (see below) is for KNN vector fields only and
@@ -247,7 +247,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("IllustratorsSlugs", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrators", simpleTextFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Description", textFieldMapping)
-		// TextRankKeywords is compared via exact-phrase MatchPhraseQuery in
+		// TextRankPhrases is compared via exact-phrase MatchPhraseQuery in
 		// subjectsQuery (see bleve_document_read.go), which analyzes its query
 		// terms with defaultAnalyzer (no stemming). Mapping this field to the
 		// per-language textFieldMapping here - which does stem, e.g. Spanish's
@@ -259,7 +259,13 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		// first place - simpleTextFieldMapping (defaultAnalyzer) keeps
 		// index-time and query-time tokenization identical for every
 		// document, regardless of its language.
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankKeywords", simpleTextFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankPhrases", simpleTextFieldMapping)
+		// TextRankWords, unlike TextRankPhrases, is only ever matched with a
+		// plain MatchQuery (composeQuery's general keyword search), which has
+		// no adjacency to protect - so it's mapped to the per-language
+		// textFieldMapping (stemming) like Description, letting a search for
+		// "potencia" match a stored "potencias" and vice versa.
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankWords", textFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Subjects", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("SubjectsSlugs", keywordFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Series", noStopWordsTextFieldMapping)
@@ -282,7 +288,8 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("IllustratorsSlugs", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Illustrators", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Description", simpleTextFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankKeywords", simpleTextFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankPhrases", simpleTextFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankWords", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Subjects", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("SubjectsSlugs", keywordFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Series", simpleTextFieldMapping)

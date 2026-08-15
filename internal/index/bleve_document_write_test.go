@@ -9,7 +9,7 @@ import (
 )
 
 func TestTextRankKeywords(t *testing.T) {
-	t.Run("returns one \"left right\" string per phrase, followed by one string per single word", func(t *testing.T) {
+	t.Run("returns one \"left right\" string per phrase in TextRankPhrases, and one string per single word in TextRankWords", func(t *testing.T) {
 		result := &metadata.TextRankResult{
 			Phrases: []rank.Phrase{
 				{Left: "robert", Right: "oppenheimer"},
@@ -21,17 +21,24 @@ func TestTextRankKeywords(t *testing.T) {
 			},
 		}
 
-		got := textRankKeywords(result)
-		want := []string{"robert oppenheimer", "manhattan project", "physics", "chevalier"}
-		if !reflect.DeepEqual(got, want) {
-			t.Errorf("expected %#v, got %#v", want, got)
+		gotPhrases, gotWords := textRankKeywords(result)
+		wantPhrases := []string{"robert oppenheimer", "manhattan project"}
+		wantWords := []string{"physics", "chevalier"}
+		if !reflect.DeepEqual(gotPhrases, wantPhrases) {
+			t.Errorf("expected phrases %#v, got %#v", wantPhrases, gotPhrases)
+		}
+		if !reflect.DeepEqual(gotWords, wantWords) {
+			t.Errorf("expected words %#v, got %#v", wantWords, gotWords)
 		}
 	})
 
-	t.Run("no phrases or words yield a nil slice", func(t *testing.T) {
-		got := textRankKeywords(&metadata.TextRankResult{})
-		if got != nil {
-			t.Errorf("expected nil, got %#v", got)
+	t.Run("no phrases or words yield nil slices", func(t *testing.T) {
+		gotPhrases, gotWords := textRankKeywords(&metadata.TextRankResult{})
+		if gotPhrases != nil {
+			t.Errorf("expected nil phrases, got %#v", gotPhrases)
+		}
+		if gotWords != nil {
+			t.Errorf("expected nil words, got %#v", gotWords)
 		}
 	})
 }

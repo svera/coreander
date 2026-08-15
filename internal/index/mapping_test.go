@@ -14,7 +14,7 @@ import (
 // and is silently ignored for text fields, so the index kept using classic
 // TF-IDF scoring with no indication anything was wrong. TF-IDF's raw
 // 1/sqrt(fieldLength) norm unfairly penalizes documents with a longer
-// TextRankKeywords list (e.g. richer/longer books yield more TextRank
+// TextRankPhrases/TextRankWords list (e.g. richer/longer books yield more TextRank
 // phrases) relative to shorter ones, regardless of actual relevance.
 func TestCreateDocumentsMappingUsesBM25Scoring(t *testing.T) {
 	got := CreateDocumentsMapping()

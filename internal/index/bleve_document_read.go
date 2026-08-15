@@ -273,7 +273,7 @@ func (b *BleveIndexer) composeQuery(keywords string, analyzers []string) *query.
 
 		qtr := bleve.NewMatchQuery(keywords)
 		qtr.Analyzer = analyzer
-		qtr.SetField("TextRankKeywords")
+		qtr.SetField("TextRankWords")
 		qtr.Operator = query.MatchQueryOperatorAnd
 
 		langCompoundQuery.AddQuery(qt, qs, qd, qtr)
@@ -290,6 +290,18 @@ func (b *BleveIndexer) composeQuery(keywords string, analyzers []string) *query.
 
 		allLangsOrTitleQuery.AddQuery(orTitleQuery)
 	}
+
+	// TextRankPhrases, unlike TextRankWords above, is always indexed with
+	// defaultAnalyzer regardless of document language (see
+	// CreateDocumentsMapping and Document.TextRankPhrases), so it's queried
+	// once here with that same analyzer rather than once per iteration of the
+	// per-language loop above - repeating an identical query on every
+	// iteration would count the same match's score multiple times.
+	qtrPhrases := bleve.NewMatchQuery(keywords)
+	qtrPhrases.Analyzer = defaultAnalyzer
+	qtrPhrases.SetField("TextRankPhrases")
+	qtrPhrases.Operator = query.MatchQueryOperatorAnd
+	langCompoundQuery.AddQuery(qtrPhrases)
 
 	qa := bleve.NewMatchQuery(keywords)
 	qa.SetField("Authors")
@@ -964,9 +976,14 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		illustratorsSlugs = nil
 	}
 
-	textRankKeywords := slicer(match.Fields["TextRankKeywords"])
-	if len(textRankKeywords) == 0 {
-		textRankKeywords = nil
+	textRankPhrases := slicer(match.Fields["TextRankPhrases"])
+	if len(textRankPhrases) == 0 {
+		textRankPhrases = nil
+	}
+
+	textRankWords := slicer(match.Fields["TextRankWords"])
+	if len(textRankWords) == 0 {
+		textRankWords = nil
 	}
 
 	// Absent for documents indexed before this field existed, which are
@@ -999,7 +1016,8 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		SeriesSlug:        match.Fields["SeriesSlug"].(string),
 		SubjectsSlugs:     slicer(match.Fields["SubjectsSlugs"]),
 		AddedOn:           addedOn,
-		TextRankKeywords:  textRankKeywords,
+		TextRankPhrases:   textRankPhrases,
+		TextRankWords:     textRankWords,
 		TextRankEnriched:  textRankEnriched,
 	}
 
@@ -1042,7 +1060,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		return []Document{}, err
 	}
 
-	if len(doc.Subjects) == 0 && len(doc.TextRankKeywords) == 0 {
+	if len(doc.Subjects) == 0 && len(doc.TextRankPhrases) == 0 {
 		return []Document{}, nil
 	}
 
@@ -1062,47 +1080,37 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 	// A document qualifies as "related" primarily by sharing a TextRank word
 	// pair extracted at indexing time (EPUB only) - one MatchPhraseQuery per
 	// entry, since each is stored as its own array entry (see the
-	// Document.TextRankKeywords doc comment), so a pair only ever matches an
+	// Document.TextRankPhrases doc comment), so a pair only ever matches an
 	// actual adjacent pair in the candidate document, never two words from
 	// unrelated pairs. Documents that match on more shared entries score
 	// higher naturally, since DisjunctionQuery sums the scores of matching
-	// clauses.
+	// clauses. Single words (Document.TextRankWords) are deliberately never
+	// used here: unlike a two-word pair, a single word has no way to be
+	// distinctive on its own - common nouns (e.g. "casa", "vida") can rank
+	// highly within a document's own TextRank weights while still appearing
+	// in a large fraction of the whole library, which pulled in tens of
+	// thousands of unrelated documents as "candidates" for a single
+	// reference book. A word pair sharing both words with another document
+	// is far less likely to be a coincidence.
 	//
-	// Single-word entries in TextRankKeywords are deliberately skipped here:
-	// unlike a two-word pair, a single word has no way to be distinctive on
-	// its own - common nouns (e.g. "casa", "vida") can rank highly within a
-	// document's own TextRank weights while still appearing in a large
-	// fraction of the whole library, which pulled in tens of thousands of
-	// unrelated documents as "candidates" for a single reference book. A
-	// word pair sharing both words with another document is far less likely
-	// to be a coincidence.
-	//
-	// TextRankKeywords has no upper bound, and a long or repetitive document
+	// TextRankPhrases has no upper bound, and a long or repetitive document
 	// can end up with hundreds of entries (a real one observed while
 	// diagnosing slow similarity queries had 782) - ORing all of them together
 	// is expensive for Bleve to evaluate regardless of how common any single
 	// keyword is, since it has to poll every one of those clauses for every
-	// candidate document. Capped at Config.MaxSimilarityKeywords to bound that
-	// cost; since TextRankKeywords is stored ordered by descending TextRank
-	// weight (see textRankKeywords), taking a prefix keeps the keywords most
+	// candidate document. Capped at Config.MaxSimilarityPhrases to bound that
+	// cost; since TextRankPhrases is stored ordered by descending TextRank
+	// weight (see textRankKeywords), taking a prefix keeps the phrases most
 	// representative of the document, not an arbitrary subset. A cap of 0
 	// means uncapped, matching Config.MinOccurrenceRatio's "0 disables this"
-	// convention elsewhere in this same Config struct. The cap is applied
-	// after dropping single words, so it bounds the number of actual phrase
-	// clauses evaluated rather than being partly spent on entries that would
-	// be discarded anyway.
-	keywords := make([]string, 0, len(doc.TextRankKeywords))
-	for _, keyword := range doc.TextRankKeywords {
-		if strings.Contains(keyword, " ") {
-			keywords = append(keywords, keyword)
-		}
+	// convention elsewhere in this same Config struct.
+	phrases := doc.TextRankPhrases
+	if b.maxSimilarityPhrases > 0 && len(phrases) > b.maxSimilarityPhrases {
+		phrases = phrases[:b.maxSimilarityPhrases]
 	}
-	if b.maxSimilarityKeywords > 0 && len(keywords) > b.maxSimilarityKeywords {
-		keywords = keywords[:b.maxSimilarityKeywords]
-	}
-	for _, keyword := range keywords {
-		kq := bleve.NewMatchPhraseQuery(keyword)
-		kq.SetField("TextRankKeywords")
+	for _, phrase := range phrases {
+		kq := bleve.NewMatchPhraseQuery(phrase)
+		kq.SetField("TextRankPhrases")
 		kq.Analyzer = defaultAnalyzer
 		subjectsCompoundQuery.AddQuery(kq)
 	}
@@ -1116,7 +1124,7 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 	// alongside keyword phrases would let a document "match" on nothing more
 	// than sharing a wide genre with the reference document, even when a much
 	// more specific keyword-based match also exists.
-	if len(keywords) == 0 {
+	if len(phrases) == 0 {
 		for _, slug := range doc.SubjectsSlugs {
 			qu := bleve.NewTermQuery(slug)
 			qu.SetField("SubjectsSlugs")

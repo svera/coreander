@@ -212,7 +212,7 @@
             {{end}}
             <div class="tab-content home-search-tab-content border{{if .SimilarToActive}} rounded-top-4{{else}} border-top-0{{end}} rounded-bottom-4">
                 <div class="tab-pane fade{{if eq $searchType "documents"}} show active{{end}}" id="search-offcanvas-documents-panel" role="tabpanel" tabindex="0">
-                    {{template "partials/document-search-filters" dict "Lang" .Lang "SearchFields" .DocumentSearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs "DocumentsSearchPage" .SearchPage}}
+                    {{template "partials/document-search-filters" dict "Lang" .Lang "SearchFields" .DocumentSearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs "DocumentsSearchPage" .SearchPage "SimilarToActive" .SimilarToActive "SimilarToDocument" .SimilarToDocument "ClearSimilarURL" .ClearSimilarURL}}
                 </div>
                 <div class="tab-pane fade{{if eq $searchType "authors"}} show active{{end}}" id="search-offcanvas-authors-panel" role="tabpanel" tabindex="0">
                     {{template "partials/author-search-filters" dict "Lang" .Lang "SearchFields" .AuthorSearchFields "SelectedGender" .SelectedGender "Version" .Version "AuthorsSearchPage" .SearchPage}}

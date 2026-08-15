@@ -122,6 +122,7 @@
 "Showing %d documents similar to %s": "Affichage de %d documents similaires à %s"
 "%d documents matched in total; only the top %d were considered": "%d documents correspondaient au total ; seuls les %d premiers ont été pris en compte"
 "Clear similar to filter": "Supprimer le filtre de similarité"
+"Similar to <cite>%s</cite>": "Similaire à <cite>%s</cite>"
 "Light": "Clair"
 "Dark": "Noir"
 "System": "Système"

@@ -111,14 +111,15 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 	if _, ok := b.reader[ext]; !ok {
 		return "", fmt.Errorf("file extension %s not supported", ext)
 	}
-	meta, textRankKeywords, err := b.metadataAndKeywordsFor(ext, file)
+	meta, phrases, words, err := b.metadataAndKeywordsFor(ext, file)
 	if err != nil {
 		return "", fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
 
 	document := b.createDocument(meta, file, nil, nil)
 	document.AddedOn = time.Now().UTC()
-	document.TextRankKeywords = textRankKeywords
+	document.TextRankPhrases = phrases
+	document.TextRankWords = words
 
 	b.documentsMu.Lock()
 	err = b.documentsIdx.Index(document.ID, document)
@@ -388,40 +389,41 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 // implements metadata.TextExtractor, its already-extracted text is reused
 // for ranking instead of extracting and sanitizing the document a second
 // time (see metadata.EpubReader.MetadataAndText).
-func (b *BleveIndexer) metadataAndKeywordsFor(ext, fullPath string) (metadata.Metadata, []string, error) {
+func (b *BleveIndexer) metadataAndKeywordsFor(ext, fullPath string) (meta metadata.Metadata, phrases []string, words []string, err error) {
 	reader := b.reader[ext]
 
 	extractor, ok := reader.(metadata.TextExtractor)
 	if !ok {
-		meta, err := reader.Metadata(fullPath)
-		return meta, nil, err
+		meta, err = reader.Metadata(fullPath)
+		return meta, nil, nil, err
 	}
 
 	meta, text, err := extractor.MetadataAndText(fullPath)
 	if err != nil {
-		return meta, nil, err
+		return meta, nil, nil, err
 	}
-	return meta, b.rankTextFromContent(reader, text, fullPath), nil
+	phrases, words = b.rankTextFromContent(reader, text, fullPath)
+	return meta, phrases, words, nil
 }
 
 // rankTextFromContent runs TextRank analysis on textContent (already
-// extracted from fullPath) and returns its word pairs, one per element,
-// ready to store in Document.TextRankKeywords for full-text search. Returns
-// nil (logging any error non-fatally) if reader doesn't implement
-// metadata.TextRanker, ranking is disabled via b.minOccurrenceRatio, or the
-// analysis fails.
-func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, fullPath string) []string {
+// extracted from fullPath) and returns its phrases and single words, one per
+// element, ready to store in Document.TextRankPhrases/Document.TextRankWords
+// for full-text search. Returns nil, nil (logging any error non-fatally) if
+// reader doesn't implement metadata.TextRanker, ranking is disabled via
+// b.minOccurrenceRatio, or the analysis fails.
+func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, fullPath string) (phrases []string, words []string) {
 	textRanker, ok := reader.(metadata.TextRanker)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	result, err := textRanker.RankText(b.minOccurrenceRatio, textContent, fullPath)
 	if err != nil {
 		log.Printf("Error ranking text for file %s: %s\n", fullPath, err)
-		return nil
+		return nil, nil
 	}
 	if result == nil {
-		return nil
+		return nil, nil
 	}
 	return textRankKeywords(result)
 }
@@ -466,7 +468,7 @@ func (b *BleveIndexer) documentsNeedingTextRank() ([]Document, error) {
 
 // rankDocument runs TextRank analysis for document (extracting its text via
 // metadata.TextSource, if its reader supports it) and returns it with
-// TextRankKeywords, Words and TextRankEnriched set. Words is computed here
+// TextRankPhrases, TextRankWords, Words and TextRankEnriched set. Words is computed here
 // rather than at AddLibrary time so that pass doesn't need to extract each
 // EPUB's full text just to count words (see metadata.EpubReader.Metadata);
 // it's instead counted from the same text this pass already extracts for
@@ -481,7 +483,7 @@ func (b *BleveIndexer) rankDocument(document Document) Document {
 		if text, err := textSource.Text(fullPath); err != nil {
 			log.Printf("Error extracting text for %s: %s\n", fullPath, err)
 		} else {
-			document.TextRankKeywords = b.rankTextFromContent(reader, text, fullPath)
+			document.TextRankPhrases, document.TextRankWords = b.rankTextFromContent(reader, text, fullPath)
 			document.Words = float64(len(strings.Fields(text)))
 		}
 	}
@@ -578,40 +580,49 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 }
 
 // maxIndexedTextRankKeywords hard-caps how many entries textRankKeywords ever
-// returns, regardless of Config.MaxSimilarityKeywords (which only bounds how
-// many of them a similarity query reads back, and can be set to 0 for "no
-// cap"). TextRankKeywords is indexed as a multi-valued, term-vectored Bleve
-// field (one array position per entry - see Document.TextRankKeywords), and a
-// long or repetitive document's uncapped word/phrase graph can produce
-// thousands of entries; a field value that large has been observed to
-// corrupt zapx's location encoding for that segment (a stray out-of-range
-// field ID surfacing later in unrelated Search calls, since corruption lives
-// in the segment, not the query). This limit is deliberately far above
-// MaxSimilarityKeywords' own default so it only ever trims the pathological
-// tail, not the keywords any real feature uses.
+// returns for each of TextRankPhrases/TextRankWords, regardless of
+// Config.MaxSimilarityPhrases (which only bounds how many phrases a
+// similarity query reads back, and can be set to 0 for "no cap"). Both fields
+// are indexed as multi-valued, term-vectored Bleve fields (one array position
+// per entry - see Document.TextRankPhrases), and a long or repetitive
+// document's uncapped word/phrase graph can produce thousands of entries; a
+// field value that large has been observed to corrupt zapx's location
+// encoding for that segment (a stray out-of-range field ID surfacing later in
+// unrelated Search calls, since corruption lives in the segment, not the
+// query). This limit is deliberately far above MaxSimilarityPhrases' own
+// default so it only ever trims the pathological tail, not the keywords any
+// real feature uses.
 const maxIndexedTextRankKeywords = 500
 
-// textRankKeywords turns a TextRankResult's phrases and single words into one
-// string per phrase/word, one per slice element (rather than a single
-// flattened string), so each lands in its own array entry - see the
-// Document.TextRankKeywords doc comment for why that separation matters.
-//
-// Phrases and single words are merged into a single list ordered by
-// descending Weight (TextRank's own, per-document-normalized importance
-// score - Left/Right/Word text aside, the only signal available for ranking
-// one keyword above another), rather than kept as two separately-sorted lists
-// concatenated end to end: FindPhrases/FindSingleWords each return their own
-// results already weight-sorted, but simply appending all phrases before all
-// single words would bury a highly-weighted single word behind every
-// phrase - regardless of which one is actually more representative of the
-// document - since the two lists were never sorted against each other. This
-// matters beyond cosmetic ordering: a similarity query (see subjectsQuery)
-// only ever uses the first Config.MaxSimilarityKeywords entries of this list,
-// so the order here directly determines which keywords influence "similar
-// document" results for documents with more keywords than that cap. It also
-// determines which entries survive maxIndexedTextRankKeywords below.
-func textRankKeywords(result *metadata.TextRankResult) []string {
-	if len(result.Phrases) == 0 && len(result.SingleWords) == 0 {
+// textRankKeywords turns a TextRankResult's phrases and single words into two
+// slices - one string per phrase, one per single word - ready to store in
+// Document.TextRankPhrases and Document.TextRankWords respectively, one per
+// slice element (rather than a single flattened string) so each lands in its
+// own array entry - see the Document.TextRankPhrases doc comment for why that
+// separation matters. Each slice is ordered by descending Weight (TextRank's
+// own, per-document-normalized importance score), so a caller that only uses
+// a prefix (e.g. subjectsQuery's Config.MaxSimilarityPhrases cap on
+// TextRankPhrases) gets the most representative entries first rather than an
+// arbitrary subset, and independently capped at maxIndexedTextRankKeywords
+// (see its own doc comment).
+func textRankKeywords(result *metadata.TextRankResult) (phrases []string, words []string) {
+	phrases = weightedTextRankEntries(len(result.Phrases), func(i int) (string, float32) {
+		p := result.Phrases[i]
+		return p.Left + " " + p.Right, p.Weight
+	})
+	words = weightedTextRankEntries(len(result.SingleWords), func(i int) (string, float32) {
+		w := result.SingleWords[i]
+		return w.Word, w.Weight
+	})
+	return phrases, words
+}
+
+// weightedTextRankEntries builds a weight-sorted (descending), capped string
+// slice out of n entries, each produced by at(i). Shared by textRankKeywords
+// for its Phrases/SingleWords slices, which come from different underlying
+// types (rank.Phrase/rank.SingleWord) with no common interface.
+func weightedTextRankEntries(n int, at func(i int) (text string, weight float32)) []string {
+	if n == 0 {
 		return nil
 	}
 
@@ -619,12 +630,10 @@ func textRankKeywords(result *metadata.TextRankResult) []string {
 		text   string
 		weight float32
 	}
-	entries := make([]weighted, 0, len(result.Phrases)+len(result.SingleWords))
-	for _, phrase := range result.Phrases {
-		entries = append(entries, weighted{phrase.Left + " " + phrase.Right, phrase.Weight})
-	}
-	for _, word := range result.SingleWords {
-		entries = append(entries, weighted{word.Word, word.Weight})
+	entries := make([]weighted, n)
+	for i := range n {
+		text, weight := at(i)
+		entries[i] = weighted{text, weight}
 	}
 
 	sort.SliceStable(entries, func(i, j int) bool {
@@ -635,11 +644,11 @@ func textRankKeywords(result *metadata.TextRankResult) []string {
 		entries = entries[:maxIndexedTextRankKeywords]
 	}
 
-	keywords := make([]string, len(entries))
+	out := make([]string, len(entries))
 	for i, e := range entries {
-		keywords[i] = e.text
+		out[i] = e.text
 	}
-	return keywords
+	return out
 }
 
 func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {

@@ -5,6 +5,12 @@
         {{$similarTo = .SearchFields.SimilarTo}}
     {{end}}
     <input type="hidden" name="similar" value="{{$similarTo}}">
+    {{if .SimilarToActive}}
+    <div class="alert alert-primary mb-4 d-flex align-items-center justify-content-between py-2 px-3" role="alert">
+        <span class="text-truncate">{{t .Lang "Similar to <cite>%s</cite>" .SimilarToDocument.Title}}</span>
+        <a href="{{.ClearSimilarURL}}" class="btn-close ms-2 flex-shrink-0" aria-label='{{t .Lang "Clear similar to filter"}}' title='{{t .Lang "Clear similar to filter"}}'></a>
+    </div>
+    {{end}}
     {{if and $idPrefix (not .HideSearch)}}
     <fieldset class="mb-4">
         <legend class="fs-5"><i class="bi bi-search me-3"></i>{{t .Lang "Search"}}</legend>

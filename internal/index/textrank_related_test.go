@@ -64,7 +64,7 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 		// docSharedKeywordsOnly, so it is expected to match via keywords -
 		// its subject is ignored, since subjects are only a fallback used
 		// when a document has no usable TextRank keywords.
-		TextRankKeywords: sharedPairs,
+		TextRankPhrases: sharedPairs,
 	}
 	docSharedSubject := index.Document{
 		ID:            "shared-subject.epub",
@@ -79,25 +79,25 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 		// document is never even a candidate. See the assertions below.
 	}
 	docSharedKeywordsOnly := index.Document{
-		ID:               "shared-keywords.epub",
-		Slug:             "shared-keywords",
-		Metadata:         metadata.Metadata{Title: "Shared Keywords", Authors: []string{"Author Three"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-three"},
-		TextRankKeywords: sharedPairs,
+		ID:              "shared-keywords.epub",
+		Slug:            "shared-keywords",
+		Metadata:        metadata.Metadata{Title: "Shared Keywords", Authors: []string{"Author Three"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-three"},
+		TextRankPhrases: sharedPairs,
 	}
 	docUnrelated := index.Document{
-		ID:               "unrelated.epub",
-		Slug:             "unrelated",
-		Metadata:         metadata.Metadata{Title: "Unrelated", Authors: []string{"Author Four"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-four"},
-		TextRankKeywords: []string{"cooking recipes", "bread baking", "gardening tools"},
+		ID:              "unrelated.epub",
+		Slug:            "unrelated",
+		Metadata:        metadata.Metadata{Title: "Unrelated", Authors: []string{"Author Four"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-four"},
+		TextRankPhrases: []string{"cooking recipes", "bread baking", "gardening tools"},
 	}
 	docSameAuthor := index.Document{
-		ID:               "same-author.epub",
-		Slug:             "same-author",
-		Metadata:         metadata.Metadata{Title: "Same Author", Authors: []string{"Author One"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-one"},
-		TextRankKeywords: sharedPairs,
+		ID:              "same-author.epub",
+		Slug:            "same-author",
+		Metadata:        metadata.Metadata{Title: "Same Author", Authors: []string{"Author One"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-one"},
+		TextRankPhrases: sharedPairs,
 	}
 
 	idx := newTextRankTestIndexWithConfig(t, []index.Document{
@@ -124,36 +124,37 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 	}
 }
 
-// TestSameSubjectsIgnoresSingleWordKeywords guards against a real bug: a
-// single-word TextRankKeywords entry can rank highly within one document's
-// own TextRank weights while still being a generic word that appears across
-// a large fraction of an unrelated library (e.g. "house", "life"), which
-// used to pull thousands of unrelated documents into the candidate pool for
-// a single reference book. Two-word pairs don't have this problem - sharing
-// both words of a pair with another document is a much stronger, more
-// specific signal - so subjectsQuery only considers pairs, never single
-// words, for similarity matching.
-func TestSameSubjectsIgnoresSingleWordKeywords(t *testing.T) {
+// TestSameSubjectsIgnoresSingleWords guards against a real bug: a single word
+// can rank highly within one document's own TextRank weights while still
+// being a generic word that appears across a large fraction of an unrelated
+// library (e.g. "house", "life"), which used to pull thousands of unrelated
+// documents into the candidate pool for a single reference book. Two-word
+// pairs don't have this problem - sharing both words of a pair with another
+// document is a much stronger, more specific signal - so subjectsQuery reads
+// only Document.TextRankPhrases, never Document.TextRankWords, for
+// similarity matching.
+func TestSameSubjectsIgnoresSingleWords(t *testing.T) {
 	docA := index.Document{
-		ID:               "a.epub",
-		Slug:             "doc-a",
-		Metadata:         metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-one"},
-		TextRankKeywords: []string{"house", "oppenheimer manhattan"},
+		ID:              "a.epub",
+		Slug:            "doc-a",
+		Metadata:        metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-one"},
+		TextRankWords:   []string{"house"},
+		TextRankPhrases: []string{"oppenheimer manhattan"},
 	}
 	docSharesOnlySingleWord := index.Document{
-		ID:               "single-word.epub",
-		Slug:             "single-word",
-		Metadata:         metadata.Metadata{Title: "Single Word", Authors: []string{"Author Two"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-two"},
-		TextRankKeywords: []string{"house", "cooking recipes", "bread baking"},
+		ID:            "single-word.epub",
+		Slug:          "single-word",
+		Metadata:      metadata.Metadata{Title: "Single Word", Authors: []string{"Author Two"}, Format: "EPUB"},
+		AuthorsSlugs:  []string{"author-two"},
+		TextRankWords: []string{"house", "cooking", "bread"},
 	}
 	docSharesPair := index.Document{
-		ID:               "shared-pair.epub",
-		Slug:             "shared-pair",
-		Metadata:         metadata.Metadata{Title: "Shared Pair", Authors: []string{"Author Three"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-three"},
-		TextRankKeywords: []string{"oppenheimer manhattan", "cooking recipes"},
+		ID:              "shared-pair.epub",
+		Slug:            "shared-pair",
+		Metadata:        metadata.Metadata{Title: "Shared Pair", Authors: []string{"Author Three"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-three"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "cooking recipes"},
 	}
 
 	idx := newTextRankTestIndex(t, []index.Document{docA, docSharesOnlySingleWord, docSharesPair})
@@ -183,12 +184,12 @@ func TestSameSubjectsIgnoresSingleWordKeywords(t *testing.T) {
 // keyword pairs, should never be a candidate here.
 func TestSubjectsOnlyUsedAsFallbackWhenNoTextRankKeywords(t *testing.T) {
 	docA := index.Document{
-		ID:               "a.epub",
-		Slug:             "doc-a",
-		Metadata:         metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB", Subjects: []string{"History"}},
-		AuthorsSlugs:     []string{"author-one"},
-		SubjectsSlugs:    []string{"history"},
-		TextRankKeywords: []string{"robin hood"},
+		ID:              "a.epub",
+		Slug:            "doc-a",
+		Metadata:        metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB", Subjects: []string{"History"}},
+		AuthorsSlugs:    []string{"author-one"},
+		SubjectsSlugs:   []string{"history"},
+		TextRankPhrases: []string{"robin hood"},
 	}
 	docSharesOnlySubject := index.Document{
 		ID:            "shares-subject.epub",
@@ -198,11 +199,11 @@ func TestSubjectsOnlyUsedAsFallbackWhenNoTextRankKeywords(t *testing.T) {
 		SubjectsSlugs: []string{"history"},
 	}
 	docSharesKeywordPair := index.Document{
-		ID:               "shared-pair.epub",
-		Slug:             "shared-pair",
-		Metadata:         metadata.Metadata{Title: "Shared Pair", Authors: []string{"Author Three"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-three"},
-		TextRankKeywords: []string{"robin hood"},
+		ID:              "shared-pair.epub",
+		Slug:            "shared-pair",
+		Metadata:        metadata.Metadata{Title: "Shared Pair", Authors: []string{"Author Three"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-three"},
+		TextRankPhrases: []string{"robin hood"},
 	}
 
 	idx := newTextRankTestIndex(t, []index.Document{docA, docSharesOnlySubject, docSharesKeywordPair})
@@ -267,12 +268,12 @@ func TestSameSubjectsFallsBackToSubjectsWhenNoTextRankKeywords(t *testing.T) {
 
 func TestSearchSimilarToMatchesSameSubjectsResults(t *testing.T) {
 	docA := index.Document{
-		ID:               "a.epub",
-		Slug:             "doc-a",
-		Metadata:         metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB", Subjects: []string{"History", "Physics"}},
-		AuthorsSlugs:     []string{"author-one"},
-		SubjectsSlugs:    []string{"history", "physics"},
-		TextRankKeywords: []string{"oppenheimer manhattan", "project atomic", "los alamos", "physics nuclear"},
+		ID:              "a.epub",
+		Slug:            "doc-a",
+		Metadata:        metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB", Subjects: []string{"History", "Physics"}},
+		AuthorsSlugs:    []string{"author-one"},
+		SubjectsSlugs:   []string{"history", "physics"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "project atomic", "los alamos", "physics nuclear"},
 	}
 	docSameSubject := index.Document{
 		ID:            "same-subject.epub",
@@ -282,18 +283,18 @@ func TestSearchSimilarToMatchesSameSubjectsResults(t *testing.T) {
 		SubjectsSlugs: []string{"history", "physics"},
 	}
 	docSharedKeywords := index.Document{
-		ID:               "shared-keywords.epub",
-		Slug:             "shared-keywords",
-		Metadata:         metadata.Metadata{Title: "Shared Keywords", Authors: []string{"Author Three"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-three"},
-		TextRankKeywords: []string{"oppenheimer manhattan", "project atomic", "los alamos"},
+		ID:              "shared-keywords.epub",
+		Slug:            "shared-keywords",
+		Metadata:        metadata.Metadata{Title: "Shared Keywords", Authors: []string{"Author Three"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-three"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "project atomic", "los alamos"},
 	}
 	docUnrelated := index.Document{
-		ID:               "unrelated.epub",
-		Slug:             "unrelated",
-		Metadata:         metadata.Metadata{Title: "Unrelated", Authors: []string{"Author Four"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-four"},
-		TextRankKeywords: []string{"cooking recipes", "bread baking", "gardening tools"},
+		ID:              "unrelated.epub",
+		Slug:            "unrelated",
+		Metadata:        metadata.Metadata{Title: "Unrelated", Authors: []string{"Author Four"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-four"},
+		TextRankPhrases: []string{"cooking recipes", "bread baking", "gardening tools"},
 	}
 
 	idx := newTextRankTestIndex(t, []index.Document{docA, docSameSubject, docSharedKeywords, docUnrelated})
@@ -324,18 +325,18 @@ func TestSearchSimilarToMatchesSameSubjectsResults(t *testing.T) {
 
 func TestSearchSimilarToPrunesWeakMatches(t *testing.T) {
 	docA := index.Document{
-		ID:               "a.epub",
-		Slug:             "doc-a",
-		Metadata:         metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-one"},
-		TextRankKeywords: []string{"oppenheimer manhattan", "project atomic", "los alamos", "physics nuclear"},
+		ID:              "a.epub",
+		Slug:            "doc-a",
+		Metadata:        metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-one"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "project atomic", "los alamos", "physics nuclear"},
 	}
 	docStrongMatch := index.Document{
-		ID:               "strong.epub",
-		Slug:             "strong-match",
-		Metadata:         metadata.Metadata{Title: "Strong Match", Authors: []string{"Author Two"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-two"},
-		TextRankKeywords: []string{"oppenheimer manhattan", "project atomic", "los alamos"},
+		ID:              "strong.epub",
+		Slug:            "strong-match",
+		Metadata:        metadata.Metadata{Title: "Strong Match", Authors: []string{"Author Two"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-two"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "project atomic", "los alamos"},
 	}
 	docWeakMatch := index.Document{
 		ID:           "weak.epub",
@@ -345,14 +346,14 @@ func TestSearchSimilarToPrunesWeakMatches(t *testing.T) {
 		// Shares only one pair ("physics nuclear") with doc-a - should score
 		// far below the strong match and get pruned by the similarity
 		// threshold.
-		TextRankKeywords: []string{"physics nuclear", "cooking recipes", "bread baking", "gardening tools"},
+		TextRankPhrases: []string{"physics nuclear", "cooking recipes", "bread baking", "gardening tools"},
 	}
 	docUnrelated := index.Document{
-		ID:               "unrelated.epub",
-		Slug:             "unrelated",
-		Metadata:         metadata.Metadata{Title: "Unrelated", Authors: []string{"Author Four"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-four"},
-		TextRankKeywords: []string{"completely unrelated", "cooking recipes", "bread baking"},
+		ID:              "unrelated.epub",
+		Slug:            "unrelated",
+		Metadata:        metadata.Metadata{Title: "Unrelated", Authors: []string{"Author Four"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-four"},
+		TextRankPhrases: []string{"completely unrelated", "cooking recipes", "bread baking"},
 	}
 
 	idx := newTextRankTestIndex(t, []index.Document{docA, docStrongMatch, docWeakMatch, docUnrelated})
@@ -384,20 +385,20 @@ func TestSearchSimilarToReportsCappedCandidates(t *testing.T) {
 	sharedKeywords := []string{"oppenheimer manhattan", "project atomic", "los alamos"}
 
 	docA := index.Document{
-		ID:               "a.epub",
-		Slug:             "doc-a",
-		Metadata:         metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-one"},
-		TextRankKeywords: sharedKeywords,
+		ID:              "a.epub",
+		Slug:            "doc-a",
+		Metadata:        metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-one"},
+		TextRankPhrases: sharedKeywords,
 	}
 	docs := []index.Document{docA}
 	for i := 1; i <= 4; i++ {
 		docs = append(docs, index.Document{
-			ID:               fmt.Sprintf("match%d.epub", i),
-			Slug:             fmt.Sprintf("match-%d", i),
-			Metadata:         metadata.Metadata{Title: fmt.Sprintf("Match %d", i), Authors: []string{fmt.Sprintf("Author %d", i)}, Format: "EPUB"},
-			AuthorsSlugs:     []string{fmt.Sprintf("author-%d", i)},
-			TextRankKeywords: sharedKeywords,
+			ID:              fmt.Sprintf("match%d.epub", i),
+			Slug:            fmt.Sprintf("match-%d", i),
+			Metadata:        metadata.Metadata{Title: fmt.Sprintf("Match %d", i), Authors: []string{fmt.Sprintf("Author %d", i)}, Format: "EPUB"},
+			AuthorsSlugs:    []string{fmt.Sprintf("author-%d", i)},
+			TextRankPhrases: sharedKeywords,
 		})
 	}
 
@@ -431,27 +432,27 @@ func TestSearchSimilarToReportsCappedCandidates(t *testing.T) {
 // misleading.
 func TestSearchSimilarToDoesNotReportCappedWhenThresholdIsTheLimit(t *testing.T) {
 	docA := index.Document{
-		ID:               "a.epub",
-		Slug:             "doc-a",
-		Metadata:         metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-one"},
-		TextRankKeywords: []string{"oppenheimer manhattan", "project atomic", "los alamos"},
+		ID:              "a.epub",
+		Slug:            "doc-a",
+		Metadata:        metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-one"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "project atomic", "los alamos"},
 	}
 	docStrong := index.Document{
-		ID:               "strong.epub",
-		Slug:             "strong-match",
-		Metadata:         metadata.Metadata{Title: "Strong Match", Authors: []string{"Author Strong"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-strong"},
-		TextRankKeywords: []string{"oppenheimer manhattan", "project atomic", "los alamos"},
+		ID:              "strong.epub",
+		Slug:            "strong-match",
+		Metadata:        metadata.Metadata{Title: "Strong Match", Authors: []string{"Author Strong"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-strong"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "project atomic", "los alamos"},
 	}
 	docs := []index.Document{docA, docStrong}
 	for i := 1; i <= 3; i++ {
 		docs = append(docs, index.Document{
-			ID:               fmt.Sprintf("weak%d.epub", i),
-			Slug:             fmt.Sprintf("weak-%d", i),
-			Metadata:         metadata.Metadata{Title: fmt.Sprintf("Weak %d", i), Authors: []string{fmt.Sprintf("Author Weak %d", i)}, Format: "EPUB"},
-			AuthorsSlugs:     []string{fmt.Sprintf("author-weak-%d", i)},
-			TextRankKeywords: []string{"oppenheimer manhattan"},
+			ID:              fmt.Sprintf("weak%d.epub", i),
+			Slug:            fmt.Sprintf("weak-%d", i),
+			Metadata:        metadata.Metadata{Title: fmt.Sprintf("Weak %d", i), Authors: []string{fmt.Sprintf("Author Weak %d", i)}, Format: "EPUB"},
+			AuthorsSlugs:    []string{fmt.Sprintf("author-weak-%d", i)},
+			TextRankPhrases: []string{"oppenheimer manhattan"},
 		})
 	}
 
@@ -481,32 +482,32 @@ func TestSearchSimilarToRespectsSortBy(t *testing.T) {
 	sharedPairs := []string{"oppenheimer manhattan", "project atomic", "los alamos"}
 
 	docA := index.Document{
-		ID:               "a.epub",
-		Slug:             "doc-a",
-		Metadata:         metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
-		AuthorsSlugs:     []string{"author-one"},
-		TextRankKeywords: sharedPairs,
+		ID:              "a.epub",
+		Slug:            "doc-a",
+		Metadata:        metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-one"},
+		TextRankPhrases: sharedPairs,
 	}
 	docOldest := index.Document{
-		ID:               "oldest.epub",
-		Slug:             "oldest",
-		Metadata:         metadata.Metadata{Title: "Oldest", Authors: []string{"Author Two"}, Format: "EPUB", Publication: precisiondate.NewPrecisionDate("2000-01-01T00:00:00Z", precisiondate.PrecisionDay)},
-		AuthorsSlugs:     []string{"author-two"},
-		TextRankKeywords: sharedPairs,
+		ID:              "oldest.epub",
+		Slug:            "oldest",
+		Metadata:        metadata.Metadata{Title: "Oldest", Authors: []string{"Author Two"}, Format: "EPUB", Publication: precisiondate.NewPrecisionDate("2000-01-01T00:00:00Z", precisiondate.PrecisionDay)},
+		AuthorsSlugs:    []string{"author-two"},
+		TextRankPhrases: sharedPairs,
 	}
 	docMiddle := index.Document{
-		ID:               "middle.epub",
-		Slug:             "middle",
-		Metadata:         metadata.Metadata{Title: "Middle", Authors: []string{"Author Three"}, Format: "EPUB", Publication: precisiondate.NewPrecisionDate("2010-01-01T00:00:00Z", precisiondate.PrecisionDay)},
-		AuthorsSlugs:     []string{"author-three"},
-		TextRankKeywords: sharedPairs,
+		ID:              "middle.epub",
+		Slug:            "middle",
+		Metadata:        metadata.Metadata{Title: "Middle", Authors: []string{"Author Three"}, Format: "EPUB", Publication: precisiondate.NewPrecisionDate("2010-01-01T00:00:00Z", precisiondate.PrecisionDay)},
+		AuthorsSlugs:    []string{"author-three"},
+		TextRankPhrases: sharedPairs,
 	}
 	docNewest := index.Document{
-		ID:               "newest.epub",
-		Slug:             "newest",
-		Metadata:         metadata.Metadata{Title: "Newest", Authors: []string{"Author Four"}, Format: "EPUB", Publication: precisiondate.NewPrecisionDate("2020-01-01T00:00:00Z", precisiondate.PrecisionDay)},
-		AuthorsSlugs:     []string{"author-four"},
-		TextRankKeywords: sharedPairs,
+		ID:              "newest.epub",
+		Slug:            "newest",
+		Metadata:        metadata.Metadata{Title: "Newest", Authors: []string{"Author Four"}, Format: "EPUB", Publication: precisiondate.NewPrecisionDate("2020-01-01T00:00:00Z", precisiondate.PrecisionDay)},
+		AuthorsSlugs:    []string{"author-four"},
+		TextRankPhrases: sharedPairs,
 	}
 
 	idx := newTextRankTestIndex(t, []index.Document{docA, docOldest, docMiddle, docNewest})

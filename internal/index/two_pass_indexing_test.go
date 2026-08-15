@@ -15,7 +15,7 @@ import (
 // rankableTestReader implements metadata.TextExtractor, metadata.TextSource
 // and metadata.TextRanker, mirroring the real EpubReader, so AddLibrary defers
 // TextRank analysis and EnrichTextRankKeywords is required to populate
-// TextRankKeywords.
+// TextRankPhrases/TextRankWords.
 type rankableTestReader struct{}
 
 func (rankableTestReader) Metadata(path string) (metadata.Metadata, error) {
@@ -87,8 +87,11 @@ func TestAddLibraryDefersTextRankToEnrichment(t *testing.T) {
 	if rankable.TextRankEnriched {
 		t.Errorf("expected rankable document to not be TextRank-enriched right after AddLibrary")
 	}
-	if len(rankable.TextRankKeywords) != 0 {
-		t.Errorf("expected rankable document to have no TextRankKeywords yet, got %q", rankable.TextRankKeywords)
+	if len(rankable.TextRankPhrases) != 0 {
+		t.Errorf("expected rankable document to have no TextRankPhrases yet, got %q", rankable.TextRankPhrases)
+	}
+	if len(rankable.TextRankWords) != 0 {
+		t.Errorf("expected rankable document to have no TextRankWords yet, got %q", rankable.TextRankWords)
 	}
 
 	nonRankable, err := idx.Document("author-two-non-rankable-book")
@@ -110,9 +113,13 @@ func TestAddLibraryDefersTextRankToEnrichment(t *testing.T) {
 	if !rankable.TextRankEnriched {
 		t.Errorf("expected rankable document to be TextRank-enriched after EnrichTextRankKeywords")
 	}
-	wantKeywords := []string{"some keyword", "standalone"}
-	if !slices.Equal(rankable.TextRankKeywords, wantKeywords) {
-		t.Errorf("expected rankable document to have TextRankKeywords %q, got %q", wantKeywords, rankable.TextRankKeywords)
+	wantPhrases := []string{"some keyword"}
+	if !slices.Equal(rankable.TextRankPhrases, wantPhrases) {
+		t.Errorf("expected rankable document to have TextRankPhrases %q, got %q", wantPhrases, rankable.TextRankPhrases)
+	}
+	wantWords := []string{"standalone"}
+	if !slices.Equal(rankable.TextRankWords, wantWords) {
+		t.Errorf("expected rankable document to have TextRankWords %q, got %q", wantWords, rankable.TextRankWords)
 	}
 
 	nonRankable, err = idx.Document("author-two-non-rankable-book")

@@ -22,18 +22,18 @@ import (
 // which documents match, never change their score.
 func TestAddFiltersDoesNotAffectScoring(t *testing.T) {
 	docA := Document{
-		ID:               "a.epub",
-		Slug:             "doc-a",
-		Metadata:         metadata.Metadata{Title: "Doc A", Format: "EPUB", Language: "es"},
-		AuthorsSlugs:     []string{"author-one"},
-		TextRankKeywords: []string{"oppenheimer manhattan", "project atomic", "los alamos", "physics nuclear"},
+		ID:              "a.epub",
+		Slug:            "doc-a",
+		Metadata:        metadata.Metadata{Title: "Doc A", Format: "EPUB", Language: "es"},
+		AuthorsSlugs:    []string{"author-one"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "project atomic", "los alamos", "physics nuclear"},
 	}
 	docStrongMatch := Document{
-		ID:               "strong.epub",
-		Slug:             "strong-match",
-		Metadata:         metadata.Metadata{Title: "Strong Match", Format: "EPUB", Language: "es-ES"},
-		AuthorsSlugs:     []string{"author-two"},
-		TextRankKeywords: []string{"oppenheimer manhattan", "project atomic", "los alamos"},
+		ID:              "strong.epub",
+		Slug:            "strong-match",
+		Metadata:        metadata.Metadata{Title: "Strong Match", Format: "EPUB", Language: "es-ES"},
+		AuthorsSlugs:    []string{"author-two"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "project atomic", "los alamos"},
 	}
 	docWeakMatch := Document{
 		ID:           "weak.epub",
@@ -45,7 +45,7 @@ func TestAddFiltersDoesNotAffectScoring(t *testing.T) {
 		// library (unlike strong-match's "es-ES", shared with 20 filler
 		// documents below), so an unboosted language filter would give it a
 		// disproportionate IDF-based score boost unrelated to its relevance.
-		TextRankKeywords: []string{"physics nuclear", "cooking recipes", "bread baking", "gardening tools"},
+		TextRankPhrases: []string{"physics nuclear", "cooking recipes", "bread baking", "gardening tools"},
 	}
 
 	docs := []Document{docA, docStrongMatch, docWeakMatch}
@@ -105,4 +105,3 @@ func TestAddFiltersDoesNotAffectScoring(t *testing.T) {
 		}
 	}
 }
-

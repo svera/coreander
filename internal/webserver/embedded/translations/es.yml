@@ -120,6 +120,7 @@
 "Showing %d documents similar to %s": "Mostrando %d documentos similares a %s"
 "%d documents matched in total; only the top %d were considered": "%d documentos coincidieron en total; solo se consideraron los %d mejores"
 "Clear similar to filter": "Quitar filtro de similares"
+"Similar to <cite>%s</cite>": "Similar a <cite>%s</cite>"
 "Style": "Estilo"
 "Light": "Claro"
 "Dark": "Oscuro"
