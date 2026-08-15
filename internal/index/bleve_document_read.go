@@ -1059,20 +1059,14 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 	bq := bleve.NewBooleanQuery()
 	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
 
-	for _, slug := range doc.SubjectsSlugs {
-		qu := bleve.NewTermQuery(slug)
-		qu.SetField("SubjectsSlugs")
-		subjectsCompoundQuery.AddQuery(qu)
-	}
-
-	// A document can also qualify as "related" by sharing a TextRank word
-	// pair extracted at indexing time (EPUB only), rather than an exact
-	// subject term - one MatchPhraseQuery per entry, since each is stored as
-	// its own array entry (see the Document.TextRankKeywords doc comment),
-	// so a pair only ever matches an actual adjacent pair in the candidate
-	// document, never two words from unrelated pairs. Documents that match
-	// on both subjects and keywords, or on more shared entries, score higher
-	// naturally, since DisjunctionQuery sums the scores of matching clauses.
+	// A document qualifies as "related" primarily by sharing a TextRank word
+	// pair extracted at indexing time (EPUB only) - one MatchPhraseQuery per
+	// entry, since each is stored as its own array entry (see the
+	// Document.TextRankKeywords doc comment), so a pair only ever matches an
+	// actual adjacent pair in the candidate document, never two words from
+	// unrelated pairs. Documents that match on more shared entries score
+	// higher naturally, since DisjunctionQuery sums the scores of matching
+	// clauses.
 	//
 	// Single-word entries in TextRankKeywords are deliberately skipped here:
 	// unlike a two-word pair, a single word has no way to be distinctive on
@@ -1111,6 +1105,23 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 		kq.SetField("TextRankKeywords")
 		kq.Analyzer = defaultAnalyzer
 		subjectsCompoundQuery.AddQuery(kq)
+	}
+
+	// Subjects are only consulted as a fallback, when the document has no
+	// usable TextRank keyword phrase at all (e.g. a non-EPUB document, a
+	// document short enough that TextRank produced nothing distinctive, or
+	// text ranking disabled entirely via Config.MinOccurrenceRatio = 0).
+	// Subject terms are broad categories (e.g. "history") rather than a
+	// specific match on the document's actual content, so ORing them in
+	// alongside keyword phrases would let a document "match" on nothing more
+	// than sharing a wide genre with the reference document, even when a much
+	// more specific keyword-based match also exists.
+	if len(keywords) == 0 {
+		for _, slug := range doc.SubjectsSlugs {
+			qu := bleve.NewTermQuery(slug)
+			qu.SetField("SubjectsSlugs")
+			subjectsCompoundQuery.AddQuery(qu)
+		}
 	}
 
 	if doc.SeriesSlug != "" {
