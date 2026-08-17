@@ -629,6 +629,9 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 	}
 
 	document.Slug = b.Slug(document, batchSlugs, documentsSeen)
+	if documentsSeen != nil {
+		documentsSeen[document.Slug] = document
+	}
 
 	for i, author := range meta.Authors {
 		document.AuthorsSlugs[i] = slug.Make(author)
