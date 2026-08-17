@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
@@ -341,46 +340,10 @@ func (b *BleveIndexer) metadataJobResultFor(path string) metadataJobResult {
 
 func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metadataJobResult {
 	out := make([]metadataJobResult, len(paths))
-	if len(paths) == 0 {
-		return out
-	}
-	recordProgress := func() {
+	parallelFor(len(paths), workers, func(i int) {
+		out[i] = b.metadataJobResultFor(paths[i])
 		b.indexedEntries.Add(1)
-	}
-	if workers <= 1 {
-		for i, p := range paths {
-			out[i] = b.metadataJobResultFor(p)
-			recordProgress()
-		}
-		return out
-	}
-	if workers > maxMetadataWorkers {
-		workers = maxMetadataWorkers
-	}
-	if workers > len(paths) {
-		workers = len(paths)
-	}
-	type indexedPath struct {
-		i    int
-		path string
-	}
-	jobs := make(chan indexedPath)
-	var wg sync.WaitGroup
-	for range workers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := range jobs {
-				out[j.i] = b.metadataJobResultFor(j.path)
-				recordProgress()
-			}
-		}()
-	}
-	for i, p := range paths {
-		jobs <- indexedPath{i, p}
-	}
-	close(jobs)
-	wg.Wait()
+	})
 	return out
 }
 
@@ -496,40 +459,10 @@ func (b *BleveIndexer) rankDocument(document Document) Document {
 // CPU-bound and independent per document.
 func (b *BleveIndexer) rankDocuments(docs []Document, workers int) []Document {
 	out := make([]Document, len(docs))
-	rank := func(i int) {
+	parallelFor(len(docs), workers, func(i int) {
 		out[i] = b.rankDocument(docs[i])
 		b.recordTextRankEnrichmentProgress()
-	}
-
-	if workers <= 1 {
-		for i := range docs {
-			rank(i)
-		}
-		return out
-	}
-	if workers > maxMetadataWorkers {
-		workers = maxMetadataWorkers
-	}
-	if workers > len(docs) {
-		workers = len(docs)
-	}
-
-	jobs := make(chan int)
-	var wg sync.WaitGroup
-	for range workers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range jobs {
-				rank(i)
-			}
-		}()
-	}
-	for i := range docs {
-		jobs <- i
-	}
-	close(jobs)
-	wg.Wait()
+	})
 	return out
 }
 
@@ -579,7 +512,7 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 	return nil
 }
 
-// maxIndexedTextRankKeywords hard-caps how many entries textRankKeywords ever
+// maxIndexedTextRankEntries hard-caps how many entries textRankKeywords ever
 // returns for each of TextRankPhrases/TextRankWords, regardless of
 // Config.MaxSimilarityPhrases (which only bounds how many phrases a
 // similarity query reads back, and can be set to 0 for "no cap"). Both fields
@@ -592,7 +525,7 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 // query). This limit is deliberately far above MaxSimilarityPhrases' own
 // default so it only ever trims the pathological tail, not the keywords any
 // real feature uses.
-const maxIndexedTextRankKeywords = 500
+const maxIndexedTextRankEntries = 500
 
 // textRankKeywords turns a TextRankResult's phrases and single words into two
 // slices - one string per phrase, one per single word - ready to store in
@@ -603,7 +536,7 @@ const maxIndexedTextRankKeywords = 500
 // own, per-document-normalized importance score), so a caller that only uses
 // a prefix (e.g. subjectsQuery's Config.MaxSimilarityPhrases cap on
 // TextRankPhrases) gets the most representative entries first rather than an
-// arbitrary subset, and independently capped at maxIndexedTextRankKeywords
+// arbitrary subset, and independently capped at maxIndexedTextRankEntries
 // (see its own doc comment).
 func textRankKeywords(result *metadata.TextRankResult) (phrases []string, words []string) {
 	phrases = weightedTextRankEntries(len(result.Phrases), func(i int) (string, float32) {
@@ -640,8 +573,8 @@ func weightedTextRankEntries(n int, at func(i int) (text string, weight float32)
 		return entries[i].weight > entries[j].weight
 	})
 
-	if len(entries) > maxIndexedTextRankKeywords {
-		entries = entries[:maxIndexedTextRankKeywords]
+	if len(entries) > maxIndexedTextRankEntries {
+		entries = entries[:maxIndexedTextRankEntries]
 	}
 
 	out := make([]string, len(entries))

@@ -447,7 +447,7 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 // Pruning always needs the underlying Bleve query sorted by score, to find the best
 // match's score - so sortBy (the user's chosen display order, e.g. by publication date)
 // can't be handed to Bleve the way runPaginatedQuery does. Instead it's applied
-// afterwards, in Go, over the already-pruned documents; see sortCappedPaginatedResults.
+// afterwards, in Go, over the already-pruned documents; see sortSimilarityResults.
 // referenceDate, if non-zero, is the publication date of the document these results are
 // similar to, used as a tiebreaker (closest first) between equally-ranked documents.
 func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Query, page, resultsPerPage int, sortBy []string, referenceDate float64) (result.CappedPaginatedResult[[]Document], error) {
@@ -483,7 +483,7 @@ func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Que
 		hits = append(hits, similarityHit{doc: hydratedDocs[i], score: hit.Score})
 	}
 
-	sortCappedPaginatedResults(hits, sortBy, referenceDate)
+	sortSimilarityResults(hits, sortBy, referenceDate)
 
 	docs := make([]Document, len(hits))
 	for i, h := range hits {
@@ -513,14 +513,14 @@ func (b *BleveIndexer) bestScore(query query.Query) (float64, error) {
 }
 
 // similarityHit pairs a hydrated Document with the raw Bleve score of the match it
-// came from, so sortCappedPaginatedResults can use the score as a sort key without
+// came from, so sortSimilarityResults can use the score as a sort key without
 // re-querying Bleve.
 type similarityHit struct {
 	doc   Document
 	score float64
 }
 
-// sortCappedPaginatedResults re-sorts hits (already pruned and, going in, ordered by
+// sortSimilarityResults re-sorts hits (already pruned and, going in, ordered by
 // -_score) according to sortBy - the same field-name syntax parseDocumentSortBy
 // produces for Bleve's own SortBy, since these are the only fields it ever
 // generates (see documentSortOptions). "_score"/"-_score" compares the raw Bleve
@@ -533,7 +533,7 @@ type similarityHit struct {
 // first, so documents from around the same time as the reference document rank
 // above equally-ranked ones from further away. If referenceDate is zero (the
 // reference document has no publication date), that tiebreak is skipped.
-func sortCappedPaginatedResults(hits []similarityHit, sortBy []string, referenceDate float64) {
+func sortSimilarityResults(hits []similarityHit, sortBy []string, referenceDate float64) {
 	if len(sortBy) == 0 && referenceDate == 0 {
 		return
 	}
