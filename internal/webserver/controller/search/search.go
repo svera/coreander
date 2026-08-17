@@ -205,14 +205,14 @@ func (s *Controller) renderSearch(c fiber.Ctx, templateVars fiber.Map, fragmentT
 	return nil
 }
 
-func (s *Controller) tabCounts(docFields index.SearchFields, authorFields index.AuthorSearchFields) (docResults result.SimilarityResult[[]index.Document], authorCount int, err error) {
+func (s *Controller) tabCounts(docFields index.SearchFields, authorFields index.AuthorSearchFields) (docResults result.CappedPaginatedResult[[]index.Document], authorCount int, err error) {
 	docResults, err = s.idx.Search(docFields, 1, 0)
 	if err != nil {
-		return result.SimilarityResult[[]index.Document]{}, 0, err
+		return result.CappedPaginatedResult[[]index.Document]{}, 0, err
 	}
 	authorCount, err = s.idx.CountAuthors(authorFields)
 	if err != nil {
-		return result.SimilarityResult[[]index.Document]{}, 0, err
+		return result.CappedPaginatedResult[[]index.Document]{}, 0, err
 	}
 	return docResults, authorCount, nil
 }

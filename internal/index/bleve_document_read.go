@@ -39,13 +39,13 @@ var DefaultDocumentSortBy = []string{"-_score", "Series", "SeriesIndex"}
 
 // Search look for documents which match the passed keywords and filters.
 // Returns a maximum <resultsPerPage> documents, offset by <page>
-func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage int) (result.SimilarityResult[[]Document], error) {
+func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage int) (result.CappedPaginatedResult[[]Document], error) {
 	filtersQuery := bleve.NewConjunctionQuery()
 
 	if searchFields.SimilarTo != "" {
 		doc, err := b.Document(searchFields.SimilarTo)
 		if err != nil {
-			return result.SimilarityResult[[]Document]{}, err
+			return result.CappedPaginatedResult[[]Document]{}, err
 		}
 		subjectsQuery := b.subjectsQuery(doc)
 		filtersQuery.AddQuery(subjectsQuery)
@@ -71,7 +71,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 				b.addFilters(searchFields, filtersQuery)
 
 				paginated, err := b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
-				return result.SimilarityResult[[]Document]{Paginated: paginated}, err
+				return result.CappedPaginatedResult[[]Document]{Paginated: paginated}, err
 			}
 		}
 
@@ -94,12 +94,12 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 			filtersQuery.AddQuery(qb)
 			b.addFilters(searchFields, filtersQuery)
 			paginated, err := b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
-			return result.SimilarityResult[[]Document]{Paginated: paginated}, err
+			return result.CappedPaginatedResult[[]Document]{Paginated: paginated}, err
 		}
 
 		analyzers, err := b.analyzers()
 		if err != nil {
-			return result.SimilarityResult[[]Document]{}, err
+			return result.CappedPaginatedResult[[]Document]{}, err
 		}
 
 		query := b.composeQuery(searchFields.Keywords, analyzers)
@@ -114,7 +114,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 	b.addFilters(searchFields, filtersQuery)
 
 	paginated, err := b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
-	return result.SimilarityResult[[]Document]{Paginated: paginated}, err
+	return result.CappedPaginatedResult[[]Document]{Paginated: paginated}, err
 }
 
 // newInclusiveNumericRangeQuery builds a numeric range query inclusive on both ends.
@@ -447,29 +447,29 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 // Pruning always needs the underlying Bleve query sorted by score, to find the best
 // match's score - so sortBy (the user's chosen display order, e.g. by publication date)
 // can't be handed to Bleve the way runPaginatedQuery does. Instead it's applied
-// afterwards, in Go, over the already-pruned documents; see sortSimilarityResults.
+// afterwards, in Go, over the already-pruned documents; see sortCappedPaginatedResults.
 // referenceDate, if non-zero, is the publication date of the document these results are
 // similar to, used as a tiebreaker (closest first) between equally-ranked documents.
-func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Query, page, resultsPerPage int, sortBy []string, referenceDate float64) (result.SimilarityResult[[]Document], error) {
+func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Query, page, resultsPerPage int, sortBy []string, referenceDate float64) (result.CappedPaginatedResult[[]Document], error) {
 	// sortBy is deliberately not passed to searchAndHydrate: pruning below needs the
 	// underlying Bleve query sorted by score.
 	searchResult, hydratedDocs, err := b.searchAndHydrate(candidateQuery, b.maxSimilarityCandidates, 0, nil)
 	if err != nil {
-		return result.SimilarityResult[[]Document]{}, err
+		return result.CappedPaginatedResult[[]Document]{}, err
 	}
 
 	if searchResult.Total == 0 || len(searchResult.Hits) == 0 {
-		return result.SimilarityResult[[]Document]{}, nil
+		return result.CappedPaginatedResult[[]Document]{}, nil
 	}
 
 	bestScore := searchResult.Hits[0].Score
 	if scoringQuery != nil {
 		bestScore, err = b.bestScore(scoringQuery)
 		if err != nil {
-			return result.SimilarityResult[[]Document]{}, err
+			return result.CappedPaginatedResult[[]Document]{}, err
 		}
 		if bestScore == 0 {
-			return result.SimilarityResult[[]Document]{}, nil
+			return result.CappedPaginatedResult[[]Document]{}, nil
 		}
 	}
 
@@ -483,7 +483,7 @@ func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Que
 		hits = append(hits, similarityHit{doc: hydratedDocs[i], score: hit.Score})
 	}
 
-	sortSimilarityResults(hits, sortBy, referenceDate)
+	sortCappedPaginatedResults(hits, sortBy, referenceDate)
 
 	docs := make([]Document, len(hits))
 	for i, h := range hits {
@@ -491,7 +491,7 @@ func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Que
 	}
 
 	paginated := result.Paginate(resultsPerPage, page, len(docs), docs)
-	return result.SimilarityResult[[]Document]{
+	return result.CappedPaginatedResult[[]Document]{
 		Paginated:  paginated,
 		Candidates: result.NewCandidatePool(int(searchResult.Total), len(hits), b.maxSimilarityCandidates),
 	}, nil
@@ -513,14 +513,14 @@ func (b *BleveIndexer) bestScore(query query.Query) (float64, error) {
 }
 
 // similarityHit pairs a hydrated Document with the raw Bleve score of the match it
-// came from, so sortSimilarityResults can use the score as a sort key without
+// came from, so sortCappedPaginatedResults can use the score as a sort key without
 // re-querying Bleve.
 type similarityHit struct {
 	doc   Document
 	score float64
 }
 
-// sortSimilarityResults re-sorts hits (already pruned and, going in, ordered by
+// sortCappedPaginatedResults re-sorts hits (already pruned and, going in, ordered by
 // -_score) according to sortBy - the same field-name syntax parseDocumentSortBy
 // produces for Bleve's own SortBy, since these are the only fields it ever
 // generates (see documentSortOptions). "_score"/"-_score" compares the raw Bleve
@@ -533,7 +533,7 @@ type similarityHit struct {
 // first, so documents from around the same time as the reference document rank
 // above equally-ranked ones from further away. If referenceDate is zero (the
 // reference document has no publication date), that tiebreak is skipped.
-func sortSimilarityResults(hits []similarityHit, sortBy []string, referenceDate float64) {
+func sortCappedPaginatedResults(hits []similarityHit, sortBy []string, referenceDate float64) {
 	if len(sortBy) == 0 && referenceDate == 0 {
 		return
 	}
@@ -1115,21 +1115,17 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 		subjectsCompoundQuery.AddQuery(kq)
 	}
 
-	// Subjects are only consulted as a fallback, when the document has no
-	// usable TextRank keyword phrase at all (e.g. a non-EPUB document, a
-	// document short enough that TextRank produced nothing distinctive, or
-	// text ranking disabled entirely via Config.MinOccurrenceRatio = 0).
-	// Subject terms are broad categories (e.g. "history") rather than a
-	// specific match on the document's actual content, so ORing them in
-	// alongside keyword phrases would let a document "match" on nothing more
-	// than sharing a wide genre with the reference document, even when a much
-	// more specific keyword-based match also exists.
-	if len(phrases) == 0 {
-		for _, slug := range doc.SubjectsSlugs {
-			qu := bleve.NewTermQuery(slug)
-			qu.SetField("SubjectsSlugs")
-			subjectsCompoundQuery.AddQuery(qu)
-		}
+	// Subjects are ORed in alongside the TextRank phrases rather than as a
+	// pure fallback: they let non-EPUB documents, documents too short for
+	// TextRank to produce anything distinctive, or documents indexed with
+	// text ranking disabled (Config.MinOccurrenceRatio = 0) still surface as
+	// related via shared genre/category, and for EPUB documents they add
+	// genre as an extra (lower-signal) matching dimension on top of the
+	// content-specific phrase matches, rather than replacing them.
+	for _, slug := range doc.SubjectsSlugs {
+		qu := bleve.NewTermQuery(slug)
+		qu.SetField("SubjectsSlugs")
+		subjectsCompoundQuery.AddQuery(qu)
 	}
 
 	if doc.SeriesSlug != "" {

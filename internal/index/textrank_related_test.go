@@ -61,9 +61,10 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 		AuthorsSlugs:  []string{"author-one"},
 		SubjectsSlugs: []string{"history"},
 		// docWithSubject also carries the same TextRankKeywords pairs as
-		// docSharedKeywordsOnly, so it is expected to match via keywords -
-		// its subject is ignored, since subjects are only a fallback used
-		// when a document has no usable TextRank keywords.
+		// docSharedKeywordsOnly, so it is expected to match via keywords too -
+		// subjects are ORed in alongside keyword phrases, not just consulted
+		// as a fallback (see
+		// TestSameSubjectsMatchesOnSubjectsAlongsideTextRankKeywords).
 		TextRankPhrases: sharedPairs,
 	}
 	docSharedSubject := index.Document{
@@ -72,11 +73,10 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 		Metadata:      metadata.Metadata{Title: "Shared Subject", Authors: []string{"Author Two"}, Format: "EPUB", Subjects: []string{"History"}},
 		AuthorsSlugs:  []string{"author-two"},
 		SubjectsSlugs: []string{"history"},
-		// No TextRankKeywords, so this document would only match docWithSubject
-		// via its shared subject - but docWithSubject has usable TextRank
-		// keywords, so subjectsQuery uses those instead of its subjects (see
-		// TestSubjectsOnlyUsedAsFallbackWhenNoTextRankKeywords), and this
-		// document is never even a candidate. See the assertions below.
+		// No TextRankKeywords, so this document matches docWithSubject only
+		// via its shared subject, which scores far below the specific
+		// keyword-pair match shared with docSharedKeywordsOnly and is
+		// expected to be pruned as a weak match. See the assertions below.
 	}
 	docSharedKeywordsOnly := index.Document{
 		ID:              "shared-keywords.epub",
@@ -173,16 +173,14 @@ func TestSameSubjectsIgnoresSingleWords(t *testing.T) {
 	}
 }
 
-// TestSubjectsOnlyUsedAsFallbackWhenNoTextRankKeywords guards against a
-// real-world case: a document with both a broad, generic subject (e.g.
-// "history") and a couple of genuinely specific TextRank keyword pairs
-// pulled in many unrelated "similar" documents, because subjectsQuery ORed
-// subjects and keywords together. Subjects are consulted only when the
-// reference document has no usable TextRank keyword phrase at all - see
-// TestSameSubjectsFallsBackToSubjectsWhenNoTextRankKeywords for that case -
-// so a document sharing only the reference's subject, and not any of its
-// keyword pairs, should never be a candidate here.
-func TestSubjectsOnlyUsedAsFallbackWhenNoTextRankKeywords(t *testing.T) {
+// TestSameSubjectsMatchesOnSubjectsAlongsideTextRankKeywords guards against a
+// regression the other way: subjects are ORed into subjectsQuery alongside
+// TextRank keyword phrases, not just consulted as a fallback when the
+// reference document has no usable phrase (see
+// TestSameSubjectsFallsBackToSubjectsWhenNoTextRankKeywords for that case),
+// so a document sharing only the reference's subject should still be a
+// candidate even when the reference also has keyword pairs.
+func TestSameSubjectsMatchesOnSubjectsAlongsideTextRankKeywords(t *testing.T) {
 	docA := index.Document{
 		ID:              "a.epub",
 		Slug:            "doc-a",
@@ -214,8 +212,8 @@ func TestSubjectsOnlyUsedAsFallbackWhenNoTextRankKeywords(t *testing.T) {
 	}
 
 	gotSlugs := slugsOf(got)
-	if slices.Contains(gotSlugs, "shares-subject") {
-		t.Errorf("did not expect a document sharing only the subject to match when the reference document has usable TextRank keywords, got %v", gotSlugs)
+	if !slices.Contains(gotSlugs, "shares-subject") {
+		t.Errorf("expected a document sharing only the subject to match alongside keyword matches, got %v", gotSlugs)
 	}
 	if !slices.Contains(gotSlugs, "shared-pair") {
 		t.Errorf("expected a document sharing the specific TextRank keyword pair to match, got %v", gotSlugs)
@@ -377,7 +375,7 @@ func TestSearchSimilarToPrunesWeakMatches(t *testing.T) {
 
 // TestSearchSimilarToReportsCappedCandidates checks that when a "similar
 // document" query has more matches than MaxSimilarityCandidates, the
-// resulting SimilarityResult reports the cap was hit (Candidates.Capped)
+// resulting CappedPaginatedResult reports the cap was hit (Candidates.Capped)
 // along with the true, uncapped match count (Candidates.Total) - so a caller
 // (e.g. the search UI's "similar to" banner) can tell the user some matches
 // weren't even considered, rather than silently dropping them.

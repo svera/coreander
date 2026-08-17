@@ -599,7 +599,7 @@ type testCase struct {
 	filename       string
 	mockedMeta     *epub.Information
 	search         index.SearchFields
-	expectedResult result.SimilarityResult[[]index.Document]
+	expectedResult result.CappedPaginatedResult[[]index.Document]
 }
 
 func testIndexAndSearchCases() []testCase {
@@ -626,7 +626,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{Keywords: "perez"},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -672,7 +672,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{Keywords: "benoit"},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -718,7 +718,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{Keywords: "clifford simak"},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -758,7 +758,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{},
 			},
 			index.SearchFields{Keywords: "james ellroy"},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -797,7 +797,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{},
 			},
 			index.SearchFields{Keywords: " james       ellroy "},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -836,7 +836,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			index.SearchFields{Keywords: "guerrero"},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -876,7 +876,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			index.SearchFields{Keywords: "fratello"},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -916,7 +916,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			index.SearchFields{Keywords: "infinito junco"},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -956,7 +956,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{"History", "WWII"},
 			},
 			index.SearchFields{Keywords: "ultimos"},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -996,7 +996,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{","},
 			},
 			index.SearchFields{Keywords: "sin nombre"},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1036,7 +1036,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			index.SearchFields{Keywords: "irene junco"},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1086,7 +1086,7 @@ func testIndexAndSearchCases() []testCase {
 				PubDateFrom: date.New(2020, 1, 1),
 				PubDateTo:   date.New(2020, 12, 31),
 			},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1136,7 +1136,7 @@ func testIndexAndSearchCases() []testCase {
 				PubDateFrom: date.New(1970, 1, 1),
 				PubDateTo:   date.New(1980, 1, 1),
 			},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1185,7 +1185,7 @@ func testIndexAndSearchCases() []testCase {
 				Subjects: "History",
 				SortBy:   []string{"Publication.Date"},
 			},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1234,7 +1234,7 @@ func testIndexAndSearchCases() []testCase {
 				Subjects: "Technology",
 				SortBy:   []string{"-Publication.Date"},
 			},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1283,7 +1283,7 @@ func testIndexAndSearchCases() []testCase {
 				Subjects: "Literature",
 				SortBy:   []string{"Publication.Date"},
 			},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1332,7 +1332,7 @@ func testIndexAndSearchCases() []testCase {
 				Subjects: "History",
 				SortBy:   []string{"Publication.Date"},
 			},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1381,7 +1381,7 @@ func testIndexAndSearchCases() []testCase {
 				Keywords: "short",
 				SortBy:   []string{"Words"},
 			},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1430,7 +1430,7 @@ func testIndexAndSearchCases() []testCase {
 				Keywords: "long",
 				SortBy:   []string{"-Words"},
 			},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1481,7 +1481,7 @@ func testIndexAndSearchCases() []testCase {
 				EstReadTimeTo:   3.0, // 3 hours maximum
 				WordsPerMinute:  200.0,
 			},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1531,7 +1531,7 @@ func testIndexAndSearchCases() []testCase {
 				Keywords: "",
 				Language: "es",
 			},
-			result.SimilarityResult[[]index.Document]{Paginated: result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,

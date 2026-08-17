@@ -40,11 +40,11 @@ func (c CandidatePool) Capped() bool {
 	return c.cap > 0 && c.total > c.cap && c.matched >= c.cap
 }
 
-// SimilarityResult pairs a Paginated result with the candidate pool it was
-// narrowed down from, for score-based "similar document" queries (see
+// CappedPaginatedResult pairs a Paginated result with the candidate pool it
+// was narrowed down from, for score-based "similar document" queries (see
 // SearchFields.SimilarTo). Searches that aren't similarity-based just leave
 // Candidates at its zero value, for which Capped reports false.
-type SimilarityResult[T any] struct {
+type CappedPaginatedResult[T any] struct {
 	Paginated[T]
 	Candidates CandidatePool
 }
