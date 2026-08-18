@@ -110,7 +110,7 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 	if _, ok := b.reader[ext]; !ok {
 		return "", fmt.Errorf("file extension %s not supported", ext)
 	}
-	meta, phrases, words, err := b.metadataAndKeywordsFor(ext, file)
+	meta, phrases, words, err := b.metadataAndTextRankFor(ext, file)
 	if err != nil {
 		return "", fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
@@ -347,12 +347,12 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 	return out
 }
 
-// metadataAndKeywordsFor extracts fullPath's metadata and, if the registered
+// metadataAndTextRankFor extracts fullPath's metadata and, if the registered
 // reader for ext supports it, its TextRank keywords. When the reader also
 // implements metadata.TextExtractor, its already-extracted text is reused
 // for ranking instead of extracting and sanitizing the document a second
 // time (see metadata.EpubReader.MetadataAndText).
-func (b *BleveIndexer) metadataAndKeywordsFor(ext, fullPath string) (meta metadata.Metadata, phrases []string, words []string, err error) {
+func (b *BleveIndexer) metadataAndTextRankFor(ext, fullPath string) (meta metadata.Metadata, phrases []string, words []string, err error) {
 	reader := b.reader[ext]
 
 	extractor, ok := reader.(metadata.TextExtractor)
@@ -388,7 +388,7 @@ func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, 
 	if result == nil {
 		return nil, nil
 	}
-	return textRankKeywords(result)
+	return textRankPhrasesAndWords(result)
 }
 
 // supportsTextRank reports whether the reader registered for fullPath's
@@ -431,11 +431,8 @@ func (b *BleveIndexer) documentsNeedingTextRank() ([]Document, error) {
 
 // rankDocument runs TextRank analysis for document (extracting its text via
 // metadata.TextSource, if its reader supports it) and returns it with
-// TextRankPhrases, TextRankWords, Words and TextRankEnriched set. Words is computed here
-// rather than at AddLibrary time so that pass doesn't need to extract each
-// EPUB's full text just to count words (see metadata.EpubReader.Metadata);
-// it's instead counted from the same text this pass already extracts for
-// TextRank. Safe to call concurrently across documents, since it only reads
+// TextRankPhrases, TextRankWords, Words and TextRankEnriched set. Safe to call
+// concurrently across documents, since it only reads
 // from b and returns a modified copy.
 func (b *BleveIndexer) rankDocument(document Document) Document {
 	fullPath := filepath.Join(b.libraryPath, document.ID)
@@ -527,7 +524,7 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 // real feature uses.
 const maxIndexedTextRankEntries = 500
 
-// textRankKeywords turns a TextRankResult's phrases and single words into two
+// textRankPhrasesAndWords turns a TextRankResult's phrases and single words into two
 // slices - one string per phrase, one per single word - ready to store in
 // Document.TextRankPhrases and Document.TextRankWords respectively, one per
 // slice element (rather than a single flattened string) so each lands in its
@@ -538,7 +535,7 @@ const maxIndexedTextRankEntries = 500
 // TextRankPhrases) gets the most representative entries first rather than an
 // arbitrary subset, and independently capped at maxIndexedTextRankEntries
 // (see its own doc comment).
-func textRankKeywords(result *metadata.TextRankResult) (phrases []string, words []string) {
+func textRankPhrasesAndWords(result *metadata.TextRankResult) (phrases []string, words []string) {
 	phrases = weightedTextRankEntries(len(result.Phrases), func(i int) (string, float32) {
 		p := result.Phrases[i]
 		return p.Left + " " + p.Right, p.Weight
@@ -551,9 +548,10 @@ func textRankKeywords(result *metadata.TextRankResult) (phrases []string, words 
 }
 
 // weightedTextRankEntries builds a weight-sorted (descending), capped string
-// slice out of n entries, each produced by at(i). Shared by textRankKeywords
-// for its Phrases/SingleWords slices, which come from different underlying
-// types (rank.Phrase/rank.SingleWord) with no common interface.
+// slice out of n entries, each produced by at(i). Shared by
+// textRankPhrasesAndWords for its Phrases/SingleWords slices, which come from
+// different underlying types (rank.Phrase/rank.SingleWord) with no common
+// interface.
 func weightedTextRankEntries(n int, at func(i int) (text string, weight float32)) []string {
 	if n == 0 {
 		return nil

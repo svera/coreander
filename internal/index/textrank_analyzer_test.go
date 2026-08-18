@@ -67,10 +67,7 @@ func TestSameSubjectsMatchesStemmablePhrasesForLanguageRoutedDocuments(t *testin
 // analyzer (see CreateDocumentsMapping), specifically so a general keyword
 // search's query terms - also analyzed with that same per-language analyzer
 // in composeQuery - can match a stored word in a different
-// singular/plural or other inflected form. Before the TextRankPhrases/
-// TextRankWords split, this field was always indexed with defaultAnalyzer
-// (no stemming) regardless of language, so a stemmed query term could never
-// match it; this test would have failed against that older behavior.
+// singular/plural or other inflected form.
 func TestSearchMatchesStemmedTextRankWords(t *testing.T) {
 	docA := index.Document{
 		ID:            "a.epub",

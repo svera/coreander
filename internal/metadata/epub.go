@@ -399,7 +399,8 @@ func normalizeRawTextSelfClosingTags(content string) string {
 func textFromZip(r *zip.ReadCloser, opf *epub.PackageDocument) (string, error) {
 	var textParts []string
 	p := bluemonday.StrictPolicy()
-	backmatter := backmatterHrefs(r, opf)
+	navToc := navTocHrefs(r, opf)
+	backmatter := backmatterHrefs(r, opf, navToc)
 
 	for _, f := range r.File {
 		isContent, err := doublestar.PathMatch("O*PS/**/*.*htm*", f.Name)
@@ -411,8 +412,7 @@ func textFromZip(r *zip.ReadCloser, opf *epub.PackageDocument) (string, error) {
 		}
 
 		// Skip navigation and table of contents files
-		baseName := strings.ToLower(filepath.Base(f.Name))
-		if baseName == "nav.xhtml" || baseName == "toc.xhtml" {
+		if _, isNavToc := navToc[f.Name]; isNavToc {
 			continue
 		}
 
@@ -465,8 +465,10 @@ var backmatterTypes = map[string]struct{}{
 // notes, glossary, index or colophon sections, via the EPUB2 OPF <guide>
 // element and/or the EPUB3 nav document's <nav epub:type="landmarks">,
 // whichever the EPUB provides. pirmd/epub's PackageDocument exposes neither,
-// so both are parsed directly from the raw XML/XHTML.
-func backmatterHrefs(r *zip.ReadCloser, opf *epub.PackageDocument) map[string]struct{} {
+// so both are parsed directly from the raw XML/XHTML. navToc (from
+// navTocHrefs) is used to skip the fallback matching a nav/toc document
+// itself out as backmatter.
+func backmatterHrefs(r *zip.ReadCloser, opf *epub.PackageDocument, navToc map[string]struct{}) map[string]struct{} {
 	hrefs := map[string]struct{}{}
 
 	if opf != nil {
@@ -474,8 +476,8 @@ func backmatterHrefs(r *zip.ReadCloser, opf *epub.PackageDocument) map[string]st
 
 		if opfPath := findOpfPath(r); opfPath != "" {
 			if raw, err := readZipFile(r, opfPath); err == nil {
-				for href := range guideBackmatterHrefs(raw) {
-					addBackmatterHref(r, hrefs, href, baseDir)
+				for href := range guideHrefsByType(raw, backmatterTypes) {
+					addResolvedHref(r, hrefs, href, baseDir)
 				}
 			}
 		}
@@ -498,7 +500,7 @@ func backmatterHrefs(r *zip.ReadCloser, opf *epub.PackageDocument) map[string]st
 					navDir = ""
 				}
 				for href := range landmarksBackmatterHrefs(raw) {
-					addBackmatterHref(r, hrefs, href, navDir)
+					addResolvedHref(r, hrefs, href, navDir)
 				}
 			}
 		}
@@ -512,7 +514,48 @@ func backmatterHrefs(r *zip.ReadCloser, opf *epub.PackageDocument) map[string]st
 	// spine file names, so those books aren't left with the metadata-only
 	// approach doing nothing for them.
 	if len(hrefs) == 0 {
-		hrefs = backmatterFilenameHrefs(r)
+		hrefs = backmatterFilenameHrefs(r, navToc)
+	}
+
+	return hrefs
+}
+
+// navTocHrefs returns the zip paths of an EPUB's navigation/table-of-contents
+// documents: the EPUB3 nav document (the manifest item whose properties
+// include "nav") and/or the EPUB2 guide's <reference type="toc">, whichever
+// the EPUB provides. Neither is required to be named "nav.xhtml"/"toc.xhtml"
+// or use a ".xhtml" extension - only the well-formed metadata is authoritative
+// - so a filename-based fallback is used solely when that metadata is absent.
+func navTocHrefs(r *zip.ReadCloser, opf *epub.PackageDocument) map[string]struct{} {
+	hrefs := map[string]struct{}{}
+
+	if opf != nil {
+		baseDir := opfBaseDir(r)
+
+		if opf.Manifest != nil {
+			for _, item := range opf.Manifest.Items {
+				if hasProperty(item.Properties, "nav") {
+					addResolvedHref(r, hrefs, item.Href, baseDir)
+				}
+			}
+		}
+
+		if opfPath := findOpfPath(r); opfPath != "" {
+			if raw, err := readZipFile(r, opfPath); err == nil {
+				for href := range guideHrefsByType(raw, tocGuideTypes) {
+					addResolvedHref(r, hrefs, href, baseDir)
+				}
+			}
+		}
+	}
+
+	if len(hrefs) == 0 {
+		for _, f := range r.File {
+			baseName := strings.ToLower(filepath.Base(f.Name))
+			if baseName == "nav.xhtml" || baseName == "toc.xhtml" {
+				hrefs[f.Name] = struct{}{}
+			}
+		}
 	}
 
 	return hrefs
@@ -536,18 +579,19 @@ var backmatterFilenamePatterns = []string{
 // name (ignoring extension) matches one of backmatterFilenamePatterns. Used
 // only as a fallback when backmatterHrefs finds no guide/landmarks
 // references, since matching on name alone risks false positives a
-// properly-declared EPUB wouldn't need to risk.
-func backmatterFilenameHrefs(r *zip.ReadCloser) map[string]struct{} {
+// properly-declared EPUB wouldn't need to risk. navToc is excluded so a
+// nav/toc document itself is never misclassified as backmatter.
+func backmatterFilenameHrefs(r *zip.ReadCloser, navToc map[string]struct{}) map[string]struct{} {
 	hrefs := map[string]struct{}{}
 	for _, f := range r.File {
 		isContent, err := doublestar.PathMatch("O*PS/**/*.*htm*", f.Name)
 		if err != nil || !isContent {
 			continue
 		}
-		baseName := strings.ToLower(filepath.Base(f.Name))
-		if baseName == "nav.xhtml" || baseName == "toc.xhtml" {
+		if _, isNavToc := navToc[f.Name]; isNavToc {
 			continue
 		}
+		baseName := strings.ToLower(filepath.Base(f.Name))
 		nameWithoutExt := strings.TrimSuffix(baseName, filepath.Ext(baseName))
 		for _, pattern := range backmatterFilenamePatterns {
 			if strings.Contains(nameWithoutExt, pattern) {
@@ -559,9 +603,9 @@ func backmatterFilenameHrefs(r *zip.ReadCloser) map[string]struct{} {
 	return hrefs
 }
 
-// addBackmatterHref resolves href (stripping any #fragment) against baseDir
+// addResolvedHref resolves href (stripping any #fragment) against baseDir
 // and, if it matches an actual zip entry, adds that entry's path to hrefs.
-func addBackmatterHref(r *zip.ReadCloser, hrefs map[string]struct{}, href, baseDir string) {
+func addResolvedHref(r *zip.ReadCloser, hrefs map[string]struct{}, href, baseDir string) {
 	href, _, _ = strings.Cut(href, "#")
 	if href == "" {
 		return
@@ -581,10 +625,14 @@ func hasProperty(properties, want string) bool {
 	return false
 }
 
-// guideBackmatterHrefs parses an EPUB2 OPF's <guide> element (not exposed by
+// tocGuideTypes holds the EPUB2 OPF <guide> "type" value identifying the
+// table of contents, for guideHrefsByType's use in navTocHrefs.
+var tocGuideTypes = map[string]struct{}{"toc": {}}
+
+// guideHrefsByType parses an EPUB2 OPF's <guide> element (not exposed by
 // pirmd/epub's PackageDocument) for <reference type="..." href="..."/>
-// entries whose type is in backmatterTypes.
-func guideBackmatterHrefs(rawOPF []byte) map[string]struct{} {
+// entries whose type is in wantTypes.
+func guideHrefsByType(rawOPF []byte, wantTypes map[string]struct{}) map[string]struct{} {
 	var doc struct {
 		Guide struct {
 			References []struct {
@@ -598,7 +646,7 @@ func guideBackmatterHrefs(rawOPF []byte) map[string]struct{} {
 		return hrefs
 	}
 	for _, ref := range doc.Guide.References {
-		if _, ok := backmatterTypes[strings.ToLower(ref.Type)]; ok {
+		if _, ok := wantTypes[strings.ToLower(ref.Type)]; ok {
 			hrefs[ref.Href] = struct{}{}
 		}
 	}

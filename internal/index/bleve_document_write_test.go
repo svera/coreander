@@ -8,7 +8,7 @@ import (
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
-func TestTextRankKeywords(t *testing.T) {
+func TestTextRankPhrasesAndWords(t *testing.T) {
 	t.Run("returns one \"left right\" string per phrase in TextRankPhrases, and one string per single word in TextRankWords", func(t *testing.T) {
 		result := &metadata.TextRankResult{
 			Phrases: []rank.Phrase{
@@ -21,7 +21,7 @@ func TestTextRankKeywords(t *testing.T) {
 			},
 		}
 
-		gotPhrases, gotWords := textRankKeywords(result)
+		gotPhrases, gotWords := textRankPhrasesAndWords(result)
 		wantPhrases := []string{"robert oppenheimer", "manhattan project"}
 		wantWords := []string{"physics", "chevalier"}
 		if !reflect.DeepEqual(gotPhrases, wantPhrases) {
@@ -33,7 +33,7 @@ func TestTextRankKeywords(t *testing.T) {
 	})
 
 	t.Run("no phrases or words yield nil slices", func(t *testing.T) {
-		gotPhrases, gotWords := textRankKeywords(&metadata.TextRankResult{})
+		gotPhrases, gotWords := textRankPhrasesAndWords(&metadata.TextRankResult{})
 		if gotPhrases != nil {
 			t.Errorf("expected nil phrases, got %#v", gotPhrases)
 		}
