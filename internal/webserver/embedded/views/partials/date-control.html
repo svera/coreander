@@ -41,7 +41,7 @@
     {{template "month" dict "Name" .Name "Lang" .Lang "Date" .Date "IdPrefix" .IdPrefix}}
     {{template "year" dict "Name" .Name "Lang" .Lang "Date" .Date}}
 {{end}}
-    <a href="#" class="input-group-text clear-date-control text-muted border-0 bg-transparent" role="button" tabindex="0" aria-label='{{t .Lang "Clear date"}}' title='{{t .Lang "Clear date"}}'><i class="bi bi-x-lg"></i></a>
+    <button type="button" class="input-group-text clear-date-control text-muted border-0 bg-transparent" aria-label='{{t .Lang "Clear date"}}' title='{{t .Lang "Clear date"}}'><i class="bi bi-x-lg"></i></button>
 </div>
 
 <input type="hidden" id="{{if .IdPrefix}}{{.IdPrefix}}-{{end}}{{.Name}}" name="{{.Name}}" class="date">

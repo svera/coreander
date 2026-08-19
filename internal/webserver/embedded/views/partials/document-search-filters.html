@@ -104,7 +104,7 @@
                         <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}est-read-time-to">{{t .Lang "To"}}</label>
                     </div>
                     <span class="input-group-text rounded-end">{{t .Lang "Hours"}}</span>
-                    <a href="#" class="input-group-text clear-range-control text-muted border-0 bg-transparent" role="button" tabindex="0" aria-label='{{t .Lang "Clear reading time"}}' title='{{t .Lang "Clear reading time"}}'><i class="bi bi-x-lg"></i></a>
+                    <button type="button" class="input-group-text clear-range-control text-muted border-0 bg-transparent" aria-label='{{t .Lang "Clear reading time"}}' title='{{t .Lang "Clear reading time"}}'><i class="bi bi-x-lg"></i></button>
                 </div>
             </div>
         </div>
@@ -132,7 +132,7 @@
                         <input class="col-9 col-sm-10 form-control rounded-end" type="number" value="{{if $pagesTo}}{{$pagesTo}}{{end}}" min="0" max="10000" step="1" name="pages-to" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}pages-to" placeholder='{{t .Lang "To"}}'>
                         <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}pages-to">{{t .Lang "To"}}</label>
                     </div>
-                    <a href="#" class="input-group-text clear-range-control text-muted border-0 bg-transparent" role="button" tabindex="0" aria-label='{{t .Lang "Clear pages"}}' title='{{t .Lang "Clear pages"}}'><i class="bi bi-x-lg"></i></a>
+                    <button type="button" class="input-group-text clear-range-control text-muted border-0 bg-transparent" aria-label='{{t .Lang "Clear pages"}}' title='{{t .Lang "Clear pages"}}'><i class="bi bi-x-lg"></i></button>
                 </div>
             </div>
         </div>
