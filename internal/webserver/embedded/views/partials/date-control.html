@@ -3,7 +3,7 @@
     We cannot use a number input here because the oninput event function does get an empty value if the value is not a number.
     This happens when trying to add a negative value.
 */}}
-<input class="form-control input-year" type="text" inputmode="numeric" maxlength="5" placeholder='{{t .Lang "Year"}}' value="{{if .Date}}{{.Date.Year}}{{end}}" oninput="this.value=this.value.slice(0,this.maxLength)" pattern="^-?\d+$">
+<input class="form-control input-year rounded-end" type="text" inputmode="numeric" maxlength="5" placeholder='{{t .Lang "Year"}}' value="{{if .Date}}{{.Date.Year}}{{end}}" oninput="this.value=this.value.slice(0,this.maxLength)" pattern="^-?\d+$">
 {{end}}
 
 {{define "month"}}
@@ -41,6 +41,7 @@
     {{template "month" dict "Name" .Name "Lang" .Lang "Date" .Date "IdPrefix" .IdPrefix}}
     {{template "year" dict "Name" .Name "Lang" .Lang "Date" .Date}}
 {{end}}
+    <a href="#" class="input-group-text clear-date-control text-muted border-0 bg-transparent" role="button" tabindex="0" aria-label='{{t .Lang "Clear date"}}' title='{{t .Lang "Clear date"}}'><i class="bi bi-x-lg"></i></a>
 </div>
 
 <input type="hidden" id="{{if .IdPrefix}}{{.IdPrefix}}-{{end}}{{.Name}}" name="{{.Name}}" class="date">

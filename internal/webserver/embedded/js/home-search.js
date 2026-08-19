@@ -1,6 +1,6 @@
 "use strict"
 
-import { initDateControls, syncSearchTypeFromPane, tabTypeFromEvent, setActivePanelInputs } from './search-filter-utils.js'
+import { initClearAllFilters, initClearRangeControls, initDateControls, syncSearchTypeFromPane, tabTypeFromEvent, setActivePanelInputs } from './search-filter-utils.js'
 
 const STORAGE_KEY = "coreander-home-search-tab"
 const DOC_PANEL  = 'home-search-documents-panel'
@@ -110,6 +110,17 @@ function initHomeSearch() {
     const composeAuthorDates = authorPanel ? initDateControls(authorPanel, form) : () => {}
     form._coreanderComposeDates = [composeDocumentDates, composeAuthorDates]
 
+    const docFilters = docPanel?.querySelector("#document-search-filters")
+    const authorFilters = authorPanel?.querySelector("#author-search-filters")
+    if (docFilters) {
+        initClearRangeControls(docFilters)
+        initClearAllFilters(docFilters, form)
+    }
+    if (authorFilters) {
+        initClearRangeControls(authorFilters)
+        initClearAllFilters(authorFilters, form)
+    }
+
     form.addEventListener("submit", (event) => {
         event.preventDefault()
         const query = searchbox?.value.trim() ?? ""
@@ -133,7 +144,6 @@ function initHomeSearch() {
 
     initHomeSearchTabs()
 
-    const docFilters = docPanel?.querySelector("#document-search-filters")
     if (docFilters) {
         import("./document-search-filters.js")
             .then(({ initSubjectsFilters }) => initSubjectsFilters(docFilters, "", null))

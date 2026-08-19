@@ -69,6 +69,11 @@
         </div>
     </div>
     {{end}}
+    <div class="row mt-3 g-0 w-100">
+        <div class="col-12">
+            <button type="button" class="btn btn-primary w-100 clear-all-filters">{{t .Lang "Clear all filters"}}</button>
+        </div>
+    </div>
 </div>
 
 {{if and (or $idPrefix (not .AuthorsSearchPage)) (not .HomeSearch)}}

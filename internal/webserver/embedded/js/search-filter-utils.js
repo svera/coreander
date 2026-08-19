@@ -129,6 +129,18 @@ export function initDateControls(searchFilters, searchFiltersForm) {
             updateHiddenDateInput(dateControl)
         })
 
+        const clearButton = dateControl.querySelector('.clear-date-control')
+        if (clearButton) {
+            clearButton.addEventListener('click', (e) => {
+                e.preventDefault()
+                yearInput.value = ''
+                monthSelect.value = '01'
+                dayInput.value = '1'
+                updateHiddenDateInput(dateControl)
+                yearInput.dispatchEvent(new Event('input', { bubbles: true }))
+            })
+        }
+
         updateMaxDays(monthSelect, dayInput, yearInput, dateControl)
         updateHiddenDateInput(dateControl)
     })
@@ -144,6 +156,46 @@ export function initDateControls(searchFilters, searchFiltersForm) {
             composed.value = padYear(yearEl.value) + '-' + month + '-' + day
         })
     }
+}
+
+export function initClearRangeControls(searchFilters) {
+    searchFilters.querySelectorAll('.clear-range-control').forEach(clearLink => {
+        const group = clearLink.closest('.input-group')
+        if (!group) return
+
+        clearLink.addEventListener('click', (e) => {
+            e.preventDefault()
+            const inputs = group.querySelectorAll('input')
+            inputs.forEach(input => { input.value = '' })
+            if (inputs.length) {
+                inputs[0].dispatchEvent(new Event('input', { bubbles: true }))
+            }
+        })
+    })
+}
+
+export function initClearAllFilters(searchFilters, searchFiltersForm) {
+    const clearAllButton = searchFilters.querySelector('.clear-all-filters')
+    if (!clearAllButton) return
+
+    clearAllButton.addEventListener('click', (e) => {
+        e.preventDefault()
+
+        searchFilters.querySelectorAll('input[type="search"], input[type="text"]').forEach(input => {
+            input.value = ''
+        })
+        searchFilters.querySelectorAll('select').forEach(select => {
+            select.value = ''
+        })
+        searchFilters.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = false
+        })
+        searchFilters.querySelectorAll('.clear-date-control').forEach(btn => btn.click())
+        searchFilters.querySelectorAll('.clear-range-control').forEach(btn => btn.click())
+        searchFilters.dispatchEvent(new CustomEvent('clearSubjectsFilter'))
+
+        searchFiltersForm.dispatchEvent(new Event('input', { bubbles: true }))
+    })
 }
 
 export function syncSidebarFormToOffcanvas({ searchFieldName, offcanvasContainerId, afterCopy }) {
@@ -331,6 +383,8 @@ export function initSearchFilters(searchFilters, { syncOffcanvas, beforeSidebarA
     if (!searchFiltersForm) return
 
     const composeDateControls = initDateControls(searchFilters, searchFiltersForm)
+    initClearRangeControls(searchFilters)
+    initClearAllFilters(searchFilters, searchFiltersForm)
 
     if (searchFiltersForm.dataset.coreanderFilterBehavior === 'true') {
         searchFiltersForm._coreanderComposeDates = searchFiltersForm._coreanderComposeDates || []

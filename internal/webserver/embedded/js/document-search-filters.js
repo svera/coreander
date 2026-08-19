@@ -176,6 +176,11 @@ export function initSubjectsFilters(searchFilters, idPrefix, triggerSearchUpdate
             applyInitialSubjects()
             updateSubjectBadges()
         })
+        searchFilters.addEventListener('clearSubjectsFilter', () => {
+            selectedSubjectSlugs = []
+            updateSubjectBadges()
+            if (triggerSearchUpdate) triggerSearchUpdate()
+        })
         let lastInputValue = ''
         subjectsInput.addEventListener('input', (e) => {
             const value = e.target.value.trim()
