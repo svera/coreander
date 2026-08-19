@@ -3,6 +3,7 @@ module github.com/svera/coreander/v5
 go 1.25.0
 
 require (
+	github.com/DavidBelicza/TextRank/v2 v2.1.3
 	github.com/Navid2zp/go-wikidata v1.0.1
 	github.com/alecthomas/kong v1.15.0
 	github.com/blevesearch/bleve/v2 v2.6.0
@@ -20,6 +21,7 @@ require (
 	github.com/magefile/mage v1.17.2
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pdfcpu/pdfcpu v0.13.0
+	github.com/pemistahl/lingua-go v1.4.0
 	github.com/rickb777/date/v2 v2.3.12
 	github.com/rjeczalik/notify v0.9.3
 	github.com/spf13/afero v1.15.0
@@ -64,6 +66,7 @@ require (
 	github.com/rickb777/period v1.0.27 // indirect
 	github.com/rickb777/plural v1.4.10 // indirect
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd // indirect
+	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect

@@ -78,10 +78,14 @@ func init() {
 
 	var documentsIndex, authorsIndex bleve.Index
 	var needsReindex bool
-	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize)
+	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize, input.MinOccurrenceRatio)
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
-		IllustratedMinAmount: input.IllustratedMinAmount,
-		IllustratedMinSize:   input.IllustratedMinSize,
+		IllustratedMinAmount:    input.IllustratedMinAmount,
+		IllustratedMinSize:      input.IllustratedMinSize,
+		MinOccurrenceRatio:      input.MinOccurrenceRatio,
+		MaxSimilarityCandidates: input.MaxSimilarityCandidates,
+		MinSimilarityScoreRatio: input.MinSimilarityScoreRatio,
+		MaxSimilarityPhrases:    input.MaxSimilarityPhrases,
 	})
 
 	// If index was newly created or recreated, force reindexing
@@ -164,7 +168,7 @@ func main() {
 
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
-	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs, dataSource)
+	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource)
 	usersRepository := &model.UserRepository{DB: db}
 	app := webserver.New(webserverConfig, controllers, sender, idx, usersRepository)
 	if strings.ToLower(input.FQDN) == "localhost" {
@@ -189,6 +193,10 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWor
 	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 	log.Printf("Indexing finished, took %d seconds", int(dur.Seconds()))
 
+	if err := idx.EnrichTextRankKeywords(batchSize, indexWorkers); err != nil {
+		log.Printf("Error enriching documents with TextRank keywords: %s", err)
+	}
+
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 	if err := idx.EnrichAuthorsFromDataSource(dataSource, webserver.SupportedLanguages(), index.DefaultAuthorEnrichInterval); err != nil {
 		log.Printf("Error enriching authors from Wikidata: %s", err)
@@ -197,7 +205,7 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWor
 	idx.StartFileWatcher()
 }
 
-func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Index, bool) {
+func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64) (bleve.Index, bleve.Index, bool) {
 	needsReindex := false
 
 	// Open or create documents index
@@ -233,14 +241,14 @@ func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Ind
 		needsReindex = true
 	}
 
-	// Rebuild index if illustrated-min-size config changed (stored in index metadata)
+	// Rebuild index if illustrated-min-size or min-occurrence-ratio config changed (stored in index metadata)
 	if !needsReindex {
-		reindexForConfig, err := index.NeedsReindexForIllustratedConfig(documentsIndex, illustratedMinSize)
+		reindexForConfig, err := index.NeedsReindex(documentsIndex, illustratedMinSize, minOccurrenceRatio)
 		if err != nil {
 			log.Fatal(err)
 		}
 		if reindexForConfig {
-			log.Println("Illustrated min size config changed, recreating documents index.")
+			log.Println("Illustrated min size or min occurrence ratio config changed, recreating documents index.")
 			if err = documentsIndex.Close(); err != nil {
 				log.Fatal(err)
 			}

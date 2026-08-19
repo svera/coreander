@@ -15,6 +15,7 @@ func parseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.Search
 		Keywords:        c.Query("search"),
 		Language:        c.Query("language"),
 		Subjects:        c.Query("subjects"),
+		SimilarTo:       c.Query("similar"),
 		SortBy:          parseDocumentSortBy(c),
 		EstReadTimeFrom: fiber.Query[float64](c, "est-read-time-from", 0),
 		EstReadTimeTo:   fiber.Query[float64](c, "est-read-time-to", 0),
@@ -144,7 +145,7 @@ func parseDocumentSortBy(c fiber.Ctx) []string {
 			return []string{"-Words"}
 		}
 	}
-	return []string{"-_score", "Series", "SeriesIndex"}
+	return index.DefaultDocumentSortBy
 }
 
 func parseAuthorSortBy(c fiber.Ctx) []string {

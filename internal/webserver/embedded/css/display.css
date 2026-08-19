@@ -29,6 +29,11 @@ main .form-control:focus {
     z-index: 2;
 }
 
+.similar-to-banner .form-select {
+    background-color: transparent !important;
+    border-color: var(--bs-secondary);
+}
+
 .small {
     font-size: 0.65em;
 }

@@ -8,11 +8,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/blevesearch/bleve/v2"
 	index "github.com/blevesearch/bleve_index_api"
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
@@ -23,11 +24,14 @@ import (
 var documentSlugCollisionPattern = regexp.MustCompile(`^[a-zA-Z0-9\-]+(--)[0-9]+$`)
 
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
-	if b.indexStartNanos.Load() != 0 {
-		return b.progressFrom(ProgressDocuments, b.indexStartNanos.Load(), b.indexedEntries.Load(), b.indexTotalEntries.Load()), nil
+	if b.indexProgress.startNanos.Load() != 0 {
+		return b.progressFrom(ProgressDocuments, b.indexProgress.startNanos.Load(), b.indexProgress.processed.Load(), b.indexProgress.total.Load()), nil
 	}
-	if b.authorEnrichStartNanos.Load() != 0 {
-		return b.progressFrom(ProgressAuthors, b.authorEnrichStartNanos.Load(), b.authorEnrichProcessed.Load(), b.authorEnrichTotalEntries.Load()), nil
+	if b.authorEnrichProgress.startNanos.Load() != 0 {
+		return b.progressFrom(ProgressAuthors, b.authorEnrichProgress.startNanos.Load(), b.authorEnrichProgress.processed.Load(), b.authorEnrichProgress.total.Load()), nil
+	}
+	if b.textRankEnrichProgress.startNanos.Load() != 0 {
+		return b.progressFrom(ProgressTextRank, b.textRankEnrichProgress.startNanos.Load(), b.textRankEnrichProgress.processed.Load(), b.textRankEnrichProgress.total.Load()), nil
 	}
 	return Progress{}, nil
 }
@@ -48,15 +52,23 @@ func (b *BleveIndexer) progressFrom(kind ProgressKind, startNanos int64, process
 }
 
 func (b *BleveIndexer) beginIndexing() {
-	b.indexStartNanos.Store(time.Now().UnixNano())
-	b.indexedEntries.Store(0)
-	b.indexTotalEntries.Store(0)
+	b.indexProgress.begin(0)
 }
 
 func (b *BleveIndexer) endIndexing() {
-	b.indexStartNanos.Store(0)
-	b.indexedEntries.Store(0)
-	b.indexTotalEntries.Store(0)
+	b.indexProgress.end()
+}
+
+func (b *BleveIndexer) beginTextRankEnrichment(total int) {
+	b.textRankEnrichProgress.begin(total)
+}
+
+func (b *BleveIndexer) endTextRankEnrichment() {
+	b.textRankEnrichProgress.end()
+}
+
+func (b *BleveIndexer) recordTextRankEnrichmentProgress() {
+	b.textRankEnrichProgress.record()
 }
 
 // NewFile writes the given contents to the library as fileName, indexes it, and returns the document slug.
@@ -90,15 +102,20 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 	if _, ok := b.reader[ext]; !ok {
 		return "", fmt.Errorf("file extension %s not supported", ext)
 	}
-	meta, err := b.reader[ext].Metadata(file)
+	meta, phrases, words, err := b.metadataAndTextRankFor(ext, file)
 	if err != nil {
 		return "", fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
 
 	document := b.createDocument(meta, file, nil, nil)
 	document.AddedOn = time.Now().UTC()
+	document.TextRankPhrases = phrases
+	document.TextRankWords = words
 
-	if err = b.documentsIdx.Index(document.ID, document); err != nil {
+	b.documentsMu.Lock()
+	err = b.documentsIdx.Index(document.ID, document)
+	b.documentsMu.Unlock()
+	if err != nil {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
 	}
 
@@ -122,6 +139,8 @@ func (b *BleveIndexer) removeFile(file string) error {
 	if document.ID != "" {
 		return b.deleteDocumentFromIndex(document)
 	}
+	b.documentsMu.Lock()
+	defer b.documentsMu.Unlock()
 	return b.documentsIdx.Delete(id)
 }
 
@@ -145,7 +164,10 @@ func (b *BleveIndexer) DeleteDocument(slug string) error {
 }
 
 func (b *BleveIndexer) deleteDocumentFromIndex(document Document) error {
-	if err := b.documentsIdx.Delete(document.ID); err != nil {
+	b.documentsMu.Lock()
+	err := b.documentsIdx.Delete(document.ID)
+	b.documentsMu.Unlock()
+	if err != nil {
 		return err
 	}
 	for _, authorSlug := range authorSlugsFromDocument(document) {
@@ -156,15 +178,16 @@ func (b *BleveIndexer) deleteDocumentFromIndex(document Document) error {
 		if author.Slug == "" {
 			continue
 		}
+		b.authorsMu.Lock()
 		if author.DocumentCount <= 1 {
-			if err := b.authorsIdx.Delete(authorSlug); err != nil {
-				return err
-			}
+			err = b.authorsIdx.Delete(authorSlug)
 		} else {
 			author.DocumentCount--
-			if err := b.authorsIdx.Index(authorSlug, author); err != nil {
-				return err
-			}
+			err = b.authorsIdx.Index(authorSlug, author)
+		}
+		b.authorsMu.Unlock()
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -185,6 +208,12 @@ func authorSlugsFromDocument(document Document) []string {
 // haven't been previously indexed or if <forceIndexing> is true.
 // metadataWorkers controls parallel metadata extraction after CLI resolution: 1 is fully sequential; values
 // greater than 1 use a bounded worker pool while Bleve batching and slug resolution stay on a single goroutine.
+//
+// This is intentionally a fast, metadata-only pass: it does not run TextRank analysis, so a document
+// becomes searchable as soon as its batch commits rather than waiting on the whole library's worth of
+// ranking. Each batchSize-sized chunk of pending paths is extracted and committed before moving on to the
+// next, so documents appear incrementally instead of only after every pending file has been processed.
+// EnrichTextRankKeywords fills in TextRank keywords afterward, in the background.
 func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWorkers int) error {
 	b.beginIndexing()
 
@@ -193,40 +222,45 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 		b.endIndexing()
 		return err
 	}
-	b.indexTotalEntries.Store(b.indexedEntries.Load() + uint64(len(pending)))
+	b.indexProgress.total.Store(b.indexProgress.processed.Load() + uint64(len(pending)))
 	slices.Sort(pending)
 
-	metaJobs := b.readMetadataForPaths(pending, metadataWorkers)
-
-	batch := b.documentsIdx.NewBatch()
-	batchSlugs := make(map[string]struct{}, batchSize)
 	documentsSeen := make(map[string]Document, len(pending))
 
-	for _, job := range metaJobs {
-		if job.err != nil {
-			log.Printf("Error extracting metadata from file %s: %s\n", job.path, job.err)
-			continue
-		}
-		fullPath := job.path
-		meta := job.meta
+	for chunkStart := 0; chunkStart < len(pending); chunkStart += batchSize {
+		chunk := pending[chunkStart:min(chunkStart+batchSize, len(pending))]
+		metaJobs := b.readMetadataForPaths(chunk, metadataWorkers)
 
-		document := b.createDocument(meta, fullPath, batchSlugs, documentsSeen)
-		batchSlugs[document.Slug] = struct{}{}
-		languages = addLanguage(meta.Language, languages)
-		document.AddedOn = time.Time{}
+		batch := b.documentsIdx.NewBatch()
+		batchSlugs := make(map[string]struct{}, len(chunk))
 
-		if err = batch.Index(document.ID, document); err != nil {
-			log.Printf("Error indexing file %s: %s\n", fullPath, err)
-			continue
-		}
-
-		if batch.Size() >= batchSize {
-			if err = b.documentsIdx.Batch(batch); err != nil {
-				b.endIndexing()
-				return err
+		for _, job := range metaJobs {
+			if job.err != nil {
+				log.Printf("Error extracting metadata from file %s: %s\n", job.path, job.err)
+				continue
 			}
-			batch.Reset()
-			batchSlugs = make(map[string]struct{}, batchSize)
+
+			document := b.createDocument(job.meta, job.path, batchSlugs, documentsSeen)
+			batchSlugs[document.Slug] = struct{}{}
+			languages = addLanguage(job.meta.Language, languages)
+			document.AddedOn = time.Time{}
+			// Formats that can never support TextRank (e.g. PDF) are marked
+			// enriched immediately, so EnrichTextRankKeywords never has to
+			// consider them.
+			document.TextRankEnriched = !b.supportsTextRank(job.path)
+
+			if err = batch.Index(document.ID, document); err != nil {
+				log.Printf("Error indexing file %s: %s\n", job.path, err)
+				continue
+			}
+		}
+
+		b.documentsMu.Lock()
+		err = b.documentsIdx.Batch(batch)
+		b.documentsMu.Unlock()
+		if err != nil {
+			b.endIndexing()
+			return err
 		}
 	}
 
@@ -235,10 +269,14 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 	if len(languages) > 0 {
 		languagesStr = strings.Join(languages, ",")
 	}
-	batch.SetInternal(internalLanguages, []byte(languagesStr))
-	batch.SetInternal(internalIllustratedMinSize, []byte(strconv.FormatFloat(b.illustratedMinSize, 'g', -1, 64)))
-
-	if err := b.documentsIdx.Batch(batch); err != nil {
+	internalBatch := b.documentsIdx.NewBatch()
+	internalBatch.SetInternal(internalLanguages, []byte(languagesStr))
+	internalBatch.SetInternal(internalIllustratedMinSize, []byte(strconv.FormatFloat(b.illustratedMinSize, 'g', -1, 64)))
+	internalBatch.SetInternal(internalMinOccurrenceRatio, []byte(strconv.FormatFloat(b.minOccurrenceRatio, 'g', -1, 64)))
+	b.documentsMu.Lock()
+	err = b.documentsIdx.Batch(internalBatch)
+	b.documentsMu.Unlock()
+	if err != nil {
 		b.endIndexing()
 		return err
 	}
@@ -266,7 +304,7 @@ func (b *BleveIndexer) collectPendingLibraryPaths(forceIndexing bool) (pending [
 			return nil
 		}
 		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed && !forceIndexing {
-			b.indexedEntries.Add(1)
+			b.indexProgress.processed.Add(1)
 			languages = addLanguage(lang, languages)
 			return nil
 		}
@@ -282,57 +320,267 @@ type metadataJobResult struct {
 	err  error
 }
 
+// metadataJobResultFor extracts metadata (only) for a single path, shared by
+// readMetadataForPaths' sequential and worker-pool branches. TextRank
+// analysis, and for EPUBs the Words count, are deliberately not run here -
+// see AddLibrary, EnrichTextRankKeywords and rankDocument.
+func (b *BleveIndexer) metadataJobResultFor(path string) metadataJobResult {
+	ext := strings.ToLower(filepath.Ext(path))
+	meta, err := b.reader[ext].Metadata(path)
+	return metadataJobResult{path: path, meta: meta, err: err}
+}
+
 func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metadataJobResult {
 	out := make([]metadataJobResult, len(paths))
-	if len(paths) == 0 {
-		return out
+	parallelFor(len(paths), workers, func(i int) {
+		out[i] = b.metadataJobResultFor(paths[i])
+		b.indexProgress.processed.Add(1)
+	})
+	return out
+}
+
+// metadataAndTextRankFor extracts fullPath's metadata and, if the registered
+// reader for ext supports it, its TextRank keywords. When the reader also
+// implements metadata.TextExtractor, its already-extracted text is reused
+// for ranking instead of extracting and sanitizing the document a second
+// time (see metadata.EpubReader.MetadataAndText).
+func (b *BleveIndexer) metadataAndTextRankFor(ext, fullPath string) (meta metadata.Metadata, phrases []string, words []string, err error) {
+	reader := b.reader[ext]
+
+	extractor, ok := reader.(metadata.TextExtractor)
+	if !ok {
+		meta, err = reader.Metadata(fullPath)
+		return meta, nil, nil, err
 	}
-	recordProgress := func() {
-		b.indexedEntries.Add(1)
+
+	meta, text, err := extractor.MetadataAndText(fullPath)
+	if err != nil {
+		return meta, nil, nil, err
 	}
-	if workers <= 1 {
-		for i, p := range paths {
-			ext := strings.ToLower(filepath.Ext(p))
-			meta, err := b.reader[ext].Metadata(p)
-			out[i] = metadataJobResult{path: p, meta: meta, err: err}
-			recordProgress()
+	phrases, words = b.rankTextFromContent(reader, text, meta.Language, fullPath)
+	return meta, phrases, words, nil
+}
+
+// rankTextFromContent runs TextRank analysis on textContent (already
+// extracted from fullPath) and returns its phrases and single words, one per
+// element, ready to store in Document.TextRankPhrases/Document.TextRankWords
+// for full-text search. language is the document's already-known metadata
+// language, passed through as a hint so the ranker doesn't have to reopen
+// fullPath to derive it; fullPath is only used for logging. Returns nil, nil
+// (logging any error non-fatally) if reader doesn't implement
+// metadata.TextRanker, ranking is disabled via b.minOccurrenceRatio, or the
+// analysis fails.
+func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, language, fullPath string) (phrases []string, words []string) {
+	textRanker, ok := reader.(metadata.TextRanker)
+	if !ok {
+		return nil, nil
+	}
+	result, err := textRanker.RankText(b.minOccurrenceRatio, textContent, language)
+	if err != nil {
+		log.Printf("Error ranking text for file %s: %s\n", fullPath, err)
+		return nil, nil
+	}
+	if result == nil {
+		return nil, nil
+	}
+	return textRankPhrasesAndWords(result)
+}
+
+// supportsTextRank reports whether the reader registered for fullPath's
+// extension implements metadata.TextRanker at all (currently only EPUB).
+// Used to mark documents in formats that can never be ranked as already
+// "enriched", so EnrichTextRankKeywords never has to consider them.
+func (b *BleveIndexer) supportsTextRank(fullPath string) bool {
+	ext := strings.ToLower(filepath.Ext(fullPath))
+	_, ok := b.reader[ext].(metadata.TextRanker)
+	return ok
+}
+
+// documentsNeedingTextRank returns all documents not yet processed by
+// EnrichTextRankKeywords (see Document.TextRankEnriched).
+func (b *BleveIndexer) documentsNeedingTextRank() ([]Document, error) {
+	notEnriched := bleve.NewBoolFieldQuery(false)
+	notEnriched.SetField("TextRankEnriched")
+
+	b.documentsMu.RLock()
+	count, err := b.documentsIdx.DocCount()
+	if err != nil {
+		b.documentsMu.RUnlock()
+		return nil, err
+	}
+	searchReq := bleve.NewSearchRequest(notEnriched)
+	searchReq.Fields = []string{"*"}
+	searchReq.Size = int(count)
+	searchResult, err := b.documentsIdx.Search(searchReq)
+	b.documentsMu.RUnlock()
+	if err != nil {
+		return nil, err
+	}
+
+	documents := make([]Document, 0, len(searchResult.Hits))
+	for _, hit := range searchResult.Hits {
+		documents = append(documents, hydrateDocument(hit))
+	}
+	return documents, nil
+}
+
+// rankDocument runs TextRank analysis for document (extracting its text via
+// metadata.TextSource, if its reader supports it) and returns it with
+// TextRankPhrases, TextRankWords, Words and TextRankEnriched set. Safe to call
+// concurrently across documents, since it only reads
+// from b and returns a modified copy.
+func (b *BleveIndexer) rankDocument(document Document) Document {
+	fullPath := filepath.Join(b.libraryPath, document.ID)
+	ext := strings.ToLower(filepath.Ext(fullPath))
+	reader := b.reader[ext]
+
+	if textSource, ok := reader.(metadata.TextSource); ok {
+		if text, err := textSource.Text(fullPath); err != nil {
+			log.Printf("Error extracting text for %s: %s\n", fullPath, err)
+		} else {
+			document.TextRankPhrases, document.TextRankWords = b.rankTextFromContent(reader, text, document.Language, fullPath)
+			document.Words = float64(len(strings.Fields(text)))
 		}
-		return out
 	}
-	if workers > maxMetadataWorkers {
-		workers = maxMetadataWorkers
+	document.TextRankEnriched = true
+	return document
+}
+
+// rankDocuments runs rankDocument over docs, using up to workers goroutines
+// in parallel (mirroring readMetadataForPaths), since TextRank analysis is
+// CPU-bound and independent per document.
+func (b *BleveIndexer) rankDocuments(docs []Document, workers int) []Document {
+	out := make([]Document, len(docs))
+	parallelFor(len(docs), workers, func(i int) {
+		out[i] = b.rankDocument(docs[i])
+		b.recordTextRankEnrichmentProgress()
+	})
+	return out
+}
+
+// EnrichTextRankKeywords finds documents indexed without TextRank analysis
+// yet (see Document.TextRankEnriched) and computes+persists their TextRank
+// keywords, one batch at a time so related-document recommendations and
+// keyword search improve incrementally rather than all at once. Meant to run
+// as a background pass after AddLibrary, which skips TextRank analysis
+// itself so the library becomes searchable and browsable as fast as
+// possible, even if recommendations aren't fully accurate until this
+// finishes. workers controls parallelism the same way as AddLibrary's
+// metadataWorkers, since TextRank analysis is as CPU-bound as metadata
+// extraction and benefits just as much from running concurrently.
+func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
+	pending, err := b.documentsNeedingTextRank()
+	if err != nil {
+		return err
 	}
-	if workers > len(paths) {
-		workers = len(paths)
+	if len(pending) == 0 {
+		return nil
 	}
-	type indexedPath struct {
-		i    int
-		path string
-	}
-	jobs := make(chan indexedPath)
-	var wg sync.WaitGroup
-	for range workers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := range jobs {
-				ext := strings.ToLower(filepath.Ext(j.path))
-				meta, err := b.reader[ext].Metadata(j.path)
-				out[j.i] = metadataJobResult{path: j.path, meta: meta, err: err}
-				recordProgress()
+
+	log.Printf("Enriching %d documents with TextRank keywords", len(pending))
+	b.beginTextRankEnrichment(len(pending))
+	defer b.endTextRankEnrichment()
+
+	for chunkStart := 0; chunkStart < len(pending); chunkStart += batchSize {
+		chunk := pending[chunkStart:min(chunkStart+batchSize, len(pending))]
+		enriched := b.rankDocuments(chunk, workers)
+
+		batch := b.documentsIdx.NewBatch()
+		for _, document := range enriched {
+			if err := batch.Index(document.ID, document); err != nil {
+				log.Printf("Error indexing enriched document %s: %s\n", document.ID, err)
 			}
-		}()
+		}
+
+		b.documentsMu.Lock()
+		err := b.documentsIdx.Batch(batch)
+		b.documentsMu.Unlock()
+		if err != nil {
+			return err
+		}
 	}
-	for i, p := range paths {
-		jobs <- indexedPath{i, p}
+
+	log.Printf("TextRank enrichment finished")
+	return nil
+}
+
+// maxIndexedTextRankEntries hard-caps how many entries textRankKeywords ever
+// returns for each of TextRankPhrases/TextRankWords, regardless of
+// Config.MaxSimilarityPhrases (which only bounds how many phrases a
+// similarity query reads back, and can be set to 0 for "no cap"). Both fields
+// are indexed as multi-valued, term-vectored Bleve fields (one array position
+// per entry - see Document.TextRankPhrases), and a long or repetitive
+// document's uncapped word/phrase graph can produce thousands of entries; a
+// field value that large has been observed to corrupt zapx's location
+// encoding for that segment (a stray out-of-range field ID surfacing later in
+// unrelated Search calls, since corruption lives in the segment, not the
+// query). This limit is deliberately far above MaxSimilarityPhrases' own
+// default so it only ever trims the pathological tail, not the keywords any
+// real feature uses.
+const maxIndexedTextRankEntries = 500
+
+// textRankPhrasesAndWords turns a TextRankResult's phrases and single words into two
+// slices - one string per phrase, one per single word - ready to store in
+// Document.TextRankPhrases and Document.TextRankWords respectively, one per
+// slice element (rather than a single flattened string) so each lands in its
+// own array entry - see the Document.TextRankPhrases doc comment for why that
+// separation matters. Each slice is ordered by descending Weight (TextRank's
+// own, per-document-normalized importance score), so a caller that only uses
+// a prefix (e.g. subjectsQuery's Config.MaxSimilarityPhrases cap on
+// TextRankPhrases) gets the most representative entries first rather than an
+// arbitrary subset, and independently capped at maxIndexedTextRankEntries
+// (see its own doc comment).
+func textRankPhrasesAndWords(result *metadata.TextRankResult) (phrases []string, words []string) {
+	phrases = weightedTextRankEntries(len(result.Phrases), func(i int) (string, float32) {
+		p := result.Phrases[i]
+		return p.Left + " " + p.Right, p.Weight
+	})
+	words = weightedTextRankEntries(len(result.SingleWords), func(i int) (string, float32) {
+		w := result.SingleWords[i]
+		return w.Word, w.Weight
+	})
+	return phrases, words
+}
+
+// weightedTextRankEntries builds a weight-sorted (descending), capped string
+// slice out of n entries, each produced by at(i). Shared by
+// textRankPhrasesAndWords for its Phrases/SingleWords slices, which come from
+// different underlying types (rank.Phrase/rank.SingleWord) with no common
+// interface.
+func weightedTextRankEntries(n int, at func(i int) (text string, weight float32)) []string {
+	if n == 0 {
+		return nil
 	}
-	close(jobs)
-	wg.Wait()
+
+	type weighted struct {
+		text   string
+		weight float32
+	}
+	entries := make([]weighted, n)
+	for i := range n {
+		text, weight := at(i)
+		entries[i] = weighted{text, weight}
+	}
+
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].weight > entries[j].weight
+	})
+
+	if len(entries) > maxIndexedTextRankEntries {
+		entries = entries[:maxIndexedTextRankEntries]
+	}
+
+	out := make([]string, len(entries))
+	for i, e := range entries {
+		out[i] = e.text
+	}
 	return out
 }
 
 func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {
+	b.documentsMu.RLock()
 	doc, err := b.documentsIdx.Document(b.id(fullPath))
+	b.documentsMu.RUnlock()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -374,6 +622,9 @@ func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, b
 	}
 
 	document.Slug = b.Slug(document, batchSlugs, documentsSeen)
+	if documentsSeen != nil {
+		documentsSeen[document.Slug] = document
+	}
 
 	for i, author := range meta.Authors {
 		document.AuthorsSlugs[i] = slug.Make(author)

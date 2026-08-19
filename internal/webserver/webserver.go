@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"math"
 	"strconv"
 	"time"
 
@@ -121,11 +122,19 @@ func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, user
 		log.Fatal(err)
 	}
 
+	// UploadDocumentMaxSize <= 0 means "unlimited", but fiber has no such
+	// sentinel for BodyLimit - it coerces any value <= 0 to its own 4MB
+	// default - so pass the largest body limit fiber accepts instead.
+	bodyLimit := cfg.UploadDocumentMaxSize * 1024 * 1024
+	if cfg.UploadDocumentMaxSize <= 0 {
+		bodyLimit = math.MaxInt32
+	}
+
 	app := fiber.New(fiber.Config{
 		Views: engine, AppName: cfg.Version,
 		PassLocalsToViews:            true,
 		ErrorHandler:                 errorHandler,
-		BodyLimit:                    cfg.UploadDocumentMaxSize * 1024 * 1024,
+		BodyLimit:                    bodyLimit,
 		DisablePreParseMultipartForm: true,
 		StreamRequestBody:            true,
 	})

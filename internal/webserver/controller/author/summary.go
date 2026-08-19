@@ -1,12 +1,12 @@
 package author
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/gofiber/fiber/v3"
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/webserver/controller/fsutil"
 )
 
 func (a *Controller) Summary(c fiber.Ctx) error {
@@ -89,10 +89,5 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 // getImageVersion returns the modification time of the cached image file as a cache-busting version
 // Returns empty string if file doesn't exist
 func (a *Controller) getImageVersion(authorSlug string) string {
-	imageFileName := a.config.CacheDir + "/authors/" + authorSlug + ".webp"
-	fileInfo, err := a.appFs.Stat(imageFileName)
-	if err != nil {
-		return ""
-	}
-	return fmt.Sprintf("?t=%d", fileInfo.ModTime().Unix())
+	return fsutil.AuthorImageVersion(a.appFs, a.config.CacheDir, authorSlug)
 }

@@ -20,5 +20,7 @@ func addDateRangeFilter(filtersQuery *query.ConjunctionQuery, field string, from
 		q.Max = &maxDate
 	}
 	q.SetField(field)
+	// A filter must only narrow matches, never influence ranking - see addFilters.
+	q.SetBoost(0)
 	filtersQuery.AddQuery(q)
 }

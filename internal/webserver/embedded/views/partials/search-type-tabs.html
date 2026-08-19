@@ -1,9 +1,14 @@
-<div class="row mt-5 mb-2 pb-2 align-items-end">
-    <div class="col-12 col-xl p-0">
+<div class="row mt-5 mb-2 pb-2{{if .SimilarToActive}} align-items-center{{else}} align-items-end{{end}}">
+    <div class="col-12 col-xl p-xl-0">
+        {{if .SimilarToActive}}
+        {{template "partials/similar-to-banner" .}}
+        {{else}}
         <ul class="nav nav-tabs mb-0 flex-nowrap" id="search-results-tabs" role="tablist">
             {{template "partials/search-tab-items" .}}
         </ul>
+        {{end}}
     </div>
+    {{if not .SimilarToActive}}
     <div class="col-12 col-xl-auto mt-3 mt-xl-0">
         <div class="row g-2 align-items-stretch justify-content-end">
             <div class="{{if ne .Results.TotalHits 0}}col-4{{else}}col-12{{end}} d-xl-none">
@@ -16,4 +21,5 @@
             {{end}}
         </div>
     </div>
+    {{end}}
 </div>

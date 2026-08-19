@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gosimple/slug"
 	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/webserver/controller/fsutil"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
@@ -116,19 +117,7 @@ func (d *Controller) authorSummaryFor(authorSlug, lang string) authorSummary {
 		log.Println(err)
 	}
 
-	return authorSummary{Author: author, ImageVersion: d.imageVersion(author.Slug)}
-}
-
-// imageVersion returns the modification time of the cached author image file as
-// a cache-busting version, mirroring author.Controller.getImageVersion. Returns
-// an empty string if no cached image exists yet.
-func (d *Controller) imageVersion(authorSlug string) string {
-	imageFileName := d.config.CacheDir + "/authors/" + authorSlug + ".webp"
-	fileInfo, err := d.appFs.Stat(imageFileName)
-	if err != nil {
-		return ""
-	}
-	return fmt.Sprintf("?t=%d", fileInfo.ModTime().Unix())
+	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug)}
 }
 
 func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameSeries []model.AugmentedDocument) {
@@ -152,5 +141,6 @@ func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameSeri
 		result = d.hlRepository.Highlighted(sessionID, result)
 		sameSeries = append(sameSeries, result)
 	}
+
 	return sameSubjects, sameSeries
 }

@@ -1,0 +1,28 @@
+<div class="alert alert-primary mb-0 similar-to-banner" role="alert">
+    <div class="d-flex align-items-center">
+        <div class="col-4 col-sm-2 col-md-1 me-2">
+            {{template "partials/cover" dict "Lang" .Lang "Document" .SimilarToDocument "Session" .Session "Version" .Version "DisableCoverMainLink" true "DisableActions" true "CoverTitleSuffix" "similar-banner"}}
+        </div>
+        <div class="flex-grow-1">
+            <p class="lead">{{t .Lang "Showing %d documents similar to %s" .DocumentsTotalHits (printf `<cite><a href="/documents/%s">%s</a></cite>` .SimilarToDocument.Slug .SimilarToDocument.Title)}}</p>
+            {{if .SimilarCandidatesCapped}}<p>{{t .Lang "%d documents matched in total; only the top %d were considered" .SimilarCandidatesTotal .SimilarCandidatesCap}}</p>{{end}}
+        </div>
+        {{if ne .Results.TotalHits 0}}
+        <div class="d-none d-xl-block ms-2">
+            {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "AdditionalSortOptions" .AdditionalSortOptions}}
+        </div>
+        {{end}}
+    </div>
+    <div class="d-xl-none mt-3">
+        <div class="row g-2">
+            <div class="{{if ne .Results.TotalHits 0}}col-4{{else}}col-12{{end}}">
+                <button type="button" class="btn btn-outline-secondary w-100 h-100" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" data-bs-auto-close="outside" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders me-2"></i>{{t .Lang "Filters"}}</button>
+            </div>
+            {{if ne .Results.TotalHits 0}}
+            <div class="col-8">
+                {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "AdditionalSortOptions" .AdditionalSortOptions}}
+            </div>
+            {{end}}
+        </div>
+    </div>
+</div>

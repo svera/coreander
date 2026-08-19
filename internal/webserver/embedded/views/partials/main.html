@@ -5,6 +5,9 @@
             {{if eq .IndexingProgressKind "authors"}}
             <p>{{t .Lang "Retrieving author information, author pages may not be complete yet."}}</p>
             <div class="progress" role="progressbar" aria-label='{{t .Lang "Author information progress"}}' aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+            {{else if eq .IndexingProgressKind "textrank"}}
+            <p>{{t .Lang "Analyzing documents, search results and recommendations may not be accurate yet."}}</p>
+            <div class="progress" role="progressbar" aria-label='{{t .Lang "Related content analysis progress"}}' aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
             {{else}}
             <p>{{t .Lang "Indexing in progress, search results may not be accurate."}}</p>
             <div class="progress" role="progressbar" aria-label='{{t .Lang "Indexing progress"}}' aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
