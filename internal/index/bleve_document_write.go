@@ -24,14 +24,14 @@ import (
 var documentSlugCollisionPattern = regexp.MustCompile(`^[a-zA-Z0-9\-]+(--)[0-9]+$`)
 
 func (b *BleveIndexer) IndexingProgress() (Progress, error) {
-	if b.indexStartNanos.Load() != 0 {
-		return b.progressFrom(ProgressDocuments, b.indexStartNanos.Load(), b.indexedEntries.Load(), b.indexTotalEntries.Load()), nil
+	if b.indexProgress.startNanos.Load() != 0 {
+		return b.progressFrom(ProgressDocuments, b.indexProgress.startNanos.Load(), b.indexProgress.processed.Load(), b.indexProgress.total.Load()), nil
 	}
-	if b.authorEnrichStartNanos.Load() != 0 {
-		return b.progressFrom(ProgressAuthors, b.authorEnrichStartNanos.Load(), b.authorEnrichProcessed.Load(), b.authorEnrichTotalEntries.Load()), nil
+	if b.authorEnrichProgress.startNanos.Load() != 0 {
+		return b.progressFrom(ProgressAuthors, b.authorEnrichProgress.startNanos.Load(), b.authorEnrichProgress.processed.Load(), b.authorEnrichProgress.total.Load()), nil
 	}
-	if b.textRankEnrichStartNanos.Load() != 0 {
-		return b.progressFrom(ProgressTextRank, b.textRankEnrichStartNanos.Load(), b.textRankEnrichProcessed.Load(), b.textRankEnrichTotalEntries.Load()), nil
+	if b.textRankEnrichProgress.startNanos.Load() != 0 {
+		return b.progressFrom(ProgressTextRank, b.textRankEnrichProgress.startNanos.Load(), b.textRankEnrichProgress.processed.Load(), b.textRankEnrichProgress.total.Load()), nil
 	}
 	return Progress{}, nil
 }
@@ -52,31 +52,23 @@ func (b *BleveIndexer) progressFrom(kind ProgressKind, startNanos int64, process
 }
 
 func (b *BleveIndexer) beginIndexing() {
-	b.indexStartNanos.Store(time.Now().UnixNano())
-	b.indexedEntries.Store(0)
-	b.indexTotalEntries.Store(0)
+	b.indexProgress.begin(0)
 }
 
 func (b *BleveIndexer) endIndexing() {
-	b.indexStartNanos.Store(0)
-	b.indexedEntries.Store(0)
-	b.indexTotalEntries.Store(0)
+	b.indexProgress.end()
 }
 
 func (b *BleveIndexer) beginTextRankEnrichment(total int) {
-	b.textRankEnrichStartNanos.Store(time.Now().UnixNano())
-	b.textRankEnrichProcessed.Store(0)
-	b.textRankEnrichTotalEntries.Store(uint64(total))
+	b.textRankEnrichProgress.begin(total)
 }
 
 func (b *BleveIndexer) endTextRankEnrichment() {
-	b.textRankEnrichStartNanos.Store(0)
-	b.textRankEnrichProcessed.Store(0)
-	b.textRankEnrichTotalEntries.Store(0)
+	b.textRankEnrichProgress.end()
 }
 
 func (b *BleveIndexer) recordTextRankEnrichmentProgress() {
-	b.textRankEnrichProcessed.Add(1)
+	b.textRankEnrichProgress.record()
 }
 
 // NewFile writes the given contents to the library as fileName, indexes it, and returns the document slug.
@@ -230,7 +222,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 		b.endIndexing()
 		return err
 	}
-	b.indexTotalEntries.Store(b.indexedEntries.Load() + uint64(len(pending)))
+	b.indexProgress.total.Store(b.indexProgress.processed.Load() + uint64(len(pending)))
 	slices.Sort(pending)
 
 	documentsSeen := make(map[string]Document, len(pending))
@@ -312,7 +304,7 @@ func (b *BleveIndexer) collectPendingLibraryPaths(forceIndexing bool) (pending [
 			return nil
 		}
 		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed && !forceIndexing {
-			b.indexedEntries.Add(1)
+			b.indexProgress.processed.Add(1)
 			languages = addLanguage(lang, languages)
 			return nil
 		}
@@ -342,7 +334,7 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 	out := make([]metadataJobResult, len(paths))
 	parallelFor(len(paths), workers, func(i int) {
 		out[i] = b.metadataJobResultFor(paths[i])
-		b.indexedEntries.Add(1)
+		b.indexProgress.processed.Add(1)
 	})
 	return out
 }
@@ -365,22 +357,25 @@ func (b *BleveIndexer) metadataAndTextRankFor(ext, fullPath string) (meta metada
 	if err != nil {
 		return meta, nil, nil, err
 	}
-	phrases, words = b.rankTextFromContent(reader, text, fullPath)
+	phrases, words = b.rankTextFromContent(reader, text, meta.Language, fullPath)
 	return meta, phrases, words, nil
 }
 
 // rankTextFromContent runs TextRank analysis on textContent (already
 // extracted from fullPath) and returns its phrases and single words, one per
 // element, ready to store in Document.TextRankPhrases/Document.TextRankWords
-// for full-text search. Returns nil, nil (logging any error non-fatally) if
-// reader doesn't implement metadata.TextRanker, ranking is disabled via
-// b.minOccurrenceRatio, or the analysis fails.
-func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, fullPath string) (phrases []string, words []string) {
+// for full-text search. language is the document's already-known metadata
+// language, passed through as a hint so the ranker doesn't have to reopen
+// fullPath to derive it; fullPath is only used for logging. Returns nil, nil
+// (logging any error non-fatally) if reader doesn't implement
+// metadata.TextRanker, ranking is disabled via b.minOccurrenceRatio, or the
+// analysis fails.
+func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, language, fullPath string) (phrases []string, words []string) {
 	textRanker, ok := reader.(metadata.TextRanker)
 	if !ok {
 		return nil, nil
 	}
-	result, err := textRanker.RankText(b.minOccurrenceRatio, textContent, fullPath)
+	result, err := textRanker.RankText(b.minOccurrenceRatio, textContent, language)
 	if err != nil {
 		log.Printf("Error ranking text for file %s: %s\n", fullPath, err)
 		return nil, nil
@@ -443,7 +438,7 @@ func (b *BleveIndexer) rankDocument(document Document) Document {
 		if text, err := textSource.Text(fullPath); err != nil {
 			log.Printf("Error extracting text for %s: %s\n", fullPath, err)
 		} else {
-			document.TextRankPhrases, document.TextRankWords = b.rankTextFromContent(reader, text, fullPath)
+			document.TextRankPhrases, document.TextRankWords = b.rankTextFromContent(reader, text, document.Language, fullPath)
 			document.Words = float64(len(strings.Fields(text)))
 		}
 	}

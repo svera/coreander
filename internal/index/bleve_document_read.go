@@ -1176,7 +1176,7 @@ func (b *BleveIndexer) SameAuthors(slugID string, quantity int) ([]Document, err
 		bq.AddMustNot(sq)
 	}
 
-	return b.runQuery(bq, quantity, []string{"-_score", "Series", "SeriesIndex"})
+	return b.runQuery(bq, quantity, DefaultDocumentSortBy)
 }
 
 // SameSeries returns an array of metadata of documents in the same series
@@ -1197,5 +1197,5 @@ func (b *BleveIndexer) SameSeries(slugID string, quantity int) ([]Document, erro
 	sq.SetField("SeriesSlug")
 	bq.AddMust(sq)
 
-	return b.runQuery(bq, quantity, []string{"-_score", "Series", "SeriesIndex"})
+	return b.runQuery(bq, quantity, DefaultDocumentSortBy)
 }

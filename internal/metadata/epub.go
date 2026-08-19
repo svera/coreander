@@ -42,10 +42,9 @@ func NewEpubReader() EpubReader {
 // package, so Metadata and MetadataAndText can share this setup without
 // either extracting/sanitizing the EPUB's text: Metadata never needs it, and
 // Words is instead computed later from the TextSource.Text also used for
-// TextRank analysis - see EnrichTextRankKeywords/rankDocument. opf is nil (with
-// no error) if the package couldn't be loaded, since illustrations just stay
-// at zero in that case; err is only non-nil for failures that leave the book
-// unusable at all. Callers must close the returned book.
+// TextRank analysis - see EnrichTextRankKeywords/rankDocument. err is only
+// non-nil for failures that leave the book unusable at all. Callers must
+// close the returned book.
 func (e EpubReader) bookMetadata(filename string) (Metadata, *epub.Epub, *epub.PackageDocument, error) {
 	book, err := epub.Open(filename)
 	if err != nil {
@@ -66,24 +65,21 @@ func (e EpubReader) bookMetadata(filename string) (Metadata, *epub.Epub, *epub.P
 		log.Printf("Cannot load package for illustrations in %s: %s\n", filename, err)
 		return bk, book, nil, nil
 	}
-	return bk, book, opf, nil
-}
-
-func (e EpubReader) Metadata(filename string) (Metadata, error) {
-	bk, book, opf, err := e.bookMetadata(filename)
-	if err != nil {
-		return Metadata{}, err
-	}
-	defer book.Close()
-
-	if opf == nil {
-		return bk, nil
-	}
 	illustrations, err := e.illustrationsWithZip(book.ReadCloser, opf, 0.25)
 	if err != nil {
 		log.Printf("Cannot count illustrations in %s: %s\n", filename, err)
 	}
 	bk.Illustrations = illustrations
+	return bk, book, opf, nil
+}
+
+func (e EpubReader) Metadata(filename string) (Metadata, error) {
+	bk, book, _, err := e.bookMetadata(filename)
+	if err != nil {
+		return Metadata{}, err
+	}
+	defer book.Close()
+
 	return bk, nil
 }
 
@@ -101,11 +97,6 @@ func (e EpubReader) MetadataAndText(filename string) (Metadata, string, error) {
 	if opf == nil {
 		return bk, "", nil
 	}
-	illustrations, err := e.illustrationsWithZip(book.ReadCloser, opf, 0.25)
-	if err != nil {
-		log.Printf("Cannot count illustrations in %s: %s\n", filename, err)
-	}
-	bk.Illustrations = illustrations
 	text, err := textFromZip(book.ReadCloser, opf)
 	if err != nil {
 		log.Printf("Cannot extract text in %s: %s\n", filename, err)
@@ -135,20 +126,19 @@ func (e EpubReader) Text(filename string) (string, error) {
 }
 
 // RankText implements TextRanker by delegating to rankText, the
-// format-agnostic implementation, providing filename's EPUB metadata language
-// as the language hint: used directly when available, and otherwise falling
-// back to language detection on textContent.
-func (e EpubReader) RankText(minOccurrenceRatio float64, textContent, filename string) (*TextRankResult, error) {
+// format-agnostic implementation, providing language (the EPUB's already-known
+// metadata language, e.g. from Metadata.Language) as the language hint: used
+// directly when non-empty, and otherwise falling back to language detection
+// on textContent. Callers already have this language from the same Metadata
+// they extracted alongside textContent, so RankText itself never needs to
+// reopen the EPUB.
+func (e EpubReader) RankText(minOccurrenceRatio float64, textContent, language string) (*TextRankResult, error) {
 	return rankText(minOccurrenceRatio, textContent, func() (string, error) {
-		meta, err := e.GetMetadataFromFile(filename)
-		if err != nil {
-			return "", err
-		}
-		if len(meta.Language) == 0 {
+		if language == "" {
 			return "", nil
 		}
 		// Normalize language code (e.g., "en-US" -> "en")
-		lang := meta.Language[0]
+		lang := language
 		if idx := strings.Index(lang, "-"); idx != -1 {
 			lang = lang[:idx]
 		}

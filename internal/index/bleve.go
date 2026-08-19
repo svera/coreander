@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
@@ -115,25 +116,49 @@ type BleveIndexer struct {
 	// while the webserver concurrently searches them, and without this guard
 	// concurrent Batch/Search calls have been observed to panic inside
 	// bleve/zapx (an out-of-range read while decoding a segment being merged).
-	documentsMu                sync.RWMutex
-	authorsMu                  sync.RWMutex
-	libraryPath                string
-	reader                     map[string]metadata.Reader
-	indexStartNanos            atomic.Int64
-	indexedEntries             atomic.Uint64
-	indexTotalEntries          atomic.Uint64
-	authorEnrichStartNanos     atomic.Int64
-	authorEnrichProcessed      atomic.Uint64
-	authorEnrichTotalEntries   atomic.Uint64
-	textRankEnrichStartNanos   atomic.Int64
-	textRankEnrichProcessed    atomic.Uint64
-	textRankEnrichTotalEntries atomic.Uint64
-	illustratedMinAmount       int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
-	illustratedMinSize         float64 // minimum size in megapixels for an image to count as an illustration
-	minOccurrenceRatio         float64 // minimum occurrence ratio for a TextRank phrase/word to be kept; see Config.MinOccurrenceRatio
-	maxSimilarityCandidates    int     // cap on top-scoring matches considered by a "similar document" query; see Config.MaxSimilarityCandidates
-	minSimilarityScoreRatio    float64 // minimum fraction of the best match's score to be considered similar; see Config.MinSimilarityScoreRatio
-	maxSimilarityPhrases       int     // cap on how many TextRankPhrases are used to find "similar" documents; see Config.MaxSimilarityPhrases
+	documentsMu             sync.RWMutex
+	authorsMu               sync.RWMutex
+	libraryPath             string
+	reader                  map[string]metadata.Reader
+	indexProgress           progressTracker
+	authorEnrichProgress    progressTracker
+	textRankEnrichProgress  progressTracker
+	illustratedMinAmount    int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
+	illustratedMinSize      float64 // minimum size in megapixels for an image to count as an illustration
+	minOccurrenceRatio      float64 // minimum occurrence ratio for a TextRank phrase/word to be kept; see Config.MinOccurrenceRatio
+	maxSimilarityCandidates int     // cap on top-scoring matches considered by a "similar document" query; see Config.MaxSimilarityCandidates
+	minSimilarityScoreRatio float64 // minimum fraction of the best match's score to be considered similar; see Config.MinSimilarityScoreRatio
+	maxSimilarityPhrases    int     // cap on how many TextRankPhrases are used to find "similar" documents; see Config.MaxSimilarityPhrases
+}
+
+// progressTracker holds the atomic counters behind one phase of
+// IndexingProgress (indexing, author enrichment, or TextRank enrichment):
+// a start time, how many entries have been processed, and the total
+// expected. Zero value means "not in progress".
+type progressTracker struct {
+	startNanos atomic.Int64
+	processed  atomic.Uint64
+	total      atomic.Uint64
+}
+
+// begin marks the phase as started, resetting processed to 0 and total to
+// the given count.
+func (p *progressTracker) begin(total int) {
+	p.startNanos.Store(time.Now().UnixNano())
+	p.processed.Store(0)
+	p.total.Store(uint64(total))
+}
+
+// end marks the phase as no longer in progress.
+func (p *progressTracker) end() {
+	p.startNanos.Store(0)
+	p.processed.Store(0)
+	p.total.Store(0)
+}
+
+// record increments the number of entries processed so far by one.
+func (p *progressTracker) record() {
+	p.processed.Add(1)
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters

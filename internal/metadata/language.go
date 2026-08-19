@@ -33,10 +33,7 @@ type LanguageConfidence struct {
 
 // LanguageSection represents a section of text in a specific language
 type LanguageSection struct {
-	Language   string
-	StartIndex int
-	EndIndex   int
-	Text       string
+	Language string
 }
 
 // getLanguageDetector returns a singleton language detector instance
@@ -97,16 +94,9 @@ func DetectLanguageFromText(text string) (*LanguageDetectionResult, error) {
 	if len(multipleResults) > 0 {
 		result.MultipleLanguages = make([]LanguageSection, 0, len(multipleResults))
 		for _, mr := range multipleResults {
-			startIdx := mr.StartIndex()
-			endIdx := mr.EndIndex()
-			if startIdx < len(text) && endIdx <= len(text) {
-				result.MultipleLanguages = append(result.MultipleLanguages, LanguageSection{
-					Language:   mr.Language().IsoCode639_1().String(),
-					StartIndex: startIdx,
-					EndIndex:   endIdx,
-					Text:       text[startIdx:endIdx],
-				})
-			}
+			result.MultipleLanguages = append(result.MultipleLanguages, LanguageSection{
+				Language: mr.Language().IsoCode639_1().String(),
+			})
 		}
 	}
 

@@ -1,6 +1,7 @@
 package fsutil
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -66,6 +67,17 @@ func ReadFileBytes(appFs afero.Fs, path string) ([]byte, os.FileInfo, error) {
 		return nil, nil, err
 	}
 	return data, info, nil
+}
+
+// AuthorImageVersion returns the modification time of the cached author image
+// file (<cacheDir>/authors/<authorSlug>.webp) as a cache-busting query string,
+// e.g. "?t=1234". Returns an empty string if no cached image exists yet.
+func AuthorImageVersion(appFs afero.Fs, cacheDir, authorSlug string) string {
+	fileInfo, err := appFs.Stat(cacheDir + "/authors/" + authorSlug + ".webp")
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("?t=%d", fileInfo.ModTime().Unix())
 }
 
 // WriteFileBytes creates any missing parent directories and writes data to path.

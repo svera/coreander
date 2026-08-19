@@ -49,9 +49,13 @@ type TextRankResult struct {
 // carried by the Reader: it's ranking-orchestration policy - how
 // aggressively to filter results - not something intrinsic to any document
 // format, and it's the same regardless of which Reader is asked to rank.
-// See rankText for what it does.
+// language is a hint from the document's own metadata (e.g. its declared
+// language), passed by the caller since it's already known from the same
+// Metadata extracted alongside textContent - implementations should use it
+// directly rather than re-deriving it from the source file. See rankText for
+// what it does.
 type TextRanker interface {
-	RankText(minOccurrenceRatio float64, textContent, filename string) (*TextRankResult, error)
+	RankText(minOccurrenceRatio float64, textContent, language string) (*TextRankResult, error)
 }
 
 // rankText performs TextRank analysis on textContent, detecting its

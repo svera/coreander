@@ -155,19 +155,15 @@ func (b *BleveIndexer) IndexAuthor(author Author) error {
 }
 
 func (b *BleveIndexer) beginAuthorEnrichment(total int) {
-	b.authorEnrichStartNanos.Store(time.Now().UnixNano())
-	b.authorEnrichProcessed.Store(0)
-	b.authorEnrichTotalEntries.Store(uint64(total))
+	b.authorEnrichProgress.begin(total)
 }
 
 func (b *BleveIndexer) endAuthorEnrichment() {
-	b.authorEnrichStartNanos.Store(0)
-	b.authorEnrichProcessed.Store(0)
-	b.authorEnrichTotalEntries.Store(0)
+	b.authorEnrichProgress.end()
 }
 
 func (b *BleveIndexer) recordAuthorEnrichmentProgress() {
-	b.authorEnrichProcessed.Add(1)
+	b.authorEnrichProgress.record()
 }
 
 const (
