@@ -62,29 +62,7 @@
             </div>
         </div>
     </fieldset>
-    {{if or .HomeSearch (not .AuthorsSearchPage)}}
-    <div class="row mt-4 g-0 w-100">
-        {{if .HomeSearch}}
-        <div class="col-12 col-md-6 order-md-1 mb-3 mb-md-0">
-            <button type="button" class="btn btn-outline-primary w-100 clear-all-filters">{{t .Lang "Clear all filters"}}</button>
-        </div>
-        <div class="col-12 col-md-6 order-md-2 ps-md-2">
-            <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
-        </div>
-        {{else}}
-        <div class="col-12">
-            <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
-        </div>
-        {{end}}
-    </div>
-    {{end}}
-    {{if not .HomeSearch}}
-    <div class="row mt-3 g-0 w-100">
-        <div class="col-12">
-            <button type="button" class="btn btn-outline-primary w-100 clear-all-filters">{{t .Lang "Clear all filters"}}</button>
-        </div>
-    </div>
-    {{end}}
+    {{template "partials/search-filters-actions" dict "Lang" .Lang "HomeSearch" .HomeSearch "ShowSearchButton" (or .HomeSearch (not .AuthorsSearchPage))}}
 </div>
 
 {{if and (or $idPrefix (not .AuthorsSearchPage)) (not .HomeSearch)}}

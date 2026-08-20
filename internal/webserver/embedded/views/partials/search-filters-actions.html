@@ -1,0 +1,25 @@
+{{/* Params: Lang, HomeSearch, ShowSearchButton, ExtraClass (optional) */}}
+{{$extraClass := or .ExtraClass ""}}
+{{if .ShowSearchButton}}
+<div class="row mt-4 g-0 w-100">
+    {{if .HomeSearch}}
+    <div class="col-12 col-md-6 order-md-1 mb-3 mb-md-0{{if $extraClass}} {{$extraClass}}{{end}}">
+        <button type="button" class="btn btn-outline-primary w-100 clear-all-filters">{{t .Lang "Clear all filters"}}</button>
+    </div>
+    <div class="col-12 col-md-6 order-md-2 ps-md-2{{if $extraClass}} {{$extraClass}}{{end}}">
+        <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
+    </div>
+    {{else}}
+    <div class="col-12{{if $extraClass}} {{$extraClass}}{{end}}">
+        <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
+    </div>
+    {{end}}
+</div>
+{{end}}
+{{if not .HomeSearch}}
+<div class="row mt-3 g-0 w-100">
+    <div class="col-12{{if $extraClass}} {{$extraClass}}{{end}}">
+        <button type="button" class="btn btn-outline-primary w-100 clear-all-filters">{{t .Lang "Clear all filters"}}</button>
+    </div>
+</div>
+{{end}}

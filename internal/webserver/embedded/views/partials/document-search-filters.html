@@ -152,29 +152,7 @@
             </div>
         </div>
     </fieldset>
-    {{if or .HomeSearch (not .DocumentsSearchPage)}}
-    <div class="row mt-4 g-0 w-100">
-        {{if .HomeSearch}}
-        <div class="col-12 col-md-6 order-md-1 mb-3 mb-md-0 px-0">
-            <button type="button" class="btn btn-outline-primary w-100 clear-all-filters">{{t .Lang "Clear all filters"}}</button>
-        </div>
-        <div class="col-12 col-md-6 order-md-2 ps-md-2 px-0">
-            <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
-        </div>
-        {{else}}
-        <div class="col-12 px-0">
-            <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
-        </div>
-        {{end}}
-    </div>
-    {{end}}
-    {{if not .HomeSearch}}
-    <div class="row mt-3 g-0 w-100">
-        <div class="col-12 px-0">
-            <button type="button" class="btn btn-outline-primary w-100 clear-all-filters">{{t .Lang "Clear all filters"}}</button>
-        </div>
-    </div>
-    {{end}}
+    {{template "partials/search-filters-actions" dict "Lang" .Lang "HomeSearch" .HomeSearch "ShowSearchButton" (or .HomeSearch (not .DocumentsSearchPage)) "ExtraClass" "px-0"}}
 </div>
 
 {{/* Include script and i18n from sidebar when on documents search page (so script runs after sidebar is in DOM); otherwise include from offcanvas. */}}
