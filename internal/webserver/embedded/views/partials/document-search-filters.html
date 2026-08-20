@@ -65,7 +65,7 @@
     <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Publishing date"}}</legend>
         <div class="row">
-            <div class="col-12 {{if .HomeSearch}}col-xl-6 mb-3 mb-xl-0{{else}}mb-3{{end}} px-0">
+            <div class="col-12 mb-3{{if .HomeSearch}} col-xl-6 mb-xl-0{{end}} px-0">
                 {{$pubDateFrom := ""}}
                 {{if .SearchFields}}
                     {{$pubDateFrom = .SearchFields.PubDateFrom}}
