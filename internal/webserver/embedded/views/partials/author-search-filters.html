@@ -35,7 +35,7 @@
     <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Date of birth"}}</legend>
         <div class="row">
-            <div class="col-12 {{if .HomeSearch}}col-xl-6{{end}} mb-3 px-0">
+            <div class="col-12 {{if .HomeSearch}}col-xl-6{{end}} mb-3 mb-md-0 px-0">
                 {{$birthDateFrom := ""}}
                 {{if .SearchFields}}{{$birthDateFrom = .SearchFields.BirthDateFrom}}{{end}}
                 {{template "partials/date-control" dict "Name" "birthdate-from" "Lang" .Lang "Date" $birthDateFrom "Label" "From" "IdPrefix" $idPrefix }}
@@ -50,7 +50,7 @@
     <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Date of death"}}</legend>
         <div class="row">
-            <div class="col-12 {{if .HomeSearch}}col-xl-6{{end}} mb-3 px-0">
+            <div class="col-12 {{if .HomeSearch}}col-xl-6{{end}} mb-3 mb-md-0 px-0">
                 {{$deathDateFrom := ""}}
                 {{if .SearchFields}}{{$deathDateFrom = .SearchFields.DeathDateFrom}}{{end}}
                 {{template "partials/date-control" dict "Name" "deathdate-from" "Lang" .Lang "Date" $deathDateFrom "Label" "From" "IdPrefix" $idPrefix }}
@@ -62,13 +62,7 @@
             </div>
         </div>
     </fieldset>
-    {{if or .HomeSearch (not .AuthorsSearchPage)}}
-    <div class="row mt-4 g-0 w-100">
-        <div class="col-12">
-            <button class="btn btn-primary w-100" type="submit">{{t .Lang "Search"}}</button>
-        </div>
-    </div>
-    {{end}}
+    {{template "partials/search-filters-actions" dict "Lang" .Lang "HomeSearch" .HomeSearch "ShowSearchButton" (or .HomeSearch (not .AuthorsSearchPage))}}
 </div>
 
 {{if and (or $idPrefix (not .AuthorsSearchPage)) (not .HomeSearch)}}

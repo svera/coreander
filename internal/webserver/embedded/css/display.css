@@ -363,3 +363,9 @@ label[id^="complete-label-"],
 [id^="completion-date-"] input[type="date"]:disabled {
     cursor: default;
 }
+
+.clear-date-control:disabled,
+.clear-range-control:disabled {
+    opacity: .35;
+    cursor: default;
+}

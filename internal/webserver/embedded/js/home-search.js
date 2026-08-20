@@ -1,6 +1,6 @@
 "use strict"
 
-import { initDateControls, syncSearchTypeFromPane, tabTypeFromEvent, setActivePanelInputs } from './search-filter-utils.js'
+import { initClearAllFilters, initClearRangeControls, initDateControls, syncSearchTypeFromPane, tabTypeFromEvent, setActivePanelInputs } from './search-filter-utils.js'
 
 const STORAGE_KEY = "coreander-home-search-tab"
 const DOC_PANEL  = 'home-search-documents-panel'
@@ -106,9 +106,20 @@ function initHomeSearch() {
     const authorPanel = document.getElementById("home-search-authors-panel")
     const searchbox = form.querySelector("#searchbox")
 
-    const composeDocumentDates = docPanel ? initDateControls(docPanel, form) : () => {}
-    const composeAuthorDates = authorPanel ? initDateControls(authorPanel, form) : () => {}
-    form._coreanderComposeDates = [composeDocumentDates, composeAuthorDates]
+    const noopDateControls = { compose: () => {}, reset: () => {} }
+    const documentDateControls = docPanel ? initDateControls(docPanel, form) : noopDateControls
+    const authorDateControls = authorPanel ? initDateControls(authorPanel, form) : noopDateControls
+    form._coreanderComposeDates = [documentDateControls.compose, authorDateControls.compose]
+
+    const docFilters = docPanel?.querySelector("#document-search-filters")
+    const authorFilters = authorPanel?.querySelector("#author-search-filters")
+    ;[
+        { filters: docFilters, resetDateControls: documentDateControls.reset },
+        { filters: authorFilters, resetDateControls: authorDateControls.reset },
+    ].filter(({ filters }) => filters).forEach(({ filters, resetDateControls }) => {
+        const resetRangeControls = initClearRangeControls(filters)
+        initClearAllFilters(filters, form, { resetDateControls, resetRangeControls })
+    })
 
     form.addEventListener("submit", (event) => {
         event.preventDefault()
@@ -122,7 +133,7 @@ function initHomeSearch() {
             return
         }
 
-        const composeDates = searchType === "authors" ? composeAuthorDates : composeDocumentDates
+        const composeDates = searchType === "authors" ? authorDateControls.compose : documentDateControls.compose
         const panel = searchType === "authors" ? authorPanel : docPanel
 
         const params = collectPanelParams(panel, composeDates, searchType)
@@ -133,7 +144,6 @@ function initHomeSearch() {
 
     initHomeSearchTabs()
 
-    const docFilters = docPanel?.querySelector("#document-search-filters")
     if (docFilters) {
         import("./document-search-filters.js")
             .then(({ initSubjectsFilters }) => initSubjectsFilters(docFilters, "", null))
