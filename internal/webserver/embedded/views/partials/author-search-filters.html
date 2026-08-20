@@ -35,7 +35,7 @@
     <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Date of birth"}}</legend>
         <div class="row">
-            <div class="col-12 {{if .HomeSearch}}col-xl-6{{end}} mb-3{{if .HomeSearch}} mb-xl-0{{end}} px-0">
+            <div class="col-12 {{if .HomeSearch}}col-xl-6 mb-3 mb-xl-0{{else}}mb-3{{end}} px-0">
                 {{$birthDateFrom := ""}}
                 {{if .SearchFields}}{{$birthDateFrom = .SearchFields.BirthDateFrom}}{{end}}
                 {{template "partials/date-control" dict "Name" "birthdate-from" "Lang" .Lang "Date" $birthDateFrom "Label" "From" "IdPrefix" $idPrefix }}
@@ -50,7 +50,7 @@
     <fieldset class="mt-4">
         <legend class="fs-5"><i class="bi bi-calendar3 me-3"></i>{{t .Lang "Date of death"}}</legend>
         <div class="row">
-            <div class="col-12 {{if .HomeSearch}}col-xl-6{{end}} mb-3{{if .HomeSearch}} mb-xl-0{{end}} px-0">
+            <div class="col-12 {{if .HomeSearch}}col-xl-6 mb-3 mb-xl-0{{else}}mb-3{{end}} px-0">
                 {{$deathDateFrom := ""}}
                 {{if .SearchFields}}{{$deathDateFrom = .SearchFields.DeathDateFrom}}{{end}}
                 {{template "partials/date-control" dict "Name" "deathdate-from" "Lang" .Lang "Date" $deathDateFrom "Label" "From" "IdPrefix" $idPrefix }}
