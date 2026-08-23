@@ -80,12 +80,12 @@ func SetProgress(progress IndexInfo) func(fiber.Ctx) error {
 			c.Locals("IndexingProgressKind", string(progress.Kind))
 			c.Locals("IndexingProgressPercentage", progress.Percentage)
 			if progress.RemainingTime > 0 {
-				totalMinutes := progress.RemainingTime.Round(time.Minute) / time.Minute
-				if totalMinutes >= 60 {
-					c.Locals("RemainingIndexingHours", fmt.Sprintf("%d", totalMinutes/60))
-					c.Locals("RemainingIndexingMinutes", fmt.Sprintf("%d", totalMinutes%60))
+				remaining := progress.RemainingTime.Round(time.Minute)
+				if remaining >= time.Hour {
+					c.Locals("RemainingIndexingHours", fmt.Sprintf("%d", remaining/time.Hour))
+					c.Locals("RemainingIndexingMinutes", fmt.Sprintf("%d", remaining%time.Hour/time.Minute))
 				} else {
-					c.Locals("RemainingIndexingTime", fmt.Sprintf("%d", totalMinutes))
+					c.Locals("RemainingIndexingTime", fmt.Sprintf("%d", remaining/time.Minute))
 				}
 			}
 		}
