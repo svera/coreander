@@ -10,6 +10,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v3"
+	"github.com/pbnjay/memory"
 	"gorm.io/gorm"
 
 	"github.com/alecthomas/kong"
@@ -61,6 +62,13 @@ func init() {
 		log.Printf("INDEX_WORKERS is 0 (automatic), using %d metadata workers (%d CPUs)", resolvedIndexWorkers, runtime.NumCPU())
 	}
 
+	maxTextRankWords := input.MaxTextRankWords
+	if maxTextRankWords == -1 {
+		totalRAM := memory.TotalMemory()
+		maxTextRankWords = index.DefaultMaxTextRankWords(totalRAM, resolvedIndexWorkers)
+		log.Printf("MAX_TEXTRANK_WORDS is -1 (automatic), using %d (based on %d MB total RAM and %d workers)", maxTextRankWords, totalRAM/1024/1024, resolvedIndexWorkers)
+	}
+
 	homeDir, err = os.UserHomeDir()
 	if err != nil {
 		log.Fatal("Error retrieving user home dir")
@@ -86,7 +94,7 @@ func init() {
 		MaxSimilarityCandidates: input.MaxSimilarityCandidates,
 		MinSimilarityScoreRatio: input.MinSimilarityScoreRatio,
 		MaxSimilarityPhrases:    input.MaxSimilarityPhrases,
-		MaxTextRankWords:        input.MaxTextRankWords,
+		MaxTextRankWords:        maxTextRankWords,
 	})
 
 	// If index was newly created or recreated, force reindexing
