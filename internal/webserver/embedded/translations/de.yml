@@ -169,6 +169,7 @@
 "Indexing progress": "Indexierungsfortschritt"
 "Remaining time": "Verbleibende Zeit"
 "Remaining time: %s minutes": "Verbleibende Zeit: %s Minuten"
+"Remaining time: %sh %sm": "Verbleibende Zeit: %sh %sm"
 "There was an error deleting the user please try again later": "Beim Löschen des Benutzers ist ein Fehler aufgetreten bitte versuchen Sie es später erneut."
 "A user with this username already exists": "Ein Benutzer mit diesem Benutzernamen existiert bereits."
 "A user with this email address already exists": "Ein Benutzer mit dieser E-Mail-Adresse existiert bereits."

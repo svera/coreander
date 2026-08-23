@@ -167,6 +167,7 @@
 "Related content analysis progress": "Прогресс анализа похожего контента"
 "Indexing progress": "Прогресс индексации"
 "Remaining time: %s minutes": "Оставшееся время: %s мин."
+"Remaining time: %sh %sm": "Оставшееся время: %sh %sm"
 "There was an error deleting the user, please try again later": "Ошибка при удалении пользователя. Повторите попытку позже."
 "A user with this username already exists": "Пользователь с таким именем уже существует"
 "A user with this email address already exists": "Пользователь с таким e‑mail уже существует"
