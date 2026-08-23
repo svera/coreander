@@ -14,10 +14,8 @@
             {{end}}
                 <div class="progress-bar" style="width: {{.IndexingProgressPercentage}}%">{{.IndexingProgressPercentage}}%</div>
             </div>
-            {{if .RemainingIndexingHours}}
-            <p class="text-end"><small>{{t .Lang "Remaining time: %sh %sm" .RemainingIndexingHours .RemainingIndexingMinutes}}</small></p>
-            {{else if .RemainingIndexingTime}}
-            <p class="text-end"><small>{{t .Lang "Remaining time: %s minutes" .RemainingIndexingTime}}</small></p>
+            {{if .RemainingIndexingTime}}
+            <p class="text-end"><small>{{t .Lang "Remaining time: %s" .RemainingIndexingTime}}</small></p>
             {{end}}
         </div>
     </div>
