@@ -104,6 +104,18 @@ type Config struct {
 	// every one of those clauses for every candidate document. A value of 0
 	// disables the cap.
 	MaxSimilarityPhrases int
+	// MaxTextRankWords caps how many words a document's extracted text can
+	// have before EnrichTextRankKeywords skips TextRank analysis for it
+	// entirely (the document still gets its Words count, just no
+	// TextRankPhrases/TextRankWords). The underlying TextRank library builds
+	// an in-memory graph (word connections, per-word-pair sentence lists, a
+	// second copy of every sentence) that grows with every word occurrence,
+	// not just distinct words, so a very long or repetitive document (an
+	// omnibus, a badly-OCR'd scan) can use several hundred MB of RAM for a
+	// single document, single-threaded - enough to trip the OOM killer on a
+	// small VM/container regardless of worker count. A value of 0 disables
+	// the cap (rank documents of any size).
+	MaxTextRankWords int
 }
 
 type BleveIndexer struct {
@@ -129,6 +141,7 @@ type BleveIndexer struct {
 	maxSimilarityCandidates int     // cap on top-scoring matches considered by a "similar document" query; see Config.MaxSimilarityCandidates
 	minSimilarityScoreRatio float64 // minimum fraction of the best match's score to be considered similar; see Config.MinSimilarityScoreRatio
 	maxSimilarityPhrases    int     // cap on how many TextRankPhrases are used to find "similar" documents; see Config.MaxSimilarityPhrases
+	maxTextRankWords        int     // word count above which TextRank analysis is skipped for a document; see Config.MaxTextRankWords
 }
 
 // progressTracker holds the atomic counters behind one phase of
@@ -194,6 +207,7 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		maxSimilarityCandidates: maxSimilarityCandidates,
 		minSimilarityScoreRatio: minSimilarityScoreRatio,
 		maxSimilarityPhrases:    maxSimilarityPhrases,
+		maxTextRankWords:        cfg.MaxTextRankWords,
 	}
 }
 

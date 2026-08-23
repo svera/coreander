@@ -86,6 +86,7 @@ func init() {
 		MaxSimilarityCandidates: input.MaxSimilarityCandidates,
 		MinSimilarityScoreRatio: input.MinSimilarityScoreRatio,
 		MaxSimilarityPhrases:    input.MaxSimilarityPhrases,
+		MaxTextRankWords:        input.MaxTextRankWords,
 	})
 
 	// If index was newly created or recreated, force reindexing
