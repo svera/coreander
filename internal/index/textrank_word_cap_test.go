@@ -15,12 +15,14 @@ import (
 )
 
 // longTextTestReader mirrors rankableTestReader but returns a text with a
-// configurable word count and counts RankText calls, so tests can verify
-// Config.MaxTextRankWords actually skips ranking for oversized documents
-// rather than just trimming its output.
+// configurable word count, counts RankText calls and records the word count
+// of the textContent it actually receives, so tests can verify
+// Config.MaxTextRankWords truncates the text fed to TextRank for oversized
+// documents rather than skipping ranking outright.
 type longTextTestReader struct {
-	words        int
-	rankTextCall *int
+	words             int
+	rankTextCall      *int
+	receivedWordCount *int
 }
 
 func (r longTextTestReader) text() string {
@@ -48,6 +50,9 @@ func (r longTextTestReader) RankText(minOccurrenceRatio float64, textContent, la
 	if r.rankTextCall != nil {
 		*r.rankTextCall++
 	}
+	if r.receivedWordCount != nil {
+		*r.receivedWordCount = len(strings.Fields(textContent))
+	}
 	return &metadata.TextRankResult{
 		Phrases:     []rank.Phrase{{Left: "some", Right: "keyword"}},
 		SingleWords: []rank.SingleWord{{Word: "standalone"}},
@@ -58,7 +63,7 @@ func (r longTextTestReader) Cover(string, int) (image.Image, error) {
 	return nil, nil
 }
 
-func TestEnrichTextRankKeywordsSkipsDocumentsOverMaxTextRankWords(t *testing.T) {
+func TestEnrichTextRankKeywordsTruncatesDocumentsOverMaxTextRankWords(t *testing.T) {
 	documentsIndexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Fatal(err)
@@ -72,9 +77,9 @@ func TestEnrichTextRankKeywordsSkipsDocumentsOverMaxTextRankWords(t *testing.T) 
 	appFS.MkdirAll("lib", 0755)
 	afero.WriteFile(appFS, "lib/long.epub", []byte(""), 0644)
 
-	var rankCalls int
+	var rankCalls, receivedWordCount int
 	readers := map[string]metadata.Reader{
-		".epub": longTextTestReader{words: 100, rankTextCall: &rankCalls},
+		".epub": longTextTestReader{words: 100, rankTextCall: &rankCalls, receivedWordCount: &receivedWordCount},
 	}
 
 	idx := index.NewBleve(documentsIndexMem, authorsIndexMem, appFS, "lib", readers, index.Config{
@@ -93,16 +98,19 @@ func TestEnrichTextRankKeywordsSkipsDocumentsOverMaxTextRankWords(t *testing.T) 
 		t.Fatalf("Document returned an error: %s", err)
 	}
 	if !doc.TextRankEnriched {
-		t.Errorf("expected document to be marked TextRank-enriched even though ranking was skipped")
+		t.Errorf("expected document to be marked TextRank-enriched")
 	}
 	if doc.Words != 100 {
-		t.Errorf("expected Words to be 100 regardless of the TextRank cap, got %v", doc.Words)
+		t.Errorf("expected Words to be 100 (the whole document), regardless of the TextRank cap, got %v", doc.Words)
 	}
-	if len(doc.TextRankPhrases) != 0 || len(doc.TextRankWords) != 0 {
-		t.Errorf("expected no TextRank keywords for a document over the word cap, got phrases=%q words=%q", doc.TextRankPhrases, doc.TextRankWords)
+	if len(doc.TextRankPhrases) == 0 || len(doc.TextRankWords) == 0 {
+		t.Errorf("expected TextRank keywords for a document over the word cap, since it should still be analyzed (just truncated), got phrases=%q words=%q", doc.TextRankPhrases, doc.TextRankWords)
 	}
-	if rankCalls != 0 {
-		t.Errorf("expected RankText to never be called for a document over the word cap, got %d calls", rankCalls)
+	if rankCalls != 1 {
+		t.Errorf("expected RankText to be called once for a document over the word cap, got %d calls", rankCalls)
+	}
+	if receivedWordCount != 50 {
+		t.Errorf("expected RankText to receive text truncated to 50 words, got %d", receivedWordCount)
 	}
 }
 

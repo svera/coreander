@@ -369,17 +369,19 @@ func (b *BleveIndexer) metadataAndTextRankFor(ext, fullPath string) (meta metada
 // language, passed through as a hint so the ranker doesn't have to reopen
 // fullPath to derive it; fullPath is only used for logging. Returns nil, nil
 // (logging any error non-fatally) if reader doesn't implement
-// metadata.TextRanker, ranking is disabled via b.minOccurrenceRatio,
-// textContent has more than b.maxTextRankWords words (see
-// Config.MaxTextRankWords), or the analysis fails.
+// metadata.TextRanker or the analysis fails. If textContent has more than
+// b.maxTextRankWords words (see Config.MaxTextRankWords), only its first
+// b.maxTextRankWords are analyzed - this bounds TextRank's memory usage the
+// same way skipping it outright would, while still producing keywords
+// (based on the document's opening portion) rather than none at all.
 func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, language, fullPath string) (phrases []string, words []string) {
 	textRanker, ok := reader.(metadata.TextRanker)
 	if !ok {
 		return nil, nil
 	}
-	if wordCount := len(strings.Fields(textContent)); b.maxTextRankWords > 0 && wordCount > b.maxTextRankWords {
-		log.Printf("Skipping TextRank analysis for %s: %d words exceeds max-textrank-words (%d)\n", fullPath, wordCount, b.maxTextRankWords)
-		return nil, nil
+	if fields := strings.Fields(textContent); b.maxTextRankWords > 0 && len(fields) > b.maxTextRankWords {
+		log.Printf("Truncating text for TextRank analysis of %s: %d words exceeds max-textrank-words (%d)\n", fullPath, len(fields), b.maxTextRankWords)
+		textContent = strings.Join(fields[:b.maxTextRankWords], " ")
 	}
 	result, err := textRanker.RankText(b.minOccurrenceRatio, textContent, language)
 	if err != nil {
