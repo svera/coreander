@@ -436,10 +436,7 @@ func (b *BleveIndexer) documentsNeedingTextRankCount() (uint64, error) {
 // -processed documents drop out of this query's results on their own,
 // without needing explicit pagination. This keeps at most batchSize
 // documents' metadata in memory at once, rather than the whole library's
-// pending set - see the "1GB RAM, single vCPU gets OOM-killed" investigation
-// this fixes: a large library's full backlog of not-yet-enriched documents
-// used to be hydrated into memory in one Search call regardless of
-// batchSize.
+// pending set.
 func (b *BleveIndexer) documentsNeedingTextRank(batchSize int) ([]Document, error) {
 	searchReq := bleve.NewSearchRequestOptions(documentsNeedingTextRankQuery(), batchSize, 0, false)
 	searchReq.Fields = []string{"*"}
