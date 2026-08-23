@@ -183,96 +183,67 @@ func (r longTextTestReader) Cover(string, int) (image.Image, error) {
 	return nil, nil
 }
 
-func TestEnrichTextRankKeywordsTruncatesDocumentsOverMaxTextRankWords(t *testing.T) {
-	documentsIndexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
-	if err != nil {
-		t.Fatal(err)
-	}
-	authorsIndexMem, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	appFS := afero.NewMemMapFs()
-	appFS.MkdirAll("lib", 0755)
-	afero.WriteFile(appFS, "lib/long.epub", []byte(""), 0644)
-
-	var rankCalls, receivedWordCount int
-	readers := map[string]metadata.Reader{
-		".epub": longTextTestReader{words: 100, rankTextCall: &rankCalls, receivedWordCount: &receivedWordCount},
+func TestEnrichTextRankKeywordsRespectsMaxTextRankWords(t *testing.T) {
+	tests := []struct {
+		name              string
+		words             int
+		wantReceivedWords int
+	}{
+		{name: "under the word cap, ranked as-is", words: 10, wantReceivedWords: 10},
+		{name: "over the word cap, truncated before ranking", words: 100, wantReceivedWords: 50},
 	}
 
-	idx := index.NewBleve(documentsIndexMem, authorsIndexMem, appFS, "lib", readers, index.Config{
-		MaxTextRankWords: 50,
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			documentsIndexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+			if err != nil {
+				t.Fatal(err)
+			}
+			authorsIndexMem, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	if err := idx.AddLibrary(1, true, 0); err != nil {
-		t.Fatalf("AddLibrary returned an error: %s", err)
-	}
-	if err := idx.EnrichTextRankKeywords(1, 0); err != nil {
-		t.Fatalf("EnrichTextRankKeywords returned an error: %s", err)
-	}
+			appFS := afero.NewMemMapFs()
+			appFS.MkdirAll("lib", 0755)
+			afero.WriteFile(appFS, "lib/long.epub", []byte(""), 0644)
 
-	doc, err := idx.Document("author-long-long-book")
-	if err != nil {
-		t.Fatalf("Document returned an error: %s", err)
-	}
-	if !doc.TextRankEnriched {
-		t.Errorf("expected document to be marked TextRank-enriched")
-	}
-	if doc.Words != 100 {
-		t.Errorf("expected Words to be 100 (the whole document), regardless of the TextRank cap, got %v", doc.Words)
-	}
-	if len(doc.TextRankPhrases) == 0 || len(doc.TextRankWords) == 0 {
-		t.Errorf("expected TextRank keywords for a document over the word cap, since it should still be analyzed (just truncated), got phrases=%q words=%q", doc.TextRankPhrases, doc.TextRankWords)
-	}
-	if rankCalls != 1 {
-		t.Errorf("expected RankText to be called once for a document over the word cap, got %d calls", rankCalls)
-	}
-	if receivedWordCount != 50 {
-		t.Errorf("expected RankText to receive text truncated to 50 words, got %d", receivedWordCount)
-	}
-}
+			var rankCalls, receivedWordCount int
+			readers := map[string]metadata.Reader{
+				".epub": longTextTestReader{words: tt.words, rankTextCall: &rankCalls, receivedWordCount: &receivedWordCount},
+			}
 
-func TestEnrichTextRankKeywordsRanksDocumentsUnderMaxTextRankWords(t *testing.T) {
-	documentsIndexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
-	if err != nil {
-		t.Fatal(err)
-	}
-	authorsIndexMem, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
-	if err != nil {
-		t.Fatal(err)
-	}
+			idx := index.NewBleve(documentsIndexMem, authorsIndexMem, appFS, "lib", readers, index.Config{
+				MaxTextRankWords: 50,
+			})
 
-	appFS := afero.NewMemMapFs()
-	appFS.MkdirAll("lib", 0755)
-	afero.WriteFile(appFS, "lib/long.epub", []byte(""), 0644)
+			if err := idx.AddLibrary(1, true, 0); err != nil {
+				t.Fatalf("AddLibrary returned an error: %s", err)
+			}
+			if err := idx.EnrichTextRankKeywords(1, 0); err != nil {
+				t.Fatalf("EnrichTextRankKeywords returned an error: %s", err)
+			}
 
-	var rankCalls int
-	readers := map[string]metadata.Reader{
-		".epub": longTextTestReader{words: 10, rankTextCall: &rankCalls},
-	}
-
-	idx := index.NewBleve(documentsIndexMem, authorsIndexMem, appFS, "lib", readers, index.Config{
-		MaxTextRankWords: 50,
-	})
-
-	if err := idx.AddLibrary(1, true, 0); err != nil {
-		t.Fatalf("AddLibrary returned an error: %s", err)
-	}
-	if err := idx.EnrichTextRankKeywords(1, 0); err != nil {
-		t.Fatalf("EnrichTextRankKeywords returned an error: %s", err)
-	}
-
-	doc, err := idx.Document("author-long-long-book")
-	if err != nil {
-		t.Fatalf("Document returned an error: %s", err)
-	}
-	if len(doc.TextRankPhrases) == 0 || len(doc.TextRankWords) == 0 {
-		t.Errorf("expected TextRank keywords for a document under the word cap, got phrases=%q words=%q", doc.TextRankPhrases, doc.TextRankWords)
-	}
-	if rankCalls != 1 {
-		t.Errorf("expected RankText to be called once for a document under the word cap, got %d calls", rankCalls)
+			doc, err := idx.Document("author-long-long-book")
+			if err != nil {
+				t.Fatalf("Document returned an error: %s", err)
+			}
+			if !doc.TextRankEnriched {
+				t.Errorf("expected document to be marked TextRank-enriched")
+			}
+			if doc.Words != float64(tt.words) {
+				t.Errorf("expected Words to be %d (the whole document), regardless of the TextRank cap, got %v", tt.words, doc.Words)
+			}
+			if len(doc.TextRankPhrases) == 0 || len(doc.TextRankWords) == 0 {
+				t.Errorf("expected TextRank keywords for the document, since it should still be analyzed (possibly truncated), got phrases=%q words=%q", doc.TextRankPhrases, doc.TextRankWords)
+			}
+			if rankCalls != 1 {
+				t.Errorf("expected RankText to be called exactly once, got %d calls", rankCalls)
+			}
+			if receivedWordCount != tt.wantReceivedWords {
+				t.Errorf("expected RankText to receive %d words, got %d", tt.wantReceivedWords, receivedWordCount)
+			}
+		})
 	}
 }
 
