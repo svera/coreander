@@ -134,39 +134,54 @@ func TestAddLibraryDefersTextRankToEnrichment(t *testing.T) {
 	}
 }
 
-// longTextTestReader mirrors rankableTestReader but returns a text with a
-// configurable word count, counts RankText calls and records the word count
-// of the textContent it actually receives, so tests can verify
+// countingTestReader mirrors rankableTestReader but with a configurable
+// title/author/content, so it can stand in for both a single long document
+// (fixed title, word count driving text length) and a batch of distinct
+// documents (title derived per path, fixed short content). It counts
+// RankText calls and, if receivedWordCount is set, records the word count of
+// the textContent it actually receives, so tests can verify
 // Config.MaxTextRankWords truncates the text fed to TextRank for oversized
 // documents rather than skipping ranking outright.
-type longTextTestReader struct {
-	words             int
+type countingTestReader struct {
+	title             string // fixed title; if empty, derived from path
+	author            string
+	words             int // if > 0, text() returns this many "word" tokens instead of title-based content
 	rankTextCall      *int
 	receivedWordCount *int
 }
 
-func (r longTextTestReader) text() string {
-	words := make([]string, r.words)
-	for i := range words {
-		words[i] = "word"
+func (r countingTestReader) titleFor(path string) string {
+	if r.title != "" {
+		return r.title
 	}
-	return strings.Join(words, " ")
+	return "Book " + strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 }
 
-func (r longTextTestReader) Metadata(path string) (metadata.Metadata, error) {
+func (r countingTestReader) text(path string) string {
+	if r.words > 0 {
+		words := make([]string, r.words)
+		for i := range words {
+			words[i] = "word"
+		}
+		return strings.Join(words, " ")
+	}
+	return "some content about " + r.titleFor(path)
+}
+
+func (r countingTestReader) Metadata(path string) (metadata.Metadata, error) {
 	md, _, err := r.MetadataAndText(path)
 	return md, err
 }
 
-func (r longTextTestReader) MetadataAndText(path string) (metadata.Metadata, string, error) {
-	return metadata.Metadata{Title: "Long Book", Authors: []string{"Author Long"}, Format: "EPUB"}, r.text(), nil
+func (r countingTestReader) MetadataAndText(path string) (metadata.Metadata, string, error) {
+	return metadata.Metadata{Title: r.titleFor(path), Authors: []string{r.author}, Format: "EPUB"}, r.text(path), nil
 }
 
-func (r longTextTestReader) Text(path string) (string, error) {
-	return r.text(), nil
+func (r countingTestReader) Text(path string) (string, error) {
+	return r.text(path), nil
 }
 
-func (r longTextTestReader) RankText(minOccurrenceRatio float64, textContent, language string) (*metadata.TextRankResult, error) {
+func (r countingTestReader) RankText(minOccurrenceRatio float64, textContent, language string) (*metadata.TextRankResult, error) {
 	if r.rankTextCall != nil {
 		*r.rankTextCall++
 	}
@@ -179,7 +194,7 @@ func (r longTextTestReader) RankText(minOccurrenceRatio float64, textContent, la
 	}, nil
 }
 
-func (r longTextTestReader) Cover(string, int) (image.Image, error) {
+func (r countingTestReader) Cover(string, int) (image.Image, error) {
 	return nil, nil
 }
 
@@ -210,7 +225,7 @@ func TestEnrichTextRankKeywordsRespectsMaxTextRankWords(t *testing.T) {
 
 			var rankCalls, receivedWordCount int
 			readers := map[string]metadata.Reader{
-				".epub": longTextTestReader{words: tt.words, rankTextCall: &rankCalls, receivedWordCount: &receivedWordCount},
+				".epub": countingTestReader{title: "Long Book", author: "Author Long", words: tt.words, rankTextCall: &rankCalls, receivedWordCount: &receivedWordCount},
 			}
 
 			idx := index.NewBleve(documentsIndexMem, authorsIndexMem, appFS, "lib", readers, index.Config{
@@ -247,41 +262,6 @@ func TestEnrichTextRankKeywordsRespectsMaxTextRankWords(t *testing.T) {
 	}
 }
 
-// indexedTitleTestReader gives every path a distinct title (derived from the
-// path itself) so a multi-document library doesn't collapse into slug
-// collisions, and counts RankText calls like longTextTestReader.
-type indexedTitleTestReader struct {
-	rankTextCall *int
-}
-
-func (r indexedTitleTestReader) title(path string) string {
-	return "Book " + strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-}
-
-func (r indexedTitleTestReader) Metadata(path string) (metadata.Metadata, error) {
-	md, _, err := r.MetadataAndText(path)
-	return md, err
-}
-
-func (r indexedTitleTestReader) MetadataAndText(path string) (metadata.Metadata, string, error) {
-	return metadata.Metadata{Title: r.title(path), Authors: []string{"Author Batch"}, Format: "EPUB"}, "some content about " + r.title(path), nil
-}
-
-func (r indexedTitleTestReader) Text(path string) (string, error) {
-	return "some content about " + r.title(path), nil
-}
-
-func (r indexedTitleTestReader) RankText(minOccurrenceRatio float64, textContent, language string) (*metadata.TextRankResult, error) {
-	if r.rankTextCall != nil {
-		*r.rankTextCall++
-	}
-	return &metadata.TextRankResult{SingleWords: []rank.SingleWord{{Word: "keyword"}}}, nil
-}
-
-func (r indexedTitleTestReader) Cover(string, int) (image.Image, error) {
-	return nil, nil
-}
-
 // TestEnrichTextRankKeywordsProcessesAllDocumentsAcrossBatches guards against
 // a regression where documentsNeedingTextRank only ever hydrated the whole
 // pending set once instead of paginating batchSize at a time: it processed a
@@ -307,7 +287,7 @@ func TestEnrichTextRankKeywordsProcessesAllDocumentsAcrossBatches(t *testing.T) 
 
 	var rankCalls int
 	readers := map[string]metadata.Reader{
-		".epub": indexedTitleTestReader{rankTextCall: &rankCalls},
+		".epub": countingTestReader{author: "Author Batch", rankTextCall: &rankCalls},
 	}
 
 	idx := index.NewBleve(documentsIndexMem, authorsIndexMem, appFS, "lib", readers, index.Config{})
