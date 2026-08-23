@@ -165,6 +165,7 @@
 "Related content analysis progress": "Progreso del análisis de contenido relacionado"
 "Indexing progress": "Progreso de indexación"
 "Remaining time: %s minutes": "Tiempo restante: %s minutos"
+"Remaining time: %sh %sm": "Tiempo restante: %sh %sm"
 "There was an error deleting the user, please try again later": "Hubo un error al borrar el usuario, por favor, vuelva a intentarlo más tarde"
 "A user with this username already exists": "Ya existe un usuario con ese nombre de usuario"
 "A user with this email address already exists": "Ya existe un usuario con esa dirección de correo electrónico"
