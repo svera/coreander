@@ -106,7 +106,7 @@ func TestSearchSimilarToPreservesFilterAcrossReload(t *testing.T) {
 		t.Error("Expected the Authors tab to be hidden for a \"similar to\" search")
 	}
 
-	if bannerText := doc.Find(".alert-primary").Text(); !strings.Contains(bannerText, "Test EPUB") {
+	if bannerText := doc.Find(".alert-secondary").Text(); !strings.Contains(bannerText, "Test EPUB") {
 		t.Errorf("Expected a banner naming the reference document, got %q", bannerText)
 	}
 
@@ -176,7 +176,7 @@ func TestSearchSimilarToCloseButtonReturnsToRegularSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	closeLink := doc.Find(".alert-primary .btn-close")
+	closeLink := doc.Find(".alert-secondary .btn-close")
 	closeHref, ok := closeLink.Attr("href")
 	if !ok || closeHref == "" {
 		t.Fatal("Expected the banner's close button to have an href to navigate away from \"similar to\" mode")
@@ -205,7 +205,7 @@ func TestSearchSimilarToCloseButtonReturnsToRegularSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if doc2.Find(".alert-primary").Length() != 0 {
+	if doc2.Find(".alert-secondary").Length() != 0 {
 		t.Error("Expected the \"similar to\" banner to be gone after following the close button")
 	}
 	if doc2.Find(`#sidebar-search, #searchbox-offcanvas`).Length() == 0 {
