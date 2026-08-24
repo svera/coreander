@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/DavidBelicza/TextRank/v2/rank"
 	"github.com/blevesearch/bleve/v2"
@@ -131,6 +132,69 @@ func TestAddLibraryDefersTextRankToEnrichment(t *testing.T) {
 	}
 	if !nonRankable.TextRankEnriched {
 		t.Errorf("expected non-rankable document to remain TextRank-enriched")
+	}
+}
+
+// TestNewFileDefersTextRankToBackground guards against uploads blocking on
+// TextRank analysis: NewFile (used by the document upload endpoint and the
+// file watcher, via indexFile) must return as soon as the document is
+// indexed with its metadata, the same way AddLibrary does, with TextRank
+// keywords filled in shortly after by a background goroutine rather than
+// before NewFile returns.
+func TestNewFileDefersTextRankToBackground(t *testing.T) {
+	documentsIndexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorsIndexMem, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("lib", 0755)
+
+	readers := map[string]metadata.Reader{
+		".epub": rankableTestReader{},
+	}
+
+	idx := index.NewBleve(documentsIndexMem, authorsIndexMem, appFS, "lib", readers, index.Config{})
+
+	slug, err := idx.NewFile("rankable.epub", []byte(""))
+	if err != nil {
+		t.Fatalf("NewFile returned an error: %s", err)
+	}
+
+	rankable, err := idx.Document(slug)
+	if err != nil {
+		t.Fatalf("Document returned an error: %s", err)
+	}
+	if rankable.TextRankEnriched {
+		t.Errorf("expected document to not be TextRank-enriched right after NewFile returns")
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		rankable, err = idx.Document(slug)
+		if err != nil {
+			t.Fatalf("Document returned an error: %s", err)
+		}
+		if rankable.TextRankEnriched {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for background TextRank enrichment to finish")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	wantPhrases := []string{"some keyword"}
+	if !slices.Equal(rankable.TextRankPhrases, wantPhrases) {
+		t.Errorf("expected document to have TextRankPhrases %q, got %q", wantPhrases, rankable.TextRankPhrases)
+	}
+	wantWords := []string{"standalone"}
+	if !slices.Equal(rankable.TextRankWords, wantWords) {
+		t.Errorf("expected document to have TextRankWords %q, got %q", wantWords, rankable.TextRankWords)
 	}
 }
 

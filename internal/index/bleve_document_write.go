@@ -97,21 +97,24 @@ func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error)
 	return slug, nil
 }
 
-// indexFile adds a file to the index
+// indexFile adds a file to the index. Like AddLibrary, this is a fast,
+// metadata-only pass: TextRank analysis is deferred to a background
+// goroutine (see enrichTextRankAndReindex) instead of running inline, so
+// callers - NewFile (document upload) and the file watcher - don't block on
+// it for potentially large documents.
 func (b *BleveIndexer) indexFile(file string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(file))
 	if _, ok := b.reader[ext]; !ok {
 		return "", fmt.Errorf("file extension %s not supported", ext)
 	}
-	meta, phrases, words, err := b.metadataAndTextRankFor(ext, file)
+	meta, err := b.reader[ext].Metadata(file)
 	if err != nil {
 		return "", fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
 
 	document := b.createDocument(meta, file, nil, nil)
 	document.AddedOn = time.Now().UTC()
-	document.TextRankPhrases = phrases
-	document.TextRankWords = words
+	document.TextRankEnriched = !b.supportsTextRank(file)
 
 	b.documentsMu.Lock()
 	err = b.documentsIdx.Index(document.ID, document)
@@ -127,7 +130,28 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 		return document.Slug, err
 	}
 
+	if !document.TextRankEnriched {
+		go b.enrichTextRankAndReindex(document)
+	}
+
 	return document.Slug, nil
+}
+
+// enrichTextRankAndReindex runs TextRank analysis for a single, already
+// -indexed document and persists the result. It mirrors what
+// EnrichTextRankKeywords does in batches for the whole library, but for one
+// document right after indexFile adds it, so a document uploaded through the
+// web UI (or picked up by the file watcher) becomes searchable/browsable
+// immediately and gets its keywords shortly after, without the caller
+// waiting on TextRank.
+func (b *BleveIndexer) enrichTextRankAndReindex(document Document) {
+	enriched := b.rankDocument(document)
+	b.documentsMu.Lock()
+	err := b.documentsIdx.Index(enriched.ID, enriched)
+	b.documentsMu.Unlock()
+	if err != nil {
+		log.Printf("Error indexing TextRank-enriched document %s: %s\n", enriched.ID, err)
+	}
 }
 
 // removeFile removes a file from the index
@@ -338,28 +362,6 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 		b.indexProgress.processed.Add(1)
 	})
 	return out
-}
-
-// metadataAndTextRankFor extracts fullPath's metadata and, if the registered
-// reader for ext supports it, its TextRank keywords. When the reader also
-// implements metadata.TextExtractor, its already-extracted text is reused
-// for ranking instead of extracting and sanitizing the document a second
-// time (see metadata.EpubReader.MetadataAndText).
-func (b *BleveIndexer) metadataAndTextRankFor(ext, fullPath string) (meta metadata.Metadata, phrases []string, words []string, err error) {
-	reader := b.reader[ext]
-
-	extractor, ok := reader.(metadata.TextExtractor)
-	if !ok {
-		meta, err = reader.Metadata(fullPath)
-		return meta, nil, nil, err
-	}
-
-	meta, text, err := extractor.MetadataAndText(fullPath)
-	if err != nil {
-		return meta, nil, nil, err
-	}
-	phrases, words = b.rankTextFromContent(reader, text, meta.Language, fullPath)
-	return meta, phrases, words, nil
 }
 
 // rankTextFromContent runs TextRank analysis on textContent (already
