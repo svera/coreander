@@ -93,20 +93,6 @@ func rankText(minOccurrenceRatio float64, textContent string, fallbackLanguage f
 		detectedLanguages[langResult.PrimaryLanguage] = true
 	}
 
-	// Add languages from confidence values (with confidence > 0.1)
-	for _, cv := range langResult.ConfidenceValues {
-		if cv.Confidence > 0.1 && cv.Language != "" {
-			detectedLanguages[cv.Language] = true
-		}
-	}
-
-	// Add languages from multiple language sections
-	for _, section := range langResult.MultipleLanguages {
-		if section.Language != "" {
-			detectedLanguages[section.Language] = true
-		}
-	}
-
 	// Convert map to slice of language codes
 	langCodes := make([]string, 0, len(detectedLanguages))
 	for langCode := range detectedLanguages {
@@ -171,22 +157,16 @@ func rankText(minOccurrenceRatio float64, textContent string, fallbackLanguage f
 	}, nil
 }
 
-// resolveLanguage decides which language(s) to run stop-word filtering with.
+// resolveLanguage decides which language to run stop-word filtering with.
 // fallbackLanguage's hint (e.g. an EPUB's own declared language) is trusted
 // directly whenever it's available, since it's free and skips full text
-// detection - the most expensive part of RankText (three full passes over up
-// to a 10KB sample, across ~75 languages), repeated once per document across
-// an entire library scan. Full text detection (DetectLanguageFromText), which
-// also finds secondary/mixed-language sections that a single metadata hint
-// can't, only runs when no hint is available.
+// detection. Full text detection (DetectLanguageFromText) only runs when no
+// hint is available.
 func resolveLanguage(textContent string, fallbackLanguage func() (string, error)) (*LanguageDetectionResult, error) {
 	if lang, err := fallbackLanguage(); err == nil && lang != "" {
 		return &LanguageDetectionResult{
 			PrimaryLanguage:       lang,
 			PrimaryLanguageExists: true,
-			ConfidenceValues: []LanguageConfidence{
-				{Language: lang, Confidence: 1.0},
-			},
 		}, nil
 	}
 
