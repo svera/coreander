@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/search/query"
 	index "github.com/blevesearch/bleve_index_api"
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
@@ -368,12 +369,19 @@ func (b *BleveIndexer) metadataAndTextRankFor(ext, fullPath string) (meta metada
 // language, passed through as a hint so the ranker doesn't have to reopen
 // fullPath to derive it; fullPath is only used for logging. Returns nil, nil
 // (logging any error non-fatally) if reader doesn't implement
-// metadata.TextRanker, ranking is disabled via b.minOccurrenceRatio, or the
-// analysis fails.
+// metadata.TextRanker or the analysis fails. If textContent has more than
+// b.maxTextRankWords words (see Config.MaxTextRankWords), only its first
+// b.maxTextRankWords are analyzed - this bounds TextRank's memory usage the
+// same way skipping it outright would, while still producing keywords
+// (based on the document's opening portion) rather than none at all.
 func (b *BleveIndexer) rankTextFromContent(reader metadata.Reader, textContent, language, fullPath string) (phrases []string, words []string) {
 	textRanker, ok := reader.(metadata.TextRanker)
 	if !ok {
 		return nil, nil
+	}
+	if fields := strings.Fields(textContent); b.maxTextRankWords > 0 && len(fields) > b.maxTextRankWords {
+		log.Printf("Truncating text for TextRank analysis of %s: %d words exceeds max-textrank-words (%d)\n", fullPath, len(fields), b.maxTextRankWords)
+		textContent = strings.Join(fields[:b.maxTextRankWords], " ")
 	}
 	result, err := textRanker.RankText(b.minOccurrenceRatio, textContent, language)
 	if err != nil {
@@ -396,21 +404,43 @@ func (b *BleveIndexer) supportsTextRank(fullPath string) bool {
 	return ok
 }
 
-// documentsNeedingTextRank returns all documents not yet processed by
-// EnrichTextRankKeywords (see Document.TextRankEnriched).
-func (b *BleveIndexer) documentsNeedingTextRank() ([]Document, error) {
+// documentsNeedingTextRankQuery builds the "not yet processed by
+// EnrichTextRankKeywords" query shared by documentsNeedingTextRankCount and
+// documentsNeedingTextRank (see Document.TextRankEnriched).
+func documentsNeedingTextRankQuery() query.Query {
 	notEnriched := bleve.NewBoolFieldQuery(false)
 	notEnriched.SetField("TextRankEnriched")
+	return notEnriched
+}
 
+// documentsNeedingTextRankCount reports how many documents still need
+// TextRank analysis, without hydrating any of them, so
+// EnrichTextRankKeywords can size its progress tracker up front while still
+// fetching the documents themselves one batch at a time (see
+// documentsNeedingTextRank).
+func (b *BleveIndexer) documentsNeedingTextRankCount() (uint64, error) {
+	searchReq := bleve.NewSearchRequestOptions(documentsNeedingTextRankQuery(), 0, 0, false)
 	b.documentsMu.RLock()
-	count, err := b.documentsIdx.DocCount()
+	searchResult, err := b.documentsIdx.Search(searchReq)
+	b.documentsMu.RUnlock()
 	if err != nil {
-		b.documentsMu.RUnlock()
-		return nil, err
+		return 0, err
 	}
-	searchReq := bleve.NewSearchRequest(notEnriched)
+	return searchResult.Total, nil
+}
+
+// documentsNeedingTextRank returns up to batchSize documents not yet
+// processed by EnrichTextRankKeywords (see Document.TextRankEnriched),
+// always querying From 0: EnrichTextRankKeywords persists each batch with
+// TextRankEnriched set to true before requesting the next one, so already
+// -processed documents drop out of this query's results on their own,
+// without needing explicit pagination. This keeps at most batchSize
+// documents' metadata in memory at once, rather than the whole library's
+// pending set.
+func (b *BleveIndexer) documentsNeedingTextRank(batchSize int) ([]Document, error) {
+	searchReq := bleve.NewSearchRequestOptions(documentsNeedingTextRankQuery(), batchSize, 0, false)
 	searchReq.Fields = []string{"*"}
-	searchReq.Size = int(count)
+	b.documentsMu.RLock()
 	searchResult, err := b.documentsIdx.Search(searchReq)
 	b.documentsMu.RUnlock()
 	if err != nil {
@@ -469,20 +499,38 @@ func (b *BleveIndexer) rankDocuments(docs []Document, workers int) []Document {
 // metadataWorkers, since TextRank analysis is as CPU-bound as metadata
 // extraction and benefits just as much from running concurrently.
 func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
-	pending, err := b.documentsNeedingTextRank()
+	total, err := b.documentsNeedingTextRankCount()
 	if err != nil {
 		return err
 	}
-	if len(pending) == 0 {
+	if total == 0 {
 		return nil
 	}
 
-	log.Printf("Enriching %d documents with TextRank keywords", len(pending))
-	b.beginTextRankEnrichment(len(pending))
+	log.Printf("Enriching %d documents with TextRank keywords", total)
+	b.beginTextRankEnrichment(int(total))
 	defer b.endTextRankEnrichment()
 
-	for chunkStart := 0; chunkStart < len(pending); chunkStart += batchSize {
-		chunk := pending[chunkStart:min(chunkStart+batchSize, len(pending))]
+	// maxIterations bounds the loop below in case a document's batch.Index
+	// call keeps failing (logged, non-fatal): such a document never gets
+	// TextRankEnriched persisted as true, so it would otherwise keep
+	// reappearing in documentsNeedingTextRank's results forever. A normal
+	// run needs ceil(total/batchSize) iterations; this allows well beyond
+	// that before giving up.
+	maxIterations := int(total) + 10
+	for iterations := 0; ; iterations++ {
+		if iterations >= maxIterations {
+			return fmt.Errorf("TextRank enrichment did not finish after %d iterations, some documents may be stuck unenriched", iterations)
+		}
+
+		chunk, err := b.documentsNeedingTextRank(batchSize)
+		if err != nil {
+			return err
+		}
+		if len(chunk) == 0 {
+			break
+		}
+
 		enriched := b.rankDocuments(chunk, workers)
 
 		batch := b.documentsIdx.NewBatch()
@@ -493,7 +541,7 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 		}
 
 		b.documentsMu.Lock()
-		err := b.documentsIdx.Batch(batch)
+		err = b.documentsIdx.Batch(batch)
 		b.documentsMu.Unlock()
 		if err != nil {
 			return err

@@ -20,6 +20,7 @@ require (
 	github.com/kovidgoyal/imaging v1.8.22
 	github.com/magefile/mage v1.17.2
 	github.com/microcosm-cc/bluemonday v1.0.27
+	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/pdfcpu/pdfcpu v0.13.0
 	github.com/pemistahl/lingua-go v1.4.0
 	github.com/rickb777/date/v2 v2.3.12
