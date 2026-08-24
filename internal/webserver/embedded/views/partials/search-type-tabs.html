@@ -1,4 +1,4 @@
-<div class="row mt-5 mb-2 pb-2{{if .SimilarToActive}} align-items-center{{else}} align-items-end{{end}}">
+<div class="row mb-2 pb-2{{if .SimilarToActive}} align-items-center{{else}} align-items-end{{end}}">
     <div class="col-12 col-xl p-xl-0">
         {{if .SimilarToActive}}
         {{template "partials/similar-to-banner" .}}
@@ -9,7 +9,7 @@
         {{end}}
     </div>
     {{if not .SimilarToActive}}
-    <div class="col-12 col-xl-auto mt-3 mt-xl-0">
+    <div class="col-12 col-xl-auto mt-xl-0">
         <div class="row g-2 align-items-stretch justify-content-end">
             <div class="{{if ne .Results.TotalHits 0}}col-4{{else}}col-12{{end}} d-xl-none">
                 <button type="button" class="btn btn-outline-secondary w-100 h-100" data-bs-toggle="offcanvas" data-bs-target="#search-filters-offcanvas" aria-expanded="false" data-bs-auto-close="outside" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders me-2"></i>{{t .Lang "Filters"}}</button>
