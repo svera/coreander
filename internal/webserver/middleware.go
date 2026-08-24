@@ -67,6 +67,17 @@ func SetFQDN(cfg Config) func(fiber.Ctx) error {
 	}
 }
 
+// fmtRemainingTime formats a duration as "Xm" if under an hour, or "Xh Ym" otherwise
+func fmtRemainingTime(d time.Duration) string {
+	d = d.Round(time.Minute)
+	h := d / time.Hour
+	m := d % time.Hour / time.Minute
+	if h > 0 {
+		return fmt.Sprintf("%dh %dm", h, m)
+	}
+	return fmt.Sprintf("%dm", m)
+}
+
 // SetProgress retrieves indexing progress information from the index and sets it
 // as a local variable of the request
 func SetProgress(progress IndexInfo) func(fiber.Ctx) error {
@@ -80,7 +91,7 @@ func SetProgress(progress IndexInfo) func(fiber.Ctx) error {
 			c.Locals("IndexingProgressKind", string(progress.Kind))
 			c.Locals("IndexingProgressPercentage", progress.Percentage)
 			if progress.RemainingTime > 0 {
-				c.Locals("RemainingIndexingTime", fmt.Sprintf("%d", progress.RemainingTime.Round(time.Minute)/time.Minute))
+				c.Locals("RemainingIndexingTime", fmtRemainingTime(progress.RemainingTime))
 			}
 		}
 		return c.Next()

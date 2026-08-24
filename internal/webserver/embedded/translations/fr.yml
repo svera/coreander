@@ -165,7 +165,7 @@
 "Author information progress": "Progression des informations sur les auteurs"
 "Related content analysis progress": "Progression de l'analyse du contenu associé"
 "Indexing progress": "Progression de l'indexation"
-"Remaining time: %s minutes": "Temps restant: %s minutes"
+"Remaining time: %s": "Temps restant: %s"
 "There was an error deleting the user, please try again later": "Une erreur s'est produite lors de supprimer l'utilisateur, veuillez réessayer ultérieurement"
 "A user with this username already exists": "Un utilisateur avec ce nom d'utilisateur existe déjà"
 "A user with this email address already exists": "Un utilisateur avec cette adresse e-mail existe déjà"
