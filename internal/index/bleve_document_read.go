@@ -47,18 +47,18 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		if err != nil {
 			return result.CappedPaginatedResult[[]Document]{}, err
 		}
-		subjectsQuery := b.subjectsQuery(doc)
-		filtersQuery.AddQuery(subjectsQuery)
+		similarToQuery := b.similarToQuery(doc)
+		filtersQuery.AddQuery(similarToQuery)
 		conjunctsBeforeFilters := len(filtersQuery.Conjuncts)
 		b.addFilters(searchFields, filtersQuery)
 
-		// Only score subjectsQuery on its own when addFilters actually added
+		// Only score similarToQuery on its own when addFilters actually added
 		// something to filtersQuery: otherwise the two queries are equivalent, and
-		// scoring subjectsQuery separately would just make Bleve evaluate the same
+		// scoring similarToQuery separately would just make Bleve evaluate the same
 		// matches twice for no benefit - see runSimilarityQuery.
 		var scoringQuery query.Query
 		if len(filtersQuery.Conjuncts) > conjunctsBeforeFilters {
-			scoringQuery = subjectsQuery
+			scoringQuery = similarToQuery
 		}
 		return b.runSimilarityQuery(scoringQuery, filtersQuery, page, resultsPerPage, searchFields.SortBy, float64(doc.Publication.Date))
 	}
@@ -433,8 +433,8 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 // left.
 //
 // The best match's score is normally just candidateQuery's own top hit. But when
-// scoringQuery is non-nil (candidateQuery is subjectsQuery plus extra filters -
-// language, publication date range, etc. - that scoringQuery, subjectsQuery alone,
+// scoringQuery is non-nil (candidateQuery is similarToQuery plus extra filters -
+// language, publication date range, etc. - that scoringQuery, similarToQuery alone,
 // doesn't have) the best score is taken from scoringQuery instead, at the cost of
 // evaluating that query too: those filters can shrink the candidate pool without the
 // reference document actually having fewer or weaker true matches, and if the
@@ -1060,7 +1060,7 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 		return []Document{}, err
 	}
 
-	if len(doc.Subjects) == 0 && len(doc.TextRankPhrases) == 0 {
+	if len(doc.Subjects) == 0 {
 		return []Document{}, nil
 	}
 
@@ -1073,12 +1073,41 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	return paginated.Hits(), nil
 }
 
+// subjectsQuery builds SameSubjects' candidate query: documents sharing at
+// least one of doc's SubjectsSlugs, excluding doc itself, documents in the
+// same series, and documents by the same authors. Exclusively about
+// subjects/genre - see similarToQuery for the TextRank-phrase-based query
+// used by Search's SearchFields.SimilarTo path.
 func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 	bq := bleve.NewBooleanQuery()
-	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
 
-	// A document qualifies as "related" primarily by sharing a TextRank word
-	// pair extracted at indexing time (EPUB only) - one MatchPhraseQuery per
+	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
+	for _, slug := range doc.SubjectsSlugs {
+		qu := bleve.NewTermQuery(slug)
+		qu.SetField("SubjectsSlugs")
+		subjectsCompoundQuery.AddQuery(qu)
+	}
+	bq.AddMust(subjectsCompoundQuery)
+
+	b.excludeSelfSeriesAndAuthors(doc, bq)
+
+	return bq
+}
+
+// similarToQuery builds Search's SearchFields.SimilarTo candidate query:
+// documents sharing a TextRank word pair with doc, excluding doc itself,
+// documents in the same series, and documents by the same authors.
+// Exclusively about TextRank phrases - see subjectsQuery for the
+// subjects/genre-based query used by SameSubjects. Subjects are deliberately
+// not considered here: a shared subject slug alone (e.g. a broad genre like
+// "Novela") is too weak/generic a signal to stand in for actual content
+// similarity, and on a library with generic subjects it was pulling in large
+// numbers of only superficially related documents.
+func (b *BleveIndexer) similarToQuery(doc Document) *query.BooleanQuery {
+	bq := bleve.NewBooleanQuery()
+
+	// A document qualifies as "related" by sharing a TextRank word pair
+	// extracted at indexing time (EPUB only) - one MatchPhraseQuery per
 	// entry, since each is stored as its own array entry (see the
 	// Document.TextRankPhrases doc comment), so a pair only ever matches an
 	// actual adjacent pair in the candidate document, never two words from
@@ -1108,33 +1137,30 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 	if b.maxSimilarityPhrases > 0 && len(phrases) > b.maxSimilarityPhrases {
 		phrases = phrases[:b.maxSimilarityPhrases]
 	}
+	phrasesCompoundQuery := bleve.NewDisjunctionQuery()
 	for _, phrase := range phrases {
 		kq := bleve.NewMatchPhraseQuery(phrase)
 		kq.SetField("TextRankPhrases")
 		kq.Analyzer = defaultAnalyzer
-		subjectsCompoundQuery.AddQuery(kq)
+		phrasesCompoundQuery.AddQuery(kq)
 	}
+	bq.AddMust(phrasesCompoundQuery)
 
-	// Subjects are ORed in alongside the TextRank phrases rather than as a
-	// pure fallback: they let non-EPUB documents, documents too short for
-	// TextRank to produce anything distinctive, or documents indexed with
-	// text ranking disabled (Config.MinOccurrenceRatio = 0) still surface as
-	// related via shared genre/category, and for EPUB documents they add
-	// genre as an extra (lower-signal) matching dimension on top of the
-	// content-specific phrase matches, rather than replacing them.
-	for _, slug := range doc.SubjectsSlugs {
-		qu := bleve.NewTermQuery(slug)
-		qu.SetField("SubjectsSlugs")
-		subjectsCompoundQuery.AddQuery(qu)
-	}
+	b.excludeSelfSeriesAndAuthors(doc, bq)
 
+	return bq
+}
+
+// excludeSelfSeriesAndAuthors adds the MustNot clauses shared by
+// subjectsQuery and similarToQuery: doc itself, any document in the same
+// series, and any document by the same authors.
+func (b *BleveIndexer) excludeSelfSeriesAndAuthors(doc Document, bq *query.BooleanQuery) {
 	if doc.SeriesSlug != "" {
 		sq := bleve.NewTermQuery(doc.SeriesSlug)
 		sq.SetField("SeriesSlug")
 		bq.AddMustNot(sq)
 	}
 
-	bq.AddMust(subjectsCompoundQuery)
 	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
 
 	authorsCompoundQuery := bleve.NewDisjunctionQuery()
@@ -1144,8 +1170,6 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 		authorsCompoundQuery.AddQuery(qa)
 	}
 	bq.AddMustNot(authorsCompoundQuery)
-
-	return bq
 }
 
 // SameAuthors returns an array of metadata of documents by the same authors which

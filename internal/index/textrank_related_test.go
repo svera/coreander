@@ -51,7 +51,12 @@ func slugsOf(docs []index.Document) []string {
 	return slugs
 }
 
-func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
+// TestSameSubjectsMatchesBySharedSubjectsOnly guards subjectsQuery's
+// contract: SameSubjects matches purely on shared SubjectsSlugs and never
+// considers TextRankPhrases/TextRankWords at all (that's similarToQuery's
+// job, used by Search's SearchFields.SimilarTo instead - see
+// TestSearchSimilarToExcludesSubjectOnlyMatches for the mirror-image guard).
+func TestSameSubjectsMatchesBySharedSubjectsOnly(t *testing.T) {
 	sharedPairs := []string{"oppenheimer manhattan", "atomic bomb", "los alamos"}
 
 	docWithSubject := index.Document{
@@ -60,12 +65,6 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 		Metadata:      metadata.Metadata{Title: "With Subject", Authors: []string{"Author One"}, Format: "EPUB", Subjects: []string{"History"}},
 		AuthorsSlugs:  []string{"author-one"},
 		SubjectsSlugs: []string{"history"},
-		// docWithSubject also carries the same TextRankKeywords pairs as
-		// docSharedKeywordsOnly, so it is expected to match via keywords too -
-		// subjects are ORed in alongside keyword phrases, not just consulted
-		// as a fallback (see
-		// TestSameSubjectsMatchesOnSubjectsAlongsideTextRankKeywords).
-		TextRankPhrases: sharedPairs,
 	}
 	docSharedSubject := index.Document{
 		ID:            "shared-subject.epub",
@@ -73,11 +72,10 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 		Metadata:      metadata.Metadata{Title: "Shared Subject", Authors: []string{"Author Two"}, Format: "EPUB", Subjects: []string{"History"}},
 		AuthorsSlugs:  []string{"author-two"},
 		SubjectsSlugs: []string{"history"},
-		// No TextRankKeywords, so this document matches docWithSubject only
-		// via its shared subject, which scores far below the specific
-		// keyword-pair match shared with docSharedKeywordsOnly and is
-		// expected to be pruned as a weak match. See the assertions below.
 	}
+	// docSharedKeywordsOnly shares TextRankPhrases with docWithSubject but no
+	// subject, so it must not appear in SameSubjects' results even though it
+	// would match via similarToQuery.
 	docSharedKeywordsOnly := index.Document{
 		ID:              "shared-keywords.epub",
 		Slug:            "shared-keywords",
@@ -93,16 +91,16 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 		TextRankPhrases: []string{"cooking recipes", "bread baking", "gardening tools"},
 	}
 	docSameAuthor := index.Document{
-		ID:              "same-author.epub",
-		Slug:            "same-author",
-		Metadata:        metadata.Metadata{Title: "Same Author", Authors: []string{"Author One"}, Format: "EPUB"},
-		AuthorsSlugs:    []string{"author-one"},
-		TextRankPhrases: sharedPairs,
+		ID:            "same-author.epub",
+		Slug:          "same-author",
+		Metadata:      metadata.Metadata{Title: "Same Author", Authors: []string{"Author One"}, Format: "EPUB", Subjects: []string{"History"}},
+		AuthorsSlugs:  []string{"author-one"},
+		SubjectsSlugs: []string{"history"},
 	}
 
-	idx := newTextRankTestIndexWithConfig(t, []index.Document{
+	idx := newTextRankTestIndex(t, []index.Document{
 		docWithSubject, docSharedSubject, docSharedKeywordsOnly, docUnrelated, docSameAuthor,
-	}, index.Config{MinSimilarityScoreRatio: 0.4})
+	})
 
 	got, err := idx.SameSubjects("with-subject", 10)
 	if err != nil {
@@ -110,11 +108,11 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 	}
 
 	gotSlugs := slugsOf(got)
-	if !slices.Contains(gotSlugs, "shared-keywords") {
-		t.Errorf("expected %q to be present in results %v", "shared-keywords", gotSlugs)
+	if !slices.Contains(gotSlugs, "shared-subject") {
+		t.Errorf("expected %q to be present in results %v", "shared-subject", gotSlugs)
 	}
-	if slices.Contains(gotSlugs, "shared-subject") {
-		t.Errorf("expected shared-subject to be pruned as a weak match relative to shared-keywords, got %v", gotSlugs)
+	if slices.Contains(gotSlugs, "shared-keywords") {
+		t.Errorf("did not expect a document sharing only TextRank keywords (no subject) to match, got %v", gotSlugs)
 	}
 	if slices.Contains(gotSlugs, "unrelated") {
 		t.Errorf("did not expect unrelated document to match, got %v", gotSlugs)
@@ -124,16 +122,16 @@ func TestSameSubjectsMatchesByTextRankKeywords(t *testing.T) {
 	}
 }
 
-// TestSameSubjectsIgnoresSingleWords guards against a real bug: a single word
+// TestSearchSimilarToIgnoresSingleWords guards against a real bug: a single word
 // can rank highly within one document's own TextRank weights while still
 // being a generic word that appears across a large fraction of an unrelated
 // library (e.g. "house", "life"), which used to pull thousands of unrelated
 // documents into the candidate pool for a single reference book. Two-word
 // pairs don't have this problem - sharing both words of a pair with another
-// document is a much stronger, more specific signal - so subjectsQuery reads
+// document is a much stronger, more specific signal - so similarToQuery reads
 // only Document.TextRankPhrases, never Document.TextRankWords, for
 // similarity matching.
-func TestSameSubjectsIgnoresSingleWords(t *testing.T) {
+func TestSearchSimilarToIgnoresSingleWords(t *testing.T) {
 	docA := index.Document{
 		ID:              "a.epub",
 		Slug:            "doc-a",
@@ -159,12 +157,12 @@ func TestSameSubjectsIgnoresSingleWords(t *testing.T) {
 
 	idx := newTextRankTestIndex(t, []index.Document{docA, docSharesOnlySingleWord, docSharesPair})
 
-	got, err := idx.SameSubjects("doc-a", 10)
+	res, err := idx.Search(index.SearchFields{SimilarTo: "doc-a"}, 1, 10)
 	if err != nil {
-		t.Fatalf("SameSubjects returned an error: %s", err)
+		t.Fatalf("Search returned an error: %s", err)
 	}
 
-	gotSlugs := slugsOf(got)
+	gotSlugs := slugsOf(res.Hits())
 	if slices.Contains(gotSlugs, "single-word") {
 		t.Errorf("did not expect a document sharing only a single word to match, got %v", gotSlugs)
 	}
@@ -173,98 +171,13 @@ func TestSameSubjectsIgnoresSingleWords(t *testing.T) {
 	}
 }
 
-// TestSameSubjectsMatchesOnSubjectsAlongsideTextRankKeywords guards against a
-// regression the other way: subjects are ORed into subjectsQuery alongside
-// TextRank keyword phrases, not just consulted as a fallback when the
-// reference document has no usable phrase (see
-// TestSameSubjectsFallsBackToSubjectsWhenNoTextRankKeywords for that case),
-// so a document sharing only the reference's subject should still be a
-// candidate even when the reference also has keyword pairs.
-func TestSameSubjectsMatchesOnSubjectsAlongsideTextRankKeywords(t *testing.T) {
-	docA := index.Document{
-		ID:              "a.epub",
-		Slug:            "doc-a",
-		Metadata:        metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB", Subjects: []string{"History"}},
-		AuthorsSlugs:    []string{"author-one"},
-		SubjectsSlugs:   []string{"history"},
-		TextRankPhrases: []string{"robin hood"},
-	}
-	docSharesOnlySubject := index.Document{
-		ID:            "shares-subject.epub",
-		Slug:          "shares-subject",
-		Metadata:      metadata.Metadata{Title: "Shares Subject", Authors: []string{"Author Two"}, Format: "EPUB", Subjects: []string{"History"}},
-		AuthorsSlugs:  []string{"author-two"},
-		SubjectsSlugs: []string{"history"},
-	}
-	docSharesKeywordPair := index.Document{
-		ID:              "shared-pair.epub",
-		Slug:            "shared-pair",
-		Metadata:        metadata.Metadata{Title: "Shared Pair", Authors: []string{"Author Three"}, Format: "EPUB"},
-		AuthorsSlugs:    []string{"author-three"},
-		TextRankPhrases: []string{"robin hood"},
-	}
-
-	idx := newTextRankTestIndex(t, []index.Document{docA, docSharesOnlySubject, docSharesKeywordPair})
-
-	got, err := idx.SameSubjects("doc-a", 10)
-	if err != nil {
-		t.Fatalf("SameSubjects returned an error: %s", err)
-	}
-
-	gotSlugs := slugsOf(got)
-	if !slices.Contains(gotSlugs, "shares-subject") {
-		t.Errorf("expected a document sharing only the subject to match alongside keyword matches, got %v", gotSlugs)
-	}
-	if !slices.Contains(gotSlugs, "shared-pair") {
-		t.Errorf("expected a document sharing the specific TextRank keyword pair to match, got %v", gotSlugs)
-	}
-}
-
-// TestSameSubjectsFallsBackToSubjectsWhenNoTextRankKeywords covers the other
-// half of the fallback rule: when the reference document has no usable
-// TextRank keyword phrase at all (e.g. a non-EPUB document, a document too
-// short for TextRank to produce anything distinctive, or text ranking
-// disabled via Config.MinOccurrenceRatio = 0), subjectsQuery falls back to
-// matching on subjects, rather than returning no candidates at all.
-func TestSameSubjectsFallsBackToSubjectsWhenNoTextRankKeywords(t *testing.T) {
-	docNoKeywords := index.Document{
-		ID:            "no-keywords.epub",
-		Slug:          "no-keywords",
-		Metadata:      metadata.Metadata{Title: "No Keywords", Authors: []string{"Author One"}, Format: "EPUB", Subjects: []string{"History"}},
-		AuthorsSlugs:  []string{"author-one"},
-		SubjectsSlugs: []string{"history"},
-	}
-	docSharesSubject := index.Document{
-		ID:            "shares-subject.epub",
-		Slug:          "shares-subject",
-		Metadata:      metadata.Metadata{Title: "Shares Subject", Authors: []string{"Author Two"}, Format: "EPUB", Subjects: []string{"History"}},
-		AuthorsSlugs:  []string{"author-two"},
-		SubjectsSlugs: []string{"history"},
-	}
-	docUnrelated := index.Document{
-		ID:           "unrelated.epub",
-		Slug:         "unrelated",
-		Metadata:     metadata.Metadata{Title: "Unrelated", Authors: []string{"Author Three"}, Format: "EPUB"},
-		AuthorsSlugs: []string{"author-three"},
-	}
-
-	idx := newTextRankTestIndex(t, []index.Document{docNoKeywords, docSharesSubject, docUnrelated})
-
-	got, err := idx.SameSubjects("no-keywords", 10)
-	if err != nil {
-		t.Fatalf("SameSubjects returned an error: %s", err)
-	}
-
-	gotSlugs := slugsOf(got)
-	if !slices.Contains(gotSlugs, "shares-subject") {
-		t.Errorf("expected fallback to subjects when the reference document has no TextRank keywords, got %v", gotSlugs)
-	}
-	if slices.Contains(gotSlugs, "unrelated") {
-		t.Errorf("did not expect unrelated document to match, got %v", gotSlugs)
-	}
-}
-
-func TestSearchSimilarToMatchesSameSubjectsResults(t *testing.T) {
+// TestSearchSimilarToExcludesSubjectOnlyMatches guards against a document
+// that shares only a subject (no TextRank phrase) with the reference document
+// showing up in the "similar" search (SearchFields.SimilarTo): a shared
+// subject slug (e.g. a broad genre like "History") is too weak/generic a
+// signal there, unlike SameSubjects - the "related by subject" widget - which
+// is exclusively about shared subjects (see subjectsQuery and similarToQuery).
+func TestSearchSimilarToExcludesSubjectOnlyMatches(t *testing.T) {
 	docA := index.Document{
 		ID:              "a.epub",
 		Slug:            "doc-a",
@@ -310,11 +223,14 @@ func TestSearchSimilarToMatchesSameSubjectsResults(t *testing.T) {
 	widgetSlugs := slugsOf(widgetResults)
 	seeAllSlugs := slugsOf(seeAllResults.Hits())
 
-	slices.Sort(widgetSlugs)
-	slices.Sort(seeAllSlugs)
-
-	if !slices.Equal(widgetSlugs, seeAllSlugs) {
-		t.Errorf("expected the \"See all\" search to return the same documents as the SameSubjects widget: widget=%v, search=%v", widgetSlugs, seeAllSlugs)
+	if !slices.Contains(widgetSlugs, "same-subject") {
+		t.Errorf("expected the SameSubjects widget to match on shared subjects alone, got %v", widgetSlugs)
+	}
+	if slices.Contains(seeAllSlugs, "same-subject") {
+		t.Errorf("did not expect the \"similar\" search to match on shared subjects alone, got %v", seeAllSlugs)
+	}
+	if !slices.Contains(seeAllSlugs, "shared-keywords") {
+		t.Errorf("expected the \"similar\" search to still match on shared TextRank keywords, got %v", seeAllSlugs)
 	}
 	if slices.Contains(seeAllSlugs, "unrelated") {
 		t.Errorf("did not expect unrelated document to match, got %v", seeAllSlugs)

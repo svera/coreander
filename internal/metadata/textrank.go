@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"unicode"
@@ -313,10 +314,26 @@ func (r *punctuationAwareRule) IsWordSeparator(rune rune) bool {
 	return unicode.IsPunct(rune) && rune != '\'' && rune != '-'
 }
 
+// minOccurrenceRatioSurvivors floors how many items filterByOccurrenceRatio
+// ever removes down to, regardless of ratio: the ratio threshold is relative
+// to the single most frequent item's count, which works well for a
+// normal-sized document but collapses to a handful of survivors for an
+// unusually large one (e.g. a multi-book omnibus), where the top item's raw
+// count - inflated by simply having far more text to repeat in - dwarfs
+// every other item's even though those would be perfectly fine keywords on
+// their own. Guaranteeing this many survive (when that many candidates
+// exist) keeps the ratio filter's noise-reduction intent for ordinary
+// documents while preventing that collapse for outliers.
+const minOccurrenceRatioSurvivors = 20
+
 // filterByOccurrenceRatio removes items whose occurrence count (via qty) is
-// below ratio of the most frequent item's occurrence count. Weight alone
-// can't be used for this: it's normalized against the document's own
-// min/max occurrence counts, not an absolute measure of relevance.
+// below ratio of the most frequent item's occurrence count, except it never
+// drops the top minOccurrenceRatioSurvivors items by qty (see its doc
+// comment). Weight alone can't be used for this: it's normalized against the
+// document's own min/max occurrence counts, not an absolute measure of
+// relevance. The returned order is by descending qty rather than the input
+// order, but that's fine since callers (rankText) only ever pass the result
+// on to something that re-sorts by Weight anyway.
 func filterByOccurrenceRatio[T any](items []T, ratio float64, qty func(T) int) []T {
 	if len(items) == 0 {
 		return items
@@ -330,9 +347,20 @@ func filterByOccurrenceRatio[T any](items []T, ratio float64, qty func(T) int) [
 	}
 	threshold := float64(maxQty) * ratio
 
-	filtered := make([]T, 0, len(items))
-	for _, item := range items {
-		if float64(qty(item)) >= threshold {
+	sorted := make([]T, len(items))
+	copy(sorted, items)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return qty(sorted[i]) > qty(sorted[j])
+	})
+
+	survivorFloor := minOccurrenceRatioSurvivors
+	if survivorFloor > len(sorted) {
+		survivorFloor = len(sorted)
+	}
+
+	filtered := make([]T, 0, len(sorted))
+	for i, item := range sorted {
+		if i < survivorFloor || float64(qty(item)) >= threshold {
 			filtered = append(filtered, item)
 		}
 	}

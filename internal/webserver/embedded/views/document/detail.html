@@ -118,6 +118,32 @@
             </div>
         </section>
         {{end}}
+
+        {{if .Debug}}
+        <section class="row mt-5">
+            <div class="col-12">
+                <h2>TextRank debug</h2>
+                <p><strong>Enriched:</strong> {{.Document.TextRankEnriched}}</p>
+                <p><strong>Words:</strong> {{.Document.Words}}</p>
+                <h3>Phrases</h3>
+                {{if .Document.TextRankPhrases}}
+                <ol>
+                    {{range .Document.TextRankPhrases}}<li>{{.}}</li>{{end}}
+                </ol>
+                {{else}}
+                <p><i>None</i></p>
+                {{end}}
+                <h3>Words</h3>
+                {{if .Document.TextRankWords}}
+                <ol>
+                    {{range .Document.TextRankWords}}<li>{{.}}</li>{{end}}
+                </ol>
+                {{else}}
+                <p><i>None</i></p>
+                {{end}}
+            </div>
+        </section>
+        {{end}}
     </div>
 </div>
 

@@ -38,10 +38,11 @@ const AuthorVersion = "2"
 
 // Metadata fields
 var (
-	internalLanguages          = []byte("languages")
-	internalVersion            = []byte("version")
-	internalIllustratedMinSize = []byte("illustrated_min_size")
-	internalMinOccurrenceRatio = []byte("min_occurrence_ratio")
+	internalLanguages           = []byte("languages")
+	internalVersion             = []byte("version")
+	internalIllustratedMinSize  = []byte("illustrated_min_size")
+	internalMinOccurrenceRatio  = []byte("min_occurrence_ratio")
+	internalDocCountAtLastPrune = []byte("doc_count_at_last_prune")
 )
 
 // ErrDocumentNotFound is returned when a document cannot be found by slug.
@@ -289,7 +290,7 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrators", simpleTextFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Description", textFieldMapping)
 		// TextRankPhrases is compared via exact-phrase MatchPhraseQuery in
-		// subjectsQuery (see bleve_document_read.go), which analyzes its query
+		// similarToQuery (see bleve_document_read.go), which analyzes its query
 		// terms with defaultAnalyzer (no stemming). Mapping this field to the
 		// per-language textFieldMapping here - which does stem, e.g. Spanish's
 		// light stemmer - would silently break most phrase matches: the query

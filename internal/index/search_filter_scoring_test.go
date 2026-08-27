@@ -75,7 +75,7 @@ func TestAddFiltersDoesNotAffectScoring(t *testing.T) {
 
 	scoresFor := func(searchFields SearchFields) map[string]float64 {
 		filtersQuery := bleve.NewConjunctionQuery()
-		filtersQuery.AddQuery(idx.subjectsQuery(docA))
+		filtersQuery.AddQuery(idx.similarToQuery(docA))
 		idx.addFilters(searchFields, filtersQuery)
 
 		req := bleve.NewSearchRequestOptions(filtersQuery, 50, 0, false)

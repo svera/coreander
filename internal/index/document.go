@@ -12,12 +12,12 @@ type SearchFields struct {
 	Language string
 	Subjects string
 	// SimilarTo, when set to a document slug, ignores Keywords/Subjects and
-	// instead returns documents matching that document's subjects/TextRank
-	// keywords (via the same subjectsQuery used by SameSubjects, excluding
-	// the document itself, its own author and its own series), ranked by
-	// score and pruned to those scoring close enough to the best match
-	// (see runSimilarityQuery). Powers the "See all" link on a document's
-	// "With similar subjects" section.
+	// instead returns documents matching that document's TextRank keyword
+	// phrases (via similarToQuery, excluding the document itself, its own
+	// author and its own series - deliberately not its subjects, see
+	// similarToQuery), ranked by score and pruned to those scoring close
+	// enough to the best match (see runSimilarityQuery). Powers the "See all"
+	// link on a document's "With similar subjects" section.
 	SimilarTo       string
 	PubDateFrom     date.Date
 	PubDateTo       date.Date
@@ -43,7 +43,7 @@ type Document struct {
 	// oppenheimer") extracted by TextRank analysis at indexing time (EPUB
 	// only), one phrase per element, ordered by descending TextRank weight
 	// (see textRankKeywords) - callers that only use a prefix of this slice
-	// (e.g. subjectsQuery's Config.MaxSimilarityPhrases cap) get the most
+	// (e.g. similarToQuery's Config.MaxSimilarityPhrases cap) get the most
 	// representative phrases first rather than an arbitrary subset. Storing
 	// one entry per phrase (rather than flattening them all into a single
 	// string) matters: Bleve resets term positions at each array element, so

@@ -71,6 +71,7 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"WordsPerMinute":       d.config.WordsPerMinute,
 		"AuthorSummaries":      authorSummaries,
 		"IllustratorSummaries": illustratorSummaries,
+		"Debug":                c.RequestCtx().QueryArgs().Has("debug"),
 	}, "layout")
 }
 
