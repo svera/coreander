@@ -1056,7 +1056,7 @@ func slicer(val any) []string {
 // documents" widget and the "similar" search show documents in the same
 // order and using identical matching.
 func (b *BleveIndexer) SimilarTo(slugID string, quantity int) ([]Document, error) {
-	paginated, err := b.Search(SearchFields{SimilarTo: slugID}, 1, quantity)
+	paginated, err := b.Search(SearchFields{SimilarTo: slugID, SortBy: DefaultDocumentSortBy}, 1, quantity)
 	if err != nil {
 		return []Document{}, err
 	}

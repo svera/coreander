@@ -120,6 +120,59 @@ func TestSimilarToMatchesBySharedTextRankPhrasesOnly(t *testing.T) {
 	}
 }
 
+// TestSimilarToWidgetUsesDefaultSortOrder guards against a regression where
+// the widget's SearchFields left SortBy unset: runSimilarityQuery only
+// applies the "-_score" comparator sortSimilarityResults sorts by, so with a
+// nil SortBy it fell back to sorting purely by closeness to the reference
+// document's publication date, ignoring how well each candidate actually
+// matched. That could rank a weakly-matching but date-close document above a
+// strongly-matching one, producing a different top N than the "similar"
+// search, which always sets SortBy (via parseDocumentSortBy, defaulting to
+// DefaultDocumentSortBy) - see TestSimilarToWidgetMatchesSeeAllSearch for the
+// consistency guard this complements.
+func TestSimilarToWidgetUsesDefaultSortOrder(t *testing.T) {
+	docA := index.Document{
+		ID:              "a.epub",
+		Slug:            "doc-a",
+		Metadata:        metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB", Publication: precisiondate.NewPrecisionDate("2020-01-01T00:00:00Z", precisiondate.PrecisionDay)},
+		AuthorsSlugs:    []string{"author-one"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "project atomic", "los alamos", "physics nuclear"},
+	}
+	// docStrongMatch shares every TextRank phrase with docA (highest score),
+	// but its publication date is far from docA's.
+	docStrongMatch := index.Document{
+		ID:              "strong.epub",
+		Slug:            "strong-match",
+		Metadata:        metadata.Metadata{Title: "Strong Match", Authors: []string{"Author Two"}, Format: "EPUB", Publication: precisiondate.NewPrecisionDate("1990-01-01T00:00:00Z", precisiondate.PrecisionDay)},
+		AuthorsSlugs:    []string{"author-two"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "project atomic", "los alamos", "physics nuclear"},
+	}
+	// docWeakMatch shares only 3 of docA's 4 TextRank phrases (lower score,
+	// but still within MinSimilarityScoreRatio of docStrongMatch's, so it
+	// isn't pruned), and its publication date is right next to docA's - if
+	// sorting fell back to date-closeness alone, this would rank above
+	// docStrongMatch.
+	docWeakMatch := index.Document{
+		ID:              "weak.epub",
+		Slug:            "weak-match",
+		Metadata:        metadata.Metadata{Title: "Weak Match", Authors: []string{"Author Three"}, Format: "EPUB", Publication: precisiondate.NewPrecisionDate("2020-01-02T00:00:00Z", precisiondate.PrecisionDay)},
+		AuthorsSlugs:    []string{"author-three"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "project atomic", "los alamos"},
+	}
+
+	idx := newTextRankTestIndex(t, []index.Document{docA, docStrongMatch, docWeakMatch})
+
+	widgetResults, err := idx.SimilarTo("doc-a", 1)
+	if err != nil {
+		t.Fatalf("SimilarTo returned an error: %s", err)
+	}
+
+	widgetSlugs := slugsOf(widgetResults)
+	if !slices.Contains(widgetSlugs, "strong-match") {
+		t.Errorf("expected the top widget result to be the strongest TextRank match regardless of publication date, got %v", widgetSlugs)
+	}
+}
+
 // TestSearchSimilarToIgnoresSingleWords guards against a real bug: a single word
 // can rank highly within one document's own TextRank weights while still
 // being a generic word that appears across a large fraction of an unrelated
