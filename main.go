@@ -138,7 +138,7 @@ func main() {
 		Version:                    version,
 		MinPasswordLength:          input.MinPasswordLength,
 		WordsPerMinute:             input.WordsPerMinute,
-		MinOccurrenceRatio:         input.MinOccurrenceRatio,
+		TextRankEnabled:            input.MinOccurrenceRatio > 0,
 		JwtSecret:                  []byte(input.JwtSecret),
 		FQDN:                       input.FQDN,
 		Port:                       input.Port,
