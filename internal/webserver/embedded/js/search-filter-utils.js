@@ -223,8 +223,15 @@ export function initClearRangeControls(searchFilters) {
     }
 }
 
-function hasActiveFilters(searchFilters) {
+function sharedSearchInputs(searchFilters, searchFiltersForm) {
+    if (!searchFiltersForm) return []
+    return Array.from(searchFiltersForm.querySelectorAll('input[type="search"]')).filter(el => !searchFilters.contains(el))
+}
+
+function hasActiveFilters(searchFilters, searchFiltersForm) {
     const isInDateControl = el => el.closest('.date-control')
+
+    if (sharedSearchInputs(searchFilters, searchFiltersForm).some(hasValue)) return true
 
     const hasTextOrNumberFilter = Array.from(
         searchFilters.querySelectorAll('input[type="search"], input[type="text"], input[type="number"]')
@@ -249,11 +256,13 @@ export function initClearAllFilters(searchFilters, searchFiltersForm, { resetDat
     if (!clearAllButton) return
 
     function updateClearAllButtonState() {
-        clearAllButton.disabled = !hasActiveFilters(searchFilters)
+        clearAllButton.disabled = !hasActiveFilters(searchFilters, searchFiltersForm)
     }
 
     searchFilters.addEventListener('input', updateClearAllButtonState)
     searchFilters.addEventListener('change', updateClearAllButtonState)
+    searchFiltersForm.addEventListener('input', updateClearAllButtonState)
+    searchFiltersForm.addEventListener('change', updateClearAllButtonState)
     new MutationObserver(updateClearAllButtonState).observe(searchFilters, { childList: true, subtree: true })
 
     clearAllButton.addEventListener('click', (e) => {
@@ -262,6 +271,11 @@ export function initClearAllFilters(searchFilters, searchFiltersForm, { resetDat
         searchFilters.querySelectorAll('input[type="search"], input[type="text"]').forEach(input => {
             input.value = ''
         })
+        sharedSearchInputs(searchFilters, searchFiltersForm).forEach(input => {
+            input.value = ''
+        })
+        const navSearchbox = document.getElementById('searchbox')
+        if (navSearchbox) navSearchbox.value = ''
         searchFilters.querySelectorAll('select').forEach(select => {
             select.value = ''
         })
