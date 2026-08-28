@@ -65,7 +65,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	app.Use(SetAvailableLanguages(idx))
 
 	// Determine which format-dependent filters (pages, reading time) apply to this library
-	app.Use(SetSearchFilterAvailability(idx, cfg.MinOccurrenceRatio))
+	app.Use(SetSearchFilterAvailability(idx, cfg.MinOccurrenceRatio > 0))
 
 	// Set email sending configuration (must be early so it's available in all routes)
 	app.Use(SetEmailSendingConfigured(sender))
