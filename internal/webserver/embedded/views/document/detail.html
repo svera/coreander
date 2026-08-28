@@ -99,10 +99,10 @@
         </section>
         {{end}}
 
-        {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
+        {{ $length := len .SimilarDocuments }} {{ if gt $length 0 }}
         <section class="row mt-5">
             <div class="col-9">
-                <h2>{{t .Lang "With similar subjects"}}</h2>
+                <h2>{{t .Lang "Similar documents"}}</h2>
             </div>
             <div class="col-3 text-end">
                 <a  href='/search?type=documents&similar={{urlquery .Document.Slug}}'>
@@ -110,10 +110,36 @@
             </div>
 
             <div class="row pe-0 align-items-end">
-                {{range $i, $doc := .SameSubjects}}
+                {{range $i, $doc := .SimilarDocuments}}
                 <div class="col-6 col-lg-3 pe-0 mt-3">
                     {{template "partials/cover" dict "Lang" $.Lang "Document" $doc "Session" $.Session "Version" $.Version}}
                 </div>
+                {{end}}
+            </div>
+        </section>
+        {{end}}
+
+        {{if .Debug}}
+        <section class="row mt-5">
+            <div class="col-12">
+                <h2>TextRank debug</h2>
+                <p><strong>Enriched:</strong> {{.Document.TextRankEnriched}}</p>
+                <p><strong>Words:</strong> {{.Document.Words}}</p>
+                <h3>Phrases</h3>
+                {{if .Document.TextRankPhrases}}
+                <ol>
+                    {{range .Document.TextRankPhrases}}<li>{{.}}</li>{{end}}
+                </ol>
+                {{else}}
+                <p><i>None</i></p>
+                {{end}}
+                <h3>Words</h3>
+                {{if .Document.TextRankWords}}
+                <ol>
+                    {{range .Document.TextRankWords}}<li>{{.}}</li>{{end}}
+                </ol>
+                {{else}}
+                <p><i>None</i></p>
                 {{end}}
             </div>
         </section>

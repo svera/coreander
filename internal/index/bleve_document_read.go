@@ -32,9 +32,9 @@ const titleBoost = 3.0
 // DefaultDocumentSortBy is the "relevance" sort order applied whenever no explicit
 // sort is requested: highest score first, then by series/series index for
 // documents that tie on score (e.g. several entries of the same series matching
-// a keyword search equally). SearchFields.SimilarTo callers and SameSubjects both
-// use it, so a document appears in the same relative order in search-similar
-// results and in the "related documents" section.
+// a keyword search equally). Used by SearchFields.SimilarTo, so a document
+// appears in the same relative order in search-similar results and in the
+// document detail page's "related documents" widget.
 var DefaultDocumentSortBy = []string{"-_score", "Series", "SeriesIndex"}
 
 // Search look for documents which match the passed keywords and filters.
@@ -47,18 +47,18 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		if err != nil {
 			return result.CappedPaginatedResult[[]Document]{}, err
 		}
-		subjectsQuery := b.subjectsQuery(doc)
-		filtersQuery.AddQuery(subjectsQuery)
+		similarToQuery := b.similarToQuery(doc)
+		filtersQuery.AddQuery(similarToQuery)
 		conjunctsBeforeFilters := len(filtersQuery.Conjuncts)
 		b.addFilters(searchFields, filtersQuery)
 
-		// Only score subjectsQuery on its own when addFilters actually added
+		// Only score similarToQuery on its own when addFilters actually added
 		// something to filtersQuery: otherwise the two queries are equivalent, and
-		// scoring subjectsQuery separately would just make Bleve evaluate the same
+		// scoring similarToQuery separately would just make Bleve evaluate the same
 		// matches twice for no benefit - see runSimilarityQuery.
 		var scoringQuery query.Query
 		if len(filtersQuery.Conjuncts) > conjunctsBeforeFilters {
-			scoringQuery = subjectsQuery
+			scoringQuery = similarToQuery
 		}
 		return b.runSimilarityQuery(scoringQuery, filtersQuery, page, resultsPerPage, searchFields.SortBy, float64(doc.Publication.Date))
 	}
@@ -433,8 +433,8 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 // left.
 //
 // The best match's score is normally just candidateQuery's own top hit. But when
-// scoringQuery is non-nil (candidateQuery is subjectsQuery plus extra filters -
-// language, publication date range, etc. - that scoringQuery, subjectsQuery alone,
+// scoringQuery is non-nil (candidateQuery is similarToQuery plus extra filters -
+// language, publication date range, etc. - that scoringQuery, similarToQuery alone,
 // doesn't have) the best score is taken from scoringQuery instead, at the cost of
 // evaluating that query too: those filters can shrink the candidate pool without the
 // reference document actually having fewer or weaker true matches, and if the
@@ -1049,23 +1049,14 @@ func slicer(val any) []string {
 	return termsStrings
 }
 
-// SameSubjects returns an array of metadata of documents by other authors,
-// which have similar subjects as the passed one and does not belong to the same collection.
-// They are sorted by subjects matching score, ties broken by closeness to the
-// publication date of the reference document - the same ranking used by
-// SearchFields.SimilarTo, so both surfaces show related documents in the same order.
-func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, error) {
-	doc, err := b.Document(slugID)
-	if err != nil {
-		return []Document{}, err
-	}
-
-	if len(doc.Subjects) == 0 && len(doc.TextRankPhrases) == 0 {
-		return []Document{}, nil
-	}
-
-	bq := b.subjectsQuery(doc)
-	paginated, err := b.runSimilarityQuery(nil, bq, 1, quantity, DefaultDocumentSortBy, float64(doc.Publication.Date))
+// SimilarTo returns an array of metadata of documents by other authors, which
+// are content-similar to the passed one (sharing TextRank word pairs) and
+// does not belong to the same collection. Delegates to Search's
+// SearchFields.SimilarTo path so the document detail page's "related
+// documents" widget and the "similar" search show documents in the same
+// order and using identical matching.
+func (b *BleveIndexer) SimilarTo(slugID string, quantity int) ([]Document, error) {
+	paginated, err := b.Search(SearchFields{SimilarTo: slugID, SortBy: DefaultDocumentSortBy}, 1, quantity)
 	if err != nil {
 		return []Document{}, err
 	}
@@ -1073,12 +1064,18 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	return paginated.Hits(), nil
 }
 
-func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
+// similarToQuery builds Search's SearchFields.SimilarTo candidate query:
+// documents sharing a TextRank word pair with doc, excluding doc itself,
+// documents in the same series, and documents by the same authors. Subjects
+// are deliberately not considered here: a shared subject slug alone (e.g. a
+// broad genre like "Novela") is too weak/generic a signal to stand in for
+// actual content similarity, and on a library with generic subjects it was
+// pulling in large numbers of only superficially related documents.
+func (b *BleveIndexer) similarToQuery(doc Document) *query.BooleanQuery {
 	bq := bleve.NewBooleanQuery()
-	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
 
-	// A document qualifies as "related" primarily by sharing a TextRank word
-	// pair extracted at indexing time (EPUB only) - one MatchPhraseQuery per
+	// A document qualifies as "related" by sharing a TextRank word pair
+	// extracted at indexing time (EPUB only) - one MatchPhraseQuery per
 	// entry, since each is stored as its own array entry (see the
 	// Document.TextRankPhrases doc comment), so a pair only ever matches an
 	// actual adjacent pair in the candidate document, never two words from
@@ -1108,33 +1105,30 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 	if b.maxSimilarityPhrases > 0 && len(phrases) > b.maxSimilarityPhrases {
 		phrases = phrases[:b.maxSimilarityPhrases]
 	}
+	phrasesCompoundQuery := bleve.NewDisjunctionQuery()
 	for _, phrase := range phrases {
 		kq := bleve.NewMatchPhraseQuery(phrase)
 		kq.SetField("TextRankPhrases")
 		kq.Analyzer = defaultAnalyzer
-		subjectsCompoundQuery.AddQuery(kq)
+		phrasesCompoundQuery.AddQuery(kq)
 	}
+	bq.AddMust(phrasesCompoundQuery)
 
-	// Subjects are ORed in alongside the TextRank phrases rather than as a
-	// pure fallback: they let non-EPUB documents, documents too short for
-	// TextRank to produce anything distinctive, or documents indexed with
-	// text ranking disabled (Config.MinOccurrenceRatio = 0) still surface as
-	// related via shared genre/category, and for EPUB documents they add
-	// genre as an extra (lower-signal) matching dimension on top of the
-	// content-specific phrase matches, rather than replacing them.
-	for _, slug := range doc.SubjectsSlugs {
-		qu := bleve.NewTermQuery(slug)
-		qu.SetField("SubjectsSlugs")
-		subjectsCompoundQuery.AddQuery(qu)
-	}
+	b.excludeSelfSeriesAndAuthors(doc, bq)
 
+	return bq
+}
+
+// excludeSelfSeriesAndAuthors adds the MustNot clauses used by
+// similarToQuery: doc itself, any document in the same series, and any
+// document by the same authors.
+func (b *BleveIndexer) excludeSelfSeriesAndAuthors(doc Document, bq *query.BooleanQuery) {
 	if doc.SeriesSlug != "" {
 		sq := bleve.NewTermQuery(doc.SeriesSlug)
 		sq.SetField("SeriesSlug")
 		bq.AddMustNot(sq)
 	}
 
-	bq.AddMust(subjectsCompoundQuery)
 	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
 
 	authorsCompoundQuery := bleve.NewDisjunctionQuery()
@@ -1144,8 +1138,6 @@ func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
 		authorsCompoundQuery.AddQuery(qa)
 	}
 	bq.AddMustNot(authorsCompoundQuery)
-
-	return bq
 }
 
 // SameAuthors returns an array of metadata of documents by the same authors which

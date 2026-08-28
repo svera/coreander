@@ -49,7 +49,7 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 	lang, _ := c.Locals("Lang").(string)
 	authorSummaries, illustratorSummaries := d.authorAndIllustratorSummaries(document, lang)
 
-	sameSubjects, sameSeries := d.related(document.Slug, int(session.ID))
+	similarDocuments, sameSeries := d.related(document.Slug, int(session.ID))
 
 	var completedOn *time.Time
 	result := model.AugmentedDocument{Document: document}
@@ -67,10 +67,11 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"Document":             result,
 		"EmailFrom":            d.sender.From(),
 		"SameSeries":           sameSeries,
-		"SameSubjects":         sameSubjects,
+		"SimilarDocuments":     similarDocuments,
 		"WordsPerMinute":       d.config.WordsPerMinute,
 		"AuthorSummaries":      authorSummaries,
 		"IllustratorSummaries": illustratorSummaries,
+		"Debug":                c.RequestCtx().QueryArgs().Has("debug"),
 	}, "layout")
 }
 
@@ -120,16 +121,16 @@ func (d *Controller) authorSummaryFor(authorSlug, lang string) authorSummary {
 	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug)}
 }
 
-func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameSeries []model.AugmentedDocument) {
+func (d *Controller) related(slug string, sessionID int) (similarDocuments, sameSeries []model.AugmentedDocument) {
 	var err error
-	var subjects []index.Document
-	if subjects, err = d.idx.SameSubjects(slug, relatedDocuments); err != nil {
+	var similar []index.Document
+	if similar, err = d.idx.SimilarTo(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
-	for i := range subjects {
-		result := model.AugmentedDocument{Document: subjects[i]}
+	for i := range similar {
+		result := model.AugmentedDocument{Document: similar[i]}
 		result = d.hlRepository.Highlighted(sessionID, result)
-		sameSubjects = append(sameSubjects, result)
+		similarDocuments = append(similarDocuments, result)
 	}
 
 	var series []index.Document
@@ -142,5 +143,5 @@ func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameSeri
 		sameSeries = append(sameSeries, result)
 	}
 
-	return sameSubjects, sameSeries
+	return similarDocuments, sameSeries
 }

@@ -62,7 +62,7 @@ func TestUnifiedSearch(t *testing.T) {
 }
 
 // TestSearchSimilarToPreservesFilterAcrossReload checks that a "similar"
-// search (from a document's "With similar subjects" > "See all" link) keeps
+// search (from a document's "Similar documents" > "See all" link) keeps
 // itself scoped to that document when the page reloads with extra filters
 // applied - see the "similar" hidden input in document-search-filters.html,
 // which regressed to being dropped on filter changes before this test was

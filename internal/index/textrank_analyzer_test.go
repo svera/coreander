@@ -8,12 +8,12 @@ import (
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
-// TestSameSubjectsMatchesStemmablePhrasesForLanguageRoutedDocuments guards
+// TestSearchSimilarToMatchesStemmablePhrasesForLanguageRoutedDocuments guards
 // against a real bug: documents with a Language set route to a per-language
 // bleve document mapping (see Document.BleveType), and for languages with a
 // stemming analyzer (Spanish, English, German, French, Italian, Portuguese -
 // see noStopWordsFilters in bleve.go), TextRankPhrases used to be indexed
-// with that stemming analyzer. But subjectsQuery's MatchPhraseQuery always
+// with that stemming analyzer. But similarToQuery's MatchPhraseQuery always
 // analyzes its query terms with defaultAnalyzer, which never stems. A
 // phrase like "potencias centrales" could get indexed in a stemmed form
 // (e.g. "potencia central") while the query still looks for the literal
@@ -23,7 +23,7 @@ import (
 // set Language, so they always routed to DefaultMapping (already using
 // defaultAnalyzer, unaffected). Setting Language: "es" here specifically
 // exercises the per-language routing path.
-func TestSameSubjectsMatchesStemmablePhrasesForLanguageRoutedDocuments(t *testing.T) {
+func TestSearchSimilarToMatchesStemmablePhrasesForLanguageRoutedDocuments(t *testing.T) {
 	docA := index.Document{
 		ID:              "a.epub",
 		Slug:            "doc-a",
@@ -48,12 +48,12 @@ func TestSameSubjectsMatchesStemmablePhrasesForLanguageRoutedDocuments(t *testin
 
 	idx := newTextRankTestIndex(t, []index.Document{docA, docSharesStemmablePhrase, docUnrelated})
 
-	got, err := idx.SameSubjects("doc-a", 10)
+	res, err := idx.Search(index.SearchFields{SimilarTo: "doc-a"}, 1, 10)
 	if err != nil {
-		t.Fatalf("SameSubjects returned an error: %s", err)
+		t.Fatalf("Search returned an error: %s", err)
 	}
 
-	gotSlugs := slugsOf(got)
+	gotSlugs := slugsOf(res.Hits())
 	if !slices.Contains(gotSlugs, "shares-stemmable-phrase") {
 		t.Errorf("expected %q to match on its shared stemmable phrases, got %v", "shares-stemmable-phrase", gotSlugs)
 	}

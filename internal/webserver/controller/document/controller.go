@@ -27,7 +27,7 @@ type IdxReaderWriter interface {
 	Document(Slug string) (index.Document, error)
 	File(slug string) (*index.IndexedFile, error)
 	Cover(slug string, coverMaxWidth int) (image.Image, error)
-	SameSubjects(slug string, quantity int) ([]index.Document, error)
+	SimilarTo(slug string, quantity int) ([]index.Document, error)
 	SameAuthors(slug string, quantity int) ([]index.Document, error)
 	SameSeries(slug string, quantity int) ([]index.Document, error)
 	NewFile(fileName string, contents []byte) (string, error)

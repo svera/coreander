@@ -46,8 +46,19 @@ func init() {
 	ctx := kong.Parse(&input, kong.Description(`
 		Coreander is a document management system which indexes metadata from documents in a library and allows users to search and read them through a web interface.
 	`),
+		// The defaultXxx entries interpolate CLIInput's struct tags (via
+		// kong's "${name}" syntax) from index's own DefaultXxx constants, so
+		// the CLI flag's advertised default and NewBleve's zero-value
+		// fallback can never drift apart from a hand-copied literal going
+		// stale in one place.
 		kong.Vars{
-			"version": version,
+			"version":                               version,
+			"defaultMaxSimilarityCandidates":        fmt.Sprint(index.DefaultMaxSimilarityCandidates),
+			"defaultMinSimilarityScoreRatio":        fmt.Sprint(index.DefaultMinSimilarityScoreRatio),
+			"defaultMaxSimilarityPhrases":           fmt.Sprint(index.DefaultMaxSimilarityPhrases),
+			"defaultCommonTextRankEntryRatio":       fmt.Sprint(index.DefaultCommonTextRankEntryRatio),
+			"defaultMinCommonTextRankAbsoluteCount": fmt.Sprint(index.DefaultMinCommonTextRankAbsoluteCount),
+			"defaultPruneChangeTriggerRatio":        fmt.Sprint(index.DefaultPruneChangeTriggerRatio),
 		},
 	)
 
@@ -88,13 +99,16 @@ func init() {
 	var needsReindex bool
 	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize, input.MinOccurrenceRatio)
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
-		IllustratedMinAmount:    input.IllustratedMinAmount,
-		IllustratedMinSize:      input.IllustratedMinSize,
-		MinOccurrenceRatio:      input.MinOccurrenceRatio,
-		MaxSimilarityCandidates: input.MaxSimilarityCandidates,
-		MinSimilarityScoreRatio: input.MinSimilarityScoreRatio,
-		MaxSimilarityPhrases:    input.MaxSimilarityPhrases,
-		MaxTextRankWords:        maxTextRankWords,
+		IllustratedMinAmount:           input.IllustratedMinAmount,
+		IllustratedMinSize:             input.IllustratedMinSize,
+		MinOccurrenceRatio:             input.MinOccurrenceRatio,
+		MaxSimilarityCandidates:        input.MaxSimilarityCandidates,
+		MinSimilarityScoreRatio:        input.MinSimilarityScoreRatio,
+		MaxSimilarityPhrases:           input.MaxSimilarityPhrases,
+		MaxTextRankWords:               maxTextRankWords,
+		CommonTextRankEntryRatio:       input.CommonTextRankEntryRatio,
+		MinCommonTextRankAbsoluteCount: input.MinCommonTextRankAbsoluteCount,
+		PruneChangeTriggerRatio:        input.PruneChangeTriggerRatio,
 	})
 
 	// If index was newly created or recreated, force reindexing
