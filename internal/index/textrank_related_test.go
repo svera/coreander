@@ -51,37 +51,35 @@ func slugsOf(docs []index.Document) []string {
 	return slugs
 }
 
-// TestSameSubjectsMatchesBySharedSubjectsOnly guards subjectsQuery's
-// contract: SameSubjects matches purely on shared SubjectsSlugs and never
-// considers TextRankPhrases/TextRankWords at all (that's similarToQuery's
-// job, used by Search's SearchFields.SimilarTo instead - see
-// TestSearchSimilarToExcludesSubjectOnlyMatches for the mirror-image guard).
-func TestSameSubjectsMatchesBySharedSubjectsOnly(t *testing.T) {
+// TestSimilarToMatchesBySharedTextRankPhrasesOnly guards SimilarTo's
+// contract: it delegates to Search's SearchFields.SimilarTo path
+// (similarToQuery), so it matches purely on shared TextRankPhrases and never
+// considers Subjects at all.
+func TestSimilarToMatchesBySharedTextRankPhrasesOnly(t *testing.T) {
 	sharedPairs := []string{"oppenheimer manhattan", "atomic bomb", "los alamos"}
 
-	docWithSubject := index.Document{
-		ID:            "with-subject.epub",
-		Slug:          "with-subject",
-		Metadata:      metadata.Metadata{Title: "With Subject", Authors: []string{"Author One"}, Format: "EPUB", Subjects: []string{"History"}},
-		AuthorsSlugs:  []string{"author-one"},
-		SubjectsSlugs: []string{"history"},
+	docWithPhrases := index.Document{
+		ID:              "with-phrases.epub",
+		Slug:            "with-phrases",
+		Metadata:        metadata.Metadata{Title: "With Phrases", Authors: []string{"Author One"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-one"},
+		TextRankPhrases: sharedPairs,
 	}
-	docSharedSubject := index.Document{
+	docSharedPhrases := index.Document{
+		ID:              "shared-phrases.epub",
+		Slug:            "shared-phrases",
+		Metadata:        metadata.Metadata{Title: "Shared Phrases", Authors: []string{"Author Two"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-two"},
+		TextRankPhrases: sharedPairs,
+	}
+	// docSharedSubjectOnly shares a subject with docWithPhrases but no
+	// TextRank phrase, so it must not appear in SimilarTo's results.
+	docSharedSubjectOnly := index.Document{
 		ID:            "shared-subject.epub",
 		Slug:          "shared-subject",
-		Metadata:      metadata.Metadata{Title: "Shared Subject", Authors: []string{"Author Two"}, Format: "EPUB", Subjects: []string{"History"}},
-		AuthorsSlugs:  []string{"author-two"},
+		Metadata:      metadata.Metadata{Title: "Shared Subject", Authors: []string{"Author Three"}, Format: "EPUB", Subjects: []string{"History"}},
+		AuthorsSlugs:  []string{"author-three"},
 		SubjectsSlugs: []string{"history"},
-	}
-	// docSharedKeywordsOnly shares TextRankPhrases with docWithSubject but no
-	// subject, so it must not appear in SameSubjects' results even though it
-	// would match via similarToQuery.
-	docSharedKeywordsOnly := index.Document{
-		ID:              "shared-keywords.epub",
-		Slug:            "shared-keywords",
-		Metadata:        metadata.Metadata{Title: "Shared Keywords", Authors: []string{"Author Three"}, Format: "EPUB"},
-		AuthorsSlugs:    []string{"author-three"},
-		TextRankPhrases: sharedPairs,
 	}
 	docUnrelated := index.Document{
 		ID:              "unrelated.epub",
@@ -91,34 +89,34 @@ func TestSameSubjectsMatchesBySharedSubjectsOnly(t *testing.T) {
 		TextRankPhrases: []string{"cooking recipes", "bread baking", "gardening tools"},
 	}
 	docSameAuthor := index.Document{
-		ID:            "same-author.epub",
-		Slug:          "same-author",
-		Metadata:      metadata.Metadata{Title: "Same Author", Authors: []string{"Author One"}, Format: "EPUB", Subjects: []string{"History"}},
-		AuthorsSlugs:  []string{"author-one"},
-		SubjectsSlugs: []string{"history"},
+		ID:              "same-author.epub",
+		Slug:            "same-author",
+		Metadata:        metadata.Metadata{Title: "Same Author", Authors: []string{"Author One"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"author-one"},
+		TextRankPhrases: sharedPairs,
 	}
 
 	idx := newTextRankTestIndex(t, []index.Document{
-		docWithSubject, docSharedSubject, docSharedKeywordsOnly, docUnrelated, docSameAuthor,
+		docWithPhrases, docSharedPhrases, docSharedSubjectOnly, docUnrelated, docSameAuthor,
 	})
 
-	got, err := idx.SameSubjects("with-subject", 10)
+	got, err := idx.SimilarTo("with-phrases", 10)
 	if err != nil {
-		t.Fatalf("SameSubjects returned an error: %s", err)
+		t.Fatalf("SimilarTo returned an error: %s", err)
 	}
 
 	gotSlugs := slugsOf(got)
-	if !slices.Contains(gotSlugs, "shared-subject") {
-		t.Errorf("expected %q to be present in results %v", "shared-subject", gotSlugs)
+	if !slices.Contains(gotSlugs, "shared-phrases") {
+		t.Errorf("expected %q to be present in results %v", "shared-phrases", gotSlugs)
 	}
-	if slices.Contains(gotSlugs, "shared-keywords") {
-		t.Errorf("did not expect a document sharing only TextRank keywords (no subject) to match, got %v", gotSlugs)
+	if slices.Contains(gotSlugs, "shared-subject") {
+		t.Errorf("did not expect a document sharing only a subject (no TextRank phrase) to match, got %v", gotSlugs)
 	}
 	if slices.Contains(gotSlugs, "unrelated") {
 		t.Errorf("did not expect unrelated document to match, got %v", gotSlugs)
 	}
 	if slices.Contains(gotSlugs, "same-author") {
-		t.Errorf("did not expect same-author document to match (SameSubjects excludes same-author documents), got %v", gotSlugs)
+		t.Errorf("did not expect same-author document to match (SimilarTo excludes same-author documents), got %v", gotSlugs)
 	}
 }
 
@@ -171,13 +169,15 @@ func TestSearchSimilarToIgnoresSingleWords(t *testing.T) {
 	}
 }
 
-// TestSearchSimilarToExcludesSubjectOnlyMatches guards against a document
-// that shares only a subject (no TextRank phrase) with the reference document
-// showing up in the "similar" search (SearchFields.SimilarTo): a shared
-// subject slug (e.g. a broad genre like "History") is too weak/generic a
-// signal there, unlike SameSubjects - the "related by subject" widget - which
-// is exclusively about shared subjects (see subjectsQuery and similarToQuery).
-func TestSearchSimilarToExcludesSubjectOnlyMatches(t *testing.T) {
+// TestSimilarToWidgetMatchesSeeAllSearch guards that the document detail
+// page's "related documents" widget (BleveIndexer.SimilarTo) and its "See
+// all" link (Search's SearchFields.SimilarTo) return the same documents,
+// since SimilarTo delegates to Search. Also guards against a document that
+// shares only a subject (no TextRank phrase) with the reference document
+// showing up in either: a shared subject slug (e.g. a broad genre like
+// "History") is too weak/generic a signal for content similarity - see
+// similarToQuery.
+func TestSimilarToWidgetMatchesSeeAllSearch(t *testing.T) {
 	docA := index.Document{
 		ID:              "a.epub",
 		Slug:            "doc-a",
@@ -210,9 +210,9 @@ func TestSearchSimilarToExcludesSubjectOnlyMatches(t *testing.T) {
 
 	idx := newTextRankTestIndex(t, []index.Document{docA, docSameSubject, docSharedKeywords, docUnrelated})
 
-	widgetResults, err := idx.SameSubjects("doc-a", 4)
+	widgetResults, err := idx.SimilarTo("doc-a", 4)
 	if err != nil {
-		t.Fatalf("SameSubjects returned an error: %s", err)
+		t.Fatalf("SimilarTo returned an error: %s", err)
 	}
 
 	seeAllResults, err := idx.Search(index.SearchFields{SimilarTo: "doc-a"}, 1, 10)
@@ -223,14 +223,20 @@ func TestSearchSimilarToExcludesSubjectOnlyMatches(t *testing.T) {
 	widgetSlugs := slugsOf(widgetResults)
 	seeAllSlugs := slugsOf(seeAllResults.Hits())
 
-	if !slices.Contains(widgetSlugs, "same-subject") {
-		t.Errorf("expected the SameSubjects widget to match on shared subjects alone, got %v", widgetSlugs)
+	if slices.Contains(widgetSlugs, "same-subject") {
+		t.Errorf("did not expect the SimilarTo widget to match on shared subjects alone, got %v", widgetSlugs)
 	}
 	if slices.Contains(seeAllSlugs, "same-subject") {
 		t.Errorf("did not expect the \"similar\" search to match on shared subjects alone, got %v", seeAllSlugs)
 	}
+	if !slices.Contains(widgetSlugs, "shared-keywords") {
+		t.Errorf("expected the widget to match on shared TextRank keywords, got %v", widgetSlugs)
+	}
 	if !slices.Contains(seeAllSlugs, "shared-keywords") {
 		t.Errorf("expected the \"similar\" search to still match on shared TextRank keywords, got %v", seeAllSlugs)
+	}
+	if slices.Contains(widgetSlugs, "unrelated") {
+		t.Errorf("did not expect unrelated document to match, got %v", widgetSlugs)
 	}
 	if slices.Contains(seeAllSlugs, "unrelated") {
 		t.Errorf("did not expect unrelated document to match, got %v", seeAllSlugs)

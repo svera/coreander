@@ -16,8 +16,9 @@ type SearchFields struct {
 	// phrases (via similarToQuery, excluding the document itself, its own
 	// author and its own series - deliberately not its subjects, see
 	// similarToQuery), ranked by score and pruned to those scoring close
-	// enough to the best match (see runSimilarityQuery). Powers the "See all"
-	// link on a document's "With similar subjects" section.
+	// enough to the best match (see runSimilarityQuery). Also powers the
+	// "See all" link on a document's "Similar documents" section, and
+	// BleveIndexer.SimilarTo, which populates that section itself.
 	SimilarTo       string
 	PubDateFrom     date.Date
 	PubDateTo       date.Date

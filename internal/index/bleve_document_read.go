@@ -32,9 +32,9 @@ const titleBoost = 3.0
 // DefaultDocumentSortBy is the "relevance" sort order applied whenever no explicit
 // sort is requested: highest score first, then by series/series index for
 // documents that tie on score (e.g. several entries of the same series matching
-// a keyword search equally). SearchFields.SimilarTo callers and SameSubjects both
-// use it, so a document appears in the same relative order in search-similar
-// results and in the "related documents" section.
+// a keyword search equally). Used by SearchFields.SimilarTo, so a document
+// appears in the same relative order in search-similar results and in the
+// document detail page's "related documents" widget.
 var DefaultDocumentSortBy = []string{"-_score", "Series", "SeriesIndex"}
 
 // Search look for documents which match the passed keywords and filters.
@@ -1049,23 +1049,14 @@ func slicer(val any) []string {
 	return termsStrings
 }
 
-// SameSubjects returns an array of metadata of documents by other authors,
-// which have similar subjects as the passed one and does not belong to the same collection.
-// They are sorted by subjects matching score, ties broken by closeness to the
-// publication date of the reference document - the same ranking used by
-// SearchFields.SimilarTo, so both surfaces show related documents in the same order.
-func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, error) {
-	doc, err := b.Document(slugID)
-	if err != nil {
-		return []Document{}, err
-	}
-
-	if len(doc.Subjects) == 0 {
-		return []Document{}, nil
-	}
-
-	bq := b.subjectsQuery(doc)
-	paginated, err := b.runSimilarityQuery(nil, bq, 1, quantity, DefaultDocumentSortBy, float64(doc.Publication.Date))
+// SimilarTo returns an array of metadata of documents by other authors, which
+// are content-similar to the passed one (sharing TextRank word pairs) and
+// does not belong to the same collection. Delegates to Search's
+// SearchFields.SimilarTo path so the document detail page's "related
+// documents" widget and the "similar" search show documents in the same
+// order and using identical matching.
+func (b *BleveIndexer) SimilarTo(slugID string, quantity int) ([]Document, error) {
+	paginated, err := b.Search(SearchFields{SimilarTo: slugID}, 1, quantity)
 	if err != nil {
 		return []Document{}, err
 	}
@@ -1073,36 +1064,13 @@ func (b *BleveIndexer) SameSubjects(slugID string, quantity int) ([]Document, er
 	return paginated.Hits(), nil
 }
 
-// subjectsQuery builds SameSubjects' candidate query: documents sharing at
-// least one of doc's SubjectsSlugs, excluding doc itself, documents in the
-// same series, and documents by the same authors. Exclusively about
-// subjects/genre - see similarToQuery for the TextRank-phrase-based query
-// used by Search's SearchFields.SimilarTo path.
-func (b *BleveIndexer) subjectsQuery(doc Document) *query.BooleanQuery {
-	bq := bleve.NewBooleanQuery()
-
-	subjectsCompoundQuery := bleve.NewDisjunctionQuery()
-	for _, slug := range doc.SubjectsSlugs {
-		qu := bleve.NewTermQuery(slug)
-		qu.SetField("SubjectsSlugs")
-		subjectsCompoundQuery.AddQuery(qu)
-	}
-	bq.AddMust(subjectsCompoundQuery)
-
-	b.excludeSelfSeriesAndAuthors(doc, bq)
-
-	return bq
-}
-
 // similarToQuery builds Search's SearchFields.SimilarTo candidate query:
 // documents sharing a TextRank word pair with doc, excluding doc itself,
-// documents in the same series, and documents by the same authors.
-// Exclusively about TextRank phrases - see subjectsQuery for the
-// subjects/genre-based query used by SameSubjects. Subjects are deliberately
-// not considered here: a shared subject slug alone (e.g. a broad genre like
-// "Novela") is too weak/generic a signal to stand in for actual content
-// similarity, and on a library with generic subjects it was pulling in large
-// numbers of only superficially related documents.
+// documents in the same series, and documents by the same authors. Subjects
+// are deliberately not considered here: a shared subject slug alone (e.g. a
+// broad genre like "Novela") is too weak/generic a signal to stand in for
+// actual content similarity, and on a library with generic subjects it was
+// pulling in large numbers of only superficially related documents.
 func (b *BleveIndexer) similarToQuery(doc Document) *query.BooleanQuery {
 	bq := bleve.NewBooleanQuery()
 
@@ -1151,9 +1119,9 @@ func (b *BleveIndexer) similarToQuery(doc Document) *query.BooleanQuery {
 	return bq
 }
 
-// excludeSelfSeriesAndAuthors adds the MustNot clauses shared by
-// subjectsQuery and similarToQuery: doc itself, any document in the same
-// series, and any document by the same authors.
+// excludeSelfSeriesAndAuthors adds the MustNot clauses used by
+// similarToQuery: doc itself, any document in the same series, and any
+// document by the same authors.
 func (b *BleveIndexer) excludeSelfSeriesAndAuthors(doc Document, bq *query.BooleanQuery) {
 	if doc.SeriesSlug != "" {
 		sq := bleve.NewTermQuery(doc.SeriesSlug)
