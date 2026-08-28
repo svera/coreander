@@ -46,8 +46,19 @@ func init() {
 	ctx := kong.Parse(&input, kong.Description(`
 		Coreander is a document management system which indexes metadata from documents in a library and allows users to search and read them through a web interface.
 	`),
+		// The defaultXxx entries interpolate CLIInput's struct tags (via
+		// kong's "${name}" syntax) from index's own DefaultXxx constants, so
+		// the CLI flag's advertised default and NewBleve's zero-value
+		// fallback can never drift apart from a hand-copied literal going
+		// stale in one place.
 		kong.Vars{
-			"version": version,
+			"version":                               version,
+			"defaultMaxSimilarityCandidates":        fmt.Sprint(index.DefaultMaxSimilarityCandidates),
+			"defaultMinSimilarityScoreRatio":        fmt.Sprint(index.DefaultMinSimilarityScoreRatio),
+			"defaultMaxSimilarityPhrases":           fmt.Sprint(index.DefaultMaxSimilarityPhrases),
+			"defaultCommonTextRankEntryRatio":       fmt.Sprint(index.DefaultCommonTextRankEntryRatio),
+			"defaultMinCommonTextRankAbsoluteCount": fmt.Sprint(index.DefaultMinCommonTextRankAbsoluteCount),
+			"defaultPruneChangeTriggerRatio":        fmt.Sprint(index.DefaultPruneChangeTriggerRatio),
 		},
 	)
 
