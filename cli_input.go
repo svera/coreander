@@ -41,6 +41,12 @@ type CLIInput struct {
 	MaxSimilarityPhrases int `env:"MAX_SIMILARITY_PHRASES" default:"60" name:"max-similarity-phrases" help:"Maximum number of a document's TextRank phrases used to find \"similar\" documents. Set to 0 to disable the cap. Higher values improve matching accuracy for documents with many phrases but slow queries down; lower values are faster but only match on a document's top phrases."`
 	// MaxTextRankWords caps how many words of a document's extracted text TextRank analysis considers: only the first MaxTextRankWords words are analyzed for a document whose text exceeds this (its Words count still reflects the whole document, just its TextRank keywords are based on the opening portion only). TextRank's underlying graph grows with every word occurrence, not just distinct words, so a very long or repetitive document can use several hundred MB of RAM for a single document, single-threaded - enough to trigger the OOM killer on a small VM/container regardless of worker count. Defaults to -1 (automatic: computed from total system RAM and the resolved index-workers count, see index.DefaultMaxTextRankWords), which can be overridden with an explicit value; set to 0 to disable the cap entirely. Must be -1, 0, or positive; see CLIInput.Validate.
 	MaxTextRankWords int `env:"MAX_TEXTRANK_WORDS" default:"-1" name:"max-textrank-words" help:"Maximum number of words of a document's text that TextRank analysis considers. If a document's text is longer, only its first max-textrank-words words are analyzed (its word count still reflects the whole document, just its TextRank keywords come from the opening portion only). Protects against excessive RAM usage on very long or repetitive documents. Defaults to -1, which computes a safe value automatically from total system RAM and the number of index workers. Set to 0 to disable the cap entirely, or a positive number for an explicit cap."`
+	// CommonTextRankEntryRatio is the fraction of the library a TextRank phrase or word may appear in before it's treated as too generic (e.g. a genre-wide word, or a series' recurring character name) and stripped from every document that has it. Must match index.defaultCommonTextRankEntryRatio, since kong's default tag can't reference a Go constant. Must be between 0 and 1, both included; see CLIInput.Validate.
+	CommonTextRankEntryRatio float64 `env:"COMMON_TEXTRANK_ENTRY_RATIO" default:"0.20" name:"common-textrank-entry-ratio" help:"Fraction of the library a TextRank phrase or word may appear in before it's treated as too generic to be useful for keyword search or \"similar document\" recommendations, and stripped from every document that has it. Must be between 0 and 1."`
+	// MinCommonTextRankAbsoluteCount floors the document-count threshold computed from CommonTextRankEntryRatio, so a small library can't have an entry pruned just because it happens to be shared by a couple of documents. Must not be negative; see CLIInput.Validate.
+	MinCommonTextRankAbsoluteCount int `env:"MIN_COMMON_TEXTRANK_ABSOLUTE_COUNT" default:"20" name:"min-common-textrank-absolute-count" help:"Floor for the document-count threshold computed from common-textrank-entry-ratio, so a small library can't have an entry pruned just because it happens to be shared by a couple of documents. Must not be negative."`
+	// PruneChangeTriggerRatio is the fraction of documents added or removed (relative to the doc count recorded after the last common-TextRank-entry prune pass) that triggers an out-of-band prune pass outside of EnrichTextRankKeywords's own unconditional one. Must be between 0 and 1, both included; see CLIInput.Validate.
+	PruneChangeTriggerRatio float64 `env:"PRUNE_CHANGE_TRIGGER_RATIO" default:"0.01" name:"prune-change-trigger-ratio" help:"Fraction of documents added or removed since the last common-TextRank-entry prune pass that triggers an extra out-of-band prune pass, so long-running processes that only add/remove documents through uploads, deletes or the file watcher don't let common-entry statistics go stale until restart. Must be between 0 and 1."`
 	// ForceIndexing signals whether to force indexing already indexed documents or not
 	ForceIndexing bool `env:"FORCE_INDEXING" short:"f" default:"false" name:"force-indexing" help:"Force indexing already indexed documents"`
 	// SmtpServer points to the address of the send mail server
@@ -152,6 +158,17 @@ func (c CLIInput) Validate() error {
 	// other negative value has no defined meaning.
 	if c.MaxTextRankWords < -1 {
 		return fmt.Errorf("max-textrank-words must be -1 (automatic), 0 (disabled) or a positive number, got %v", c.MaxTextRankWords)
+	}
+	if c.CommonTextRankEntryRatio < 0 || c.CommonTextRankEntryRatio > 1 {
+		return fmt.Errorf("common-textrank-entry-ratio must be between 0 and 1, got %v", c.CommonTextRankEntryRatio)
+	}
+	// MinCommonTextRankAbsoluteCount must not be negative: it's compared
+	// against a document count, and a negative floor has no defined meaning.
+	if c.MinCommonTextRankAbsoluteCount < 0 {
+		return fmt.Errorf("min-common-textrank-absolute-count must not be negative, got %v", c.MinCommonTextRankAbsoluteCount)
+	}
+	if c.PruneChangeTriggerRatio < 0 || c.PruneChangeTriggerRatio > 1 {
+		return fmt.Errorf("prune-change-trigger-ratio must be between 0 and 1, got %v", c.PruneChangeTriggerRatio)
 	}
 	return nil
 }

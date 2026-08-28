@@ -88,13 +88,16 @@ func init() {
 	var needsReindex bool
 	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize, input.MinOccurrenceRatio)
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
-		IllustratedMinAmount:    input.IllustratedMinAmount,
-		IllustratedMinSize:      input.IllustratedMinSize,
-		MinOccurrenceRatio:      input.MinOccurrenceRatio,
-		MaxSimilarityCandidates: input.MaxSimilarityCandidates,
-		MinSimilarityScoreRatio: input.MinSimilarityScoreRatio,
-		MaxSimilarityPhrases:    input.MaxSimilarityPhrases,
-		MaxTextRankWords:        maxTextRankWords,
+		IllustratedMinAmount:           input.IllustratedMinAmount,
+		IllustratedMinSize:             input.IllustratedMinSize,
+		MinOccurrenceRatio:             input.MinOccurrenceRatio,
+		MaxSimilarityCandidates:        input.MaxSimilarityCandidates,
+		MinSimilarityScoreRatio:        input.MinSimilarityScoreRatio,
+		MaxSimilarityPhrases:           input.MaxSimilarityPhrases,
+		MaxTextRankWords:               maxTextRankWords,
+		CommonTextRankEntryRatio:       input.CommonTextRankEntryRatio,
+		MinCommonTextRankAbsoluteCount: input.MinCommonTextRankAbsoluteCount,
+		PruneChangeTriggerRatio:        input.PruneChangeTriggerRatio,
 	})
 
 	// If index was newly created or recreated, force reindexing

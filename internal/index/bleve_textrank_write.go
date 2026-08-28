@@ -14,31 +14,6 @@ import (
 )
 
 const (
-	// commonTextRankEntryRatio is the fraction of the library a TextRank phrase
-	// or word may appear in before pruneCommonTextRankEntries treats it as too
-	// generic to be useful for keyword search or "same subjects" recommendations
-	// (e.g. a genre-wide word, or a series' recurring character name) and strips
-	// it from every document that has it.
-	commonTextRankEntryRatio = 0.20
-
-	// minCommonTextRankAbsoluteCount floors the document-count threshold
-	// pruneCommonTextRankEntries computes from commonTextRankEntryRatio, so a
-	// small library can't have an entry pruned just because it happens to be
-	// shared by a couple of documents (e.g. 2 out of 5 documents is already 40%).
-	// Below this many documents, "common in the library" isn't a meaningful
-	// enough sample to act on.
-	minCommonTextRankAbsoluteCount = 20
-
-	// pruneChangeTriggerRatio is the fraction of documents added or removed
-	// (relative to the doc count recorded after the last pruneCommonTextRankEntries
-	// pass, see internalDocCountAtLastPrune) that triggers an out-of-band prune
-	// pass via maybePruneForLibraryChange. EnrichTextRankKeywords already prunes
-	// unconditionally once per app run (see its call to pruneCommonTextRankEntries
-	// below), but a long-running process that only adds/removes documents through
-	// uploads, deletes or the file watcher never calls EnrichTextRankKeywords
-	// again, so common-entry statistics would otherwise go stale until restart.
-	pruneChangeTriggerRatio = 0.01
-
 	// backgroundPruneBatchSize is the batch size pruneCommonTextRankEntries uses
 	// when triggered by maybePruneForLibraryChange, as opposed to the batchSize
 	// EnrichTextRankKeywords's caller configures for the full startup pass.
@@ -322,7 +297,7 @@ func (b *BleveIndexer) maybePruneForLibraryChange() {
 	if changed < 0 {
 		changed = -changed
 	}
-	if float64(changed) < pruneChangeTriggerRatio*float64(lastPruneCount) {
+	if float64(changed) < b.pruneChangeTriggerRatio*float64(lastPruneCount) {
 		return
 	}
 
@@ -382,9 +357,9 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 		}
 	}
 
-	threshold := commonTextRankEntryRatio * float64(docCount)
-	if threshold < minCommonTextRankAbsoluteCount {
-		threshold = minCommonTextRankAbsoluteCount
+	threshold := b.commonTextRankEntryRatio * float64(docCount)
+	if threshold < float64(b.minCommonTextRankAbsoluteCount) {
+		threshold = float64(b.minCommonTextRankAbsoluteCount)
 	}
 
 	batch := b.documentsIdx.NewBatch()

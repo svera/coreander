@@ -72,6 +72,24 @@ const (
 	// to be shown at all, which prunes weak, mostly-coincidental matches out of the
 	// maxSimilarityCandidates pool before it's paginated.
 	defaultMinSimilarityScoreRatio = 0.3
+	// defaultCommonTextRankEntryRatio is the fraction of the library a TextRank
+	// phrase or word may appear in before pruneCommonTextRankEntries treats it
+	// as too generic to be useful for keyword search or "similar document"
+	// recommendations (e.g. a genre-wide word, or a series' recurring character
+	// name) and strips it from every document that has it.
+	defaultCommonTextRankEntryRatio = 0.20
+	// defaultMinCommonTextRankAbsoluteCount floors the document-count threshold
+	// pruneCommonTextRankEntries computes from CommonTextRankEntryRatio, so a
+	// small library can't have an entry pruned just because it happens to be
+	// shared by a couple of documents (e.g. 2 out of 5 documents is already 40%).
+	// Below this many documents, "common in the library" isn't a meaningful
+	// enough sample to act on.
+	defaultMinCommonTextRankAbsoluteCount = 20
+	// defaultPruneChangeTriggerRatio is the fraction of documents added or
+	// removed (relative to the doc count recorded after the last
+	// pruneCommonTextRankEntries pass) that triggers an out-of-band prune pass
+	// via maybePruneForLibraryChange.
+	defaultPruneChangeTriggerRatio = 0.01
 )
 
 // Config holds indexer configuration.
@@ -119,6 +137,26 @@ type Config struct {
 	// VM/container regardless of worker count. A value of 0 disables the cap
 	// (analyze documents of any size in full).
 	MaxTextRankWords int
+	// CommonTextRankEntryRatio is the fraction of the library a TextRank
+	// phrase or word may appear in before it's treated as too generic to be
+	// useful for keyword search or "similar document" recommendations (e.g. a
+	// genre-wide word, or a series' recurring character name) and stripped
+	// from every document that has it.
+	CommonTextRankEntryRatio float64
+	// MinCommonTextRankAbsoluteCount floors the document-count threshold
+	// computed from CommonTextRankEntryRatio, so a small library can't have
+	// an entry pruned just because it happens to be shared by a couple of
+	// documents (e.g. 2 out of 5 documents is already 40%). Below this many
+	// documents, "common in the library" isn't a meaningful enough sample to
+	// act on.
+	MinCommonTextRankAbsoluteCount int
+	// PruneChangeTriggerRatio is the fraction of documents added or removed
+	// (relative to the doc count recorded after the last common-TextRank-entry
+	// prune pass) that triggers an out-of-band prune pass outside of
+	// EnrichTextRankKeywords's own unconditional one, so a long-running
+	// process that only adds/removes documents through uploads, deletes or the
+	// file watcher doesn't let common-entry statistics go stale until restart.
+	PruneChangeTriggerRatio float64
 }
 
 type BleveIndexer struct {
@@ -131,20 +169,23 @@ type BleveIndexer struct {
 	// while the webserver concurrently searches them, and without this guard
 	// concurrent Batch/Search calls have been observed to panic inside
 	// bleve/zapx (an out-of-range read while decoding a segment being merged).
-	documentsMu             sync.RWMutex
-	authorsMu               sync.RWMutex
-	libraryPath             string
-	reader                  map[string]metadata.Reader
-	indexProgress           progressTracker
-	authorEnrichProgress    progressTracker
-	textRankEnrichProgress  progressTracker
-	illustratedMinAmount    int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
-	illustratedMinSize      float64 // minimum size in megapixels for an image to count as an illustration
-	minOccurrenceRatio      float64 // minimum occurrence ratio for a TextRank phrase/word to be kept; see Config.MinOccurrenceRatio
-	maxSimilarityCandidates int     // cap on top-scoring matches considered by a "similar document" query; see Config.MaxSimilarityCandidates
-	minSimilarityScoreRatio float64 // minimum fraction of the best match's score to be considered similar; see Config.MinSimilarityScoreRatio
-	maxSimilarityPhrases    int     // cap on how many TextRankPhrases are used to find "similar" documents; see Config.MaxSimilarityPhrases
-	maxTextRankWords        int     // word count above which TextRank analysis only considers a document's first maxTextRankWords words; see Config.MaxTextRankWords
+	documentsMu                    sync.RWMutex
+	authorsMu                      sync.RWMutex
+	libraryPath                    string
+	reader                         map[string]metadata.Reader
+	indexProgress                  progressTracker
+	authorEnrichProgress           progressTracker
+	textRankEnrichProgress         progressTracker
+	illustratedMinAmount           int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
+	illustratedMinSize             float64 // minimum size in megapixels for an image to count as an illustration
+	minOccurrenceRatio             float64 // minimum occurrence ratio for a TextRank phrase/word to be kept; see Config.MinOccurrenceRatio
+	maxSimilarityCandidates        int     // cap on top-scoring matches considered by a "similar document" query; see Config.MaxSimilarityCandidates
+	minSimilarityScoreRatio        float64 // minimum fraction of the best match's score to be considered similar; see Config.MinSimilarityScoreRatio
+	maxSimilarityPhrases           int     // cap on how many TextRankPhrases are used to find "similar" documents; see Config.MaxSimilarityPhrases
+	maxTextRankWords               int     // word count above which TextRank analysis only considers a document's first maxTextRankWords words; see Config.MaxTextRankWords
+	commonTextRankEntryRatio       float64 // fraction of the library a TextRank phrase/word may appear in before being pruned as too generic; see Config.CommonTextRankEntryRatio
+	minCommonTextRankAbsoluteCount int     // floor for the document-count threshold computed from commonTextRankEntryRatio; see Config.MinCommonTextRankAbsoluteCount
+	pruneChangeTriggerRatio        float64 // fraction of added/removed documents that triggers an out-of-band common-entry prune; see Config.PruneChangeTriggerRatio
 }
 
 // progressTracker holds the atomic counters behind one phase of
@@ -198,19 +239,37 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 	// directly (e.g. tests) get 0 (uncapped) rather than defaultMaxSimilarityPhrases.
 	maxSimilarityPhrases := cfg.MaxSimilarityPhrases
 
+	commonTextRankEntryRatio := cfg.CommonTextRankEntryRatio
+	if commonTextRankEntryRatio == 0 {
+		commonTextRankEntryRatio = defaultCommonTextRankEntryRatio
+	}
+
+	minCommonTextRankAbsoluteCount := cfg.MinCommonTextRankAbsoluteCount
+	if minCommonTextRankAbsoluteCount == 0 {
+		minCommonTextRankAbsoluteCount = defaultMinCommonTextRankAbsoluteCount
+	}
+
+	pruneChangeTriggerRatio := cfg.PruneChangeTriggerRatio
+	if pruneChangeTriggerRatio == 0 {
+		pruneChangeTriggerRatio = defaultPruneChangeTriggerRatio
+	}
+
 	return &BleveIndexer{
-		fs:                      fs,
-		documentsIdx:            documentsIndex,
-		authorsIdx:              authorsIndex,
-		libraryPath:             strings.TrimSuffix(libraryPath, string(filepath.Separator)),
-		reader:                  read,
-		illustratedMinAmount:    cfg.IllustratedMinAmount,
-		illustratedMinSize:      cfg.IllustratedMinSize,
-		minOccurrenceRatio:      cfg.MinOccurrenceRatio,
-		maxSimilarityCandidates: maxSimilarityCandidates,
-		minSimilarityScoreRatio: minSimilarityScoreRatio,
-		maxSimilarityPhrases:    maxSimilarityPhrases,
-		maxTextRankWords:        cfg.MaxTextRankWords,
+		fs:                             fs,
+		documentsIdx:                   documentsIndex,
+		authorsIdx:                     authorsIndex,
+		libraryPath:                    strings.TrimSuffix(libraryPath, string(filepath.Separator)),
+		reader:                         read,
+		illustratedMinAmount:           cfg.IllustratedMinAmount,
+		illustratedMinSize:             cfg.IllustratedMinSize,
+		minOccurrenceRatio:             cfg.MinOccurrenceRatio,
+		maxSimilarityCandidates:        maxSimilarityCandidates,
+		minSimilarityScoreRatio:        minSimilarityScoreRatio,
+		maxSimilarityPhrases:           maxSimilarityPhrases,
+		maxTextRankWords:               cfg.MaxTextRankWords,
+		commonTextRankEntryRatio:       commonTextRankEntryRatio,
+		minCommonTextRankAbsoluteCount: minCommonTextRankAbsoluteCount,
+		pruneChangeTriggerRatio:        pruneChangeTriggerRatio,
 	}
 }
 
