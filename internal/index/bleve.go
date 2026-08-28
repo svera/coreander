@@ -60,11 +60,12 @@ var noStopWordsFilters = map[string][]string{
 const defaultAnalyzer = "default_analyzer"
 
 // Defaults for the Config fields below are set here, exported, and then
-// applied by NewBleve when the caller leaves the corresponding field unset
-// (e.g. tests constructing a bare Config{}), since a zero value would
-// otherwise mean "no similarity results" or "prune everything as too
-// common". They're exported (rather than the unexported consts a purely
-// internal default would use) so main wires them into the CLI's own flag
+// applied by NewBleve when the caller leaves the corresponding field unset or
+// gives it a non-positive value (e.g. tests constructing a bare Config{}),
+// since a zero or negative value would otherwise mean "no similarity
+// results" or "prune everything as too common". They're exported (rather
+// than the unexported consts a purely internal default would use) so main
+// wires them into the CLI's own flag
 // defaults via kong.Vars variable interpolation (see cli_input.go and
 // main.go's kong.Parse call) instead of duplicating the literal value by
 // hand in two places.
@@ -234,12 +235,12 @@ func (p *progressTracker) record() {
 // NewBleve creates a new BleveIndexer instance using the passed parameters
 func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs, libraryPath string, read map[string]metadata.Reader, cfg Config) *BleveIndexer {
 	maxSimilarityCandidates := cfg.MaxSimilarityCandidates
-	if maxSimilarityCandidates == 0 {
+	if maxSimilarityCandidates <= 0 {
 		maxSimilarityCandidates = DefaultMaxSimilarityCandidates
 	}
 
 	minSimilarityScoreRatio := cfg.MinSimilarityScoreRatio
-	if minSimilarityScoreRatio == 0 {
+	if minSimilarityScoreRatio <= 0 {
 		minSimilarityScoreRatio = DefaultMinSimilarityScoreRatio
 	}
 
@@ -253,17 +254,17 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 	maxSimilarityPhrases := cfg.MaxSimilarityPhrases
 
 	commonTextRankEntryRatio := cfg.CommonTextRankEntryRatio
-	if commonTextRankEntryRatio == 0 {
+	if commonTextRankEntryRatio <= 0 {
 		commonTextRankEntryRatio = DefaultCommonTextRankEntryRatio
 	}
 
 	minCommonTextRankAbsoluteCount := cfg.MinCommonTextRankAbsoluteCount
-	if minCommonTextRankAbsoluteCount == 0 {
+	if minCommonTextRankAbsoluteCount <= 0 {
 		minCommonTextRankAbsoluteCount = DefaultMinCommonTextRankAbsoluteCount
 	}
 
 	pruneChangeTriggerRatio := cfg.PruneChangeTriggerRatio
-	if pruneChangeTriggerRatio == 0 {
+	if pruneChangeTriggerRatio <= 0 {
 		pruneChangeTriggerRatio = DefaultPruneChangeTriggerRatio
 	}
 
