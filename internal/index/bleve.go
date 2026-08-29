@@ -171,6 +171,22 @@ type Config struct {
 	// process that only adds/removes documents through uploads, deletes or the
 	// file watcher doesn't let common-entry statistics go stale until restart.
 	PruneChangeTriggerRatio float64
+	// TextRankEnrichWorkers caps how many documents indexFile's background
+	// enrichment (see enrichTextRankAndReindex) may rank concurrently, the
+	// same way EnrichTextRankKeywords's own workers parameter bounds its
+	// batch pass. Without this cap, uploading documents or having the file
+	// watcher pick up many of them in quick succession (a bulk copy, an
+	// archive extraction, restoring a backup) spawns one unbounded TextRank
+	// goroutine per file; each can use hundreds of MB of RAM on its own (see
+	// Config.MaxTextRankWords), and MaxTextRankWords' own automatic sizing
+	// (DefaultMaxTextRankWords) already assumes at most this many run at
+	// once - so leaving this uncapped can exhaust memory on a small
+	// VM/container even though any single document's own analysis is
+	// bounded. Expected to already be resolved (e.g. via
+	// ResolveMetadataWorkers, as main does for resolvedIndexWorkers) rather
+	// than a raw, possibly-automatic CLI value; a value <= 0 (e.g. a bare
+	// Config{} in tests) falls back to 1.
+	TextRankEnrichWorkers int
 }
 
 type BleveIndexer struct {
@@ -200,6 +216,11 @@ type BleveIndexer struct {
 	commonTextRankEntryRatio       float64 // fraction of the library a TextRank phrase/word may appear in before being pruned as too generic; see Config.CommonTextRankEntryRatio
 	minCommonTextRankAbsoluteCount int     // floor for the document-count threshold computed from commonTextRankEntryRatio; see Config.MinCommonTextRankAbsoluteCount
 	pruneChangeTriggerRatio        float64 // fraction of added/removed documents that triggers an out-of-band common-entry prune; see Config.PruneChangeTriggerRatio
+	// textRankEnrichSem bounds how many enrichTextRankAndReindex calls run
+	// concurrently in the background (see indexFile and
+	// Config.TextRankEnrichWorkers); acquired by sending a value, released
+	// by receiving one.
+	textRankEnrichSem chan struct{}
 }
 
 // progressTracker holds the atomic counters behind one phase of
@@ -268,6 +289,11 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		pruneChangeTriggerRatio = DefaultPruneChangeTriggerRatio
 	}
 
+	textRankEnrichWorkers := cfg.TextRankEnrichWorkers
+	if textRankEnrichWorkers <= 0 {
+		textRankEnrichWorkers = 1
+	}
+
 	return &BleveIndexer{
 		fs:                             fs,
 		documentsIdx:                   documentsIndex,
@@ -284,6 +310,7 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		commonTextRankEntryRatio:       commonTextRankEntryRatio,
 		minCommonTextRankAbsoluteCount: minCommonTextRankAbsoluteCount,
 		pruneChangeTriggerRatio:        pruneChangeTriggerRatio,
+		textRankEnrichSem:              make(chan struct{}, textRankEnrichWorkers),
 	}
 }
 

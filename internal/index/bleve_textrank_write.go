@@ -47,6 +47,22 @@ func (b *BleveIndexer) recordTextRankEnrichmentProgress() {
 	b.textRankEnrichProgress.record()
 }
 
+// scheduleTextRankEnrichment runs enrichTextRankAndReindex for document in a
+// background goroutine, bounded by textRankEnrichSem (see
+// Config.TextRankEnrichWorkers) so that indexFile handling many documents in
+// quick succession - a bulk upload, a file watcher event storm from copying
+// in an archive - can't spawn more concurrent TextRank rankings than the
+// process was sized for, each of which can use hundreds of MB of RAM (see
+// Config.MaxTextRankWords). The goroutine blocks on the semaphore rather
+// than the caller, so indexFile itself still returns immediately.
+func (b *BleveIndexer) scheduleTextRankEnrichment(document Document) {
+	go func() {
+		b.textRankEnrichSem <- struct{}{}
+		defer func() { <-b.textRankEnrichSem }()
+		b.enrichTextRankAndReindex(document)
+	}()
+}
+
 // enrichTextRankAndReindex runs TextRank analysis for a single, already
 // -indexed document and persists the result. It mirrors what
 // EnrichTextRankKeywords does in batches for the whole library, but for one

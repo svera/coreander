@@ -116,7 +116,7 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 	}
 
 	if !document.TextRankEnriched {
-		go b.enrichTextRankAndReindex(document)
+		b.scheduleTextRankEnrichment(document)
 	}
 
 	b.maybePruneForLibraryChange()

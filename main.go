@@ -109,6 +109,7 @@ func init() {
 		CommonTextRankEntryRatio:       input.CommonTextRankEntryRatio,
 		MinCommonTextRankAbsoluteCount: input.MinCommonTextRankAbsoluteCount,
 		PruneChangeTriggerRatio:        input.PruneChangeTriggerRatio,
+		TextRankEnrichWorkers:          resolvedIndexWorkers,
 	})
 
 	// If index was newly created or recreated, force reindexing
