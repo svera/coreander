@@ -216,11 +216,14 @@ type BleveIndexer struct {
 	commonTextRankEntryRatio       float64 // fraction of the library a TextRank phrase/word may appear in before being pruned as too generic; see Config.CommonTextRankEntryRatio
 	minCommonTextRankAbsoluteCount int     // floor for the document-count threshold computed from commonTextRankEntryRatio; see Config.MinCommonTextRankAbsoluteCount
 	pruneChangeTriggerRatio        float64 // fraction of added/removed documents that triggers an out-of-band common-entry prune; see Config.PruneChangeTriggerRatio
-	// textRankEnrichSem bounds how many enrichTextRankAndReindex calls run
-	// concurrently in the background (see indexFile and
-	// Config.TextRankEnrichWorkers); acquired by sending a value, released
-	// by receiving one.
-	textRankEnrichSem chan struct{}
+	// textRankEnrichJobs feeds documents queued by indexFile (see
+	// scheduleTextRankEnrichment) to a fixed-size pool of long-lived worker
+	// goroutines (see runTextRankEnrichWorker), mirroring parallelFor's
+	// bounded-worker-count pattern but as a pool that lives for the
+	// indexer's whole lifetime rather than one sized for a single batch,
+	// since documents to enrich arrive one at a time over time (uploads,
+	// file watcher events) rather than as a known-size batch up front.
+	textRankEnrichJobs chan Document
 }
 
 // progressTracker holds the atomic counters behind one phase of
@@ -294,7 +297,7 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		textRankEnrichWorkers = 1
 	}
 
-	return &BleveIndexer{
+	b := &BleveIndexer{
 		fs:                             fs,
 		documentsIdx:                   documentsIndex,
 		authorsIdx:                     authorsIndex,
@@ -310,8 +313,14 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		commonTextRankEntryRatio:       commonTextRankEntryRatio,
 		minCommonTextRankAbsoluteCount: minCommonTextRankAbsoluteCount,
 		pruneChangeTriggerRatio:        pruneChangeTriggerRatio,
-		textRankEnrichSem:              make(chan struct{}, textRankEnrichWorkers),
+		textRankEnrichJobs:             make(chan Document, textRankEnrichWorkers),
 	}
+
+	for range textRankEnrichWorkers {
+		go b.runTextRankEnrichWorker()
+	}
+
+	return b
 }
 
 func CreateDocumentsIndex(path string) bleve.Index {
