@@ -117,6 +117,7 @@ On first run, Coreander creates an admin user with the following credentials:
 
 Coreander uses [TextRank](https://github.com/DavidBelicza/TextRank) to automatically extract keywords (single words and two-word phrases) from the text of EPUB documents during indexing. TextRank builds a graph where words are nodes and an edge connects two words whenever they appear near each other in the text; words that co-occur with many other important words end up with a higher rank, similarly to how Google's PageRank ranks web pages by how many other important pages link to them. The highest-ranked words and phrases become a document's keywords.
 
+> [!NOTE]
 > This analysis process may take up to several hours depending on the host system and the size of the library.
 
 These extracted keywords power two features:
