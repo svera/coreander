@@ -47,26 +47,17 @@ func (b *BleveIndexer) recordTextRankEnrichmentProgress() {
 	b.textRankEnrichProgress.record()
 }
 
-// runTextRankEnrichWorker drains textRankEnrichJobs and runs
-// enrichTextRankAndReindex for each document indexFile queues via
-// scheduleTextRankEnrichment, for as long as the indexer exists.
-// textRankEnrichWorkers of these run concurrently (see
-// Config.TextRankEnrichWorkers and NewBleve), so indexFile handling many
-// documents in quick succession - a bulk upload, a file watcher event storm
-// from copying in an archive - can't have more concurrent TextRank rankings
-// in flight than the process was sized for, each of which can use hundreds
-// of MB of RAM on its own (see Config.MaxTextRankWords).
+// runTextRankEnrichWorker drains textRankEnrichJobs for the indexer's
+// lifetime, bounding how many enrichTextRankAndReindex calls run
+// concurrently (see Config.TextRankEnrichWorkers).
 func (b *BleveIndexer) runTextRankEnrichWorker() {
 	for document := range b.textRankEnrichJobs {
 		b.enrichTextRankAndReindex(document)
 	}
 }
 
-// scheduleTextRankEnrichment queues document for background TextRank
-// enrichment by the worker pool (see runTextRankEnrichWorker), from a
-// throwaway goroutine so that indexFile - queuing this from a document
-// upload or a file watcher event - never blocks on the channel send, even
-// if every worker is currently busy and the channel's buffer is full.
+// scheduleTextRankEnrichment queues document for the worker pool from a
+// throwaway goroutine, so indexFile never blocks on the channel send.
 func (b *BleveIndexer) scheduleTextRankEnrichment(document Document) {
 	go func() {
 		b.textRankEnrichJobs <- document
@@ -280,11 +271,46 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 		log.Printf("TextRank enrichment finished")
 	}
 
-	if err := b.pruneCommonTextRankEntries(batchSize); err != nil {
-		return err
+	// Skip pruning when nothing was enriched and the library hasn't changed
+	// enough since the last prune - running it unconditionally on every
+	// startup made an already-pruned, unchanged library unresponsive for no
+	// benefit.
+	if total > 0 || b.commonTextRankEntriesNeedPrune() {
+		if err := b.pruneCommonTextRankEntries(batchSize); err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+// commonTextRankEntriesNeedPrune reports whether pruneCommonTextRankEntries
+// hasn't run yet or the document count has changed by at least
+// PruneChangeTriggerRatio since it last did (same threshold
+// maybePruneForLibraryChange uses). Errors are treated as "needs pruning".
+func (b *BleveIndexer) commonTextRankEntriesNeedPrune() bool {
+	b.documentsMu.RLock()
+	docCount, err := b.documentsIdx.DocCount()
+	if err != nil {
+		b.documentsMu.RUnlock()
+		return true
+	}
+	stored, err := b.documentsIdx.GetInternal(internalDocCountAtLastPrune)
+	b.documentsMu.RUnlock()
+	if err != nil || len(stored) == 0 {
+		return true
+	}
+
+	lastPruneCount, err := strconv.ParseUint(string(stored), 10, 64)
+	if err != nil {
+		return true
+	}
+
+	changed := int64(docCount) - int64(lastPruneCount)
+	if changed < 0 {
+		changed = -changed
+	}
+	return float64(changed) >= b.pruneChangeTriggerRatio*float64(lastPruneCount)
 }
 
 // maybePruneForLibraryChange compares the current document count against the
@@ -334,6 +360,13 @@ func (b *BleveIndexer) maybePruneForLibraryChange() {
 	}()
 }
 
+// prunedTextRankEntries holds a document's post-pruning
+// TextRankPhrases/TextRankWords.
+type prunedTextRankEntries struct {
+	phrases []string
+	words   []string
+}
+
 // pruneCommonTextRankEntries removes TextRankPhrases/TextRankWords entries
 // that appear in more than commonTextRankEntryRatio of the library from every
 // document that has them, and persists the change. Run as the final step of
@@ -345,6 +378,13 @@ func (b *BleveIndexer) maybePruneForLibraryChange() {
 // dictionary) because those fields are tokenized for search - the term
 // dictionary would report per-word frequency, not per-phrase frequency, for
 // TextRankPhrases.
+//
+// Runs in two passes to keep cost proportional to how many documents
+// actually need pruning: the first reads every document but hydrates only
+// TextRankPhrases/TextRankWords (to compute corpus frequency and find which
+// documents changed); the second re-hydrates in full (unavoidable, since
+// reindexing replaces a document entirely) and rewrites only that changed
+// subset, batchSize IDs at a time.
 func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 	b.documentsMu.RLock()
 	docCount, err := b.documentsIdx.DocCount()
@@ -359,26 +399,29 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 
 	log.Printf("Pruning common TextRank entries across %d documents", docCount)
 
-	searchReq := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), int(docCount), 0, false)
-	searchReq.Fields = []string{"*"}
-	searchResult, err := b.documentsIdx.Search(searchReq)
+	countSearchReq := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), int(docCount), 0, false)
+	countSearchReq.Fields = []string{"TextRankPhrases", "TextRankWords"}
+	countSearchResult, err := b.documentsIdx.Search(countSearchReq)
 	b.documentsMu.RUnlock()
 	if err != nil {
 		return err
 	}
 
-	documents := make([]Document, 0, len(searchResult.Hits))
-	for _, hit := range searchResult.Hits {
-		documents = append(documents, hydrateDocument(hit))
-	}
-
 	phraseDocCount := make(map[string]int)
 	wordDocCount := make(map[string]int)
-	for _, document := range documents {
-		for _, phrase := range uniqueTextRankEntries(document.TextRankPhrases) {
+	entries := make(map[string]prunedTextRankEntries, len(countSearchResult.Hits))
+	for _, hit := range countSearchResult.Hits {
+		// hydrateDocument assumes a full Fields "*" fetch (it type-asserts
+		// every Metadata field unconditionally); this pass only requests
+		// TextRankPhrases/TextRankWords, so read those two directly via
+		// slicer instead.
+		phrases := slicer(hit.Fields["TextRankPhrases"])
+		words := slicer(hit.Fields["TextRankWords"])
+		entries[hit.ID] = prunedTextRankEntries{phrases, words}
+		for _, phrase := range uniqueTextRankEntries(phrases) {
 			phraseDocCount[phrase]++
 		}
-		for _, word := range uniqueTextRankEntries(document.TextRankWords) {
+		for _, word := range uniqueTextRankEntries(words) {
 			wordDocCount[word]++
 		}
 	}
@@ -388,40 +431,55 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 		threshold = float64(b.minCommonTextRankAbsoluteCount)
 	}
 
-	batch := b.documentsIdx.NewBatch()
+	toPrune := make(map[string]prunedTextRankEntries)
+	ids := make([]string, 0, len(entries))
+	for id, e := range entries {
+		phrases := filterOutCommonTextRankEntries(e.phrases, phraseDocCount, threshold)
+		words := filterOutCommonTextRankEntries(e.words, wordDocCount, threshold)
+		if len(phrases) == len(e.phrases) && len(words) == len(e.words) {
+			continue
+		}
+		toPrune[id] = prunedTextRankEntries{phrases, words}
+		ids = append(ids, id)
+	}
+
 	pruned := 0
-	for _, document := range documents {
-		phrases := filterOutCommonTextRankEntries(document.TextRankPhrases, phraseDocCount, threshold)
-		words := filterOutCommonTextRankEntries(document.TextRankWords, wordDocCount, threshold)
-		if len(phrases) == len(document.TextRankPhrases) && len(words) == len(document.TextRankWords) {
-			continue
+	for start := 0; start < len(ids); start += batchSize {
+		end := min(start+batchSize, len(ids))
+		chunkIDs := ids[start:end]
+
+		docSearchReq := bleve.NewSearchRequestOptions(bleve.NewDocIDQuery(chunkIDs), len(chunkIDs), 0, false)
+		docSearchReq.Fields = []string{"*"}
+		b.documentsMu.RLock()
+		docSearchResult, err := b.documentsIdx.Search(docSearchReq)
+		b.documentsMu.RUnlock()
+		if err != nil {
+			return err
 		}
 
-		document.TextRankPhrases = phrases
-		document.TextRankWords = words
-		if err := batch.Index(document.ID, document); err != nil {
-			log.Printf("Error indexing document %s while pruning common TextRank entries: %s\n", document.ID, err)
-			continue
+		batch := b.documentsIdx.NewBatch()
+		for _, hit := range docSearchResult.Hits {
+			document := hydrateDocument(hit)
+			p, ok := toPrune[document.ID]
+			if !ok {
+				continue
+			}
+			document.TextRankPhrases = p.phrases
+			document.TextRankWords = p.words
+			if err := batch.Index(document.ID, document); err != nil {
+				log.Printf("Error indexing document %s while pruning common TextRank entries: %s\n", document.ID, err)
+				continue
+			}
+			pruned++
 		}
-		pruned++
 
-		if batch.Size() >= batchSize {
+		if batch.Size() > 0 {
 			b.documentsMu.Lock()
 			err = b.documentsIdx.Batch(batch)
 			b.documentsMu.Unlock()
 			if err != nil {
 				return err
 			}
-			batch.Reset()
-		}
-	}
-
-	if batch.Size() > 0 {
-		b.documentsMu.Lock()
-		err = b.documentsIdx.Batch(batch)
-		b.documentsMu.Unlock()
-		if err != nil {
-			return err
 		}
 	}
 
