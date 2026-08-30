@@ -322,16 +322,9 @@ func (b *BleveIndexer) collectPendingLibraryPaths(forceIndexing bool) (pending [
 }
 
 // indexedDocumentLanguages returns every already-indexed document's ID and
-// Language in one fetch, requesting only that field instead of the whole
-// document, so collectPendingLibraryPaths can check "is this file already
-// indexed" via an in-memory map lookup per file instead of one full-document
-// bleve read per file. The previous per-file b.documentsIdx.Document(id) call
-// fetched every stored field, including TextRankPhrases/TextRankWords (up to
-// 500 entries each once a document has been through TextRank enrichment) -
-// harmless before a library's first enrichment pass, but expensive enough
-// once every document carries that payload to make a plain startup scan of
-// an already-indexed, already-enriched library OOM a memory-constrained
-// host, even though only Language was ever read from the result.
+// Language in one fetch, requesting only that field so
+// collectPendingLibraryPaths can check "already indexed" via a map lookup
+// instead of one full-document (incl. TextRankPhrases/Words) read per file.
 func (b *BleveIndexer) indexedDocumentLanguages() (map[string]string, error) {
 	b.documentsMu.RLock()
 	docCount, err := b.documentsIdx.DocCount()

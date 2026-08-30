@@ -379,12 +379,10 @@ type prunedTextRankEntries struct {
 // dictionary would report per-word frequency, not per-phrase frequency, for
 // TextRankPhrases.
 //
-// Runs in two passes to keep cost proportional to how many documents
-// actually need pruning: the first reads every document but hydrates only
-// TextRankPhrases/TextRankWords (to compute corpus frequency and find which
-// documents changed); the second re-hydrates in full (unavoidable, since
-// reindexing replaces a document entirely) and rewrites only that changed
-// subset, batchSize IDs at a time.
+// Two passes: the first hydrates only TextRankPhrases/TextRankWords to find
+// corpus frequency and which documents changed; the second re-hydrates in
+// full (unavoidable for reindexing) only that changed subset, batchSize IDs
+// at a time.
 func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 	b.documentsMu.RLock()
 	docCount, err := b.documentsIdx.DocCount()
