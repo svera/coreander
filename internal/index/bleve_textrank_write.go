@@ -280,11 +280,55 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 		log.Printf("TextRank enrichment finished")
 	}
 
-	if err := b.pruneCommonTextRankEntries(batchSize); err != nil {
-		return err
+	// Only run pruneCommonTextRankEntries if it's actually worth it: fresh
+	// TextRank results from this run (total > 0) can shift which entries
+	// count as "common", but if nothing was enriched and the library hasn't
+	// changed enough since the last prune (see
+	// commonTextRankEntriesNeedPrune), pruneCommonTextRankEntries would just
+	// rehydrate every document in the library - with all fields - for no
+	// resulting change. On a nontrivial, already fully-enriched library,
+	// doing that unconditionally on every single startup was enough on its
+	// own to make the app unresponsive during startup, even with nothing
+	// left to enrich.
+	if total > 0 || b.commonTextRankEntriesNeedPrune() {
+		if err := b.pruneCommonTextRankEntries(batchSize); err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+// commonTextRankEntriesNeedPrune reports whether pruneCommonTextRankEntries
+// is worth running again: either it has never run before (no
+// internalDocCountAtLastPrune record yet) or the document count has changed
+// by at least PruneChangeTriggerRatio since the last time it ran - the same
+// threshold maybePruneForLibraryChange uses to trigger an out-of-band prune.
+// Any error (or a corrupt stored count) is treated as "needs pruning" so a
+// transient read failure can't permanently suppress it.
+func (b *BleveIndexer) commonTextRankEntriesNeedPrune() bool {
+	b.documentsMu.RLock()
+	docCount, err := b.documentsIdx.DocCount()
+	if err != nil {
+		b.documentsMu.RUnlock()
+		return true
+	}
+	stored, err := b.documentsIdx.GetInternal(internalDocCountAtLastPrune)
+	b.documentsMu.RUnlock()
+	if err != nil || len(stored) == 0 {
+		return true
+	}
+
+	lastPruneCount, err := strconv.ParseUint(string(stored), 10, 64)
+	if err != nil {
+		return true
+	}
+
+	changed := int64(docCount) - int64(lastPruneCount)
+	if changed < 0 {
+		changed = -changed
+	}
+	return float64(changed) >= b.pruneChangeTriggerRatio*float64(lastPruneCount)
 }
 
 // maybePruneForLibraryChange compares the current document count against the
@@ -334,6 +378,14 @@ func (b *BleveIndexer) maybePruneForLibraryChange() {
 	}()
 }
 
+// prunedTextRankEntries holds the post-pruning TextRankPhrases/TextRankWords
+// for a document identified as needing an update by
+// pruneCommonTextRankEntries's counting pass.
+type prunedTextRankEntries struct {
+	phrases []string
+	words   []string
+}
+
 // pruneCommonTextRankEntries removes TextRankPhrases/TextRankWords entries
 // that appear in more than commonTextRankEntryRatio of the library from every
 // document that has them, and persists the change. Run as the final step of
@@ -345,6 +397,19 @@ func (b *BleveIndexer) maybePruneForLibraryChange() {
 // dictionary) because those fields are tokenized for search - the term
 // dictionary would report per-word frequency, not per-phrase frequency, for
 // TextRankPhrases.
+//
+// Runs in two passes rather than one to keep memory/CPU cost proportional to
+// how many documents actually need pruning, not the whole library: the first
+// pass reads every document but only hydrates TextRankPhrases/TextRankWords
+// (needed to compute per-entry corpus frequency and decide which documents
+// changed at all), instead of every field; the second pass re-hydrates in
+// full (Fields "*", unavoidable since reindexing a document replaces it
+// entirely) and rewrites only the subset that pass one found actually
+// changed, batchSize IDs at a time. A single-pass, full-hydration version of
+// this (fetching every field for every document in one Search call) was
+// found to make an already fully-pruned library's startup noticeably
+// unresponsive purely from that scan, even though few or no documents
+// actually needed rewriting.
 func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 	b.documentsMu.RLock()
 	docCount, err := b.documentsIdx.DocCount()
@@ -359,26 +424,29 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 
 	log.Printf("Pruning common TextRank entries across %d documents", docCount)
 
-	searchReq := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), int(docCount), 0, false)
-	searchReq.Fields = []string{"*"}
-	searchResult, err := b.documentsIdx.Search(searchReq)
+	countSearchReq := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), int(docCount), 0, false)
+	countSearchReq.Fields = []string{"TextRankPhrases", "TextRankWords"}
+	countSearchResult, err := b.documentsIdx.Search(countSearchReq)
 	b.documentsMu.RUnlock()
 	if err != nil {
 		return err
 	}
 
-	documents := make([]Document, 0, len(searchResult.Hits))
-	for _, hit := range searchResult.Hits {
-		documents = append(documents, hydrateDocument(hit))
-	}
-
 	phraseDocCount := make(map[string]int)
 	wordDocCount := make(map[string]int)
-	for _, document := range documents {
-		for _, phrase := range uniqueTextRankEntries(document.TextRankPhrases) {
+	entries := make(map[string]prunedTextRankEntries, len(countSearchResult.Hits))
+	for _, hit := range countSearchResult.Hits {
+		// hydrateDocument assumes a full Fields "*" fetch (it type-asserts
+		// every Metadata field unconditionally); this pass only requests
+		// TextRankPhrases/TextRankWords, so read those two directly via
+		// slicer instead.
+		phrases := slicer(hit.Fields["TextRankPhrases"])
+		words := slicer(hit.Fields["TextRankWords"])
+		entries[hit.ID] = prunedTextRankEntries{phrases, words}
+		for _, phrase := range uniqueTextRankEntries(phrases) {
 			phraseDocCount[phrase]++
 		}
-		for _, word := range uniqueTextRankEntries(document.TextRankWords) {
+		for _, word := range uniqueTextRankEntries(words) {
 			wordDocCount[word]++
 		}
 	}
@@ -388,40 +456,55 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 		threshold = float64(b.minCommonTextRankAbsoluteCount)
 	}
 
-	batch := b.documentsIdx.NewBatch()
+	toPrune := make(map[string]prunedTextRankEntries)
+	ids := make([]string, 0, len(entries))
+	for id, e := range entries {
+		phrases := filterOutCommonTextRankEntries(e.phrases, phraseDocCount, threshold)
+		words := filterOutCommonTextRankEntries(e.words, wordDocCount, threshold)
+		if len(phrases) == len(e.phrases) && len(words) == len(e.words) {
+			continue
+		}
+		toPrune[id] = prunedTextRankEntries{phrases, words}
+		ids = append(ids, id)
+	}
+
 	pruned := 0
-	for _, document := range documents {
-		phrases := filterOutCommonTextRankEntries(document.TextRankPhrases, phraseDocCount, threshold)
-		words := filterOutCommonTextRankEntries(document.TextRankWords, wordDocCount, threshold)
-		if len(phrases) == len(document.TextRankPhrases) && len(words) == len(document.TextRankWords) {
-			continue
+	for start := 0; start < len(ids); start += batchSize {
+		end := min(start+batchSize, len(ids))
+		chunkIDs := ids[start:end]
+
+		docSearchReq := bleve.NewSearchRequestOptions(bleve.NewDocIDQuery(chunkIDs), len(chunkIDs), 0, false)
+		docSearchReq.Fields = []string{"*"}
+		b.documentsMu.RLock()
+		docSearchResult, err := b.documentsIdx.Search(docSearchReq)
+		b.documentsMu.RUnlock()
+		if err != nil {
+			return err
 		}
 
-		document.TextRankPhrases = phrases
-		document.TextRankWords = words
-		if err := batch.Index(document.ID, document); err != nil {
-			log.Printf("Error indexing document %s while pruning common TextRank entries: %s\n", document.ID, err)
-			continue
+		batch := b.documentsIdx.NewBatch()
+		for _, hit := range docSearchResult.Hits {
+			document := hydrateDocument(hit)
+			p, ok := toPrune[document.ID]
+			if !ok {
+				continue
+			}
+			document.TextRankPhrases = p.phrases
+			document.TextRankWords = p.words
+			if err := batch.Index(document.ID, document); err != nil {
+				log.Printf("Error indexing document %s while pruning common TextRank entries: %s\n", document.ID, err)
+				continue
+			}
+			pruned++
 		}
-		pruned++
 
-		if batch.Size() >= batchSize {
+		if batch.Size() > 0 {
 			b.documentsMu.Lock()
 			err = b.documentsIdx.Batch(batch)
 			b.documentsMu.Unlock()
 			if err != nil {
 				return err
 			}
-			batch.Reset()
-		}
-	}
-
-	if batch.Size() > 0 {
-		b.documentsMu.Lock()
-		err = b.documentsIdx.Batch(batch)
-		b.documentsMu.Unlock()
-		if err != nil {
-			return err
 		}
 	}
 
