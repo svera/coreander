@@ -47,6 +47,32 @@ func (b *BleveIndexer) recordTextRankEnrichmentProgress() {
 	b.textRankEnrichProgress.record()
 }
 
+// runTextRankEnrichWorker drains textRankEnrichJobs and runs
+// enrichTextRankAndReindex for each document indexFile queues via
+// scheduleTextRankEnrichment, for as long as the indexer exists.
+// textRankEnrichWorkers of these run concurrently (see
+// Config.TextRankEnrichWorkers and NewBleve), so indexFile handling many
+// documents in quick succession - a bulk upload, a file watcher event storm
+// from copying in an archive - can't have more concurrent TextRank rankings
+// in flight than the process was sized for, each of which can use hundreds
+// of MB of RAM on its own (see Config.MaxTextRankWords).
+func (b *BleveIndexer) runTextRankEnrichWorker() {
+	for document := range b.textRankEnrichJobs {
+		b.enrichTextRankAndReindex(document)
+	}
+}
+
+// scheduleTextRankEnrichment queues document for background TextRank
+// enrichment by the worker pool (see runTextRankEnrichWorker), from a
+// throwaway goroutine so that indexFile - queuing this from a document
+// upload or a file watcher event - never blocks on the channel send, even
+// if every worker is currently busy and the channel's buffer is full.
+func (b *BleveIndexer) scheduleTextRankEnrichment(document Document) {
+	go func() {
+		b.textRankEnrichJobs <- document
+	}()
+}
+
 // enrichTextRankAndReindex runs TextRank analysis for a single, already
 // -indexed document and persists the result. It mirrors what
 // EnrichTextRankKeywords does in batches for the whole library, but for one
