@@ -8,11 +8,7 @@ import (
 )
 
 // TestCommonTextRankEntriesNeedPrune guards the gate EnrichTextRankKeywords
-// uses to skip pruneCommonTextRankEntries's expensive whole-library,
-// every-field rehydration when it wouldn't change anything: restarting the
-// app against an already fully-enriched, unchanged library was making that
-// unconditional scan run on every startup, which alone was enough to make
-// the app unresponsive during startup (see EnrichTextRankKeywords).
+// uses to skip pruneCommonTextRankEntries when nothing changed.
 func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 	documentsIndexMem, err := bleve.NewMemOnly(CreateDocumentsMapping())
 	if err != nil {

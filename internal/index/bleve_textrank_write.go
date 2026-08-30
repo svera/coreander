@@ -47,26 +47,17 @@ func (b *BleveIndexer) recordTextRankEnrichmentProgress() {
 	b.textRankEnrichProgress.record()
 }
 
-// runTextRankEnrichWorker drains textRankEnrichJobs and runs
-// enrichTextRankAndReindex for each document indexFile queues via
-// scheduleTextRankEnrichment, for as long as the indexer exists.
-// textRankEnrichWorkers of these run concurrently (see
-// Config.TextRankEnrichWorkers and NewBleve), so indexFile handling many
-// documents in quick succession - a bulk upload, a file watcher event storm
-// from copying in an archive - can't have more concurrent TextRank rankings
-// in flight than the process was sized for, each of which can use hundreds
-// of MB of RAM on its own (see Config.MaxTextRankWords).
+// runTextRankEnrichWorker drains textRankEnrichJobs for the indexer's
+// lifetime, bounding how many enrichTextRankAndReindex calls run
+// concurrently (see Config.TextRankEnrichWorkers).
 func (b *BleveIndexer) runTextRankEnrichWorker() {
 	for document := range b.textRankEnrichJobs {
 		b.enrichTextRankAndReindex(document)
 	}
 }
 
-// scheduleTextRankEnrichment queues document for background TextRank
-// enrichment by the worker pool (see runTextRankEnrichWorker), from a
-// throwaway goroutine so that indexFile - queuing this from a document
-// upload or a file watcher event - never blocks on the channel send, even
-// if every worker is currently busy and the channel's buffer is full.
+// scheduleTextRankEnrichment queues document for the worker pool from a
+// throwaway goroutine, so indexFile never blocks on the channel send.
 func (b *BleveIndexer) scheduleTextRankEnrichment(document Document) {
 	go func() {
 		b.textRankEnrichJobs <- document
@@ -280,16 +271,10 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 		log.Printf("TextRank enrichment finished")
 	}
 
-	// Only run pruneCommonTextRankEntries if it's actually worth it: fresh
-	// TextRank results from this run (total > 0) can shift which entries
-	// count as "common", but if nothing was enriched and the library hasn't
-	// changed enough since the last prune (see
-	// commonTextRankEntriesNeedPrune), pruneCommonTextRankEntries would just
-	// rehydrate every document in the library - with all fields - for no
-	// resulting change. On a nontrivial, already fully-enriched library,
-	// doing that unconditionally on every single startup was enough on its
-	// own to make the app unresponsive during startup, even with nothing
-	// left to enrich.
+	// Skip pruning when nothing was enriched and the library hasn't changed
+	// enough since the last prune - running it unconditionally on every
+	// startup made an already-pruned, unchanged library unresponsive for no
+	// benefit.
 	if total > 0 || b.commonTextRankEntriesNeedPrune() {
 		if err := b.pruneCommonTextRankEntries(batchSize); err != nil {
 			return err
@@ -300,12 +285,9 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 }
 
 // commonTextRankEntriesNeedPrune reports whether pruneCommonTextRankEntries
-// is worth running again: either it has never run before (no
-// internalDocCountAtLastPrune record yet) or the document count has changed
-// by at least PruneChangeTriggerRatio since the last time it ran - the same
-// threshold maybePruneForLibraryChange uses to trigger an out-of-band prune.
-// Any error (or a corrupt stored count) is treated as "needs pruning" so a
-// transient read failure can't permanently suppress it.
+// hasn't run yet or the document count has changed by at least
+// PruneChangeTriggerRatio since it last did (same threshold
+// maybePruneForLibraryChange uses). Errors are treated as "needs pruning".
 func (b *BleveIndexer) commonTextRankEntriesNeedPrune() bool {
 	b.documentsMu.RLock()
 	docCount, err := b.documentsIdx.DocCount()
@@ -378,9 +360,8 @@ func (b *BleveIndexer) maybePruneForLibraryChange() {
 	}()
 }
 
-// prunedTextRankEntries holds the post-pruning TextRankPhrases/TextRankWords
-// for a document identified as needing an update by
-// pruneCommonTextRankEntries's counting pass.
+// prunedTextRankEntries holds a document's post-pruning
+// TextRankPhrases/TextRankWords.
 type prunedTextRankEntries struct {
 	phrases []string
 	words   []string
@@ -398,18 +379,13 @@ type prunedTextRankEntries struct {
 // dictionary would report per-word frequency, not per-phrase frequency, for
 // TextRankPhrases.
 //
-// Runs in two passes rather than one to keep memory/CPU cost proportional to
-// how many documents actually need pruning, not the whole library: the first
-// pass reads every document but only hydrates TextRankPhrases/TextRankWords
-// (needed to compute per-entry corpus frequency and decide which documents
-// changed at all), instead of every field; the second pass re-hydrates in
-// full (Fields "*", unavoidable since reindexing a document replaces it
-// entirely) and rewrites only the subset that pass one found actually
-// changed, batchSize IDs at a time. A single-pass, full-hydration version of
-// this (fetching every field for every document in one Search call) was
-// found to make an already fully-pruned library's startup noticeably
-// unresponsive purely from that scan, even though few or no documents
-// actually needed rewriting.
+// Runs in two passes to keep cost proportional to how many documents
+// actually need pruning: the first reads every document but hydrates only
+// TextRankPhrases/TextRankWords (to compute corpus frequency and find which
+// documents changed); the second re-hydrates in full (unavoidable, since
+// reindexing replaces a document entirely) and rewrites only that changed
+// subset, batchSize IDs at a time. A single-pass, full-hydration version of
+// this made an already-pruned library's startup noticeably unresponsive.
 func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 	b.documentsMu.RLock()
 	docCount, err := b.documentsIdx.DocCount()
