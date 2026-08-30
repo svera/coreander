@@ -283,17 +283,19 @@ func SetAvailableLanguages(idx IndexInfo) func(fiber.Ctx) error {
 	}
 }
 
-// SetAvailableFormats retrieves the document formats present in the index and exposes HasReflowableDocs/
-// HasFixedDocs flags so templates can hide filters that don't apply to any indexed document, such as
-// the pages filter when the library has no PDFs, or the reading time filter when it has no EPUBs.
-func SetAvailableFormats(idx IndexInfo) func(fiber.Ctx) error {
+// SetSearchFilterAvailability exposes HasReflowableDocs/HasFixedDocs flags so templates can hide
+// filters that wouldn't match any document, such as the pages filter when the library has no PDFs,
+// or the reading time filter when it has no EPUBs. The reading time filter is also hidden when
+// textRankEnabled is false, since that means TextRank analysis is disabled (see
+// Config.MinOccurrenceRatio).
+func SetSearchFilterAvailability(idx IndexInfo, textRankEnabled bool) func(fiber.Ctx) error {
 	return func(c fiber.Ctx) error {
 		formats, err := idx.Formats()
 		if err != nil {
 			fmt.Println(err)
 			formats = []string{}
 		}
-		c.Locals("HasReflowableDocs", slices.Contains(formats, "epub"))
+		c.Locals("HasReflowableDocs", slices.Contains(formats, "epub") && textRankEnabled)
 		c.Locals("HasFixedDocs", slices.Contains(formats, "pdf"))
 		return c.Next()
 	}

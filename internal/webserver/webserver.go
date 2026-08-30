@@ -38,6 +38,7 @@ type Config struct {
 	InvitationTimeout          time.Duration
 	MinPasswordLength          int
 	WordsPerMinute             float64
+	TextRankEnabled            bool
 	JwtSecret                  []byte
 	Hostname                   string
 	FQDN                       string
