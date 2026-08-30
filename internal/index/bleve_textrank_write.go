@@ -384,8 +384,7 @@ type prunedTextRankEntries struct {
 // TextRankPhrases/TextRankWords (to compute corpus frequency and find which
 // documents changed); the second re-hydrates in full (unavoidable, since
 // reindexing replaces a document entirely) and rewrites only that changed
-// subset, batchSize IDs at a time. A single-pass, full-hydration version of
-// this made an already-pruned library's startup noticeably unresponsive.
+// subset, batchSize IDs at a time.
 func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 	b.documentsMu.RLock()
 	docCount, err := b.documentsIdx.DocCount()
