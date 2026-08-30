@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	index "github.com/blevesearch/bleve_index_api"
+	"github.com/blevesearch/bleve/v2"
 	"github.com/gosimple/slug"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/metadata"
@@ -293,6 +293,12 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 
 func (b *BleveIndexer) collectPendingLibraryPaths(forceIndexing bool) (pending []string, languages []string, err error) {
 	languages = []string{}
+
+	indexedLanguages, err := b.indexedDocumentLanguages()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	e := afero.Walk(b.fs, b.libraryPath, func(fullPath string, f os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -304,7 +310,7 @@ func (b *BleveIndexer) collectPendingLibraryPaths(forceIndexing bool) (pending [
 		if _, ok := b.reader[ext]; !ok {
 			return nil
 		}
-		if indexed, lang := b.isAlreadyIndexed(fullPath); indexed && !forceIndexing {
+		if lang, indexed := indexedLanguages[b.id(fullPath)]; indexed && !forceIndexing {
 			b.indexProgress.processed.Add(1)
 			languages = addLanguage(lang, languages)
 			return nil
@@ -313,6 +319,45 @@ func (b *BleveIndexer) collectPendingLibraryPaths(forceIndexing bool) (pending [
 		return nil
 	})
 	return pending, languages, e
+}
+
+// indexedDocumentLanguages returns every already-indexed document's ID and
+// Language in one fetch, requesting only that field instead of the whole
+// document, so collectPendingLibraryPaths can check "is this file already
+// indexed" via an in-memory map lookup per file instead of one full-document
+// bleve read per file. The previous per-file b.documentsIdx.Document(id) call
+// fetched every stored field, including TextRankPhrases/TextRankWords (up to
+// 500 entries each once a document has been through TextRank enrichment) -
+// harmless before a library's first enrichment pass, but expensive enough
+// once every document carries that payload to make a plain startup scan of
+// an already-indexed, already-enriched library OOM a memory-constrained
+// host, even though only Language was ever read from the result.
+func (b *BleveIndexer) indexedDocumentLanguages() (map[string]string, error) {
+	b.documentsMu.RLock()
+	docCount, err := b.documentsIdx.DocCount()
+	if err != nil {
+		b.documentsMu.RUnlock()
+		return nil, err
+	}
+	if docCount == 0 {
+		b.documentsMu.RUnlock()
+		return map[string]string{}, nil
+	}
+
+	searchReq := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), int(docCount), 0, false)
+	searchReq.Fields = []string{"Language"}
+	searchResult, err := b.documentsIdx.Search(searchReq)
+	b.documentsMu.RUnlock()
+	if err != nil {
+		return nil, err
+	}
+
+	languages := make(map[string]string, len(searchResult.Hits))
+	for _, hit := range searchResult.Hits {
+		lang, _ := hit.Fields["Language"].(string)
+		languages[hit.ID] = lang
+	}
+	return languages, nil
 }
 
 type metadataJobResult struct {
@@ -338,26 +383,6 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 		b.indexProgress.processed.Add(1)
 	})
 	return out
-}
-
-func (b *BleveIndexer) isAlreadyIndexed(fullPath string) (bool, string) {
-	b.documentsMu.RLock()
-	doc, err := b.documentsIdx.Document(b.id(fullPath))
-	b.documentsMu.RUnlock()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	if doc == nil {
-		return false, ""
-	}
-	lang := ""
-	doc.VisitFields(func(f index.Field) {
-		if f.Name() == "Language" {
-			lang = string(f.Value())
-			return
-		}
-	})
-	return true, lang
 }
 
 func addLanguage(lang string, languages []string) []string {
