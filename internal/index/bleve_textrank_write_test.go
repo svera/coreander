@@ -61,10 +61,8 @@ func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 	}
 }
 
-// TestPruningReportsProgress guards IndexingProgress surfacing a "pruning"
-// phase (see ProgressPruning) while pruneCommonTextRankEntries runs, so the
-// web UI's progress bar covers this phase the same way it already does for
-// indexing, author enrichment and TextRank enrichment.
+// TestPruningReportsProgress guards IndexingProgress surfacing Kind
+// ProgressPruning while pruneCommonTextRankEntries runs.
 func TestPruningReportsProgress(t *testing.T) {
 	documentsIndexMem, err := bleve.NewMemOnly(CreateDocumentsMapping())
 	if err != nil {
@@ -125,11 +123,9 @@ func TestPruningReportsProgress(t *testing.T) {
 	}
 }
 
-// TestPruneCommonTextRankEntriesRewritesCommonEntries guards the actual
-// rewrite path (as opposed to TestCommonTextRankEntriesNeedPrune, which only
-// covers the gate that decides whether to call pruneCommonTextRankEntries at
-// all): an entry shared by enough documents to cross the threshold should be
-// stripped from all of them, while an entry unique to one document survives.
+// TestPruneCommonTextRankEntriesRewritesCommonEntries guards the rewrite
+// path: an entry shared by enough documents to cross the threshold should be
+// stripped from all of them, while a unique entry survives.
 func TestPruneCommonTextRankEntriesRewritesCommonEntries(t *testing.T) {
 	documentsIndexMem, err := bleve.NewMemOnly(CreateDocumentsMapping())
 	if err != nil {

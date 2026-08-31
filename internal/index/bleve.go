@@ -243,9 +243,8 @@ func (p *progressTracker) record() {
 	p.processed.Add(1)
 }
 
-// recordN increments the number of entries processed so far by n, for
-// callers that process a batch at a time (e.g. pruneCommonTextRankEntries)
-// rather than calling record once per item.
+// recordN increments the number processed so far by n, for callers that
+// process a batch at a time rather than calling record once per item.
 func (p *progressTracker) recordN(n int) {
 	p.processed.Add(uint64(n))
 }

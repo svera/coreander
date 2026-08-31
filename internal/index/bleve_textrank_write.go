@@ -391,20 +391,11 @@ type prunedTextRankEntries struct {
 // dictionary would report per-word frequency, not per-phrase frequency, for
 // TextRankPhrases.
 //
-// Two passes over the index, both paginated batchSize documents at a time
-// and requesting only TextRankPhrases/TextRankWords (not Fields "*") to
-// avoid dragging along the rest of each document: the first tallies corpus
-// frequency only (phraseDocCount/wordDocCount, sized by distinct entries,
-// not document count); the second re-scans the same fields per batch,
-// decides which of that batch's documents changed against the now-complete
-// frequency tally, and immediately re-hydrates in full (unavoidable for
-// reindexing) and rewrites just that batch. Earlier versions kept every
-// document's entries (or every document that needed rewriting) in one
-// unbounded map between the two passes - fine normally, but on the first
-// prune ever, most documents can share at least one "common" entry, so
-// "most of the library" and "the whole library" are the same order of
-// magnitude; re-scanning instead of retaining is what keeps this bounded to
-// batchSize documents even in that worst case.
+// Two paginated passes, both requesting only TextRankPhrases/TextRankWords:
+// the first tallies corpus frequency; the second re-scans per batch against
+// that tally and rewrites only what changed. Re-scanning rather than
+// retaining keeps memory bounded to batchSize documents even when most of
+// the library needs rewriting (e.g. the first prune ever).
 func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 	b.documentsMu.RLock()
 	docCount, err := b.documentsIdx.DocCount()
@@ -417,8 +408,7 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 	}
 
 	log.Printf("Pruning common TextRank entries across %d documents", docCount)
-	// *2: this function does two full passes over the index (counting, then
-	// rewriting), each processing docCount documents.
+	// *2 for the two full passes (counting, then rewriting).
 	b.beginPruning(int(docCount) * 2)
 	defer b.endPruning()
 
@@ -463,11 +453,8 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 	}
 
 	pruned := 0
-	// Once a library has stabilized, most prune runs (triggered by
-	// maybePruneForLibraryChange after a handful of uploads/deletes) find
-	// nothing newly common: skip the second full scan and all rewriting
-	// entirely rather than re-reading every document just to discover that,
-	// which is the common case in steady state.
+	// Steady state (most prune runs, once a library has stabilized): skip
+	// the second scan and rewrite entirely when nothing is even common.
 	if !anyEntryAboveThreshold(phraseDocCount, threshold) && !anyEntryAboveThreshold(wordDocCount, threshold) {
 		log.Printf("Pruning common TextRank entries: nothing exceeds the common-entry threshold, skipping rewrite")
 	} else {
@@ -490,8 +477,7 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 }
 
 // anyEntryAboveThreshold reports whether any entry in counts occurs in more
-// than threshold documents - i.e. whether pruning would actually change
-// anything.
+// than threshold documents.
 func anyEntryAboveThreshold(counts map[string]int, threshold float64) bool {
 	for _, count := range counts {
 		if float64(count) > threshold {
@@ -502,10 +488,8 @@ func anyEntryAboveThreshold(counts map[string]int, threshold float64) bool {
 }
 
 // rewriteCommonTextRankEntries is pruneCommonTextRankEntries' second pass:
-// it re-scans the index (via search, the same paginated, lightweight-field
-// query pass one used) to find which documents' TextRankPhrases/TextRankWords
-// contain an entry above threshold, and rewrites just those, batchSize IDs at
-// a time.
+// finds documents with an entry above threshold and rewrites just those,
+// batchSize IDs at a time.
 func (b *BleveIndexer) rewriteCommonTextRankEntries(docCount uint64, batchSize int, phraseDocCount, wordDocCount map[string]int, threshold float64, search func(from int) (*bleve.SearchResult, error)) (int, error) {
 	pruned := 0
 	for from := 0; uint64(from) < docCount; from += batchSize {
