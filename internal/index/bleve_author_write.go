@@ -103,11 +103,7 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 
 // countDocumentsPerAuthor scans the documents index and returns per-author document counts
 // and one representative name per author slug. Pages through the index batchSize documents
-// at a time, requesting only the four contributor fields it needs rather than every field
-// (Fields "*", which for a fully TextRank-enriched library also drags along
-// TextRankPhrases/TextRankWords - up to 1000 strings per document) in one unbatched Search
-// call - the same anti-pattern that made pruneCommonTextRankEntries exhaust memory on a
-// memory-constrained host, and it runs unconditionally at the end of every AddLibrary call.
+// at a time, requesting only the four contributor fields it needs.
 func (b *BleveIndexer) countDocumentsPerAuthor(batchSize int) (counts map[string]uint64, names map[string]string, err error) {
 	b.documentsMu.RLock()
 	docCount, err := b.documentsIdx.DocCount()

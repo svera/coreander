@@ -215,13 +215,6 @@ func (b *BleveIndexer) rankDocuments(docs []Document, workers int) []Document {
 	parallelFor(len(docs), workers, func(i int) {
 		out[i] = b.rankDocument(docs[i])
 		b.recordTextRankEnrichmentProgress()
-		// TEMPORARY diagnostic for the OOM investigation: see
-		// readMetadataForPaths in bleve_document_write.go. Logs after every
-		// document (TextRank ranking is far more expensive per-item than
-		// metadata extraction) so a crash's last lines show which specific
-		// document was being ranked and how memory grew from it.
-		logMemStats(fmt.Sprintf("ranked document %s (%d words, %d phrases, %d single words)",
-			docs[i].ID, int(out[i].Words), len(out[i].TextRankPhrases), len(out[i].TextRankWords)))
 	})
 	return out
 }
@@ -244,7 +237,6 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 
 	if total > 0 {
 		log.Printf("Enriching %d documents with TextRank keywords", total)
-		logMemStats("before TextRank enrichment")
 		b.beginTextRankEnrichment(int(total))
 
 		// maxIterations bounds the loop below in case a document's batch.Index
@@ -463,8 +455,6 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 			}
 		}
 		b.recordPruningProgress(len(result.Hits))
-		// TEMPORARY diagnostic for the OOM investigation: see readMetadataForPaths.
-		logMemStats(fmt.Sprintf("prune counting pass: %d/%d documents scanned", min(from+batchSize, int(docCount)), docCount))
 	}
 
 	threshold := b.commonTextRankEntryRatio * float64(docCount)
@@ -540,8 +530,6 @@ func (b *BleveIndexer) rewriteCommonTextRankEntries(docCount uint64, batchSize i
 			toPrune[hit.ID] = prunedTextRankEntries{prunedPhrases, prunedWords}
 			ids = append(ids, hit.ID)
 		}
-		// TEMPORARY diagnostic for the OOM investigation: see readMetadataForPaths.
-		logMemStats(fmt.Sprintf("prune: %d/%d documents in this batch need rewriting", len(ids), len(result.Hits)))
 
 		if len(ids) == 0 {
 			b.recordPruningProgress(len(result.Hits))
@@ -582,8 +570,6 @@ func (b *BleveIndexer) rewriteCommonTextRankEntries(docCount uint64, batchSize i
 			}
 		}
 		b.recordPruningProgress(len(result.Hits))
-		// TEMPORARY diagnostic for the OOM investigation: see readMetadataForPaths.
-		logMemStats(fmt.Sprintf("prune rewrite pass: %d/%d documents scanned", min(from+batchSize, int(docCount)), docCount))
 	}
 
 	return pruned, nil

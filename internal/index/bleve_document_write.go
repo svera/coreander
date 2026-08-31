@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -267,8 +266,6 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 			b.endIndexing()
 			return err
 		}
-		// TEMPORARY diagnostic for the OOM investigation: see readMetadataForPaths.
-		logMemStats(fmt.Sprintf("chunk committed, documentsSeen=%d", len(documentsSeen)))
 	}
 
 	// Always update languages, even if empty, to ensure consistency
@@ -288,13 +285,10 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 		return err
 	}
 
-	// TEMPORARY diagnostic for the OOM investigation: see readMetadataForPaths.
-	logMemStats("before RebuildAuthorsFromDocuments")
 	if err := b.RebuildAuthorsFromDocuments(batchSize); err != nil {
 		b.endIndexing()
 		return err
 	}
-	logMemStats("after RebuildAuthorsFromDocuments")
 
 	b.endIndexing()
 	return nil
@@ -382,23 +376,9 @@ func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metad
 	out := make([]metadataJobResult, len(paths))
 	parallelFor(len(paths), workers, func(i int) {
 		out[i] = b.metadataJobResultFor(paths[i])
-		processed := b.indexProgress.processed.Add(1)
-		// TEMPORARY diagnostic for the OOM investigation on memory-constrained
-		// hosts: logs heap/OS memory every 20 files so a crash's last lines
-		// show how memory grew relative to progress and which file was last
-		// attempted. Remove once the root cause is confirmed.
-		if processed%20 == 0 {
-			logMemStats(fmt.Sprintf("after %d files processed, last: %s", processed, paths[i]))
-		}
+		b.indexProgress.processed.Add(1)
 	})
 	return out
-}
-
-func logMemStats(context string) {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	log.Printf("[memdiag] %s: HeapAlloc=%dMB HeapSys=%dMB Sys=%dMB NumGC=%d\n",
-		context, m.HeapAlloc/1024/1024, m.HeapSys/1024/1024, m.Sys/1024/1024, m.NumGC)
 }
 
 func addLanguage(lang string, languages []string) []string {
