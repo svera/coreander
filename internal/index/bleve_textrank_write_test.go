@@ -10,9 +10,12 @@ import (
 	"github.com/blevesearch/bleve/v2"
 )
 
-// TestCommonTextRankEntriesNeedPrune guards the gate EnrichTextRankKeywords
-// uses to skip pruneCommonTextRankEntries when nothing changed.
-func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
+// newTestTextRankIndexer builds an in-memory BleveIndexer for the pruning
+// tests below, which otherwise all repeat the same documents/authors index
+// setup with different Config values.
+func newTestTextRankIndexer(t *testing.T, cfg Config) (idx *BleveIndexer, documentsIndexMem bleve.Index) {
+	t.Helper()
+
 	documentsIndexMem, err := bleve.NewMemOnly(CreateDocumentsMapping())
 	if err != nil {
 		t.Fatal(err)
@@ -22,7 +25,13 @@ func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	idx := NewBleve(documentsIndexMem, authorsIndexMem, nil, "", nil, Config{
+	return NewBleve(documentsIndexMem, authorsIndexMem, nil, "", nil, cfg), documentsIndexMem
+}
+
+// TestCommonTextRankEntriesNeedPrune guards the gate EnrichTextRankKeywords
+// uses to skip pruneCommonTextRankEntries when nothing changed.
+func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
+	idx, documentsIndexMem := newTestTextRankIndexer(t, Config{
 		PruneChangeTriggerRatio: 0.5,
 	})
 
@@ -64,16 +73,7 @@ func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 // TestPruningReportsProgress guards IndexingProgress surfacing Kind
 // ProgressPruning while pruneCommonTextRankEntries runs.
 func TestPruningReportsProgress(t *testing.T) {
-	documentsIndexMem, err := bleve.NewMemOnly(CreateDocumentsMapping())
-	if err != nil {
-		t.Fatal(err)
-	}
-	authorsIndexMem, err := bleve.NewMemOnly(CreateAuthorsMapping())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	idx := NewBleve(documentsIndexMem, authorsIndexMem, nil, "", nil, Config{})
+	idx, documentsIndexMem := newTestTextRankIndexer(t, Config{})
 
 	const docCount = 200
 	for i := 0; i < docCount; i++ {
@@ -127,16 +127,7 @@ func TestPruningReportsProgress(t *testing.T) {
 // path: an entry shared by enough documents to cross the threshold should be
 // stripped from all of them, while a unique entry survives.
 func TestPruneCommonTextRankEntriesRewritesCommonEntries(t *testing.T) {
-	documentsIndexMem, err := bleve.NewMemOnly(CreateDocumentsMapping())
-	if err != nil {
-		t.Fatal(err)
-	}
-	authorsIndexMem, err := bleve.NewMemOnly(CreateAuthorsMapping())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	idx := NewBleve(documentsIndexMem, authorsIndexMem, nil, "", nil, Config{
+	idx, documentsIndexMem := newTestTextRankIndexer(t, Config{
 		CommonTextRankEntryRatio:       0.5,
 		MinCommonTextRankAbsoluteCount: 1,
 	})
