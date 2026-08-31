@@ -163,6 +163,8 @@
 "Analyzing documents, search results and recommendations may not be accurate yet.": "Analizando documentos, los resultados de búsqueda y las recomendaciones pueden no ser precisos todavía."
 "Author information progress": "Progreso de información de autores"
 "Related content analysis progress": "Progreso del análisis de contenido relacionado"
+"Cleaning up overly common keywords, search results and recommendations may not be accurate yet.": "Limpiando palabras clave demasiado comunes, los resultados de búsqueda y las recomendaciones pueden no ser precisos todavía."
+"Keyword clean-up progress": "Progreso de la limpieza de palabras clave"
 "Indexing progress": "Progreso de indexación"
 "Remaining time: %s": "Tiempo restante: %s"
 "There was an error deleting the user, please try again later": "Hubo un error al borrar el usuario, por favor, vuelva a intentarlo más tarde"

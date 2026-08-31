@@ -8,6 +8,7 @@ const (
 	ProgressDocuments ProgressKind = "documents"
 	ProgressAuthors   ProgressKind = "authors"
 	ProgressTextRank  ProgressKind = "textrank"
+	ProgressPruning   ProgressKind = "pruning"
 )
 
 type Progress struct {

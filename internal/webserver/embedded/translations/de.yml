@@ -166,6 +166,8 @@
 "Analyzing documents, search results and recommendations may not be accurate yet.": "Dokumente werden analysiert, Suchergebnisse und Empfehlungen sind möglicherweise noch nicht genau."
 "Author information progress": "Fortschritt der Autoreninformationen"
 "Related content analysis progress": "Fortschritt der Analyse verwandter Inhalte"
+"Cleaning up overly common keywords, search results and recommendations may not be accurate yet.": "Zu häufige Schlüsselwörter werden bereinigt, Suchergebnisse und Empfehlungen sind möglicherweise noch nicht genau."
+"Keyword clean-up progress": "Fortschritt der Schlüsselwortbereinigung"
 "Indexing progress": "Indexierungsfortschritt"
 "Remaining time": "Verbleibende Zeit"
 "Remaining time: %s": "Verbleibende Zeit: %s"

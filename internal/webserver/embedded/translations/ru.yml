@@ -165,6 +165,8 @@
 "Analyzing documents, search results and recommendations may not be accurate yet.": "Анализ документов; результаты поиска и рекомендации могут быть пока неточными."
 "Author information progress": "Прогресс получения информации об авторах"
 "Related content analysis progress": "Прогресс анализа похожего контента"
+"Cleaning up overly common keywords, search results and recommendations may not be accurate yet.": "Очистка слишком часто встречающихся ключевых слов; результаты поиска и рекомендации могут быть пока неточными."
+"Keyword clean-up progress": "Прогресс очистки ключевых слов"
 "Indexing progress": "Прогресс индексации"
 "Remaining time: %s": "Оставшееся время: %s"
 "There was an error deleting the user, please try again later": "Ошибка при удалении пользователя. Повторите попытку позже."

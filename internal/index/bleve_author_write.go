@@ -42,7 +42,7 @@ func (b *BleveIndexer) incrementAuthorCount(name, authorSlug string) error {
 // RebuildAuthorsFromDocuments recalculates DocumentCount for every author from the documents
 // index, creating missing author entries and updating existing ones.
 func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
-	counts, names, err := b.countDocumentsPerAuthor()
+	counts, names, err := b.countDocumentsPerAuthor(batchSize)
 	if err != nil {
 		return err
 	}
@@ -102,33 +102,43 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 }
 
 // countDocumentsPerAuthor scans the documents index and returns per-author document counts
-// and one representative name per author slug.
-func (b *BleveIndexer) countDocumentsPerAuthor() (counts map[string]uint64, names map[string]string, err error) {
+// and one representative name per author slug. Pages through the index batchSize documents
+// at a time, requesting only the four contributor fields it needs rather than every field
+// (Fields "*", which for a fully TextRank-enriched library also drags along
+// TextRankPhrases/TextRankWords - up to 1000 strings per document) in one unbatched Search
+// call - the same anti-pattern that made pruneCommonTextRankEntries exhaust memory on a
+// memory-constrained host, and it runs unconditionally at the end of every AddLibrary call.
+func (b *BleveIndexer) countDocumentsPerAuthor(batchSize int) (counts map[string]uint64, names map[string]string, err error) {
 	b.documentsMu.RLock()
 	docCount, err := b.documentsIdx.DocCount()
-	if err != nil {
-		b.documentsMu.RUnlock()
-		return nil, nil, err
-	}
-	if docCount == 0 {
-		b.documentsMu.RUnlock()
-		return map[string]uint64{}, map[string]string{}, nil
-	}
-
-	req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), int(docCount), 0, false)
-	req.Fields = []string{"*"}
-	result, err := b.documentsIdx.Search(req)
 	b.documentsMu.RUnlock()
 	if err != nil {
 		return nil, nil, err
 	}
+	if docCount == 0 {
+		return map[string]uint64{}, map[string]string{}, nil
+	}
 
 	counts = make(map[string]uint64)
 	names = make(map[string]string)
-	for _, hit := range result.Hits {
-		document := hydrateDocument(hit)
-		accumulateContributors(counts, names, document.AuthorsSlugs, document.Authors)
-		accumulateContributors(counts, names, document.IllustratorsSlugs, document.Illustrators)
+
+	for from := 0; uint64(from) < docCount; from += batchSize {
+		req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), batchSize, from, false)
+		req.Fields = []string{"Authors", "AuthorsSlugs", "Illustrators", "IllustratorsSlugs"}
+		b.documentsMu.RLock()
+		result, err := b.documentsIdx.Search(req)
+		b.documentsMu.RUnlock()
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(result.Hits) == 0 {
+			break
+		}
+
+		for _, hit := range result.Hits {
+			accumulateContributors(counts, names, slicer(hit.Fields["AuthorsSlugs"]), slicer(hit.Fields["Authors"]))
+			accumulateContributors(counts, names, slicer(hit.Fields["IllustratorsSlugs"]), slicer(hit.Fields["Illustrators"]))
+		}
 	}
 	return counts, names, nil
 }
