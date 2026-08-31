@@ -31,6 +31,9 @@ func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 	if b.textRankEnrichProgress.startNanos.Load() != 0 {
 		return b.progressFrom(ProgressTextRank, b.textRankEnrichProgress.startNanos.Load(), b.textRankEnrichProgress.processed.Load(), b.textRankEnrichProgress.total.Load()), nil
 	}
+	if b.pruneProgress.startNanos.Load() != 0 {
+		return b.progressFrom(ProgressPruning, b.pruneProgress.startNanos.Load(), b.pruneProgress.processed.Load(), b.pruneProgress.total.Load()), nil
+	}
 	return Progress{}, nil
 }
 

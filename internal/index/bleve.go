@@ -197,6 +197,7 @@ type BleveIndexer struct {
 	indexProgress                  progressTracker
 	authorEnrichProgress           progressTracker
 	textRankEnrichProgress         progressTracker
+	pruneProgress                  progressTracker
 	illustratedMinAmount           int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
 	illustratedMinSize             float64 // minimum size in megapixels for an image to count as an illustration
 	minOccurrenceRatio             float64 // minimum occurrence ratio for a TextRank phrase/word to be kept; see Config.MinOccurrenceRatio
@@ -240,6 +241,12 @@ func (p *progressTracker) end() {
 // record increments the number of entries processed so far by one.
 func (p *progressTracker) record() {
 	p.processed.Add(1)
+}
+
+// recordN increments the number processed so far by n, for callers that
+// process a batch at a time rather than calling record once per item.
+func (p *progressTracker) recordN(n int) {
+	p.processed.Add(uint64(n))
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
