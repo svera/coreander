@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/controller/search"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 	"github.com/svera/coreander/v5/internal/webserver/view"
 )
@@ -38,10 +39,13 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		log.Println(err)
 	}
 
-	searchFields := index.SearchFields{
-		Keywords: authorSlug,
-		SortBy:   a.parseSortBy(c),
+	searchFields, err := search.ParseDocumentSearchQuery(c, a.config.WordsPerMinute)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrBadRequest
 	}
+	searchFields.AuthorSlug = authorSlug
+	searchFields.SortBy = a.parseSortBy(c)
 
 	if documentResults, err = a.idx.SearchByAuthor(searchFields, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
@@ -55,16 +59,17 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Author":         author,
-		"ImageVersion":   a.getImageVersion(author.Slug),
-		"Results":        searchResults,
-		"Paginator":      view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":          author.Name,
-		"EmailFrom":      a.sender.From(),
-		"WordsPerMinute": a.config.WordsPerMinute,
-		"URL":            view.URL(c),
-		"SortURL":        view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":         c.Query("sort-by"),
+		"Author":               author,
+		"ImageVersion":         a.getImageVersion(author.Slug),
+		"DocumentSearchFields": searchFields,
+		"Results":              searchResults,
+		"Paginator":            view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":                author.Name,
+		"EmailFrom":            a.sender.From(),
+		"WordsPerMinute":       a.config.WordsPerMinute,
+		"URL":                  view.URL(c),
+		"SortURL":              view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":               c.Query("sort-by"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
@@ -77,7 +82,7 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 	}
 
 	if c.Get("hx-request") == "true" {
-		if err = c.Render("partials/docs-list", templateVars); err != nil {
+		if err = c.Render("partials/author-docs-list-fragments", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
