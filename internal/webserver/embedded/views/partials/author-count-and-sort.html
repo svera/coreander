@@ -6,8 +6,8 @@
     <button type="button" class="btn btn-outline-secondary w-100" data-bs-toggle="offcanvas" data-bs-target="#author-search-filters-offcanvas" aria-controls="author-search-filters-offcanvas" aria-expanded="false" data-bs-auto-close="outside" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders me-2"></i>{{t .Lang "Filters"}}</button>
 </div>
 {{else}}
-<div class="col-12">
-    <p class="text-start mb-3">{{t .Lang "%d documents found" .Results.TotalHits}}</p>
+<div class="col-12 col-xl-8 align-content-end">
+    <p class="text-start mb-3 mb-xl-0">{{t .Lang "%d documents found" .Results.TotalHits}}</p>
 </div>
 <div class="col-4 col-xl-auto d-xl-none">
     <button type="button" class="btn btn-outline-secondary w-100" data-bs-toggle="offcanvas" data-bs-target="#author-search-filters-offcanvas" aria-controls="author-search-filters-offcanvas" aria-expanded="false" data-bs-auto-close="outside" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders me-2"></i>{{t .Lang "Filters"}}</button>
