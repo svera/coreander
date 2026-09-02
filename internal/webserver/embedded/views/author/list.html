@@ -27,12 +27,18 @@
 
 <div class="row">
     <div id="search-filters-sidebar-col" class="col-12 col-xl-3 mt-5 p-0">
-        <div class="search-filters-sidebar-sticky">
-            <form id="search-filters-form" action="{{.URLPath}}" method="get" role="search">
-                <div class="border rounded-4">
-                    {{template "partials/document-search-filters" dict "Lang" .Lang "FilterIdPrefix" "sidebar" "SearchFields" .DocumentSearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs "HideSearch" true "DocumentsByAuthor" .Author.Name "DocumentsSearchPage" true}}
-                </div>
-            </form>
+        <div class="offcanvas-xl offcanvas-start search-filters-sidebar-sticky" tabindex="-1" id="author-search-filters-offcanvas" aria-labelledby="author-search-filters-offcanvas-label">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="author-search-filters-offcanvas-label">{{t .Lang "Filters"}}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#author-search-filters-offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                <form id="search-filters-form" action="{{.URLPath}}" method="get" role="search">
+                    <div class="border rounded-4">
+                        {{template "partials/document-search-filters" dict "Lang" .Lang "FilterIdPrefix" "sidebar" "SearchFields" .DocumentSearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs "HideSearch" true "DocumentsByAuthor" .Author.Name "DocumentsSearchPage" true}}
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
     <div class="col-12 col-xl-9">

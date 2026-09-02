@@ -1,12 +1,18 @@
 {{if eq .Results.TotalHits 0}}
-<div class="col-12 align-content-end">
-    <p class="text-center">{{t .Lang "No documents found"}}</p>
+<div class="col-12">
+    <p class="text-center mb-3">{{t .Lang "No documents found"}}</p>
+</div>
+<div class="col-12 d-xl-none">
+    <button type="button" class="btn btn-outline-secondary w-100" data-bs-toggle="offcanvas" data-bs-target="#author-search-filters-offcanvas" aria-controls="author-search-filters-offcanvas" aria-expanded="false" data-bs-auto-close="outside" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders me-2"></i>{{t .Lang "Filters"}}</button>
 </div>
 {{else}}
-<div class="col-6 col-md-8 align-content-end">
-    <p class="text-start">{{t .Lang "%d documents found" .Results.TotalHits}}</p>
+<div class="col-12">
+    <p class="text-start mb-3">{{t .Lang "%d documents found" .Results.TotalHits}}</p>
 </div>
-<div class="col-6 col-md-4 text-end">
+<div class="col-4 col-xl-auto d-xl-none">
+    <button type="button" class="btn btn-outline-secondary w-100" data-bs-toggle="offcanvas" data-bs-target="#author-search-filters-offcanvas" aria-controls="author-search-filters-offcanvas" aria-expanded="false" data-bs-auto-close="outside" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders me-2"></i>{{t .Lang "Filters"}}</button>
+</div>
+<div class="col-8 col-xl-auto ms-xl-auto text-end">
     {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "AdditionalSortOptions" .AdditionalSortOptions}}
 </div>
 {{end}}
