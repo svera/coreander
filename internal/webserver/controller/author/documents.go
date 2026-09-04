@@ -45,7 +45,12 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 	searchFields.AuthorSlug = authorSlug
-	searchFields.SortBy = a.parseSortBy(c)
+	// ParseDocumentSearchQuery already maps an explicit sort-by query param to
+	// the right bleve sort key; only its no-sort-by-given default (relevance,
+	// meaningless for a plain author listing) needs overriding here.
+	if c.Query("sort-by") == "" {
+		searchFields.SortBy = []string{"Publication.Date"}
+	}
 
 	if documentResults, err = a.idx.SearchByAuthor(searchFields, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
@@ -94,18 +99,4 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	return nil
-}
-
-func (d *Controller) parseSortBy(c fiber.Ctx) []string {
-	if c.Query("sort-by") != "" {
-		switch c.Query("sort-by") {
-		case "pub-date-newer-first":
-			return []string{"-Publication.Date"}
-		case "est-read-time-shorter-first":
-			return []string{"Words"}
-		case "est-read-time-longer-first":
-			return []string{"-Words"}
-		}
-	}
-	return []string{"Publication.Date"}
 }

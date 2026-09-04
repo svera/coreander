@@ -318,14 +318,6 @@ export function syncSidebarFormToOffcanvas({ searchFieldName, offcanvasContainer
 
 const FILTER_DEBOUNCE_MS = 600
 
-const SEARCH_LIST_PATHS = new Set(['/search', '/documents', '/authors'])
-
-// Author detail pages (/authors/<slug>) also host a live-filtering sidebar,
-// but the slug makes them impossible to list exhaustively like the paths above.
-function isSearchListPath(pathname) {
-    return SEARCH_LIST_PATHS.has(pathname) || /^\/authors\/[^/]+$/.test(pathname)
-}
-
 export function syncSearchTypeFromPane(typeInputId, authorPaneId) {
     const typeInput = document.getElementById(typeInputId)
     const authorPane = document.getElementById(authorPaneId)
@@ -362,14 +354,11 @@ function composeAllDateControls(form) {
     form._coreanderComposeDates?.forEach(fn => fn())
 }
 
+// A page hosts a live-filtering list precisely when it renders #search-filters-form,
+// so its presence (rather than an enumerated/pattern-matched set of paths) is what
+// decides both the AJAX list path and whether filter changes apply live via htmx.
 function activeSearchListPath(fallbackPath) {
-    if (document.getElementById('search-filters-form')) {
-        return isSearchListPath(window.location.pathname) ? window.location.pathname : '/search'
-    }
-    if (isSearchListPath(window.location.pathname)) {
-        return window.location.pathname
-    }
-    return fallbackPath
+    return document.getElementById('search-filters-form') ? window.location.pathname : fallbackPath
 }
 
 export function initFilterFormBehavior({
@@ -381,7 +370,7 @@ export function initFilterFormBehavior({
     beforeSidebarApply,
 }) {
     const resolvedListPath = activeSearchListPath(listPath)
-    const isListPage = isSearchListPath(window.location.pathname) && document.getElementById('search-filters-form')
+    const isListPage = Boolean(document.getElementById('search-filters-form'))
     let applyingFilters = false
 
     function applyFilters() {
