@@ -49,7 +49,7 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 	lang, _ := c.Locals("Lang").(string)
 	authorSummaries, illustratorSummaries := d.authorAndIllustratorSummaries(document, lang)
 
-	similarDocuments, sameSeries := d.related(document.Slug, int(session.ID))
+	sameSeries := d.sameSeries(document.Slug, int(session.ID))
 
 	var completedOn *time.Time
 	result := model.AugmentedDocument{Document: document}
@@ -67,7 +67,6 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"Document":             result,
 		"EmailFrom":            d.sender.From(),
 		"SameSeries":           sameSeries,
-		"SimilarDocuments":     similarDocuments,
 		"WordsPerMinute":       d.config.WordsPerMinute,
 		"AuthorSummaries":      authorSummaries,
 		"IllustratorSummaries": illustratorSummaries,
@@ -121,20 +120,9 @@ func (d *Controller) authorSummaryFor(authorSlug, lang string) authorSummary {
 	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug)}
 }
 
-func (d *Controller) related(slug string, sessionID int) (similarDocuments, sameSeries []model.AugmentedDocument) {
-	var err error
-	var similar []index.Document
-	if similar, err = d.idx.SimilarTo(slug, relatedDocuments); err != nil {
-		fmt.Println(err)
-	}
-	for i := range similar {
-		result := model.AugmentedDocument{Document: similar[i]}
-		result = d.hlRepository.Highlighted(sessionID, result)
-		similarDocuments = append(similarDocuments, result)
-	}
-
-	var series []index.Document
-	if series, err = d.idx.SameSeries(slug, relatedDocuments); err != nil {
+func (d *Controller) sameSeries(slug string, sessionID int) (sameSeries []model.AugmentedDocument) {
+	series, err := d.idx.SameSeries(slug, relatedDocuments)
+	if err != nil {
 		fmt.Println(err)
 	}
 	for i := range series {
@@ -143,5 +131,5 @@ func (d *Controller) related(slug string, sessionID int) (similarDocuments, same
 		sameSeries = append(sameSeries, result)
 	}
 
-	return similarDocuments, sameSeries
+	return sameSeries
 }
