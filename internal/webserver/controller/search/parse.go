@@ -10,7 +10,10 @@ import (
 	"github.com/svera/coreander/v5/internal/index"
 )
 
-func parseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.SearchFields, error) {
+// ParseDocumentSearchQuery reads document search/filter query params (search,
+// language, subjects, similar, sort-by, pub-date-from/to, est-read-time-from/to,
+// pages-from/to, illustrated-only) into an index.SearchFields.
+func ParseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.SearchFields, error) {
 	searchFields := index.SearchFields{
 		Keywords:        c.Query("search"),
 		Language:        c.Query("language"),
