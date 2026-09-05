@@ -1,3 +1,9 @@
+{{if and .Author (ne .Author.Name "")}}
+<div id="author-list-header" class="row mt-5 mb-2 pb-2 border-bottom d-flex" hx-swap-oob="true">
+    {{template "partials/author-count-and-sort" .}}
+</div>
+{{else}}
 <div id="list-header" hx-swap-oob="true">{{template "partials/search-type-tabs" .}}</div>
 {{if not .SimilarToActive}}<ul hx-swap-oob="innerHTML:#search-offcanvas-tabs">{{template "partials/search-tab-items" .}}</ul>{{end}}
+{{end}}
 <div id="list-fragment-body">{{template "partials/docs-list-content" .}}</div>

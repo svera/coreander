@@ -87,7 +87,7 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 	}
 
 	if c.Get("hx-request") == "true" {
-		if err = c.Render("partials/author-docs-list-fragments", templateVars); err != nil {
+		if err = c.Render("partials/docs-list-fragments", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
