@@ -211,6 +211,23 @@ type BleveIndexer struct {
 	// textRankEnrichJobs feeds documents queued by indexFile to a fixed-size
 	// pool of long-lived worker goroutines; see runTextRankEnrichWorker.
 	textRankEnrichJobs chan Document
+	// fileLocks holds a *sync.Mutex per document ID (relative file path),
+	// serializing concurrent indexFile calls for the same file. This matters
+	// because writing an uploaded file (NewFile) triggers the same
+	// IN_CLOSE_WRITE event the file watcher reacts to, so both can end up
+	// calling indexFile for the same path at nearly the same time; without
+	// serialization they can race on Slug()'s "check the live index, then
+	// write" sequence and both pick colliding slugs.
+	fileLocks sync.Map
+	// lastIndexed holds the Document most recently written by indexFile for
+	// each document ID, so a second indexFile call serialized behind
+	// fileLocks can recognize a duplicate event (identical metadata) and
+	// skip re-indexing instead of picking a second, possibly colliding slug.
+	// This can't be done via a Search/Document(slug) lookup instead, because
+	// Bleve's index readers aren't guaranteed to see a just-completed Index()
+	// call immediately (near-real-time refresh lag), which would make that
+	// check unreliable right after the racing write it's meant to catch.
+	lastIndexed sync.Map
 }
 
 // progressTracker holds the atomic counters behind one phase of

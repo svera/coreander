@@ -6,10 +6,12 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
@@ -95,9 +97,29 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 	if _, ok := b.reader[ext]; !ok {
 		return "", fmt.Errorf("file extension %s not supported", ext)
 	}
+
+	id := b.id(file)
+	unlock := b.lockFile(id)
+	defer unlock()
+
 	meta, err := b.reader[ext].Metadata(file)
 	if err != nil {
 		return "", fmt.Errorf("error extracting metadata from file %s: %s", file, err)
+	}
+
+	// Uploading a file (NewFile) writes it to disk and indexes it directly,
+	// but that same write also triggers the file watcher's own indexFile
+	// call for the same path. fileLocks serializes the two calls; whichever
+	// runs second lands here and finds, via lastIndexed, the document the
+	// other one already indexed. If its metadata is unchanged, this is that
+	// duplicate event, not a real content change, so skip re-indexing rather
+	// than picking a second, possibly colliding slug and double-counting
+	// author stats.
+	if existingIface, ok := b.lastIndexed.Load(id); ok {
+		existing := existingIface.(Document)
+		if reflect.DeepEqual(existing.Metadata, meta) {
+			return existing.Slug, nil
+		}
 	}
 
 	document := b.createDocument(meta, file, nil, nil)
@@ -110,6 +132,7 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
 	}
+	b.lastIndexed.Store(id, document)
 
 	if err := b.incrementAuthorCounts(document.Authors, document.AuthorsSlugs); err != nil {
 		return document.Slug, err
@@ -125,6 +148,15 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 	b.maybePruneForLibraryChange()
 
 	return document.Slug, nil
+}
+
+// lockFile returns an unlock function for a mutex scoped to the given
+// document ID, creating it on first use. See fileLocks.
+func (b *BleveIndexer) lockFile(id string) func() {
+	muIface, _ := b.fileLocks.LoadOrStore(id, &sync.Mutex{})
+	mu := muIface.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
 }
 
 // removeFile removes a file from the index
