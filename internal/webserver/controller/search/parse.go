@@ -15,7 +15,7 @@ func parseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.Search
 		Keywords:        c.Query("search"),
 		Language:        c.Query("language"),
 		Subjects:        c.Query("subjects"),
-		SimilarTo:       c.Query("similar"),
+		SimilarTo:       similarToSlug(c),
 		SortBy:          parseDocumentSortBy(c),
 		EstReadTimeFrom: fiber.Query[float64](c, "est-read-time-from", 0),
 		EstReadTimeTo:   fiber.Query[float64](c, "est-read-time-to", 0),
@@ -167,6 +167,16 @@ func parseAuthorSortBy(c fiber.Ctx) []string {
 	default:
 		return []string{"Slug"}
 	}
+}
+
+// similarToSlug returns the document slug a "similar to" search is scoped
+// to. There's no query-string equivalent - the only entry point is the
+// /documents/:slug/similar route, which stashes the slug in Locals before
+// delegating here (see routes.go), keeping the URL path-based rather than
+// exposing it as a "similar" query var.
+func similarToSlug(c fiber.Ctx) string {
+	slug, _ := c.Locals("SimilarToSlug").(string)
+	return slug
 }
 
 func searchTypeFromContext(c fiber.Ctx) string {

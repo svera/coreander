@@ -111,6 +111,20 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	highlightsGroup.Delete("/:slug", controllers.Highlights.Delete)
 
 	docsGroup.Get("/:slug/cover", controllers.Documents.Cover)
+	// The detail page's similar-documents widget loads this htmx-side for its
+	// small preview (?widget=1); anything else - the full page itself, or the
+	// filter sidebar's own htmx-driven updates while browsing it, which also
+	// hit this same URL - gets the full similar-to search results, so the
+	// "similar to X" search keeps living under its own URL rather than
+	// /search. Can't key this off the hx-request header alone: both the
+	// widget's load and the filter sidebar's updates are htmx requests.
+	docsGroup.Get("/:slug/similar", func(c fiber.Ctx) error {
+		if c.Query("widget") == "1" {
+			return controllers.Documents.Similar(c)
+		}
+		c.Locals("SimilarToSlug", c.Params("slug"))
+		return controllers.Search.SearchDocuments(c)
+	})
 	docsGroup.Get("/:slug/read", controllers.Documents.Reader)
 	docsGroup.Get("/:slug/position", alwaysRequireAuthentication, controllers.Documents.GetPosition)
 	docsGroup.Put("/:slug/position", alwaysRequireAuthentication, controllers.Documents.UpdatePosition)

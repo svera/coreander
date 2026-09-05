@@ -1,6 +1,7 @@
 package search
 
 import (
+	"html/template"
 	"log"
 
 	"github.com/gofiber/fiber/v3"
@@ -79,7 +80,7 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 		return fiber.ErrInternalServerError
 	}
 
-	templateVars := s.baseTemplateVars(c, TypeDocuments)
+	templateVars := s.baseTemplateVars(c, TypeDocuments, similarToDocument)
 	templateVars["SearchFields"] = searchFields
 	templateVars["DocumentSearchFields"] = searchFields
 	templateVars["SearchQuery"] = searchFields.Keywords
@@ -90,8 +91,6 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 	templateVars["AdditionalSortOptions"] = documentSortOptions()
 	templateVars["DocumentsTotalHits"] = docCount
 	templateVars["AuthorsTotalHits"] = authorCount
-	templateVars["SimilarToDocument"] = similarToDocument
-	templateVars["SimilarToActive"] = similarToDocument.Slug != ""
 	templateVars["SimilarCandidatesCapped"] = documentResults.Candidates.Capped()
 	templateVars["SimilarCandidatesTotal"] = documentResults.Candidates.Total()
 	templateVars["SimilarCandidatesCap"] = documentResults.Candidates.Cap()
@@ -132,7 +131,7 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 		return fiber.ErrInternalServerError
 	}
 
-	templateVars := s.baseTemplateVars(c, TypeAuthors)
+	templateVars := s.baseTemplateVars(c, TypeAuthors, similarToDocument)
 	templateVars["SearchFields"] = searchFields
 	templateVars["AuthorSearchFields"] = searchFields
 	templateVars["DocumentSearchFields"] = index.SearchFields{Keywords: keywords, SimilarTo: documentSearchFields.SimilarTo}
@@ -144,8 +143,6 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	templateVars["AdditionalSortOptions"] = authorSortOptions()
 	templateVars["DocumentsTotalHits"] = docCount
 	templateVars["AuthorsTotalHits"] = authorCount
-	templateVars["SimilarToDocument"] = similarToDocument
-	templateVars["SimilarToActive"] = similarToDocument.Slug != ""
 	templateVars["SimilarCandidatesCapped"] = documentTabResults.Candidates.Capped()
 	templateVars["SimilarCandidatesTotal"] = documentTabResults.Candidates.Total()
 	templateVars["SimilarCandidatesCap"] = documentTabResults.Candidates.Cap()
@@ -153,7 +150,7 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	return s.renderSearch(c, templateVars, "partials/authors-list-fragments")
 }
 
-func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string) fiber.Map {
+func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string, similarToDocument index.Document) fiber.Map {
 	return fiber.Map{
 		"SearchType":           searchType,
 		"SearchPage":           true,
@@ -163,14 +160,22 @@ func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string) fiber.Map 
 		"SortBy":               c.Query("sort-by"),
 		"AuthorSearchFields":   index.AuthorSearchFields{},
 		"DocumentSearchFields": index.SearchFields{},
-		"SimilarToDocument":    index.Document{},
-		"SimilarToActive":      false,
-		// ClearSimilarURL drops back to a regular search, keeping every other
-		// filter as-is: the current URL without "similar" (a "similar to"
-		// search is meaningless without it) or "page" (a page number from the
-		// old, similarity-scored result set doesn't carry over to a regular one).
-		"ClearSimilarURL": view.BaseURLWithout(c, "similar", "page"),
+		"SimilarToDocument":    similarToDocument,
+		"SimilarToActive":      similarToDocument.Slug != "",
+		// SearchFormAction is where the filter sidebar/offcanvas forms (and
+		// the results list's own htmx refresh) submit to: the "similar to"
+		// slug lives in the /documents/:slug/similar path rather than a query
+		// var, so filter changes need to keep submitting there rather than
+		// to /search to stay in "similar to" mode.
+		"SearchFormAction": searchFormAction(similarToDocument),
 	}
+}
+
+func searchFormAction(similarToDocument index.Document) template.URL {
+	if similarToDocument.Slug == "" {
+		return "/search"
+	}
+	return template.URL("/documents/" + similarToDocument.Slug + "/similar")
 }
 
 // similarToDocument looks up the document a "similar to" search is scoped

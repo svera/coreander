@@ -357,8 +357,14 @@ function composeAllDateControls(form) {
 }
 
 function activeSearchListPath(fallbackPath) {
-    if (document.getElementById('search-filters-form')) {
-        return '/search'
+    const sidebarForm = document.getElementById('search-filters-form')
+    if (sidebarForm) {
+        // The sidebar form's action reflects the page it was rendered for -
+        // normally /search, but /documents/:slug/similar for a "similar to"
+        // search, which needs filter changes to keep submitting there rather
+        // than always falling back to /search (see search.go's
+        // SimilarToActive branch).
+        return sidebarForm.getAttribute('action') || '/search'
     }
     if (SEARCH_LIST_PATHS.has(window.location.pathname)) {
         return window.location.pathname
@@ -375,7 +381,13 @@ export function initFilterFormBehavior({
     beforeSidebarApply,
 }) {
     const resolvedListPath = activeSearchListPath(listPath)
-    const isListPage = SEARCH_LIST_PATHS.has(window.location.pathname) && document.getElementById('search-filters-form')
+    // #search-filters-form only ever appears in search-filters-sidebar.html,
+    // itself only ever rendered from search/list.html - both for /search and
+    // for the path-based /documents/:slug/similar "similar to" page, whose
+    // exact pathname (with the document's slug in it) SEARCH_LIST_PATHS can't
+    // enumerate. Its presence alone is enough to know a filter sidebar with
+    // auto-apply-on-change behavior is on the page.
+    const isListPage = !!document.getElementById('search-filters-form')
     let applyingFilters = false
 
     function applyFilters() {

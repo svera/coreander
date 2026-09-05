@@ -99,25 +99,7 @@
         </section>
         {{end}}
 
-        {{ $length := len .SimilarDocuments }} {{ if gt $length 0 }}
-        <section class="row mt-5">
-            <div class="col-9">
-                <h2>{{t .Lang "Similar documents"}}</h2>
-            </div>
-            <div class="col-3 text-end">
-                <a  href='/search?type=documents&similar={{urlquery .Document.Slug}}'>
-                        {{t .Lang "See all" }}</a>
-            </div>
-
-            <div class="row pe-0 align-items-end">
-                {{range $i, $doc := .SimilarDocuments}}
-                <div class="col-6 col-lg-3 pe-0 mt-3">
-                    {{template "partials/cover" dict "Lang" $.Lang "Document" $doc "Session" $.Session "Version" $.Version}}
-                </div>
-                {{end}}
-            </div>
-        </section>
-        {{end}}
+        {{template "partials/document-similar-placeholder" dict "Document" .Document}}
 
         {{if .Debug}}
         <section class="row mt-5">

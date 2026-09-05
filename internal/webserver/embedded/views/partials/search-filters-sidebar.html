@@ -1,6 +1,6 @@
 {{$searchType := or .SearchType "documents"}}
 <div class="search-filters-sidebar-sticky">
-    <form id="search-filters-form" action="/search" method="get" role="search">
+    <form id="search-filters-form" action="{{.SearchFormAction}}" method="get" role="search">
         <input type="hidden" name="type" id="search-type" value="{{$searchType}}">
         {{if not .SimilarToActive}}
         <div class="border border-bottom-0 rounded-top-4 p-3">
@@ -20,7 +20,7 @@
         </ul>
         <div class="tab-content home-search-tab-content border{{if .SimilarToActive}} rounded-top-4{{else}} border-top-0{{end}} rounded-bottom-4">
             <div class="tab-pane fade{{if eq $searchType "documents"}} show active{{end}}" id="search-sidebar-documents-panel" role="tabpanel" aria-labelledby="search-sidebar-tab-documents" tabindex="0">
-                {{template "partials/document-search-filters" dict "Lang" .Lang "FilterIdPrefix" "sidebar" "SearchFields" .DocumentSearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs "DocumentsSearchPage" true "HideSearch" true "SimilarToActive" .SimilarToActive "SimilarToDocument" .SimilarToDocument "ClearSimilarURL" .ClearSimilarURL}}
+                {{template "partials/document-search-filters" dict "Lang" .Lang "FilterIdPrefix" "sidebar" "SearchFields" .DocumentSearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs "DocumentsSearchPage" true "HideSearch" true "SimilarToActive" .SimilarToActive "SimilarToDocument" .SimilarToDocument}}
             </div>
             <div class="tab-pane fade{{if eq $searchType "authors"}} show active{{end}}" id="search-sidebar-authors-panel" role="tabpanel" aria-labelledby="search-sidebar-tab-authors" tabindex="0">
                 {{template "partials/author-search-filters" dict "Lang" .Lang "FilterIdPrefix" "sidebar" "SearchFields" .AuthorSearchFields "SelectedGender" .SelectedGender "Version" .Version "AuthorsSearchPage" true "HideSearch" true}}
