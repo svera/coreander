@@ -1,71 +1,42 @@
-package index
+package index_test
 
 import (
-	"html/template"
-	"image"
 	"path/filepath"
 	"sync"
 	"testing"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
-// raceTestReader always reports the same title and author regardless of the
-// file being read, simulating two distinct files in the library that happen
-// to share title and author.
-type raceTestReader struct{}
-
-func (raceTestReader) Metadata(file string) (metadata.Metadata, error) {
-	return metadata.Metadata{
-		Title:       "Ivanhoe",
-		Authors:     []string{"Walter Scott"},
-		Description: template.HTML("<p>same title and author</p>"),
-		Language:    "en",
-		Format:      "EPUB",
-		Words:       1000,
-	}, nil
-}
-
-func (raceTestReader) Cover(string, int) (image.Image, error) {
-	return nil, nil
-}
-
-// TestIndexFileConcurrentCallsForSameFileAreIdempotent simulates the race
-// between an upload (NewFile calling indexFile directly) and the Linux file
-// watcher reacting to that same write with its own indexFile call for the
-// same path. Without serialization, both calls independently pick a slug
-// against the live index and can end up colliding with a pre-existing
-// document sharing the same title/author, or double-count author stats.
-func TestIndexFileConcurrentCallsForSameFileAreIdempotent(t *testing.T) {
+// TestNewFileConcurrentUploadsOfSameFileAreIdempotent simulates upload and
+// the file watcher racing to index the same file (both funnel into indexFile
+// via NewFile / the watcher's own call), asserting the race can't produce a
+// colliding slug with a pre-existing document sharing title/author, or
+// double-count author stats.
+func TestNewFileConcurrentUploadsOfSameFileAreIdempotent(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	const lib = "lib"
 	if err := fs.MkdirAll(lib, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	existingPath := filepath.Join(lib, "ivanhoe1.epub")
-	racingPath := filepath.Join(lib, "ivanhoe2.epub")
-	for _, path := range []string{existingPath, racingPath} {
-		if err := afero.WriteFile(fs, path, []byte("x"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	docIdx, err := bleve.NewMemOnly(CreateDocumentsMapping())
+	docIdx, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Fatal(err)
 	}
-	authIdx, err := bleve.NewMemOnly(CreateAuthorsMapping())
+	authIdx, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
 	if err != nil {
 		t.Fatal(err)
 	}
-	readers := map[string]metadata.Reader{".epub": raceTestReader{}}
-	idx := NewBleve(docIdx, authIdx, fs, lib, readers, Config{})
+	readers := map[string]metadata.Reader{".epub": duplicateTitleReader{}}
+	idx := index.NewBleve(docIdx, authIdx, fs, lib, readers, index.Config{})
 	defer idx.Close()
 
-	if _, err := idx.indexFile(existingPath); err != nil {
+	existingSlug, err := idx.NewFile("ivanhoe1.epub", []byte("x"))
+	if err != nil {
 		t.Fatalf("indexing pre-existing document: %v", err)
 	}
 
@@ -76,9 +47,9 @@ func TestIndexFileConcurrentCallsForSameFileAreIdempotent(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			slug, err := idx.indexFile(racingPath)
+			slug, err := idx.NewFile("ivanhoe2.epub", []byte("x"))
 			if err != nil {
-				t.Errorf("indexFile race %d: %v", i, err)
+				t.Errorf("NewFile race %d: %v", i, err)
 				return
 			}
 			slugs[i] = slug
@@ -88,8 +59,13 @@ func TestIndexFileConcurrentCallsForSameFileAreIdempotent(t *testing.T) {
 
 	for _, slug := range slugs {
 		if slug != slugs[0] {
-			t.Fatalf("expected all concurrent indexFile calls for the same path to agree on one slug, got %q and %q", slugs[0], slug)
+			t.Fatalf("expected all concurrent uploads of the same file to agree on one slug, got %q and %q", slugs[0], slug)
 		}
+	}
+	racingSlug := slugs[0]
+
+	if racingSlug == existingSlug {
+		t.Fatalf("expected distinct slugs for two documents with the same title/author, got %q for both", racingSlug)
 	}
 
 	total, err := idx.TotalDocs()
@@ -100,23 +76,15 @@ func TestIndexFileConcurrentCallsForSameFileAreIdempotent(t *testing.T) {
 		t.Fatalf("expected 2 indexed documents (one per file), got %d", total)
 	}
 
-	racingDoc, err := idx.documentByIndexID(idx.id(racingPath))
+	racingDoc, err := idx.Document(racingSlug)
 	if err != nil {
-		t.Fatalf("documentByIndexID: %v", err)
+		t.Fatalf("Document: %v", err)
 	}
-	if racingDoc.Slug != slugs[0] {
-		t.Fatalf("expected racing document's stored slug %q to match returned slug %q", racingDoc.Slug, slugs[0])
+	if filepath.Base(racingDoc.ID) != "ivanhoe2.epub" {
+		t.Fatalf("expected the racing slug to resolve to ivanhoe2.epub, got %q", racingDoc.ID)
 	}
 
-	existingDoc, err := idx.documentByIndexID(idx.id(existingPath))
-	if err != nil {
-		t.Fatalf("documentByIndexID for pre-existing doc: %v", err)
-	}
-	if existingDoc.Slug == racingDoc.Slug {
-		t.Fatalf("expected distinct slugs for two documents with the same title/author, got %q for both", existingDoc.Slug)
-	}
-
-	author, err := idx.Author(existingDoc.AuthorsSlugs[0], "")
+	author, err := idx.Author(racingDoc.AuthorsSlugs[0], "")
 	if err != nil {
 		t.Fatalf("Author: %v", err)
 	}

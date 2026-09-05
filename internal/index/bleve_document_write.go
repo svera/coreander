@@ -107,14 +107,8 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 		return "", fmt.Errorf("error extracting metadata from file %s: %s", file, err)
 	}
 
-	// Uploading a file (NewFile) writes it to disk and indexes it directly,
-	// but that same write also triggers the file watcher's own indexFile
-	// call for the same path. fileLocks serializes the two calls; whichever
-	// runs second lands here and finds, via lastIndexed, the document the
-	// other one already indexed. If its metadata is unchanged, this is that
-	// duplicate event, not a real content change, so skip re-indexing rather
-	// than picking a second, possibly colliding slug and double-counting
-	// author stats.
+	// Skip if this is a duplicate event for an unchanged file (e.g. upload's
+	// own indexFile call racing the file watcher's), not a real content change.
 	if existingIface, ok := b.lastIndexed.Load(id); ok {
 		existing := existingIface.(Document)
 		if reflect.DeepEqual(existing.Metadata, meta) {
@@ -150,8 +144,7 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 	return document.Slug, nil
 }
 
-// lockFile returns an unlock function for a mutex scoped to the given
-// document ID, creating it on first use. See fileLocks.
+// lockFile returns an unlock func for the fileLocks mutex scoped to id.
 func (b *BleveIndexer) lockFile(id string) func() {
 	muIface, _ := b.fileLocks.LoadOrStore(id, &sync.Mutex{})
 	mu := muIface.(*sync.Mutex)
