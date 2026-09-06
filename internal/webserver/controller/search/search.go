@@ -162,11 +162,7 @@ func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string, similarToD
 		"DocumentSearchFields": index.SearchFields{},
 		"SimilarToDocument":    similarToDocument,
 		"SimilarToActive":      similarToDocument.Slug != "",
-		// SearchFormAction is where the filter sidebar/offcanvas forms (and
-		// the results list's own htmx refresh) submit to: the "similar to"
-		// slug lives in the /documents/:slug/similar path rather than a query
-		// var, so filter changes need to keep submitting there rather than
-		// to /search to stay in "similar to" mode.
+		// keeps filter submits on /documents/:slug/similar in "similar to" mode
 		"SearchFormAction": searchFormAction(similarToDocument),
 	}
 }
