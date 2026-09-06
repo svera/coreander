@@ -191,6 +191,16 @@ main .form-control:focus {
         /* top, left, width set by script (6rem clearance) so box stays below navbar */
         z-index: 1030; /* above Bootstrap fixed navbar (1030) content */
     }
+
+    /* The author page nests the shared search-filters-sidebar partial (which brings
+       its own .search-filters-sidebar-sticky) inside its own already-sticky offcanvas
+       wrapper. Only the outermost one should actually stick/pin. */
+    .search-filters-sidebar-sticky .search-filters-sidebar-sticky {
+        position: static;
+        top: auto;
+        max-height: none;
+        overflow-y: visible;
+    }
 }
 
 /* Visible divider between main action and dropdown toggle (same-color buttons e.g. document detail) */
