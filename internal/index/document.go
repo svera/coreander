@@ -9,8 +9,11 @@ import (
 
 type SearchFields struct {
 	Keywords string
-	Language string
-	Subjects string
+	// AuthorSlug, when set, scopes the search to documents by (or illustrated
+	// by) this author, see SearchByAuthor.
+	AuthorSlug string
+	Language   string
+	Subjects   string
 	// SimilarTo, when set to a document slug, ignores Keywords/Subjects and
 	// instead returns documents matching that document's TextRank keyword
 	// phrases (via similarToQuery, excluding the document itself, its own

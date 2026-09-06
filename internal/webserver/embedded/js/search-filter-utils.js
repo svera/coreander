@@ -299,7 +299,7 @@ export function initClearAllFilters(searchFilters, searchFiltersForm, { resetDat
 export function syncSidebarFormToOffcanvas({ searchFieldName, offcanvasContainerId, afterCopy }) {
     const sidebarForm = document.getElementById('search-filters-form')
     const offcanvasContainer = document.getElementById(offcanvasContainerId)
-    if (!sidebarForm) return
+    if (!sidebarForm || sidebarForm.dataset.syncNavbar !== 'true') return
 
     const field = sidebarForm.elements[searchFieldName]
     const searchValue = field ? field.value : ''
@@ -317,8 +317,6 @@ export function syncSidebarFormToOffcanvas({ searchFieldName, offcanvasContainer
 }
 
 const FILTER_DEBOUNCE_MS = 600
-
-const SEARCH_LIST_PATHS = new Set(['/search', '/documents', '/authors'])
 
 export function syncSearchTypeFromPane(typeInputId, authorPaneId) {
     const typeInput = document.getElementById(typeInputId)
@@ -356,20 +354,18 @@ function composeAllDateControls(form) {
     form._coreanderComposeDates?.forEach(fn => fn())
 }
 
-function activeSearchListPath(fallbackPath) {
+// A form drives a live-filtering list precisely when it either *is* the page's own
+// #search-filters-form (e.g. the author page's local filters, or the real search
+// page's sidebar), or it's a separate form (e.g. the navbar's offcanvas filters)
+// explicitly opted into mirroring that list, marked via data-sync-navbar="true" on
+// #search-filters-form itself (only the real search page's sidebar sets it). Without
+// this check, any page that happens to render a local #search-filters-form (like an
+// author's document list) would also wire the unrelated navbar filters into it.
+function listFormFor(searchFiltersForm) {
     const sidebarForm = document.getElementById('search-filters-form')
-    if (sidebarForm) {
-        // The sidebar form's action reflects the page it was rendered for -
-        // normally /search, but /documents/:slug/similar for a "similar to"
-        // search, which needs filter changes to keep submitting there rather
-        // than always falling back to /search (see search.go's
-        // SimilarToActive branch).
-        return sidebarForm.getAttribute('action') || '/search'
-    }
-    if (SEARCH_LIST_PATHS.has(window.location.pathname)) {
-        return window.location.pathname
-    }
-    return fallbackPath
+    if (!sidebarForm) return null
+    if (sidebarForm === searchFiltersForm || sidebarForm.dataset.syncNavbar === 'true') return sidebarForm
+    return null
 }
 
 export function initFilterFormBehavior({
@@ -380,19 +376,19 @@ export function initFilterFormBehavior({
     syncOffcanvas,
     beforeSidebarApply,
 }) {
-    const resolvedListPath = activeSearchListPath(listPath)
-    // #search-filters-form only ever appears in search-filters-sidebar.html,
-    // itself only ever rendered from search/list.html - both for /search and
-    // for the path-based /documents/:slug/similar "similar to" page, whose
-    // exact pathname (with the document's slug in it) SEARCH_LIST_PATHS can't
-    // enumerate. Its presence alone is enough to know a filter sidebar with
-    // auto-apply-on-change behavior is on the page.
-    const isListPage = !!document.getElementById('search-filters-form')
+    const sidebarFormForPage = listFormFor(searchFiltersForm)
+    const isListPage = Boolean(sidebarFormForPage)
+    // The sidebar form's action reflects the page it was rendered for -
+    // normally /search, but /documents/:slug/similar for a "similar to"
+    // search, which needs filter changes to keep submitting there rather
+    // than always falling back to /search (see search.go's
+    // SimilarToActive branch).
+    const resolvedListPath = isListPage ? (sidebarFormForPage.getAttribute('action') || '/search') : listPath
     let applyingFilters = false
 
     function applyFilters() {
         applyingFilters = true
-        const sidebarForm = document.getElementById('search-filters-form')
+        const sidebarForm = listFormFor(searchFiltersForm)
         if (sidebarForm && isListPage) {
             syncSidebarSearchTypeFromPane()
             composeAllDateControls(sidebarForm)
@@ -459,7 +455,7 @@ export function initFilterFormBehavior({
     searchFiltersForm._coreanderComposeDates.push(composeDateControls)
 
     if (isListPage) {
-        document.getElementById('search-filters-form')._coreanderApplyFilters = applyFilters
+        listFormFor(searchFiltersForm)._coreanderApplyFilters = applyFilters
     }
 
     return { scheduleApplyFilters }
