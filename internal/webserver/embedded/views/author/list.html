@@ -33,11 +33,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#author-search-filters-offcanvas" aria-label="Close"></button>
             </div>
             <div class="offcanvas-body">
-                <form id="search-filters-form" action="{{.URLPath}}" method="get" role="search">
-                    <div class="border rounded-4">
-                        {{template "partials/document-search-filters" dict "Lang" .Lang "FilterIdPrefix" "sidebar" "SearchFields" .DocumentSearchFields "Version" .Version "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs "HideSearch" true "DocumentsSearchPage" true}}
-                    </div>
-                </form>
+                {{template "partials/search-filters-sidebar-content" .}}
             </div>
         </div>
     </div>

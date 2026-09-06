@@ -5,12 +5,24 @@
 </div>
 
 <div class="row">
-    <div id="search-filters-sidebar-col" class="col-12 col-xl-3 mt-5 d-none d-xl-block p-0">
+    <div id="search-filters-sidebar-col" class="col-12 col-xl-3{{if .SimilarToActive}} mt-xl-5{{else}} mt-5 d-none d-xl-block{{end}} p-0">
+        {{if .SimilarToActive}}
+        <div class="offcanvas-xl offcanvas-start search-filters-sidebar-sticky" tabindex="-1" id="similar-search-filters-offcanvas" aria-labelledby="similar-search-filters-offcanvas-label">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="similar-search-filters-offcanvas-label">{{t .Lang "Filters"}}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#similar-search-filters-offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                {{template "partials/search-filters-sidebar-content" .}}
+            </div>
+        </div>
+        {{else}}
         {{template "partials/search-filters-sidebar" .}}
+        {{end}}
     </div>
     <div class="col-12 col-xl-9">
         {{template "partials/list-placeholder" .}}
-        <div id="list" hx-get="{{.SearchFormAction}}" hx-include="#search-filters-form, #sort-by" hx-select="#list-fragment-body" hx-swap="innerHTML" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
+        <div id="list" hx-get="{{.URLPath}}" hx-include="#search-filters-form, #sort-by" hx-select="#list-fragment-body" hx-swap="innerHTML" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
             {{if eq .SearchType "authors"}}
             {{ template "partials/authors-list-content" . }}
             {{else}}
