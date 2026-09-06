@@ -1,8 +1,4 @@
-{{if eq .Results.TotalHits 0}}
-<div class="col-12">
-    <p class="text-center mb-3">{{t .Lang "No documents found"}}</p>
-</div>
-{{else}}
+{{if ne .Results.TotalHits 0}}
 <div class="col-12 col-xl-8 align-content-end">
     <p class="text-start mb-3 mb-xl-0">{{t .Lang "%d documents found" .Results.TotalHits}}</p>
 </div>
