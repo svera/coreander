@@ -1,7 +1,6 @@
 package search
 
 import (
-	"html/template"
 	"log"
 
 	"github.com/gofiber/fiber/v3"
@@ -162,16 +161,8 @@ func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string, similarToD
 		"DocumentSearchFields": index.SearchFields{},
 		"SimilarToDocument":    similarToDocument,
 		"SimilarToActive":      similarToDocument.Slug != "",
-		// keeps filter submits on /documents/:slug/similar in "similar to" mode
-		"SearchFormAction": searchFormAction(similarToDocument),
+		"HideAuthorsTab":       similarToDocument.Slug != "",
 	}
-}
-
-func searchFormAction(similarToDocument index.Document) template.URL {
-	if similarToDocument.Slug == "" {
-		return "/search"
-	}
-	return template.URL("/documents/" + similarToDocument.Slug + "/similar")
 }
 
 // similarToDocument looks up the document a "similar to" search is scoped
