@@ -913,7 +913,10 @@ func (b *BleveIndexer) Subjects() (map[string][]string, error) {
 }
 
 func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPerPage int) (result.Paginated[[]Document], error) {
-	return b.runPaginatedQuery(documentQueryByAuthorSlug(searchFields.Keywords), page, resultsPerPage, searchFields.SortBy)
+	filtersQuery := bleve.NewConjunctionQuery()
+	filtersQuery.AddQuery(documentQueryByAuthorSlug(searchFields.AuthorSlug))
+	b.addFilters(searchFields, filtersQuery)
+	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 }
 
 func documentQueryByAuthorSlug(authorSlug string) query.Query {

@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/controller/search"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 	"github.com/svera/coreander/v5/internal/webserver/view"
 )
@@ -38,9 +39,17 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		log.Println(err)
 	}
 
-	searchFields := index.SearchFields{
-		Keywords: authorSlug,
-		SortBy:   a.parseSortBy(c),
+	searchFields, err := search.ParseDocumentSearchQuery(c, a.config.WordsPerMinute)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrBadRequest
+	}
+	searchFields.AuthorSlug = authorSlug
+	// ParseDocumentSearchQuery already maps an explicit sort-by query param to
+	// the right bleve sort key; only its no-sort-by-given default (relevance,
+	// meaningless for a plain author listing) needs overriding here.
+	if c.Query("sort-by") == "" {
+		searchFields.SortBy = []string{"Publication.Date"}
 	}
 
 	if documentResults, err = a.idx.SearchByAuthor(searchFields, page, model.ResultsPerPage); err != nil {
@@ -55,16 +64,17 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Author":         author,
-		"ImageVersion":   a.getImageVersion(author.Slug),
-		"Results":        searchResults,
-		"Paginator":      view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":          author.Name,
-		"EmailFrom":      a.sender.From(),
-		"WordsPerMinute": a.config.WordsPerMinute,
-		"URL":            view.URL(c),
-		"SortURL":        view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":         c.Query("sort-by"),
+		"Author":               author,
+		"ImageVersion":         a.getImageVersion(author.Slug),
+		"DocumentSearchFields": searchFields,
+		"Results":              searchResults,
+		"Paginator":            view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":                author.Name,
+		"EmailFrom":            a.sender.From(),
+		"WordsPerMinute":       a.config.WordsPerMinute,
+		"URL":                  view.URL(c),
+		"SortURL":              view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":               c.Query("sort-by"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
@@ -77,7 +87,7 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 	}
 
 	if c.Get("hx-request") == "true" {
-		if err = c.Render("partials/docs-list", templateVars); err != nil {
+		if err = c.Render("partials/docs-list-fragments", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
@@ -89,18 +99,4 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	return nil
-}
-
-func (d *Controller) parseSortBy(c fiber.Ctx) []string {
-	if c.Query("sort-by") != "" {
-		switch c.Query("sort-by") {
-		case "pub-date-newer-first":
-			return []string{"-Publication.Date"}
-		case "est-read-time-shorter-first":
-			return []string{"Words"}
-		case "est-read-time-longer-first":
-			return []string{"-Words"}
-		}
-	}
-	return []string{"Publication.Date"}
 }

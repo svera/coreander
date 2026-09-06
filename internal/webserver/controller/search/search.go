@@ -42,7 +42,7 @@ func (s *Controller) Search(c fiber.Ctx) error {
 }
 
 func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, page int, wordsPerMinute float64) error {
-	searchFields, err := parseDocumentSearchQuery(c, wordsPerMinute)
+	searchFields, err := ParseDocumentSearchQuery(c, wordsPerMinute)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrBadRequest
@@ -113,7 +113,7 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	}
 
 	keywords := searchFields.Name
-	documentSearchFields, err := parseDocumentSearchQuery(c, 0)
+	documentSearchFields, err := ParseDocumentSearchQuery(c, 0)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrBadRequest

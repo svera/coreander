@@ -1,6 +1,6 @@
 {{$searchType := or .SearchType "documents"}}
 <div class="search-filters-sidebar-sticky">
-    <form id="search-filters-form" action="/search" method="get" role="search">
+    <form id="search-filters-form" action="/search" method="get" role="search" data-sync-navbar="true">
         <input type="hidden" name="type" id="search-type" value="{{$searchType}}">
         {{if not .SimilarToActive}}
         <div class="border border-bottom-0 rounded-top-4 p-3">

@@ -175,17 +175,22 @@ main .form-control:focus {
     margin-inline: 0;
 }
 
-.search-filters-sidebar-sticky {
-    position: sticky;
-    top: 5rem; /* clear fixed-top navbar */
-    max-height: calc(100vh - 5rem);
-    overflow-y: auto;
-}
+/* Only pin/stick the filters box when it's rendered inline (desktop sidebar).
+   Below this breakpoint it may be a Bootstrap .offcanvas-xl drawer instead, whose
+   own position:fixed (while hidden/sliding in) must not be fought by this rule. */
+@media (min-width: 1200px) {
+    .search-filters-sidebar-sticky {
+        position: sticky;
+        top: 5rem; /* clear fixed-top navbar */
+        max-height: calc(100vh - 5rem);
+        overflow-y: auto;
+    }
 
-.search-filters-sidebar-sticky.is-pinned {
-    position: fixed;
-    /* top, left, width set by script (6rem clearance) so box stays below navbar */
-    z-index: 1030; /* above Bootstrap fixed navbar (1030) content */
+    .search-filters-sidebar-sticky.is-pinned {
+        position: fixed;
+        /* top, left, width set by script (6rem clearance) so box stays below navbar */
+        z-index: 1030; /* above Bootstrap fixed navbar (1030) content */
+    }
 }
 
 /* Visible divider between main action and dropdown toggle (same-color buttons e.g. document detail) */
