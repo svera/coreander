@@ -354,13 +354,7 @@ function composeAllDateControls(form) {
     form._coreanderComposeDates?.forEach(fn => fn())
 }
 
-// A form drives a live-filtering list precisely when it either *is* the page's own
-// #search-filters-form (e.g. the author page's local filters, or the real search
-// page's sidebar), or it's a separate form (e.g. the navbar's offcanvas filters)
-// explicitly opted into mirroring that list, marked via data-sync-navbar="true" on
-// #search-filters-form itself (only the real search page's sidebar sets it). Without
-// this check, any page that happens to render a local #search-filters-form (like an
-// author's document list) would also wire the unrelated navbar filters into it.
+// Only forms opted into syncing (data-sync-navbar) or the page's own sidebar count as list-driving.
 function listFormFor(searchFiltersForm) {
     const sidebarForm = document.getElementById('search-filters-form')
     if (!sidebarForm) return null
@@ -376,8 +370,10 @@ export function initFilterFormBehavior({
     syncOffcanvas,
     beforeSidebarApply,
 }) {
-    const isListPage = Boolean(listFormFor(searchFiltersForm))
-    const resolvedListPath = isListPage ? window.location.pathname : listPath
+    const sidebarFormForPage = listFormFor(searchFiltersForm)
+    const isListPage = Boolean(sidebarFormForPage)
+    // action may be /documents/:slug/similar instead of /search
+    const resolvedListPath = isListPage ? (sidebarFormForPage.getAttribute('action') || '/search') : listPath
     let applyingFilters = false
 
     function applyFilters() {
