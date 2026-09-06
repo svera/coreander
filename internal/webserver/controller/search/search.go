@@ -161,7 +161,7 @@ func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string, similarToD
 		"DocumentSearchFields": index.SearchFields{},
 		"SimilarToDocument":    similarToDocument,
 		"SimilarToActive":      similarToDocument.Slug != "",
-		"HideAuthorsTab":       similarToDocument.Slug != "",
+		"DocumentsOnly":        similarToDocument.Slug != "",
 	}
 }
 

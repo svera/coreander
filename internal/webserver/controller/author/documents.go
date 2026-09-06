@@ -67,7 +67,7 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		"Author":               author,
 		"ImageVersion":         a.getImageVersion(author.Slug),
 		"DocumentSearchFields": searchFields,
-		"HideAuthorsTab":       true,
+		"DocumentsOnly":        true,
 		"Results":              searchResults,
 		"Paginator":            view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
 		"Title":                author.Name,
