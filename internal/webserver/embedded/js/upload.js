@@ -7,8 +7,10 @@
     let fileSelector = document.getElementById('file-selector');
     let errorMessageContainer = document.getElementsByClassName('invalid-feedback')[0];
 
+    const maxSize = parseInt(fileSelector.dataset.max_size, 10);
+
     fileList.forEach(element => {
-        if (element.size > fileSelector.dataset.max_size * 1024 * 1024) {
+        if (maxSize > 0 && element.size > maxSize * 1024 * 1024) {
             fileSubmit.setAttribute('disabled', '');
             fileSelector.classList.add('is-invalid');
             errorMessageContainer.classList.remove('visually-hidden');

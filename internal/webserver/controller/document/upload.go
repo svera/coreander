@@ -51,7 +51,7 @@ func (d *Controller) Upload(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).Render("document/upload", templateVars, "layout")
 	}
 
-	if file.Size > int64(d.config.UploadDocumentMaxSize*1024*1024) {
+	if d.config.UploadDocumentMaxSize > 0 && file.Size > int64(d.config.UploadDocumentMaxSize*1024*1024) {
 		templateVars["Error"] = fmt.Sprintf("Document too large, the maximum allowed size is %d megabytes", d.config.UploadDocumentMaxSize)
 		return c.Status(fiber.StatusRequestEntityTooLarge).Render("document/upload", templateVars, "layout")
 	}

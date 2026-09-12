@@ -5,7 +5,8 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v5/internal/index"
-"github.com/svera/coreander/v5/internal/webserver/model"
+	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 	"github.com/svera/coreander/v5/internal/webserver/view"
 )
 
@@ -41,7 +42,7 @@ func (s *Controller) Search(c fiber.Ctx) error {
 }
 
 func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, page int, wordsPerMinute float64) error {
-	searchFields, err := parseDocumentSearchQuery(c, wordsPerMinute)
+	searchFields, err := ParseDocumentSearchQuery(c, wordsPerMinute)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrBadRequest
@@ -53,7 +54,7 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 		return fiber.ErrInternalServerError
 	}
 
-	searchResults := model.AugmentedDocumentsFromDocuments(documentResults)
+	searchResults := model.AugmentedDocumentsFromDocuments(documentResults.Paginated)
 	if session.ID > 0 {
 		searchResults = s.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
 		searchResults = s.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
@@ -65,13 +66,20 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 		return fiber.ErrBadRequest
 	}
 
-	docCount, authorCount, err := s.tabCounts(searchFields, authorSearchFields)
+	docCount := documentResults.TotalHits()
+	authorCount, err := s.idx.CountAuthors(authorSearchFields)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	templateVars := s.baseTemplateVars(c, TypeDocuments)
+	similarToDocument, err := s.similarToDocument(searchFields.SimilarTo)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+
+	templateVars := s.baseTemplateVars(c, TypeDocuments, similarToDocument)
 	templateVars["SearchFields"] = searchFields
 	templateVars["DocumentSearchFields"] = searchFields
 	templateVars["SearchQuery"] = searchFields.Keywords
@@ -82,6 +90,9 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 	templateVars["AdditionalSortOptions"] = documentSortOptions()
 	templateVars["DocumentsTotalHits"] = docCount
 	templateVars["AuthorsTotalHits"] = authorCount
+	templateVars["SimilarCandidatesCapped"] = documentResults.Candidates.Capped()
+	templateVars["SimilarCandidatesTotal"] = documentResults.Candidates.Total()
+	templateVars["SimilarCandidatesCap"] = documentResults.Candidates.Cap()
 
 	return s.renderSearch(c, templateVars, "partials/docs-list-fragments")
 }
@@ -100,22 +111,29 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	}
 
 	keywords := searchFields.Name
-	documentSearchFields, err := parseDocumentSearchQuery(c, 0)
+	documentSearchFields, err := ParseDocumentSearchQuery(c, 0)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrBadRequest
 	}
 
-	docCount, authorCount, err := s.tabCounts(documentSearchFields, searchFields)
+	documentTabResults, authorCount, err := s.tabCounts(documentSearchFields, searchFields)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+	docCount := documentTabResults.TotalHits()
+
+	similarToDocument, err := s.similarToDocument(documentSearchFields.SimilarTo)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	templateVars := s.baseTemplateVars(c, TypeAuthors)
+	templateVars := s.baseTemplateVars(c, TypeAuthors, similarToDocument)
 	templateVars["SearchFields"] = searchFields
 	templateVars["AuthorSearchFields"] = searchFields
-	templateVars["DocumentSearchFields"] = index.SearchFields{Keywords: keywords}
+	templateVars["DocumentSearchFields"] = index.SearchFields{Keywords: keywords, SimilarTo: documentSearchFields.SimilarTo}
 	templateVars["SearchQuery"] = keywords
 	templateVars["SelectedGender"] = c.Query("gender")
 	templateVars["Results"] = authorResults
@@ -124,21 +142,42 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 	templateVars["AdditionalSortOptions"] = authorSortOptions()
 	templateVars["DocumentsTotalHits"] = docCount
 	templateVars["AuthorsTotalHits"] = authorCount
+	templateVars["SimilarCandidatesCapped"] = documentTabResults.Candidates.Capped()
+	templateVars["SimilarCandidatesTotal"] = documentTabResults.Candidates.Total()
+	templateVars["SimilarCandidatesCap"] = documentTabResults.Candidates.Cap()
 
 	return s.renderSearch(c, templateVars, "partials/authors-list-fragments")
 }
 
-func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string) fiber.Map {
+func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string, similarToDocument index.Document) fiber.Map {
 	return fiber.Map{
-		"SearchType":         searchType,
-		"SearchPage":         true,
-		"EmailFrom":          s.sender.From(),
-		"URL":                view.URL(c),
-		"SortURL":            view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":             c.Query("sort-by"),
-		"AuthorSearchFields": index.AuthorSearchFields{},
+		"SearchType":           searchType,
+		"SearchPage":           true,
+		"EmailFrom":            s.sender.From(),
+		"URL":                  view.URL(c),
+		"SortURL":              view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":               c.Query("sort-by"),
+		"AuthorSearchFields":   index.AuthorSearchFields{},
 		"DocumentSearchFields": index.SearchFields{},
+		"SimilarToDocument":    similarToDocument,
+		"SimilarToActive":      similarToDocument.Slug != "",
+		"DocumentsOnly":        similarToDocument.Slug != "",
 	}
+}
+
+// similarToDocument looks up the document a "similar to" search is scoped
+// to, so templates can show which document the results/filters relate to
+// (see the Document.Slug guard used wherever SimilarToDocument reaches a
+// template - Document() returns a zero Document, not an error, when slug
+// doesn't match anything, e.g. if it was deleted after the link was
+// generated). Returns a zero Document without querying the index at all
+// when slug is empty, which is the common case (most searches aren't
+// "similar to" searches).
+func (s *Controller) similarToDocument(slug string) (index.Document, error) {
+	if slug == "" {
+		return index.Document{}, nil
+	}
+	return s.idx.Document(slug)
 }
 
 func (s *Controller) renderSearch(c fiber.Ctx, templateVars fiber.Map, fragmentTemplate string) error {
@@ -158,16 +197,16 @@ func (s *Controller) renderSearch(c fiber.Ctx, templateVars fiber.Map, fragmentT
 	return nil
 }
 
-func (s *Controller) tabCounts(docFields index.SearchFields, authorFields index.AuthorSearchFields) (docCount, authorCount int, err error) {
-	docCount, err = s.idx.CountDocuments(docFields)
+func (s *Controller) tabCounts(docFields index.SearchFields, authorFields index.AuthorSearchFields) (docResults result.CappedPaginatedResult[[]index.Document], authorCount int, err error) {
+	docResults, err = s.idx.Search(docFields, 1, 0)
 	if err != nil {
-		return 0, 0, err
+		return result.CappedPaginatedResult[[]index.Document]{}, 0, err
 	}
 	authorCount, err = s.idx.CountAuthors(authorFields)
 	if err != nil {
-		return 0, 0, err
+		return result.CappedPaginatedResult[[]index.Document]{}, 0, err
 	}
-	return docCount, authorCount, nil
+	return docResults, authorCount, nil
 }
 
 func documentSortOptions() []struct {

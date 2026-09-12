@@ -8,12 +8,14 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 func (a *Controller) Update(c fiber.Ctx) error {
 	authorSlug := c.Params("slug")
 	supportedLanguages := c.Locals("SupportedLanguages").([]string)
 	lang := c.Locals("Lang").(string)
+	session, _ := c.Locals("Session").(model.Session)
 	sourceID := c.FormValue("sourceID")
 	template := "partials/author-summary"
 	if c.Query("style") == "clear" {
@@ -59,7 +61,10 @@ func (a *Controller) Update(c fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Author": author,
+		"Author":       author,
+		"ImageVersion": a.getImageVersion(author.Slug),
+		"Lang":         lang,
+		"Session":      session,
 	}
 
 	if err = c.Render(template, templateVars); err != nil {

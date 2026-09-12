@@ -1,5 +1,10 @@
 {{$lang := .Lang}}
 {{$admins := .Admins}}
+{{if eq (len .Users) 0}}
+    <tr>
+        <td colspan="3" class="text-center">{{t $lang "There are no users matching the current filter"}}</td>
+    </tr>
+{{end}}
 {{range $i, $user := .Users}}
     <tr>
         <td>

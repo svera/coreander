@@ -34,13 +34,15 @@ func (b *BleveIndexer) incrementAuthorCount(name, authorSlug string) error {
 	} else {
 		existing.DocumentCount++
 	}
+	b.authorsMu.Lock()
+	defer b.authorsMu.Unlock()
 	return b.authorsIdx.Index(authorSlug, existing)
 }
 
 // RebuildAuthorsFromDocuments recalculates DocumentCount for every author from the documents
 // index, creating missing author entries and updating existing ones.
 func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
-	counts, names, err := b.countDocumentsPerAuthor()
+	counts, names, err := b.countDocumentsPerAuthor(batchSize)
 	if err != nil {
 		return err
 	}
@@ -49,8 +51,10 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 	}
 
 	// Fetch all existing authors so their enriched metadata is preserved.
+	b.authorsMu.RLock()
 	authorDocCount, err := b.authorsIdx.DocCount()
 	if err != nil {
+		b.authorsMu.RUnlock()
 		return err
 	}
 	existingAuthors := make(map[string]Author, authorDocCount)
@@ -59,6 +63,7 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 		req.Fields = []string{"*"}
 		result, err := b.authorsIdx.Search(req)
 		if err != nil {
+			b.authorsMu.RUnlock()
 			return err
 		}
 		for _, hit := range result.Hits {
@@ -66,6 +71,7 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 			existingAuthors[a.Slug] = a
 		}
 	}
+	b.authorsMu.RUnlock()
 
 	batch := b.authorsIdx.NewBatch()
 	for authorSlug, count := range counts {
@@ -78,22 +84,30 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 			return err
 		}
 		if batch.Size() >= batchSize {
-			if err := b.authorsIdx.Batch(batch); err != nil {
+			b.authorsMu.Lock()
+			err := b.authorsIdx.Batch(batch)
+			b.authorsMu.Unlock()
+			if err != nil {
 				return err
 			}
 			batch.Reset()
 		}
 	}
 	if batch.Size() > 0 {
+		b.authorsMu.Lock()
+		defer b.authorsMu.Unlock()
 		return b.authorsIdx.Batch(batch)
 	}
 	return nil
 }
 
 // countDocumentsPerAuthor scans the documents index and returns per-author document counts
-// and one representative name per author slug.
-func (b *BleveIndexer) countDocumentsPerAuthor() (counts map[string]uint64, names map[string]string, err error) {
+// and one representative name per author slug. Pages through the index batchSize documents
+// at a time, requesting only the four contributor fields it needs.
+func (b *BleveIndexer) countDocumentsPerAuthor(batchSize int) (counts map[string]uint64, names map[string]string, err error) {
+	b.documentsMu.RLock()
 	docCount, err := b.documentsIdx.DocCount()
+	b.documentsMu.RUnlock()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -101,19 +115,26 @@ func (b *BleveIndexer) countDocumentsPerAuthor() (counts map[string]uint64, name
 		return map[string]uint64{}, map[string]string{}, nil
 	}
 
-	req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), int(docCount), 0, false)
-	req.Fields = []string{"*"}
-	result, err := b.documentsIdx.Search(req)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	counts = make(map[string]uint64)
 	names = make(map[string]string)
-	for _, hit := range result.Hits {
-		document := hydrateDocument(hit)
-		accumulateContributors(counts, names, document.AuthorsSlugs, document.Authors)
-		accumulateContributors(counts, names, document.IllustratorsSlugs, document.Illustrators)
+
+	for from := 0; uint64(from) < docCount; from += batchSize {
+		req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), batchSize, from, false)
+		req.Fields = []string{"Authors", "AuthorsSlugs", "Illustrators", "IllustratorsSlugs"}
+		b.documentsMu.RLock()
+		result, err := b.documentsIdx.Search(req)
+		b.documentsMu.RUnlock()
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(result.Hits) == 0 {
+			break
+		}
+
+		for _, hit := range result.Hits {
+			accumulateContributors(counts, names, slicer(hit.Fields["AuthorsSlugs"]), slicer(hit.Fields["Authors"]))
+			accumulateContributors(counts, names, slicer(hit.Fields["IllustratorsSlugs"]), slicer(hit.Fields["Illustrators"]))
+		}
 	}
 	return counts, names, nil
 }
@@ -131,6 +152,8 @@ func accumulateContributors(counts map[string]uint64, names map[string]string, s
 }
 
 func (b *BleveIndexer) IndexAuthor(author Author) error {
+	b.authorsMu.Lock()
+	defer b.authorsMu.Unlock()
 	if err := b.authorsIdx.Index(author.Slug, author); err != nil {
 		return err
 	}
@@ -138,19 +161,15 @@ func (b *BleveIndexer) IndexAuthor(author Author) error {
 }
 
 func (b *BleveIndexer) beginAuthorEnrichment(total int) {
-	b.authorEnrichStartNanos.Store(time.Now().UnixNano())
-	b.authorEnrichProcessed.Store(0)
-	b.authorEnrichTotalEntries.Store(uint64(total))
+	b.authorEnrichProgress.begin(total)
 }
 
 func (b *BleveIndexer) endAuthorEnrichment() {
-	b.authorEnrichStartNanos.Store(0)
-	b.authorEnrichProcessed.Store(0)
-	b.authorEnrichTotalEntries.Store(0)
+	b.authorEnrichProgress.end()
 }
 
 func (b *BleveIndexer) recordAuthorEnrichmentProgress() {
-	b.authorEnrichProcessed.Add(1)
+	b.authorEnrichProgress.record()
 }
 
 const (

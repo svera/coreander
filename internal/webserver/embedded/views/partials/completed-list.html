@@ -1,6 +1,6 @@
 {{if gt .Results.TotalHits 0}}
-<div class="row mt-5 mb-2 pb-2 border-bottom d-flex">
-    <div class="col-6 col-md-8 align-content-end">
+<div class="row mt-5 mb-2 pb-2 border-bottom d-flex mx-0">
+    <div class="col-6 col-md-8 align-content-end ps-0">
         <div class="form-floating">
             <select class="form-select form-select-sm" id="year" name="year"
                 hx-get="/completed" hx-include="[name='year']" hx-trigger="change" hx-target="#list" hx-swap="innerHTML" hx-indicator="#placeholder-indicator">
@@ -11,7 +11,7 @@
             <label for="year">{{t .Lang "Year"}}</label>
         </div>
     </div>
-    <div class="col-6 col-md-4 text-end">
+    <div class="col-6 col-md-4 text-end pe-0">
         {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "AdditionalSortOptions" .AdditionalSortOptions}}
     </div>
 </div>

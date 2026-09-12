@@ -4,7 +4,7 @@
 {{$emailFrom := .EmailFrom}}
 {{$reading := .Reading}}
 
-<section class="pb-5 text-center">
+<section class="pb-5 mt-5 text-center">
     <img src="/images/coreander-header.png{{versionParam .Version}}" class="w-50 mt-5 color-invertible img-fluid" width="2591" height="500" alt="" />
     {{template "partials/searchbox" .}}
 </section>
@@ -36,11 +36,11 @@
 </section>
 
 {{if and (.Session) (ne .Session.Name "")}}
-<div class="row border-bottom">
-    <div class="col-6">
+<div class="row border-bottom mx-0">
+    <div class="col-6 ps-0">
         <h3>{{t .Lang "Your highlights" }}</h3>
     </div>
-    <div class="col-6">
+    <div class="col-6 pe-0">
         <p class="text-end">
             <a href="/highlights">{{t .Lang "See all"}}</a>
         </p>

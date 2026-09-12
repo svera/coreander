@@ -3,7 +3,6 @@ package webserver
 import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/index"
-	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/webserver/controller/auth"
 	"github.com/svera/coreander/v5/internal/webserver/controller/author"
 	"github.com/svera/coreander/v5/internal/webserver/controller/completed"
@@ -29,7 +28,7 @@ type Controllers struct {
 	Series     *series.Controller
 }
 
-func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metadata.Reader, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {
+func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {
 	usersRepository := &model.UserRepository{DB: db}
 	invitationsRepository := &model.InvitationRepository{DB: db}
 	highlightsRepository := &model.HighlightRepository{DB: db, Idx: idx}
@@ -108,7 +107,7 @@ func SetupControllers(cfg Config, db *gorm.DB, metadataReaders map[string]metada
 		Users:      user.NewController(usersRepository, invitationsRepository, usersCfg, sender, translator),
 		Completed:  completed.NewController(readingRepository, idx),
 		Highlights: highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
-		Documents:  document.NewController(highlightsRepository, usersRepository, readingRepository, sender, idx, metadataReaders, appFs, documentsCfg, translator),
+		Documents:  document.NewController(highlightsRepository, usersRepository, readingRepository, sender, idx, appFs, documentsCfg, translator),
 		Home:       home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),
 		Authors:    authorsController,
 		Search:     search.NewController(highlightsRepository, readingRepository, sender, idx, searchCfg),

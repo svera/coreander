@@ -10,6 +10,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v3"
+	"github.com/pbnjay/memory"
 	"gorm.io/gorm"
 
 	"github.com/alecthomas/kong"
@@ -45,8 +46,19 @@ func init() {
 	ctx := kong.Parse(&input, kong.Description(`
 		Coreander is a document management system which indexes metadata from documents in a library and allows users to search and read them through a web interface.
 	`),
+		// The defaultXxx entries interpolate CLIInput's struct tags (via
+		// kong's "${name}" syntax) from index's own DefaultXxx constants, so
+		// the CLI flag's advertised default and NewBleve's zero-value
+		// fallback can never drift apart from a hand-copied literal going
+		// stale in one place.
 		kong.Vars{
-			"version": version,
+			"version":                               version,
+			"defaultMaxSimilarityCandidates":        fmt.Sprint(index.DefaultMaxSimilarityCandidates),
+			"defaultMinSimilarityScoreRatio":        fmt.Sprint(index.DefaultMinSimilarityScoreRatio),
+			"defaultMaxSimilarityPhrases":           fmt.Sprint(index.DefaultMaxSimilarityPhrases),
+			"defaultCommonTextRankEntryRatio":       fmt.Sprint(index.DefaultCommonTextRankEntryRatio),
+			"defaultMinCommonTextRankAbsoluteCount": fmt.Sprint(index.DefaultMinCommonTextRankAbsoluteCount),
+			"defaultPruneChangeTriggerRatio":        fmt.Sprint(index.DefaultPruneChangeTriggerRatio),
 		},
 	)
 
@@ -59,6 +71,13 @@ func init() {
 	resolvedIndexWorkers = index.ResolveMetadataWorkers(input.IndexWorkers)
 	if input.IndexWorkers == 0 {
 		log.Printf("INDEX_WORKERS is 0 (automatic), using %d metadata workers (%d CPUs)", resolvedIndexWorkers, runtime.NumCPU())
+	}
+
+	maxTextRankWords := input.MaxTextRankWords
+	if maxTextRankWords == -1 {
+		totalRAM := memory.TotalMemory()
+		maxTextRankWords = index.DefaultMaxTextRankWords(totalRAM, resolvedIndexWorkers)
+		log.Printf("MAX_TEXTRANK_WORDS is -1 (automatic), using %d (based on %d MB total RAM and %d workers)", maxTextRankWords, totalRAM/1024/1024, resolvedIndexWorkers)
 	}
 
 	homeDir, err = os.UserHomeDir()
@@ -78,10 +97,19 @@ func init() {
 
 	var documentsIndex, authorsIndex bleve.Index
 	var needsReindex bool
-	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize)
+	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize, input.MinOccurrenceRatio)
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
-		IllustratedMinAmount: input.IllustratedMinAmount,
-		IllustratedMinSize:   input.IllustratedMinSize,
+		IllustratedMinAmount:           input.IllustratedMinAmount,
+		IllustratedMinSize:             input.IllustratedMinSize,
+		MinOccurrenceRatio:             input.MinOccurrenceRatio,
+		MaxSimilarityCandidates:        input.MaxSimilarityCandidates,
+		MinSimilarityScoreRatio:        input.MinSimilarityScoreRatio,
+		MaxSimilarityPhrases:           input.MaxSimilarityPhrases,
+		MaxTextRankWords:               maxTextRankWords,
+		CommonTextRankEntryRatio:       input.CommonTextRankEntryRatio,
+		MinCommonTextRankAbsoluteCount: input.MinCommonTextRankAbsoluteCount,
+		PruneChangeTriggerRatio:        input.PruneChangeTriggerRatio,
+		TextRankEnrichWorkers:          resolvedIndexWorkers,
 	})
 
 	// If index was newly created or recreated, force reindexing
@@ -111,6 +139,7 @@ func main() {
 		Version:                    version,
 		MinPasswordLength:          input.MinPasswordLength,
 		WordsPerMinute:             input.WordsPerMinute,
+		TextRankEnabled:            input.MinOccurrenceRatio > 0,
 		JwtSecret:                  []byte(input.JwtSecret),
 		FQDN:                       input.FQDN,
 		Port:                       input.Port,
@@ -164,7 +193,7 @@ func main() {
 
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
-	controllers := webserver.SetupControllers(webserverConfig, db, metadataReaders, idx, sender, appFs, dataSource)
+	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource)
 	usersRepository := &model.UserRepository{DB: db}
 	app := webserver.New(webserverConfig, controllers, sender, idx, usersRepository)
 	if strings.ToLower(input.FQDN) == "localhost" {
@@ -189,6 +218,10 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWor
 	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 	log.Printf("Indexing finished, took %d seconds", int(dur.Seconds()))
 
+	if err := idx.EnrichTextRankKeywords(batchSize, indexWorkers); err != nil {
+		log.Printf("Error enriching documents with TextRank keywords: %s", err)
+	}
+
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 	if err := idx.EnrichAuthorsFromDataSource(dataSource, webserver.SupportedLanguages(), index.DefaultAuthorEnrichInterval); err != nil {
 		log.Printf("Error enriching authors from Wikidata: %s", err)
@@ -197,7 +230,7 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWor
 	idx.StartFileWatcher()
 }
 
-func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Index, bool) {
+func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64) (bleve.Index, bleve.Index, bool) {
 	needsReindex := false
 
 	// Open or create documents index
@@ -233,14 +266,14 @@ func getIndexes(fs afero.Fs, illustratedMinSize float64) (bleve.Index, bleve.Ind
 		needsReindex = true
 	}
 
-	// Rebuild index if illustrated-min-size config changed (stored in index metadata)
+	// Rebuild index if illustrated-min-size or min-occurrence-ratio config changed (stored in index metadata)
 	if !needsReindex {
-		reindexForConfig, err := index.NeedsReindexForIllustratedConfig(documentsIndex, illustratedMinSize)
+		reindexForConfig, err := index.NeedsReindex(documentsIndex, illustratedMinSize, minOccurrenceRatio)
 		if err != nil {
 			log.Fatal(err)
 		}
 		if reindexForConfig {
-			log.Println("Illustrated min size config changed, recreating documents index.")
+			log.Println("Illustrated min size or min occurrence ratio config changed, recreating documents index.")
 			if err = documentsIndex.Close(); err != nil {
 				log.Fatal(err)
 			}

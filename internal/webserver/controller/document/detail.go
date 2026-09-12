@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gosimple/slug"
 	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/webserver/controller/fsutil"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
@@ -48,7 +49,7 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 	lang, _ := c.Locals("Lang").(string)
 	authorSummaries, illustratorSummaries := d.authorAndIllustratorSummaries(document, lang)
 
-	sameSubjects, sameSeries := d.related(document.Slug, int(session.ID))
+	sameSeries := d.sameSeries(document.Slug, int(session.ID))
 
 	var completedOn *time.Time
 	result := model.AugmentedDocument{Document: document}
@@ -66,10 +67,10 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"Document":             result,
 		"EmailFrom":            d.sender.From(),
 		"SameSeries":           sameSeries,
-		"SameSubjects":         sameSubjects,
 		"WordsPerMinute":       d.config.WordsPerMinute,
 		"AuthorSummaries":      authorSummaries,
 		"IllustratorSummaries": illustratorSummaries,
+		"Debug":                c.RequestCtx().QueryArgs().Has("debug"),
 	}, "layout")
 }
 
@@ -116,35 +117,12 @@ func (d *Controller) authorSummaryFor(authorSlug, lang string) authorSummary {
 		log.Println(err)
 	}
 
-	return authorSummary{Author: author, ImageVersion: d.imageVersion(author.Slug)}
+	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug)}
 }
 
-// imageVersion returns the modification time of the cached author image file as
-// a cache-busting version, mirroring author.Controller.getImageVersion. Returns
-// an empty string if no cached image exists yet.
-func (d *Controller) imageVersion(authorSlug string) string {
-	imageFileName := d.config.CacheDir + "/authors/" + authorSlug + ".webp"
-	fileInfo, err := d.appFs.Stat(imageFileName)
+func (d *Controller) sameSeries(slug string, sessionID int) (sameSeries []model.AugmentedDocument) {
+	series, err := d.idx.SameSeries(slug, relatedDocuments)
 	if err != nil {
-		return ""
-	}
-	return fmt.Sprintf("?t=%d", fileInfo.ModTime().Unix())
-}
-
-func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameSeries []model.AugmentedDocument) {
-	var err error
-	var subjects []index.Document
-	if subjects, err = d.idx.SameSubjects(slug, relatedDocuments); err != nil {
-		fmt.Println(err)
-	}
-	for i := range subjects {
-		result := model.AugmentedDocument{Document: subjects[i]}
-		result = d.hlRepository.Highlighted(sessionID, result)
-		sameSubjects = append(sameSubjects, result)
-	}
-
-	var series []index.Document
-	if series, err = d.idx.SameSeries(slug, relatedDocuments); err != nil {
 		fmt.Println(err)
 	}
 	for i := range series {
@@ -152,5 +130,6 @@ func (d *Controller) related(slug string, sessionID int) (sameSubjects, sameSeri
 		result = d.hlRepository.Highlighted(sessionID, result)
 		sameSeries = append(sameSeries, result)
 	}
-	return sameSubjects, sameSeries
+
+	return sameSeries
 }

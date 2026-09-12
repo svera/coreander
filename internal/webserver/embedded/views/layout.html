@@ -32,7 +32,7 @@
     <header>
         {{template "partials/navbar" .}}
     </header>
-    <main class="mt-5" data-unexpected-server-error='{{t .Lang "Unexpected server error"}}'>
+    <main class="mt-3" data-unexpected-server-error='{{t .Lang "Unexpected server error"}}'>
         {{template "partials/main" dict "Lang" .Lang "IndexingInProgress" .IndexingInProgress "IndexingProgressKind" .IndexingProgressKind "RemainingIndexingTime" .RemainingIndexingTime "IndexingProgressPercentage" .IndexingProgressPercentage "Error" .Error "Warning" .Warning "Success" .Success "Embed" .Embed}}
     </main>
     {{template "partials/share-modal" .}}

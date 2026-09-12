@@ -1,7 +1,5 @@
 A personal documents server, Coreander indexes the documents (EPUBs and PDFs with no DRM) that it finds in the passed folder, and provides a web interface to search and access them.
 
-[![Follow us on Bluesky](https://img.shields.io/badge/Bluesky-0285FF?logo=bluesky&logoColor=fff&label=Follow%20me%20on&color=0285FF)](https://bsky.app/profile/coreanderapp.bsky.social)
-
 ![Coreander home](assets/home.png)
 *Coreander home*
 
@@ -115,7 +113,40 @@ On first run, Coreander creates an admin user with the following credentials:
 > [!CAUTION]
 > For security reasons, it is strongly encouraged to add a new admin and remove the default one as soon as possible.
 
-### Settings
+### TextRank keyword extraction
+
+Coreander uses [TextRank](https://github.com/DavidBelicza/TextRank) to automatically extract keywords (single words and two-word phrases) from the text of EPUB documents during indexing. TextRank builds a graph where words are nodes and an edge connects two words whenever they appear near each other in the text; words that co-occur with many other important words end up with a higher rank, similarly to how Google's PageRank ranks web pages by how many other important pages link to them. The highest-ranked words and phrases become a document's keywords.
+
+> [!NOTE]
+> This analysis process may take up to several hours depending on the host system and the size of the library.
+
+These extracted keywords power two features:
+
+* **Search**: keywords are indexed alongside title, author and other metadata, so a document can be found by searching for a term that appears frequently in its text even if it's not part of its declared metadata.
+* **Similar documents**: when viewing a document, Coreander suggests others that share a meaningful number of its top keywords.
+
+Before ranking, Coreander detects the document's language(s) (falling back to full text detection if the EPUB doesn't declare one) and filters out stop words (common words like "the" or "and" that carry no distinctive meaning) for each detected language, plus English stop words always, since documents often mix in English terms regardless of their main language.
+
+Not every word or phrase TextRank finds is kept: only those whose occurrence count is close enough to the most frequent one survive, controlled by `--min-occurrence-ratio` (see table below). This avoids keeping words that only appear once or twice in an otherwise repetitive document, which would otherwise look important simply because they're compared against a low baseline.
+
+Separately, once keywords exist across the whole library, any phrase or word that turns out to be too common there (a genre-wide word, or a series' recurring character name) is stripped from every document that has it, since a signal shared by a large fraction of the library isn't distinctive enough for keyword search or "similar documents" to rely on. This whole-library pruning pass runs after every full (re)indexing, and again in the background whenever enough documents are added or removed since the last pass, controlled by `--common-textrank-entry-ratio`, `--min-common-textrank-absolute-count` and `--prune-change-trigger-ratio` (see table below).
+
+You can fine-tune this behavior with the following flags:
+
+|Flag|Environment variable|Description|
+|----|--------------------|-----------|
+|`--min-occurrence-ratio`             |`MIN_OCCURRENCE_RATIO`               |Raise it to keep only the most frequent, most representative keywords per document (fewer, more precise search/similarity matches); lower it (down to 0, which disables text ranking altogether) to keep more of the long tail of less frequent keywords (broader matches, more noise).|
+|`--max-similarity-phrases`           |`MAX_SIMILARITY_PHRASES`             |Raise it so documents with many phrases are matched more accurately when looking for similar documents, at the cost of slower queries; lower it for faster queries that only rely on each document's most important phrases.|
+|`--max-similarity-candidates`        |`MAX_SIMILARITY_CANDIDATES`          |Doesn't affect TextRank extraction itself, but controls how strict the "similar documents" feature is once keywords exist. Maximum number of top-scoring matches a "similar document" query considers before pruning by `min-similarity-score-ratio` and paginating. Higher values lower the chance of a genuinely similar document being cut off before scoring, at the cost of slower queries; lower values speed queries up but risk missing weaker true matches. Defaults to 200.|
+|`--min-similarity-score-ratio`       |`MIN_SIMILARITY_SCORE_RATIO`         |Doesn't affect TextRank extraction itself, but controls how strict the "similar documents" feature is once keywords exist. Minimum fraction of the best match's score a document must reach to be considered similar enough to show in a "similar document" query. Higher values give fewer but more relevant results (a "similar documents" list can end up empty); lower values show more results but risk weak, coincidental matches. Defaults to 0.3.|
+|`--max-textrank-words`               |`MAX_TEXTRANK_WORDS`                 |Caps how many words of a document's text TextRank analysis considers. If a document's text is longer, only its first `max-textrank-words` words are analyzed, and its keywords end up based on that opening portion rather than the whole text (its word count still reflects the whole document). TextRank builds an in-memory graph that grows with every word occurrence, not just distinct words, so a very long or repetitive document can use a large amount of RAM for a single document, even without concurrent indexing. Defaults to `-1`, which computes a safe value automatically from the host's total RAM and the number of indexing workers (see `--index-workers`); set it to a positive number to override that with an explicit cap, or to `0` to disable the cap entirely.|
+|`--common-textrank-entry-ratio`      |`COMMON_TEXTRANK_ENTRY_RATIO`        |Raise it so only phrases/words shared by a larger fraction of the library get pruned as "too common" (less aggressive pruning, more keywords kept); lower it to prune more aggressively.|
+|`--min-common-textrank-absolute-count`|`MIN_COMMON_TEXTRANK_ABSOLUTE_COUNT`|Raise it so small libraries need more documents sharing a phrase/word before it's considered common enough to prune; mainly relevant for small libraries, where a low document count could otherwise make a ratio-based threshold trigger on just a couple of shared documents.|
+|`--prune-change-trigger-ratio`       |`PRUNE_CHANGE_TRIGGER_RATIO`         |Raise it so the whole-library pruning pass only re-runs in the background after a bigger fraction of the library has changed since the last pass; lower it to keep common-entry statistics fresher at the cost of more frequent background scans.|
+
+Since keyword extraction runs once per document during indexing, changing `--min-occurrence-ratio` only affects documents indexed (or re-indexed with `--force-indexing`) after the change.
+
+### Other settings
 
 Run `coreander -h` or `coreander --help` to see help.
 
@@ -138,10 +169,6 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`--server-static-cache-ttl`          |`SERVER_STATIC_CACHE_TTL`         | Server-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 31536000 (1 year).
 |`--server-dynamic-image-cache-ttl`   |`SERVER_DYNAMIC_IMAGE_CACHE_TTL`  | Server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 86400 (24 hours).
 |`-f` or `--force-indexing`           |`FORCE_INDEXING`          | Whether to force indexing already indexed documents or not. Defaults to false.
-|`--smtp-server`                      |`SMTP_SERVER`             | Address of the send mail server.
-|`--smtp-port`                        |`SMTP_PORT`               | Port number of the send mail server. Defaults to 587.
-|`--smtp-user`                        |`SMTP_USER`               | User to authenticate against the SMTP server.
-|`--smtp-password`                    |`SMTP_PASSWORD`           | User's password to authenticate against the SMTP server.
 |`-s` or `--jwt-secret`               |`JWT_SECRET`              | String to use to sign JWTs.
 |`-a` or `--require-auth`             |`REQUIRE_AUTH`            | Require authentication to access the application if true. Defaults to false.
 |`--min-password-length`              |`MIN_PASSWORD_LENGTH`     | Minimum length acceptable for passwords. Defaults to 5.

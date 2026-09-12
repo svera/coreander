@@ -1,6 +1,10 @@
 package main
 
-import "github.com/alecthomas/kong"
+import (
+	"fmt"
+
+	"github.com/alecthomas/kong"
+)
 
 // CLIInput stores all configuration flags and arguments thant can be passed to the application
 type CLIInput struct {
@@ -27,6 +31,22 @@ type CLIInput struct {
 	IllustratedMinAmount int `env:"ILLUSTRATED_MIN_AMOUNT" default:"2" name:"illustrated-min-amount" help:"Minimum number of illustrations (excluding cover) for a document to be considered illustrated"`
 	// IllustratedMinSize is the minimum size in megapixels for an image to count as an illustration
 	IllustratedMinSize float64 `env:"ILLUSTRATED_MIN_SIZE" default:"0.25" name:"illustrated-min-size" help:"Minimum size in megapixels for an image to count as an illustration"`
+	// MinOccurrenceRatio is the minimum fraction of the most frequent phrase's (or word's) occurrence count that a phrase or single word must reach to be kept as a search/related-document keyword for EPUB documents. A value of 0 disables text ranking entirely. Must be between 0 and 1, both included; see CLIInput.Validate.
+	MinOccurrenceRatio float64 `env:"MIN_OCCURRENCE_RATIO" default:"0.1" name:"min-occurrence-ratio" help:"Minimum fraction of the most frequent phrase's (or word's) occurrence count that a phrase or single word must reach to be kept as a search/related-document keyword for EPUB documents. Set to 0 to disable text ranking. Must be between 0 and 1."`
+	// MaxSimilarityCandidates caps how many top-scoring matches a "similar document" query considers before applying MinSimilarityScoreRatio and paginating. Higher: fewer genuinely similar documents cut off before scoring, at the cost of more matches to score and rank per query. Lower: faster queries, but a genuinely similar document can be missed if too many weaker matches outscore it into the discarded tail. Default is interpolated from index.DefaultMaxSimilarityCandidates via kong.Vars (see main.go's kong.Parse call), so it can't drift from NewBleve's own zero-value fallback.
+	MaxSimilarityCandidates int `env:"MAX_SIMILARITY_CANDIDATES" default:"${defaultMaxSimilarityCandidates}" name:"max-similarity-candidates" help:"Maximum number of top-scoring matches a \"similar document\" query considers before pruning by min-similarity-score-ratio and paginating. Higher values reduce the chance of missing a genuinely similar document at the cost of slower queries; lower values speed queries up but risk missing weaker true matches."`
+	// MinSimilarityScoreRatio is the minimum fraction of the best match's score a document must reach to be considered similar enough to show in a "similar document" query. Higher: stricter, fewer but more relevant results (a "similar" list can end up empty). Lower: more results shown, at the risk of weak, coincidental matches. Must be between 0 and 1, both included; see CLIInput.Validate. Default is interpolated from index.DefaultMinSimilarityScoreRatio via kong.Vars.
+	MinSimilarityScoreRatio float64 `env:"MIN_SIMILARITY_SCORE_RATIO" default:"${defaultMinSimilarityScoreRatio}" name:"min-similarity-score-ratio" help:"Minimum fraction of the best match's score a document must reach to be considered similar enough to show in a \"similar document\" query. Higher values give fewer but more relevant results (can end up empty); lower values show more results but risk weak, coincidental matches. Must be between 0 and 1."`
+	// MaxSimilarityPhrases caps how many of a document's TextRank phrases are used, at most, to find "similar" documents. Set to 0 to disable the cap. Higher: more accurate similarity matching for documents with many phrases, at the cost of slower queries (Bleve evaluates one OR clause per phrase for every candidate document); a document with hundreds of phrases and no cap can make "similar document" queries slow enough to noticeably affect the whole app, and has been observed to trigger a rare bleve/zapx crash under concurrent indexing. Lower: faster, safer queries, but a document with more phrases than the cap only gets matched on its top ones (see Document.TextRankPhrases for how they're ordered). Default is interpolated from index.DefaultMaxSimilarityPhrases via kong.Vars.
+	MaxSimilarityPhrases int `env:"MAX_SIMILARITY_PHRASES" default:"${defaultMaxSimilarityPhrases}" name:"max-similarity-phrases" help:"Maximum number of a document's TextRank phrases used to find \"similar\" documents. Set to 0 to disable the cap. Higher values improve matching accuracy for documents with many phrases but slow queries down; lower values are faster but only match on a document's top phrases."`
+	// MaxTextRankWords caps how many words of a document's extracted text TextRank analysis considers: only the first MaxTextRankWords words are analyzed for a document whose text exceeds this (its Words count still reflects the whole document, just its TextRank keywords are based on the opening portion only). TextRank's underlying graph grows with every word occurrence, not just distinct words, so a very long or repetitive document can use several hundred MB of RAM for a single document, single-threaded - enough to trigger the OOM killer on a small VM/container regardless of worker count. Defaults to -1 (automatic: computed from total system RAM and the resolved index-workers count, see index.DefaultMaxTextRankWords), which can be overridden with an explicit value; set to 0 to disable the cap entirely. Must be -1, 0, or positive; see CLIInput.Validate.
+	MaxTextRankWords int `env:"MAX_TEXTRANK_WORDS" default:"-1" name:"max-textrank-words" help:"Maximum number of words of a document's text that TextRank analysis considers. If a document's text is longer, only its first max-textrank-words words are analyzed (its word count still reflects the whole document, just its TextRank keywords come from the opening portion only). Protects against excessive RAM usage on very long or repetitive documents. Defaults to -1, which computes a safe value automatically from total system RAM and the number of index workers. Set to 0 to disable the cap entirely, or a positive number for an explicit cap."`
+	// CommonTextRankEntryRatio is the fraction of the library a TextRank phrase or word may appear in before it's treated as too generic (e.g. a genre-wide word, or a series' recurring character name) and stripped from every document that has it. Must be between 0 and 1, both included; see CLIInput.Validate. Default is interpolated from index.DefaultCommonTextRankEntryRatio via kong.Vars.
+	CommonTextRankEntryRatio float64 `env:"COMMON_TEXTRANK_ENTRY_RATIO" default:"${defaultCommonTextRankEntryRatio}" name:"common-textrank-entry-ratio" help:"Fraction of the library a TextRank phrase or word may appear in before it's treated as too generic to be useful for keyword search or \"similar document\" recommendations, and stripped from every document that has it. Must be between 0 and 1."`
+	// MinCommonTextRankAbsoluteCount floors the document-count threshold computed from CommonTextRankEntryRatio, so a small library can't have an entry pruned just because it happens to be shared by a couple of documents. Must not be negative; see CLIInput.Validate. Default is interpolated from index.DefaultMinCommonTextRankAbsoluteCount via kong.Vars.
+	MinCommonTextRankAbsoluteCount int `env:"MIN_COMMON_TEXTRANK_ABSOLUTE_COUNT" default:"${defaultMinCommonTextRankAbsoluteCount}" name:"min-common-textrank-absolute-count" help:"Floor for the document-count threshold computed from common-textrank-entry-ratio, so a small library can't have an entry pruned just because it happens to be shared by a couple of documents. Must not be negative."`
+	// PruneChangeTriggerRatio is the fraction of documents added or removed (relative to the doc count recorded after the last common-TextRank-entry prune pass) that triggers an out-of-band prune pass outside of EnrichTextRankKeywords's own unconditional one. Must be between 0 and 1, both included; see CLIInput.Validate. Default is interpolated from index.DefaultPruneChangeTriggerRatio via kong.Vars.
+	PruneChangeTriggerRatio float64 `env:"PRUNE_CHANGE_TRIGGER_RATIO" default:"${defaultPruneChangeTriggerRatio}" name:"prune-change-trigger-ratio" help:"Fraction of documents added or removed since the last common-TextRank-entry prune pass that triggers an extra out-of-band prune pass, so long-running processes that only add/remove documents through uploads, deletes or the file watcher don't let common-entry statistics go stale until restart. Must be between 0 and 1."`
 	// ForceIndexing signals whether to force indexing already indexed documents or not
 	ForceIndexing bool `env:"FORCE_INDEXING" short:"f" default:"false" name:"force-indexing" help:"Force indexing already indexed documents"`
 	// SmtpServer points to the address of the send mail server
@@ -70,4 +90,85 @@ type CLIInput struct {
 	InviteEmailListMaxLength int `env:"INVITE_EMAIL_LIST_MAX_LENGTH" default:"2000" name:"invite-email-list-max-length" help:"Maximum length in bytes of the invitation email list field. Defaults to 2000."`
 	// InviteMaxRecipients is the maximum number of distinct addresses per invitation submit. Defaults to 50.
 	InviteMaxRecipients int `env:"INVITE_MAX_RECIPIENTS" default:"50" name:"invite-max-recipients" help:"Maximum number of distinct email addresses per invitation form submit. Defaults to 50."`
+}
+
+// Validate is called by kong.Parse after parsing flags/env vars, to reject
+// values that would otherwise reach the indexer/webserver and cause a crash
+// or a silently broken feature instead of a clear startup error.
+func (c CLIInput) Validate() error {
+	if c.MinOccurrenceRatio < 0 || c.MinOccurrenceRatio > 1 {
+		return fmt.Errorf("min-occurrence-ratio must be between 0 and 1, got %v", c.MinOccurrenceRatio)
+	}
+	if c.MinSimilarityScoreRatio < 0 || c.MinSimilarityScoreRatio > 1 {
+		return fmt.Errorf("min-similarity-score-ratio must be between 0 and 1, got %v", c.MinSimilarityScoreRatio)
+	}
+	// BatchSize must be positive: 0 makes AddLibrary/EnrichTextRankKeywords's
+	// chunking loop spin forever (chunkStart never advances), and negative
+	// values panic on an invalid slice bound.
+	if c.BatchSize <= 0 {
+		return fmt.Errorf("batch-size must be greater than 0, got %v", c.BatchSize)
+	}
+	// MaxSimilarityCandidates must not be negative: it's passed straight to
+	// bleve's search request size and a negative size panics inside bleve's
+	// collector setup.
+	if c.MaxSimilarityCandidates < 0 {
+		return fmt.Errorf("max-similarity-candidates must not be negative, got %v", c.MaxSimilarityCandidates)
+	}
+	// ShareCommentMaxSize must not be negative: a negative value is used
+	// directly as a slice upper bound when truncating share comments, which
+	// panics.
+	if c.ShareCommentMaxSize < 0 {
+		return fmt.Errorf("share-comment-max-size must not be negative, got %v", c.ShareCommentMaxSize)
+	}
+	// MinPasswordLength must be positive: 0 or negative disables the minimum
+	// length check entirely, silently allowing empty passwords.
+	if c.MinPasswordLength <= 0 {
+		return fmt.Errorf("min-password-length must be greater than 0, got %v", c.MinPasswordLength)
+	}
+	// ShareMaxRecipients must be positive: 0 or negative disables the sharing
+	// feature entirely (every share request is rejected as over the limit),
+	// which isn't a documented "disable" sentinel.
+	if c.ShareMaxRecipients <= 0 {
+		return fmt.Errorf("share-max-recipients must be greater than 0, got %v", c.ShareMaxRecipients)
+	}
+	// SessionTimeout, RecoveryTimeout and InvitationTimeout must be positive:
+	// a non-positive value produces an already-expired session/link at
+	// creation time.
+	if c.SessionTimeout <= 0 {
+		return fmt.Errorf("session-timeout must be greater than 0, got %v", c.SessionTimeout)
+	}
+	if c.RecoveryTimeout <= 0 {
+		return fmt.Errorf("recovery-timeout must be greater than 0, got %v", c.RecoveryTimeout)
+	}
+	if c.InvitationTimeout <= 0 {
+		return fmt.Errorf("invitation-timeout must be greater than 0, got %v", c.InvitationTimeout)
+	}
+	// IllustratedMinAmount must not be negative: a negative value makes the
+	// "ge .Document.Illustrations .IllustratedMinAmount" template check
+	// always true, showing the "illustrated" badge on every document.
+	if c.IllustratedMinAmount < 0 {
+		return fmt.Errorf("illustrated-min-amount must not be negative, got %v", c.IllustratedMinAmount)
+	}
+	// UploadDocumentMaxSize must not be negative: 0 is a documented sentinel
+	// for "unlimited", but a negative value has no valid meaning.
+	if c.UploadDocumentMaxSize < 0 {
+		return fmt.Errorf("upload-document-max-size must not be negative, got %v", c.UploadDocumentMaxSize)
+	}
+	// MaxTextRankWords must be -1 (automatic), 0 (disabled) or positive: any
+	// other negative value has no defined meaning.
+	if c.MaxTextRankWords < -1 {
+		return fmt.Errorf("max-textrank-words must be -1 (automatic), 0 (disabled) or a positive number, got %v", c.MaxTextRankWords)
+	}
+	if c.CommonTextRankEntryRatio < 0 || c.CommonTextRankEntryRatio > 1 {
+		return fmt.Errorf("common-textrank-entry-ratio must be between 0 and 1, got %v", c.CommonTextRankEntryRatio)
+	}
+	// MinCommonTextRankAbsoluteCount must not be negative: it's compared
+	// against a document count, and a negative floor has no defined meaning.
+	if c.MinCommonTextRankAbsoluteCount < 0 {
+		return fmt.Errorf("min-common-textrank-absolute-count must not be negative, got %v", c.MinCommonTextRankAbsoluteCount)
+	}
+	if c.PruneChangeTriggerRatio < 0 || c.PruneChangeTriggerRatio > 1 {
+		return fmt.Errorf("prune-change-trigger-ratio must be between 0 and 1, got %v", c.PruneChangeTriggerRatio)
+	}
+	return nil
 }

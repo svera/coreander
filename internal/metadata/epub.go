@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"archive/zip"
+	"encoding/xml"
 	"fmt"
 	"html/template"
 	"image"
@@ -36,37 +37,113 @@ func NewEpubReader() EpubReader {
 	}
 }
 
-func (e EpubReader) Metadata(filename string) (Metadata, error) {
+// bookMetadata opens filename and returns its base metadata (title, authors,
+// illustration count, etc.) along with the still-open book and its parsed OPF
+// package, so Metadata and MetadataAndText can share this setup without
+// either extracting/sanitizing the EPUB's text: Metadata never needs it, and
+// Words is instead computed later from the TextSource.Text also used for
+// TextRank analysis - see EnrichTextRankKeywords/rankDocument. err is only
+// non-nil for failures that leave the book unusable at all. Callers must
+// close the returned book.
+func (e EpubReader) bookMetadata(filename string) (Metadata, *epub.Epub, *epub.PackageDocument, error) {
 	book, err := epub.Open(filename)
 	if err != nil {
-		return Metadata{}, err
+		return Metadata{}, nil, nil, err
 	}
-	defer book.Close()
-
 	info, err := book.Information()
 	if err != nil {
-		return Metadata{}, err
+		book.Close()
+		return Metadata{}, nil, nil, err
 	}
 	bk, err := BuildEpubMetadataFields(info, filename)
 	if err != nil {
-		return Metadata{}, err
+		book.Close()
+		return Metadata{}, nil, nil, err
 	}
 	opf, err := book.Package()
 	if err != nil {
-		log.Printf("Cannot load package for illustrations/words in %s: %s\n", filename, err)
-		return bk, nil
+		log.Printf("Cannot load package for illustrations in %s: %s\n", filename, err)
+		return bk, book, nil, nil
 	}
 	illustrations, err := e.illustrationsWithZip(book.ReadCloser, opf, 0.25)
 	if err != nil {
 		log.Printf("Cannot count illustrations in %s: %s\n", filename, err)
 	}
 	bk.Illustrations = illustrations
-	w, err := wordsFromZip(book.ReadCloser)
+	return bk, book, opf, nil
+}
+
+func (e EpubReader) Metadata(filename string) (Metadata, error) {
+	bk, book, _, err := e.bookMetadata(filename)
 	if err != nil {
-		log.Printf("Cannot count words in %s: %s\n", filename, err)
+		return Metadata{}, err
 	}
-	bk.Words = float64(w)
+	defer book.Close()
+
 	return bk, nil
+}
+
+// MetadataAndText is like Metadata, but also extracts and sanitizes the
+// document's full text content and counts Words from it, letting callers
+// that also need TextRanker's analysis (which needs the same text) avoid
+// extracting and sanitizing the whole EPUB a second time.
+func (e EpubReader) MetadataAndText(filename string) (Metadata, string, error) {
+	bk, book, opf, err := e.bookMetadata(filename)
+	if err != nil {
+		return Metadata{}, "", err
+	}
+	defer book.Close()
+
+	if opf == nil {
+		return bk, "", nil
+	}
+	text, err := textFromZip(book.ReadCloser, opf)
+	if err != nil {
+		log.Printf("Cannot extract text in %s: %s\n", filename, err)
+		return bk, "", nil
+	}
+	bk.Words = float64(len(strings.Fields(text)))
+	return bk, text, nil
+}
+
+// Text extracts and sanitizes filename's text content on its own, skipping
+// the metadata/OPF parsing and illustration counting MetadataAndText also
+// does, for callers that already have Metadata and only need text (e.g.
+// EnrichTextRankKeywords, run well after indexing).
+func (e EpubReader) Text(filename string) (string, error) {
+	book, err := epub.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer book.Close()
+
+	opf, err := book.Package()
+	if err != nil {
+		opf = nil
+	}
+
+	return textFromZip(book.ReadCloser, opf)
+}
+
+// RankText implements TextRanker by delegating to rankText, the
+// format-agnostic implementation, providing language (the EPUB's already-known
+// metadata language, e.g. from Metadata.Language) as the language hint: used
+// directly when non-empty, and otherwise falling back to language detection
+// on textContent. Callers already have this language from the same Metadata
+// they extracted alongside textContent, so RankText itself never needs to
+// reopen the EPUB.
+func (e EpubReader) RankText(minOccurrenceRatio float64, textContent, language string) (*TextRankResult, error) {
+	return rankText(minOccurrenceRatio, textContent, func() (string, error) {
+		if language == "" {
+			return "", nil
+		}
+		// Normalize language code (e.g., "en-US" -> "en")
+		lang := language
+		if idx := strings.Index(lang, "-"); idx != -1 {
+			lang = lang[:idx]
+		}
+		return strings.ToLower(lang), nil
+	})
 }
 
 // BuildEpubMetadataFields maps pirmd/epub Information into Metadata (title, authors, dates, etc.).
@@ -290,37 +367,317 @@ func readZipFileReader(r *zip.ReadCloser, name string) (io.ReadCloser, error) {
 	return nil, fmt.Errorf("epub: no zip entry %q", name)
 }
 
-func wordsFromZip(r *zip.ReadCloser) (int, error) {
-	count := 0
+// rawTextSelfClosingTag matches XHTML-style self-closing tags for the HTML
+// elements that Go's net/html tokenizer (which bluemonday sits on top of)
+// treats as raw text: script, style, title, textarea, etc. The tokenizer
+// flags the *next* token as raw text as soon as it sees one of these tag
+// names, before checking whether the tag is self-closed, so a self-closed
+// occurrence (e.g. an empty "<title/>") with no later literal closing tag
+// makes it swallow the rest of the document as a single text node — which
+// then survives bluemonday's sanitization as escaped, garbled text.
+var rawTextSelfClosingTag = regexp.MustCompile(`(?i)<(script|style|title|textarea|iframe|noembed|noframes|noscript|xmp)([^>]*)/>`)
+
+// normalizeRawTextSelfClosingTags rewrites self-closed raw-text tags (e.g.
+// "<title/>") into explicit open/close pairs (e.g. "<title></title>"), so
+// they can't trigger the tokenizer quirk described in rawTextSelfClosingTag.
+func normalizeRawTextSelfClosingTags(content string) string {
+	return rawTextSelfClosingTag.ReplaceAllString(content, "<$1$2></$1>")
+}
+
+// textFromZip extracts and sanitizes all EPUB content text (skipping navigation
+// and table of contents files) from an already-open zip, joining it with blank lines.
+func textFromZip(r *zip.ReadCloser, opf *epub.PackageDocument) (string, error) {
+	var textParts []string
+	p := bluemonday.StrictPolicy()
+	navToc := navTocHrefs(r, opf)
+	backmatter := backmatterHrefs(r, opf, navToc)
+
 	for _, f := range r.File {
 		isContent, err := doublestar.PathMatch("O*PS/**/*.*htm*", f.Name)
 		if err != nil {
-			return 0, err
+			return "", err
 		}
 		if !isContent {
 			continue
 		}
 
-		if filepath.Base(f.Name) == "nav.xhtml" {
+		// Skip navigation and table of contents files
+		if _, isNavToc := navToc[f.Name]; isNavToc {
+			continue
+		}
+
+		// Skip bibliography/notes/glossary/index files: they're not
+		// narrative content, and citations repeated across many footnotes
+		// can otherwise dominate TextRank's keyword extraction for a
+		// document - see backmatterHrefs.
+		if _, isBackmatter := backmatter[f.Name]; isBackmatter {
 			continue
 		}
 
 		rc, err := f.Open()
 		if err != nil {
-			return 0, err
-		}
-		content, err := io.ReadAll(rc)
-		if err != nil {
-			return 0, err
+			return "", err
 		}
 
-		p := bluemonday.StrictPolicy()
-		text := p.Sanitize(string(content))
-		words := strings.Fields(text)
-		count += len(words)
+		content, err := io.ReadAll(rc)
 		rc.Close()
+		if err != nil {
+			return "", err
+		}
+
+		// Sanitize HTML to get plain text
+		text := p.Sanitize(normalizeRawTextSelfClosingTags(string(content)))
+		if strings.TrimSpace(text) != "" {
+			textParts = append(textParts, text)
+		}
 	}
-	return count, nil
+
+	return strings.Join(textParts, "\n\n"), nil
+}
+
+// backmatterTypes lists epub:type/guide "type" values (per the EPUB3
+// structural semantics vocabulary and its EPUB2 guide equivalents) for
+// sections that aren't narrative content. Citations repeated across many
+// footnotes, or an index/glossary's short repetitive entries, can otherwise
+// dominate TextRank's per-document keyword ranking despite carrying no real
+// topical signal - see textFromZip and backmatterHrefs.
+var backmatterTypes = map[string]struct{}{
+	"bibliography": {},
+	"notes":        {},
+	"endnotes":     {},
+	"footnotes":    {},
+	"glossary":     {},
+	"index":        {},
+	"colophon":     {},
+}
+
+// backmatterHrefs returns the zip paths of files identified as bibliography,
+// notes, glossary, index or colophon sections, via the EPUB2 OPF <guide>
+// element and/or the EPUB3 nav document's <nav epub:type="landmarks">,
+// whichever the EPUB provides. pirmd/epub's PackageDocument exposes neither,
+// so both are parsed directly from the raw XML/XHTML. navToc (from
+// navTocHrefs) is used to skip the fallback matching a nav/toc document
+// itself out as backmatter.
+func backmatterHrefs(r *zip.ReadCloser, opf *epub.PackageDocument, navToc map[string]struct{}) map[string]struct{} {
+	hrefs := map[string]struct{}{}
+
+	if opf != nil {
+		baseDir := opfBaseDir(r)
+
+		if opfPath := findOpfPath(r); opfPath != "" {
+			if raw, err := readZipFile(r, opfPath); err == nil {
+				for href := range guideHrefsByType(raw, backmatterTypes) {
+					addResolvedHref(r, hrefs, href, baseDir)
+				}
+			}
+		}
+
+		if opf.Manifest != nil {
+			for _, item := range opf.Manifest.Items {
+				if !hasProperty(item.Properties, "nav") {
+					continue
+				}
+				navZipPath := findZipEntryPath(r, candidatePaths(resolveHref(item.Href, baseDir), ""))
+				if navZipPath == "" {
+					continue
+				}
+				raw, err := readZipFile(r, navZipPath)
+				if err != nil {
+					continue
+				}
+				navDir := path.Dir(navZipPath)
+				if navDir == "." {
+					navDir = ""
+				}
+				for href := range landmarksBackmatterHrefs(raw) {
+					addResolvedHref(r, hrefs, href, navDir)
+				}
+			}
+		}
+	}
+
+	// Many real-world EPUBs (especially fan/community conversions) never
+	// bother filling in guide references or nav landmarks beyond the cover,
+	// even though their spine plainly contains files named "Notas1.xhtml",
+	// "Bibliografia.xhtml", etc. When the EPUB's own metadata pointed to
+	// nothing, fall back to matching backmatterFilenamePatterns against
+	// spine file names, so those books aren't left with the metadata-only
+	// approach doing nothing for them.
+	if len(hrefs) == 0 {
+		hrefs = backmatterFilenameHrefs(r, navToc)
+	}
+
+	return hrefs
+}
+
+// navTocHrefs returns the zip paths of an EPUB's navigation/table-of-contents
+// documents: the EPUB3 nav document (the manifest item whose properties
+// include "nav") and/or the EPUB2 guide's <reference type="toc">, whichever
+// the EPUB provides. Neither is required to be named "nav.xhtml"/"toc.xhtml"
+// or use a ".xhtml" extension - only the well-formed metadata is authoritative
+// - so a filename-based fallback is used solely when that metadata is absent.
+func navTocHrefs(r *zip.ReadCloser, opf *epub.PackageDocument) map[string]struct{} {
+	hrefs := map[string]struct{}{}
+
+	if opf != nil {
+		baseDir := opfBaseDir(r)
+
+		if opf.Manifest != nil {
+			for _, item := range opf.Manifest.Items {
+				if hasProperty(item.Properties, "nav") {
+					addResolvedHref(r, hrefs, item.Href, baseDir)
+				}
+			}
+		}
+
+		if opfPath := findOpfPath(r); opfPath != "" {
+			if raw, err := readZipFile(r, opfPath); err == nil {
+				for href := range guideHrefsByType(raw, tocGuideTypes) {
+					addResolvedHref(r, hrefs, href, baseDir)
+				}
+			}
+		}
+	}
+
+	if len(hrefs) == 0 {
+		for _, f := range r.File {
+			baseName := strings.ToLower(filepath.Base(f.Name))
+			if baseName == "nav.xhtml" || baseName == "toc.xhtml" {
+				hrefs[f.Name] = struct{}{}
+			}
+		}
+	}
+
+	return hrefs
+}
+
+// backmatterFilenamePatterns lists substrings (Spanish and English) commonly
+// found in the file names of bibliography/notes/glossary/index/appendix
+// sections, for backmatterFilenameHrefs' fallback when an EPUB declares no
+// guide references or nav landmarks at all.
+var backmatterFilenamePatterns = []string{
+	"notas", "nota", "endnote", "footnote", "note",
+	"bibliografia", "bibliography",
+	"glosario", "glossary",
+	"indice", "index",
+	"apendice", "appendix",
+	"abreviatura", "abbreviation",
+	"colofon", "colophon",
+}
+
+// backmatterFilenameHrefs returns the zip paths of spine content files whose
+// name (ignoring extension) matches one of backmatterFilenamePatterns. Used
+// only as a fallback when backmatterHrefs finds no guide/landmarks
+// references, since matching on name alone risks false positives a
+// properly-declared EPUB wouldn't need to risk. navToc is excluded so a
+// nav/toc document itself is never misclassified as backmatter.
+func backmatterFilenameHrefs(r *zip.ReadCloser, navToc map[string]struct{}) map[string]struct{} {
+	hrefs := map[string]struct{}{}
+	for _, f := range r.File {
+		isContent, err := doublestar.PathMatch("O*PS/**/*.*htm*", f.Name)
+		if err != nil || !isContent {
+			continue
+		}
+		if _, isNavToc := navToc[f.Name]; isNavToc {
+			continue
+		}
+		baseName := strings.ToLower(filepath.Base(f.Name))
+		nameWithoutExt := strings.TrimSuffix(baseName, filepath.Ext(baseName))
+		for _, pattern := range backmatterFilenamePatterns {
+			if strings.Contains(nameWithoutExt, pattern) {
+				hrefs[f.Name] = struct{}{}
+				break
+			}
+		}
+	}
+	return hrefs
+}
+
+// addResolvedHref resolves href (stripping any #fragment) against baseDir
+// and, if it matches an actual zip entry, adds that entry's path to hrefs.
+func addResolvedHref(r *zip.ReadCloser, hrefs map[string]struct{}, href, baseDir string) {
+	href, _, _ = strings.Cut(href, "#")
+	if href == "" {
+		return
+	}
+	resolved := resolveHref(href, baseDir)
+	if zipPath := findZipEntryPath(r, candidatePaths(resolved, "")); zipPath != "" {
+		hrefs[zipPath] = struct{}{}
+	}
+}
+
+func hasProperty(properties, want string) bool {
+	for _, p := range strings.Fields(properties) {
+		if p == want {
+			return true
+		}
+	}
+	return false
+}
+
+// tocGuideTypes holds the EPUB2 OPF <guide> "type" value identifying the
+// table of contents, for guideHrefsByType's use in navTocHrefs.
+var tocGuideTypes = map[string]struct{}{"toc": {}}
+
+// guideHrefsByType parses an EPUB2 OPF's <guide> element (not exposed by
+// pirmd/epub's PackageDocument) for <reference type="..." href="..."/>
+// entries whose type is in wantTypes.
+func guideHrefsByType(rawOPF []byte, wantTypes map[string]struct{}) map[string]struct{} {
+	var doc struct {
+		Guide struct {
+			References []struct {
+				Type string `xml:"type,attr"`
+				Href string `xml:"href,attr"`
+			} `xml:"reference"`
+		} `xml:"guide"`
+	}
+	hrefs := map[string]struct{}{}
+	if err := xml.Unmarshal(rawOPF, &doc); err != nil {
+		return hrefs
+	}
+	for _, ref := range doc.Guide.References {
+		if _, ok := wantTypes[strings.ToLower(ref.Type)]; ok {
+			hrefs[ref.Href] = struct{}{}
+		}
+	}
+	return hrefs
+}
+
+// landmarksSection isolates an EPUB3 nav document's <nav epub:type="landmarks">
+// element; landmarksAnchor then finds each <a> tag within it, and hrefAttr/
+// epubTypeAttr pull out its href/epub:type attributes regardless of the order
+// they appear in.
+var (
+	landmarksSection = regexp.MustCompile(`(?is)<nav[^>]+epub:type="landmarks"[^>]*>(.*?)</nav>`)
+	landmarksAnchor  = regexp.MustCompile(`(?i)<a\b[^>]*>`)
+	hrefAttr         = regexp.MustCompile(`(?i)href="([^"]+)"`)
+	epubTypeAttr     = regexp.MustCompile(`(?i)epub:type="([^"]+)"`)
+)
+
+// landmarksBackmatterHrefs parses an EPUB3 nav document for its
+// <nav epub:type="landmarks"> section, returning the href of every entry
+// whose epub:type is in backmatterTypes.
+func landmarksBackmatterHrefs(rawNav []byte) map[string]struct{} {
+	hrefs := map[string]struct{}{}
+	section := landmarksSection.FindSubmatch(rawNav)
+	if section == nil {
+		return hrefs
+	}
+	for _, anchor := range landmarksAnchor.FindAll(section[1], -1) {
+		typeMatch := epubTypeAttr.FindSubmatch(anchor)
+		if typeMatch == nil {
+			continue
+		}
+		if _, ok := backmatterTypes[strings.ToLower(string(typeMatch[1]))]; !ok {
+			continue
+		}
+		hrefMatch := hrefAttr.FindSubmatch(anchor)
+		if hrefMatch == nil {
+			continue
+		}
+		hrefs[string(hrefMatch[1])] = struct{}{}
+	}
+	return hrefs
 }
 
 func extractCover(r *zip.ReadCloser, coverFile, opfBaseDir string, coverMaxWidth int) (image.Image, error) {

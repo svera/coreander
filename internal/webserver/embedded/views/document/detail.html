@@ -25,7 +25,7 @@
             {{end}}
         </header>
     </div>
-    <div class="col-12 col-md-4 mt-3 pe-3">
+    <div class="col-12 col-md-4 mt-3 pe-md-3">
         <div class="mb-3">
             {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true "Version" .Version "Eager" true}}
         </div>
@@ -46,7 +46,7 @@
         </ul>
         {{ end }}
     </div>
-    <div class="col-12 col-md-8 ps-3">
+    <div class="col-12 col-md-8 ps-md-3">
         <div class="row">
             <div class="col-12 text-start">
                 {{if .Document.Description}}
@@ -56,7 +56,6 @@
                 {{end}}
             </div>
         </div>
-
 
         {{if gt (len .AuthorSummaries) 0}}
             <hr>
@@ -100,21 +99,29 @@
         </section>
         {{end}}
 
-        {{ $length := len .SameSubjects }} {{ if gt $length 0 }}
-        <section class="row mt-5">
-            <div class="col-9">
-                <h2>{{t .Lang "With similar subjects"}}</h2>
-            </div>
-            <div class="col-3 text-end">
-                <a  href='/documents?subjects={{range $i, $s := .Document.Subjects}}{{if $i}},{{end}}{{urlquery $s}}{{end}}'>
-                        {{t .Lang "See all" }}</a>
-            </div>
+        {{template "partials/document-similar-placeholder" dict "Document" .Document}}
 
-            <div class="row pe-0 align-items-end">
-                {{range $i, $doc := .SameSubjects}}
-                <div class="col-6 col-lg-3 pe-0 mt-3">
-                    {{template "partials/cover" dict "Lang" $.Lang "Document" $doc "Session" $.Session "Version" $.Version}}
-                </div>
+        {{if .Debug}}
+        <section class="row mt-5">
+            <div class="col-12">
+                <h2>TextRank debug</h2>
+                <p><strong>Enriched:</strong> {{.Document.TextRankEnriched}}</p>
+                <p><strong>Words:</strong> {{.Document.Words}}</p>
+                <h3>Phrases</h3>
+                {{if .Document.TextRankPhrases}}
+                <ol>
+                    {{range .Document.TextRankPhrases}}<li>{{.}}</li>{{end}}
+                </ol>
+                {{else}}
+                <p><i>None</i></p>
+                {{end}}
+                <h3>Words</h3>
+                {{if .Document.TextRankWords}}
+                <ol>
+                    {{range .Document.TextRankWords}}<li>{{.}}</li>{{end}}
+                </ol>
+                {{else}}
+                <p><i>None</i></p>
                 {{end}}
             </div>
         </section>

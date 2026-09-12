@@ -9,18 +9,22 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3" data-share-recipients data-users-endpoint="/users/share-recipients" data-remove-label='{{t .Lang "Remove recipient: %s" "%s"}}' data-max-recipients="{{.ShareMaxRecipients}}" data-max-recipients-error='{{t .Lang "Maximum %d recipients allowed" .ShareMaxRecipients}}'>
-                        <label for="share-recipients" class="form-label">{{t .Lang "Share with"}}</label>
                         <input type="hidden" name="recipients" id="share-recipients-hidden">
-                        <input type="text" class="form-control share-recipients-input" id="share-recipients" maxlength="255" required
-                               placeholder='{{t .Lang "Add usernames..."}}' list="share-recipients-list" autocomplete="off" spellcheck="false">
+                        <div class="form-floating">
+                            <input type="text" class="form-control share-recipients-input" id="share-recipients" maxlength="255" required
+                                   placeholder='{{t .Lang "Add usernames..."}}' list="share-recipients-list" autocomplete="off" spellcheck="false">
+                            <label for="share-recipients" class="form-label">{{t .Lang "Share with"}}</label>
+                        </div>
                         <datalist id="share-recipients-list"></datalist>
                         <div class="share-recipients-badges d-flex flex-wrap gap-2 mt-2 d-none"></div>
                         <div class="form-text">{{t .Lang "Select one or more usernames"}}</div>
                     </div>
                     <div class="mb-3">
-                        <label for="share-comment" class="form-label">{{t .Lang "Comment"}}</label>
-                        <textarea class="form-control" id="share-comment" name="comment" rows="3" maxlength="{{.ShareCommentMaxSize}}"
-                                  placeholder='{{t .Lang "Add a comment"}}'></textarea>
+                        <div class="form-floating">
+                            <textarea class="form-control" id="share-comment" name="comment" maxlength="{{.ShareCommentMaxSize}}"
+                                      placeholder='{{t .Lang "Add a comment"}}' style="height: 100px"></textarea>
+                            <label for="share-comment" class="form-label">{{t .Lang "Comment"}}</label>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -98,6 +98,40 @@ export function applyHiddenDatesToVisible(container) {
     })
 }
 
+function hasValue(input) {
+    return input.value.trim() !== '' && input.value !== '0'
+}
+
+function updateDateClearButtonState(dateControl) {
+    const yearInput = dateControl.querySelector('.input-year')
+    const clearButton = dateControl.querySelector('.clear-date-control')
+    if (!yearInput || !clearButton) return
+    clearButton.disabled = !hasValue(yearInput)
+}
+
+function updateRangeClearButtonState(group) {
+    const clearButton = group.querySelector('.clear-range-control')
+    if (!clearButton) return
+    clearButton.disabled = !Array.from(group.querySelectorAll('input')).some(hasValue)
+}
+
+function resetDateControl(dateControl) {
+    const yearInput = dateControl.querySelector('.input-year')
+    const monthSelect = dateControl.querySelector('.input-month')
+    const dayInput = dateControl.querySelector('.input-day')
+    if (!yearInput || !monthSelect || !dayInput) return
+    yearInput.value = ''
+    monthSelect.value = '01'
+    dayInput.value = '1'
+    updateHiddenDateInput(dateControl)
+    updateDateClearButtonState(dateControl)
+}
+
+function resetRangeGroup(group) {
+    group.querySelectorAll('input').forEach(input => { input.value = '' })
+    updateRangeClearButtonState(group)
+}
+
 export function initDateControls(searchFilters, searchFiltersForm) {
     searchFilters.querySelectorAll('.date-control').forEach(dateControl => {
         const monthSelect = dateControl.querySelector('.input-month')
@@ -119,6 +153,7 @@ export function initDateControls(searchFilters, searchFiltersForm) {
 
         yearInput.addEventListener('input', () => {
             updateHiddenDateInput(dateControl)
+            updateDateClearButtonState(dateControl)
         })
 
         dayInput.addEventListener('change', () => {
@@ -129,27 +164,142 @@ export function initDateControls(searchFilters, searchFiltersForm) {
             updateHiddenDateInput(dateControl)
         })
 
+        const clearButton = dateControl.querySelector('.clear-date-control')
+        if (clearButton) {
+            clearButton.addEventListener('click', (e) => {
+                e.preventDefault()
+                resetDateControl(dateControl)
+                yearInput.dispatchEvent(new Event('input', { bubbles: true }))
+            })
+        }
+
         updateMaxDays(monthSelect, dayInput, yearInput, dateControl)
         updateHiddenDateInput(dateControl)
+        updateDateClearButtonState(dateControl)
     })
 
-    return function composeDateControls() {
-        searchFiltersForm.querySelectorAll('.date-control').forEach(el => {
-            const yearEl = el.querySelector('.input-year')
-            if (!yearEl || yearEl.value === '' || yearEl.value === '0') return
-            const composed = el.parentElement.querySelector('.date')
-            if (!composed) return
-            const month = el.querySelector('.input-month').value || '01'
-            const day = (el.querySelector('.input-day').value || '1').padStart(2, '0')
-            composed.value = padYear(yearEl.value) + '-' + month + '-' + day
+    return {
+        compose: function composeDateControls() {
+            searchFiltersForm.querySelectorAll('.date-control').forEach(el => {
+                const yearEl = el.querySelector('.input-year')
+                if (!yearEl || yearEl.value === '' || yearEl.value === '0') return
+                const composed = el.parentElement.querySelector('.date')
+                if (!composed) return
+                const month = el.querySelector('.input-month').value || '01'
+                const day = (el.querySelector('.input-day').value || '1').padStart(2, '0')
+                composed.value = padYear(yearEl.value) + '-' + month + '-' + day
+            })
+        },
+        reset: function resetDateControls() {
+            searchFilters.querySelectorAll('.date-control').forEach(resetDateControl)
+        },
+    }
+}
+
+export function initClearRangeControls(searchFilters) {
+    searchFilters.querySelectorAll('.clear-range-control').forEach(clearLink => {
+        const group = clearLink.closest('.input-group')
+        if (!group) return
+
+        group.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', () => updateRangeClearButtonState(group))
+        })
+
+        clearLink.addEventListener('click', (e) => {
+            e.preventDefault()
+            resetRangeGroup(group)
+            const firstInput = group.querySelector('input')
+            if (firstInput) firstInput.dispatchEvent(new Event('input', { bubbles: true }))
+        })
+
+        updateRangeClearButtonState(group)
+    })
+
+    return function resetRangeControls() {
+        searchFilters.querySelectorAll('.clear-range-control').forEach(clearLink => {
+            const group = clearLink.closest('.input-group')
+            if (group) resetRangeGroup(group)
         })
     }
+}
+
+function sharedSearchInputs(searchFilters, searchFiltersForm) {
+    if (!searchFiltersForm) return []
+    return Array.from(searchFiltersForm.querySelectorAll('input[type="search"]')).filter(el => !searchFilters.contains(el))
+}
+
+function hasActiveFilters(searchFilters, searchFiltersForm) {
+    const isInDateControl = el => el.closest('.date-control')
+
+    if (sharedSearchInputs(searchFilters, searchFiltersForm).some(hasValue)) return true
+
+    const hasTextOrNumberFilter = Array.from(
+        searchFilters.querySelectorAll('input[type="search"], input[type="text"], input[type="number"]')
+    ).some(el => !isInDateControl(el) && hasValue(el))
+    if (hasTextOrNumberFilter) return true
+
+    const hasDateFilter = Array.from(searchFilters.querySelectorAll('.date-control .input-year')).some(hasValue)
+    if (hasDateFilter) return true
+
+    const hasSelectFilter = Array.from(searchFilters.querySelectorAll('select')).some(el => !isInDateControl(el) && el.value !== '')
+    if (hasSelectFilter) return true
+
+    const hasCheckboxFilter = Array.from(searchFilters.querySelectorAll('input[type="checkbox"]')).some(el => el.checked)
+    if (hasCheckboxFilter) return true
+
+    const subjectsHiddenInput = searchFilters.querySelector('input[name="subjects"]')
+    return Boolean(subjectsHiddenInput && subjectsHiddenInput.value.trim() !== '')
+}
+
+export function initClearAllFilters(searchFilters, searchFiltersForm, { resetDateControls, resetRangeControls } = {}) {
+    const clearAllButton = searchFilters.querySelector('.clear-all-filters')
+    if (!clearAllButton) return
+
+    function updateClearAllButtonState() {
+        clearAllButton.disabled = !hasActiveFilters(searchFilters, searchFiltersForm)
+    }
+
+    searchFilters.addEventListener('input', updateClearAllButtonState)
+    searchFilters.addEventListener('change', updateClearAllButtonState)
+    searchFiltersForm.addEventListener('input', updateClearAllButtonState)
+    searchFiltersForm.addEventListener('change', updateClearAllButtonState)
+    new MutationObserver(updateClearAllButtonState).observe(searchFilters, { childList: true, subtree: true })
+
+    clearAllButton.addEventListener('click', (e) => {
+        e.preventDefault()
+
+        searchFilters.querySelectorAll('input[type="search"], input[type="text"]').forEach(input => {
+            input.value = ''
+        })
+        sharedSearchInputs(searchFilters, searchFiltersForm).forEach(input => {
+            input.value = ''
+        })
+        const navSearchbox = document.getElementById('searchbox')
+        if (navSearchbox) navSearchbox.value = ''
+        searchFilters.querySelectorAll('select').forEach(select => {
+            select.value = ''
+        })
+        searchFilters.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = false
+        })
+        resetDateControls?.()
+        resetRangeControls?.()
+
+        const subjectsHiddenInput = searchFilters.querySelector('input[name="subjects"]')
+        if (subjectsHiddenInput) subjectsHiddenInput.value = ''
+        searchFilters.dispatchEvent(new CustomEvent('syncSubjectsFromHiddenInput'))
+
+        searchFiltersForm.dispatchEvent(new Event('input', { bubbles: true }))
+        updateClearAllButtonState()
+    })
+
+    updateClearAllButtonState()
 }
 
 export function syncSidebarFormToOffcanvas({ searchFieldName, offcanvasContainerId, afterCopy }) {
     const sidebarForm = document.getElementById('search-filters-form')
     const offcanvasContainer = document.getElementById(offcanvasContainerId)
-    if (!sidebarForm) return
+    if (!sidebarForm || sidebarForm.dataset.syncNavbar !== 'true') return
 
     const field = sidebarForm.elements[searchFieldName]
     const searchValue = field ? field.value : ''
@@ -163,11 +313,10 @@ export function syncSidebarFormToOffcanvas({ searchFieldName, offcanvasContainer
     copyFormValues(sidebarForm, offcanvasForm)
     if (afterCopy) afterCopy(offcanvasContainer, sidebarForm)
     applyHiddenDatesToVisible(offcanvasContainer)
+    offcanvasContainer.dispatchEvent(new Event('input'))
 }
 
 const FILTER_DEBOUNCE_MS = 600
-
-const SEARCH_LIST_PATHS = new Set(['/search', '/documents', '/authors'])
 
 export function syncSearchTypeFromPane(typeInputId, authorPaneId) {
     const typeInput = document.getElementById(typeInputId)
@@ -205,14 +354,12 @@ function composeAllDateControls(form) {
     form._coreanderComposeDates?.forEach(fn => fn())
 }
 
-function activeSearchListPath(fallbackPath) {
-    if (document.getElementById('search-filters-form')) {
-        return '/search'
-    }
-    if (SEARCH_LIST_PATHS.has(window.location.pathname)) {
-        return window.location.pathname
-    }
-    return fallbackPath
+// Only forms opted into syncing (data-sync-navbar) or the page's own sidebar count as list-driving.
+function listFormFor(searchFiltersForm) {
+    const sidebarForm = document.getElementById('search-filters-form')
+    if (!sidebarForm) return null
+    if (sidebarForm === searchFiltersForm || sidebarForm.dataset.syncNavbar === 'true') return sidebarForm
+    return null
 }
 
 export function initFilterFormBehavior({
@@ -223,13 +370,15 @@ export function initFilterFormBehavior({
     syncOffcanvas,
     beforeSidebarApply,
 }) {
-    const resolvedListPath = activeSearchListPath(listPath)
-    const isListPage = SEARCH_LIST_PATHS.has(window.location.pathname) && document.getElementById('search-filters-form')
+    const sidebarFormForPage = listFormFor(searchFiltersForm)
+    const isListPage = Boolean(sidebarFormForPage)
+    // action may be /documents/:slug/similar instead of /search
+    const resolvedListPath = isListPage ? (sidebarFormForPage.getAttribute('action') || '/search') : listPath
     let applyingFilters = false
 
     function applyFilters() {
         applyingFilters = true
-        const sidebarForm = document.getElementById('search-filters-form')
+        const sidebarForm = listFormFor(searchFiltersForm)
         if (sidebarForm && isListPage) {
             syncSidebarSearchTypeFromPane()
             composeAllDateControls(sidebarForm)
@@ -296,7 +445,7 @@ export function initFilterFormBehavior({
     searchFiltersForm._coreanderComposeDates.push(composeDateControls)
 
     if (isListPage) {
-        document.getElementById('search-filters-form')._coreanderApplyFilters = applyFilters
+        listFormFor(searchFiltersForm)._coreanderApplyFilters = applyFilters
     }
 
     return { scheduleApplyFilters }
@@ -330,7 +479,9 @@ export function initSearchFilters(searchFilters, { syncOffcanvas, beforeSidebarA
     const searchFiltersForm = searchFilters.closest('form')
     if (!searchFiltersForm) return
 
-    const composeDateControls = initDateControls(searchFilters, searchFiltersForm)
+    const { compose: composeDateControls, reset: resetDateControls } = initDateControls(searchFilters, searchFiltersForm)
+    const resetRangeControls = initClearRangeControls(searchFilters)
+    initClearAllFilters(searchFilters, searchFiltersForm, { resetDateControls, resetRangeControls })
 
     if (searchFiltersForm.dataset.coreanderFilterBehavior === 'true') {
         searchFiltersForm._coreanderComposeDates = searchFiltersForm._coreanderComposeDates || []

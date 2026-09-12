@@ -3,7 +3,9 @@ module github.com/svera/coreander/v5
 go 1.25.0
 
 require (
+	github.com/DavidBelicza/TextRank/v2 v2.1.3
 	github.com/Navid2zp/go-wikidata v1.0.1
+	github.com/abadojack/whatlanggo v1.0.1
 	github.com/alecthomas/kong v1.15.0
 	github.com/blevesearch/bleve/v2 v2.6.0
 	github.com/bmatcuk/doublestar/v4 v4.10.0
@@ -19,6 +21,7 @@ require (
 	github.com/kovidgoyal/imaging v1.8.22
 	github.com/magefile/mage v1.17.2
 	github.com/microcosm-cc/bluemonday v1.0.27
+	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/pdfcpu/pdfcpu v0.13.0
 	github.com/rickb777/date/v2 v2.3.12
 	github.com/rjeczalik/notify v0.9.3
@@ -38,7 +41,7 @@ require (
 	github.com/beevik/etree v1.6.0 // indirect
 	github.com/blevesearch/go-faiss v1.1.5 // indirect
 	github.com/blevesearch/zapx/v16 v16.3.4 // indirect
-	github.com/blevesearch/zapx/v17 v17.1.3 // indirect
+	github.com/blevesearch/zapx/v17 v17.1.9 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/glebarez/go-sqlite v1.22.0 // indirect
@@ -78,7 +81,7 @@ require (
 	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/bits-and-blooms/bitset v1.24.5 // indirect
-	github.com/blevesearch/bleve_index_api v1.3.11
+	github.com/blevesearch/bleve_index_api v1.3.12
 	github.com/blevesearch/geo v0.2.5 // indirect
 	github.com/blevesearch/go-porterstemmer v1.0.3 // indirect
 	github.com/blevesearch/gtreap v0.1.1 // indirect

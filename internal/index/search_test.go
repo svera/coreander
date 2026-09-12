@@ -599,7 +599,7 @@ type testCase struct {
 	filename       string
 	mockedMeta     *epub.Information
 	search         index.SearchFields
-	expectedResult result.Paginated[[]index.Document]
+	expectedResult result.CappedPaginatedResult[[]index.Document]
 }
 
 func testIndexAndSearchCases() []testCase {
@@ -626,7 +626,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{Keywords: "perez"},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -648,7 +648,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"history", "middle-age"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Look for a term without circumflex accent must return circumflexed results",
@@ -672,7 +672,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{Keywords: "benoit"},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -694,7 +694,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Look for several, not exact terms must return a result with all those terms, even if there is something in between",
@@ -718,7 +718,7 @@ func testIndexAndSearchCases() []testCase {
 				},
 			},
 			index.SearchFields{Keywords: "clifford simak"},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -740,7 +740,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Look for several, not exact terms must return a result with all those terms, even if there is something in between",
@@ -758,7 +758,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{},
 			},
 			index.SearchFields{Keywords: "james ellroy"},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -779,7 +779,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Look for several, not exact terms with multiple leading, trailing and in-between spaces must return a result with all those terms, even if there is something in between",
@@ -797,7 +797,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{},
 			},
 			index.SearchFields{Keywords: " james       ellroy "},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -818,7 +818,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test genre spanish stemmer",
@@ -836,7 +836,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			index.SearchFields{Keywords: "guerrero"},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -858,7 +858,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"history", "middle-age"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test plural italian stemmer",
@@ -876,7 +876,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			index.SearchFields{Keywords: "fratello"},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -898,7 +898,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"history", "middle-age"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test genre spanish stemmer",
@@ -916,7 +916,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			index.SearchFields{Keywords: "infinito junco"},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -938,7 +938,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"history", "middle-age"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test spanish stemmer returning accented word while using unaccented word in search",
@@ -956,7 +956,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{"History", "WWII"},
 			},
 			index.SearchFields{Keywords: "ultimos"},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -978,7 +978,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"history", "wwii"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Weird case with ',' as subject or '&' as author",
@@ -996,7 +996,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{","},
 			},
 			index.SearchFields{Keywords: "sin nombre"},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1018,7 +1018,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test search with partial title and author",
@@ -1036,7 +1036,7 @@ func testIndexAndSearchCases() []testCase {
 				Subject:     []string{"History", "Middle age"},
 			},
 			index.SearchFields{Keywords: "irene junco"},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1058,7 +1058,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"history", "middle-age"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test date range search",
@@ -1086,7 +1086,7 @@ func testIndexAndSearchCases() []testCase {
 				PubDateFrom: date.New(2020, 1, 1),
 				PubDateTo:   date.New(2020, 12, 31),
 			},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1108,7 +1108,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"history", "modern"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test date range search with year precision",
@@ -1136,7 +1136,7 @@ func testIndexAndSearchCases() []testCase {
 				PubDateFrom: date.New(1970, 1, 1),
 				PubDateTo:   date.New(1980, 1, 1),
 			},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1158,7 +1158,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"history", "ancient"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test search results sorted by publication date older first",
@@ -1185,7 +1185,7 @@ func testIndexAndSearchCases() []testCase {
 				Subjects: "History",
 				SortBy:   []string{"Publication.Date"},
 			},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1207,7 +1207,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"history"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test search results sorted by publication date newer first",
@@ -1234,7 +1234,7 @@ func testIndexAndSearchCases() []testCase {
 				Subjects: "Technology",
 				SortBy:   []string{"-Publication.Date"},
 			},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1256,7 +1256,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"technology"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test multiple books sorted by publication date older first",
@@ -1283,7 +1283,7 @@ func testIndexAndSearchCases() []testCase {
 				Subjects: "Literature",
 				SortBy:   []string{"Publication.Date"},
 			},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1305,7 +1305,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"literature"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test books with different date precisions sorted by publication date",
@@ -1332,7 +1332,7 @@ func testIndexAndSearchCases() []testCase {
 				Subjects: "History",
 				SortBy:   []string{"Publication.Date"},
 			},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1354,7 +1354,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"history"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test search results sorted by reading time shorter first",
@@ -1381,7 +1381,7 @@ func testIndexAndSearchCases() []testCase {
 				Keywords: "short",
 				SortBy:   []string{"Words"},
 			},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1403,7 +1403,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"short-stories"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test search results sorted by reading time longer first",
@@ -1430,7 +1430,7 @@ func testIndexAndSearchCases() []testCase {
 				Keywords: "long",
 				SortBy:   []string{"-Words"},
 			},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1452,7 +1452,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"novels"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test estimated reading time range search",
@@ -1481,7 +1481,7 @@ func testIndexAndSearchCases() []testCase {
 				EstReadTimeTo:   3.0, // 3 hours maximum
 				WordsPerMinute:  200.0,
 			},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1504,7 +1504,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"fiction"},
 					},
 				},
-			),
+			)},
 		},
 		{
 			"Test language filter - search for Spanish documents only",
@@ -1531,7 +1531,7 @@ func testIndexAndSearchCases() []testCase {
 				Keywords: "",
 				Language: "es",
 			},
-			result.NewPaginated(
+			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
 				model.ResultsPerPage,
 				1,
 				1,
@@ -1553,7 +1553,7 @@ func testIndexAndSearchCases() []testCase {
 						SubjectsSlugs: []string{"literature"},
 					},
 				},
-			),
+			)},
 		},
 	}
 }

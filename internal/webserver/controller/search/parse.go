@@ -10,11 +10,15 @@ import (
 	"github.com/svera/coreander/v5/internal/index"
 )
 
-func parseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.SearchFields, error) {
+// ParseDocumentSearchQuery reads document search/filter query params (search,
+// language, subjects, similar, sort-by, pub-date-from/to, est-read-time-from/to,
+// pages-from/to, illustrated-only) into an index.SearchFields.
+func ParseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.SearchFields, error) {
 	searchFields := index.SearchFields{
 		Keywords:        c.Query("search"),
 		Language:        c.Query("language"),
 		Subjects:        c.Query("subjects"),
+		SimilarTo:       similarToSlug(c),
 		SortBy:          parseDocumentSortBy(c),
 		EstReadTimeFrom: fiber.Query[float64](c, "est-read-time-from", 0),
 		EstReadTimeTo:   fiber.Query[float64](c, "est-read-time-to", 0),
@@ -144,7 +148,7 @@ func parseDocumentSortBy(c fiber.Ctx) []string {
 			return []string{"-Words"}
 		}
 	}
-	return []string{"-_score", "Series", "SeriesIndex"}
+	return index.DefaultDocumentSortBy
 }
 
 func parseAuthorSortBy(c fiber.Ctx) []string {
@@ -166,6 +170,16 @@ func parseAuthorSortBy(c fiber.Ctx) []string {
 	default:
 		return []string{"Slug"}
 	}
+}
+
+// similarToSlug returns the document slug a "similar to" search is scoped
+// to. There's no query-string equivalent - the only entry point is the
+// /documents/:slug/similar route, which stashes the slug in Locals before
+// delegating here (see routes.go), keeping the URL path-based rather than
+// exposing it as a "similar" query var.
+func similarToSlug(c fiber.Ctx) string {
+	slug, _ := c.Locals("SimilarToSlug").(string)
+	return slug
 }
 
 func searchTypeFromContext(c fiber.Ctx) string {
