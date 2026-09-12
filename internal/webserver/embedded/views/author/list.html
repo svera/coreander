@@ -21,12 +21,12 @@
     {{end}}
 {{end}}
 
-<div id="author-list-header" class="row mt-5 mb-2 pb-2 border-bottom d-flex">
+<div id="author-list-header" class="row mt-5 mb-2 pb-2 border-bottom d-flex mx-0">
     {{template "partials/author-count-and-sort" .}}
 </div>
 
 <div class="row">
-    <div id="search-filters-sidebar-col" class="col-12 col-xl-3 mt-xl-5 p-0">
+    <div id="search-filters-sidebar-col" class="col-12 col-xl-3 mt-xl-5">
         <div class="offcanvas-xl offcanvas-start search-filters-sidebar-sticky" tabindex="-1" id="author-search-filters-offcanvas" aria-labelledby="author-search-filters-offcanvas-label">
             <div class="offcanvas-header">
                 <h5 class="offcanvas-title" id="author-search-filters-offcanvas-label">{{t .Lang "Filters"}}</h5>

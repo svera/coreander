@@ -1,25 +1,25 @@
-<div id="author-{{.Author.Slug}}" class="card mb-3 bg-body-secondary row">
+<div id="author-{{.Author.Slug}}" class="card mb-3 bg-body-secondary">
     <div class="row">
-        <div class="card-body col-sm-6 col-md-6 col-lg-9 px-0">
+        <div class="card-body col-sm-6 col-md-6 col-lg-9 px-3">
             <div class="d-flex align-items-baseline">
-                <h2 class="card-title ms-3 float-start">{{.Author.Name}}</h2>
+                <h2 class="card-title float-start px-3">{{.Author.Name}}</h2>
                 {{if and (ne .Author.BirthName "") (not .Author.BirthNameIncludesName)}}
-                    <p class="text-body-secondary ms-3 float-start">{{.Author.BirthName}}</p>
+                    <p class="text-body-secondary float-start px-3">{{.Author.BirthName}}</p>
                 {{end}}
             </div>
             {{if eq .Author.DataSourceID ""}}
-                <p class="ms-3"><i>{{t .Lang "Sorry, we don't have information about this author at the moment"}}</i></p>
+                <p class=" px-3"><i>{{t .Lang "Sorry, we don't have information about this author at the moment"}}</i></p>
             {{else if index .Author.Description .Lang}}
-                <p class="card-text ms-3 capitalize lead">{{index .Author.Description .Lang}}</p>
+                <p class="card-text capitalize lead px-3">{{index .Author.Description .Lang}}</p>
             {{end}}
             {{if gt (len .Author.Pseudonyms) 0}}
-                <p class="text-body-secondary ms-3">{{t .Lang "Alias"}}
+                <p class="text-body-secondary px-3">{{t .Lang "Alias"}}
                     {{join .Author.Pseudonyms ", "}}
                 </p>
             {{end}}
 
             {{if ne .Author.DataSourceID ""}}
-            <dl class="ms-3">
+            <dl class="px-3">
                 {{if ne .Author.DateOfBirth.Date 0}}
                     <dt>{{t .Lang "Date of birth"}}</dt>
                     <dd>
@@ -70,7 +70,7 @@
                     </dd>
                 {{end}}
             </dl>
-            <ul class="list-unstyled ms-3">
+            <ul class="list-unstyled px-3">
                 {{if .Author.Website}}
                     <li>
                         <i class="bi-globe-europe-africa me-2"></i>
