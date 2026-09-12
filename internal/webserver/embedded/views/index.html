@@ -36,11 +36,11 @@
 </section>
 
 {{if and (.Session) (ne .Session.Name "")}}
-<div class="row border-bottom">
-    <div class="col-6">
+<div class="row border-bottom mx-0">
+    <div class="col-6 ps-0">
         <h3>{{t .Lang "Your highlights" }}</h3>
     </div>
-    <div class="col-6">
+    <div class="col-6 pe-0">
         <p class="text-end">
             <a href="/highlights">{{t .Lang "See all"}}</a>
         </p>
