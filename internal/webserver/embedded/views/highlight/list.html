@@ -1,9 +1,28 @@
 <h1 class="mt-5">{{t .Lang "Highlights"}}</h1>
 
-{{template "partials/list-placeholder" .}}
+<div id="highlight-list-header" class="row mt-5 mb-2 pb-2 border-bottom d-flex mx-0">
+    {{template "partials/highlight-count-and-sort" .}}
+</div>
 
-<div id="list" hx-get="{{.URL}}" hx-trigger="dehighlight, update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
-    {{ template "partials/highlights-list" .}}
+<div class="row">
+    <div id="search-filters-sidebar-col" class="col-12 col-xl-3 mt-xl-5">
+        <div class="offcanvas-xl offcanvas-start search-filters-sidebar-sticky" tabindex="-1" id="highlight-search-filters-offcanvas" aria-labelledby="highlight-search-filters-offcanvas-label">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="highlight-search-filters-offcanvas-label">{{t .Lang "Filters"}}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#highlight-search-filters-offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                {{template "partials/highlight-search-filters" .}}
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-9">
+        {{template "partials/list-placeholder" .}}
+
+        <div id="list" hx-get="{{.URLPath}}" hx-include="#search-filters-form, #sort-by" hx-select="#list-fragment-body" hx-trigger="dehighlight, update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
+            {{ template "partials/highlights-list" .}}
+        </div>
+    </div>
 </div>
 
 {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document, please try again later"}}
@@ -11,3 +30,4 @@
 <script type="module" src="/js/cover.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/delete.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/complete.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/search-filters-sidebar-pin.js{{versionParam .Version}}"></script>

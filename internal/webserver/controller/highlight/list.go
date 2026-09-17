@@ -5,7 +5,9 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/controller/search"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 	"github.com/svera/coreander/v5/internal/webserver/view"
 )
@@ -54,7 +56,13 @@ func (h *Controller) List(c fiber.Ctx) error {
 	default:
 		filter = "all"
 	}
-	paginatedResults, err := h.sortedHighlightResults(page, user, model.ResultsPerPage, sortBy, filter)
+	searchFields, err := search.ParseDocumentSearchQuery(c, h.wordsPerMinute)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrBadRequest
+	}
+
+	paginatedResults, err := h.sortedHighlightResults(page, user, model.ResultsPerPage, sortBy, filter, searchFields)
 	if err != nil {
 		return err
 	}
@@ -71,18 +79,16 @@ func (h *Controller) List(c fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Results":              paginatedResults,
-		"Paginator":            view.Pagination(model.MaxPagesNavigator, paginatedResults, c.Queries()),
-		"Title":                "Highlights",
-		"EmailFrom":            h.sender.From(),
-		"WordsPerMinute":       h.wordsPerMinute,
-		"URL":                  view.URL(c),
-		"SortURL":              view.BaseURLWithout(c, "sort-by", "page"),
-		"FilterURL":            view.BaseURLWithout(c, "filter", "page"),
-		"SortBy":               c.Query("sort-by"),
-		"HighlightsFilter":     filter,
-		"HighlightsTotalAll":   totalAll,
-		"ShowHighlightsFilter": true,
+		"Results":            paginatedResults,
+		"Paginator":          view.Pagination(model.MaxPagesNavigator, paginatedResults, c.Queries()),
+		"Title":              "Highlights",
+		"EmailFrom":          h.sender.From(),
+		"WordsPerMinute":     h.wordsPerMinute,
+		"SortURL":            view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":             c.Query("sort-by"),
+		"HighlightsFilter":   filter,
+		"SearchFields":       searchFields,
+		"HighlightsTotalAll": totalAll,
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
@@ -93,7 +99,7 @@ func (h *Controller) List(c fiber.Ctx) error {
 	}
 
 	if c.Get("hx-request") == "true" {
-		if err = c.Render("partials/highlights-list", templateVars); err != nil {
+		if err = c.Render("partials/highlights-list-fragments", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
@@ -107,8 +113,8 @@ func (h *Controller) List(c fiber.Ctx) error {
 	return nil
 }
 
-func (h *Controller) sortedHighlightResults(page int, user *model.User, highlightsAmount int, sortBy, filter string) (result.Paginated[[]model.AugmentedDocument], error) {
-	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
+func (h *Controller) sortedHighlightResults(page int, user *model.User, highlightsAmount int, sortBy, filter string, searchFields index.SearchFields) (result.Paginated[[]model.AugmentedDocument], error) {
+	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter, searchFields)
 	if err != nil {
 		log.Println(err)
 		return result.Paginated[[]model.AugmentedDocument]{}, fiber.ErrInternalServerError
@@ -116,7 +122,7 @@ func (h *Controller) sortedHighlightResults(page int, user *model.User, highligh
 
 	if docsSortedByHighlightedDate.TotalPages() < page {
 		page = docsSortedByHighlightedDate.TotalPages()
-		docsSortedByHighlightedDate, err = h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter)
+		docsSortedByHighlightedDate, err = h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, sortBy, filter, searchFields)
 		if err != nil {
 			log.Println(err)
 			return result.Paginated[[]model.AugmentedDocument]{}, fiber.ErrInternalServerError
@@ -138,7 +144,7 @@ func (h *Controller) sortedHighlightResults(page int, user *model.User, highligh
 }
 
 func (h *Controller) latestHighlights(page int, user *model.User, highlightsAmount int) ([]model.AugmentedDocument, error) {
-	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, "created_at DESC", "all")
+	docsSortedByHighlightedDate, err := h.hlRepository.Highlights(int(user.ID), page, highlightsAmount, "created_at DESC", "all", index.SearchFields{})
 	if err != nil {
 		log.Println(err)
 		return nil, fiber.ErrInternalServerError
