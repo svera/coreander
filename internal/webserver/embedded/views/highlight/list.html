@@ -12,7 +12,30 @@
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#highlight-search-filters-offcanvas" aria-label="Close"></button>
             </div>
             <div class="offcanvas-body">
-                {{template "partials/highlight-search-filters" .}}
+                <form id="search-filters-form" action="{{.URLPath}}" method="get" role="search">
+                <div class="search-filters-panel border rounded-4 p-3" id="highlight-search-filters">
+                    <fieldset class="mb-4">
+                        <legend class="fs-5"><i class="bi bi-funnel me-3"></i>{{t .Lang "Show"}}</legend>
+                        <div class="row">
+                            <div class="col-12 px-0">
+                                {{$filter := or .HighlightsFilter "all"}}
+                                <label class="visually-hidden" for="highlight-filter">{{t .Lang "Show"}}</label>
+                                <select class="form-select" name="filter" id="highlight-filter">
+                                    <option value="all" {{if eq $filter "all"}}selected{{end}}>{{t .Lang "All documents (%d)" .HighlightsTotalAll}}</option>
+                                    <option value="highlights" {{if eq $filter "highlights"}}selected{{end}}>{{t .Lang "Only my highlights"}}</option>
+                                    <option value="shared" {{if eq $filter "shared"}}selected{{end}}>{{t .Lang "Only shared documents"}}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </fieldset>
+                    {{template "partials/document-metadata-filters" dict "Lang" .Lang "FilterIdPrefix" "highlight" "SearchFields" .SearchFields "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs}}
+                    {{template "partials/search-filters-actions" dict "Lang" .Lang "ShowSearchButton" false}}
+                </div>
+                </form>
+
+                <script id="i18n" type="application/json">{"i18n":{
+                    "remove_subject": {{t .Lang "Remove subject: %s" "%s"}}
+                }}</script>
             </div>
         </div>
     </div>
@@ -31,3 +54,4 @@
 <script type="module" src="/js/delete.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/complete.js{{versionParam .Version}}"></script>
 <script type="module" src="/js/search-filters-sidebar-pin.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/highlight-search-filters.js{{versionParam .Version}}"></script>
