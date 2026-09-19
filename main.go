@@ -141,7 +141,7 @@ func main() {
 		WordsPerMinute:             input.WordsPerMinute,
 		TextRankEnabled:            input.MinOccurrenceRatio > 0,
 		JwtSecret:                  []byte(input.JwtSecret),
-		FQDN:                       input.FQDN,
+		FQDN:                       webserver.ResolveFQDN(input.FQDN, input.Port),
 		Port:                       input.Port,
 		HomeDir:                    homeDir,
 		CacheDir:                   input.CacheDir,
