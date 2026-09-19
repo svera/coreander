@@ -135,13 +135,23 @@ func main() {
 		}
 	}
 
+	// When FQDN is left at its "localhost" default, links built from it (e.g. the reader's
+	// absolute download URL, see internal/webserver/middleware.go's SetFQDN) must include the
+	// actual listening port, or they silently point at the default HTTP port instead. This
+	// doesn't apply to a custom FQDN, which is typically fronted by a reverse proxy on a
+	// different, standard port than the one this process binds to.
+	fqdn := input.FQDN
+	if strings.EqualFold(fqdn, "localhost") && !strings.Contains(fqdn, ":") {
+		fqdn = fmt.Sprintf("%s:%d", fqdn, input.Port)
+	}
+
 	webserverConfig := webserver.Config{
 		Version:                    version,
 		MinPasswordLength:          input.MinPasswordLength,
 		WordsPerMinute:             input.WordsPerMinute,
 		TextRankEnabled:            input.MinOccurrenceRatio > 0,
 		JwtSecret:                  []byte(input.JwtSecret),
-		FQDN:                       input.FQDN,
+		FQDN:                       fqdn,
 		Port:                       input.Port,
 		HomeDir:                    homeDir,
 		CacheDir:                   input.CacheDir,
