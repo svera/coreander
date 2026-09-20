@@ -63,8 +63,11 @@ func (b *BleveIndexer) endIndexing() {
 }
 
 // NewFile writes the given contents to the library as fileName, indexes it, and returns the document slug.
+// fileName comes from the client-supplied upload filename, so it is reduced to
+// its base name to prevent path traversal (e.g. "../../etc/cron.d/evil.epub")
+// from writing outside libraryPath.
 func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error) {
-	fullPath := filepath.Join(b.libraryPath, fileName)
+	fullPath := filepath.Join(b.libraryPath, filepath.Base(fileName))
 	f, err := b.fs.Create(fullPath)
 	if err != nil {
 		return "", fmt.Errorf("creating file %s: %w", fullPath, err)
@@ -198,6 +201,7 @@ func (b *BleveIndexer) deleteDocumentFromIndex(document Document) error {
 	if err != nil {
 		return err
 	}
+	b.lastIndexed.Delete(document.ID)
 	for _, authorSlug := range authorSlugsFromDocument(document) {
 		author, err := b.Author(authorSlug, "")
 		if err != nil {
