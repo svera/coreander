@@ -99,20 +99,7 @@ func (u *HighlightRepository) searchHighlights(userID int, page int, resultsPerP
 		}
 	}
 
-	total := len(matching)
-	start := (page - 1) * resultsPerPage
-	if start < 0 {
-		start = 0
-	}
-	if start > total {
-		start = total
-	}
-	end := start + resultsPerPage
-	if end > total {
-		end = total
-	}
-
-	return result.NewPaginated(resultsPerPage, page, total, matching[start:end]), nil
+	return result.Paginate(resultsPerPage, page, len(matching), matching), nil
 }
 
 func (u *HighlightRepository) augmentHighlights(highlights []Highlight) ([]AugmentedDocument, error) {

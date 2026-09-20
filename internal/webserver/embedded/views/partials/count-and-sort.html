@@ -4,7 +4,7 @@
 </div>
 {{end}}
 <div class="{{if eq .Results.TotalHits 0}}col-12 px-0{{else}}col-5 col-xl-auto ps-0{{end}} d-xl-none">
-    <button type="button" class="btn btn-outline-secondary w-100 h-100" data-bs-toggle="offcanvas" data-bs-target="#highlight-search-filters-offcanvas" aria-controls="highlight-search-filters-offcanvas" aria-expanded="false" data-bs-auto-close="outside" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders me-2"></i>{{t .Lang "Filters"}}</button>
+    <button type="button" class="btn btn-outline-secondary w-100 h-100" data-bs-toggle="offcanvas" data-bs-target="#{{.FilterIdPrefix}}-search-filters-offcanvas" aria-controls="{{.FilterIdPrefix}}-search-filters-offcanvas" aria-expanded="false" data-bs-auto-close="outside" aria-label='{{t .Lang "Advanced search"}}' title='{{t .Lang "Advanced search"}}'><i class="bi bi-sliders me-2"></i>{{t .Lang "Filters"}}</button>
 </div>
 {{if gt .Results.TotalHits 0}}
 <div class="col-7 col-xl-auto ms-xl-auto text-end pe-0">

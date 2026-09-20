@@ -22,7 +22,7 @@
 {{end}}
 
 <div id="author-list-header" class="row mt-5 mb-2 pb-2 border-bottom d-flex mx-0">
-    {{template "partials/author-count-and-sort" .}}
+    {{template "partials/count-and-sort" dict "Results" .Results "Lang" .Lang "SortURL" .SortURL "SortBy" .SortBy "AdditionalSortOptions" .AdditionalSortOptions "FilterIdPrefix" "author"}}
 </div>
 
 <div class="row">
