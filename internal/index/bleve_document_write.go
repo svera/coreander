@@ -201,6 +201,7 @@ func (b *BleveIndexer) deleteDocumentFromIndex(document Document) error {
 	if err != nil {
 		return err
 	}
+	b.lastIndexed.Delete(document.ID)
 	for _, authorSlug := range authorSlugsFromDocument(document) {
 		author, err := b.Author(authorSlug, "")
 		if err != nil {
