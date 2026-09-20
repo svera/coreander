@@ -41,7 +41,7 @@
         {{template "partials/list-placeholder" .}}
 
         <div id="list" hx-get="{{.URLPath}}" hx-include="#search-filters-form, #sort-by" hx-select="#list-fragment-body" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
-            {{ template "partials/docs-list" . }}
+            {{ template "partials/docs-list-content" . }}
         </div>
     </div>
 </div>
