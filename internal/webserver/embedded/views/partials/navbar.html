@@ -21,9 +21,14 @@
         {{else}}
         <div class="flex-grow-1"></div>
         {{end}}
-        <button class="navbar-toggler flex-shrink-0" type="button" data-bs-toggle="offcanvas"
+        <button class="navbar-toggler flex-shrink-0 position-relative" type="button" data-bs-toggle="offcanvas"
             data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
+            {{if and (.Session) (ne .Session.Name "") (eq .Session.Role 2) .NewVersionAvailable}}
+            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-primary rounded-circle">
+                <span class="visually-hidden">{{t .Lang "New version available"}}</span>
+            </span>
+            {{end}}
         </button>
         <div class="offcanvas-lg offcanvas-end" tabindex="-1" id="offcanvasNavbar"
             aria-labelledby="offcanvasNavbarLabel">
