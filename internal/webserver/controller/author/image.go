@@ -5,9 +5,6 @@ import (
 	"context"
 	"fmt"
 	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
 	"io"
 	"log"
 	"net/http"
@@ -141,20 +138,9 @@ func (a *Controller) readFromDataSource(path string) (image.Image, error) {
 		return nil, fmt.Errorf("failed to fetch image from %s: HTTP %d", path, res.StatusCode)
 	}
 
-	body, err := io.ReadAll(res.Body)
+	img, err := imaging.Decode(res.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read image from %s: %w", path, err)
-	}
-
-	img, err := imaging.Decode(bytes.NewReader(body))
-	if err != nil {
-		// imaging parses embedded ICC/metadata before decoding pixels and can reject
-		// otherwise valid images (e.g. JPEGs with a Gray-colorspace ICC profile).
-		// Fall back to the standard library decoders, which don't do that parsing.
-		img, _, err = image.Decode(bytes.NewReader(body))
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode image from %s: %w", path, err)
-		}
+		return nil, fmt.Errorf("failed to decode image from %s: %w", path, err)
 	}
 
 	if a.config.AuthorImageMaxWidth > 0 && img.Bounds().Max.X >= a.config.AuthorImageMaxWidth {
