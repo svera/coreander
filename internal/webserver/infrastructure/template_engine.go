@@ -63,9 +63,15 @@ func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, er
 		return slug.Make(text)
 	})
 
-	engine.AddFunc("versionParam", func(version string) string {
-		if version != "" && version != "unknown" {
-			return "?v=" + version
+	// version is typed any, not string: after passing through one or more nested
+	// "dict" calls (each rebuilding a map[string]any), text/template's strict
+	// argument-type validation can reject an otherwise-valid string value coming
+	// from a doubly-wrapped interface, so the conversion is done manually here
+	// instead of relying on a typed function signature.
+	engine.AddFunc("versionParam", func(version any) string {
+		v, _ := version.(string)
+		if v != "" && v != "unknown" {
+			return "?v=" + v
 		}
 		return ""
 	})

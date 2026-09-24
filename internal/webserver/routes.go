@@ -2,6 +2,8 @@ package webserver
 
 import (
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/static"
@@ -11,6 +13,13 @@ import (
 )
 
 func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Sender, translator i18n.Translator, cfg Config, idx IndexInfo, usersRepository *model.UserRepository) {
+	// Cache-busting token for static assets, distinct from the release version: a
+	// dev/dirty build's version string doesn't change between rebuilds unless
+	// committed, so relying on it alone can leave a browser (particularly mobile,
+	// which has no "disable cache" escape hatch) stuck serving a stale immutable
+	// asset across multiple rebuilds of the same commit.
+	assetVersion := strconv.FormatInt(time.Now().Unix(), 10)
+
 	// Middlewares
 	var (
 		allowIfNotLoggedIn          = AllowIfNotLoggedIn(jwtSecret)
@@ -50,6 +59,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	app.Use(func(c fiber.Ctx) error {
 		c.Locals("Version", c.App().Config().AppName)
+		c.Locals("AssetVersion", assetVersion)
 		c.Locals("SupportedLanguages", supportedLanguages)
 		c.Locals("Lang", chooseBestLanguage(c))
 		q := c.Queries()

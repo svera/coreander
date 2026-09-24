@@ -1,4 +1,4 @@
-{{$version := .Version}}
+{{$version := .AssetVersion}}
 {{$isAuthors := eq .SearchType "authors"}}
 <div id="placeholder-indicator" class="list-group-placeholder htmx-indicator w-100 list-group list-group-flush" aria-hidden="true">
     {{if .Results}} {{range $i, $result := .Results.Hits}}
