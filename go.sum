@@ -140,6 +140,8 @@ github.com/kovidgoyal/go-parallel v1.1.1 h1:1OzpNjtrUkBPq3UaqrnvOoB2F9RttSt811ui
 github.com/kovidgoyal/go-parallel v1.1.1/go.mod h1:BJNIbe6+hxyFWv7n6oEDPj3PA5qSw5OCtf0hcVxWJiw=
 github.com/kovidgoyal/go-shm v1.0.0 h1:HJEel9D1F9YhULvClEHJLawoRSj/1u/EDV7MJbBPgQo=
 github.com/kovidgoyal/go-shm v1.0.0/go.mod h1:Yzb80Xf9L3kaoB2RGok9hHwMIt7Oif61kT6t3+VnZds=
+github.com/kovidgoyal/imaging v1.8.24-0.20260924154130-9d31d6c5221b h1:W/EPtBsRRV82U2o/O9vbfjjHdmrZSj4WPl19QudeB/Q=
+github.com/kovidgoyal/imaging v1.8.24-0.20260924154130-9d31d6c5221b/go.mod h1:KL7wIaX7IXlZ2IWce6PHqyaLddjZeMEmKUxxNiO0Jtk=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
 github.com/kr/smartypants v0.1.0 h1:Sn8hn5XrY+uXrxSWUdcr621Gfpk11mOGGVs4XX06kEw=
@@ -223,8 +225,6 @@ github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWD
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
 github.com/svera/go-wikidata v1.0.3 h1:8pUzDTfJ60PZsv9F2JZ3UfbvIhS51794xyAd+AaBjGw=
 github.com/svera/go-wikidata v1.0.3/go.mod h1:+yaVnLtz5Zit+B+Ajt+u5a1BHQKhi/9Ya/CRoIHxIjE=
-github.com/svera/imaging v0.0.0-20260924122739-f499af93d444 h1:yhsSze9g8Zud/mOQW1ne+rV7Y8Lsihh/QFVsMUB835E=
-github.com/svera/imaging v0.0.0-20260924122739-f499af93d444/go.mod h1:KL7wIaX7IXlZ2IWce6PHqyaLddjZeMEmKUxxNiO0Jtk=
 github.com/tinylib/msgp v1.6.4 h1:mOwYbyYDLPj35mkA2BjjYejgJk9BuHxDdvRnb6v2ZcQ=
 github.com/tinylib/msgp v1.6.4/go.mod h1:RSp0LW9oSxFut3KzESt5Voq4GVWyS+PSulT77roAqEA=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
