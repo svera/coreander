@@ -128,7 +128,8 @@ func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, user
 		log.Fatal(err)
 	}
 
-	engine, err := infrastructure.TemplateEngine(viewsFS, translator)
+	assetVersion := strconv.FormatInt(time.Now().Unix(), 10)
+	engine, err := infrastructure.TemplateEngine(viewsFS, translator, assetVersion)
 	if err != nil {
 		log.Fatal(err)
 	}

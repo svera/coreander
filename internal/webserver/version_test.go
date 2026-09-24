@@ -10,31 +10,21 @@ import (
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
 
+// TestVersionParameterInURLs checks that static assets always carry a cache-busting
+// query parameter, regardless of the release version. Cache-busting is driven by a
+// per-process asset version, not the release version: a dev/dirty build's version
+// string doesn't change between rebuilds unless committed, so tying cache-busting to
+// it can leave a browser (mobile in particular, which has no "disable cache" escape
+// hatch) stuck serving a stale immutable asset across multiple rebuilds of the same
+// commit.
 func TestVersionParameterInURLs(t *testing.T) {
 	var testCases = []struct {
-		name          string
-		version       string
-		expectVersion bool
-		expectedParam string
+		name    string
+		version string
 	}{
-		{
-			name:          "Version parameter added when version is set",
-			version:       "v1.2.3",
-			expectVersion: true,
-			expectedParam: "?v=v1.2.3",
-		},
-		{
-			name:          "No version parameter when version is empty",
-			version:       "",
-			expectVersion: false,
-			expectedParam: "",
-		},
-		{
-			name:          "No version parameter when version is unknown",
-			version:       "unknown",
-			expectVersion: false,
-			expectedParam: "",
-		},
+		{name: "Version parameter is always present when version is set", version: "v1.2.3"},
+		{name: "Version parameter is always present when version is empty", version: ""},
+		{name: "Version parameter is always present when version is unknown", version: "unknown"},
 	}
 
 	for _, tc := range testCases {
@@ -72,7 +62,7 @@ func TestVersionParameterInURLs(t *testing.T) {
 				t.Fatalf("Failed to parse HTML: %v", err)
 			}
 
-			// Check CSS links for version parameter
+			// Check CSS links for a cache-busting parameter
 			cssLinks := doc.Find("link[rel='stylesheet']")
 			if cssLinks.Length() == 0 {
 				t.Fatal("No CSS links found in the response")
@@ -84,19 +74,12 @@ func TestVersionParameterInURLs(t *testing.T) {
 					t.Error("CSS link missing href attribute")
 					return
 				}
-
-				if tc.expectVersion {
-					if !strings.Contains(href, tc.expectedParam) {
-						t.Errorf("CSS link '%s' should contain version parameter '%s'", href, tc.expectedParam)
-					}
-				} else {
-					if strings.Contains(href, "?v=") {
-						t.Errorf("CSS link '%s' should not contain version parameter", href)
-					}
+				if !strings.Contains(href, "?v=") {
+					t.Errorf("CSS link '%s' should contain a cache-busting parameter", href)
 				}
 			})
 
-			// Check JavaScript links for version parameter
+			// Check JavaScript links for a cache-busting parameter
 			jsLinks := doc.Find("script[src]")
 			if jsLinks.Length() == 0 {
 				t.Fatal("No JavaScript links found in the response")
@@ -108,19 +91,12 @@ func TestVersionParameterInURLs(t *testing.T) {
 					t.Error("JavaScript link missing src attribute")
 					return
 				}
-
-				if tc.expectVersion {
-					if !strings.Contains(src, tc.expectedParam) {
-						t.Errorf("JavaScript link '%s' should contain version parameter '%s'", src, tc.expectedParam)
-					}
-				} else {
-					if strings.Contains(src, "?v=") {
-						t.Errorf("JavaScript link '%s' should not contain version parameter", src)
-					}
+				if !strings.Contains(src, "?v=") {
+					t.Errorf("JavaScript link '%s' should contain a cache-busting parameter", src)
 				}
 			})
 
-			// Check image links for version parameter
+			// Check image links for a cache-busting parameter
 			imgLinks := doc.Find("img[src]")
 			if imgLinks.Length() == 0 {
 				t.Fatal("No image links found in the response")
@@ -135,14 +111,8 @@ func TestVersionParameterInURLs(t *testing.T) {
 
 				// Only check images that are from the /images/ path (static assets)
 				if strings.HasPrefix(src, "/images/") {
-					if tc.expectVersion {
-						if !strings.Contains(src, tc.expectedParam) {
-							t.Errorf("Image link '%s' should contain version parameter '%s'", src, tc.expectedParam)
-						}
-					} else {
-						if strings.Contains(src, "?v=") {
-							t.Errorf("Image link '%s' should not contain version parameter", src)
-						}
+					if !strings.Contains(src, "?v=") {
+						t.Errorf("Image link '%s' should contain a cache-busting parameter", src)
 					}
 				}
 			})
