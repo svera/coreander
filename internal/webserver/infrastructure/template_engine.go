@@ -14,7 +14,13 @@ import (
 	"github.com/svera/coreander/v5/internal/i18n"
 )
 
-func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, error) {
+// TemplateEngine builds the html/template engine. assetVersion is a cache-busting
+// token for static assets (CSS/JS/images), independent of the application's release
+// version: a dev/dirty build's release version doesn't change between rebuilds
+// unless committed, so tying cache-busting to it can leave a browser (mobile in
+// particular, which has no "disable cache" escape hatch) stuck serving a stale
+// immutable asset across multiple rebuilds of the same commit.
+func TemplateEngine(viewsFS fs.FS, translator i18n.Translator, assetVersion string) (*html.Engine, error) {
 	engine := html.NewFileSystem(http.FS(viewsFS), ".html")
 
 	engine.AddFunc("t", func(lang, key string, values ...any) template.HTML {
@@ -63,17 +69,16 @@ func TemplateEngine(viewsFS fs.FS, translator i18n.Translator) (*html.Engine, er
 		return slug.Make(text)
 	})
 
-	// version is typed any, not string: after passing through one or more nested
-	// "dict" calls (each rebuilding a map[string]any), text/template's strict
-	// argument-type validation can reject an otherwise-valid string value coming
-	// from a doubly-wrapped interface, so the conversion is done manually here
-	// instead of relying on a typed function signature.
-	engine.AddFunc("versionParam", func(version any) string {
-		v, _ := version.(string)
-		if v != "" && v != "unknown" {
-			return "?v=" + v
-		}
-		return ""
+	// Bound once at engine construction instead of threaded through every template's
+	// data (which would mean adding it to every "dict" call building a partial's
+	// isolated context, and easy to miss one), since it's process-wide and never
+	// varies per request or per page.
+	engine.AddFunc("assetVersion", func() string {
+		return assetVersion
+	})
+
+	engine.AddFunc("versionParam", func() string {
+		return "?v=" + assetVersion
 	})
 
 	engine.AddFunc("languageName", func(code string) string {

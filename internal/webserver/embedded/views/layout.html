@@ -9,23 +9,23 @@
     <title>{{if .Title}}{{t .Lang .Title}} | {{end}}Coreander</title>
 
     <!-- Bootstrap core CSS -->
-    <link href="/css/bootstrap.min.css{{versionParam .AssetVersion}}" rel="stylesheet">
-    <link href="/css/bootstrap-icons.min.css{{versionParam .AssetVersion}}" rel="stylesheet">
-    <link href="/css/display.css{{versionParam .AssetVersion}}" rel="stylesheet">
+    <link href="/css/bootstrap.min.css{{versionParam}}" rel="stylesheet">
+    <link href="/css/bootstrap-icons.min.css{{versionParam}}" rel="stylesheet">
+    <link href="/css/display.css{{versionParam}}" rel="stylesheet">
     <!-- Break the document-search-filters.js -> search-filter-utils.js -> /subjects critical
          request chain: both are only discoverable after document-search-filters.js is fetched
          and parsed, so fetch them in parallel with it instead of sequentially after it. -->
-    <link rel="modulepreload" href="/js/search-filter-utils.js{{versionParam .AssetVersion}}">
+    <link rel="modulepreload" href="/js/search-filter-utils.js{{versionParam}}">
     <link rel="preload" href="/subjects" as="fetch" crossorigin="use-credentials">
     <!-- Favicons -->
     <meta name="theme-color" content="#000">
-    <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png{{versionParam .AssetVersion}}">
-    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png{{versionParam .AssetVersion}}">
-    <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png{{versionParam .AssetVersion}}">
-    <link rel="manifest" href="/images/site.webmanifest{{versionParam .AssetVersion}}">
-    <link rel="mask-icon" href="/images/safari-pinned-tab.svg{{versionParam .AssetVersion}}" color="#5bbad5">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png{{versionParam}}">
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png{{versionParam}}">
+    <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png{{versionParam}}">
+    <link rel="manifest" href="/images/site.webmanifest{{versionParam}}">
+    <link rel="mask-icon" href="/images/safari-pinned-tab.svg{{versionParam}}" color="#5bbad5">
     <meta name="msapplication-TileColor" content="#da532c">
-    <script src="/js/color-mode-toggler.js{{versionParam .AssetVersion}}"></script>
+    <script src="/js/color-mode-toggler.js{{versionParam}}"></script>
 </head>
 
 <body class="d-flex flex-column h-100" hx-ext="response-targets"{{if and .Session (ne .Session.Name "")}} data-profile-url="/users/{{.Session.Username}}"{{end}}{{if and .Session (eq .Session.Role 2)}} data-admin="true"{{end}}>
@@ -44,9 +44,9 @@
                         rel="noopener noreferrer">{{.Version}}</a></small></span>
         </div>
     </footer>
-    <script src="/js/bootstrap.bundle.min.js{{versionParam .AssetVersion}}"></script>
-    <script src="/js/htmx.min.js{{versionParam .AssetVersion}}"></script>
-    <script src="/js/keyboard-shortcuts.js{{versionParam .AssetVersion}}"></script>
+    <script src="/js/bootstrap.bundle.min.js{{versionParam}}"></script>
+    <script src="/js/htmx.min.js{{versionParam}}"></script>
+    <script src="/js/keyboard-shortcuts.js{{versionParam}}"></script>
     <script>
     function initReadingTimePopovers() {
         document.querySelectorAll('.reading-time-help-popover').forEach(function (el) {
@@ -58,8 +58,8 @@
     document.addEventListener('DOMContentLoaded', initReadingTimePopovers);
     document.body.addEventListener('htmx:afterSettle', initReadingTimePopovers);
     </script>
-    <script type="module" src="/js/share-recipients.js{{versionParam .AssetVersion}}"></script>
-    <script type="module" src="/js/feedback.js{{versionParam .AssetVersion}}"></script>
+    <script type="module" src="/js/share-recipients.js{{versionParam}}"></script>
+    <script type="module" src="/js/feedback.js{{versionParam}}"></script>
 </body>
 
 </html>

@@ -32,10 +32,10 @@
                 </ul>
                 <div class="tab-content home-search-tab-content border border-top-0 rounded-bottom-4 text-start">
                     <div class="tab-pane fade show active" id="home-search-documents-panel" role="tabpanel" aria-labelledby="home-search-tab-documents" tabindex="0">
-                        {{template "partials/document-search-filters" dict "Lang" .Lang "HomeSearch" true "Version" .Version "AssetVersion" .AssetVersion "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs}}
+                        {{template "partials/document-search-filters" dict "Lang" .Lang "HomeSearch" true "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs}}
                     </div>
                     <div class="tab-pane fade" id="home-search-authors-panel" role="tabpanel" aria-labelledby="home-search-tab-authors" tabindex="0">
-                        {{template "partials/author-search-filters" dict "Lang" .Lang "HomeSearch" true "Version" .Version "AssetVersion" .AssetVersion}}
+                        {{template "partials/author-search-filters" dict "Lang" .Lang "HomeSearch" true}}
                     </div>
                 </div>
             </div>
@@ -47,4 +47,4 @@
     "remove_subject": {{t .Lang "Remove subject: %s" "%s"}}
 }}</script>
 
-<script type="module" src="/js/home-search.js{{versionParam .AssetVersion}}"></script>
+<script type="module" src="/js/home-search.js{{versionParam}}"></script>

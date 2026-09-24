@@ -27,9 +27,9 @@
     </div>
     <div class="col-12 col-md-4 mt-3 pe-md-3">
         <div class="mb-3">
-            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true "Version" .Version "AssetVersion" .AssetVersion "Eager" true}}
+            {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true "Eager" true}}
         </div>
-        {{template "partials/actions" dict "Lang" .Lang "Document" .Document "Session" .Session "FQDN" .fqdn "Version" .Version "AssetVersion" .AssetVersion "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "EmailFrom" .EmailFrom "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize "ButtonSize" "btn-lg" "ButtonStyle" "btn-primary"}}
+        {{template "partials/actions" dict "Lang" .Lang "Document" .Document "Session" .Session "FQDN" .fqdn "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "EmailFrom" .EmailFrom "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize "ButtonSize" "btn-lg" "ButtonStyle" "btn-primary"}}
 
         <div id="document-metadata-{{.Document.Slug}}">
             {{template "partials/document-metadata" dict "Lang" .Lang "Document" .Document "Session" .Session "WordsPerMinute" .WordsPerMinute "IllustratedMinAmount" .IllustratedMinAmount}}
@@ -61,7 +61,7 @@
             <hr>
             {{range .AuthorSummaries}}
                 {{if not .Author.RetrievedOn.IsZero}}
-                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" .Author "Session" $.Session "ImageVersion" .ImageVersion "Version" $.Version}}
+                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" .Author "Session" $.Session "ImageVersion" .ImageVersion}}
                 {{else}}
                     {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" .Author.Slug}}
                 {{end}}
@@ -72,7 +72,7 @@
             {{range $i, $entry := .IllustratorSummaries}}
                 {{if eq $i 0}}<hr>{{end}}
                 {{if not $entry.Author.RetrievedOn.IsZero}}
-                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" $entry.Author "Session" $.Session "ImageVersion" $entry.ImageVersion "Version" $.Version}}
+                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" $entry.Author "Session" $.Session "ImageVersion" $entry.ImageVersion}}
                 {{else}}
                     {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" $entry.Author.Slug}}
                 {{end}}
@@ -92,7 +92,7 @@
             <div class="row pe-0 align-items-end">
                 {{range $i, $doc := .SameSeries}}
                     <div class="col-6 col-lg-3 pe-0 mt-3">
-                        {{template "partials/cover" dict "Lang" $.Lang "Document" $doc "Session" $.Session "Version" $.Version}}
+                        {{template "partials/cover" dict "Lang" $.Lang "Document" $doc "Session" $.Session}}
                     </div>
                 {{end}}
             </div>
@@ -129,7 +129,7 @@
     </div>
 </div>
 
-<script type="module" src="/js/highlight.js{{versionParam .AssetVersion}}"></script>
-<script type="module" src="/js/complete.js{{versionParam .AssetVersion}}"></script>
-<script type="module" src="/js/cover.js{{versionParam .AssetVersion}}"></script>
-<script type="module" src="/js/datetime.js{{versionParam .AssetVersion}}"></script>
+<script type="module" src="/js/highlight.js{{versionParam}}"></script>
+<script type="module" src="/js/complete.js{{versionParam}}"></script>
+<script type="module" src="/js/cover.js{{versionParam}}"></script>
+<script type="module" src="/js/datetime.js{{versionParam}}"></script>

@@ -4,7 +4,7 @@
         {{range $i, $document := .Reading}}
         {{if or (eq $.Limit 0) (lt $i $.Limit)}}
         <div class="carousel-item {{if eq $i 0}}active{{end}}">
-            {{template "partials/cover" dict "Lang" $.Lang "Document" $document "Session" $.Session "DisableActions" true "LinkToReader" true "Version" $.Version "ReadingPercentage" $document.ReadingPercentage "CoverTitleSuffix" (printf "%s-%d" $.SuffixPrefix $i)}}
+            {{template "partials/cover" dict "Lang" $.Lang "Document" $document "Session" $.Session "DisableActions" true "LinkToReader" true "ReadingPercentage" $document.ReadingPercentage "CoverTitleSuffix" (printf "%s-%d" $.SuffixPrefix $i)}}
         </div>
         {{end}}
         {{end}}

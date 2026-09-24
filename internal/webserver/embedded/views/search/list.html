@@ -34,11 +34,11 @@
 
 {{if ne .SearchType "authors"}}
 {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
-<script type="module" src="/js/delete.js{{versionParam .AssetVersion}}"></script>
-<script type="module" src="/js/highlight.js{{versionParam .AssetVersion}}"></script>
-<script type="module" src="/js/complete.js{{versionParam .AssetVersion}}"></script>
+<script type="module" src="/js/delete.js{{versionParam}}"></script>
+<script type="module" src="/js/highlight.js{{versionParam}}"></script>
+<script type="module" src="/js/complete.js{{versionParam}}"></script>
 {{else}}
-<script type="module" src="/js/datetime.js{{versionParam .AssetVersion}}"></script>
+<script type="module" src="/js/datetime.js{{versionParam}}"></script>
 {{end}}
-<script type="module" src="/js/cover.js{{versionParam .AssetVersion}}"></script>
-<script type="module" src="/js/search-filters-sidebar-pin.js{{versionParam .AssetVersion}}"></script>
+<script type="module" src="/js/cover.js{{versionParam}}"></script>
+<script type="module" src="/js/search-filters-sidebar-pin.js{{versionParam}}"></script>
