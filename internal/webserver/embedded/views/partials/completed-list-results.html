@@ -7,9 +7,9 @@
     {{range $i, $result := .Results.Hits}}
     <div class="col-6 col-md-3 col-xl-2 pe-0 mt-3">
         <div class="mb-3">
-            {{template "partials/cover" dict "Lang" $.Lang "Document" $result "Session" $.Session "Version" $.Version}}
+            {{template "partials/cover" dict "Lang" $.Lang "Document" $result "Session" $.Session}}
         </div>
-        {{template "partials/actions" dict "Lang" $.Lang "Document" $result "Session" $.Session "FQDN" $.fqdn "Version" $.Version "EmailSendingConfigured" $.EmailSendingConfigured "DefaultAction" $.DefaultAction "CanShare" $.CanShare "PreferredEpub" $.PreferredEpub "ShareMaxRecipients" $.ShareMaxRecipients "ShareCommentMaxSize" $.ShareCommentMaxSize}}
+        {{template "partials/actions" dict "Lang" $.Lang "Document" $result "Session" $.Session "FQDN" $.fqdn "EmailSendingConfigured" $.EmailSendingConfigured "DefaultAction" $.DefaultAction "CanShare" $.CanShare "PreferredEpub" $.PreferredEpub "ShareMaxRecipients" $.ShareMaxRecipients "ShareCommentMaxSize" $.ShareCommentMaxSize}}
     </div>
     {{end}}
 </div>

@@ -1,42 +1,40 @@
-{{if and .Version (ne .Version "unknown")}}
 <script type="importmap">
 {
   "scopes": {
     "/js/": {
-      "./asset-version.js": "./asset-version.js?v={{.Version}}",
-      "./reader-sync.js": "./reader-sync.js?v={{.Version}}",
-      "./menu.js": "./menu.js?v={{.Version}}",
-      "./reader-toast.js": "./reader-toast.js?v={{.Version}}",
-      "./foliate-js/view.js": "./foliate-js/view.js?v={{.Version}}",
-      "./foliate-js/ui/tree.js": "./foliate-js/ui/tree.js?v={{.Version}}",
-      "./foliate-js/overlayer.js": "./foliate-js/overlayer.js?v={{.Version}}",
-      "./foliate-js/epubcfi.js": "./foliate-js/epubcfi.js?v={{.Version}}"
+      "./asset-version.js": "./asset-version.js?v={{assetVersion}}",
+      "./reader-sync.js": "./reader-sync.js?v={{assetVersion}}",
+      "./menu.js": "./menu.js?v={{assetVersion}}",
+      "./reader-toast.js": "./reader-toast.js?v={{assetVersion}}",
+      "./foliate-js/view.js": "./foliate-js/view.js?v={{assetVersion}}",
+      "./foliate-js/ui/tree.js": "./foliate-js/ui/tree.js?v={{assetVersion}}",
+      "./foliate-js/overlayer.js": "./foliate-js/overlayer.js?v={{assetVersion}}",
+      "./foliate-js/epubcfi.js": "./foliate-js/epubcfi.js?v={{assetVersion}}"
     },
     "/js/foliate-js/": {
-      "./view.js": "./view.js?v={{.Version}}",
-      "./epubcfi.js": "./epubcfi.js?v={{.Version}}",
-      "./progress.js": "./progress.js?v={{.Version}}",
-      "./overlayer.js": "./overlayer.js?v={{.Version}}",
-      "./text-walker.js": "./text-walker.js?v={{.Version}}",
-      "./epub.js": "./epub.js?v={{.Version}}",
-      "./comic-book.js": "./comic-book.js?v={{.Version}}",
-      "./pdf.js": "./pdf.js?v={{.Version}}",
-      "./fixed-layout.js": "./fixed-layout.js?v={{.Version}}",
-      "./paginator.js": "./paginator.js?v={{.Version}}",
-      "./search.js": "./search.js?v={{.Version}}",
-      "./tts.js": "./tts.js?v={{.Version}}",
-      "./footnotes.js": "./footnotes.js?v={{.Version}}",
-      "./dict.js": "./dict.js?v={{.Version}}",
-      "./opds.js": "./opds.js?v={{.Version}}",
-      "./uri-template.js": "./uri-template.js?v={{.Version}}",
-      "./quote-image.js": "./quote-image.js?v={{.Version}}",
-      "./vendor/zip.js": "./vendor/zip.js?v={{.Version}}",
-      "./vendor/fflate.js": "./vendor/fflate.js?v={{.Version}}",
-      "./vendor/pdfjs/pdf.mjs": "./vendor/pdfjs/pdf.mjs?v={{.Version}}",
-      "./ui/tree.js": "./ui/tree.js?v={{.Version}}",
-      "./ui/menu.js": "./ui/menu.js?v={{.Version}}"
+      "./view.js": "./view.js?v={{assetVersion}}",
+      "./epubcfi.js": "./epubcfi.js?v={{assetVersion}}",
+      "./progress.js": "./progress.js?v={{assetVersion}}",
+      "./overlayer.js": "./overlayer.js?v={{assetVersion}}",
+      "./text-walker.js": "./text-walker.js?v={{assetVersion}}",
+      "./epub.js": "./epub.js?v={{assetVersion}}",
+      "./comic-book.js": "./comic-book.js?v={{assetVersion}}",
+      "./pdf.js": "./pdf.js?v={{assetVersion}}",
+      "./fixed-layout.js": "./fixed-layout.js?v={{assetVersion}}",
+      "./paginator.js": "./paginator.js?v={{assetVersion}}",
+      "./search.js": "./search.js?v={{assetVersion}}",
+      "./tts.js": "./tts.js?v={{assetVersion}}",
+      "./footnotes.js": "./footnotes.js?v={{assetVersion}}",
+      "./dict.js": "./dict.js?v={{assetVersion}}",
+      "./opds.js": "./opds.js?v={{assetVersion}}",
+      "./uri-template.js": "./uri-template.js?v={{assetVersion}}",
+      "./quote-image.js": "./quote-image.js?v={{assetVersion}}",
+      "./vendor/zip.js": "./vendor/zip.js?v={{assetVersion}}",
+      "./vendor/fflate.js": "./vendor/fflate.js?v={{assetVersion}}",
+      "./vendor/pdfjs/pdf.mjs": "./vendor/pdfjs/pdf.mjs?v={{assetVersion}}",
+      "./ui/tree.js": "./ui/tree.js?v={{assetVersion}}",
+      "./ui/menu.js": "./ui/menu.js?v={{assetVersion}}"
     }
   }
 }
 </script>
-{{end}}

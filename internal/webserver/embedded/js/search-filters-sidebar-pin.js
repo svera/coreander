@@ -6,6 +6,10 @@
  */
 (function () {
   const NAVBAR_CLEARANCE_PX = 96; // 6rem – keep below fixed navbar
+  // Pinning must only apply at the >=xl breakpoint, where the sidebar is a static
+  // column. Below xl it may be a Bootstrap .offcanvas-xl drawer instead, whose own
+  // fixed positioning while hidden/sliding must not be fought with inline styles.
+  const pinMediaQuery = window.matchMedia("(min-width: 1200px)");
 
   const sticky = document.querySelector("#search-filters-sidebar-col .search-filters-sidebar-sticky");
   if (!sticky) return;
@@ -24,7 +28,7 @@
   }
 
   function updatePin() {
-    if (window.getComputedStyle(column).display === "none") {
+    if (!pinMediaQuery.matches || window.getComputedStyle(column).display === "none") {
       clearPin();
       ticking = false;
       return;
