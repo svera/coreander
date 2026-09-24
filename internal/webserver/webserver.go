@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -111,6 +112,15 @@ func SupportedLanguages() []string {
 	return supportedLanguages
 }
 
+// ResolveFQDN appends port to fqdn when fqdn is the "localhost" default and has no port of its own.
+// A custom FQDN is left untouched, since it's typically fronted by a reverse proxy on a different port.
+func ResolveFQDN(fqdn string, port int) string {
+	if strings.EqualFold(fqdn, "localhost") && !strings.Contains(fqdn, ":") {
+		return fmt.Sprintf("%s:%d", fqdn, port)
+	}
+	return fqdn
+}
+
 // New builds a new Fiber application and set up the required routes
 func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, usersRepository *model.UserRepository) *fiber.App {
 	viewsFS, err := fs.Sub(embedded, "embedded/views")
@@ -118,7 +128,8 @@ func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, user
 		log.Fatal(err)
 	}
 
-	engine, err := infrastructure.TemplateEngine(viewsFS, translator)
+	assetVersion := strconv.FormatInt(time.Now().Unix(), 10)
+	engine, err := infrastructure.TemplateEngine(viewsFS, translator, assetVersion)
 	if err != nil {
 		log.Fatal(err)
 	}

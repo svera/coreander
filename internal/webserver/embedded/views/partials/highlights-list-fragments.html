@@ -1,0 +1,4 @@
+<div id="highlight-list-header" class="row mt-5 mb-2 pb-2 border-bottom d-flex mx-0" hx-swap-oob="true">
+    {{template "partials/count-and-sort" dict "Results" .Results "Lang" .Lang "SortURL" .SortURL "SortBy" .SortBy "AdditionalSortOptions" .AdditionalSortOptions "FilterIdPrefix" "highlight"}}
+</div>
+<div id="list-fragment-body">{{template "partials/highlights-list" .}}</div>

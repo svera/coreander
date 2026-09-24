@@ -1,6 +1,6 @@
 {{if ne .Author.Name ""}}
     {{if not .Author.RetrievedOn.IsZero}}
-        {{template "partials/author-summary" dict "Lang" .Lang "Author" .Author "Session" .Session "ImageVersion" .ImageVersion "Version" .Version}}
+        {{template "partials/author-summary" dict "Lang" .Lang "Author" .Author "Session" .Session "ImageVersion" .ImageVersion}}
     {{else}}
     <div hx-get="/authors/{{.Author.Slug}}/summary" hx-trigger="load" hx-target="this">
         <div class="card mb-3 bg-body-secondary placeholder-glow">
@@ -22,7 +22,7 @@
 {{end}}
 
 <div id="author-list-header" class="row mt-5 mb-2 pb-2 border-bottom d-flex mx-0">
-    {{template "partials/author-count-and-sort" .}}
+    {{template "partials/count-and-sort" dict "Results" .Results "Lang" .Lang "SortURL" .SortURL "SortBy" .SortBy "AdditionalSortOptions" .AdditionalSortOptions "FilterIdPrefix" "author"}}
 </div>
 
 <div class="row">
@@ -41,16 +41,16 @@
         {{template "partials/list-placeholder" .}}
 
         <div id="list" hx-get="{{.URLPath}}" hx-include="#search-filters-form, #sort-by" hx-select="#list-fragment-body" hx-trigger="update from:body" hx-indicator="#placeholder-indicator" class="list-group list-group-flush">
-            {{ template "partials/docs-list" . }}
+            {{ template "partials/docs-list-content" . }}
         </div>
     </div>
 </div>
 
 {{template "partials/delete-modal" dict "Lang" .Lang "Action" "/documents" "ModalHeader" "Delete document" "ModalBody" "Are you sure you want to delete this document?" "ModalErrorMessage" "There was an error deleting the document"}}
 
-<script type="module" src="/js/delete.js{{versionParam .Version}}"></script>
-<script type="module" src="/js/highlight.js{{versionParam .Version}}"></script>
-<script type="module" src="/js/complete.js{{versionParam .Version}}"></script>
-<script type="module" src="/js/cover.js{{versionParam .Version}}"></script>
-<script type="module" src="/js/datetime.js{{versionParam .Version}}"></script>
-<script type="module" src="/js/search-filters-sidebar-pin.js{{versionParam .Version}}"></script>
+<script type="module" src="/js/delete.js{{versionParam}}"></script>
+<script type="module" src="/js/highlight.js{{versionParam}}"></script>
+<script type="module" src="/js/complete.js{{versionParam}}"></script>
+<script type="module" src="/js/cover.js{{versionParam}}"></script>
+<script type="module" src="/js/datetime.js{{versionParam}}"></script>
+<script type="module" src="/js/search-filters-sidebar-pin.js{{versionParam}}"></script>

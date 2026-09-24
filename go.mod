@@ -1,6 +1,6 @@
 module github.com/svera/coreander/v5
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/DavidBelicza/TextRank/v2 v2.1.3
@@ -18,7 +18,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/hhrutter/tiff v1.0.5
-	github.com/kovidgoyal/imaging v1.8.22
+	github.com/kovidgoyal/imaging v1.8.24-0.20260924154130-9d31d6c5221b
 	github.com/magefile/mage v1.17.2
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
@@ -28,8 +28,8 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/wneessen/go-mail v0.8.1
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
-	golang.org/x/mod v0.37.0
-	golang.org/x/text v0.40.0
+	golang.org/x/mod v0.41.0
+	golang.org/x/text v0.42.0
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/gorm v1.31.2
 )
@@ -69,7 +69,7 @@ require (
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
 	modernc.org/libc v1.73.5 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
@@ -112,9 +112,9 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.72.0
 	go.etcd.io/bbolt v1.5.0 // indirect
-	golang.org/x/image v0.43.0 // indirect
+	golang.org/x/image v0.46.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
