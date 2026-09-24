@@ -18,7 +18,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/hhrutter/tiff v1.0.5
-	github.com/kovidgoyal/imaging v1.8.22
+	github.com/kovidgoyal/imaging v1.8.24-0.20260924154130-9d31d6c5221b
 	github.com/magefile/mage v1.17.2
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
@@ -119,5 +119,3 @@ require (
 )
 
 replace github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.3
-
-replace github.com/kovidgoyal/imaging => github.com/svera/imaging v0.0.0-20260924122739-f499af93d444
