@@ -381,15 +381,16 @@ type prunedTextRankEntries struct {
 
 // pruneCommonTextRankEntries removes TextRankPhrases/TextRankWords entries
 // that appear in more than commonTextRankEntryRatio of the library from every
-// document that has them, and persists the change. Run as the final step of
-// EnrichTextRankKeywords rather than inside rankDocument, since "common" is a
-// whole-library property that can only be measured after looking at every
-// document's already-stored keywords, not something a single document's own
-// TextRank pass can know about itself. Uses the exact strings already stored
-// in TextRankPhrases/TextRankWords (rather than Bleve's field term
-// dictionary) because those fields are tokenized for search - the term
-// dictionary would report per-word frequency, not per-phrase frequency, for
-// TextRankPhrases.
+// document that has them. A phrase is also removed if either of its words is
+// common, since such a phrase is unlikely to be useful for relating documents.
+// Run as the final step of EnrichTextRankKeywords rather than inside
+// rankDocument, since "common" is a whole-library property that can only be
+// measured after looking at every document's already-stored keywords, not
+// something a single document's own TextRank pass can know about itself. Uses
+// the exact strings already stored in TextRankPhrases/TextRankWords (rather
+// than Bleve's field term dictionary) because those fields are tokenized for
+// search - the term dictionary would report per-word frequency, not
+// per-phrase frequency, for TextRankPhrases.
 //
 // Two paginated passes, both requesting only TextRankPhrases/TextRankWords:
 // the first tallies corpus frequency; the second re-scans per batch against
@@ -506,7 +507,7 @@ func (b *BleveIndexer) rewriteCommonTextRankEntries(docCount uint64, batchSize i
 		for _, hit := range result.Hits {
 			phrases := slicer(hit.Fields["TextRankPhrases"])
 			words := slicer(hit.Fields["TextRankWords"])
-			prunedPhrases := filterOutCommonTextRankEntries(phrases, phraseDocCount, threshold)
+			prunedPhrases := filterOutCommonTextRankPhrases(phrases, phraseDocCount, wordDocCount, threshold)
 			prunedWords := filterOutCommonTextRankEntries(words, wordDocCount, threshold)
 			if len(prunedPhrases) == len(phrases) && len(prunedWords) == len(words) {
 				continue
@@ -593,6 +594,31 @@ func filterOutCommonTextRankEntries(entries []string, docCount map[string]int, t
 			continue
 		}
 		out = append(out, entry)
+	}
+	return out
+}
+
+// filterOutCommonTextRankPhrases removes phrases that are themselves common
+// or contain a word whose TextRankWords document count exceeds threshold.
+func filterOutCommonTextRankPhrases(phrases []string, phraseDocCount, wordDocCount map[string]int, threshold float64) []string {
+	if len(phrases) == 0 {
+		return phrases
+	}
+	out := make([]string, 0, len(phrases))
+	for _, phrase := range phrases {
+		if float64(phraseDocCount[phrase]) > threshold {
+			continue
+		}
+		containsCommonWord := false
+		for _, word := range strings.Fields(phrase) {
+			if float64(wordDocCount[word]) > threshold {
+				containsCommonWord = true
+				break
+			}
+		}
+		if !containsCommonWord {
+			out = append(out, phrase)
+		}
 	}
 	return out
 }

@@ -155,7 +155,8 @@ type Config struct {
 	// phrase or word may appear in before it's treated as too generic to be
 	// useful for keyword search or "similar document" recommendations (e.g. a
 	// genre-wide word, or a series' recurring character name) and stripped
-	// from every document that has it.
+	// from every document that has it. Phrases are also stripped if either
+	// word is common.
 	CommonTextRankEntryRatio float64
 	// MinCommonTextRankAbsoluteCount floors the document-count threshold
 	// computed from CommonTextRankEntryRatio, so a small library can't have
