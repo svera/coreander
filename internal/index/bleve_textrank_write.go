@@ -438,10 +438,18 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 			// type-asserts every Metadata field unconditionally); this pass
 			// only requests TextRankPhrases/TextRankWords, so read those two
 			// directly via slicer instead.
-			for _, phrase := range uniqueTextRankEntries(slicer(hit.Fields["TextRankPhrases"])) {
-				phraseDocCount[phrase]++
-			}
+			phrases := uniqueTextRankEntries(slicer(hit.Fields["TextRankPhrases"]))
+			documentWords := make(map[string]struct{})
 			for _, word := range uniqueTextRankEntries(slicer(hit.Fields["TextRankWords"])) {
+				documentWords[word] = struct{}{}
+			}
+			for _, phrase := range phrases {
+				phraseDocCount[phrase]++
+				for _, word := range strings.Fields(phrase) {
+					documentWords[word] = struct{}{}
+				}
+			}
+			for word := range documentWords {
 				wordDocCount[word]++
 			}
 		}
@@ -599,7 +607,7 @@ func filterOutCommonTextRankEntries(entries []string, docCount map[string]int, t
 }
 
 // filterOutCommonTextRankPhrases removes phrases that are themselves common
-// or contain a word whose TextRankWords document count exceeds threshold.
+// or contain a word whose corpus document count exceeds threshold.
 func filterOutCommonTextRankPhrases(phrases []string, phraseDocCount, wordDocCount map[string]int, threshold float64) []string {
 	if len(phrases) == 0 {
 		return phrases
