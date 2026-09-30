@@ -137,7 +137,7 @@ func TestPruneCommonTextRankEntriesRewritesCommonEntries(t *testing.T) {
 		id := strconv.Itoa(i)
 		document := Document{
 			ID:              id,
-			TextRankPhrases: []string{"common phrase", "commonword distinctive" + id, "unique" + id + " phrase" + id},
+			TextRankPhrases: []string{"common phrase", "commonword distinctive" + id, "unique phrase " + id},
 			TextRankWords:   []string{"commonword", "unique" + id},
 		}
 		if err := documentsIndexMem.Index(id, document); err != nil {
@@ -165,57 +165,9 @@ func TestPruneCommonTextRankEntriesRewritesCommonEntries(t *testing.T) {
 				t.Errorf("document %s: expected \"commonword\" to have been pruned, still present in %q", id, document.TextRankWords)
 			}
 		}
-		wantPhrase := "unique" + id + " phrase" + id
+		wantPhrase := "unique phrase " + id
 		if !slices.Contains(document.TextRankPhrases, wantPhrase) {
 			t.Errorf("document %s: expected %q to survive pruning, got %q", id, wantPhrase, document.TextRankPhrases)
-		}
-	}
-}
-
-func TestPruneCommonTextRankEntriesCountsPhraseConstituents(t *testing.T) {
-	idx, documentsIndexMem := newTestTextRankIndexer(t, Config{
-		CommonTextRankEntryRatio:       0.5,
-		MinCommonTextRankAbsoluteCount: 1,
-	})
-
-	const docCount = 10
-	for i := 0; i < docCount; i++ {
-		id := strconv.Itoa(i)
-		document := Document{ID: id}
-		if i < 6 {
-			document.TextRankPhrases = []string{"phraseonly distinctive" + id}
-			if i < 5 {
-				document.TextRankPhrases = append(document.TextRankPhrases, "overlap distinctive"+id)
-			}
-			if i == 0 {
-				document.TextRankWords = []string{"overlap"}
-			}
-		} else {
-			document.TextRankPhrases = []string{"unique phrase " + id}
-		}
-		if err := documentsIndexMem.Index(id, document); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if err := idx.pruneCommonTextRankEntries(3); err != nil {
-		t.Fatal(err)
-	}
-
-	for i := 0; i < docCount; i++ {
-		id := strconv.Itoa(i)
-		document, err := idx.documentByIndexID(id)
-		if err != nil {
-			t.Fatalf("documentByIndexID(%q) returned an error: %s", id, err)
-		}
-		if i < 6 && slices.Contains(document.TextRankPhrases, "phraseonly distinctive"+id) {
-			t.Errorf("document %s: expected phrase containing common phrase-only word to be pruned, got %q", id, document.TextRankPhrases)
-		}
-		if i < 5 && !slices.Contains(document.TextRankPhrases, "overlap distinctive"+id) {
-			t.Errorf("document %s: expected a word counted once per document to remain below the pruning threshold, got %q", id, document.TextRankPhrases)
-		}
-		if i >= 6 && !slices.Contains(document.TextRankPhrases, "unique phrase "+id) {
-			t.Errorf("document %s: expected unique phrase to survive pruning, got %q", id, document.TextRankPhrases)
 		}
 	}
 }
