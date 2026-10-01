@@ -137,7 +137,7 @@ func TestPruneCommonTextRankEntriesRewritesCommonEntries(t *testing.T) {
 		id := strconv.Itoa(i)
 		document := Document{
 			ID:              id,
-			TextRankPhrases: []string{"common phrase", "unique phrase " + id},
+			TextRankPhrases: []string{"common phrase", "commonword distinctive" + id, "unique phrase " + id},
 			TextRankWords:   []string{"commonword", "unique" + id},
 		}
 		if err := documentsIndexMem.Index(id, document); err != nil {
@@ -156,8 +156,8 @@ func TestPruneCommonTextRankEntriesRewritesCommonEntries(t *testing.T) {
 			t.Fatalf("documentByIndexID(%q) returned an error: %s", id, err)
 		}
 		for _, phrase := range document.TextRankPhrases {
-			if phrase == "common phrase" {
-				t.Errorf("document %s: expected \"common phrase\" to have been pruned, still present in %q", id, document.TextRankPhrases)
+			if phrase == "common phrase" || phrase == "commonword distinctive"+id {
+				t.Errorf("document %s: expected common phrase or phrase containing commonword to have been pruned, still present in %q", id, document.TextRankPhrases)
 			}
 		}
 		for _, word := range document.TextRankWords {
