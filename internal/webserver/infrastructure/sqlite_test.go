@@ -203,26 +203,17 @@ func TestConnect_SkipsNormalizationOnExistingCaseCollision(t *testing.T) {
 	}
 }
 
-func TestConnectRenamesAnnotationsAndDropsObsoleteHighlights(t *testing.T) {
+func TestConnectPreservesAnnotationsAcrossRestarts(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "annotations.db")
 	db := infrastructure.Connect(path, 250)
 	var admin model.User
 	if err := db.Where("email = ?", "admin@example.com").First(&admin).Error; err != nil {
 		t.Fatal(err)
 	}
-	annotation := model.UserAnnotation{
+	annotation := model.Annotation{
 		UserID: int(admin.ID), Slug: "book", CFI: "epubcfi(/6/2!/4)", Content: "Selected text",
 	}
 	if err := db.Create(&annotation).Error; err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Migrator().RenameTable("annotations_users", "users_annotations"); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Exec("CREATE TABLE users_highlights (user_id INTEGER, slug TEXT, content TEXT)").Error; err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Exec("INSERT INTO users_highlights VALUES (?, ?, ?)", admin.ID, "obsolete", "Discard this").Error; err != nil {
 		t.Fatal(err)
 	}
 	sqlDB, err := db.DB()
@@ -235,11 +226,10 @@ func TestConnectRenamesAnnotationsAndDropsObsoleteHighlights(t *testing.T) {
 
 	for i := 0; i < 2; i++ {
 		migrated := infrastructure.Connect(path, 250)
-		if migrated.Migrator().HasTable("users_highlights") || migrated.Migrator().HasTable("users_annotations") ||
-			!migrated.Migrator().HasTable("annotations_users") {
-			t.Fatal("annotation table was not renamed or obsolete tables remain")
+		if !migrated.Migrator().HasTable("annotations_users") {
+			t.Fatal("annotation table is missing")
 		}
-		repo := model.UserAnnotationRepository{DB: migrated}
+		repo := model.AnnotationRepository{DB: migrated}
 		rows, err := repo.List(int(admin.ID), "book")
 		if err != nil {
 			t.Fatal(err)

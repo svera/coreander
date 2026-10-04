@@ -87,7 +87,7 @@ func TestAnnotations(t *testing.T) {
 		request(http.MethodPost, slug, strings.Replace(first, "First phrase", "<b>Updated phrase</b>", 1),
 			adminCookie, http.StatusNoContent)
 		raw := request(http.MethodGet, slug, "", adminCookie, http.StatusOK)
-		var annotations []model.UserAnnotation
+		var annotations []model.Annotation
 		if err := json.Unmarshal(raw, &annotations); err != nil {
 			t.Fatal(err)
 		}
@@ -108,7 +108,7 @@ func TestAnnotations(t *testing.T) {
 		}
 		request(http.MethodPost, slug, first, otherCookie, http.StatusNoContent)
 		var count int64
-		if err := db.Model(&model.UserAnnotation{}).Where("slug = ?", slug).Count(&count).Error; err != nil {
+		if err := db.Model(&model.Annotation{}).Where("slug = ?", slug).Count(&count).Error; err != nil {
 			t.Fatal(err)
 		}
 		if count != 3 {
@@ -123,7 +123,7 @@ func TestAnnotations(t *testing.T) {
 		request(http.MethodDelete, "missing-document", first, adminCookie, http.StatusNotFound)
 		request(http.MethodDelete, slug, first, otherCookie, http.StatusNoContent)
 		request(http.MethodDelete, slug, first, otherCookie, http.StatusNoContent)
-		var rows []model.UserAnnotation
+		var rows []model.Annotation
 		if err := db.Where("slug = ?", slug).Find(&rows).Error; err != nil {
 			t.Fatal(err)
 		}
@@ -132,7 +132,7 @@ func TestAnnotations(t *testing.T) {
 		}
 		request(http.MethodDelete, slug, first, adminCookie, http.StatusNoContent)
 		raw := request(http.MethodGet, slug, "", adminCookie, http.StatusOK)
-		var remaining []model.UserAnnotation
+		var remaining []model.Annotation
 		if err := json.Unmarshal(raw, &remaining); err != nil {
 			t.Fatal(err)
 		}
@@ -146,7 +146,7 @@ func TestAnnotations(t *testing.T) {
 			t.Fatal(err)
 		}
 		var count int64
-		if err := db.Model(&model.UserAnnotation{}).Where("user_id = ?", other.ID).Count(&count).Error; err != nil {
+		if err := db.Model(&model.Annotation{}).Where("user_id = ?", other.ID).Count(&count).Error; err != nil {
 			t.Fatal(err)
 		}
 		if count != 0 {
@@ -168,7 +168,7 @@ func TestAnnotations(t *testing.T) {
 			t.Fatalf("delete status = %d", resp.StatusCode)
 		}
 		var count int64
-		if err := db.Model(&model.UserAnnotation{}).Where("slug = ?", slug).Count(&count).Error; err != nil {
+		if err := db.Model(&model.Annotation{}).Where("slug = ?", slug).Count(&count).Error; err != nil {
 			t.Fatal(err)
 		}
 		if count != 0 {

@@ -3,6 +3,7 @@ package webserver
 import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/webserver/controller/annotation"
 	"github.com/svera/coreander/v5/internal/webserver/controller/auth"
 	"github.com/svera/coreander/v5/internal/webserver/controller/author"
 	"github.com/svera/coreander/v5/internal/webserver/controller/completed"
@@ -17,15 +18,16 @@ import (
 )
 
 type Controllers struct {
-	Auth       *auth.Controller
-	Users      *user.Controller
-	Completed  *completed.Controller
-	Highlights *highlight.Controller
-	Documents  *document.Controller
-	Home       *home.Controller
-	Authors    *author.Controller
-	Search     *search.Controller
-	Series     *series.Controller
+	Annotations *annotation.Controller
+	Auth        *auth.Controller
+	Users       *user.Controller
+	Completed   *completed.Controller
+	Highlights  *highlight.Controller
+	Documents   *document.Controller
+	Home        *home.Controller
+	Authors     *author.Controller
+	Search      *search.Controller
+	Series      *series.Controller
 }
 
 func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {
@@ -33,7 +35,7 @@ func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender S
 	invitationsRepository := &model.InvitationRepository{DB: db}
 	highlightsRepository := &model.HighlightRepository{DB: db, Idx: idx, IllustratedMinAmount: cfg.IllustratedMinAmount}
 	readingRepository := &model.ReadingRepository{DB: db, Idx: idx}
-	userAnnotationsRepository := &model.UserAnnotationRepository{DB: db}
+	annotationsRepository := &model.AnnotationRepository{DB: db}
 
 	authCfg := auth.Config{
 		MinPasswordLength: cfg.MinPasswordLength,
@@ -104,13 +106,14 @@ func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender S
 	go authorsController.MigrateJPEGsToWebP()
 
 	return Controllers{
-		Auth:       auth.NewController(usersRepository, sender, authCfg, translator),
-		Users:      user.NewController(usersRepository, invitationsRepository, usersCfg, sender, translator),
-		Completed:  completed.NewController(readingRepository, idx),
-		Highlights: highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
-		Documents:  document.NewController(highlightsRepository, usersRepository, readingRepository, userAnnotationsRepository, sender, idx, appFs, documentsCfg, translator),
-		Home:       home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),
-		Authors:    authorsController,
-		Search:     search.NewController(highlightsRepository, readingRepository, sender, idx, searchCfg),
-		Series:     series.NewController(highlightsRepository, readingRepository, sender, idx, seriesCfg, appFs)}
+		Annotations: annotation.NewController(annotationsRepository, idx),
+		Auth:        auth.NewController(usersRepository, sender, authCfg, translator),
+		Users:       user.NewController(usersRepository, invitationsRepository, usersCfg, sender, translator),
+		Completed:   completed.NewController(readingRepository, idx),
+		Highlights:  highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
+		Documents:   document.NewController(highlightsRepository, usersRepository, readingRepository, annotationsRepository, sender, idx, appFs, documentsCfg, translator),
+		Home:        home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),
+		Authors:     authorsController,
+		Search:      search.NewController(highlightsRepository, readingRepository, sender, idx, searchCfg),
+		Series:      series.NewController(highlightsRepository, readingRepository, sender, idx, seriesCfg, appFs)}
 }

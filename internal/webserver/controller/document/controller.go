@@ -60,10 +60,7 @@ type readingRepository interface {
 	CompletedPaginatedResult(userID int, results result.Paginated[[]model.AugmentedDocument]) result.Paginated[[]model.AugmentedDocument]
 }
 
-type userAnnotationsRepository interface {
-	Save(userID int, slug, cfi, content string) error
-	Delete(userID int, slug, cfi string) error
-	List(userID int, slug string) ([]model.UserAnnotation, error)
+type annotationsRepository interface {
 	RemoveDocument(slug string) error
 }
 
@@ -83,27 +80,27 @@ type Config struct {
 }
 
 type Controller struct {
-	hlRepository              highlightsRepository
-	usersRepository           usersRepository
-	readingRepository         readingRepository
-	userAnnotationsRepository userAnnotationsRepository
-	idx                       IdxReaderWriter
-	sender                    Sender
-	config                    Config
-	appFs                     afero.Fs
-	translator                i18n.Translator
+	hlRepository          highlightsRepository
+	usersRepository       usersRepository
+	readingRepository     readingRepository
+	annotationsRepository annotationsRepository
+	idx                   IdxReaderWriter
+	sender                Sender
+	config                Config
+	appFs                 afero.Fs
+	translator            i18n.Translator
 }
 
-func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, userAnnotationsRepository userAnnotationsRepository, sender Sender, idx IdxReaderWriter, appFs afero.Fs, cfg Config, translator i18n.Translator) *Controller {
+func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, annotationsRepository annotationsRepository, sender Sender, idx IdxReaderWriter, appFs afero.Fs, cfg Config, translator i18n.Translator) *Controller {
 	return &Controller{
-		hlRepository:              hlRepository,
-		usersRepository:           usersRepository,
-		readingRepository:         readingRepository,
-		userAnnotationsRepository: userAnnotationsRepository,
-		idx:                       idx,
-		sender:                    sender,
-		config:                    cfg,
-		appFs:                     appFs,
-		translator:                translator,
+		hlRepository:          hlRepository,
+		usersRepository:       usersRepository,
+		readingRepository:     readingRepository,
+		annotationsRepository: annotationsRepository,
+		idx:                   idx,
+		sender:                sender,
+		config:                cfg,
+		appFs:                 appFs,
+		translator:            translator,
 	}
 }

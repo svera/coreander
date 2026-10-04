@@ -1,4 +1,4 @@
-package document
+package annotation
 
 import (
 	"log"
@@ -8,8 +8,8 @@ import (
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
-func (d *Controller) SaveAnnotation(c fiber.Ctx) error {
-	userID, slug, err := d.annotationOwner(c)
+func (a *Controller) Save(c fiber.Ctx) error {
+	userID, slug, err := a.owner(c)
 	if err != nil {
 		return err
 	}
@@ -20,22 +20,22 @@ func (d *Controller) SaveAnnotation(c fiber.Ctx) error {
 	if err := c.Bind().Body(&body); err != nil {
 		return fiber.ErrBadRequest
 	}
-	if !validAnnotationCFI(body.CFI) || strings.TrimSpace(body.Content) == "" || len(body.Content) > 65536 {
+	if !validCFI(body.CFI) || strings.TrimSpace(body.Content) == "" || len(body.Content) > 65536 {
 		return fiber.NewError(fiber.StatusBadRequest, "A CFI (up to 8192 bytes) and annotated text (up to 65536 bytes) are required")
 	}
-	if err := d.userAnnotationsRepository.Save(userID, slug, body.CFI, body.Content); err != nil {
+	if err := a.repository.Save(userID, slug, body.CFI, body.Content); err != nil {
 		log.Printf("error saving text annotation: %v\n", err)
 		return fiber.ErrInternalServerError
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func (d *Controller) ListAnnotations(c fiber.Ctx) error {
-	userID, slug, err := d.annotationOwner(c)
+func (a *Controller) List(c fiber.Ctx) error {
+	userID, slug, err := a.owner(c)
 	if err != nil {
 		return err
 	}
-	annotations, err := d.userAnnotationsRepository.List(userID, slug)
+	annotations, err := a.repository.List(userID, slug)
 	if err != nil {
 		log.Printf("error listing text annotations: %v\n", err)
 		return fiber.ErrInternalServerError
@@ -43,8 +43,8 @@ func (d *Controller) ListAnnotations(c fiber.Ctx) error {
 	return c.JSON(annotations)
 }
 
-func (d *Controller) DeleteAnnotation(c fiber.Ctx) error {
-	userID, slug, err := d.annotationOwner(c)
+func (a *Controller) Delete(c fiber.Ctx) error {
+	userID, slug, err := a.owner(c)
 	if err != nil {
 		return err
 	}
@@ -54,26 +54,26 @@ func (d *Controller) DeleteAnnotation(c fiber.Ctx) error {
 	if err := c.Bind().Body(&body); err != nil {
 		return fiber.ErrBadRequest
 	}
-	if !validAnnotationCFI(body.CFI) {
+	if !validCFI(body.CFI) {
 		return fiber.NewError(fiber.StatusBadRequest, "A CFI (up to 8192 bytes) is required")
 	}
-	if err := d.userAnnotationsRepository.Delete(userID, slug, body.CFI); err != nil {
+	if err := a.repository.Delete(userID, slug, body.CFI); err != nil {
 		log.Printf("error deleting text annotation: %v\n", err)
 		return fiber.ErrInternalServerError
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func validAnnotationCFI(cfi string) bool {
+func validCFI(cfi string) bool {
 	return strings.HasPrefix(cfi, "epubcfi(") && strings.HasSuffix(cfi, ")") && len(cfi) <= 8192
 }
 
-func (d *Controller) annotationOwner(c fiber.Ctx) (int, string, error) {
+func (a *Controller) owner(c fiber.Ctx) (int, string, error) {
 	session, ok := c.Locals("Session").(model.Session)
 	if !ok || session.ID == 0 {
 		return 0, "", fiber.ErrForbidden
 	}
-	document, err := d.idx.Document(c.Params("slug"))
+	document, err := a.idx.Document(c.Params("slug"))
 	if err != nil {
 		log.Println(err)
 		return 0, "", fiber.ErrInternalServerError

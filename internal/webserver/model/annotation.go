@@ -2,8 +2,8 @@ package model
 
 import "time"
 
-// UserAnnotation links a user to a document (identified by its slug) for storing the user's text annotations.
-type UserAnnotation struct {
+// Annotation stores a user's selected text and its location in a document.
+type Annotation struct {
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 	UserID    int       `gorm:"primaryKey;not null;autoIncrement:false" json:"-"`
@@ -14,4 +14,4 @@ type UserAnnotation struct {
 	Content string `gorm:"type:text;not null" json:"content"`
 }
 
-func (UserAnnotation) TableName() string { return "annotations_users" }
+func (Annotation) TableName() string { return "annotations_users" }
