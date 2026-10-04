@@ -167,7 +167,11 @@ export class ReaderAnnotations {
             ? this.#translations.remove_annotation : this.#translations.save_annotation
         this.#actionButton.textContent = remove
             ? this.#translations.remove_annotation : this.#translations.save
-        if (!this.#popup.open) this.#popup.show()
+        if (!this.#popup.open) {
+            if (remove) this.#popup.show()
+            // Opening without show() preserves focus and the book's native selection.
+            else this.#popup.open = true
+        }
     }
 
     #hide() {
