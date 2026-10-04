@@ -38,7 +38,10 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 	// foreign keys on. gorm's own AlterColumn already guards itself against this (see fixEmailCollation
 	// below); AutoMigrate's own constraint-adding path does not, so it's wrapped the same way here.
 	migrateErr := runWithoutForeignKeys(db, func() error {
-		return db.AutoMigrate(&model.User{}, &model.Highlight{}, &model.Reading{}, &model.Invitation{})
+		if err := migrateAnnotationTable(db); err != nil {
+			return err
+		}
+		return db.AutoMigrate(&model.User{}, &model.Highlight{}, &model.Reading{}, &model.UserAnnotation{}, &model.Invitation{})
 	})
 	if migrateErr != nil {
 		log.Fatal(migrateErr)
@@ -48,6 +51,25 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 	applySQLiteIndexes(db)
 	addDefaultAdmin(db, wordsPerMinute)
 	return db
+}
+
+func migrateAnnotationTable(db *gorm.DB) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if tx.Migrator().HasTable("users_highlights") {
+			if err := tx.Migrator().DropTable("users_highlights"); err != nil {
+				return fmt.Errorf("dropping obsolete users_highlights table: %w", err)
+			}
+		}
+		if tx.Migrator().HasTable("users_annotations") {
+			if tx.Migrator().HasTable("annotations_users") {
+				return fmt.Errorf("cannot rename users_annotations: annotations_users already exists")
+			}
+			if err := tx.Migrator().RenameTable("users_annotations", "annotations_users"); err != nil {
+				return fmt.Errorf("renaming users_annotations to annotations_users: %w", err)
+			}
+		}
+		return nil
+	})
 }
 
 // fixEmailCollation brings table's email column in line with today's schema (declared "collate nocase", see

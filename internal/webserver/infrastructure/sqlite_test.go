@@ -178,6 +178,7 @@ func TestConnect_SkipsNormalizationOnExistingCaseCollision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reopen legacy db: %v", err)
 	}
+
 	if err := db.Create(&legacyUser{
 		Uuid:     "u2",
 		Name:     "Existing2",
@@ -199,5 +200,62 @@ func TestConnect_SkipsNormalizationOnExistingCaseCollision(t *testing.T) {
 	}
 	if len(emails) != 2 || emails[0] != "Mixed@Case.com" || emails[1] != "mixed@CASE.com" {
 		t.Errorf("expected colliding emails to be left untouched, got %v", emails)
+	}
+}
+
+func TestConnectRenamesAnnotationsAndDropsObsoleteHighlights(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "annotations.db")
+	db := infrastructure.Connect(path, 250)
+	var admin model.User
+	if err := db.Where("email = ?", "admin@example.com").First(&admin).Error; err != nil {
+		t.Fatal(err)
+	}
+	annotation := model.UserAnnotation{
+		UserID: int(admin.ID), Slug: "book", CFI: "epubcfi(/6/2!/4)", Content: "Selected text",
+	}
+	if err := db.Create(&annotation).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Migrator().RenameTable("annotations_users", "users_annotations"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec("CREATE TABLE users_highlights (user_id INTEGER, slug TEXT, content TEXT)").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec("INSERT INTO users_highlights VALUES (?, ?, ?)", admin.ID, "obsolete", "Discard this").Error; err != nil {
+		t.Fatal(err)
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sqlDB.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < 2; i++ {
+		migrated := infrastructure.Connect(path, 250)
+		if migrated.Migrator().HasTable("users_highlights") || migrated.Migrator().HasTable("users_annotations") ||
+			!migrated.Migrator().HasTable("annotations_users") {
+			t.Fatal("annotation table was not renamed or obsolete tables remain")
+		}
+		repo := model.UserAnnotationRepository{DB: migrated}
+		rows, err := repo.List(int(admin.ID), "book")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(rows) != 1 || rows[0].CFI != annotation.CFI || rows[0].Content != annotation.Content {
+			t.Fatalf("annotation not preserved: %+v", rows)
+		}
+		if err := repo.Save(int(admin.ID), "book", annotation.CFI, annotation.Content); err != nil {
+			t.Fatalf("upsert after migration: %v", err)
+		}
+		sqlDB, err := migrated.DB()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := sqlDB.Close(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

@@ -12,6 +12,8 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * New documents added or removed to/from the library folder are automatically indexed (Linux only).
 * [Send to email supported](#send-to-email).
 * Read indexed epubs and PDFs from Coreander's interface thanks to [foliate-js](https://github.com/johnfactotum/foliate-js).
+* Logged-in readers can select text and save annotations, including the text and its location. Saved annotations are restored as overlays in reflowable books; PDF and fixed-layout annotation overlays are not yet supported by the renderer.
+  Click a saved annotation in a reflowable book to preview its text and remove it.
 * Reading progress sync between multiple devices, E.G.: start reading in your cellphone and resume reading from your tablet where you left off.
 * Restrictable access only to registered users.
 * Upload documents through the web interface.

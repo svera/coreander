@@ -99,6 +99,46 @@ foliate-view:focus {
 .d-none {
     display: none !important;
 }
+
+#annotation-popup {
+    position: fixed;
+    inset: auto 1rem 4rem;
+    margin: 0 auto;
+    width: min(28rem, calc(100vw - 4rem));
+    padding: 1rem;
+    border: 1px solid GrayText;
+    border-radius: .75rem;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: 0 .25rem 1rem rgba(0, 0, 0, .25);
+    z-index: 1000;
+}
+#annotation-popup h3 {
+    margin: 0 0 .75rem;
+}
+#annotation-popup blockquote {
+    margin: 0 0 1rem;
+    max-height: 6rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+#annotation-popup > div {
+    display: flex;
+    gap: .75rem;
+}
+#annotation-popup button {
+    padding: .5rem 1rem;
+    border: 1px solid GrayText;
+    border-radius: .25rem;
+    background: ButtonFace;
+    color: ButtonText;
+    cursor: pointer;
+}
+#annotation-popup button:disabled {
+    opacity: .5;
+    cursor: wait;
+}
 #spinner-container, #error-icon-container {
     height: 100vh;
     display: flex;

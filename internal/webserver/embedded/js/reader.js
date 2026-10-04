@@ -7,6 +7,7 @@ const [
     { Overlayer },
     { ReaderSync },
     { ReaderToast },
+    { ReaderAnnotations },
 ] = await Promise.all([
     importVersioned('./foliate-js/view.js'),
     importVersioned('./foliate-js/ui/tree.js'),
@@ -14,6 +15,7 @@ const [
     importVersioned('./foliate-js/overlayer.js'),
     importVersioned('./reader-sync.js'),
     importVersioned('./reader-toast.js'),
+    importVersioned('./reader-annotations.js'),
 ])
 
 document.addEventListener('click', e => {
@@ -551,6 +553,18 @@ class Reader {
         document.body.append(this.view)
         await this.view.open(file)
 
+        if (this.sync.isAuthenticated) {
+            const annotations = new ReaderAnnotations({
+                view: this.view,
+                sync: this.sync,
+                translations: this.translations,
+                notify: (variant, message) => this.#toast.show(variant, message),
+                draw: Overlayer.highlight,
+                slug,
+            })
+            await annotations.load()
+        }
+
         const localData = this.sync.getLocalPosition(slug)
         let lastLocation = localData.position
 
@@ -717,12 +731,13 @@ class Reader {
             })
             this.view.addEventListener('draw-annotation', e => {
                 const { draw, annotation } = e.detail
+                if (!this.annotationsByValue.has(annotation.value)) return
                 const { color } = annotation
                 draw(Overlayer.highlight, { color })
             })
             this.view.addEventListener('show-annotation', e => {
                 const annotation = this.annotationsByValue.get(e.detail.value)
-                if (annotation.note) alert(annotation.note)
+                if (annotation?.note) alert(annotation.note)
             })
         }
     }

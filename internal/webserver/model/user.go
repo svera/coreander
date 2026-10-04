@@ -31,8 +31,9 @@ type User struct {
 	WordsPerMinute     float64
 	RecoveryUUID       string
 	RecoveryValidUntil time.Time
-	Highlights         []Highlight `gorm:"constraint:OnDelete:CASCADE"`
-	Readings           []Reading   `gorm:"constraint:OnDelete:CASCADE"`
+	Highlights         []Highlight      `gorm:"constraint:OnDelete:CASCADE"`
+	Readings           []Reading        `gorm:"constraint:OnDelete:CASCADE"`
+	UserAnnotations    []UserAnnotation `gorm:"constraint:OnDelete:CASCADE"`
 	LastRequest        time.Time
 	ShowFileName       bool   `gorm:"default:false; not null"`
 	PrivateProfile     int    `gorm:"default:0; not null"`
