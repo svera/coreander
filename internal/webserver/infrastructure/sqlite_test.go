@@ -178,6 +178,7 @@ func TestConnect_SkipsNormalizationOnExistingCaseCollision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reopen legacy db: %v", err)
 	}
+
 	if err := db.Create(&legacyUser{
 		Uuid:     "u2",
 		Name:     "Existing2",

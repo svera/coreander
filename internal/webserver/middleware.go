@@ -46,7 +46,7 @@ func SetConfigLocals(cfg Config) func(fiber.Ctx) error {
 
 // SetFQDN composes the Fully Qualified Domain Name of the host running the app and sets it
 // as a local variable of the request. When behind a reverse proxy, X-Forwarded-Proto is
-// used so that HTTPS is preserved and mixed-content is avoided (e.g. reader download URL).
+// used so that generated links preserve HTTPS.
 func SetFQDN(cfg Config) func(fiber.Ctx) error {
 	return func(c fiber.Ctx) error {
 		protocol := "http"

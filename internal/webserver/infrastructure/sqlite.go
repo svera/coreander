@@ -38,7 +38,7 @@ func Connect(path string, wordsPerMinute float64) *gorm.DB {
 	// foreign keys on. gorm's own AlterColumn already guards itself against this (see fixEmailCollation
 	// below); AutoMigrate's own constraint-adding path does not, so it's wrapped the same way here.
 	migrateErr := runWithoutForeignKeys(db, func() error {
-		return db.AutoMigrate(&model.User{}, &model.Highlight{}, &model.Reading{}, &model.Invitation{})
+		return db.AutoMigrate(&model.User{}, &model.Highlight{}, &model.Reading{}, &model.Annotation{}, &model.Invitation{})
 	})
 	if migrateErr != nil {
 		log.Fatal(migrateErr)
