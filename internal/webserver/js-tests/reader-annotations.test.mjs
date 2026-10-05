@@ -111,6 +111,8 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
             remove_annotation: 'Remove annotation', annotation_removed: 'Annotation removed.',
             annotation_remove_failed: 'Removal failed.', no_annotations: 'No annotations.',
             annotations_display_failed: 'Saved annotations could not be displayed.',
+            annotations_reload_required: 'Your change was saved. Reload the reader to restore annotations.',
+            reload_reader: 'Reload reader',
         },
         notify: (variant, message) => {
             if (!allowWarnings) assert.notEqual(variant, 'warning', 'Unexpected annotation warning')
@@ -122,6 +124,7 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
     view.dispatchEvent(new CustomEvent('load', { detail: { doc, index: 2 } }))
     return {
         doc,
+        body,
         popup: body.children[0],
         get commentInput() { return body.children[0].children[0].children[0] },
         get commentText() { return body.children[0].children[1] },
@@ -542,14 +545,18 @@ test('popup follows the visible viewport on resize and panning without moving fo
 })
 
 for (const remove of [false, true]) {
-    test(`overlay failure after ${remove ? 'deletion' : 'saving'} preserves committed state and reports only a warning`, async t => {
+    test(`persistent overlay failure after ${remove ? 'deletion' : 'saving'} requires reload and blocks further changes`, async t => {
         const reader = setup(t, true, { withList: true, allowWarnings: true })
         t.mock.method(console, 'error', () => {})
-        t.mock.method(globalThis, 'fetch', async (url, options) => options
-            ? { status: 204, ok: true }
-            : { status: 200, ok: true, json: async () => [{ cfi: FIRST, content: 'Text' }] })
+        let commits = 0
+        t.mock.method(globalThis, 'fetch', async (url, options) => {
+            if (!options) return { status: 200, ok: true, json: async () => [{ cfi: FIRST, content: 'Text' }] }
+            commits++
+            return { status: 204, ok: true }
+        })
+        let attempts = 0
         t.mock.method(reader.view, remove ? 'deleteAnnotation' : 'addAnnotation',
-            async () => { throw new Error('Overlay unavailable') })
+            async () => { attempts++; throw new Error('Overlay unavailable') })
         if (remove) {
             await reader.annotations.load()
             reader.list.children[0].children[0].children[1].dispatchEvent(new Event('click'))
@@ -562,11 +569,62 @@ for (const remove of [false, true]) {
         assert.equal(reader.popup.hidden, true)
         assert.equal(reader.actionButton.disabled, false)
         assert.equal(reader.commentInput.disabled, false)
+        assert.equal(attempts, 2)
+        assert.deepEqual(reader.notifications, [])
+        assert.equal(reader.list.children.length, 0)
+        const notice = reader.body.children[1]
+        assert.equal(notice.id, 'annotation-recovery')
+        assert.equal(notice.attributes.get('role'), 'alert')
+        assert.equal(notice.children[0].textContent, 'Your change was saved. Reload the reader to restore annotations.')
+        assert.equal(notice.children[1].textContent, 'Reload reader')
+        let reloads = 0
+        window.location = { reload: () => reloads++ }
+        notice.children[1].dispatchEvent(new Event('click'))
+        assert.equal(reloads, 1)
+        reader.select('New passage')
+        reader.settle()
+        reader.actionButton.dispatchEvent(new Event('click'))
+        await reader.annotations.load()
+        const range = reader.doc.defaultView.getSelection().getRangeAt(0).cloneRange()
+        reader.view.dispatchEvent(new CustomEvent('show-annotation', { detail: { value: FIRST, range } }))
+        assert.equal(reader.popup.hidden, true)
+        assert.equal(commits, 1)
+        assert.equal(attempts, 2)
+    })
+
+    test(`sidebar waits for ${remove ? 'deletion' : 'save'} overlay reconciliation and a retry can recover`, async t => {
+        const { reader, rows, requests } = await loadList(t, [{ cfi: FIRST, content: 'Existing' }])
+        t.mock.method(reader.view, 'getCFI', () => SECOND)
+        t.mock.method(console, 'error', () => {})
+        let finish
+        let attempts = 0
+        t.mock.method(reader.view, remove ? 'deleteAnnotation' : 'addAnnotation', async () => {
+            attempts++
+            if (attempts === 1) throw new Error('Transient overlay failure')
+            await new Promise(resolve => { finish = resolve })
+        })
+        if (remove) rows()[0].children[1].dispatchEvent(new Event('click'))
+        else {
+            reader.select('New passage')
+            reader.settle()
+            reader.actionButton.dispatchEvent(new Event('click'))
+        }
+        await new Promise(setImmediate)
+        assert.equal(attempts, 2)
+        assert.equal(requests.length, 1)
+        assert.equal(rows().length, 1)
+        assert.equal(rows()[0].children[0].children[0].textContent, 'Existing')
+        assert.deepEqual(reader.notifications, [])
+        assert.equal(reader.commentInput.disabled, true)
+        finish()
+        await new Promise(setImmediate)
+        assert.equal(reader.commentInput.disabled, false)
         assert.deepEqual(reader.notifications, [{
-            variant: 'warning', message: 'Saved annotations could not be displayed.',
+            variant: 'success', message: remove ? 'Annotation removed.' : 'Annotation saved.',
         }])
         if (remove) assert.equal(reader.list.children[0].textContent, 'No annotations.')
-        else assert.equal(reader.list.children[0].children[0].children[0].children[0].textContent, 'Text')
+        else assert.equal(rows().length, 2)
+        assert.equal(reader.body.children.length, 1)
     })
 }
 

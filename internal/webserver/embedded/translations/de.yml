@@ -372,6 +372,8 @@
 "Add email addresses": "E-Mail-Adressen hinzufügen"
 "Add multiple users separated by commas": "Mehrere Nutzer durch Kommas getrennt hinzufügen"
 "Comment": "Kommentar"
+"Reload reader": "Leser neu laden"
+"Your change was saved, but annotations could not be updated in the reader. Reload the reader before making further annotation changes.": "Ihre Änderung wurde gespeichert, aber die Anmerkungen konnten im Leser nicht aktualisiert werden. Laden Sie den Leser neu, bevor Sie weitere Anmerkungen ändern."
 "Comments can contain up to 65,536 characters.": "Kommentare dürfen bis zu 65.536 Zeichen enthalten."
 "Add a comment": "Einen Kommentar hinzufügen"
 "Close": "Schließen"

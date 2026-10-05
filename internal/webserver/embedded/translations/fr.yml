@@ -367,6 +367,8 @@
 "Add email addresses": "Ajouter des adresses e-mail"
 "Add multiple users separated by commas": "Ajoutez plusieurs utilisateurs séparés par des virgules"
 "Comment": "Commentaire"
+"Reload reader": "Recharger le lecteur"
+"Your change was saved, but annotations could not be updated in the reader. Reload the reader before making further annotation changes.": "Votre modification a été enregistrée, mais les annotations n'ont pas pu être mises à jour dans le lecteur. Rechargez le lecteur avant de modifier d'autres annotations."
 "Comments can contain up to 65,536 characters.": "Les commentaires peuvent contenir jusqu'à 65 536 caractères."
 "Add a comment": "Ajouter un commentaire"
 "Close": "Fermer"

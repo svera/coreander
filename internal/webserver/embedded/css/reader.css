@@ -121,6 +121,16 @@ foliate-view:focus {
     gap: .75rem;
     overflow-y: auto;
 }
+#annotation-recovery {
+    position: fixed;
+    inset: 1rem 1rem auto;
+    z-index: 1001;
+    padding: 1rem;
+    border: 1px solid GrayText;
+    border-radius: .75rem;
+    background: Canvas;
+    color: CanvasText;
+}
 #annotation-popup[hidden] {
     display: none;
 }

@@ -26,6 +26,7 @@ export class ReaderAnnotations {
     #commentText
     #pending = null
     #saving = false
+    #reloadRequired = false
     #selectionTimeout = null
     #documents = new WeakSet()
     #annotations = new Map()
@@ -101,12 +102,12 @@ export class ReaderAnnotations {
             queueMicrotask(() => this.#restore(index))
         })
         view.addEventListener('draw-annotation', ({ detail: { draw, annotation } }) => {
-            if (this.#annotations.has(annotation.value)) {
+            if (!this.#reloadRequired && this.#annotations.has(annotation.value)) {
                 draw(this.#draw, { color: 'yellow' })
             }
         })
         view.addEventListener('show-annotation', ({ detail: { value, range } }) => {
-            if (!this.#sync.isAuthenticated || this.#saving) return
+            if (!this.#sync.isAuthenticated || this.#saving || this.#reloadRequired) return
             const annotation = this.#annotations.get(value)
             if (!annotation) return
             const selection = range?.startContainer.ownerDocument.defaultView.getSelection()
@@ -125,7 +126,7 @@ export class ReaderAnnotations {
         window.visualViewport?.addEventListener('scroll', reposition)
     }
     async load() {
-        if (!this.#sync.isAuthenticated) return
+        if (!this.#sync.isAuthenticated || this.#reloadRequired) return
         try {
             const response = await fetch(this.#url)
             if (this.#sessionExpired(response)) return
@@ -165,7 +166,7 @@ export class ReaderAnnotations {
         for (const [index, annotation] of annotations.entries()) {
             const item = document.createElement('li')
             const button = createButton('', async () => {
-                if (!this.#sync.isAuthenticated || this.#saving) return
+                if (!this.#sync.isAuthenticated || this.#saving || this.#reloadRequired) return
                 button.disabled = true
                 try {
                     const target = await this.#view.goTo(annotation.value)
@@ -248,7 +249,7 @@ export class ReaderAnnotations {
     }
 
     #selected(doc, index) {
-        if (!this.#sync.isAuthenticated || this.#saving || this.#pending?.remove) return
+        if (!this.#sync.isAuthenticated || this.#saving || this.#reloadRequired || this.#pending?.remove) return
         const selection = doc.defaultView.getSelection()
         const content = selection?.toString() ?? ''
         if (!selection?.rangeCount || selection.isCollapsed || !content.trim()) {
@@ -381,11 +382,12 @@ export class ReaderAnnotations {
     }
 
     async #restore(index) {
-        if (!this.#sync.isAuthenticated) return
+        if (!this.#sync.isAuthenticated || this.#reloadRequired) return
         for (const annotation of this.#annotations.values()) {
             try {
                 const target = await this.#view.resolveNavigation(annotation.value)
-                if (target.index === index && this.#annotations.has(annotation.value)) {
+                if (!this.#reloadRequired && this.#sync.isAuthenticated &&
+                    target.index === index && this.#annotations.has(annotation.value)) {
                     await this.#view.addAnnotation(annotation)
                 }
             } catch (error) {
@@ -399,7 +401,7 @@ export class ReaderAnnotations {
     }
 
     async #submit({ annotation = this.#pending, button = this.#actionButton, listIndex = null } = {}) {
-        if (!annotation || this.#saving || !this.#sync.isAuthenticated) return
+        if (!annotation || this.#saving || this.#reloadRequired || !this.#sync.isAuthenticated) return
         const { value, content, remove } = annotation
         const comment = this.#commentInput.value
         if (!remove && Array.from(comment).length > 65536) {
@@ -420,18 +422,25 @@ export class ReaderAnnotations {
             if (!response.ok) throw new Error(`Annotation ${remove ? 'deletion' : 'save'} failed: HTTP ${response.status}`)
             if (remove) this.#annotations.delete(value)
             else this.#annotations.set(value, savedAnnotation)
+            let updated = false
+            for (let attempt = 0; attempt < 2; attempt++) {
+                try {
+                    if (remove) await this.#view.deleteAnnotation(savedAnnotation)
+                    else await this.#view.addAnnotation(savedAnnotation)
+                    updated = true
+                    break
+                } catch (error) {
+                    console.error('Error updating annotation overlay:', error)
+                }
+            }
+            if (!updated) {
+                this.#requireReload()
+                return
+            }
+            if (!this.#sync.isAuthenticated) return
             if (listIndex === null) this.#dismiss()
             else this.#hide()
             this.#renderList(listIndex)
-            // Persistence is authoritative; overlay failures must not undo a committed save/delete.
-            try {
-                if (remove) await this.#view.deleteAnnotation(savedAnnotation)
-                else await this.#view.addAnnotation(savedAnnotation)
-            } catch (error) {
-                console.error('Error updating annotation overlay:', error)
-                this.#notify('warning', this.#translations.annotations_display_failed)
-                return
-            }
             this.#notify('success', remove
                 ? this.#translations.annotation_removed : this.#translations.annotation_saved)
         } catch (error) {
@@ -445,5 +454,18 @@ export class ReaderAnnotations {
             this.#commentInput.disabled = false
             if (!this.#sync.isAuthenticated) this.#hide()
         }
+    }
+
+    #requireReload() {
+        this.#reloadRequired = true
+        this.#hide()
+        this.#list?.replaceChildren()
+        const notice = document.createElement('div')
+        notice.id = 'annotation-recovery'
+        notice.setAttribute('role', 'alert')
+        const message = document.createElement('p')
+        message.textContent = this.#translations.annotations_reload_required
+        notice.append(message, createButton(this.#translations.reload_reader, () => window.location.reload()))
+        document.body.append(notice)
     }
 }

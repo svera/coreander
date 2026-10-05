@@ -375,6 +375,8 @@
 "Add email addresses": "Добавьте адреса электронной почты"
 "Add multiple users separated by commas": "Добавьте несколько пользователей, разделяя их запятыми"
 "Comment": "Комментарий"
+"Reload reader": "Перезагрузить читалку"
+"Your change was saved, but annotations could not be updated in the reader. Reload the reader before making further annotation changes.": "Изменение сохранено, но не удалось обновить аннотации в читалке. Перезагрузите читалку перед дальнейшим изменением аннотаций."
 "Comments can contain up to 65,536 characters.": "Комментарии могут содержать до 65 536 символов."
 "Add a comment": "Добавьте комментарий"
 "Share with": "Поделиться с"
