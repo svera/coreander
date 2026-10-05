@@ -1,4 +1,4 @@
-internal/webserver/middleware.gopackage webserver
+package webserver
 
 import (
 	"errors"
