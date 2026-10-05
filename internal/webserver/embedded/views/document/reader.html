@@ -13,7 +13,7 @@
 <meta name="msapplication-TileColor" content="#da532c">
 <link href="/css/reader.css{{versionParam}}" rel="stylesheet">
 
-<input type="hidden" id="url" value="{{.fqdn}}/documents/{{.Slug}}/download">
+<input type="hidden" id="url" value="/documents/{{.Slug}}/download">
 <input type="hidden" id="slug" value="{{.Slug}}">
 <input type="hidden" id="authenticated" value="{{if and (.Session) (ne .Session.Name "")}}true{{else}}false{{end}}">
 
@@ -164,7 +164,6 @@
     "not_logged_in_reading": {{t .Lang "You are not logged in. Your reading position is saved locally only."}},
     "position_reset_reading": {{t .Lang "Your saved reading position was reset because this document changed."}},
     "save_annotation": {{t .Lang "Save annotation"}},
-    "save": {{t .Lang "Save"}},
     "cancel": {{t .Lang "Cancel"}},
     "annotation_saved": {{t .Lang "Annotation saved."}},
     "annotation_save_failed": {{t .Lang "The annotation could not be saved. Please try again."}},
@@ -176,7 +175,7 @@
     "annotations_display_failed": {{t .Lang "Some saved annotations could not be displayed. The document may have changed."}}
 }}</script>
 
-<dialog id="reader-toast" role="alert" aria-live="assertive" aria-atomic="true" data-auto-hide="true" data-delay="5000">
+<div id="reader-toast" role="alert" aria-live="assertive" aria-atomic="true" data-auto-hide="true" data-delay="5000" hidden>
     <div class="toast-content">
         <div class="toast-message"></div>
         <button type="button" class="toast-close" aria-label="Close">
@@ -185,7 +184,7 @@
             </svg>
         </button>
     </div>
-</dialog>
+</div>
 
 {{template "partials/reader-importmap" .}}
 <script src="/js/reader.js{{versionParam}}" type="module"></script>

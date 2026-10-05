@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"math"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -112,11 +113,11 @@ func SupportedLanguages() []string {
 	return supportedLanguages
 }
 
-// ResolveFQDN appends port to fqdn when fqdn is the "localhost" default and has no port of its own.
-// A custom FQDN is left untouched, since it's typically fronted by a reverse proxy on a different port.
+// ResolveFQDN uses the listening port unless fqdn includes an explicit port.
 func ResolveFQDN(fqdn string, port int) string {
-	if strings.EqualFold(fqdn, "localhost") && !strings.Contains(fqdn, ":") {
-		return fmt.Sprintf("%s:%d", fqdn, port)
+	host := strings.TrimPrefix(strings.TrimSuffix(fqdn, "]"), "[")
+	if net.ParseIP(host) != nil || !strings.Contains(fqdn, ":") {
+		return net.JoinHostPort(host, strconv.Itoa(port))
 	}
 	return fqdn
 }

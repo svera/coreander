@@ -6,9 +6,8 @@ export class ReaderAnnotations {
     #draw
     #slug
     #popup
-    #preview
+    #anchorRange = null
     #actionButton
-    #title
     #pending = null
     #saving = false
     #selectionTimeout = null
@@ -32,11 +31,6 @@ export class ReaderAnnotations {
 
         this.#popup = document.createElement('dialog')
         this.#popup.id = 'annotation-popup'
-        this.#popup.setAttribute('aria-labelledby', 'annotation-popup-title')
-        this.#title = document.createElement('h3')
-        this.#title.id = 'annotation-popup-title'
-        this.#preview = document.createElement('blockquote')
-        const actions = document.createElement('div')
         this.#actionButton = document.createElement('button')
         this.#actionButton.type = 'button'
         this.#actionButton.addEventListener('click', () => this.#submit())
@@ -44,8 +38,7 @@ export class ReaderAnnotations {
         cancel.type = 'button'
         cancel.textContent = translations.cancel
         cancel.addEventListener('click', () => this.#dismiss())
-        actions.append(this.#actionButton, cancel)
-        this.#popup.append(this.#title, this.#preview, actions)
+        this.#popup.append(this.#actionButton, cancel)
         this.#popup.addEventListener('keydown', event => {
             event.stopPropagation()
             if (event.key === 'Escape') {
@@ -84,11 +77,14 @@ export class ReaderAnnotations {
             if (!annotation) return
             const selection = range?.startContainer.ownerDocument.defaultView.getSelection()
             if (selection && !selection.isCollapsed) return
-            this.#show({ cfi: value, content: annotation.content }, true)
+            this.#show({ cfi: value, content: annotation.content }, range, true)
         })
         window.addEventListener('reader-session-expired', () => {
             this.#hide()
             this.#list?.replaceChildren()
+        })
+        window.addEventListener('resize', () => {
+            if (this.#popup.open) this.#positionPopup()
         })
     }
     async load() {
@@ -113,17 +109,21 @@ export class ReaderAnnotations {
         }
     }
 
-    #renderList() {
+    #renderList(focusIndex = null) {
         if (!this.#list) return
         this.#list.replaceChildren()
         if (!this.#annotations.size) {
             const message = document.createElement('p')
             message.textContent = this.#translations.no_annotations
             this.#list.append(message)
+            if (focusIndex !== null) {
+                document.getElementById('annotations-side-bar-close')?.focus({ preventScroll: true })
+            }
             return
         }
         const list = document.createElement('ol')
-        for (const annotation of this.#annotations.values()) {
+        const annotations = Array.from(this.#annotations.values())
+        for (const [index, annotation] of annotations.entries()) {
             const item = document.createElement('li')
             const button = document.createElement('button')
             button.type = 'button'
@@ -131,7 +131,7 @@ export class ReaderAnnotations {
             preview.textContent = annotation.content
             button.append(preview)
             button.addEventListener('click', async () => {
-                if (!this.#sync.isAuthenticated) return
+                if (!this.#sync.isAuthenticated || this.#saving) return
                 button.disabled = true
                 try {
                     const target = await this.#view.goTo(annotation.value)
@@ -144,10 +144,24 @@ export class ReaderAnnotations {
                     button.disabled = false
                 }
             })
-            item.append(button)
+            const remove = document.createElement('button')
+            remove.type = 'button'
+            remove.className = 'annotation-remove'
+            remove.textContent = '\u00d7'
+            remove.setAttribute('aria-label', this.#translations.remove_annotation)
+            remove.title = this.#translations.remove_annotation
+            remove.addEventListener('click', () => this.#submit({
+                annotation: { cfi: annotation.value, content: annotation.content, remove: true },
+                button: remove,
+                listIndex: index,
+            }))
+            item.append(button, remove)
             list.append(item)
         }
         this.#list.append(list)
+        if (focusIndex !== null) {
+            list.children[Math.min(focusIndex, annotations.length - 1)].lastElementChild.focus({ preventScroll: true })
+        }
     }
 
     #url() {
@@ -164,19 +178,37 @@ export class ReaderAnnotations {
     #bindDocument({ doc, index }) {
         if (!doc || this.#documents.has(doc)) return
         this.#documents.add(doc)
-        const schedule = () => {
+        let selecting = false
+        const schedule = (delay = 0) => {
             clearTimeout(this.#selectionTimeout)
-            this.#selectionTimeout = setTimeout(() => this.#selected(doc, index), 0)
+            this.#selectionTimeout = setTimeout(() => {
+                if (!selecting) this.#selected(doc, index)
+            }, delay)
         }
-        doc.addEventListener('pointerdown', () => this.#hide())
+        const startSelection = () => {
+            selecting = true
+            this.#hide()
+        }
+        const cancelPointer = () => {
+            selecting = false
+            // Native long-press selection can cancel the browser's pointer stream.
+            schedule(150)
+        }
+        doc.addEventListener('selectionchange', () => schedule(150))
+        doc.addEventListener('pointerdown', startSelection)
         doc.addEventListener('pointerup', event => {
+            selecting = false
             if (event.button === 0) schedule()
         })
+        doc.addEventListener('touchstart', startSelection)
         doc.addEventListener('touchend', event => {
-            if (event.touches.length === 0) schedule()
+            if (event.touches.length === 0) {
+                selecting = false
+                schedule()
+            }
         })
-        doc.addEventListener('pointercancel', () => this.#hide())
-        doc.addEventListener('touchcancel', () => this.#hide())
+        doc.addEventListener('pointercancel', cancelPointer)
+        doc.addEventListener('touchcancel', cancelPointer)
         doc.addEventListener('keyup', event => {
             if (event.key === 'Escape') {
                 this.#dismiss()
@@ -187,7 +219,9 @@ export class ReaderAnnotations {
     #selected(doc, index) {
         if (!this.#sync.isAuthenticated || this.#saving || this.#pending?.remove) return
         const selection = doc.defaultView.getSelection()
-        if (!selection?.rangeCount || selection.isCollapsed || !selection.toString().trim()) {
+        const content = selection?.toString() ?? ''
+        if (!selection?.rangeCount || selection.isCollapsed || !content.trim()) {
+            this.#hide()
             return
         }
         try {
@@ -197,7 +231,7 @@ export class ReaderAnnotations {
                 this.#hide()
                 return
             }
-            this.#show({ cfi, content: selection.toString() })
+            this.#show({ cfi, content }, range)
         } catch (error) {
             this.#hide()
             console.error('Error preparing text annotation:', error)
@@ -205,31 +239,75 @@ export class ReaderAnnotations {
         }
     }
 
-    #show(annotation, remove = false) {
+    #show(annotation, range, remove = false) {
         clearTimeout(this.#selectionTimeout)
         this.#pending = { ...annotation, remove }
-        this.#preview.textContent = annotation.content
-        this.#title.textContent = remove
-            ? this.#translations.remove_annotation : this.#translations.save_annotation
+        this.#anchorRange = range
         this.#actionButton.textContent = remove
-            ? this.#translations.remove_annotation : this.#translations.save
+            ? this.#translations.remove_annotation : this.#translations.save_annotation
+        this.#popup.setAttribute('aria-label', this.#actionButton.textContent)
         if (!this.#popup.open) {
+            this.#popup.style.visibility = 'hidden'
             if (remove) this.#popup.show()
             // Opening without show() preserves focus and the book's native selection.
             else this.#popup.open = true
         }
+        this.#positionPopup()
+        this.#popup.style.removeProperty('visibility')
+    }
+
+    #positionPopup() {
+        if (!this.#anchorRange) {
+            this.#hide()
+            return
+        }
+        const doc = this.#anchorRange.startContainer.ownerDocument
+        const frame = doc.defaultView.frameElement
+        const frameRect = frame?.getBoundingClientRect()
+        const scaleX = frame ? frameRect.width / frame.offsetWidth : 1
+        const scaleY = frame ? frameRect.height / frame.offsetHeight : 1
+        const offsetX = frame ? frameRect.left + frame.clientLeft * scaleX : 0
+        const offsetY = frame ? frameRect.top + frame.clientTop * scaleY : 0
+        const viewportWidth = document.documentElement.clientWidth
+        const viewportHeight = document.documentElement.clientHeight
+        const gap = 8
+        const minY = Math.max(gap, document.getElementById('header-bar')?.getBoundingClientRect().bottom ?? gap)
+        const maxY = Math.min(viewportHeight - gap,
+            document.getElementById('nav-bar')?.getBoundingClientRect().top ?? viewportHeight - gap)
+        const rects = Array.from(this.#anchorRange.getClientRects(), rect => ({
+            left: offsetX + rect.left * scaleX,
+            right: offsetX + rect.right * scaleX,
+            top: offsetY + rect.top * scaleY,
+            bottom: offsetY + rect.bottom * scaleY,
+        })).filter(rect => rect.right > gap && rect.left < viewportWidth - gap &&
+            rect.bottom > minY && rect.top < maxY)
+        if (!rects.length) {
+            this.#hide()
+            return
+        }
+        const top = Math.max(minY, Math.min(...rects.map(rect => rect.top)))
+        const bottom = Math.min(maxY, Math.max(...rects.map(rect => rect.bottom)))
+        const left = Math.max(0, Math.min(...rects.map(rect => rect.left)))
+        const right = Math.min(viewportWidth, Math.max(...rects.map(rect => rect.right)))
+        const { width, height } = this.#popup.getBoundingClientRect()
+        const below = maxY - bottom - gap
+        const above = top - minY - gap
+        const y = below >= height || below >= above ? bottom + gap : top - height - gap
+        this.#popup.style.left = `${Math.max(gap, Math.min((left + right - width) / 2, viewportWidth - width - gap))}px`
+        this.#popup.style.top = `${Math.max(minY, Math.min(y, maxY - height))}px`
     }
 
     #hide() {
         clearTimeout(this.#selectionTimeout)
         this.#pending = null
+        this.#anchorRange = null
         this.#popup?.close()
     }
 
     #dismiss() {
         this.#hide()
         this.#view.deselect()
-        this.#view.focus()
+        this.#view.focus({ preventScroll: true })
     }
 
     async #restore(index) {
@@ -250,12 +328,12 @@ export class ReaderAnnotations {
         }
     }
 
-    async #submit() {
-        if (!this.#pending || this.#saving || !this.#sync.isAuthenticated) return
-        const { cfi, content, remove } = this.#pending
-        const annotation = { value: cfi, content }
+    async #submit({ annotation = this.#pending, button = this.#actionButton, listIndex = null } = {}) {
+        if (!annotation || this.#saving || !this.#sync.isAuthenticated) return
+        const { cfi, content, remove } = annotation
+        const savedAnnotation = { value: cfi, content }
         this.#saving = true
-        this.#actionButton.disabled = true
+        button.disabled = true
         try {
             const response = await fetch(this.#url(), {
                 method: remove ? 'DELETE' : 'POST',
@@ -265,9 +343,10 @@ export class ReaderAnnotations {
             if (this.#sessionExpired(response)) return
             if (!response.ok) throw new Error(`Annotation ${remove ? 'deletion' : 'save'} failed: HTTP ${response.status}`)
             if (remove) this.#annotations.delete(cfi)
-            else this.#annotations.set(cfi, annotation)
-            this.#renderList()
-            this.#dismiss()
+            else this.#annotations.set(cfi, savedAnnotation)
+            if (listIndex === null) this.#dismiss()
+            else this.#hide()
+            this.#renderList(listIndex)
         } catch (error) {
             console.error('Error updating text annotation:', error)
             this.#notify('warning', remove
@@ -275,12 +354,12 @@ export class ReaderAnnotations {
             return
         } finally {
             this.#saving = false
-            this.#actionButton.disabled = false
+            button.disabled = false
         }
         this.#notify('success', remove
             ? this.#translations.annotation_removed : this.#translations.annotation_saved)
         try {
-            if (remove) await this.#view.deleteAnnotation(annotation)
+            if (remove) await this.#view.deleteAnnotation(savedAnnotation)
             else {
                 const { index } = await this.#view.resolveNavigation(cfi)
                 await this.#restore(index)

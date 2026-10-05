@@ -12,8 +12,8 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * New documents added or removed to/from the library folder are automatically indexed (Linux only).
 * [Send to email supported](#send-to-email).
 * Read indexed epubs and PDFs from Coreander's interface thanks to [foliate-js](https://github.com/johnfactotum/foliate-js).
-* Select text while logged in to save an annotation. In books with adjustable text layout, saved annotations are highlighted when you reopen the book; click one to view or remove it. Highlighting saved annotations is not yet supported in PDFs or books with fixed page layouts.
-  Use the annotations icon next to settings to view your saved annotations and jump to them in the book.
+* Select text while logged in to save an annotation. On mobile, long-press text and adjust the selection handles; the save annotation popup appears when the selection settles. In books with adjustable text layout, saved annotations are highlighted when you reopen the book; click one to view or remove it. Highlighting saved annotations is not yet supported in PDFs or books with fixed page layouts.
+  Use the annotations icon next to settings to view your saved annotations and jump to them in the book. Use the cross to the right of an entry to delete that annotation.
 * Reading progress sync between multiple devices, E.G.: start reading in your cellphone and resume reading from your tablet where you left off.
 * Restrictable access only to registered users.
 * Upload documents through the web interface.
@@ -36,6 +36,8 @@ git clone git@github.com:svera/coreander.git --recurse-submodules
 There are two possibilities for building Coreander from source:
 * If you have [Mage](https://magefile.org) installed in your system, just type `mage install` from the source code folder.
 * Otherwise, a simple `go build` or `go install` will do, although no version information will be added to the executable.
+
+Reader interaction regression tests can be run with Node.js using its built-in test runner: `node --test internal/webserver/js-tests/*.test.mjs`.
 
 ## How to use
 Although it can be executed as any desktop app, Coreander is designed to be run as a service managed by [systemd](https://systemd.io) or any other service manager. For example, in Raspberry Pi OS, just create a file called `/etc/systemd/system/coreander.service` with the following contents:
@@ -66,6 +68,8 @@ Every time it is run, the application scans the library folder only for document
 
 Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` with the hostname / IP address of the machine where the server is running if you want to access it from another system). It is possible to change the listening port just executing the application with the `-p` or `--port` flags, or the `PORT` environment variable (e. g. `coreander -p 4000` or `PORT=4000 coreander`)
 
+For access over your local network, set `FQDN` to the server's hostname or IP address. When `FQDN` has no explicit port, Coreander appends the listening port: `FQDN=192.168.1.139` with `PORT=4000` generates links to `192.168.1.139:4000`. An explicit port in `FQDN` overrides this default. `FQDN` does not change the listening address or port. The document reader loads documents from the same address and port as the page you opened, independently of `FQDN`.
+
 ### Setting up an Internet-facing server
 
 If you plan to set up Coreander in a public Internet server such as a VPS, using [Caddy](https://caddyserver.com/) as a reverse proxy is strongly recommended, as it is dead simple to set up and comes with several niceties such as HTTPS out of the box through [Let's Encrypt](https://letsencrypt.org/).
@@ -79,6 +83,8 @@ coreander.example.com {
 ```
 
 Refer to [Caddy documentation](https://caddyserver.com/docs) for more information.
+
+When using a reverse proxy, include its client-facing port in `FQDN`, for example `FQDN=coreander.example.com:443` for the HTTPS setup above (or `:80` for HTTP), so generated links do not use Coreander's internal listening port.
 
 ### Email
 
@@ -183,7 +189,7 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`-u` or `--upload-document-max-size` |`UPLOAD_DOCUMENT_MAX_SIZE`| Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
 |`-m` or `--share-comment-max-size`   |`SHARE_COMMENT_MAX_SIZE`  | Maximum length for share comments in characters. Defaults to 280.
 |`--share-max-recipients`             |`SHARE_MAX_RECIPIENTS`    | Maximum number of recipients allowed when sharing a document. Defaults to 10.
-|`-d` or `--fqdn`                     |`FQDN`                    | Domain name of the server. If Coreander is listening to a non-standard HTTP / HTTPS port, include it using a colon (e. g. example.com:3000). Defaults to `localhost`.
+|`-d` or `--fqdn`                     |`FQDN`                    | Hostname or IP address of the server. Defaults to `localhost` and uses `PORT` unless an explicit port is included (e. g. example.com:443 for an HTTPS reverse proxy).
 |`-v` or `--version`                  |                          | Show version number.
 
 

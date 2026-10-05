@@ -955,7 +955,7 @@ if (url) fetch(url)
         return res.blob()
     })
     .then(blob => {
-        if (blob) open(new File([blob], new URL(url).pathname))
+        if (blob) return open(new File([blob], new URL(url, window.location.href).pathname))
     })
     .catch(e => {
         if (e.message !== 'Authentication required') {
