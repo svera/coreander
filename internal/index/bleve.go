@@ -42,6 +42,7 @@ var (
 	internalVersion             = []byte("version")
 	internalIllustratedMinSize  = []byte("illustrated_min_size")
 	internalMinOccurrenceRatio  = []byte("min_occurrence_ratio")
+	internalMaxTextRankWords    = []byte("max_textrank_words")
 	internalDocCountAtLastPrune = []byte("doc_count_at_last_prune")
 )
 
@@ -516,10 +517,10 @@ func (b *BleveIndexer) Close() error {
 }
 
 // NeedsReindex reports whether the documents index must be rebuilt because a stored config value
-// differs from its current counterpart (or is missing): illustrated-min-size, or min-occurrence-ratio,
+// differs from its current counterpart (or is missing): illustrated-min-size, min-occurrence-ratio,
 // which decides which TextRank keywords get stored per document at indexing time (see
-// Config.MinOccurrenceRatio).
-func NeedsReindex(documentsIndex bleve.Index, currentMinSize float64, currentMinOccurrenceRatio float64) (bool, error) {
+// Config.MinOccurrenceRatio), or max-textrank-words, which limits how much text is analyzed.
+func NeedsReindex(documentsIndex bleve.Index, currentMinSize float64, currentMinOccurrenceRatio float64, currentMaxTextRankWords int) (bool, error) {
 	storedMinSize, err := documentsIndex.GetInternal(internalIllustratedMinSize)
 	if err != nil {
 		return true, err
@@ -546,5 +547,20 @@ func NeedsReindex(documentsIndex bleve.Index, currentMinSize float64, currentMin
 	if err != nil {
 		return true, err
 	}
-	return ratio != currentMinOccurrenceRatio, nil
+	if ratio != currentMinOccurrenceRatio {
+		return true, nil
+	}
+
+	storedMaxTextRankWords, err := documentsIndex.GetInternal(internalMaxTextRankWords)
+	if err != nil {
+		return true, err
+	}
+	if len(storedMaxTextRankWords) == 0 {
+		return true, nil
+	}
+	maxTextRankWords, err := strconv.Atoi(string(storedMaxTextRankWords))
+	if err != nil {
+		return true, err
+	}
+	return maxTextRankWords != currentMaxTextRankWords, nil
 }

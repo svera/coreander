@@ -144,7 +144,7 @@ You can fine-tune this behavior with the following flags:
 |`--min-common-textrank-absolute-count`|`MIN_COMMON_TEXTRANK_ABSOLUTE_COUNT`|Raise it so small libraries need more documents sharing a phrase/word before it's considered common enough to prune; mainly relevant for small libraries, where a low document count could otherwise make a ratio-based threshold trigger on just a couple of shared documents.|
 |`--prune-change-trigger-ratio`       |`PRUNE_CHANGE_TRIGGER_RATIO`         |Raise it so the whole-library pruning pass only re-runs in the background after a bigger fraction of the library has changed since the last pass; lower it to keep common-entry statistics fresher at the cost of more frequent background scans.|
 
-Since keyword extraction runs once per document during indexing, changing `--min-occurrence-ratio` only affects documents indexed (or re-indexed with `--force-indexing`) after the change.
+Changing `--min-occurrence-ratio` or the effective `--max-textrank-words` limit triggers a full reindex so stored keywords match the settings.
 
 ### Other settings
 
