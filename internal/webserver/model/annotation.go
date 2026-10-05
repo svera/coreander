@@ -5,7 +5,6 @@ import "time"
 // Annotation stores a user's selected text, location, and optional comment.
 type Annotation struct {
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 	UserID    int       `gorm:"primaryKey;not null;autoIncrement:false" json:"-"`
 	Slug      string    `gorm:"primaryKey;not null;index:idx_annotations_users_slug" json:"-"`
 	// CFI identifies the annotated range's position in the document.

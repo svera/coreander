@@ -12,7 +12,7 @@ type AnnotationRepository struct {
 func (r *AnnotationRepository) Save(userID int, slug, cfi, content, comment string) error {
 	return r.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "user_id"}, {Name: "slug"}, {Name: "cfi"}},
-		DoUpdates: clause.AssignmentColumns([]string{"content", "comment", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"content", "comment"}),
 	}).Create(&Annotation{
 		UserID: userID, Slug: slug, CFI: cfi, Content: content, Comment: comment,
 	}).Error

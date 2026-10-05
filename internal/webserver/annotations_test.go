@@ -141,8 +141,11 @@ func TestAnnotations(t *testing.T) {
 		if strings.Contains(string(raw), "user_id") || strings.Contains(string(raw), `"slug"`) {
 			t.Fatalf("response exposes internal identifiers: %s", raw)
 		}
-		if annotations[0].CreatedAt.IsZero() || annotations[0].UpdatedAt.IsZero() {
-			t.Fatal("missing annotation timestamps")
+		if annotations[0].CreatedAt.IsZero() {
+			t.Fatal("missing annotation creation timestamp")
+		}
+		if strings.Contains(string(raw), `"updated_at"`) {
+			t.Fatalf("response includes the removed update timestamp: %s", raw)
 		}
 	})
 	t.Run("accepts the comment size limit and allows clearing a comment", func(t *testing.T) {
