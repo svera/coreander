@@ -13,6 +13,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * [Send to email supported](#send-to-email).
 * Read indexed epubs and PDFs from Coreander's interface thanks to [foliate-js](https://github.com/johnfactotum/foliate-js).
 * Select text while logged in to save an annotation. In books with adjustable text layout, saved annotations are highlighted when you reopen the book; click one to view or remove it. Highlighting saved annotations is not yet supported in PDFs or books with fixed page layouts.
+  Use the annotations icon next to settings to view your saved annotations and jump to them in the book.
 * Reading progress sync between multiple devices, E.G.: start reading in your cellphone and resume reading from your tablet where you left off.
 * Restrictable access only to registered users.
 * Upload documents through the web interface.

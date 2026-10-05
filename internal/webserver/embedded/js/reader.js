@@ -116,13 +116,36 @@ class Reader {
     #fontSizeStep = 10
     annotations = new Map()
     annotationsByValue = new Map()
-    closeSideBar() {
+    closeSideBar(refocus = true) {
         $('#dimming-overlay').classList.remove('show')
         $('#side-bar').classList.remove('show')
-        // Refocus the view so keyboard navigation works
-        if (this.view) {
-            this.view.focus()
+        const annotationsPanel = $('#annotations-side-bar')
+        if (annotationsPanel) {
+            annotationsPanel.classList.remove('show')
+            annotationsPanel.inert = true
+            $('#annotations-button').setAttribute('aria-expanded', 'false')
         }
+        // Refocus the view so keyboard navigation works
+        if (refocus && this.view) {
+            this.view.focus({ preventScroll: true })
+        }
+    }
+    #openSideBar(id) {
+        this.closeSideBar(false)
+        this.#sidebarOpening = true
+        this.#skipNextPush = true
+        $('#dimming-overlay').classList.add('show')
+        const panel = document.getElementById(id)
+        panel.inert = false
+        panel.classList.add('show')
+        if (id === 'annotations-side-bar') {
+            $('#annotations-button').setAttribute('aria-expanded', 'true')
+            $('#annotations-side-bar-close').focus({ preventScroll: true })
+        }
+        setTimeout(() => {
+            this.#sidebarOpening = false
+            this.#skipNextPush = false
+        }, 500)
     }
     #increaseFontSize() {
         if (this.style.fontSize < this.#maxFontSize) {
@@ -297,16 +320,17 @@ class Reader {
             this.showNotLoggedIn()
         }
 
-        $('#side-bar-button').addEventListener('click', () => {
-            this.#sidebarOpening = true
-            this.#skipNextPush = true
-            $('#dimming-overlay').classList.add('show')
-            $('#side-bar').classList.add('show')
-            // Clear the flags after a short delay to allow normal syncing to resume
-            setTimeout(() => {
-                this.#sidebarOpening = false
-                this.#skipNextPush = false
-            }, 500)
+        $('#side-bar-button').addEventListener('click', () => this.#openSideBar('side-bar'))
+        $('#annotations-button')?.addEventListener('click', () => {
+            if (this.sync.isAuthenticated) this.#openSideBar('annotations-side-bar')
+        })
+        $('#annotations-side-bar-close')?.addEventListener('click', () => this.closeSideBar())
+        $('#annotations-side-bar')?.addEventListener('keydown', event => {
+            event.stopPropagation()
+            if (event.key === 'Escape') {
+                this.closeSideBar()
+                $('#annotations-button').focus()
+            }
         })
         $('#dimming-overlay').addEventListener('click', () => this.closeSideBar())
         $('#side-bar-close').addEventListener('click', () => this.closeSideBar())
@@ -561,6 +585,7 @@ class Reader {
                 notify: (variant, message) => this.#toast.show(variant, message),
                 draw: Overlayer.highlight,
                 slug,
+                onNavigate: () => this.closeSideBar(),
             })
             await annotations.load()
         }
@@ -742,6 +767,7 @@ class Reader {
         }
     }
     #handleKeydown(event) {
+        if (event.defaultPrevented) return
         // Don't handle navigation keys when focus is on input elements
         const target = event.target
         if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
@@ -750,16 +776,10 @@ class Reader {
 
         const k = event.key
         if (k === 'ArrowLeft' || k === 'h') {
-            // Prevent default behavior on buttons to avoid triggering button actions
-            if (target && target.tagName === 'BUTTON') {
-                event.preventDefault()
-            }
+            event.preventDefault()
             this.view.goLeft()
         } else if(k === 'ArrowRight' || k === 'l') {
-            // Prevent default behavior on buttons to avoid triggering button actions
-            if (target && target.tagName === 'BUTTON') {
-                event.preventDefault()
-            }
+            event.preventDefault()
             this.view.goRight()
         }
     }
@@ -882,6 +902,10 @@ class Reader {
         if (tocItem?.href) this.#tocView?.setCurrentHref?.(tocItem.href)
     }
     showSessionExpired() {
+        if ($('#annotations-side-bar')) {
+            this.closeSideBar()
+            $('#annotations-button').hidden = true
+        }
         // Only show the notification once
         if (this.#sessionExpiredShown) return
         this.#sessionExpiredShown = true

@@ -16,14 +16,18 @@ export class ReaderAnnotations {
     #annotations = new Map()
     #renderErrorShown = false
     #location = null
+    #list
+    #onNavigate
 
-    constructor({ view, sync, translations, notify, draw, slug }) {
+    constructor({ view, sync, translations, notify, draw, slug, onNavigate }) {
         this.#view = view
         this.#sync = sync
         this.#translations = translations
         this.#notify = notify
         this.#draw = draw
         this.#slug = slug
+        this.#list = document.getElementById('annotations-list')
+        this.#onNavigate = onNavigate
         if (!sync.isAuthenticated) return
 
         this.#popup = document.createElement('dialog')
@@ -82,7 +86,10 @@ export class ReaderAnnotations {
             if (selection && !selection.isCollapsed) return
             this.#show({ cfi: value, content: annotation.content }, true)
         })
-        window.addEventListener('reader-session-expired', () => this.#hide())
+        window.addEventListener('reader-session-expired', () => {
+            this.#hide()
+            this.#list?.replaceChildren()
+        })
     }
     async load() {
         if (!this.#sync.isAuthenticated) return
@@ -98,10 +105,49 @@ export class ReaderAnnotations {
             for (const annotation of annotations) {
                 this.#annotations.set(annotation.cfi, { value: annotation.cfi, content: annotation.content })
             }
+            this.#renderList()
         } catch (error) {
             console.error('Error loading text annotations:', error)
             this.#notify('warning', this.#translations.annotations_load_failed)
+            if (this.#list) this.#list.textContent = this.#translations.annotations_load_failed
         }
+    }
+
+    #renderList() {
+        if (!this.#list) return
+        this.#list.replaceChildren()
+        if (!this.#annotations.size) {
+            const message = document.createElement('p')
+            message.textContent = this.#translations.no_annotations
+            this.#list.append(message)
+            return
+        }
+        const list = document.createElement('ol')
+        for (const annotation of this.#annotations.values()) {
+            const item = document.createElement('li')
+            const button = document.createElement('button')
+            button.type = 'button'
+            const preview = document.createElement('span')
+            preview.textContent = annotation.content
+            button.append(preview)
+            button.addEventListener('click', async () => {
+                if (!this.#sync.isAuthenticated) return
+                button.disabled = true
+                try {
+                    const target = await this.#view.goTo(annotation.value)
+                    if (!target) throw new Error('Annotation location could not be opened')
+                    this.#onNavigate?.()
+                } catch (error) {
+                    console.error('Error navigating to annotation:', error)
+                    this.#notify('warning', this.#translations.annotations_display_failed)
+                } finally {
+                    button.disabled = false
+                }
+            })
+            item.append(button)
+            list.append(item)
+        }
+        this.#list.append(list)
     }
 
     #url() {
@@ -220,6 +266,7 @@ export class ReaderAnnotations {
             if (!response.ok) throw new Error(`Annotation ${remove ? 'deletion' : 'save'} failed: HTTP ${response.status}`)
             if (remove) this.#annotations.delete(cfi)
             else this.#annotations.set(cfi, annotation)
+            this.#renderList()
             this.#dismiss()
         } catch (error) {
             console.error('Error updating text annotation:', error)

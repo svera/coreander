@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v5/internal/webserver/model"
@@ -64,6 +65,41 @@ func TestAnnotations(t *testing.T) {
 	}
 	first := `{"cfi":"epubcfi(/6/2!/4/2,/1:0,/1:5)","content":"First phrase","user_id":999}`
 	second := `{"cfi":"epubcfi(/6/2!/4/2,/1:6,/1:12)","content":"Second phrase"}`
+	t.Run("reader shows annotation sidebar only when logged in", func(t *testing.T) {
+		for _, cookie := range []*http.Cookie{nil, adminCookie} {
+			req, err := http.NewRequest(http.MethodGet, "/documents/"+slug+"/read", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cookie != nil {
+				req.AddCookie(cookie)
+			}
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			page, err := goquery.NewDocumentFromReader(resp.Body)
+			_ = resp.Body.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("reader status = %d", resp.StatusCode)
+			}
+			want := 0
+			if cookie != nil {
+				want = 1
+			}
+			for _, selector := range []string{"#annotations-button", "#annotations-side-bar", "#annotations-list"} {
+				if page.Find(selector).Length() != want {
+					t.Fatalf("%s count = %d, want %d", selector, page.Find(selector).Length(), want)
+				}
+			}
+			if cookie != nil && page.Find("#annotations-button + #menu-button").Length() != 1 {
+				t.Fatal("annotations icon is not immediately before settings")
+			}
+		}
+	})
 	t.Run("requires authentication", func(t *testing.T) {
 		request(http.MethodPost, slug, first, nil, http.StatusForbidden)
 		request(http.MethodGet, slug, "", nil, http.StatusForbidden)

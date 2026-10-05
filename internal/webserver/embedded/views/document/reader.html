@@ -51,7 +51,7 @@
         <!-- Footnote content will replace this paragraph if loading is successful -->
     </div>
 </dialog>
-<div id="side-bar">
+<div id="side-bar" class="reader-sidebar">
     <div class="reader-sidebar-topbar">
         <p class="reader-sidebar-back"><a id="reader-back-link" data-reader-history-back href="/documents/{{.Slug}}">← {{t .Lang "Return"}}</a></p>
         <button id="side-bar-close" aria-label='{{t .Lang "Close sidebar"}}' type="button">
@@ -72,6 +72,21 @@
     </div>
     <div id="toc-view"></div>
 </div>
+{{if and (.Session) (ne .Session.Name "")}}
+<aside id="annotations-side-bar" class="reader-sidebar" aria-labelledby="annotations-title" inert>
+    <div class="reader-sidebar-topbar">
+        <h2 id="annotations-title">{{t .Lang "Annotations"}}</h2>
+        <button id="annotations-side-bar-close" aria-label='{{t .Lang "Close sidebar"}}' type="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+    <div id="annotations-list" aria-live="polite">
+        <p>{{t .Lang "Loading annotations..."}}</p>
+    </div>
+</aside>
+{{end}}
 <div id="header-bar" class="toolbar">
     <button id="side-bar-button" aria-label='{{t .Lang "Show sidebar"}}'>
         <svg class="icon" width="24" height="24" aria-hidden="true">
@@ -98,6 +113,13 @@
             </svg>
         </button>
     </div>
+    {{if and (.Session) (ne .Session.Name "")}}
+    <button id="annotations-button" type="button" aria-label='{{t .Lang "Show annotations"}}' title='{{t .Lang "Show annotations"}}' aria-controls="annotations-side-bar" aria-expanded="false">
+        <svg class="icon" width="24" height="24" aria-hidden="true">
+            <path d="M5 3h14v18H5zM8 7h8M8 11h8M8 15h5"/>
+        </svg>
+    </button>
+    {{end}}
     <div id="menu-button" class="menu-container">
         <button aria-label='{{t .Lang "Show settings"}}' aria-haspopup="true">
             <svg class="icon" width="24" height="24" aria-hidden="true">
@@ -150,6 +172,7 @@
     "annotation_removed": {{t .Lang "Annotation removed."}},
     "annotation_remove_failed": {{t .Lang "The annotation could not be removed. Please try again."}},
     "annotations_load_failed": {{t .Lang "Your saved annotations could not be loaded."}},
+    "no_annotations": {{t .Lang "You haven't saved any annotations in this book yet."}},
     "annotations_display_failed": {{t .Lang "Some saved annotations could not be displayed. The document may have changed."}}
 }}</script>
 
