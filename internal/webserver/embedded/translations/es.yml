@@ -368,6 +368,7 @@
 "Add email addresses": "Añadir direcciones de correo"
 "Add multiple users separated by commas": "Añade varios usuarios separados por comas"
 "Comment": "Comentario"
+"Comments can contain up to 65,536 characters.": "Los comentarios pueden contener hasta 65.536 caracteres."
 "Add a comment": "Añadir un comentario"
 "Close": "Cerrar"
 "Share": "Compartir"

@@ -375,6 +375,7 @@
 "Add email addresses": "Добавьте адреса электронной почты"
 "Add multiple users separated by commas": "Добавьте несколько пользователей, разделяя их запятыми"
 "Comment": "Комментарий"
+"Comments can contain up to 65,536 characters.": "Комментарии могут содержать до 65 536 символов."
 "Add a comment": "Добавьте комментарий"
 "Share with": "Поделиться с"
 "Add usernames...": "Добавьте имена пользователей..."

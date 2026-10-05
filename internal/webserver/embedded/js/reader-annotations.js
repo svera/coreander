@@ -50,7 +50,10 @@ export class ReaderAnnotations {
         this.#commentLabel.textContent = translations.comment
         this.#commentInput = document.createElement('input')
         this.#commentInput.type = 'text'
-        this.#commentInput.maxLength = 65536
+        const commentLimit = document.createElement('small')
+        commentLimit.id = 'annotation-comment-limit'
+        commentLimit.textContent = translations.comment_limit
+        this.#commentInput.setAttribute('aria-describedby', commentLimit.id)
         this.#commentInput.addEventListener('keydown', event => {
             if (event.key === 'Enter' && !event.isComposing && !event.repeat &&
                 !event.defaultPrevented && !this.#pending?.remove) {
@@ -58,7 +61,7 @@ export class ReaderAnnotations {
                 this.#submit()
             }
         })
-        this.#commentLabel.append(this.#commentInput)
+        this.#commentLabel.append(this.#commentInput, commentLimit)
         this.#commentText = document.createElement('p')
         const actions = document.createElement('div')
         actions.className = 'annotation-actions'
@@ -357,6 +360,10 @@ export class ReaderAnnotations {
         if (!annotation || this.#saving || !this.#sync.isAuthenticated) return
         const { value, content, remove } = annotation
         const comment = this.#commentInput.value
+        if (!remove && Array.from(comment).length > 65536) {
+            this.#notify('warning', this.#translations.comment_limit)
+            return
+        }
         const savedAnnotation = remove ? { value, content } : { value, content, comment }
         this.#saving = true
         button.disabled = true
@@ -383,6 +390,7 @@ export class ReaderAnnotations {
             this.#saving = false
             button.disabled = false
             this.#commentInput.disabled = false
+            if (!this.#sync.isAuthenticated) this.#hide()
         }
         this.#notify('success', remove
             ? this.#translations.annotation_removed : this.#translations.annotation_saved)

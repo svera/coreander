@@ -98,6 +98,7 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
         translations: {
             save_annotation: 'Save annotation', cancel: 'Cancel', annotation_saved: 'Annotation saved.',
             comment: 'Comment',
+            comment_limit: 'Comments can contain up to 65,536 characters.',
             remove_annotation: 'Remove annotation', annotation_removed: 'Annotation removed.',
             annotation_remove_failed: 'Removal failed.', no_annotations: 'No annotations.',
         },
@@ -275,6 +276,38 @@ test('composition, held keys, and consumed Enter events do not save', t => {
     assert.equal(reader.popup.open, true)
 })
 
+for (const character of ['x', '\u00e9', '\u{1f600}']) {
+    test(`comment limit counts Unicode characters for ${character}`, async t => {
+        const reader = setup(t, true, { allowWarnings: true })
+        const requests = []
+        t.mock.method(globalThis, 'fetch', async (url, options) => {
+            requests.push(JSON.parse(options.body))
+            return { status: 204, ok: true }
+        })
+        reader.select('Selected passage')
+        reader.settle()
+        const comment = character.repeat(65536)
+        reader.commentInput.value = comment + character
+        reader.actionButton.dispatchEvent(new Event('click'))
+        assert.equal(requests.length, 0)
+        assert.equal(reader.popup.open, true)
+        assert.equal(reader.commentInput.value, comment + character)
+        assert.notEqual(reader.actionButton.disabled, true)
+        assert.notEqual(reader.commentInput.disabled, true)
+        assert.deepEqual(reader.notifications, [{
+            variant: 'warning', message: 'Comments can contain up to 65,536 characters.',
+        }])
+        assert.equal(reader.commentInput.attributes.get('aria-describedby'), 'annotation-comment-limit')
+        assert.equal(reader.popup.children[0].children[1].textContent, 'Comments can contain up to 65,536 characters.')
+        reader.commentInput.value = comment
+        reader.actionButton.dispatchEvent(new Event('click'))
+        await new Promise(setImmediate)
+        assert.equal(requests.length, 1)
+        assert.equal(requests[0].comment, comment)
+        assert.equal(reader.popup.open, false)
+    })
+}
+
 test('a comment survives selection changes while typing and is shown after saving', async t => {
     const reader = setup(t)
     const requests = []
@@ -451,16 +484,65 @@ test('a failed deletion preserves the entry and highlight and re-enables the cro
     assert.deepEqual(reader.notifications, [{ variant: 'warning', message: 'Removal failed.' }])
 })
 
-test('an expired session clears the panel without deleting local highlights or reporting success', async t => {
-    const { reader, rows } = await loadList(t,
-        [{ cfi: FIRST, content: 'First annotation' }], { status: 403, ok: false })
-    rows()[0].children[1].dispatchEvent(new Event('click'))
-    await new Promise(setImmediate)
-    assert.equal(reader.sync.isAuthenticated, false)
-    assert.equal(reader.list.children.length, 0)
-    assert.equal(reader.deleted.length, 0)
-    assert.equal(reader.notifications.length, 0)
-})
+for (const status of [401, 403]) {
+    test(`HTTP ${status} during deletion clears the popup and panel and restores controls`, async t => {
+        const { reader, rows } = await loadList(t,
+            [{ cfi: FIRST, content: 'First annotation' }], { status, ok: false })
+        const range = reader.doc.defaultView.getSelection().getRangeAt(0).cloneRange()
+        reader.view.dispatchEvent(new CustomEvent('show-annotation', { detail: { value: FIRST, range } }))
+        const remove = rows()[0].children[1]
+        remove.dispatchEvent(new Event('click'))
+        assert.equal(remove.disabled, true)
+        assert.equal(reader.commentInput.disabled, true)
+        await new Promise(setImmediate)
+        assert.equal(reader.sync.isAuthenticated, false)
+        assert.equal(reader.popup.open, false)
+        assert.equal(reader.list.children.length, 0)
+        assert.equal(remove.disabled, false)
+        assert.equal(reader.commentInput.disabled, false)
+        assert.equal(reader.deleted.length, 0)
+        assert.equal(reader.notifications.length, 0)
+        reader.sync.isAuthenticated = true
+        reader.select('New passage')
+        reader.settle()
+        assert.equal(reader.popup.open, true, 'Expired submission must release the saving lock')
+    })
+
+    test(`HTTP ${status} during saving closes the popup and allows saving after reauthentication`, async t => {
+        const reader = setup(t)
+        let requests = 0
+        t.mock.method(globalThis, 'fetch', async () => {
+            requests++
+            return requests === 1 ? { status, ok: false } : { status: 204, ok: true }
+        })
+        reader.select('Selected passage')
+        reader.settle()
+        reader.commentInput.value = 'Comment'
+        reader.actionButton.dispatchEvent(new Event('click'))
+        assert.equal(reader.actionButton.disabled, true)
+        assert.equal(reader.commentInput.disabled, true)
+        await new Promise(setImmediate)
+        assert.equal(reader.sync.isAuthenticated, false)
+        assert.equal(reader.popup.open, false)
+        assert.equal(reader.actionButton.disabled, false)
+        assert.equal(reader.commentInput.disabled, false)
+        assert.equal(reader.notifications.length, 0)
+        assert.equal(reader.deleted.length, 0)
+        reader.actionButton.dispatchEvent(new Event('click'))
+        assert.equal(requests, 1, 'Expired submissions must clear the pending annotation')
+        reader.sync.isAuthenticated = true
+        reader.actionButton.dispatchEvent(new Event('click'))
+        assert.equal(requests, 1, 'Reauthentication must not restore stale pending annotations')
+        reader.select('New passage')
+        reader.settle()
+        assert.equal(reader.popup.open, true)
+        reader.actionButton.dispatchEvent(new Event('click'))
+        await new Promise(setImmediate)
+        assert.equal(requests, 2)
+        assert.equal(reader.popup.open, false)
+        assert.deepEqual(reader.notifications, [{ variant: 'success', message: 'Annotation saved.' }])
+    })
+}
 
 test('clicking annotation text still navigates without deleting it', async t => {
     const { reader, requests, rows } = await loadList(t, [{ cfi: FIRST, content: 'First annotation' }])

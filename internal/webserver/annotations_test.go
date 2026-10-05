@@ -111,7 +111,8 @@ func TestAnnotations(t *testing.T) {
 			`{"cfi":"epubcfi(/6/2)","content":"  "}`,
 			`{"cfi":"epubcfi(/6/2)","content":"` + strings.Repeat("x", 65537) + `"}`,
 			`{"cfi":"epubcfi(/6/2)","content":"Text","comment":"` + strings.Repeat("x", 65537) + `"}`,
-			`{"cfi":"epubcfi(/6/2)","content":"Text","comment":"` + strings.Repeat("\u00e9", 32769) + `"}`,
+			`{"cfi":"epubcfi(/6/2)","content":"Text","comment":"` + strings.Repeat("\u00e9", 65537) + `"}`,
+			`{"cfi":"epubcfi(/6/2)","content":"Text","comment":"` + strings.Repeat("\U0001f600", 65537) + `"}`,
 			`{"cfi":"epubcfi(/6/2)","content":"Text","comment":123}`,
 			`{"cfi":"epubcfi(` + strings.Repeat("1", 8192) + `)","content":"Text"}`,
 		} {
@@ -153,18 +154,26 @@ func TestAnnotations(t *testing.T) {
 		if err := json.Unmarshal([]byte(second), &body); err != nil {
 			t.Fatal(err)
 		}
-		body["comment"] = strings.Repeat("x", 65536)
-		raw, err := json.Marshal(body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		request(http.MethodPost, slug, string(raw), adminCookie, http.StatusNoContent)
 		var saved model.Annotation
-		if err := db.Where("user_id = ? AND cfi = ?", 1, body["cfi"]).First(&saved).Error; err != nil {
-			t.Fatal(err)
-		}
-		if saved.Comment != body["comment"] {
-			t.Fatal("comment at the size limit was not saved")
+		for _, character := range []string{"x", "\u00e9", "\U0001f600"} {
+			body["comment"] = strings.Repeat(character, 65536)
+			raw, err := json.Marshal(body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			request(http.MethodPost, slug, string(raw), adminCookie, http.StatusNoContent)
+			if err := db.Where("user_id = ? AND cfi = ?", 1, body["cfi"]).First(&saved).Error; err != nil {
+				t.Fatal(err)
+			}
+			if saved.Comment != body["comment"] {
+				t.Fatal("comment at the character limit was not saved")
+			}
+			body["comment"] += character
+			raw, err = json.Marshal(body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			request(http.MethodPost, slug, string(raw), adminCookie, http.StatusBadRequest)
 		}
 		request(http.MethodPost, slug, second, adminCookie, http.StatusNoContent)
 		if err := db.Where("user_id = ? AND cfi = ?", 1, body["cfi"]).First(&saved).Error; err != nil {

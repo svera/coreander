@@ -3,6 +3,7 @@ package annotation
 import (
 	"log"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v5/internal/webserver/model"
@@ -24,8 +25,8 @@ func (a *Controller) Save(c fiber.Ctx) error {
 	if !validCFI(body.CFI) || strings.TrimSpace(body.Content) == "" || len(body.Content) > 65536 {
 		return fiber.NewError(fiber.StatusBadRequest, "A CFI (up to 8192 bytes) and annotated text (up to 65536 bytes) are required")
 	}
-	if len(body.Comment) > 65536 {
-		return fiber.NewError(fiber.StatusBadRequest, "The comment must not exceed 65536 bytes")
+	if utf8.RuneCountInString(body.Comment) > 65536 {
+		return fiber.NewError(fiber.StatusBadRequest, "Comments can contain up to 65,536 characters.")
 	}
 	if err := a.repository.Save(userID, slug, body.CFI, body.Content, body.Comment); err != nil {
 		log.Printf("error saving text annotation: %v\n", err)
