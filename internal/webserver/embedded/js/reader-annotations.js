@@ -42,8 +42,10 @@ export class ReaderAnnotations {
         this.#onNavigate = onNavigate
         if (!sync.isAuthenticated) return
 
-        this.#popup = document.createElement('dialog')
+        this.#popup = document.createElement('div')
         this.#popup.id = 'annotation-popup'
+        this.#popup.hidden = true
+        this.#popup.setAttribute('role', 'dialog')
         this.#actionButton = createButton('', () => this.#submit())
         const cancel = createButton(translations.cancel, () => this.#dismiss())
         this.#commentLabel = document.createElement('label')
@@ -74,9 +76,12 @@ export class ReaderAnnotations {
                 this.#dismiss()
             }
         })
-        this.#popup.addEventListener('cancel', event => {
-            event.preventDefault()
-            this.#dismiss()
+        document.addEventListener('keydown', event => {
+            if (!this.#popup.hidden && !event.defaultPrevented && event.key === 'Escape') {
+                event.preventDefault()
+                event.stopPropagation()
+                this.#dismiss()
+            }
         })
         document.body.append(this.#popup)
 
@@ -111,9 +116,12 @@ export class ReaderAnnotations {
             this.#hide()
             this.#list?.replaceChildren()
         })
-        window.addEventListener('resize', () => {
-            if (this.#popup.open) this.#positionPopup()
-        })
+        const reposition = () => {
+            if (!this.#popup.hidden) this.#positionPopup()
+        }
+        window.addEventListener('resize', reposition)
+        window.visualViewport?.addEventListener('resize', reposition)
+        window.visualViewport?.addEventListener('scroll', reposition)
     }
     async load() {
         if (!this.#sync.isAuthenticated) return
@@ -200,6 +208,7 @@ export class ReaderAnnotations {
         if (!doc || this.#documents.has(doc)) return
         this.#documents.add(doc)
         let selecting = false
+        // Wait until dragging ends; debounce late native long-press/handle updates.
         const schedule = (delay = 0) => {
             clearTimeout(this.#selectionTimeout)
             this.#selectionTimeout = setTimeout(() => {
@@ -238,11 +247,12 @@ export class ReaderAnnotations {
     }
 
     #selected(doc, index) {
-        if (!this.#sync.isAuthenticated || this.#saving || this.#pending?.remove ||
-            this.#popup.contains(document.activeElement)) return
+        if (!this.#sync.isAuthenticated || this.#saving || this.#pending?.remove) return
         const selection = doc.defaultView.getSelection()
         const content = selection?.toString() ?? ''
         if (!selection?.rangeCount || selection.isCollapsed || !content.trim()) {
+            // Editing a comment can clear the book's selection; retain the captured range.
+            if (this.#popup.contains(document.activeElement)) return
             this.#hide()
             return
         }
@@ -274,11 +284,9 @@ export class ReaderAnnotations {
         this.#actionButton.textContent = remove
             ? this.#translations.remove_annotation : this.#translations.save_annotation
         this.#popup.setAttribute('aria-label', this.#actionButton.textContent)
-        if (!this.#popup.open) {
+        if (this.#popup.hidden) {
             this.#popup.style.visibility = 'hidden'
-            if (remove) this.#popup.show()
-            // Avoid moving focus away from the book's native selection.
-            else this.#popup.open = true
+            this.#popup.hidden = false
         }
         this.#positionPopup()
         this.#popup.style.removeProperty('visibility')
@@ -296,18 +304,28 @@ export class ReaderAnnotations {
         const scaleY = frame ? frameRect.height / frame.offsetHeight : 1
         const offsetX = frame ? frameRect.left + frame.clientLeft * scaleX : 0
         const offsetY = frame ? frameRect.top + frame.clientTop * scaleY : 0
-        const viewportWidth = document.documentElement.clientWidth
-        const viewportHeight = document.documentElement.clientHeight
+        const viewport = window.visualViewport
+        const viewportLeft = viewport?.offsetLeft ?? 0
+        const viewportTop = viewport?.offsetTop ?? 0
+        const viewportWidth = viewport?.width ?? document.documentElement.clientWidth
+        const viewportHeight = viewport?.height ?? document.documentElement.clientHeight
+        const viewportRight = viewportLeft + viewportWidth
+        const viewportBottom = viewportTop + viewportHeight
         const gap = 8
-        const minY = Math.max(gap, document.getElementById('header-bar')?.getBoundingClientRect().bottom ?? gap)
-        const maxY = Math.min(viewportHeight - gap,
-            document.getElementById('nav-bar')?.getBoundingClientRect().top ?? viewportHeight - gap)
+        const minX = viewportLeft + gap
+        const maxX = viewportRight - gap
+        const minY = Math.max(viewportTop + gap,
+            document.getElementById('header-bar')?.getBoundingClientRect().bottom ?? viewportTop + gap)
+        const maxY = Math.min(viewportBottom - gap,
+            document.getElementById('nav-bar')?.getBoundingClientRect().top ?? viewportBottom - gap)
+        this.#popup.style.maxWidth = `${Math.max(0, maxX - minX)}px`
+        this.#popup.style.maxHeight = `${Math.max(0, maxY - minY)}px`
         const rects = Array.from(this.#anchorRange.getClientRects(), rect => ({
             left: offsetX + rect.left * scaleX,
             right: offsetX + rect.right * scaleX,
             top: offsetY + rect.top * scaleY,
             bottom: offsetY + rect.bottom * scaleY,
-        })).filter(rect => rect.right > gap && rect.left < viewportWidth - gap &&
+        })).filter(rect => rect.right > minX && rect.left < maxX &&
             rect.bottom > minY && rect.top < maxY)
         if (!rects.length) {
             this.#hide()
@@ -315,13 +333,13 @@ export class ReaderAnnotations {
         }
         const top = Math.max(minY, Math.min(...rects.map(rect => rect.top)))
         const bottom = Math.min(maxY, Math.max(...rects.map(rect => rect.bottom)))
-        const left = Math.max(0, Math.min(...rects.map(rect => rect.left)))
-        const right = Math.min(viewportWidth, Math.max(...rects.map(rect => rect.right)))
+        const left = Math.max(minX, Math.min(...rects.map(rect => rect.left)))
+        const right = Math.min(maxX, Math.max(...rects.map(rect => rect.right)))
         const { width, height } = this.#popup.getBoundingClientRect()
         const below = maxY - bottom - gap
         const above = top - minY - gap
         const y = below >= height || below >= above ? bottom + gap : top - height - gap
-        this.#popup.style.left = `${Math.max(gap, Math.min((left + right - width) / 2, viewportWidth - width - gap))}px`
+        this.#popup.style.left = `${Math.max(minX, Math.min((left + right - width) / 2, maxX - width))}px`
         this.#popup.style.top = `${Math.max(minY, Math.min(y, maxY - height))}px`
     }
 
@@ -329,7 +347,7 @@ export class ReaderAnnotations {
         clearTimeout(this.#selectionTimeout)
         this.#pending = null
         this.#anchorRange = null
-        this.#popup?.close()
+        if (this.#popup) this.#popup.hidden = true
     }
 
     #dismiss() {
@@ -381,6 +399,17 @@ export class ReaderAnnotations {
             if (listIndex === null) this.#dismiss()
             else this.#hide()
             this.#renderList(listIndex)
+            // Persistence is authoritative; overlay failures must not undo a committed save/delete.
+            try {
+                if (remove) await this.#view.deleteAnnotation(savedAnnotation)
+                else await this.#view.addAnnotation(savedAnnotation)
+            } catch (error) {
+                console.error('Error updating annotation overlay:', error)
+                this.#notify('warning', this.#translations.annotations_display_failed)
+                return
+            }
+            this.#notify('success', remove
+                ? this.#translations.annotation_removed : this.#translations.annotation_saved)
         } catch (error) {
             console.error('Error updating text annotation:', error)
             this.#notify('warning', remove
@@ -391,18 +420,6 @@ export class ReaderAnnotations {
             button.disabled = false
             this.#commentInput.disabled = false
             if (!this.#sync.isAuthenticated) this.#hide()
-        }
-        this.#notify('success', remove
-            ? this.#translations.annotation_removed : this.#translations.annotation_saved)
-        try {
-            if (remove) await this.#view.deleteAnnotation(savedAnnotation)
-            else {
-                const { index } = await this.#view.resolveNavigation(value)
-                await this.#restore(index)
-            }
-        } catch (error) {
-            console.error('Error updating annotation overlay:', error)
-            this.#notify('warning', this.#translations.annotations_display_failed)
         }
     }
 }

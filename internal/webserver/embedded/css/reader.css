@@ -116,11 +116,13 @@ foliate-view:focus {
     color: CanvasText;
     box-shadow: 0 .25rem 1rem rgba(0, 0, 0, .25);
     z-index: 1000;
-}
-#annotation-popup[open] {
     display: flex;
     flex-direction: column;
     gap: .75rem;
+    overflow-y: auto;
+}
+#annotation-popup[hidden] {
+    display: none;
 }
 #annotation-popup label {
     display: flex;

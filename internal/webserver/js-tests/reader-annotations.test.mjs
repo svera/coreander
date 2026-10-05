@@ -13,7 +13,9 @@ const LAST = 'epubcfi(/6/10!/4/2/1:0)'
 
 class Element extends EventTarget {
     children = []
-    open = false
+    hidden = true
+    disabled = false
+    get open() { return !this.hidden }
     style = { removeProperty(name) { delete this[name] } }
     attributes = new Map()
     focusCalls = []
@@ -22,13 +24,11 @@ class Element extends EventTarget {
     replaceChildren(...children) { this.children = children }
     setAttribute(name, value) { this.attributes.set(name, value) }
     getBoundingClientRect() { return { width: 240, height: 48 } }
-    close() { this.open = false }
-    show() { this.open = true }
     focus(options) { this.focusCalls.push(options) }
     contains(element) { return this === element || this.children.some(child => child.contains(element)) }
 }
 
-function setup(t, authenticated = true, { withList = false, allowWarnings = false } = {}) {
+function setup(t, authenticated = true, { withList = false, allowWarnings = false, viewport } = {}) {
     const body = new Element()
     const list = withList ? new Element() : null
     const listClose = new Element()
@@ -39,14 +39,15 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
             else delete globalThis[name]
         })
     }
-    globalThis.document = {
+    globalThis.document = Object.assign(new EventTarget(), {
         body,
         documentElement: { clientWidth: 390, clientHeight: 844 },
         createElement: () => new Element(),
         getElementById: id => id === 'annotations-list' ? list :
             id === 'annotations-side-bar-close' ? listClose : null,
-    }
+    })
     globalThis.window = new EventTarget()
+    window.visualViewport = viewport
     const timers = new Map()
     let nextTimer = 0
     t.mock.method(globalThis, 'setTimeout', (callback, delay) => {
@@ -101,6 +102,7 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
             comment_limit: 'Comments can contain up to 65,536 characters.',
             remove_annotation: 'Remove annotation', annotation_removed: 'Annotation removed.',
             annotation_remove_failed: 'Removal failed.', no_annotations: 'No annotations.',
+            annotations_display_failed: 'Saved annotations could not be displayed.',
         },
         notify: (variant, message) => {
             if (!allowWarnings) assert.notEqual(variant, 'warning', 'Unexpected annotation warning')
@@ -404,6 +406,80 @@ test('opening the popup preserves native selection without moving focus or requi
     assert.deepEqual(reader.commentInput.focusCalls, [])
     assert.deepEqual(reader.focusCalls, [])
 })
+
+test('popup uses a non-modal dialog role and Escape dismisses it from the outer document', t => {
+    const reader = setup(t)
+    reader.select('Text')
+    reader.settle()
+    assert.equal(reader.popup.hidden, false)
+    assert.equal(reader.popup.attributes.get('role'), 'dialog')
+    const escape = Object.assign(new Event('keydown', { cancelable: true }), { key: 'Escape' })
+    document.dispatchEvent(escape)
+    assert.equal(escape.defaultPrevented, true)
+    assert.equal(reader.popup.hidden, true)
+    assert.deepEqual(reader.focusCalls, [{ preventScroll: true }])
+})
+
+test('a new nonempty selection is processed even while the popup has focus', t => {
+    const reader = setup(t)
+    reader.select('First')
+    reader.settle()
+    document.activeElement = reader.commentInput
+    reader.select('Second')
+    reader.settle()
+    assert.equal(reader.ranges.at(-1).text, 'Second')
+    assert.equal(reader.popup.hidden, false)
+})
+
+test('popup follows the visible viewport on resize and panning without moving focus', t => {
+    const viewport = Object.assign(new EventTarget(), {
+        width: 300, height: 300, offsetLeft: 10, offsetTop: 20,
+    })
+    const reader = setup(t, true, { viewport })
+    reader.select('Text')
+    reader.settle()
+    assert.equal(reader.popup.style.maxWidth, '284px')
+    assert.equal(reader.popup.style.maxHeight, '284px')
+    viewport.width = 260
+    viewport.offsetLeft = 30
+    viewport.dispatchEvent(new Event('resize'))
+    assert.equal(reader.popup.style.maxWidth, '244px')
+    assert.ok(parseFloat(reader.popup.style.left) >= 38)
+    assert.ok(parseFloat(reader.popup.style.left) + 240 <= 282)
+    viewport.offsetTop = 40
+    viewport.dispatchEvent(new Event('scroll'))
+    assert.ok(parseFloat(reader.popup.style.top) >= 48)
+    assert.deepEqual(reader.commentInput.focusCalls, [])
+})
+
+for (const remove of [false, true]) {
+    test(`overlay failure after ${remove ? 'deletion' : 'saving'} preserves committed state and reports only a warning`, async t => {
+        const reader = setup(t, true, { withList: true, allowWarnings: true })
+        t.mock.method(console, 'error', () => {})
+        t.mock.method(globalThis, 'fetch', async (url, options) => options
+            ? { status: 204, ok: true }
+            : { status: 200, ok: true, json: async () => [{ cfi: FIRST, content: 'Text' }] })
+        t.mock.method(reader.view, remove ? 'deleteAnnotation' : 'addAnnotation',
+            async () => { throw new Error('Overlay unavailable') })
+        if (remove) {
+            await reader.annotations.load()
+            reader.list.children[0].children[0].children[1].dispatchEvent(new Event('click'))
+        } else {
+            reader.select('Text')
+            reader.settle()
+            reader.actionButton.dispatchEvent(new Event('click'))
+        }
+        await new Promise(setImmediate)
+        assert.equal(reader.popup.hidden, true)
+        assert.equal(reader.actionButton.disabled, false)
+        assert.equal(reader.commentInput.disabled, false)
+        assert.deepEqual(reader.notifications, [{
+            variant: 'warning', message: 'Saved annotations could not be displayed.',
+        }])
+        if (remove) assert.equal(reader.list.children[0].textContent, 'No annotations.')
+        else assert.equal(reader.list.children[0].children[0].children[0].children[0].textContent, 'Text')
+    })
+}
 
 async function loadList(t, entries, deleteResponse = { status: 204, ok: true }) {
     const reader = setup(t, true, { withList: true, allowWarnings: !deleteResponse.ok })
