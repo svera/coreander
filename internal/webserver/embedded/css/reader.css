@@ -238,7 +238,8 @@ foliate-view:focus {
     right: 0;
     transform: translateX(100%);
 }
-.reader-sidebar.show {
+#side-bar.show,
+#annotations-side-bar.show {
     visibility: visible;
     transform: translateX(0);
     transition-delay: 0s;
