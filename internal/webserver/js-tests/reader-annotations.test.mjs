@@ -42,7 +42,7 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
     globalThis.document = Object.assign(new EventTarget(), {
         body,
         documentElement: { clientWidth: 390, clientHeight: 844 },
-        createElement: () => new Element(),
+        createElement: tag => Object.assign(new Element(), { tagName: tag.toUpperCase() }),
         getElementById: id => id === 'annotations-list' ? list :
             id === 'annotations-side-bar-close' ? listClose : null,
     })
@@ -77,6 +77,14 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
     doc.defaultView = { getSelection: () => selection }
     const view = new EventTarget()
     view.renderer = new EventTarget()
+    const previews = new Map()
+    view.renderer.getContents = () => [{
+        doc,
+        overlayer: {
+            add: (key, range, draw, options) => previews.set(key, { range, options }),
+            remove: key => previews.delete(key),
+        },
+    }]
     const ranges = []
     const focusCalls = []
     const notifications = []
@@ -119,6 +127,7 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
         get commentText() { return body.children[0].children[1] },
         get actionButton() { return body.children[0].children[2].children[0] },
         ranges,
+        previews,
         focusCalls,
         notifications,
         annotations,
@@ -237,22 +246,22 @@ test('saving restores reader focus without scrolling or navigating', async t => 
     assert.deepEqual(JSON.parse(requests[0].body), { cfi: 'cfi:Saved text', content: 'Saved text', comment: '' })
 })
 
-test('Enter in the comment input saves once, including an empty comment', async t => {
+test('Ctrl/Cmd+Enter in the textarea saves once, including multiline and empty comments', async t => {
     const reader = setup(t)
     const requests = []
     t.mock.method(globalThis, 'fetch', async (url, options) => {
         requests.push(JSON.parse(options.body))
         return { status: 204, ok: true }
     })
-    for (const comment of ['My comment', '']) {
+    for (const [comment, modifier] of [['My comment\nSecond line', 'ctrlKey'], ['', 'metaKey']]) {
         const text = `Saved text ${requests.length}`
         reader.select(text)
         reader.settle()
         reader.commentInput.value = comment
-        const enter = Object.assign(new Event('keydown', { cancelable: true }), { key: 'Enter' })
+        const enter = Object.assign(new Event('keydown', { cancelable: true }), { key: 'Enter', [modifier]: true })
         reader.commentInput.dispatchEvent(enter)
         assert.equal(enter.defaultPrevented, true)
-        reader.commentInput.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Enter' }))
+        reader.commentInput.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Enter', [modifier]: true }))
         await new Promise(setImmediate)
         assert.equal(reader.popup.open, false)
         assert.deepEqual(requests.at(-1), {
@@ -262,17 +271,20 @@ test('Enter in the comment input saves once, including an empty comment', async 
     assert.equal(requests.length, 2)
 })
 
-test('composition, held keys, and consumed Enter events do not save', t => {
+test('plain Enter, composition, held keys, and consumed shortcuts do not save', t => {
     const reader = setup(t)
     t.mock.method(globalThis, 'fetch', () => assert.fail('Unexpected annotation save'))
     reader.select('Text')
     reader.settle()
-    for (const options of [{ isComposing: true }, { repeat: true }, { key: 'a' }]) {
-        const event = Object.assign(new Event('keydown', { cancelable: true }), { key: 'Enter', ...options })
+    assert.equal(reader.commentInput.tagName, 'TEXTAREA')
+    assert.equal(reader.commentInput.rows, 3)
+    assert.equal(reader.popup.children[0].children.length, 1)
+    for (const options of [{ ctrlKey: false }, { isComposing: true }, { repeat: true }, { key: 'a' }]) {
+        const event = Object.assign(new Event('keydown', { cancelable: true }), { key: 'Enter', ctrlKey: true, ...options })
         reader.commentInput.dispatchEvent(event)
         assert.equal(event.defaultPrevented, false)
     }
-    const consumed = Object.assign(new Event('keydown', { cancelable: true }), { key: 'Enter' })
+    const consumed = Object.assign(new Event('keydown', { cancelable: true }), { key: 'Enter', ctrlKey: true })
     consumed.preventDefault()
     reader.commentInput.dispatchEvent(consumed)
     assert.equal(reader.popup.open, true)
@@ -299,8 +311,8 @@ for (const character of ['x', '\u00e9', '\u{1f600}']) {
         assert.deepEqual(reader.notifications, [{
             variant: 'warning', message: 'Comments can contain up to 65,536 characters.',
         }])
-        assert.equal(reader.commentInput.attributes.get('aria-describedby'), 'annotation-comment-limit')
-        assert.equal(reader.popup.children[0].children[1].textContent, 'Comments can contain up to 65,536 characters.')
+        assert.equal(reader.commentInput.attributes.has('aria-describedby'), false)
+        assert.equal(reader.popup.children[0].children.length, 1)
         reader.commentInput.value = comment
         reader.actionButton.dispatchEvent(new Event('click'))
         await new Promise(setImmediate)
@@ -353,6 +365,80 @@ test('comments are reset between new selections', t => {
     assert.equal(reader.commentInput.value, '')
 })
 
+test('manual textarea focus previews the captured passage without autofocus', t => {
+    const reader = setup(t)
+    reader.select('Selected passage')
+    reader.settle()
+    assert.equal(reader.previews.size, 0)
+    assert.deepEqual(reader.commentInput.focusCalls, [])
+    document.activeElement = reader.commentInput
+    reader.commentInput.dispatchEvent(new Event('focus'))
+    reader.select('')
+    reader.settle()
+    assert.equal(reader.popup.hidden, false)
+    assert.equal(reader.previews.size, 1)
+    const preview = [...reader.previews.values()][0]
+    assert.equal(preview.range.text, 'Selected passage')
+    assert.deepEqual(preview.options, { color: 'yellow' })
+    reader.popup.children[2].children[1].dispatchEvent(new Event('click'))
+    assert.equal(reader.previews.size, 0)
+})
+
+test('saving clears the preview and preserves the captured passage and multiline comment', async t => {
+    const reader = setup(t)
+    let saved
+    t.mock.method(globalThis, 'fetch', async (url, options) => {
+        saved = JSON.parse(options.body)
+        return { status: 204, ok: true }
+    })
+    reader.select('Selected passage')
+    reader.settle()
+    document.activeElement = reader.commentInput
+    reader.commentInput.dispatchEvent(new Event('focus'))
+    reader.select('')
+    reader.settle()
+    reader.commentInput.value = 'First line\nSecond line'
+    reader.actionButton.dispatchEvent(new Event('click'))
+    await new Promise(setImmediate)
+    assert.equal(reader.previews.size, 0)
+    assert.deepEqual(saved, {
+        cfi: 'cfi:Selected passage', content: 'Selected passage', comment: 'First line\nSecond line',
+    })
+})
+
+test('preview follows new selections and is removed on navigation or session expiry', t => {
+    const reader = setup(t)
+    reader.select('First')
+    reader.settle()
+    document.activeElement = reader.commentInput
+    reader.commentInput.dispatchEvent(new Event('focus'))
+    reader.select('Second')
+    reader.settle()
+    assert.equal(reader.previews.size, 1)
+    assert.equal([...reader.previews.values()][0].range.text, 'Second')
+    reader.view.renderer.dispatchEvent(new CustomEvent('relocate', { detail: { index: 2, fraction: 0 } }))
+    reader.view.renderer.dispatchEvent(new CustomEvent('relocate', { detail: { index: 2, fraction: 0.5 } }))
+    assert.equal(reader.previews.size, 0)
+    reader.select('Third')
+    reader.settle()
+    assert.equal(reader.previews.size, 1)
+    window.dispatchEvent(new Event('reader-session-expired'))
+    assert.equal(reader.previews.size, 0)
+})
+
+test('preview errors are reported without losing the pending comment', t => {
+    const reader = setup(t, true, { allowWarnings: true })
+    t.mock.method(console, 'error', () => {})
+    t.mock.method(reader.view.renderer, 'getContents', () => [])
+    reader.select('Text')
+    reader.settle()
+    reader.commentInput.value = 'Comment'
+    reader.commentInput.dispatchEvent(new Event('focus'))
+    assert.equal(reader.popup.hidden, false)
+    assert.equal(reader.commentInput.value, 'Comment')
+    assert.equal(reader.notifications[0].variant, 'warning')
+})
+
 test('failed saves preserve the entered comment for retry', async t => {
     const reader = setup(t, true, { allowWarnings: true })
     t.mock.method(globalThis, 'fetch', async () => ({ status: 500, ok: false }))
@@ -360,10 +446,13 @@ test('failed saves preserve the entered comment for retry', async t => {
     reader.select('Text')
     reader.settle()
     reader.commentInput.value = 'Keep this comment'
+    document.activeElement = reader.commentInput
+    reader.commentInput.dispatchEvent(new Event('focus'))
     reader.actionButton.dispatchEvent(new Event('click'))
     await new Promise(setImmediate)
     assert.equal(reader.popup.open, true)
     assert.equal(reader.commentInput.value, 'Keep this comment')
+    assert.equal(reader.previews.size, 1)
     assert.equal(reader.actionButton.disabled, false)
     assert.equal(reader.commentInput.disabled, false)
     assert.equal(reader.notifications[0].variant, 'warning')
@@ -708,7 +797,7 @@ test('loaded annotation comments are displayed as text in the removal popup', as
     assert.equal(reader.commentText.textContent, '<b>A saved comment</b>')
     assert.equal(reader.popup.children[0].hidden, true)
     assert.deepEqual(reader.commentInput.focusCalls, [])
-    reader.commentInput.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Enter' }))
+    reader.commentInput.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Enter', ctrlKey: true }))
     await new Promise(setImmediate)
     assert.equal(requests.length, 0)
 })

@@ -1,5 +1,7 @@
 import { compare } from './foliate-js/epubcfi.js'
 
+const SELECTION_PREVIEW = 'reader-annotation-selection'
+
 const createButton = (label, onClick) => {
     const button = document.createElement('button')
     button.type = 'button'
@@ -17,6 +19,7 @@ export class ReaderAnnotations {
     #url
     #popup
     #anchorRange = null
+    #selectionOverlayer = null
     #actionButton
     #commentLabel
     #commentInput
@@ -50,20 +53,18 @@ export class ReaderAnnotations {
         const cancel = createButton(translations.cancel, () => this.#dismiss())
         this.#commentLabel = document.createElement('label')
         this.#commentLabel.textContent = translations.comment
-        this.#commentInput = document.createElement('input')
-        this.#commentInput.type = 'text'
-        const commentLimit = document.createElement('small')
-        commentLimit.id = 'annotation-comment-limit'
-        commentLimit.textContent = translations.comment_limit
-        this.#commentInput.setAttribute('aria-describedby', commentLimit.id)
+        this.#commentInput = document.createElement('textarea')
+        this.#commentInput.rows = 3
+        this.#commentInput.addEventListener('focus', () => this.#previewSelection())
         this.#commentInput.addEventListener('keydown', event => {
-            if (event.key === 'Enter' && !event.isComposing && !event.repeat &&
+            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) &&
+                !event.isComposing && !event.repeat &&
                 !event.defaultPrevented && !this.#pending?.remove) {
                 event.preventDefault()
                 this.#submit()
             }
         })
-        this.#commentLabel.append(this.#commentInput, commentLimit)
+        this.#commentLabel.append(this.#commentInput)
         this.#commentText = document.createElement('p')
         const actions = document.createElement('div')
         actions.className = 'annotation-actions'
@@ -273,6 +274,7 @@ export class ReaderAnnotations {
 
     #show(annotation, range, remove = false) {
         clearTimeout(this.#selectionTimeout)
+        this.#clearSelectionPreview()
         if (this.#pending?.value !== annotation.value || remove) {
             this.#commentInput.value = annotation.comment ?? ''
         }
@@ -290,6 +292,27 @@ export class ReaderAnnotations {
         }
         this.#positionPopup()
         this.#popup.style.removeProperty('visibility')
+        if (!remove && document.activeElement === this.#commentInput) this.#previewSelection()
+    }
+
+    #previewSelection() {
+        if (!this.#anchorRange || this.#pending?.remove || this.#popup.hidden) return
+        try {
+            const doc = this.#anchorRange.startContainer.ownerDocument
+            const overlayer = this.#view.renderer.getContents().find(item => item.doc === doc)?.overlayer
+            if (!overlayer) throw new Error('The selected passage has no annotation overlay')
+            this.#clearSelectionPreview()
+            this.#selectionOverlayer = overlayer
+            overlayer.add(SELECTION_PREVIEW, this.#anchorRange, this.#draw, { color: 'yellow' })
+        } catch (error) {
+            console.error('Error previewing the selected passage:', error)
+            this.#notify('warning', this.#translations.annotations_display_failed)
+        }
+    }
+
+    #clearSelectionPreview() {
+        this.#selectionOverlayer?.remove(SELECTION_PREVIEW)
+        this.#selectionOverlayer = null
     }
 
     #positionPopup() {
@@ -345,6 +368,7 @@ export class ReaderAnnotations {
 
     #hide() {
         clearTimeout(this.#selectionTimeout)
+        this.#clearSelectionPreview()
         this.#pending = null
         this.#anchorRange = null
         if (this.#popup) this.#popup.hidden = true

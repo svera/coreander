@@ -132,8 +132,9 @@ foliate-view:focus {
 #annotation-popup label[hidden] {
     display: none;
 }
-#annotation-popup input {
+#annotation-popup textarea {
     min-width: 0;
+    resize: vertical;
     padding: .5rem;
     font: inherit;
     border: 1px solid GrayText;
