@@ -8,6 +8,7 @@ const [
     { ReaderSync },
     { ReaderToast },
     { ReaderAnnotations },
+    { bindReaderWheel },
 ] = await Promise.all([
     importVersioned('./foliate-js/view.js'),
     importVersioned('./foliate-js/ui/tree.js'),
@@ -16,6 +17,7 @@ const [
     importVersioned('./reader-sync.js'),
     importVersioned('./reader-toast.js'),
     importVersioned('./reader-annotations.js'),
+    importVersioned('./reader-wheel.js'),
 ])
 
 document.addEventListener('click', e => {
@@ -576,6 +578,7 @@ class Reader {
         const slug = document.getElementById('slug').value
         document.body.append(this.view)
         await this.view.open(file)
+        bindReaderWheel(this.view)
 
         if (this.sync.isAuthenticated) {
             const annotations = new ReaderAnnotations({

@@ -81,12 +81,14 @@ html[data-theme="dark"] .menu {
 }
 html {
     height: 100%;
+    overflow: hidden;
     background: Canvas;
     color: CanvasText;
 }
 body {
     margin: 0 auto;
     height: 100%;
+    overflow: hidden;
     font: menu;
     font-family: system-ui, sans-serif;
     background: Canvas;
