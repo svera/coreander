@@ -1,12 +1,20 @@
 import { compare } from './foliate-js/epubcfi.js'
 
+const createButton = (label, onClick) => {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.textContent = label
+    button.addEventListener('click', onClick)
+    return button
+}
+
 export class ReaderAnnotations {
     #view
     #sync
     #translations
     #notify
     #draw
-    #slug
+    #url
     #popup
     #anchorRange = null
     #actionButton
@@ -26,20 +34,15 @@ export class ReaderAnnotations {
         this.#translations = translations
         this.#notify = notify
         this.#draw = draw
-        this.#slug = slug
+        this.#url = `/documents/${encodeURIComponent(slug)}/annotations`
         this.#list = document.getElementById('annotations-list')
         this.#onNavigate = onNavigate
         if (!sync.isAuthenticated) return
 
         this.#popup = document.createElement('dialog')
         this.#popup.id = 'annotation-popup'
-        this.#actionButton = document.createElement('button')
-        this.#actionButton.type = 'button'
-        this.#actionButton.addEventListener('click', () => this.#submit())
-        const cancel = document.createElement('button')
-        cancel.type = 'button'
-        cancel.textContent = translations.cancel
-        cancel.addEventListener('click', () => this.#dismiss())
+        this.#actionButton = createButton('', () => this.#submit())
+        const cancel = createButton(translations.cancel, () => this.#dismiss())
         this.#popup.append(this.#actionButton, cancel)
         this.#popup.addEventListener('keydown', event => {
             event.stopPropagation()
@@ -79,7 +82,7 @@ export class ReaderAnnotations {
             if (!annotation) return
             const selection = range?.startContainer.ownerDocument.defaultView.getSelection()
             if (selection && !selection.isCollapsed) return
-            this.#show({ cfi: value, content: annotation.content }, range, true)
+            this.#show(annotation, range, true)
         })
         window.addEventListener('reader-session-expired', () => {
             this.#hide()
@@ -92,7 +95,7 @@ export class ReaderAnnotations {
     async load() {
         if (!this.#sync.isAuthenticated) return
         try {
-            const response = await fetch(this.#url())
+            const response = await fetch(this.#url)
             if (this.#sessionExpired(response)) return
             if (!response.ok) throw new Error(`Loading annotations failed: HTTP ${response.status}`)
             const annotations = await response.json()
@@ -100,8 +103,8 @@ export class ReaderAnnotations {
                 typeof item.cfi !== 'string' || typeof item.content !== 'string')) {
                 throw new Error('Invalid annotations response')
             }
-            for (const annotation of annotations) {
-                this.#annotations.set(annotation.cfi, { value: annotation.cfi, content: annotation.content })
+            for (const { cfi: value, content } of annotations) {
+                this.#annotations.set(value, { value, content })
             }
             this.#renderList()
         } catch (error) {
@@ -128,12 +131,7 @@ export class ReaderAnnotations {
             .sort((a, b) => compare(a.value, b.value))
         for (const [index, annotation] of annotations.entries()) {
             const item = document.createElement('li')
-            const button = document.createElement('button')
-            button.type = 'button'
-            const preview = document.createElement('span')
-            preview.textContent = annotation.content
-            button.append(preview)
-            button.addEventListener('click', async () => {
+            const button = createButton('', async () => {
                 if (!this.#sync.isAuthenticated || this.#saving) return
                 button.disabled = true
                 try {
@@ -147,17 +145,17 @@ export class ReaderAnnotations {
                     button.disabled = false
                 }
             })
-            const remove = document.createElement('button')
-            remove.type = 'button'
-            remove.className = 'annotation-remove'
-            remove.textContent = '\u00d7'
-            remove.setAttribute('aria-label', this.#translations.remove_annotation)
-            remove.title = this.#translations.remove_annotation
-            remove.addEventListener('click', () => this.#submit({
-                annotation: { cfi: annotation.value, content: annotation.content, remove: true },
+            const preview = document.createElement('span')
+            preview.textContent = annotation.content
+            button.append(preview)
+            const remove = createButton('\u00d7', () => this.#submit({
+                annotation: { ...annotation, remove: true },
                 button: remove,
                 listIndex: index,
             }))
+            remove.className = 'annotation-remove'
+            remove.setAttribute('aria-label', this.#translations.remove_annotation)
+            remove.title = this.#translations.remove_annotation
             item.append(button, remove)
             list.append(item)
         }
@@ -165,10 +163,6 @@ export class ReaderAnnotations {
         if (focusIndex !== null) {
             list.children[Math.min(focusIndex, annotations.length - 1)].lastElementChild.focus({ preventScroll: true })
         }
-    }
-
-    #url() {
-        return `/documents/${encodeURIComponent(this.#slug)}/annotations`
     }
 
     #sessionExpired(response) {
@@ -229,12 +223,12 @@ export class ReaderAnnotations {
         }
         try {
             const range = selection.getRangeAt(0).cloneRange()
-            const cfi = this.#view.getCFI(index, range)
-            if (this.#annotations.has(cfi)) {
+            const value = this.#view.getCFI(index, range)
+            if (this.#annotations.has(value)) {
                 this.#hide()
                 return
             }
-            this.#show({ cfi, content }, range)
+            this.#show({ value, content }, range)
         } catch (error) {
             this.#hide()
             console.error('Error preparing text annotation:', error)
@@ -333,20 +327,20 @@ export class ReaderAnnotations {
 
     async #submit({ annotation = this.#pending, button = this.#actionButton, listIndex = null } = {}) {
         if (!annotation || this.#saving || !this.#sync.isAuthenticated) return
-        const { cfi, content, remove } = annotation
-        const savedAnnotation = { value: cfi, content }
+        const { value, content, remove } = annotation
+        const savedAnnotation = { value, content }
         this.#saving = true
         button.disabled = true
         try {
-            const response = await fetch(this.#url(), {
+            const response = await fetch(this.#url, {
                 method: remove ? 'DELETE' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(remove ? { cfi } : { cfi, content }),
+                body: JSON.stringify(remove ? { cfi: value } : { cfi: value, content }),
             })
             if (this.#sessionExpired(response)) return
             if (!response.ok) throw new Error(`Annotation ${remove ? 'deletion' : 'save'} failed: HTTP ${response.status}`)
-            if (remove) this.#annotations.delete(cfi)
-            else this.#annotations.set(cfi, savedAnnotation)
+            if (remove) this.#annotations.delete(value)
+            else this.#annotations.set(value, savedAnnotation)
             if (listIndex === null) this.#dismiss()
             else this.#hide()
             this.#renderList(listIndex)
@@ -364,7 +358,7 @@ export class ReaderAnnotations {
         try {
             if (remove) await this.#view.deleteAnnotation(savedAnnotation)
             else {
-                const { index } = await this.#view.resolveNavigation(cfi)
+                const { index } = await this.#view.resolveNavigation(value)
                 await this.#restore(index)
             }
         } catch (error) {
