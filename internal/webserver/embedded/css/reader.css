@@ -238,8 +238,7 @@ foliate-view:focus {
     right: 0;
     transform: translateX(100%);
 }
-#side-bar.show,
-#annotations-side-bar.show {
+.reader-sidebar.show {
     visibility: visible;
     transform: translateX(0);
     transition-delay: 0s;
@@ -265,9 +264,7 @@ foliate-view:focus {
 .reader-sidebar-topbar a:hover {
     text-decoration: underline;
 }
-#side-bar-close,
-#annotations-side-bar-close {
-    position: static;
+.reader-sidebar-topbar > button {
     flex-shrink: 0;
     padding: 6px;
     background: none;
@@ -276,8 +273,7 @@ foliate-view:focus {
     color: GrayText;
     cursor: pointer;
 }
-#side-bar-close:hover,
-#annotations-side-bar-close:hover {
+.reader-sidebar-topbar > button:hover {
     background: rgba(0, 0, 0, .1);
     color: CanvasText;
 }
@@ -709,15 +705,10 @@ html[data-theme="dark"] .menu #font-family-controls button.active {
     text-decoration: none;
 }
 
-/* Reader notifications */
+/* ReaderToast sets bounds from the visible viewport. */
 #reader-toast {
     position: fixed;
-    inset: 1rem auto auto 1rem;
-    margin: 0;
-    padding: 0;
     z-index: 9999;
-    box-sizing: border-box;
-    width: calc(100vw - 2rem);
     pointer-events: none;
 }
 
