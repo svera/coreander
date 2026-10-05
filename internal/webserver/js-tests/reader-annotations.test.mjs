@@ -25,6 +25,7 @@ class Element extends EventTarget {
     close() { this.open = false }
     show() { this.open = true }
     focus(options) { this.focusCalls.push(options) }
+    contains(element) { return this === element || this.children.some(child => child.contains(element)) }
 }
 
 function setup(t, authenticated = true, { withList = false, allowWarnings = false } = {}) {
@@ -96,6 +97,7 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
         sync,
         translations: {
             save_annotation: 'Save annotation', cancel: 'Cancel', annotation_saved: 'Annotation saved.',
+            comment: 'Comment',
             remove_annotation: 'Remove annotation', annotation_removed: 'Annotation removed.',
             annotation_remove_failed: 'Removal failed.', no_annotations: 'No annotations.',
         },
@@ -110,6 +112,9 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
     return {
         doc,
         popup: body.children[0],
+        get commentInput() { return body.children[0].children[0].children[0] },
+        get commentText() { return body.children[0].children[1] },
+        get actionButton() { return body.children[0].children[2].children[0] },
         ranges,
         focusCalls,
         notifications,
@@ -141,6 +146,7 @@ test('mobile selection changes open the popup without a pointerup event', t => {
     assert.equal(reader.popup.open, true)
     assert.equal(reader.popup.attributes.get('aria-label'), 'Save annotation')
     assert.deepEqual(reader.ranges, [{ index: 2, text: 'Selected text' }])
+    assert.deepEqual(reader.commentInput.focusCalls, [])
 })
 
 test('long-press pointer cancellation does not discard the native selection', t => {
@@ -177,6 +183,7 @@ test('handle adjustments are debounced and use the latest selection', t => {
     reader.settle()
     assert.equal(reader.popup.open, true)
     assert.deepEqual(reader.ranges.at(-1), { index: 2, text: 'Final selected text' })
+    assert.deepEqual(reader.commentInput.focusCalls, [])
 })
 
 test('desktop mouse selection waits for release', t => {
@@ -216,13 +223,153 @@ test('saving restores reader focus without scrolling or navigating', async t => 
     })
     reader.select('Saved text')
     reader.settle()
-    reader.popup.children[0].dispatchEvent(new Event('click'))
+    reader.actionButton.dispatchEvent(new Event('click'))
+    assert.equal(reader.commentInput.disabled, true)
     await new Promise(setImmediate)
     assert.equal(reader.popup.open, false)
+    assert.equal(reader.commentInput.disabled, false)
     assert.deepEqual(reader.focusCalls, [{ preventScroll: true }])
     assert.deepEqual(reader.notifications, [{ variant: 'success', message: 'Annotation saved.' }])
     assert.equal(requests[0].url, '/documents/test-book/annotations')
-    assert.deepEqual(JSON.parse(requests[0].body), { cfi: 'cfi:Saved text', content: 'Saved text' })
+    assert.deepEqual(JSON.parse(requests[0].body), { cfi: 'cfi:Saved text', content: 'Saved text', comment: '' })
+})
+
+test('Enter in the comment input saves once, including an empty comment', async t => {
+    const reader = setup(t)
+    const requests = []
+    t.mock.method(globalThis, 'fetch', async (url, options) => {
+        requests.push(JSON.parse(options.body))
+        return { status: 204, ok: true }
+    })
+    for (const comment of ['My comment', '']) {
+        const text = `Saved text ${requests.length}`
+        reader.select(text)
+        reader.settle()
+        reader.commentInput.value = comment
+        const enter = Object.assign(new Event('keydown', { cancelable: true }), { key: 'Enter' })
+        reader.commentInput.dispatchEvent(enter)
+        assert.equal(enter.defaultPrevented, true)
+        reader.commentInput.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Enter' }))
+        await new Promise(setImmediate)
+        assert.equal(reader.popup.open, false)
+        assert.deepEqual(requests.at(-1), {
+            cfi: `cfi:${text}`, content: text, comment,
+        })
+    }
+    assert.equal(requests.length, 2)
+})
+
+test('composition, held keys, and consumed Enter events do not save', t => {
+    const reader = setup(t)
+    t.mock.method(globalThis, 'fetch', () => assert.fail('Unexpected annotation save'))
+    reader.select('Text')
+    reader.settle()
+    for (const options of [{ isComposing: true }, { repeat: true }, { key: 'a' }]) {
+        const event = Object.assign(new Event('keydown', { cancelable: true }), { key: 'Enter', ...options })
+        reader.commentInput.dispatchEvent(event)
+        assert.equal(event.defaultPrevented, false)
+    }
+    const consumed = Object.assign(new Event('keydown', { cancelable: true }), { key: 'Enter' })
+    consumed.preventDefault()
+    reader.commentInput.dispatchEvent(consumed)
+    assert.equal(reader.popup.open, true)
+})
+
+test('a comment survives selection changes while typing and is shown after saving', async t => {
+    const reader = setup(t)
+    const requests = []
+    t.mock.method(globalThis, 'fetch', async (url, options) => {
+        requests.push(JSON.parse(options.body))
+        return { status: 204, ok: true }
+    })
+    reader.select('Saved text')
+    reader.settle()
+    assert.equal(reader.popup.children[0].hidden, false)
+    assert.equal(reader.commentText.hidden, true)
+    reader.commentInput.value = '<img src=x onerror=alert(1)> My comment'
+    document.activeElement = reader.commentInput
+    reader.select('')
+    reader.settle()
+    assert.equal(reader.popup.open, true)
+    assert.equal(reader.commentInput.value, '<img src=x onerror=alert(1)> My comment')
+    reader.actionButton.dispatchEvent(new Event('click'))
+    await new Promise(setImmediate)
+    assert.deepEqual(requests, [{
+        cfi: 'cfi:Saved text', content: 'Saved text', comment: '<img src=x onerror=alert(1)> My comment',
+    }])
+    document.activeElement = null
+    const range = reader.doc.defaultView.getSelection().getRangeAt(0).cloneRange()
+    reader.view.dispatchEvent(new CustomEvent('show-annotation', {
+        detail: { value: 'cfi:Saved text', range },
+    }))
+    assert.equal(reader.popup.children[0].hidden, true)
+    assert.equal(reader.commentText.hidden, false)
+    assert.equal(reader.commentText.textContent, '<img src=x onerror=alert(1)> My comment')
+    assert.equal(reader.actionButton.textContent, 'Remove annotation')
+})
+
+test('comments are reset between new selections', t => {
+    const reader = setup(t)
+    reader.select('First')
+    reader.settle()
+    reader.commentInput.value = 'First comment'
+    reader.select('Second')
+    reader.settle()
+    assert.equal(reader.commentInput.value, '')
+})
+
+test('failed saves preserve the entered comment for retry', async t => {
+    const reader = setup(t, true, { allowWarnings: true })
+    t.mock.method(globalThis, 'fetch', async () => ({ status: 500, ok: false }))
+    t.mock.method(console, 'error', () => {})
+    reader.select('Text')
+    reader.settle()
+    reader.commentInput.value = 'Keep this comment'
+    reader.actionButton.dispatchEvent(new Event('click'))
+    await new Promise(setImmediate)
+    assert.equal(reader.popup.open, true)
+    assert.equal(reader.commentInput.value, 'Keep this comment')
+    assert.equal(reader.actionButton.disabled, false)
+    assert.equal(reader.commentInput.disabled, false)
+    assert.equal(reader.notifications[0].variant, 'warning')
+})
+
+test('cancel closes the popup and clears the native selection without saving', t => {
+    const reader = setup(t)
+    t.mock.method(globalThis, 'fetch', () => assert.fail('Cancel must not save an annotation'))
+    reader.select('Selected text')
+    reader.settle()
+    reader.popup.children[2].children[1].dispatchEvent(new Event('click'))
+    assert.equal(reader.popup.open, false)
+    assert.equal(reader.doc.defaultView.getSelection().isCollapsed, true)
+})
+
+test('page movement and session expiration close the popup', t => {
+    const reader = setup(t)
+    reader.view.renderer.dispatchEvent(new CustomEvent('relocate', {
+        detail: { index: 2, fraction: 0 },
+    }))
+    reader.select('Selected text')
+    reader.settle()
+    reader.view.renderer.dispatchEvent(new CustomEvent('relocate', {
+        detail: { index: 2, fraction: 0.5 },
+    }))
+    assert.equal(reader.popup.open, false)
+    reader.select('Another passage')
+    reader.settle()
+    window.dispatchEvent(new Event('reader-session-expired'))
+    assert.equal(reader.popup.open, false)
+})
+
+test('opening the popup preserves native selection without moving focus or requiring an overlay', t => {
+    const reader = setup(t)
+    t.mock.method(reader.view, 'addAnnotation', () => assert.fail('Opening must not add a highlight'))
+    reader.select('Selected text')
+    reader.settle()
+    assert.equal(reader.popup.open, true)
+    assert.equal(reader.doc.defaultView.getSelection().toString(), 'Selected text')
+    assert.deepEqual(reader.commentInput.focusCalls, [])
+    assert.deepEqual(reader.focusCalls, [])
 })
 
 async function loadList(t, entries, deleteResponse = { status: 204, ok: true }) {
@@ -353,7 +500,7 @@ test('saving an earlier annotation inserts it at its CFI position', async t => {
     t.mock.method(reader.view, 'getCFI', () => FIRST)
     reader.select('New first annotation')
     reader.settle()
-    reader.popup.children[0].dispatchEvent(new Event('click'))
+    reader.actionButton.dispatchEvent(new Event('click'))
     await new Promise(setImmediate)
     assert.deepEqual(rows().map(row => row.children[0].children[0].textContent), [
         'New first annotation', 'Second annotation', 'Last annotation',
@@ -381,8 +528,9 @@ test('clicking a saved highlight still opens the removal popup and deletes the c
     const range = reader.doc.defaultView.getSelection().getRangeAt(0).cloneRange()
     reader.view.dispatchEvent(new CustomEvent('show-annotation', { detail: { value: FIRST, range } }))
     assert.equal(reader.popup.open, true)
-    assert.equal(reader.popup.children[0].textContent, 'Remove annotation')
-    reader.popup.children[0].dispatchEvent(new Event('click'))
+    assert.equal(reader.commentText.hidden, true)
+    assert.equal(reader.actionButton.textContent, 'Remove annotation')
+    reader.actionButton.dispatchEvent(new Event('click'))
     await new Promise(setImmediate)
     assert.equal(requests[0].method, 'DELETE')
     assert.deepEqual(JSON.parse(requests[0].body), { cfi: FIRST })
@@ -390,4 +538,30 @@ test('clicking a saved highlight still opens the removal popup and deletes the c
     assert.equal(reader.popup.open, false)
     assert.equal(reader.list.children[0].textContent, 'No annotations.')
     assert.deepEqual(reader.focusCalls, [{ preventScroll: true }])
+})
+
+test('loaded annotation comments are displayed as text in the removal popup', async t => {
+    const { reader, requests } = await loadList(t, [{
+        cfi: FIRST, content: 'First annotation', comment: '<b>A saved comment</b>',
+    }])
+    const range = reader.doc.defaultView.getSelection().getRangeAt(0).cloneRange()
+    reader.view.dispatchEvent(new CustomEvent('show-annotation', { detail: { value: FIRST, range } }))
+    assert.equal(reader.commentText.hidden, false)
+    assert.equal(reader.commentText.textContent, '<b>A saved comment</b>')
+    assert.equal(reader.popup.children[0].hidden, true)
+    assert.deepEqual(reader.commentInput.focusCalls, [])
+    reader.commentInput.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Enter' }))
+    await new Promise(setImmediate)
+    assert.equal(requests.length, 0)
+})
+
+test('invalid comment response types produce a loading warning', async t => {
+    const reader = setup(t, true, { allowWarnings: true })
+    t.mock.method(console, 'error', () => {})
+    t.mock.method(globalThis, 'fetch', async () => ({
+        status: 200, ok: true,
+        json: async () => [{ cfi: FIRST, content: 'Text', comment: 123 }],
+    }))
+    await reader.annotations.load()
+    assert.equal(reader.notifications[0].variant, 'warning')
 })

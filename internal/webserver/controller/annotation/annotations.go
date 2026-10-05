@@ -16,6 +16,7 @@ func (a *Controller) Save(c fiber.Ctx) error {
 	var body struct {
 		CFI     string `json:"cfi"`
 		Content string `json:"content"`
+		Comment string `json:"comment"`
 	}
 	if err := c.Bind().Body(&body); err != nil {
 		return fiber.ErrBadRequest
@@ -23,7 +24,10 @@ func (a *Controller) Save(c fiber.Ctx) error {
 	if !validCFI(body.CFI) || strings.TrimSpace(body.Content) == "" || len(body.Content) > 65536 {
 		return fiber.NewError(fiber.StatusBadRequest, "A CFI (up to 8192 bytes) and annotated text (up to 65536 bytes) are required")
 	}
-	if err := a.repository.Save(userID, slug, body.CFI, body.Content); err != nil {
+	if len(body.Comment) > 65536 {
+		return fiber.NewError(fiber.StatusBadRequest, "The comment must not exceed 65536 bytes")
+	}
+	if err := a.repository.Save(userID, slug, body.CFI, body.Content, body.Comment); err != nil {
 		log.Printf("error saving text annotation: %v\n", err)
 		return fiber.ErrInternalServerError
 	}

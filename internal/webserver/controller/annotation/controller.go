@@ -6,7 +6,7 @@ import (
 )
 
 type repository interface {
-	Save(userID int, slug, cfi, content string) error
+	Save(userID int, slug, cfi, content, comment string) error
 	List(userID int, slug string) ([]model.Annotation, error)
 	Delete(userID int, slug, cfi string) error
 }

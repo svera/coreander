@@ -63,7 +63,7 @@ func TestAnnotations(t *testing.T) {
 		}
 		return raw
 	}
-	first := `{"cfi":"epubcfi(/6/2!/4/2,/1:0,/1:5)","content":"First phrase","user_id":999}`
+	first := `{"cfi":"epubcfi(/6/2!/4/2,/1:0,/1:5)","content":"First phrase","comment":"First comment","user_id":999}`
 	second := `{"cfi":"epubcfi(/6/2!/4/2,/1:6,/1:12)","content":"Second phrase"}`
 	t.Run("reader shows annotation sidebar only when logged in", func(t *testing.T) {
 		for _, cookie := range []*http.Cookie{nil, adminCookie} {
@@ -110,6 +110,9 @@ func TestAnnotations(t *testing.T) {
 			`{`, `{}`, `{"cfi":"not-a-cfi","content":"Text"}`,
 			`{"cfi":"epubcfi(/6/2)","content":"  "}`,
 			`{"cfi":"epubcfi(/6/2)","content":"` + strings.Repeat("x", 65537) + `"}`,
+			`{"cfi":"epubcfi(/6/2)","content":"Text","comment":"` + strings.Repeat("x", 65537) + `"}`,
+			`{"cfi":"epubcfi(/6/2)","content":"Text","comment":"` + strings.Repeat("\u00e9", 32769) + `"}`,
+			`{"cfi":"epubcfi(/6/2)","content":"Text","comment":123}`,
 			`{"cfi":"epubcfi(` + strings.Repeat("1", 8192) + `)","content":"Text"}`,
 		} {
 			request(http.MethodPost, slug, body, adminCookie, http.StatusBadRequest)
@@ -120,7 +123,9 @@ func TestAnnotations(t *testing.T) {
 	t.Run("persists multiple annotations and upserts duplicates", func(t *testing.T) {
 		request(http.MethodPost, slug, first, adminCookie, http.StatusNoContent)
 		request(http.MethodPost, slug, second, adminCookie, http.StatusNoContent)
-		request(http.MethodPost, slug, strings.Replace(first, "First phrase", "<b>Updated phrase</b>", 1),
+		updated := strings.Replace(first, "First phrase", "<b>Updated phrase</b>", 1)
+		updated = strings.Replace(updated, "First comment", "<b>Updated comment</b>", 1)
+		request(http.MethodPost, slug, updated,
 			adminCookie, http.StatusNoContent)
 		raw := request(http.MethodGet, slug, "", adminCookie, http.StatusOK)
 		var annotations []model.Annotation
@@ -130,11 +135,40 @@ func TestAnnotations(t *testing.T) {
 		if len(annotations) != 2 || annotations[0].Content != "<b>Updated phrase</b>" {
 			t.Fatalf("unexpected annotations: %+v", annotations)
 		}
+		if annotations[0].Comment != "<b>Updated comment</b>" || annotations[1].Comment != "" {
+			t.Fatalf("unexpected comments: %+v", annotations)
+		}
 		if strings.Contains(string(raw), "user_id") || strings.Contains(string(raw), `"slug"`) {
 			t.Fatalf("response exposes internal identifiers: %s", raw)
 		}
 		if annotations[0].CreatedAt.IsZero() || annotations[0].UpdatedAt.IsZero() {
 			t.Fatal("missing annotation timestamps")
+		}
+	})
+	t.Run("accepts the comment size limit and allows clearing a comment", func(t *testing.T) {
+		var body map[string]string
+		if err := json.Unmarshal([]byte(second), &body); err != nil {
+			t.Fatal(err)
+		}
+		body["comment"] = strings.Repeat("x", 65536)
+		raw, err := json.Marshal(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request(http.MethodPost, slug, string(raw), adminCookie, http.StatusNoContent)
+		var saved model.Annotation
+		if err := db.Where("user_id = ? AND cfi = ?", 1, body["cfi"]).First(&saved).Error; err != nil {
+			t.Fatal(err)
+		}
+		if saved.Comment != body["comment"] {
+			t.Fatal("comment at the size limit was not saved")
+		}
+		request(http.MethodPost, slug, second, adminCookie, http.StatusNoContent)
+		if err := db.Where("user_id = ? AND cfi = ?", 1, body["cfi"]).First(&saved).Error; err != nil {
+			t.Fatal(err)
+		}
+		if saved.Comment != "" {
+			t.Fatal("omitting the comment did not clear it")
 		}
 	})
 	t.Run("isolates users", func(t *testing.T) {

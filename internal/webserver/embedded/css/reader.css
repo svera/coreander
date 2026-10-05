@@ -106,7 +106,7 @@ foliate-view:focus {
     position: fixed;
     inset: auto;
     margin: 0;
-    width: max-content;
+    width: 28rem;
     max-width: calc(100vw - 2rem);
     box-sizing: border-box;
     padding: 1rem;
@@ -119,6 +119,36 @@ foliate-view:focus {
 }
 #annotation-popup[open] {
     display: flex;
+    flex-direction: column;
+    gap: .75rem;
+}
+#annotation-popup label {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+#annotation-popup label[hidden] {
+    display: none;
+}
+#annotation-popup input {
+    min-width: 0;
+    padding: .5rem;
+    font: inherit;
+    border: 1px solid GrayText;
+    border-radius: .25rem;
+    background: Canvas;
+    color: CanvasText;
+}
+#annotation-popup p {
+    margin: 0;
+    max-height: 25vh;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.annotation-actions {
+    display: flex;
+    flex-wrap: wrap;
     gap: .75rem;
 }
 #annotation-popup button {

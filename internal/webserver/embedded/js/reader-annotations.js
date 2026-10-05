@@ -18,6 +18,9 @@ export class ReaderAnnotations {
     #popup
     #anchorRange = null
     #actionButton
+    #commentLabel
+    #commentInput
+    #commentText
     #pending = null
     #saving = false
     #selectionTimeout = null
@@ -43,7 +46,24 @@ export class ReaderAnnotations {
         this.#popup.id = 'annotation-popup'
         this.#actionButton = createButton('', () => this.#submit())
         const cancel = createButton(translations.cancel, () => this.#dismiss())
-        this.#popup.append(this.#actionButton, cancel)
+        this.#commentLabel = document.createElement('label')
+        this.#commentLabel.textContent = translations.comment
+        this.#commentInput = document.createElement('input')
+        this.#commentInput.type = 'text'
+        this.#commentInput.maxLength = 65536
+        this.#commentInput.addEventListener('keydown', event => {
+            if (event.key === 'Enter' && !event.isComposing && !event.repeat &&
+                !event.defaultPrevented && !this.#pending?.remove) {
+                event.preventDefault()
+                this.#submit()
+            }
+        })
+        this.#commentLabel.append(this.#commentInput)
+        this.#commentText = document.createElement('p')
+        const actions = document.createElement('div')
+        actions.className = 'annotation-actions'
+        actions.append(this.#actionButton, cancel)
+        this.#popup.append(this.#commentLabel, this.#commentText, actions)
         this.#popup.addEventListener('keydown', event => {
             event.stopPropagation()
             if (event.key === 'Escape') {
@@ -100,11 +120,12 @@ export class ReaderAnnotations {
             if (!response.ok) throw new Error(`Loading annotations failed: HTTP ${response.status}`)
             const annotations = await response.json()
             if (!Array.isArray(annotations) || annotations.some(item =>
-                typeof item.cfi !== 'string' || typeof item.content !== 'string')) {
+                typeof item.cfi !== 'string' || typeof item.content !== 'string' ||
+                (item.comment !== undefined && typeof item.comment !== 'string'))) {
                 throw new Error('Invalid annotations response')
             }
-            for (const { cfi: value, content } of annotations) {
-                this.#annotations.set(value, { value, content })
+            for (const { cfi: value, content, comment = '' } of annotations) {
+                this.#annotations.set(value, { value, content, comment })
             }
             this.#renderList()
         } catch (error) {
@@ -214,7 +235,8 @@ export class ReaderAnnotations {
     }
 
     #selected(doc, index) {
-        if (!this.#sync.isAuthenticated || this.#saving || this.#pending?.remove) return
+        if (!this.#sync.isAuthenticated || this.#saving || this.#pending?.remove ||
+            this.#popup.contains(document.activeElement)) return
         const selection = doc.defaultView.getSelection()
         const content = selection?.toString() ?? ''
         if (!selection?.rangeCount || selection.isCollapsed || !content.trim()) {
@@ -238,15 +260,21 @@ export class ReaderAnnotations {
 
     #show(annotation, range, remove = false) {
         clearTimeout(this.#selectionTimeout)
+        if (this.#pending?.value !== annotation.value || remove) {
+            this.#commentInput.value = annotation.comment ?? ''
+        }
         this.#pending = { ...annotation, remove }
         this.#anchorRange = range
+        this.#commentLabel.hidden = remove
+        this.#commentText.textContent = annotation.comment ?? ''
+        this.#commentText.hidden = !remove || !annotation.comment
         this.#actionButton.textContent = remove
             ? this.#translations.remove_annotation : this.#translations.save_annotation
         this.#popup.setAttribute('aria-label', this.#actionButton.textContent)
         if (!this.#popup.open) {
             this.#popup.style.visibility = 'hidden'
             if (remove) this.#popup.show()
-            // Opening without show() preserves focus and the book's native selection.
+            // Avoid moving focus away from the book's native selection.
             else this.#popup.open = true
         }
         this.#positionPopup()
@@ -328,14 +356,16 @@ export class ReaderAnnotations {
     async #submit({ annotation = this.#pending, button = this.#actionButton, listIndex = null } = {}) {
         if (!annotation || this.#saving || !this.#sync.isAuthenticated) return
         const { value, content, remove } = annotation
-        const savedAnnotation = { value, content }
+        const comment = this.#commentInput.value
+        const savedAnnotation = remove ? { value, content } : { value, content, comment }
         this.#saving = true
         button.disabled = true
+        this.#commentInput.disabled = true
         try {
             const response = await fetch(this.#url, {
                 method: remove ? 'DELETE' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(remove ? { cfi: value } : { cfi: value, content }),
+                body: JSON.stringify(remove ? { cfi: value } : { cfi: value, content, comment }),
             })
             if (this.#sessionExpired(response)) return
             if (!response.ok) throw new Error(`Annotation ${remove ? 'deletion' : 'save'} failed: HTTP ${response.status}`)
@@ -352,6 +382,7 @@ export class ReaderAnnotations {
         } finally {
             this.#saving = false
             button.disabled = false
+            this.#commentInput.disabled = false
         }
         this.#notify('success', remove
             ? this.#translations.annotation_removed : this.#translations.annotation_saved)
