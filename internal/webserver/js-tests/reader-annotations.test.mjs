@@ -3,7 +3,13 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
 const source = await readFile(new URL('../embedded/js/reader-annotations.js', import.meta.url), 'utf8')
-const { ReaderAnnotations } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)
+const cfiSource = await readFile(new URL('../embedded/js/foliate-js/epubcfi.js', import.meta.url), 'utf8')
+const moduleURL = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`
+const { ReaderAnnotations } = await import(moduleURL(
+    source.replace("'./foliate-js/epubcfi.js'", JSON.stringify(moduleURL(cfiSource)))))
+const FIRST = 'epubcfi(/6/2!/4/2/1:0)'
+const SECOND = 'epubcfi(/6/4!/4/2/1:0)'
+const LAST = 'epubcfi(/6/10!/4/2/1:0)'
 
 class Element extends EventTarget {
     children = []
@@ -232,7 +238,7 @@ async function loadList(t, entries, deleteResponse = { status: 204, ok: true }) 
 }
 
 test('each panel entry has a separate, accessible delete cross', async t => {
-    const { rows } = await loadList(t, [{ cfi: 'first', content: 'First annotation' }])
+    const { rows } = await loadList(t, [{ cfi: FIRST, content: 'First annotation' }])
     const [navigate, remove] = rows()[0].children
     assert.equal(navigate.children[0].textContent, 'First annotation')
     assert.equal(remove.className, 'annotation-remove')
@@ -243,8 +249,8 @@ test('each panel entry has a separate, accessible delete cross', async t => {
 
 test('the cross deletes only its entry and highlight, keeps the panel open, and prevents duplicate requests', async t => {
     const { reader, requests, rows } = await loadList(t, [
-        { cfi: 'first', content: 'First annotation' },
-        { cfi: 'second', content: 'Second annotation' },
+        { cfi: FIRST, content: 'First annotation' },
+        { cfi: SECOND, content: 'Second annotation' },
     ])
     const remove = rows()[0].children[1]
     remove.dispatchEvent(new Event('click'))
@@ -254,10 +260,10 @@ test('the cross deletes only its entry and highlight, keeps the panel open, and 
     assert.equal(requests.length, 1)
     assert.equal(requests[0].method, 'DELETE')
     assert.equal(requests[0].url, '/documents/test-book/annotations')
-    assert.deepEqual(JSON.parse(requests[0].body), { cfi: 'first' })
+    assert.deepEqual(JSON.parse(requests[0].body), { cfi: FIRST })
     assert.equal(rows().length, 1)
     assert.equal(rows()[0].children[0].children[0].textContent, 'Second annotation')
-    assert.deepEqual(reader.deleted, [{ value: 'first', content: 'First annotation' }])
+    assert.deepEqual(reader.deleted, [{ value: FIRST, content: 'First annotation' }])
     assert.deepEqual(rows()[0].children[1].focusCalls, [{ preventScroll: true }])
     assert.equal(reader.focusCalls.length, 0)
     assert.equal(reader.navigations, 0)
@@ -265,7 +271,7 @@ test('the cross deletes only its entry and highlight, keeps the panel open, and 
 })
 
 test('deleting the last entry shows the empty state and focuses the panel close button', async t => {
-    const { reader, rows } = await loadList(t, [{ cfi: 'last', content: 'Last annotation' }])
+    const { reader, rows } = await loadList(t, [{ cfi: LAST, content: 'Last annotation' }])
     rows()[0].children[1].dispatchEvent(new Event('click'))
     await new Promise(setImmediate)
     assert.equal(reader.list.children[0].textContent, 'No annotations.')
@@ -274,8 +280,8 @@ test('deleting the last entry shows the empty state and focuses the panel close 
 
 test('deleting the final row focuses the previous entry without scrolling', async t => {
     const { rows } = await loadList(t, [
-        { cfi: 'first', content: 'First annotation' },
-        { cfi: 'last', content: 'Last annotation' },
+        { cfi: FIRST, content: 'First annotation' },
+        { cfi: LAST, content: 'Last annotation' },
     ])
     rows()[1].children[1].dispatchEvent(new Event('click'))
     await new Promise(setImmediate)
@@ -287,7 +293,7 @@ test('deleting the final row focuses the previous entry without scrolling', asyn
 test('a failed deletion preserves the entry and highlight and re-enables the cross', async t => {
     t.mock.method(console, 'error', () => {})
     const { reader, rows } = await loadList(t,
-        [{ cfi: 'first', content: 'First annotation' }], { status: 500, ok: false })
+        [{ cfi: FIRST, content: 'First annotation' }], { status: 500, ok: false })
     const remove = rows()[0].children[1]
     remove.dispatchEvent(new Event('click'))
     await new Promise(setImmediate)
@@ -300,7 +306,7 @@ test('a failed deletion preserves the entry and highlight and re-enables the cro
 
 test('an expired session clears the panel without deleting local highlights or reporting success', async t => {
     const { reader, rows } = await loadList(t,
-        [{ cfi: 'first', content: 'First annotation' }], { status: 403, ok: false })
+        [{ cfi: FIRST, content: 'First annotation' }], { status: 403, ok: false })
     rows()[0].children[1].dispatchEvent(new Event('click'))
     await new Promise(setImmediate)
     assert.equal(reader.sync.isAuthenticated, false)
@@ -310,7 +316,7 @@ test('an expired session clears the panel without deleting local highlights or r
 })
 
 test('clicking annotation text still navigates without deleting it', async t => {
-    const { reader, requests, rows } = await loadList(t, [{ cfi: 'first', content: 'First annotation' }])
+    const { reader, requests, rows } = await loadList(t, [{ cfi: FIRST, content: 'First annotation' }])
     const locations = []
     t.mock.method(reader.view, 'goTo', async cfi => {
         locations.push(cfi)
@@ -318,8 +324,54 @@ test('clicking annotation text still navigates without deleting it', async t => 
     })
     rows()[0].children[0].dispatchEvent(new Event('click'))
     await new Promise(setImmediate)
-    assert.deepEqual(locations, ['first'])
+    assert.deepEqual(locations, [FIRST])
     assert.equal(reader.navigations, 1)
     assert.equal(requests.length, 0)
     assert.equal(rows().length, 1)
+})
+
+test('the panel sorts CFI chapters, numeric offsets, and ranges in book order', async t => {
+    const { rows } = await loadList(t, [
+        { cfi: LAST, content: 'Chapter ten' },
+        { cfi: 'epubcfi(/6/2!/4/2/1:10)', content: 'Offset ten' },
+        { cfi: 'epubcfi(/6/2!/4/2,/1:2,/1:5)', content: 'Long range at offset two' },
+        { cfi: FIRST, content: 'First annotation' },
+        { cfi: 'epubcfi(/6/2!/4/2,/1:2,/1:3)', content: 'Short range at offset two' },
+        { cfi: SECOND, content: 'Chapter two' },
+    ])
+    assert.deepEqual(rows().map(row => row.children[0].children[0].textContent), [
+        'First annotation', 'Short range at offset two', 'Long range at offset two',
+        'Offset ten', 'Chapter two', 'Chapter ten',
+    ])
+})
+
+test('saving an earlier annotation inserts it at its CFI position', async t => {
+    const { reader, rows } = await loadList(t, [
+        { cfi: LAST, content: 'Last annotation' },
+        { cfi: SECOND, content: 'Second annotation' },
+    ])
+    t.mock.method(reader.view, 'getCFI', () => FIRST)
+    reader.select('New first annotation')
+    reader.settle()
+    reader.popup.children[0].dispatchEvent(new Event('click'))
+    await new Promise(setImmediate)
+    assert.deepEqual(rows().map(row => row.children[0].children[0].textContent), [
+        'New first annotation', 'Second annotation', 'Last annotation',
+    ])
+})
+
+test('deleting from the sorted panel targets the displayed entry and preserves order', async t => {
+    const { reader, requests, rows } = await loadList(t, [
+        { cfi: LAST, content: 'Last annotation' },
+        { cfi: FIRST, content: 'First annotation' },
+        { cfi: SECOND, content: 'Second annotation' },
+    ])
+    rows()[1].children[1].dispatchEvent(new Event('click'))
+    await new Promise(setImmediate)
+    assert.deepEqual(JSON.parse(requests[0].body), { cfi: SECOND })
+    assert.deepEqual(reader.deleted, [{ value: SECOND, content: 'Second annotation' }])
+    assert.deepEqual(rows().map(row => row.children[0].children[0].textContent), [
+        'First annotation', 'Last annotation',
+    ])
+    assert.deepEqual(rows()[1].children[1].focusCalls, [{ preventScroll: true }])
 })

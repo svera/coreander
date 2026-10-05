@@ -1,3 +1,5 @@
+import { compare } from './foliate-js/epubcfi.js'
+
 export class ReaderAnnotations {
     #view
     #sync
@@ -123,6 +125,7 @@ export class ReaderAnnotations {
         }
         const list = document.createElement('ol')
         const annotations = Array.from(this.#annotations.values())
+            .sort((a, b) => compare(a.value, b.value))
         for (const [index, annotation] of annotations.entries()) {
             const item = document.createElement('li')
             const button = document.createElement('button')
