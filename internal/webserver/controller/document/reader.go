@@ -43,6 +43,6 @@ func (d *Controller) Reader(c fiber.Ctx) error {
 		"Author":              strings.Join(document.Authors, ", "),
 		"Description":         document.Description,
 		"Slug":                document.Slug,
-		"SupportsAnnotations": document.Format == "EPUB",
+		"SupportsAnnotations": document.SupportsAnnotations(),
 	})
 }
