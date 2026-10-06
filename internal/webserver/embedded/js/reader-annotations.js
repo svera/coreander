@@ -80,13 +80,16 @@ export class ReaderAnnotations {
         document.body.append(this.#popup)
 
         view.addEventListener('load', ({ detail }) => this.#bindDocument(detail))
-        view.renderer.addEventListener('relocate', ({ detail: { index, fraction } }) => {
+        view.renderer.addEventListener('relocate', ({ detail: { index, fraction, reason } }) => {
             const previous = this.#location
             this.#location = { index, fraction }
             const moved = previous && (previous.index !== index ||
                 Math.abs(previous.fraction - fraction) > 0.000001)
             if (!this.#saving && moved) {
-                this.#hide()
+                // Keyboard-driven reflow can change the fraction without a page turn.
+                if (reason === 'anchor' && previous.index === index && this.#isEditingComment()) {
+                    this.#positionPopup()
+                } else this.#hide()
             }
         })
         view.addEventListener('create-overlay', ({ detail: { index } }) => {
@@ -299,6 +302,10 @@ export class ReaderAnnotations {
         this.#selectionOverlayer = null
     }
 
+    #isEditingComment() {
+        return this.#pending?.remove === false && this.#popup.contains(document.activeElement)
+    }
+
     #positionPopup() {
         if (!this.#anchorRange) {
             this.#hide()
@@ -327,6 +334,7 @@ export class ReaderAnnotations {
             document.getElementById('nav-bar')?.getBoundingClientRect().top ?? viewportBottom - gap)
         this.#popup.style.maxWidth = `${Math.max(0, maxX - minX)}px`
         this.#popup.style.maxHeight = `${Math.max(0, maxY - minY)}px`
+        const { width, height } = this.#popup.getBoundingClientRect()
         const rects = Array.from(this.#anchorRange.getClientRects(), rect => ({
             left: offsetX + rect.left * scaleX,
             right: offsetX + rect.right * scaleX,
@@ -335,14 +343,17 @@ export class ReaderAnnotations {
         })).filter(rect => rect.right > minX && rect.left < maxX &&
             rect.bottom > minY && rect.top < maxY)
         if (!rects.length) {
-            this.#hide()
+            if (this.#isEditingComment()) {
+                // The keyboard can cover the anchor while its comment is still being edited.
+                this.#popup.style.left = `${Math.max(minX, Math.min(viewportLeft + (viewportWidth - width) / 2, maxX - width))}px`
+                this.#popup.style.top = `${Math.max(minY, maxY - height)}px`
+            } else this.#hide()
             return
         }
         const top = Math.max(minY, Math.min(...rects.map(rect => rect.top)))
         const bottom = Math.min(maxY, Math.max(...rects.map(rect => rect.bottom)))
         const left = Math.max(minX, Math.min(...rects.map(rect => rect.left)))
         const right = Math.min(maxX, Math.max(...rects.map(rect => rect.right)))
-        const { width, height } = this.#popup.getBoundingClientRect()
         const below = maxY - bottom - gap
         const above = top - minY - gap
         const y = below >= height || below >= above ? bottom + gap : top - height - gap

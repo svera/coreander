@@ -64,6 +64,7 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
     }
     const doc = new EventTarget()
     let text = ''
+    const selectionRect = { left: 20, right: 250, top: 100, bottom: 125 }
     const selection = {
         get rangeCount() { return text ? 1 : 0 },
         get isCollapsed() { return !text },
@@ -72,7 +73,7 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
             cloneRange: () => ({
                 text,
                 startContainer: { ownerDocument: doc },
-                getClientRects: () => [{ left: 20, right: 250, top: 100, bottom: 125 }],
+                getClientRects: () => [selectionRect],
             }),
         }),
     }
@@ -126,6 +127,7 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
     view.dispatchEvent(new CustomEvent('load', { detail: { doc, index: 2 } }))
     return {
         doc,
+        selectionRect,
         body,
         popup: body.children[0],
         get commentInput() { return body.children[0].children[0].children[0] },
@@ -554,6 +556,103 @@ test('popup follows the visible viewport on resize and panning without moving fo
     viewport.dispatchEvent(new Event('scroll'))
     assert.ok(parseFloat(reader.popup.style.top) >= 48)
     assert.deepEqual(reader.commentInput.focusCalls, [])
+})
+
+test('opening the keyboard keeps a bottom-half comment popup visible and saves its captured selection', async t => {
+    const viewport = Object.assign(new EventTarget(), {
+        width: 390, height: 844, offsetLeft: 0, offsetTop: 0,
+    })
+    const reader = setup(t, true, { viewport })
+    Object.assign(reader.selectionRect, { top: 620, bottom: 645 })
+    reader.select('Bottom passage')
+    reader.settle()
+    document.activeElement = reader.commentInput
+    reader.commentInput.dispatchEvent(new Event('focus'))
+    reader.commentInput.value = 'Keep my draft'
+    reader.select('')
+    reader.settle()
+
+    viewport.height = 350
+    viewport.dispatchEvent(new Event('resize'))
+    assert.equal(reader.popup.hidden, false)
+    assert.equal(reader.previews.size, 1)
+    assert.equal(reader.commentInput.value, 'Keep my draft')
+    assert.ok(parseFloat(reader.popup.style.top) >= 8)
+    assert.ok(parseFloat(reader.popup.style.top) + 48 <= viewport.height - 8)
+    assert.deepEqual(reader.focusCalls, [])
+    assert.deepEqual(reader.commentInput.focusCalls, [])
+
+    document.activeElement = reader.actionButton
+    viewport.offsetTop = 20
+    viewport.dispatchEvent(new Event('scroll'))
+    assert.equal(reader.popup.hidden, false)
+    let saved
+    t.mock.method(globalThis, 'fetch', async (url, options) => {
+        saved = JSON.parse(options.body)
+        return { status: 204, ok: true }
+    })
+    reader.actionButton.dispatchEvent(new Event('click'))
+    await new Promise(setImmediate)
+    assert.deepEqual(saved, {
+        cfi: 'cfi:Bottom passage', content: 'Bottom passage', comment: 'Keep my draft',
+    })
+    assert.equal(reader.popup.hidden, true)
+})
+
+test('keyboard repagination preserves the focused draft but actual page turns dismiss it', t => {
+    const reader = setup(t)
+    reader.view.renderer.dispatchEvent(new CustomEvent('relocate', {
+        detail: { index: 2, fraction: 0, reason: 'anchor' },
+    }))
+    reader.select('Selected passage')
+    reader.settle()
+    document.activeElement = reader.commentInput
+    reader.commentInput.dispatchEvent(new Event('focus'))
+    reader.commentInput.value = 'Draft'
+    reader.view.renderer.dispatchEvent(new CustomEvent('relocate', {
+        detail: { index: 2, fraction: 0.5, reason: 'anchor' },
+    }))
+    assert.equal(reader.popup.hidden, false)
+    assert.equal(reader.commentInput.value, 'Draft')
+    assert.equal(reader.previews.size, 1)
+    reader.view.renderer.dispatchEvent(new CustomEvent('relocate', {
+        detail: { index: 2, fraction: 0.75, reason: 'page' },
+    }))
+    assert.equal(reader.popup.hidden, true)
+    assert.equal(reader.previews.size, 0)
+})
+
+test('an off-screen selection still dismisses the popup when its editor is not focused', t => {
+    const viewport = Object.assign(new EventTarget(), {
+        width: 390, height: 844, offsetLeft: 0, offsetTop: 0,
+    })
+    const reader = setup(t, true, { viewport })
+    Object.assign(reader.selectionRect, { top: 620, bottom: 645 })
+    reader.select('Bottom passage')
+    reader.settle()
+    viewport.height = 350
+    viewport.dispatchEvent(new Event('resize'))
+    assert.equal(reader.popup.hidden, true)
+})
+
+test('repagination still dismisses an unfocused popup or one from another chapter', t => {
+    const reader = setup(t)
+    reader.view.renderer.dispatchEvent(new CustomEvent('relocate', {
+        detail: { index: 2, fraction: 0 },
+    }))
+    reader.select('Selected passage')
+    reader.settle()
+    reader.view.renderer.dispatchEvent(new CustomEvent('relocate', {
+        detail: { index: 2, fraction: 0.5, reason: 'anchor' },
+    }))
+    assert.equal(reader.popup.hidden, true)
+    reader.select('Another passage')
+    reader.settle()
+    document.activeElement = reader.commentInput
+    reader.view.renderer.dispatchEvent(new CustomEvent('relocate', {
+        detail: { index: 3, fraction: 0, reason: 'anchor' },
+    }))
+    assert.equal(reader.popup.hidden, true)
 })
 
 for (const remove of [false, true]) {
