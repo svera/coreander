@@ -582,7 +582,7 @@ class Reader {
         await this.view.open(file)
         bindReaderWheel(this.view)
 
-        if (this.sync.isAuthenticated) {
+        if (this.sync.isAuthenticated && $('#annotations-side-bar')) {
             const annotations = new ReaderAnnotations({
                 view: this.view,
                 sync: this.sync,

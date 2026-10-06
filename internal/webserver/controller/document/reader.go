@@ -39,9 +39,10 @@ func (d *Controller) Reader(c fiber.Ctx) error {
 		title = fmt.Sprintf("%s - %s", authors, document.Title)
 	}
 	return c.Render("document/reader", fiber.Map{
-		"Title":       title,
-		"Author":      strings.Join(document.Authors, ", "),
-		"Description": document.Description,
-		"Slug":        document.Slug,
+		"Title":               title,
+		"Author":              strings.Join(document.Authors, ", "),
+		"Description":         document.Description,
+		"Slug":                document.Slug,
+		"SupportsAnnotations": document.SupportsAnnotations(),
 	})
 }
