@@ -52,9 +52,8 @@ html[data-theme="dark"] #side-bar-header a,
 html[data-theme="dark"] .reader-sidebar-topbar a {
     color: #ffffff;
 }
-html[data-theme="dark"] #footnote-modal {
+html[data-theme="dark"] .reader-popup {
     background: #2a2a2a;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 html[data-theme="dark"] #footnote-modal::backdrop {
     background: rgba(0, 0, 0, 0.7);
@@ -64,9 +63,8 @@ html[data-theme="dark"] .menu {
 }
 /* Auto mode dark theme for footnote modal */
 @media (prefers-color-scheme: dark) {
-    html[data-theme="auto"] #footnote-modal {
+    html[data-theme="auto"] .reader-popup {
         background: #2a2a2a;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     }
     html[data-theme="auto"] #footnote-modal::backdrop {
         background: rgba(0, 0, 0, 0.7);
@@ -102,20 +100,41 @@ foliate-view:focus {
     display: none !important;
 }
 
-#annotation-popup {
-    position: fixed;
-    inset: auto;
-    margin: 0;
-    width: 28rem;
-    max-width: calc(100vw - 2rem);
+.reader-popup {
     box-sizing: border-box;
-    padding: 1rem;
     border: 1px solid GrayText;
     border-radius: .75rem;
     background: Canvas;
     color: CanvasText;
     box-shadow: 0 .25rem 1rem rgba(0, 0, 0, .25);
     z-index: 1000;
+}
+.reader-popup-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: none;
+    border-radius: .25rem;
+    background: transparent;
+    color: inherit;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.reader-popup-close:hover {
+    background: var(--active-bg);
+}
+#annotation-popup {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    width: 28rem;
+    max-width: calc(100vw - 2rem);
+    padding: 1rem;
     display: flex;
     flex-direction: column;
     gap: .75rem;
@@ -135,14 +154,17 @@ foliate-view:focus {
     display: none;
 }
 #annotation-popup label {
-    display: flex;
-    flex-direction: column;
-    gap: .5rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2.25rem;
+    grid-template-rows: minmax(1.25rem, auto) auto;
+    align-items: center;
+    gap: .75rem .5rem;
 }
 #annotation-popup label[hidden] {
     display: none;
 }
 #annotation-popup textarea {
+    grid-column: 1 / -1;
     min-width: 0;
     resize: vertical;
     padding: .5rem;
@@ -154,8 +176,11 @@ foliate-view:focus {
 }
 #annotation-popup p {
     margin: 0;
+    min-height: 1.25rem;
+    padding-inline-end: 2.25rem;
     max-height: 25vh;
     overflow-y: auto;
+    line-height: 1.5;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
@@ -164,7 +189,7 @@ foliate-view:focus {
     flex-wrap: wrap;
     gap: .75rem;
 }
-#annotation-popup button {
+#annotation-popup button:not(.reader-popup-close) {
     padding: .5rem 1rem;
     border: 1px solid GrayText;
     border-radius: .25rem;
@@ -175,6 +200,27 @@ foliate-view:focus {
 #annotation-popup button:disabled {
     opacity: .5;
     cursor: wait;
+}
+#annotation-popup .reader-popup-close {
+    position: absolute;
+    inset-block-start: .25rem;
+    inset-inline-end: .25rem;
+}
+#annotation-popup[data-compact="true"] {
+    width: max-content;
+    padding: .5rem;
+    flex-direction: row;
+    align-items: center;
+}
+#annotation-popup[data-compact="true"] .annotation-actions,
+#annotation-popup[data-compact="true"] .annotation-actions button {
+    min-width: 0;
+}
+#annotation-popup[data-compact="true"] .annotation-actions button {
+    overflow-wrap: anywhere;
+}
+#annotation-popup[data-compact="true"] .reader-popup-close {
+    position: static;
 }
 #spinner-container, #error-icon-container {
     height: 100vh;
@@ -367,7 +413,7 @@ foliate-view:focus {
     font-size: 1.5rem;
     line-height: 1;
 }
-#annotations-list button:not(.annotation-remove):hover,
+#annotations-list button:hover,
 #annotations-list button:focus-visible {
     background: var(--active-bg);
 }
@@ -668,14 +714,8 @@ html[data-theme="dark"] .menu #font-family-controls button.active {
     width: min(90vw, 600px);
     max-height: 80vh;
     margin: 0 !important;
-    border: none;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    background: Canvas;
-    color: CanvasText;
     padding: 0;
     overflow: hidden;
-    z-index: 1000;
 }
 
 #footnote-modal::backdrop {
@@ -705,25 +745,6 @@ html[data-theme="dark"] .menu #font-family-controls button.active {
     font-size: 1.125em;
     font-weight: 600;
     color: inherit;
-}
-
-#footnote-close {
-    background: none;
-    border: none;
-    padding: 4px;
-    cursor: pointer;
-    border-radius: 4px;
-    color: inherit;
-    transition: background-color 0.2s ease;
-}
-
-#footnote-close:hover {
-    background: var(--active-bg);
-}
-
-#footnote-close svg {
-    width: 20px;
-    height: 20px;
 }
 
 .modal-content {

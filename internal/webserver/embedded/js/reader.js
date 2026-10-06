@@ -8,6 +8,7 @@ const [
     { ReaderSync },
     { ReaderToast },
     { ReaderAnnotations },
+    { ReaderPopup },
     { bindReaderWheel },
     { saveOfflineReader },
 ] = await Promise.all([
@@ -18,6 +19,7 @@ const [
     importVersioned('./reader-sync.js'),
     importVersioned('./reader-toast.js'),
     importVersioned('./reader-annotations.js'),
+    importVersioned('./reader-popup.js'),
     importVersioned('./reader-wheel.js'),
     importVersioned('./reader-offline.js'),
 ])
@@ -98,6 +100,7 @@ class Reader {
     #tocView
     #footnoteModal
     #footnoteContent
+    #footnotePopup
     #toast
     #sessionExpiredShown = false
     #notLoggedInShown = false
@@ -290,25 +293,14 @@ class Reader {
         // Apply current font size to modal
         this.#footnoteModal.style.fontSize = `${this.style.fontSize}%`
 
-        // Set up close button
         const closeBtn = $('#footnote-close')
-        if (closeBtn) {
-            closeBtn.onclick = () => this.#footnoteModal.close()
-        }
-
-        // Close on backdrop click
-        this.#footnoteModal.onclick = (e) => {
-            if (e.target === this.#footnoteModal) {
-                this.#footnoteModal.close()
-            }
-        }
-
-        // Close on Escape key
-        this.#footnoteModal.onkeydown = (e) => {
-            if (e.key === 'Escape') {
-                this.#footnoteModal.close()
-            }
-        }
+        this.#footnotePopup = new ReaderPopup({
+            element: this.#footnoteModal,
+            mode: 'modal',
+            closeButton: closeBtn,
+            closeLabel: closeBtn.getAttribute('aria-label'),
+            focusTarget: this.#footnoteContent,
+        })
     }
     constructor() {
         // Check if user is authenticated
@@ -866,24 +858,14 @@ class Reader {
 
         this.#footnoteContent.innerHTML = ''
         this.#footnoteContent.appendChild(clonedContent)
-        this.#footnoteModal.showModal()
-
-        // Focus the content for keyboard navigation
-        setTimeout(() => {
-            this.#footnoteContent.focus()
-        }, 0)
+        this.#footnotePopup.show()
     }
     #showFootnoteError() {
         if (!this.#footnoteModal || !this.#footnoteContent) return
 
         const errorMessage = this.#footnoteModal.dataset.errorMessage || '<p><em>Footnote content could not be loaded.</em></p>'
         this.#footnoteContent.innerHTML = errorMessage
-        this.#footnoteModal.showModal()
-
-        // Focus the content for keyboard navigation
-        setTimeout(() => {
-            this.#footnoteContent.focus()
-        }, 0)
+        this.#footnotePopup.show()
     }
     #onRelocate({ detail }) {
         const storage = window.localStorage

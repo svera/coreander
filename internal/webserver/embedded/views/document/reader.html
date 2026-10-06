@@ -40,12 +40,7 @@
 <dialog id="footnote-modal" aria-labelledby="footnote-title" data-error-message='<p><em>{{t .Lang "Footnote content could not be loaded. This may be an external reference or the footnote may not be available in this document."}}</em></p>'>
     <div class="modal-header">
         <h3 id="footnote-title">{{t .Lang "Footnote"}}</h3>
-        <button id="footnote-close" aria-label='{{t .Lang "Close footnote"}}' type="button">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-        </button>
+        <button id="footnote-close" class="reader-popup-close" aria-label='{{t .Lang "Close footnote"}}' type="button">&times;</button>
     </div>
     <div class="modal-content" id="footnote-content" tabindex="-1">
         <!-- Footnote content will replace this paragraph if loading is successful -->
@@ -168,7 +163,7 @@
     "annotations_reload_required": {{t .Lang "Your change was saved, but annotations could not be updated in the reader. Reload the reader before making further annotation changes."}},
     "reload_reader": {{t .Lang "Reload reader"}},
     "comment_limit": {{t .Lang "Comments can contain up to 65,536 characters."}},
-    "cancel": {{t .Lang "Cancel"}},
+    "close": {{t .Lang "Close"}},
     "annotation_saved": {{t .Lang "Annotation saved."}},
     "annotation_save_failed": {{t .Lang "The annotation could not be saved. Please try again."}},
     "remove_annotation": {{t .Lang "Remove annotation"}},
