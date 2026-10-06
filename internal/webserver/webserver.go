@@ -166,6 +166,12 @@ func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, user
 	)
 	addCompressMiddleware(app)
 
+	worker, err := readerOfflineWorker(assetVersion)
+	if err != nil {
+		log.Fatal(err)
+	}
+	app.Get("/reader-service-worker.js", serveReaderOfflineWorker(worker))
+
 	routes(app, controllers, cfg.JwtSecret, sender, translator, cfg, idx, usersRepository)
 	return app
 }

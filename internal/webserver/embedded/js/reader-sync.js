@@ -139,7 +139,9 @@ export class ReaderSync {
                 
                 // Navigate to the new position
                 try {
-                    await this.#view.goTo(serverData.position)
+                    if (positionChanged) {
+                        await this.#view.goTo(serverData.position)
+                    }
                     // Dispatch event only if position actually changed
                     if (positionChanged) {
                         window.dispatchEvent(new CustomEvent('reader-position-updated'))
