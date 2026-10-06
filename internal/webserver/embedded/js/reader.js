@@ -9,6 +9,7 @@ const [
     { ReaderToast },
     { ReaderAnnotations },
     { bindReaderWheel },
+    { saveOfflineReader },
 ] = await Promise.all([
     importVersioned('./foliate-js/view.js'),
     importVersioned('./foliate-js/ui/tree.js'),
@@ -18,6 +19,7 @@ const [
     importVersioned('./reader-toast.js'),
     importVersioned('./reader-annotations.js'),
     importVersioned('./reader-wheel.js'),
+    importVersioned('./reader-offline.js'),
 ])
 
 document.addEventListener('click', e => {
@@ -118,6 +120,14 @@ class Reader {
     #fontSizeStep = 10
     annotations = new Map()
     annotationsByValue = new Map()
+    async saveOffline(url, blob) {
+        try {
+            await saveOfflineReader(url, blob)
+        } catch (error) {
+            console.error('Could not save document for offline reading:', error)
+            this.#toast.show('warning', this.translations.offline_failed)
+        }
+    }
     closeSideBar(refocus = true) {
         $('#dimming-overlay').classList.remove('show')
         $('#side-bar').classList.remove('show')
@@ -957,8 +967,10 @@ if (url) fetch(url)
         }
         return res.blob()
     })
-    .then(blob => {
-        if (blob) return open(new File([blob], new URL(url, window.location.href).pathname))
+    .then(async blob => {
+        if (!blob) return
+        await open(new File([blob], new URL(url, window.location.href).pathname))
+        await globalThis.reader.saveOffline(url, blob)
     })
     .catch(e => {
         if (e.message !== 'Authentication required') {
