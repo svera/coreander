@@ -21,7 +21,7 @@ func TestAnnotations(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = sqlDB.Close() })
 	app := bootstrapApp(db, &infrastructure.NoEmail{},
-		loadFilesInMemoryFs([]string{"testdata/library/metadata.epub"}), webserver.Config{})
+		loadFilesInMemoryFs([]string{"testdata/library/metadata.epub", "testdata/library/metadata.pdf"}), webserver.Config{})
 	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
 		t.Fatal(err)
@@ -65,14 +65,23 @@ func TestAnnotations(t *testing.T) {
 	}
 	first := `{"cfi":"epubcfi(/6/2!/4/2,/1:0,/1:5)","content":"First phrase","comment":"First comment","user_id":999}`
 	second := `{"cfi":"epubcfi(/6/2!/4/2,/1:6,/1:12)","content":"Second phrase"}`
-	t.Run("reader shows annotation sidebar only when logged in", func(t *testing.T) {
-		for _, cookie := range []*http.Cookie{nil, adminCookie} {
-			req, err := http.NewRequest(http.MethodGet, "/documents/"+slug+"/read", nil)
+	t.Run("reader shows annotation sidebar only for logged-in EPUB readers", func(t *testing.T) {
+		for _, tc := range []struct {
+			slug   string
+			cookie *http.Cookie
+			want   int
+		}{
+			{slug: slug},
+			{slug: slug, cookie: adminCookie, want: 1},
+			{slug: "john-doe-test-pdf"},
+			{slug: "john-doe-test-pdf", cookie: adminCookie},
+		} {
+			req, err := http.NewRequest(http.MethodGet, "/documents/"+tc.slug+"/read", nil)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if cookie != nil {
-				req.AddCookie(cookie)
+			if tc.cookie != nil {
+				req.AddCookie(tc.cookie)
 			}
 			resp, err := app.Test(req)
 			if err != nil {
@@ -86,16 +95,12 @@ func TestAnnotations(t *testing.T) {
 			if resp.StatusCode != http.StatusOK {
 				t.Fatalf("reader status = %d", resp.StatusCode)
 			}
-			want := 0
-			if cookie != nil {
-				want = 1
-			}
 			for _, selector := range []string{"#annotations-button", "#annotations-side-bar", "#annotations-list"} {
-				if page.Find(selector).Length() != want {
-					t.Fatalf("%s count = %d, want %d", selector, page.Find(selector).Length(), want)
+				if page.Find(selector).Length() != tc.want {
+					t.Fatalf("%s: %s count = %d, want %d", tc.slug, selector, page.Find(selector).Length(), tc.want)
 				}
 			}
-			if cookie != nil && page.Find("#annotations-button + #menu-button").Length() != 1 {
+			if tc.want == 1 && page.Find("#annotations-button + #menu-button").Length() != 1 {
 				t.Fatal("annotations icon is not immediately before settings")
 			}
 		}
