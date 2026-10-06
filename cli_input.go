@@ -13,8 +13,8 @@ type CLIInput struct {
 	LibPath string `arg:"" env:"LIB_PATH" help:"Absolute path to the folder containing the documents." type:"path"`
 	// CacheDir defines where cache files will be stored
 	CacheDir string `env:"CACHE_DIR" short:"c" name:"cache-dir" help:"Directory where to store cache files. Defaults to ~/.coreander/cache"`
-	// FQDN stores the domain name of the server. If the server is listening on a non-standard HTTP / HTTPS port, include it using a colon (e. g. example.com:3000)
-	FQDN string `env:"FQDN" short:"d" default:"localhost" name:"fqdn" help:"Domain name of the server. If the server is listening on a non-standard HTTP / HTTPS port, include it using a colon (e. g. example:3000)"`
+	// FQDN stores the server's hostname or IP address, with an optional explicit port.
+	FQDN string `env:"FQDN" short:"d" default:"localhost" name:"fqdn" help:"Hostname or IP address of the server. Uses the listening port unless an explicit port is included (e. g. example.com:443 for an HTTPS reverse proxy)"`
 	// Port defines the port number in which the webserver listens for requests
 	Port int `env:"PORT" short:"p" default:"3000" name:"port" help:"Port number in which the webserver listens for requests"`
 	// BatchSize indicates the number of documents persisted by the indexer in one operation

@@ -26,6 +26,9 @@ func (d *Controller) Delete(c fiber.Ctx) error {
 	if err := d.readingRepository.RemoveDocument(slug); err != nil {
 		log.Printf("error removing document %s from readings\n", slug)
 	}
+	if err := d.annotationsRepository.RemoveDocument(slug); err != nil {
+		log.Printf("error removing annotations for document %s: %v\n", slug, err)
+	}
 
 	coverPath := d.config.CacheDir + "/covers/" + slug + ".webp"
 	if err := d.appFs.Remove(coverPath); err != nil && !os.IsNotExist(err) {

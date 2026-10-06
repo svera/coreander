@@ -81,12 +81,14 @@ html[data-theme="dark"] .menu {
 }
 html {
     height: 100%;
+    overflow: hidden;
     background: Canvas;
     color: CanvasText;
 }
 body {
     margin: 0 auto;
     height: 100%;
+    overflow: hidden;
     font: menu;
     font-family: system-ui, sans-serif;
     background: Canvas;
@@ -98,6 +100,81 @@ foliate-view:focus {
 }
 .d-none {
     display: none !important;
+}
+
+#annotation-popup {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    width: 28rem;
+    max-width: calc(100vw - 2rem);
+    box-sizing: border-box;
+    padding: 1rem;
+    border: 1px solid GrayText;
+    border-radius: .75rem;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: 0 .25rem 1rem rgba(0, 0, 0, .25);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    overflow-y: auto;
+}
+#annotation-recovery {
+    position: fixed;
+    inset: 1rem 1rem auto;
+    z-index: 1001;
+    padding: 1rem;
+    border: 1px solid GrayText;
+    border-radius: .75rem;
+    background: Canvas;
+    color: CanvasText;
+}
+#annotation-popup[hidden] {
+    display: none;
+}
+#annotation-popup label {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+#annotation-popup label[hidden] {
+    display: none;
+}
+#annotation-popup textarea {
+    min-width: 0;
+    resize: vertical;
+    padding: .5rem;
+    font: inherit;
+    border: 1px solid GrayText;
+    border-radius: .25rem;
+    background: Canvas;
+    color: CanvasText;
+}
+#annotation-popup p {
+    margin: 0;
+    max-height: 25vh;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.annotation-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+}
+#annotation-popup button {
+    padding: .5rem 1rem;
+    border: 1px solid GrayText;
+    border-radius: .25rem;
+    background: ButtonFace;
+    color: ButtonText;
+    cursor: pointer;
+}
+#annotation-popup button:disabled {
+    opacity: .5;
+    cursor: wait;
 }
 #spinner-container, #error-icon-container {
     height: 100vh;
@@ -153,6 +230,15 @@ foliate-view:focus {
 }
 #header-bar {
     top: 0;
+    justify-content: flex-start;
+    gap: 6px;
+}
+#annotations-button,
+#header-bar > #menu-button {
+    margin-left: auto;
+}
+#annotations-button + #menu-button {
+    margin-left: 0;
 }
 #font-size-controls {
     display: none; /* Hidden by default, shown by JS for non-PDF files */
@@ -174,16 +260,14 @@ foliate-view:focus {
     margin: 0 12px;
     visibility: hidden;
 }
-#side-bar {
+.reader-sidebar {
     visibility: hidden;
     box-sizing: border-box;
     position: absolute;
     z-index: 2;
     top: 0;
-    left: 0;
     height: 100%;
-    width: 320px;
-    transform: translateX(-320px);
+    width: min(320px, 100vw);
     display: flex;
     flex-direction: column;
     background: Canvas;
@@ -191,7 +275,16 @@ foliate-view:focus {
     box-shadow: 0 0 0 1px rgba(0, 0, 0, .2), 0 0 40px rgba(0, 0, 0, .2);
     transition: visibility 0s linear 300ms, transform 300ms ease;
 }
-#side-bar.show {
+#side-bar {
+    left: 0;
+    transform: translateX(-100%);
+}
+#annotations-side-bar {
+    right: 0;
+    transform: translateX(100%);
+}
+#side-bar.show,
+#annotations-side-bar.show {
     visibility: visible;
     transform: translateX(0);
     transition-delay: 0s;
@@ -217,8 +310,7 @@ foliate-view:focus {
 .reader-sidebar-topbar a:hover {
     text-decoration: underline;
 }
-#side-bar-close {
-    position: static;
+.reader-sidebar-topbar > button {
     flex-shrink: 0;
     padding: 6px;
     background: none;
@@ -227,9 +319,64 @@ foliate-view:focus {
     color: GrayText;
     cursor: pointer;
 }
-#side-bar-close:hover {
+.reader-sidebar-topbar > button:hover {
     background: rgba(0, 0, 0, .1);
     color: CanvasText;
+}
+#annotations-title {
+    margin: 0;
+    font-size: 1rem;
+}
+#annotations-list {
+    padding: .75rem;
+    overflow-y: auto;
+    min-height: 0;
+}
+#annotations-list ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+#annotations-list li + li {
+    margin-top: .75rem;
+}
+#annotations-list li {
+    display: flex;
+    gap: .5rem;
+}
+#annotations-list button {
+    flex: 1;
+    min-width: 0;
+    padding: .75rem;
+    text-align: start;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font: inherit;
+    border: 1px solid GrayText;
+    border-radius: .5rem;
+    background: Canvas;
+    color: CanvasText;
+    cursor: pointer;
+}
+#annotations-list .annotation-remove {
+    flex: 0 0 2.75rem;
+    min-height: 2.75rem;
+    padding: .5rem;
+    border: none;
+    text-align: center;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+#annotations-list button:not(.annotation-remove):hover,
+#annotations-list button:focus-visible {
+    background: var(--active-bg);
+}
+#annotations-list button > span {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
 }
 #dimming-overlay {
     visibility: hidden;
@@ -604,42 +751,21 @@ html[data-theme="dark"] .menu #font-family-controls button.active {
     text-decoration: none;
 }
 
-/* Reader Toast (Dialog-based) */
+/* ReaderToast sets bounds from the visible viewport. */
 #reader-toast {
     position: fixed;
-    top: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    margin: 0;
-    padding: 0;
-    border: none;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    background: transparent;
     z-index: 9999;
-    max-width: 90vw;
-    width: auto;
-    min-width: 250px;
-    animation: toast-slide-in 0.3s ease-out;
-}
-
-#reader-toast[open] {
-    display: block;
-}
-
-#reader-toast::backdrop {
-    background: transparent;
     pointer-events: none;
 }
 
 @keyframes toast-slide-in {
     from {
         opacity: 0;
-        transform: translateX(-50%) translateY(-20px);
+        transform: translateY(-20px);
     }
     to {
         opacity: 1;
-        transform: translateX(-50%) translateY(0);
+        transform: translateY(0);
     }
 }
 
@@ -647,12 +773,22 @@ html[data-theme="dark"] .menu #font-family-controls button.active {
     display: flex;
     align-items: center;
     gap: 1rem;
+    box-sizing: border-box;
+    width: fit-content;
+    min-width: min(250px, 100%);
+    max-width: min(28rem, 100%);
+    margin: 0 auto;
     padding: 0.75rem 1rem;
     border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    pointer-events: auto;
+    animation: toast-slide-in 0.3s ease-out;
 }
 
 .toast-message {
     flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
     font-size: 0.9rem;
     line-height: 1.4;
 }
@@ -712,12 +848,12 @@ html[data-theme="dark"] .menu #font-family-controls button.active {
 }
 
 /* Dark mode support */
-html[data-theme="dark"] #reader-toast {
+html[data-theme="dark"] #reader-toast .toast-content {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 @media (prefers-color-scheme: dark) {
-    html[data-theme="auto"] #reader-toast {
+    html[data-theme="auto"] #reader-toast .toast-content {
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     }
 }

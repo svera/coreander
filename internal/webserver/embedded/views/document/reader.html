@@ -13,7 +13,7 @@
 <meta name="msapplication-TileColor" content="#da532c">
 <link href="/css/reader.css{{versionParam}}" rel="stylesheet">
 
-<input type="hidden" id="url" value="{{.fqdn}}/documents/{{.Slug}}/download">
+<input type="hidden" id="url" value="/documents/{{.Slug}}/download">
 <input type="hidden" id="slug" value="{{.Slug}}">
 <input type="hidden" id="authenticated" value="{{if and (.Session) (ne .Session.Name "")}}true{{else}}false{{end}}">
 
@@ -51,7 +51,7 @@
         <!-- Footnote content will replace this paragraph if loading is successful -->
     </div>
 </dialog>
-<div id="side-bar">
+<div id="side-bar" class="reader-sidebar">
     <div class="reader-sidebar-topbar">
         <p class="reader-sidebar-back"><a id="reader-back-link" data-reader-history-back href="/documents/{{.Slug}}">← {{t .Lang "Return"}}</a></p>
         <button id="side-bar-close" aria-label='{{t .Lang "Close sidebar"}}' type="button">
@@ -72,6 +72,21 @@
     </div>
     <div id="toc-view"></div>
 </div>
+{{if and (.Session) (ne .Session.Name "")}}
+<aside id="annotations-side-bar" class="reader-sidebar" aria-labelledby="annotations-title" inert>
+    <div class="reader-sidebar-topbar">
+        <h2 id="annotations-title">{{t .Lang "Annotations"}}</h2>
+        <button id="annotations-side-bar-close" aria-label='{{t .Lang "Close sidebar"}}' type="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+    <div id="annotations-list" aria-live="polite">
+        <p>{{t .Lang "Loading annotations..."}}</p>
+    </div>
+</aside>
+{{end}}
 <div id="header-bar" class="toolbar">
     <button id="side-bar-button" aria-label='{{t .Lang "Show sidebar"}}'>
         <svg class="icon" width="24" height="24" aria-hidden="true">
@@ -98,6 +113,13 @@
             </svg>
         </button>
     </div>
+    {{if and (.Session) (ne .Session.Name "")}}
+    <button id="annotations-button" type="button" aria-label='{{t .Lang "Show annotations"}}' title='{{t .Lang "Show annotations"}}' aria-controls="annotations-side-bar" aria-expanded="false">
+        <svg class="icon" width="24" height="24" aria-hidden="true">
+            <path d="M5 3h14v18H5zM8 7h8M8 11h8M8 15h5"/>
+        </svg>
+    </button>
+    {{end}}
     <div id="menu-button" class="menu-container">
         <button aria-label='{{t .Lang "Show settings"}}' aria-haspopup="true">
             <svg class="icon" width="24" height="24" aria-hidden="true">
@@ -140,10 +162,24 @@
     "session_expired_reading": {{t .Lang "Session expired. Your reading position is still saved locally."}},
     "position_updated_from_server": {{t .Lang "Reading position updated from another device."}},
     "not_logged_in_reading": {{t .Lang "You are not logged in. Your reading position is saved locally only."}},
-    "position_reset_reading": {{t .Lang "Your saved reading position was reset because this document changed."}}
+    "position_reset_reading": {{t .Lang "Your saved reading position was reset because this document changed."}},
+    "save_annotation": {{t .Lang "Save annotation"}},
+    "comment": {{t .Lang "Comment"}},
+    "annotations_reload_required": {{t .Lang "Your change was saved, but annotations could not be updated in the reader. Reload the reader before making further annotation changes."}},
+    "reload_reader": {{t .Lang "Reload reader"}},
+    "comment_limit": {{t .Lang "Comments can contain up to 65,536 characters."}},
+    "cancel": {{t .Lang "Cancel"}},
+    "annotation_saved": {{t .Lang "Annotation saved."}},
+    "annotation_save_failed": {{t .Lang "The annotation could not be saved. Please try again."}},
+    "remove_annotation": {{t .Lang "Remove annotation"}},
+    "annotation_removed": {{t .Lang "Annotation removed."}},
+    "annotation_remove_failed": {{t .Lang "The annotation could not be removed. Please try again."}},
+    "annotations_load_failed": {{t .Lang "Your saved annotations could not be loaded."}},
+    "no_annotations": {{t .Lang "You haven't saved any annotations in this book yet."}},
+    "annotations_display_failed": {{t .Lang "Some saved annotations could not be displayed. The document may have changed."}}
 }}</script>
 
-<dialog id="reader-toast" role="alert" aria-live="assertive" aria-atomic="true" data-auto-hide="true" data-delay="5000">
+<div id="reader-toast" role="alert" aria-live="assertive" aria-atomic="true" data-auto-hide="true" data-delay="5000" hidden>
     <div class="toast-content">
         <div class="toast-message"></div>
         <button type="button" class="toast-close" aria-label="Close">
@@ -152,7 +188,7 @@
             </svg>
         </button>
     </div>
-</dialog>
+</div>
 
 {{template "partials/reader-importmap" .}}
 <script src="/js/reader.js{{versionParam}}" type="module"></script>
