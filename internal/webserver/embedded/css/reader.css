@@ -1,6 +1,13 @@
 :root {
     --active-bg: rgba(0, 0, 0, .12);
     --active-bg-dark: rgba(255, 255, 255, .2);
+    --menu-icon-filter: none;
+    --modal-header-border: rgba(0, 0, 0, .1);
+    --modal-header-bg: rgba(0, 0, 0, .02);
+    --popup-bg: Canvas;
+    --menu-shadow: 0 0 0 1px rgba(0, 0, 0, .2), 0 0 16px rgba(0, 0, 0, .1);
+    --toast-shadow: 0 4px 12px rgba(0, 0, 0, .15);
+    --control-active-border: rgba(0, 0, 0, .2);
 
     /* Menu icon SVGs (defined once, inverted for dark mode) */
     --radio-checked: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%223%22%20fill%3D%22%23000%22%2F%3E%3C%2Fsvg%3E');
@@ -8,78 +15,58 @@
     --checkbox-checked: url('data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20x%3D%225%22%20y%3D%225%22%20width%3D%2214%22%20height%3D%2214%22%20rx%3D%222%22%20fill%3D%22%23000%22%2F%3E%3Cpath%20d%3D%22M9%2012l2%202%204-4%22%20stroke%3D%22%23fff%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E');
 }
 
-/* Dark mode - applies when OS prefers dark mode (auto mode) */
 @supports (color-scheme: light dark) {
     @media (prefers-color-scheme: dark) {
         html[data-theme="auto"] {
             --active-bg: var(--active-bg-dark);
-        }
-        html[data-theme="auto"] .modal-header {
-            border-bottom-color: rgba(255, 255, 255, 0.1);
-            background: rgba(255, 255, 255, 0.02);
-        }
-        /* Invert menu icons for dark mode (not the text) */
-        html[data-theme="auto"] .menu li[role="menuitemradio"][aria-checked="true"]::before,
-        html[data-theme="auto"] .menu li[role="menuitemcheckbox"]::before {
-            filter: invert(1);
+            --menu-icon-filter: invert(1);
+            --modal-header-border: rgba(255, 255, 255, .1);
+            --modal-header-bg: rgba(255, 255, 255, .02);
         }
     }
 }
 
-/* Explicit dark mode when user selects dark theme */
 html[data-theme="dark"] {
     --active-bg: var(--active-bg-dark);
-}
-/* Invert menu icons for explicit dark mode (not the text) */
-html[data-theme="dark"] .menu li[role="menuitemradio"][aria-checked="true"]::before,
-html[data-theme="dark"] .menu li[role="menuitemcheckbox"]::before {
-    filter: invert(1);
-}
-html[data-theme="dark"] .modal-header {
-    border-bottom-color: rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.02);
+    --menu-icon-filter: invert(1);
+    --modal-header-border: rgba(255, 255, 255, .1);
+    --modal-header-bg: rgba(255, 255, 255, .02);
+    --popup-bg: #2a2a2a;
+    --menu-shadow: 0 0 0 1px rgba(255, 255, 255, .2), 0 0 16px rgba(0, 0, 0, .3);
+    --toast-shadow: 0 4px 12px rgba(0, 0, 0, .5);
+    --control-active-border: rgba(255, 255, 255, .3);
 }
 html[data-theme="dark"] .toolbar button:hover {
     background: rgba(255, 255, 255, .1);
 }
-html[data-theme="dark"] #side-bar-header {
-    border-bottom: 1px solid rgba(255, 255, 255, .1);
+html[data-theme="dark"] #footnote-modal::backdrop {
+    background: rgba(0, 0, 0, .7);
 }
+html[data-theme="dark"] #side-bar-header,
 html[data-theme="dark"] .reader-sidebar-topbar {
-    border-bottom: 1px solid rgba(255, 255, 255, .1);
+    border-bottom-color: rgba(255, 255, 255, .1);
 }
 html[data-theme="dark"] #side-bar-header a,
 html[data-theme="dark"] .reader-sidebar-topbar a {
     color: #ffffff;
 }
-html[data-theme="dark"] #footnote-modal {
-    background: #2a2a2a;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-}
-html[data-theme="dark"] #footnote-modal::backdrop {
-    background: rgba(0, 0, 0, 0.7);
-}
-html[data-theme="dark"] .menu {
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, .2), 0 0 16px rgba(0, 0, 0, .3);
-}
-/* Auto mode dark theme for footnote modal */
 @media (prefers-color-scheme: dark) {
-    html[data-theme="auto"] #footnote-modal {
-        background: #2a2a2a;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    html[data-theme="auto"] {
+        --popup-bg: #2a2a2a;
+        --menu-shadow: 0 0 0 1px rgba(255, 255, 255, .2), 0 0 16px rgba(0, 0, 0, .3);
+        --toast-shadow: 0 4px 12px rgba(0, 0, 0, .5);
+        --control-active-border: rgba(255, 255, 255, .3);
     }
     html[data-theme="auto"] #footnote-modal::backdrop {
-        background: rgba(0, 0, 0, 0.7);
-    }
-    html[data-theme="auto"] .menu {
-        box-shadow: 0 0 0 1px rgba(255, 255, 255, .2), 0 0 16px rgba(0, 0, 0, .3);
+        background: rgba(0, 0, 0, .7);
     }
     html[data-theme="auto"] #side-bar-header a,
     html[data-theme="auto"] .reader-sidebar-topbar a {
         color: #ffffff;
     }
 }
-html {
+html,
+body {
     height: 100%;
     overflow: hidden;
     background: Canvas;
@@ -87,12 +74,8 @@ html {
 }
 body {
     margin: 0 auto;
-    height: 100%;
-    overflow: hidden;
     font: menu;
     font-family: system-ui, sans-serif;
-    background: Canvas;
-    color: CanvasText;
 }
 /* Remove focus outline from the reader view for cleaner keyboard navigation */
 foliate-view:focus {
@@ -102,20 +85,46 @@ foliate-view:focus {
     display: none !important;
 }
 
+.reader-popup {
+    box-sizing: border-box;
+    border: 1px solid GrayText;
+    border-radius: .75rem;
+    background: var(--popup-bg);
+    color: CanvasText;
+    box-shadow: 0 .25rem 1rem rgba(0, 0, 0, .25);
+    z-index: 1000;
+}
+.reader-popup-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: none;
+    border-radius: .25rem;
+    background: transparent;
+    color: inherit;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.reader-popup-close:hover,
+#annotations-list button:hover,
+#annotations-list button:focus-visible,
+#toc-view a:hover,
+#toc-view [aria-current],
+.menu li:hover {
+    background: var(--active-bg);
+}
 #annotation-popup {
     position: fixed;
     inset: auto;
     margin: 0;
     width: 28rem;
     max-width: calc(100vw - 2rem);
-    box-sizing: border-box;
     padding: 1rem;
-    border: 1px solid GrayText;
-    border-radius: .75rem;
-    background: Canvas;
-    color: CanvasText;
-    box-shadow: 0 .25rem 1rem rgba(0, 0, 0, .25);
-    z-index: 1000;
     display: flex;
     flex-direction: column;
     gap: .75rem;
@@ -131,18 +140,19 @@ foliate-view:focus {
     background: Canvas;
     color: CanvasText;
 }
-#annotation-popup[hidden] {
-    display: none;
-}
-#annotation-popup label {
-    display: flex;
-    flex-direction: column;
-    gap: .5rem;
-}
+#annotation-popup[hidden],
 #annotation-popup label[hidden] {
     display: none;
 }
+#annotation-popup label {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2.25rem;
+    grid-template-rows: minmax(1.25rem, auto) auto;
+    align-items: center;
+    gap: .75rem .5rem;
+}
 #annotation-popup textarea {
+    grid-column: 1 / -1;
     min-width: 0;
     resize: vertical;
     padding: .5rem;
@@ -154,8 +164,11 @@ foliate-view:focus {
 }
 #annotation-popup p {
     margin: 0;
+    min-height: 1.25rem;
+    padding-inline-end: 2.25rem;
     max-height: 25vh;
     overflow-y: auto;
+    line-height: 1.5;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
@@ -164,7 +177,7 @@ foliate-view:focus {
     flex-wrap: wrap;
     gap: .75rem;
 }
-#annotation-popup button {
+#annotation-popup button:not(.reader-popup-close) {
     padding: .5rem 1rem;
     border: 1px solid GrayText;
     border-radius: .25rem;
@@ -175,6 +188,27 @@ foliate-view:focus {
 #annotation-popup button:disabled {
     opacity: .5;
     cursor: wait;
+}
+#annotation-popup .reader-popup-close {
+    position: absolute;
+    inset-block-start: .25rem;
+    inset-inline-end: .25rem;
+}
+#annotation-popup[data-compact="true"] {
+    width: max-content;
+    padding: .5rem;
+    flex-direction: row;
+    align-items: center;
+}
+#annotation-popup[data-compact="true"] .annotation-actions,
+#annotation-popup[data-compact="true"] .annotation-actions button {
+    min-width: 0;
+}
+#annotation-popup[data-compact="true"] .annotation-actions button {
+    overflow-wrap: anywhere;
+}
+#annotation-popup[data-compact="true"] .reader-popup-close {
+    position: static;
 }
 #spinner-container, #error-icon-container {
     height: 100vh;
@@ -291,7 +325,6 @@ foliate-view:focus {
 }
 .reader-sidebar-topbar {
     display: flex;
-    flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
@@ -332,7 +365,11 @@ foliate-view:focus {
     overflow-y: auto;
     min-height: 0;
 }
-#annotations-list ol {
+#annotations-list ol,
+#toc-view li,
+#toc-view ol,
+.menu,
+.menu ul {
     list-style: none;
     padding: 0;
     margin: 0;
@@ -367,10 +404,6 @@ foliate-view:focus {
     font-size: 1.5rem;
     line-height: 1;
 }
-#annotations-list button:not(.annotation-remove):hover,
-#annotations-list button:focus-visible {
-    background: var(--active-bg);
-}
 #annotations-list button > span {
     display: -webkit-box;
     -webkit-box-orient: vertical;
@@ -404,7 +437,6 @@ foliate-view:focus {
 }
 .reader-sidebar-header-body {
     display: flex;
-    flex-direction: row;
     align-items: flex-start;
     min-width: 0;
 }
@@ -446,11 +478,6 @@ foliate-view:focus {
     padding: .5rem;
     overflow-y: scroll;
 }
-#toc-view li, #toc-view ol {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
 #toc-view a, #toc-view span {
     display: block;
     border-radius: 6px;
@@ -461,9 +488,6 @@ foliate-view:focus {
     color: CanvasText;
     text-decoration: none;
     cursor: pointer;
-}
-#toc-view a:hover {
-    background: var(--active-bg);
 }
 #toc-view span {
     color: GrayText;
@@ -482,7 +506,6 @@ foliate-view:focus {
 }
 #toc-view [aria-current] {
     font-weight: bold;
-    background: var(--active-bg);
 }
 #toc-view [aria-expanded="false"] svg {
     transform: rotate(-90deg);
@@ -493,11 +516,6 @@ foliate-view:focus {
 .menu-container {
     position: relative;
 }
-.menu, .menu ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
 .menu {
     visibility: hidden;
     position: absolute;
@@ -505,7 +523,7 @@ foliate-view:focus {
     background: Canvas;
     color: CanvasText;
     border-radius: 6px;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, .2), 0 0 16px rgba(0, 0, 0, .1);
+    box-shadow: var(--menu-shadow);
     padding: 6px;
     cursor: default;
 }
@@ -513,37 +531,16 @@ foliate-view:focus {
     visibility: visible;
 }
 .menu li {
-    padding: 6px 12px;
-    padding-left: 24px;
+    padding: 6px 12px 6px 24px;
     border-radius: 6px;
     cursor: pointer;
 }
-.menu li:hover {
-    background: var(--active-bg);
-}
-/* Radio button menu items */
-.menu li[role="menuitemradio"] {
-    position: relative;
-    padding-left: 32px;
-}
-.menu li[role="menuitemradio"][aria-checked="true"]::before {
-    content: '';
-    position: absolute;
-    left: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 24px;
-    height: 24px;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-image: var(--radio-checked);
-}
-
-/* Checkbox menu items */
+.menu li[role="menuitemradio"],
 .menu li[role="menuitemcheckbox"] {
     position: relative;
     padding-left: 32px;
 }
+.menu li[role="menuitemradio"][aria-checked="true"]::before,
 .menu li[role="menuitemcheckbox"]::before {
     content: '';
     position: absolute;
@@ -554,6 +551,10 @@ foliate-view:focus {
     height: 24px;
     background-position: center;
     background-repeat: no-repeat;
+    filter: var(--menu-icon-filter);
+}
+.menu li[role="menuitemradio"][aria-checked="true"]::before {
+    background-image: var(--radio-checked);
 }
 .menu li[role="menuitemcheckbox"][aria-checked="false"]::before {
     background-image: var(--checkbox-unchecked);
@@ -590,15 +591,11 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     margin-right: auto;
 }
 /* Shared styles for font size, line height, and font family controls */
-.menu #font-size-controls,
-.menu #line-height-controls,
-.menu #font-family-controls {
+.menu :is(#font-size-controls, #line-height-controls, #font-family-controls) {
     display: flex;
     gap: 6px;
 }
-.menu #font-size-controls button,
-.menu #line-height-controls button,
-.menu #font-family-controls button {
+.menu :is(#font-size-controls, #line-height-controls, #font-family-controls) button {
     padding: 3px;
     border-radius: 6px;
     background: none;
@@ -606,9 +603,7 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     color: CanvasText;
     cursor: pointer;
 }
-.menu #font-size-controls button:hover,
-.menu #line-height-controls button:hover,
-.menu #font-family-controls button:hover {
+.menu :is(#font-size-controls, #line-height-controls, #font-family-controls) button:hover {
     background: rgba(0, 0, 0, .1);
     color: currentcolor;
 }
@@ -616,29 +611,16 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
     opacity: 0.3;
     cursor: not-allowed;
 }
-.menu #font-size-controls button text,
-.menu #font-family-controls button text {
+.menu :is(#font-size-controls, #font-family-controls) button text {
     fill: CanvasText;
     stroke: none;
 }
-.menu #font-size-controls button line,
-.menu #line-height-controls button line {
+.menu :is(#font-size-controls, #line-height-controls) button line {
     stroke: CanvasText;
 }
-.menu #line-height-controls button.active,
-.menu #font-family-controls button.active {
+.menu :is(#line-height-controls, #font-family-controls) button.active {
     background: var(--active-bg);
-    border: 1px solid rgba(0, 0, 0, .2);
-}
-html[data-theme="dark"] .menu #line-height-controls button.active,
-html[data-theme="dark"] .menu #font-family-controls button.active {
-    border-color: rgba(255, 255, 255, .3);
-}
-@media (prefers-color-scheme: dark) {
-    html[data-theme="auto"] .menu #line-height-controls button.active,
-    html[data-theme="auto"] .menu #font-family-controls button.active {
-        border-color: rgba(255, 255, 255, .3);
-    }
+    border: 1px solid var(--control-active-border);
 }
 .popover {
     background: Canvas;
@@ -668,18 +650,12 @@ html[data-theme="dark"] .menu #font-family-controls button.active {
     width: min(90vw, 600px);
     max-height: 80vh;
     margin: 0 !important;
-    border: none;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    background: Canvas;
-    color: CanvasText;
     padding: 0;
     overflow: hidden;
-    z-index: 1000;
 }
 
 #footnote-modal::backdrop {
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, .5);
     backdrop-filter: blur(2px);
 }
 
@@ -696,8 +672,8 @@ html[data-theme="dark"] .menu #font-family-controls button.active {
     justify-content: space-between;
     align-items: center;
     padding: 16px 20px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    background: rgba(0, 0, 0, 0.02);
+    border-bottom: 1px solid var(--modal-header-border);
+    background: var(--modal-header-bg);
 }
 
 .modal-header h3 {
@@ -705,25 +681,6 @@ html[data-theme="dark"] .menu #font-family-controls button.active {
     font-size: 1.125em;
     font-weight: 600;
     color: inherit;
-}
-
-#footnote-close {
-    background: none;
-    border: none;
-    padding: 4px;
-    cursor: pointer;
-    border-radius: 4px;
-    color: inherit;
-    transition: background-color 0.2s ease;
-}
-
-#footnote-close:hover {
-    background: var(--active-bg);
-}
-
-#footnote-close svg {
-    width: 20px;
-    height: 20px;
 }
 
 .modal-content {
@@ -780,7 +737,7 @@ html[data-theme="dark"] .menu #font-family-controls button.active {
     margin: 0 auto;
     padding: 0.75rem 1rem;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--toast-shadow);
     pointer-events: auto;
     animation: toast-slide-in 0.3s ease-out;
 }
@@ -798,9 +755,6 @@ html[data-theme="dark"] .menu #font-family-controls button.active {
     outline: none;
 }
 
-.toast-message a:focus {
-    outline: none;
-}
 
 .toast-close {
     background: none;
@@ -822,9 +776,6 @@ html[data-theme="dark"] .menu #font-family-controls button.active {
     opacity: 1;
 }
 
-.toast-close:focus {
-    outline: none;
-}
 
 .toast-close svg {
     display: block;
@@ -845,15 +796,4 @@ html[data-theme="dark"] .menu #font-family-controls button.active {
 #reader-toast.toast-info .toast-content {
     background: #0dcaf0;
     color: #000;
-}
-
-/* Dark mode support */
-html[data-theme="dark"] #reader-toast .toast-content {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-}
-
-@media (prefers-color-scheme: dark) {
-    html[data-theme="auto"] #reader-toast .toast-content {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    }
 }

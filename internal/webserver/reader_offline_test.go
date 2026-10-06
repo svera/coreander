@@ -39,6 +39,7 @@ func TestReaderOfflineWorker(t *testing.T) {
 	}
 	for _, asset := range []string{
 		"/css/reader.css", "/js/reader.js", "/js/reader-offline.js",
+		"/js/reader-popup.js",
 		"/js/foliate-js/epub.js", "/js/foliate-js/vendor/pdfjs/pdf.worker.mjs",
 		"/js/foliate-js/vendor/pdfjs/text_layer_builder.css", "/js/foliate-js/ui/tree.js",
 	} {

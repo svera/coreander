@@ -1,4 +1,5 @@
 import { compare } from './foliate-js/epubcfi.js'
+import { ReaderPopup } from './reader-popup.js'
 
 const SELECTION_PREVIEW = 'reader-annotation-selection'
 
@@ -18,6 +19,7 @@ export class ReaderAnnotations {
     #draw
     #url
     #popup
+    #popupController
     #anchorRange = null
     #selectionOverlayer = null
     #actionButton
@@ -48,10 +50,14 @@ export class ReaderAnnotations {
 
         this.#popup = document.createElement('div')
         this.#popup.id = 'annotation-popup'
-        this.#popup.hidden = true
-        this.#popup.setAttribute('role', 'dialog')
+        this.#popupController = new ReaderPopup({
+            element: this.#popup,
+            mode: 'anchored',
+            closeLabel: translations.close,
+            onDismiss: () => this.#dismiss(),
+            onPosition: () => this.#positionPopup(),
+        })
         this.#actionButton = createButton('', () => this.#submit())
-        const cancel = createButton(translations.cancel, () => this.#dismiss())
         this.#commentLabel = document.createElement('label')
         this.#commentLabel.textContent = translations.comment
         this.#commentInput = document.createElement('textarea')
@@ -69,22 +75,8 @@ export class ReaderAnnotations {
         this.#commentText = document.createElement('p')
         const actions = document.createElement('div')
         actions.className = 'annotation-actions'
-        actions.append(this.#actionButton, cancel)
-        this.#popup.append(this.#commentLabel, this.#commentText, actions)
-        this.#popup.addEventListener('keydown', event => {
-            event.stopPropagation()
-            if (event.key === 'Escape') {
-                event.preventDefault()
-                this.#dismiss()
-            }
-        })
-        document.addEventListener('keydown', event => {
-            if (!this.#popup.hidden && !event.defaultPrevented && event.key === 'Escape') {
-                event.preventDefault()
-                event.stopPropagation()
-                this.#dismiss()
-            }
-        })
+        actions.append(this.#actionButton)
+        this.#popup.append(this.#commentLabel, this.#commentText, actions, this.#popupController.closeButton)
         document.body.append(this.#popup)
 
         view.addEventListener('load', ({ detail }) => this.#bindDocument(detail))
@@ -118,12 +110,6 @@ export class ReaderAnnotations {
             this.#hide()
             this.#list?.replaceChildren()
         })
-        const reposition = () => {
-            if (!this.#popup.hidden) this.#positionPopup()
-        }
-        window.addEventListener('resize', reposition)
-        window.visualViewport?.addEventListener('resize', reposition)
-        window.visualViewport?.addEventListener('scroll', reposition)
     }
     async load() {
         if (!this.#sync.isAuthenticated || this.#reloadRequired) return
@@ -286,13 +272,10 @@ export class ReaderAnnotations {
         this.#commentText.hidden = !remove || !annotation.comment
         this.#actionButton.textContent = remove
             ? this.#translations.remove_annotation : this.#translations.save_annotation
-        this.#popup.setAttribute('aria-label', this.#actionButton.textContent)
-        if (this.#popup.hidden) {
-            this.#popup.style.visibility = 'hidden'
-            this.#popup.hidden = false
-        }
-        this.#positionPopup()
-        this.#popup.style.removeProperty('visibility')
+        this.#popupController.show({
+            label: this.#actionButton.textContent,
+            compact: remove && !annotation.comment,
+        })
         if (!remove && document.activeElement === this.#commentInput) this.#previewSelection()
     }
 
@@ -372,7 +355,7 @@ export class ReaderAnnotations {
         this.#clearSelectionPreview()
         this.#pending = null
         this.#anchorRange = null
-        if (this.#popup) this.#popup.hidden = true
+        this.#popupController?.hide()
     }
 
     #dismiss() {

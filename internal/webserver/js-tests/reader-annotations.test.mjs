@@ -4,9 +4,11 @@ import test from 'node:test'
 
 const source = await readFile(new URL('../embedded/js/reader-annotations.js', import.meta.url), 'utf8')
 const cfiSource = await readFile(new URL('../embedded/js/foliate-js/epubcfi.js', import.meta.url), 'utf8')
+const popupSource = await readFile(new URL('../embedded/js/reader-popup.js', import.meta.url), 'utf8')
 const moduleURL = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`
 const { ReaderAnnotations } = await import(moduleURL(
-    source.replace("'./foliate-js/epubcfi.js'", JSON.stringify(moduleURL(cfiSource)))))
+    source.replace("'./foliate-js/epubcfi.js'", JSON.stringify(moduleURL(cfiSource)))
+        .replace("'./reader-popup.js'", JSON.stringify(moduleURL(popupSource)))))
 const FIRST = 'epubcfi(/6/2!/4/2/1:0)'
 const SECOND = 'epubcfi(/6/4!/4/2/1:0)'
 const LAST = 'epubcfi(/6/10!/4/2/1:0)'
@@ -105,7 +107,7 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
         view,
         sync,
         translations: {
-            save_annotation: 'Save annotation', cancel: 'Cancel', annotation_saved: 'Annotation saved.',
+            save_annotation: 'Save annotation', close: 'Close', annotation_saved: 'Annotation saved.',
             comment: 'Comment',
             comment_limit: 'Comments can contain up to 65,536 characters.',
             remove_annotation: 'Remove annotation', annotation_removed: 'Annotation removed.',
@@ -129,6 +131,7 @@ function setup(t, authenticated = true, { withList = false, allowWarnings = fals
         get commentInput() { return body.children[0].children[0].children[0] },
         get commentText() { return body.children[0].children[1] },
         get actionButton() { return body.children[0].children[2].children[0] },
+        get closeButton() { return body.children[0].children[3] },
         ranges,
         previews,
         focusCalls,
@@ -160,6 +163,7 @@ test('mobile selection changes open the popup without a pointerup event', t => {
     reader.settle()
     assert.equal(reader.popup.open, true)
     assert.equal(reader.popup.attributes.get('aria-label'), 'Save annotation')
+    assert.equal(reader.popup.attributes.get('data-compact'), 'false')
     assert.deepEqual(reader.ranges, [{ index: 2, text: 'Selected text' }])
     assert.deepEqual(reader.commentInput.focusCalls, [])
 })
@@ -336,6 +340,7 @@ test('a comment survives selection changes while typing and is shown after savin
     reader.settle()
     assert.equal(reader.popup.children[0].hidden, false)
     assert.equal(reader.commentText.hidden, true)
+    assert.equal(reader.popup.attributes.get('data-compact'), 'false')
     reader.commentInput.value = '<img src=x onerror=alert(1)> My comment'
     document.activeElement = reader.commentInput
     reader.select('')
@@ -383,7 +388,7 @@ test('manual textarea focus previews the captured passage without autofocus', t 
     const preview = [...reader.previews.values()][0]
     assert.equal(preview.range.text, 'Selected passage')
     assert.deepEqual(preview.options, { color: 'yellow' })
-    reader.popup.children[2].children[1].dispatchEvent(new Event('click'))
+    reader.closeButton.dispatchEvent(new Event('click'))
     assert.equal(reader.previews.size, 0)
 })
 
@@ -461,14 +466,21 @@ test('failed saves preserve the entered comment for retry', async t => {
     assert.equal(reader.notifications[0].variant, 'warning')
 })
 
-test('cancel closes the popup and clears the native selection without saving', t => {
+test('accessible close button dismisses the popup and clears the native selection without saving', t => {
     const reader = setup(t)
-    t.mock.method(globalThis, 'fetch', () => assert.fail('Cancel must not save an annotation'))
+    t.mock.method(globalThis, 'fetch', () => assert.fail('Close must not save an annotation'))
     reader.select('Selected text')
     reader.settle()
-    reader.popup.children[2].children[1].dispatchEvent(new Event('click'))
+    reader.commentInput.value = 'Unsaved comment'
+    assert.equal(reader.closeButton.textContent, '\u00d7')
+    assert.equal(reader.closeButton.type, 'button')
+    assert.equal(reader.closeButton.attributes.get('aria-label'), 'Close')
+    assert.equal(reader.closeButton.title, 'Close')
+    assert.equal(reader.popup.children[2].children.length, 1)
+    reader.closeButton.dispatchEvent(new Event('click'))
     assert.equal(reader.popup.open, false)
     assert.equal(reader.doc.defaultView.getSelection().isCollapsed, true)
+    assert.deepEqual(reader.focusCalls, [{ preventScroll: true }])
 })
 
 test('page movement and session expiration close the popup', t => {
@@ -834,6 +846,7 @@ test('clicking a saved highlight still opens the removal popup and deletes the c
     reader.view.dispatchEvent(new CustomEvent('show-annotation', { detail: { value: FIRST, range } }))
     assert.equal(reader.popup.open, true)
     assert.equal(reader.commentText.hidden, true)
+    assert.equal(reader.popup.attributes.get('data-compact'), 'true')
     assert.equal(reader.actionButton.textContent, 'Remove annotation')
     reader.actionButton.dispatchEvent(new Event('click'))
     await new Promise(setImmediate)
@@ -845,6 +858,21 @@ test('clicking a saved highlight still opens the removal popup and deletes the c
     assert.deepEqual(reader.focusCalls, [{ preventScroll: true }])
 })
 
+test('close dismisses the removal popup without deleting the saved annotation', async t => {
+    const { reader, requests, rows } = await loadList(t, [{
+        cfi: FIRST, content: 'First annotation', comment: 'Saved comment',
+    }])
+    const range = reader.doc.defaultView.getSelection().getRangeAt(0).cloneRange()
+    reader.view.dispatchEvent(new CustomEvent('show-annotation', { detail: { value: FIRST, range } }))
+    assert.equal(reader.popup.open, true)
+    reader.closeButton.dispatchEvent(new Event('click'))
+    assert.equal(reader.popup.open, false)
+    assert.equal(requests.length, 0)
+    assert.deepEqual(reader.deleted, [])
+    assert.equal(rows().length, 1)
+    assert.deepEqual(reader.focusCalls, [{ preventScroll: true }])
+})
+
 test('loaded annotation comments are displayed as text in the removal popup', async t => {
     const { reader, requests } = await loadList(t, [{
         cfi: FIRST, content: 'First annotation', comment: '<b>A saved comment</b>',
@@ -853,11 +881,36 @@ test('loaded annotation comments are displayed as text in the removal popup', as
     reader.view.dispatchEvent(new CustomEvent('show-annotation', { detail: { value: FIRST, range } }))
     assert.equal(reader.commentText.hidden, false)
     assert.equal(reader.commentText.textContent, '<b>A saved comment</b>')
+    assert.equal(reader.popup.attributes.get('data-compact'), 'false')
     assert.equal(reader.popup.children[0].hidden, true)
     assert.deepEqual(reader.commentInput.focusCalls, [])
     reader.commentInput.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Enter', ctrlKey: true }))
     await new Promise(setImmediate)
     assert.equal(requests.length, 0)
+})
+
+test('compact layout resets when opening a comment or creating a new annotation', async t => {
+    const { reader } = await loadList(t, [
+        { cfi: FIRST, content: 'Without comment', comment: '' },
+        { cfi: SECOND, content: 'With comment', comment: 'Saved comment' },
+    ])
+    const range = reader.doc.defaultView.getSelection().getRangeAt(0).cloneRange()
+    const open = value => reader.view.dispatchEvent(new CustomEvent('show-annotation', {
+        detail: { value, range },
+    }))
+    open(FIRST)
+    assert.equal(reader.popup.attributes.get('data-compact'), 'true')
+    assert.equal(reader.commentText.hidden, true)
+    open(SECOND)
+    assert.equal(reader.popup.attributes.get('data-compact'), 'false')
+    assert.equal(reader.commentText.hidden, false)
+    open(FIRST)
+    assert.equal(reader.popup.attributes.get('data-compact'), 'true')
+    reader.closeButton.dispatchEvent(new Event('click'))
+    reader.select('New annotation')
+    reader.settle()
+    assert.equal(reader.popup.attributes.get('data-compact'), 'false')
+    assert.equal(reader.popup.children[0].hidden, false)
 })
 
 test('invalid comment response types produce a loading warning', async t => {
