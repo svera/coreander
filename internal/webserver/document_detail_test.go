@@ -9,10 +9,93 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
+
+func TestDocumentPageTitles(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		authors []string
+		title   string
+	}{
+		{name: "no authors", title: "TheArcade_PDF"},
+		{name: "empty author", authors: []string{""}, title: "TheArcade_PDF"},
+		{name: "multiple empty authors", authors: []string{"", ""}, title: "TheArcade_PDF"},
+		{name: "whitespace authors", authors: []string{" ", "\t"}, title: "TheArcade_PDF"},
+		{name: "one author", authors: []string{"Jane Doe"}, title: "Jane Doe - TheArcade_PDF"},
+		{name: "multiple authors", authors: []string{"Jane Doe", "John Doe"}, title: "Jane Doe, John Doe - TheArcade_PDF"},
+		{name: "mixed authors", authors: []string{"", " Jane Doe ", "\t"}, title: "Jane Doe - TheArcade_PDF"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := infrastructure.Connect(":memory:", 250)
+			sqlDB, err := db.DB()
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = sqlDB.Close() })
+			appFs := afero.NewMemMapFs()
+			const path = testLibraryDir + "/TheArcade_PDF.pdf"
+			if err := afero.WriteFile(appFs, path, []byte("test document"), 0644); err != nil {
+				t.Fatal(err)
+			}
+			reader := catalogReader{byPath: map[string]metadata.Metadata{
+				path: {Title: "TheArcade_PDF", Authors: tc.authors, Format: "PDF"},
+			}}
+			app := bootstrapApp(db, &infrastructure.NoEmail{}, appFs, webserver.Config{},
+				map[string]metadata.Reader{".pdf": reader})
+			t.Cleanup(func() { _ = app.Shutdown() })
+
+			response, err := app.Test(mustGetRequest(t, "/search?type=documents"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			home, err := goquery.NewDocumentFromReader(response.Body)
+			_ = response.Body.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			detailPath, ok := home.Find("a[href^='/documents/']").First().Attr("href")
+			if !ok {
+				t.Fatal("document detail link not found")
+			}
+			for _, page := range []struct {
+				path  string
+				title string
+			}{
+				{path: detailPath, title: tc.title + " | Coreander"},
+				{path: detailPath + "/read", title: tc.title},
+			} {
+				resp, err := app.Test(mustGetRequest(t, page.path))
+				if err != nil {
+					t.Fatal(err)
+				}
+				doc, err := goquery.NewDocumentFromReader(resp.Body)
+				_ = resp.Body.Close()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if resp.StatusCode != http.StatusOK {
+					t.Fatalf("%s status = %d", page.path, resp.StatusCode)
+				}
+				if got := doc.Find("title").Text(); got != page.title {
+					t.Errorf("%s title = %q, want %q", page.path, got, page.title)
+				}
+			}
+		})
+	}
+}
+
+func mustGetRequest(t *testing.T, path string) *http.Request {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodGet, path, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return req
+}
 
 func TestDocumentDetail(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
