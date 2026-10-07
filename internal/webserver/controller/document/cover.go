@@ -14,6 +14,15 @@ import (
 
 func (d *Controller) Cover(c fiber.Ctx) error {
 	slug := c.Params("slug")
+	document, err := d.idx.Document(slug)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrNotFound
+	}
+	if document.Format == "PDF" {
+		log.Printf("cover: PDF cover for %s must be rendered from page 1 in the browser", slug)
+		return fiber.ErrNotFound
+	}
 	webpPath := d.config.CacheDir + "/covers/" + slug + ".webp"
 
 	// Serve from cache if available

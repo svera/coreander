@@ -6,7 +6,9 @@
     {{end}}
     {{if not .DisableCoverMainLink}}<a href="/documents/{{.Document.Slug}}{{if eq .LinkToReader true}}/read{{end}}" class="text-decoration-none">
         <div class="zoomable cover">{{end}}
-            {{if .Eager}}
+            {{if eq .Document.Format "PDF"}}
+            <img src="/images/generic.webp{{versionParam}}" data-pdf-src="/documents/{{.Document.Slug}}/download" {{if .Eager}}data-cover-eager fetchpriority="high"{{else}}loading="lazy"{{end}} class="cover img-fluid w-100" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}" />
+            {{else if .Eager}}
             <img src="/documents/{{.Document.Slug}}/cover" fetchpriority="high" class="cover img-fluid w-100" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' onload="document.getElementById('cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}')?.remove()" onerror="this.onerror=null;this.src='/images/generic.webp{{versionParam}}'" />
             {{else}}
             <img src="/images/generic.webp{{versionParam}}" data-src="/documents/{{.Document.Slug}}/cover" loading="lazy" class="cover img-fluid w-100" alt='{{t .Lang "\"%s\" cover" .Document.Title}}' data-cover-title-id="cover-title-{{.Document.Slug}}{{if .CoverTitleSuffix}}-{{.CoverTitleSuffix}}{{end}}" />
