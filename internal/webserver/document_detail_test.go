@@ -20,14 +20,15 @@ func TestDocumentPageTitles(t *testing.T) {
 		name    string
 		authors []string
 		title   string
+		author  string
 	}{
 		{name: "no authors", title: "TheArcade_PDF"},
 		{name: "empty author", authors: []string{""}, title: "TheArcade_PDF"},
 		{name: "multiple empty authors", authors: []string{"", ""}, title: "TheArcade_PDF"},
 		{name: "whitespace authors", authors: []string{" ", "\t"}, title: "TheArcade_PDF"},
-		{name: "one author", authors: []string{"Jane Doe"}, title: "Jane Doe - TheArcade_PDF"},
-		{name: "multiple authors", authors: []string{"Jane Doe", "John Doe"}, title: "Jane Doe, John Doe - TheArcade_PDF"},
-		{name: "mixed authors", authors: []string{"", " Jane Doe ", "\t"}, title: "Jane Doe - TheArcade_PDF"},
+		{name: "one author", authors: []string{"Jane Doe"}, title: "Jane Doe - TheArcade_PDF", author: "Jane Doe"},
+		{name: "multiple authors", authors: []string{"Jane Doe", "John Doe"}, title: "Jane Doe, John Doe - TheArcade_PDF", author: "Jane Doe, John Doe"},
+		{name: "mixed authors", authors: []string{"", " Jane Doe ", "\t"}, title: "Jane Doe - TheArcade_PDF", author: "Jane Doe"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			db := infrastructure.Connect(":memory:", 250)
@@ -82,6 +83,11 @@ func TestDocumentPageTitles(t *testing.T) {
 				}
 				if got := doc.Find("title").Text(); got != page.title {
 					t.Errorf("%s title = %q, want %q", page.path, got, page.title)
+				}
+				if page.path == detailPath+"/read" {
+					if got, ok := doc.Find("meta[name='author']").Attr("content"); !ok || got != tc.author {
+						t.Errorf("%s author metadata = %q (present: %v), want %q", page.path, got, ok, tc.author)
+					}
 				}
 			}
 		})
