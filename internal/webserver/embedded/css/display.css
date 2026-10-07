@@ -277,8 +277,8 @@ main .form-control:focus {
 }
 
 .cover {
-    aspect-ratio: 2 / 3;
-    object-fit: cover;
+    aspect-ratio: auto;
+    object-fit: contain;
 }
 
 .cover-read-progress-layer {

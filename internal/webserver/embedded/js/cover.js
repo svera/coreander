@@ -1,12 +1,36 @@
 "use strict"
 
-const loadCover = (elem) => {
+import { importVersioned } from './asset-version.js'
+
+let pdfCoverModule
+
+const loadCover = async (elem) => {
     const coverTitleId = elem.getAttribute("data-cover-title-id");
-    const realSrc = elem.getAttribute('data-src');
+    let realSrc = elem.getAttribute('data-src');
+    let objectURL
+    const pdfURL = elem.getAttribute('data-pdf-src')
+    if (pdfURL) {
+        try {
+            pdfCoverModule ??= importVersioned('./pdf-cover.js')
+            const { renderPDFCover } = await pdfCoverModule
+            const maxWidth = Number(document.querySelector('meta[name="cover-max-width"]')?.content ?? 600)
+            const blob = await renderPDFCover(pdfURL, maxWidth)
+            objectURL = URL.createObjectURL(blob)
+            realSrc = objectURL
+        } catch (error) {
+            console.error(`Could not render PDF cover for ${pdfURL}:`, error)
+            document.getElementById(coverTitleId)?.classList.remove('d-none')
+            return
+        }
+    }
     const preloader = new Image();
 
     preloader.addEventListener("load", () => {
         elem.src = realSrc;
+        if (objectURL) {
+            elem.addEventListener('load', () => URL.revokeObjectURL(objectURL), { once: true })
+            elem.addEventListener('error', () => URL.revokeObjectURL(objectURL), { once: true })
+        }
         elem.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 250, easing: 'ease' });
         const overlay = document.getElementById(coverTitleId)
         if (overlay) {
@@ -15,6 +39,7 @@ const loadCover = (elem) => {
     })
 
     preloader.addEventListener("error", () => {
+        if (objectURL) URL.revokeObjectURL(objectURL)
         const overlayOnError = document.getElementById(coverTitleId)
         if (overlayOnError) {
             overlayOnError.classList.remove('d-none')
@@ -38,7 +63,7 @@ const intersectionObserver = new IntersectionObserver((entries, observer) => {
 
 const coversLoader = () => {
     document.querySelectorAll("img.cover").forEach(function(elem) {
-        if (!elem.getAttribute('data-src')) {
+        if (!elem.getAttribute('data-src') && !elem.getAttribute('data-pdf-src')) {
             return;
         }
 
@@ -47,7 +72,11 @@ const coversLoader = () => {
         }
 
         elem.classList.add('loaded');
-        intersectionObserver.observe(elem);
+        if (elem.hasAttribute('data-cover-eager')) {
+            loadCover(elem);
+        } else {
+            intersectionObserver.observe(elem);
+        }
     })
 }
 
