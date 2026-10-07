@@ -19,19 +19,26 @@ self.addEventListener('activate', event => {
     }))
 })
 
-async function readerResponse(request) {
+async function readerResponse(request, preferCached = false) {
+    let cache
+    if (preferCached) {
+        cache = await caches.open(documentCacheName)
+        const saved = await cache.match(request)
+        if (saved) return saved
+    }
+
     let response
     try {
         response = await fetch(request)
     } catch (error) {
-        const cache = await caches.open(documentCacheName)
+        cache ||= await caches.open(documentCacheName)
         const saved = await cache.match(request)
         if (saved) return saved
         throw error
     }
-    // Never substitute a saved book for an explicit access denial or a deleted document.
+    // Never substitute a saved document for an explicit access denial or deletion.
     if ([401, 403, 404].includes(response.status)) {
-        const cache = await caches.open(documentCacheName)
+        cache ||= await caches.open(documentCacheName)
         const path = new URL(request.url).pathname.replace(/\/(read|download)$/, '')
         const keys = await cache.keys()
         await Promise.all(keys.filter(key =>
@@ -58,6 +65,6 @@ self.addEventListener('fetch', event => {
             await cache.match(request, { ignoreSearch: true }) || fetch(request)
         ))
     } else if (/^\/documents\/[^/]+\/(read|download)$/.test(url.pathname)) {
-        event.respondWith(readerResponse(request))
+        event.respondWith(readerResponse(request, url.pathname.endsWith('/download')))
     }
 })

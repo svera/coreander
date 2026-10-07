@@ -161,15 +161,19 @@ test('discarded tabs can reload the reader page and full document offline', asyn
     assert.equal(worker.request('/'), undefined)
 })
 
-test('online responses take precedence over saved copies, including errors', async () => {
+test('saved documents are preferred while reader pages still check the server', async () => {
     const worker = setup()
     const cache = worker.cache('coreander-reader-documents')
     await cache.put('/documents/book/read', new Response('old page'))
     await cache.put('/documents/book/download', new Response('old book'))
     await cache.put('/documents/another/download', new Response('another book'))
-    assert.equal(await (await worker.request('/documents/book/download')).text(), 'online')
+    worker.network(async () => assert.fail('A saved document should not be reloaded'))
+    assert.equal(await (await worker.request('/documents/book/download')).text(), 'old book')
+
+    worker.network(async () => new Response('current page'))
+    assert.equal(await (await worker.request('/documents/book/read')).text(), 'current page')
     worker.network(async () => new Response('denied', { status: 403 }))
-    assert.equal((await worker.request('/documents/book/download')).status, 403)
+    assert.equal((await worker.request('/documents/book/read')).status, 403)
     assert.equal(await cache.match('/documents/book/read'), undefined)
     assert.equal(await cache.match('/documents/book/download'), undefined)
     assert.ok(await cache.match('/documents/another/download'))
