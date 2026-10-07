@@ -65,17 +65,25 @@ html[data-theme="dark"] .reader-sidebar-topbar a {
         color: #ffffff;
     }
 }
-html,
-body {
+html {
     height: 100%;
     overflow: hidden;
     background: Canvas;
     color: CanvasText;
 }
 body {
+    position: fixed;
+    inset: 0;
     margin: 0 auto;
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    /* Unlike hidden, clip also prevents focus from scrolling the reader shell. */
+    overflow: clip;
     font: menu;
     font-family: system-ui, sans-serif;
+    background: Canvas;
+    color: CanvasText;
 }
 /* Remove focus outline from the reader view for cleaner keyboard navigation */
 foliate-view:focus {
@@ -211,7 +219,7 @@ foliate-view:focus {
     position: static;
 }
 #spinner-container, #error-icon-container {
-    height: 100vh;
+    height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
