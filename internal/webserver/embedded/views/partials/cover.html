@@ -1,4 +1,5 @@
-<figure class="position-relative border border-2 mb-0">
+{{/* FixedAspectRatio (optional): crop covers to a 2:3 frame; otherwise preserve their natural aspect ratio. */}}
+<figure class="position-relative border border-2 mb-0{{if .FixedAspectRatio}} cover-fixed-ratio{{end}}">
     {{if eq .LinkToReader true}}
     <div class="position-absolute bottom-0 start-0 end-0 overflow-hidden cover-read-progress-layer">
         <progress class="cover-read-progress w-100" value="{{.ReadingPercentage}}" max="100" aria-label='{{t .Lang "Reading progress"}}'></progress>
