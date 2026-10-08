@@ -195,8 +195,13 @@ func (b *BleveIndexer) DeleteDocument(slug string) error {
 }
 
 func (b *BleveIndexer) deleteDocumentFromIndex(document Document) error {
+	unlock := b.lockFile(document.ID)
+	defer unlock()
 	b.documentsMu.Lock()
-	err := b.documentsIdx.Delete(document.ID)
+	batch := b.documentsIdx.NewBatch()
+	batch.Delete(document.ID)
+	batch.DeleteInternal(fileHashKey(document.ID))
+	err := b.documentsIdx.Batch(batch)
 	b.documentsMu.Unlock()
 	if err != nil {
 		return err

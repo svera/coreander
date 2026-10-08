@@ -643,6 +643,7 @@ type IndexedFile struct {
 	Data        []byte
 	FileName    string
 	ContentType string
+	ETag        string
 }
 
 // File returns the raw document payload and metadata for the given slug.
@@ -660,6 +661,10 @@ func (b *BleveIndexer) File(slug string) (*IndexedFile, error) {
 	if err != nil {
 		return nil, err
 	}
+	return newIndexedFile(doc, data), nil
+}
+
+func newIndexedFile(doc Document, data []byte) *IndexedFile {
 	ext := strings.ToLower(filepath.Ext(doc.ID))
 	result := &IndexedFile{
 		Document:    doc,
@@ -670,7 +675,7 @@ func (b *BleveIndexer) File(slug string) (*IndexedFile, error) {
 	if ext == ".epub" {
 		result.ContentType = "application/epub+zip"
 	}
-	return result, nil
+	return result
 }
 
 // Cover returns the cover image for the document identified by slug, resized to at most coverMaxWidth pixels wide.
