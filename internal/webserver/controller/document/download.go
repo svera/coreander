@@ -26,7 +26,7 @@ func (d *Controller) Download(c fiber.Ctx) error {
 	if strings.EqualFold(c.Query("format"), "kepub") {
 		conditional = ""
 	}
-	result, err := d.idx.FileForDownload(slug, conditional)
+	result, err := d.idx.File(slug, conditional)
 	if err != nil {
 		log.Println(err)
 		if errors.Is(err, index.ErrDocumentNotFound) {

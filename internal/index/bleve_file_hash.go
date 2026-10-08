@@ -21,9 +21,9 @@ func fileHashKey(id string) []byte {
 	return []byte("document-content-hash:" + id)
 }
 
-// FileForDownload lazily persists hashes in index-internal storage, independently
-// of document mappings and enrichment writes. Matching requests return no payload.
-func (b *BleveIndexer) FileForDownload(slug, ifNoneMatch string) (*IndexedFile, error) {
+// File returns document metadata and its ETag, lazily persisting the hash in the
+// index. An empty ifNoneMatch always returns bytes; a matching ETag omits them.
+func (b *BleveIndexer) File(slug, ifNoneMatch string) (*IndexedFile, error) {
 	doc, err := b.Document(slug)
 	if err != nil {
 		return nil, err

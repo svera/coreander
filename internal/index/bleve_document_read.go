@@ -18,7 +18,6 @@ import (
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/gosimple/slug"
 	"github.com/rickb777/date/v2"
-	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/precisiondate"
 	"github.com/svera/coreander/v5/internal/result"
@@ -644,24 +643,6 @@ type IndexedFile struct {
 	FileName    string
 	ContentType string
 	ETag        string
-}
-
-// File returns the raw document payload and metadata for the given slug.
-func (b *BleveIndexer) File(slug string) (*IndexedFile, error) {
-	doc, err := b.Document(slug)
-	if err != nil || doc.ID == "" {
-		return nil, ErrDocumentNotFound
-	}
-	fullPath := filepath.Join(b.libraryPath, doc.ID)
-	exists, err := afero.Exists(b.fs, fullPath)
-	if err != nil || !exists {
-		return nil, errors.New("document file not found")
-	}
-	data, err := afero.ReadFile(b.fs, fullPath)
-	if err != nil {
-		return nil, err
-	}
-	return newIndexedFile(doc, data), nil
 }
 
 func newIndexedFile(doc Document, data []byte) *IndexedFile {

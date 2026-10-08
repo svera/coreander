@@ -25,7 +25,7 @@ func (fs *hashCountingFs) Open(name string) (afero.File, error) {
 	return fs.Fs.Open(name)
 }
 
-func TestFileForDownloadHash(t *testing.T) {
+func TestFileHash(t *testing.T) {
 	indexPath := filepath.Join(t.TempDir(), "documents")
 	documents, err := bleve.New(indexPath, CreateDocumentsMapping())
 	if err != nil {
@@ -55,7 +55,7 @@ func TestFileForDownloadHash(t *testing.T) {
 	expected := fmt.Sprintf(`"%x"`, sha256.Sum256(data))
 
 	t.Run("backfills existing index on first download", func(t *testing.T) {
-		file, err := idx.FileForDownload("book", "")
+		file, err := idx.File("book", "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -69,7 +69,7 @@ func TestFileForDownloadHash(t *testing.T) {
 
 	t.Run("unchanged conditional requests do not open file", func(t *testing.T) {
 		for range 3 {
-			file, err := idx.FileForDownload("book", expected)
+			file, err := idx.File("book", expected)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -99,7 +99,7 @@ func TestFileForDownloadHash(t *testing.T) {
 			t.Fatal(err)
 		}
 		idx = NewBleve(documents, authors, fs, "lib", nil, Config{})
-		file, err := idx.FileForDownload("book", expected)
+		file, err := idx.File("book", expected)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -124,7 +124,7 @@ func TestFileForDownloadHash(t *testing.T) {
 		if err := fs.Chtimes(path, changed, changed); err != nil {
 			t.Fatal(err)
 		}
-		file, err := idx.FileForDownload("book", expected)
+		file, err := idx.File("book", expected)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -138,7 +138,7 @@ func TestFileForDownloadHash(t *testing.T) {
 		var wg sync.WaitGroup
 		for range 8 {
 			wg.Go(func() {
-				file, err := idx.FileForDownload("book", expected)
+				file, err := idx.File("book", expected)
 				if err != nil {
 					t.Error(err)
 					return
@@ -166,7 +166,7 @@ func TestFileForDownloadHash(t *testing.T) {
 		if err := fs.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
 			t.Fatal(err)
 		}
-		file, err := idx.FileForDownload("book", expected)
+		file, err := idx.File("book", expected)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -185,7 +185,7 @@ func TestFileForDownloadHash(t *testing.T) {
 				t.Error(err)
 			}
 		}()
-		if _, err := idx.FileForDownload("book", expected); err != ErrDocumentNotFound {
+		if _, err := idx.File("book", expected); err != ErrDocumentNotFound {
 			t.Fatalf("missing file error = %v", err)
 		}
 	})
@@ -197,7 +197,7 @@ func TestFileForDownloadHash(t *testing.T) {
 		var wg sync.WaitGroup
 		for range 8 {
 			wg.Go(func() {
-				file, err := idx.FileForDownload("book", expected)
+				file, err := idx.File("book", expected)
 				if err != nil {
 					t.Error(err)
 					return
@@ -213,6 +213,16 @@ func TestFileForDownloadHash(t *testing.T) {
 		}
 	})
 
+	t.Run("unconditional reads return bytes even with a cached hash", func(t *testing.T) {
+		file, err := idx.File("book", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if file.ETag != expected || !bytes.Equal(file.Data, data) {
+			t.Fatal("unconditional read did not return the full document")
+		}
+	})
+
 	t.Run("deletion removes persisted hash", func(t *testing.T) {
 		if err := idx.DeleteDocument("book"); err != nil {
 			t.Fatal(err)
@@ -224,7 +234,7 @@ func TestFileForDownloadHash(t *testing.T) {
 		if len(stored) != 0 {
 			t.Fatal("deleted document hash remains in index")
 		}
-		if _, err := idx.FileForDownload("book", expected); err != ErrDocumentNotFound {
+		if _, err := idx.File("book", expected); err != ErrDocumentNotFound {
 			t.Fatalf("deleted document error = %v", err)
 		}
 	})

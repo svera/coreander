@@ -25,8 +25,7 @@ type IdxReaderWriter interface {
 	TotalDocs() (uint64, error)
 	Close() error
 	Document(Slug string) (index.Document, error)
-	File(slug string) (*index.IndexedFile, error)
-	FileForDownload(slug, ifNoneMatch string) (*index.IndexedFile, error)
+	File(slug, ifNoneMatch string) (*index.IndexedFile, error)
 	Cover(slug string, coverMaxWidth int) (image.Image, error)
 	SimilarTo(slug string, quantity int) ([]index.Document, error)
 	SameAuthors(slug string, quantity int) ([]index.Document, error)
