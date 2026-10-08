@@ -97,7 +97,7 @@ func TestPDFCoverMarkup(t *testing.T) {
 	}
 }
 
-func TestCoverBlockAspectRatio(t *testing.T) {
+func TestCoverAspectRatio(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	sqlDB, err := db.DB()
 	if err != nil {
@@ -105,7 +105,7 @@ func TestCoverBlockAspectRatio(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = sqlDB.Close() })
 	app := bootstrapApp(db, &infrastructure.NoEmail{},
-		loadFilesInMemoryFs([]string{"testdata/library/metadata.pdf", "testdata/library/metadata.epub"}), defaultTestConfig())
+		loadFilesInMemoryFs([]string{"testdata/library/metadata.pdf", "testdata/library/metadata.epub", "testdata/library/quijote.epub", "testdata/library/empty.pdf"}), defaultTestConfig())
 	t.Cleanup(func() { _ = app.Shutdown() })
 	cookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
@@ -120,84 +120,22 @@ func TestCoverBlockAspectRatio(t *testing.T) {
 		if err := db.Create(&model.Highlight{UserID: int(user.ID), Slug: slug}).Error; err != nil {
 			t.Fatal(err)
 		}
+	}
+	for _, slug := range []string{"miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", "sergio-vera-empty"} {
 		if err := db.Create(&model.Reading{UserID: int(user.ID), Slug: slug, CompletedOn: &completedOn}).Error; err != nil {
 			t.Fatal(err)
 		}
 	}
+	docs := []model.AugmentedDocument{
+		{Document: index.Document{Slug: "john-doe-test-pdf", Metadata: metadata.Metadata{Title: "Test PDF", Format: "PDF"}}},
+		{Document: index.Document{Slug: "john-doe-test-epub", Metadata: metadata.Metadata{Title: "Test EPUB", Format: "EPUB"}}},
+	}
 	app.Get("/test-related-covers", func(c fiber.Ctx) error {
-		docs := []model.AugmentedDocument{
-			{Document: index.Document{Slug: "john-doe-test-pdf", Metadata: metadata.Metadata{Title: "Test PDF", Format: "PDF"}}},
-			{Document: index.Document{Slug: "john-doe-test-epub", Metadata: metadata.Metadata{Title: "Test EPUB", Format: "EPUB"}}},
-		}
 		return c.Render("partials/document-similar", fiber.Map{"SimilarDocuments": docs, "DocumentSlug": "test"})
 	})
 
-	for _, tc := range []struct {
-		name string
-		path string
-		htmx bool
-	}{
-		{"related documents", "/test-related-covers", false},
-		{"highlighted documents block", "/highlights?view=latest", false},
-		{"completed documents page", "/completed?year=0", false},
-		{"completed documents refresh", "/completed?year=0", true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			req := mustGetRequest(t, tc.path)
-			req.AddCookie(cookie)
-			if tc.htmx {
-				req.Header.Set("HX-Request", "true")
-			}
-			resp, err := app.Test(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer resp.Body.Close()
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("status = %d", resp.StatusCode)
-			}
-			page, err := goquery.NewDocumentFromReader(resp.Body)
-			if err != nil {
-				t.Fatal(err)
-			}
-			selector := "img.cover"
-			if tc.path == "/completed?year=0" && !tc.htmx {
-				selector = "#list img.cover"
-			}
-			covers := page.Find(selector)
-			if covers.Length() != 2 {
-				t.Fatalf("cover count = %d, want 2", covers.Length())
-			}
-			covers.Each(func(i int, cover *goquery.Selection) {
-				if !cover.Closest("figure").HasClass("cover-fixed-ratio") {
-					t.Errorf("cover %d is missing fixed aspect ratio", i)
-				}
-			})
-		})
-	}
-}
-
-func TestCoverAspectRatio(t *testing.T) {
-	db := infrastructure.Connect(":memory:", 250)
-	sqlDB, err := db.DB()
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
-	app := bootstrapApp(db, &infrastructure.NoEmail{},
-		loadFilesInMemoryFs([]string{"testdata/library/metadata.pdf", "testdata/library/metadata.epub"}), defaultTestConfig())
-	t.Cleanup(func() { _ = app.Shutdown() })
-	cookie, err := login(app, "admin@example.com", "admin", t)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// Reindexed fixtures have no AddedOn date, so supply latest additions explicitly.
 	app.Get("/test-cover-home", func(c fiber.Ctx) error {
-		docs := []model.AugmentedDocument{
-			{Document: index.Document{Slug: "john-doe-test-pdf", Metadata: metadata.Metadata{Title: "Test PDF", Format: "PDF"}}},
-			{Document: index.Document{Slug: "john-doe-test-epub", Metadata: metadata.Metadata{Title: "Test EPUB", Format: "EPUB"}}},
-		}
 		return c.Render("index", fiber.Map{"LatestDocs": docs, "Reading": docs}, "layout")
 	})
 
@@ -215,25 +153,34 @@ func TestCoverAspectRatio(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		name     string
-		path     string
-		selector string
-		fixed    bool
-		count    int
+		name       string
+		path       string
+		selector   string
+		fixed      bool
+		count      int
+		htmx       bool
+		readerLink bool
 	}{
-		{"latest additions", "/test-cover-home", "#latest-docs img.cover", true, 2},
-		{"compact resume reading", "/test-cover-home", "#in-progress-docs img.cover", true, 2},
-		{"home without latest additions", "/", "#in-progress-docs img.cover", true, 4},
-		{"refreshed compact resume reading", "/resume-reading?compact=true", "#in-progress-docs img.cover", true, 2},
-		{"mobile resume reading", "/resume-reading?compact=false", "#resume-reading-full-carousel img.cover", true, 2},
-		{"desktop resume reading", "/resume-reading?compact=false", "#resume-reading-docs > .row img.cover", true, 2},
-		{"search", "/search?keywords=Test", "#list img.cover", false, 2},
-		{"PDF detail", "/documents/john-doe-test-pdf", "figure img.cover", false, 1},
-		{"eager EPUB detail", "/documents/john-doe-test-epub", "figure img.cover", false, 1},
+		{"latest additions", "/test-cover-home", "#latest-docs img.cover", true, 2, false, false},
+		{"compact resume reading", "/test-cover-home", "#in-progress-docs img.cover", true, 2, false, true},
+		{"home without latest additions", "/", "#in-progress-docs img.cover", true, 4, false, true},
+		{"refreshed compact resume reading", "/resume-reading?compact=true", "#in-progress-docs img.cover", true, 2, false, true},
+		{"mobile resume reading", "/resume-reading?compact=false", "#resume-reading-full-carousel img.cover", true, 2, false, true},
+		{"desktop resume reading", "/resume-reading?compact=false", "#resume-reading-docs > .row img.cover", true, 2, false, true},
+		{"search", "/search?search=Test", "#list img.cover", false, 2, false, false},
+		{"PDF detail", "/documents/john-doe-test-pdf", "figure img.cover", false, 1, false, false},
+		{"eager EPUB detail", "/documents/john-doe-test-epub", "figure img.cover", false, 1, false, false},
+		{"related documents", "/test-related-covers", "img.cover", true, 2, false, false},
+		{"highlighted documents block", "/highlights?view=latest", "img.cover", true, 2, false, false},
+		{"completed documents page", "/completed?year=0", "#list img.cover", true, 2, false, false},
+		{"completed documents refresh", "/completed?year=0", "img.cover", true, 2, true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			req := mustGetRequest(t, tc.path)
 			req.AddCookie(cookie)
+			if tc.htmx {
+				req.Header.Set("HX-Request", "true")
+			}
 			resp, err := app.Test(req)
 			if err != nil {
 				t.Fatal(err)
@@ -254,7 +201,7 @@ func TestCoverAspectRatio(t *testing.T) {
 				if fixed := cover.Closest("figure").HasClass("cover-fixed-ratio"); fixed != tc.fixed {
 					t.Errorf("cover %d fixed ratio = %v, want %v", i, fixed, tc.fixed)
 				}
-				if tc.fixed && tc.name != "latest additions" {
+				if tc.readerLink {
 					if href, _ := cover.Closest("a").Attr("href"); href != "/documents/john-doe-test-pdf/read" && href != "/documents/john-doe-test-epub/read" {
 						t.Errorf("resume cover links to %q instead of reader", href)
 					}
