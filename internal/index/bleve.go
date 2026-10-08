@@ -383,9 +383,12 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	storedText := bleve.NewKeywordFieldMapping()
 	storedText.Index = false
 	storedText.IncludeInAll = false
+	storedText.DocValues = false
+	storedText.IncludeTermVectors = false
 	storedNumber := bleve.NewNumericFieldMapping()
 	storedNumber.Index = false
 	storedNumber.IncludeInAll = false
+	storedNumber.DocValues = false
 
 	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()

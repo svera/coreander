@@ -103,6 +103,7 @@ function setup() {
         { url: `${origin}/documents/book/read?l=es`, postMessage: message => messages.push(message) },
         { url: `${origin}/documents/another/read`, postMessage: () => assert.fail('Notified an unrelated reader') },
     ]
+    let matchClients = async () => clients
     vm.runInNewContext(workerSource.replace('__READER_CONFIG__', JSON.stringify({
         assets: ['/js/reader.js', '/css/reader.css'], assetVersion: 'test',
     })), {
@@ -110,7 +111,7 @@ function setup() {
             location: { origin },
             addEventListener: (name, handler) => handlers.set(name, handler),
             skipWaiting: async () => {},
-            clients: { claim: async () => { claims++ }, matchAll: async () => clients },
+            clients: { claim: async () => { claims++ }, matchAll: () => matchClients() },
         },
         caches: {
             open: async name => cache(name),
@@ -125,6 +126,7 @@ function setup() {
         cache, stores, messages, errors,
         get claims() { return claims },
         network: callback => { network = callback },
+        matchClients: callback => { matchClients = callback },
         background: async () => {
             while (background.length) await Promise.all(background.splice(0))
         },
@@ -358,6 +360,36 @@ test('account changes discard in-flight background results', async () => {
     await worker.background()
     assert.equal(worker.stores.has('coreander-reader-documents'), false)
     assert.equal(worker.messages.length, 0)
+})
+
+test('successful revalidation updates the cache when the reader navigates away or closes before notification', async () => {
+    for (const closed of [false, true]) {
+        const worker = setup()
+        const cache = worker.cache('coreander-reader-documents')
+        await cache.put('/documents/book/download', new Response('old book', { headers: { ETag: '"v1"' } }))
+        let finishClients
+        let lookupStarted
+        const lookup = new Promise(resolve => { lookupStarted = resolve })
+        worker.matchClients(() => {
+            lookupStarted()
+            return new Promise(resolve => { finishClients = resolve })
+        })
+        worker.network(async () => new Response('new book', { headers: { ETag: '"v2"' } }))
+        assert.equal(await (await worker.request('/documents/book/download')).text(), 'old book')
+        await lookup
+        // The download succeeded, but the original reader is no longer present.
+        assert.equal(await (await cache.match('/documents/book/download')).text(), 'new book')
+        finishClients(closed ? [] : [{
+            url: 'https://books.example.com/documents/another/read',
+            postMessage: () => assert.fail('Notified a client that navigated away'),
+        }])
+        await worker.background()
+        assert.equal(worker.messages.length, 0)
+        assert.equal(worker.errors.length, 0)
+        const updated = await cache.match('/documents/book/download')
+        assert.equal(updated.headers.get('ETag'), '"v2"')
+        assert.equal(await updated.text(), 'new book')
+    }
 })
 
 test('reader notifications are scoped to the document and active worker', t => {

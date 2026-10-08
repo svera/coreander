@@ -22,7 +22,33 @@ func TestCreateDocumentsMappingUsesBM25Scoring(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected CreateDocumentsMapping to return *mapping.IndexMappingImpl, got %T", got)
 	}
+
 	if m.ScoringModel != index.BM25Scoring {
 		t.Errorf("expected ScoringModel to be %q, got %q", index.BM25Scoring, m.ScoringModel)
+	}
+}
+
+func TestContentFieldsAreStoredOnly(t *testing.T) {
+	m, ok := CreateDocumentsMapping().(*mapping.IndexMappingImpl)
+	if !ok {
+		t.Fatal("expected *mapping.IndexMappingImpl")
+	}
+	documents := map[string]*mapping.DocumentMapping{"default": m.DefaultMapping}
+	for language, document := range m.TypeMapping {
+		documents[language] = document
+	}
+	for name, document := range documents {
+		t.Run(name, func(t *testing.T) {
+			for _, name := range []string{"ContentHash", "ContentSize", "ContentModTime"} {
+				property := document.Properties[name]
+				if property == nil || len(property.Fields) != 1 {
+					t.Fatalf("%s must have one explicit field mapping", name)
+				}
+				field := property.Fields[0]
+				if !field.Store || field.Index || field.IncludeInAll || field.DocValues || field.IncludeTermVectors {
+					t.Errorf("%s is not storage-only: %+v", name, field)
+				}
+			}
+		})
 	}
 }
