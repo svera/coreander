@@ -81,41 +81,49 @@ func TestDocumentDownloadConditionalRequest(t *testing.T) {
 	t.Cleanup(func() { _ = app.Shutdown() })
 
 	for _, format := range []string{"pdf", "epub"} {
-		t.Run(format, func(t *testing.T) {
-			path := "/documents/john-doe-test-" + format + "/download"
-			response, err := app.Test(httptest.NewRequest(http.MethodGet, path, nil))
-			if err != nil {
-				t.Fatal(err)
-			}
-			etag := response.Header.Get("ETag")
-			_ = response.Body.Close()
-			if response.StatusCode != http.StatusOK {
-				t.Fatalf("download status = %d, want %d", response.StatusCode, http.StatusOK)
-			}
-			if etag == "" {
-				t.Fatal("document response is missing ETag")
-			}
+		for _, encoding := range []string{"identity", "gzip", "br", "gzip, deflate, br, zstd"} {
+			t.Run(format+"/"+encoding, func(t *testing.T) {
+				path := "/documents/john-doe-test-" + format + "/download"
+				request := httptest.NewRequest(http.MethodGet, path, nil)
+				request.Header.Set("Accept-Encoding", encoding)
+				response, err := app.Test(request)
+				if err != nil {
+					t.Fatal(err)
+				}
+				etag := response.Header.Get("ETag")
+				_ = response.Body.Close()
+				if response.StatusCode != http.StatusOK {
+					t.Fatalf("download status = %d, want %d", response.StatusCode, http.StatusOK)
+				}
+				if etag == "" {
+					t.Fatal("document response is missing ETag")
+				}
+				if got := response.Header.Get("Content-Encoding"); got != "" {
+					t.Errorf("document response was transformed using %q", got)
+				}
 
-			request := httptest.NewRequest(http.MethodGet, path, nil)
-			request.Header.Set("If-None-Match", etag)
-			response, err = app.Test(request)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer response.Body.Close()
-			if response.StatusCode != http.StatusNotModified {
-				t.Fatalf("conditional download status = %d, want %d", response.StatusCode, http.StatusNotModified)
-			}
-			if got := response.Header.Get("ETag"); got != etag {
-				t.Errorf("conditional response ETag = %q, want %q", got, etag)
-			}
-			body, err := io.ReadAll(response.Body)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(body) != 0 {
-				t.Errorf("304 response body has %d bytes, want 0", len(body))
-			}
-		})
+				request = httptest.NewRequest(http.MethodGet, path, nil)
+				request.Header.Set("Accept-Encoding", encoding)
+				request.Header.Set("If-None-Match", etag)
+				response, err = app.Test(request)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer response.Body.Close()
+				if response.StatusCode != http.StatusNotModified {
+					t.Fatalf("conditional download status = %d, want %d", response.StatusCode, http.StatusNotModified)
+				}
+				if got := response.Header.Get("ETag"); got != etag {
+					t.Errorf("conditional response ETag = %q, want %q", got, etag)
+				}
+				body, err := io.ReadAll(response.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(body) != 0 {
+					t.Errorf("304 response body has %d bytes, want 0", len(body))
+				}
+			})
+		}
 	}
 }
