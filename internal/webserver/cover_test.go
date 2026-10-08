@@ -14,6 +14,23 @@ import (
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
+func coverTestPage(t *testing.T, app *fiber.App, req *http.Request) *goquery.Document {
+	t.Helper()
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("%s status = %d, want %d", req.URL, resp.StatusCode, http.StatusOK)
+	}
+	page, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return page
+}
+
 func TestPDFCoverRejectsStaleCache(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	sqlDB, err := db.DB()
@@ -53,25 +70,22 @@ func TestPDFCoverMarkup(t *testing.T) {
 	cfg.CoverMaxWidth = 600
 	app := bootstrapApp(db, &infrastructure.NoEmail{},
 		loadFilesInMemoryFs([]string{"testdata/library/metadata.pdf", "testdata/library/metadata.epub"}), cfg)
-	for _, path := range []string{"/search?keywords=Test", "/documents/john-doe-test-pdf", "/documents/john-doe-test-epub"} {
-		t.Run(path, func(t *testing.T) {
-			req, _ := http.NewRequest(http.MethodGet, path, nil)
-			resp, err := app.Test(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer resp.Body.Close()
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("status = %d", resp.StatusCode)
-			}
-			page, err := goquery.NewDocumentFromReader(resp.Body)
-			if err != nil {
-				t.Fatal(err)
-			}
+	t.Cleanup(func() { _ = app.Shutdown() })
+	for _, tc := range []struct {
+		path  string
+		epub  bool
+		eager bool
+	}{
+		{path: "/search?search=Test"},
+		{path: "/documents/john-doe-test-pdf", eager: true},
+		{path: "/documents/john-doe-test-epub", epub: true, eager: true},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			page := coverTestPage(t, app, mustGetRequest(t, tc.path))
 			if width, _ := page.Find("meta[name='cover-max-width']").Attr("content"); width != "600" {
 				t.Fatalf("cover width = %q", width)
 			}
-			if path == "/documents/john-doe-test-epub" {
+			if tc.epub {
 				if src, _ := page.Find("img.cover").First().Attr("src"); src != "/documents/john-doe-test-epub/cover" {
 					t.Fatalf("EPUB cover src = %q", src)
 				}
@@ -85,8 +99,8 @@ func TestPDFCoverMarkup(t *testing.T) {
 				t.Fatal("PDF still loads extracted embedded images")
 			}
 			_, eager := img.Attr("data-cover-eager")
-			if path == "/documents/john-doe-test-pdf" && !eager {
-				t.Fatalf("eager = %v for %s", eager, path)
+			if eager != tc.eager {
+				t.Fatalf("eager = %v, want %v", eager, tc.eager)
 			}
 			if !eager {
 				if loading, _ := img.Attr("loading"); loading != "lazy" {
@@ -120,6 +134,9 @@ func TestCoverAspectRatio(t *testing.T) {
 		if err := db.Create(&model.Highlight{UserID: int(user.ID), Slug: slug}).Error; err != nil {
 			t.Fatal(err)
 		}
+		req := mustGetRequest(t, "/documents/"+slug+"/read")
+		req.AddCookie(cookie)
+		coverTestPage(t, app, req)
 	}
 	for _, slug := range []string{"miguel-de-cervantes-y-saavedra-don-quijote-de-la-mancha", "sergio-vera-empty"} {
 		if err := db.Create(&model.Reading{UserID: int(user.ID), Slug: slug, CompletedOn: &completedOn}).Error; err != nil {
@@ -138,19 +155,6 @@ func TestCoverAspectRatio(t *testing.T) {
 	app.Get("/test-cover-home", func(c fiber.Ctx) error {
 		return c.Render("index", fiber.Map{"LatestDocs": docs, "Reading": docs}, "layout")
 	})
-
-	for _, slug := range []string{"john-doe-test-pdf", "john-doe-test-epub"} {
-		req := mustGetRequest(t, "/documents/"+slug+"/read")
-		req.AddCookie(cookie)
-		resp, err := app.Test(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		_ = resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("reader status = %d", resp.StatusCode)
-		}
-	}
 
 	for _, tc := range []struct {
 		name       string
@@ -181,18 +185,7 @@ func TestCoverAspectRatio(t *testing.T) {
 			if tc.htmx {
 				req.Header.Set("HX-Request", "true")
 			}
-			resp, err := app.Test(req)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer resp.Body.Close()
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("status = %d", resp.StatusCode)
-			}
-			page, err := goquery.NewDocumentFromReader(resp.Body)
-			if err != nil {
-				t.Fatal(err)
-			}
+			page := coverTestPage(t, app, req)
 			covers := page.Find(tc.selector)
 			if covers.Length() != tc.count {
 				t.Fatalf("cover count = %d, want %d", covers.Length(), tc.count)
