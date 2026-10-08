@@ -2,6 +2,8 @@ package webserver_test
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +12,69 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
+
+func TestDocumentDownloadDetectsChangesWithSameSizeAndModTime(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	fs := loadFilesInMemoryFs([]string{"testdata/library/metadata.pdf", "testdata/library/metadata.epub"})
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, fs, defaultTestConfig())
+	t.Cleanup(func() { _ = app.Shutdown() })
+
+	for _, format := range []string{"pdf", "epub"} {
+		t.Run(format, func(t *testing.T) {
+			path := "testdata/library/metadata." + format
+			info, err := fs.Stat(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err := afero.ReadFile(fs, path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			oldETag := fmt.Sprintf(`"%x"`, sha256.Sum256(data))
+			data[len(data)-1] ^= 1
+			if err := afero.WriteFile(fs, path, data, info.Mode()); err != nil {
+				t.Fatal(err)
+			}
+			if err := fs.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
+				t.Fatal(err)
+			}
+			newETag := fmt.Sprintf(`"%x"`, sha256.Sum256(data))
+			for _, tc := range []struct {
+				etag   string
+				status int
+			}{
+				{oldETag, http.StatusOK},
+				{newETag, http.StatusNotModified},
+			} {
+				request := httptest.NewRequest(http.MethodGet, "/documents/john-doe-test-"+format+"/download", nil)
+				request.Header.Set("If-None-Match", tc.etag)
+				response, err := app.Test(request)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer response.Body.Close()
+				if response.StatusCode != tc.status || response.Header.Get("ETag") != newETag {
+					t.Fatalf("status/ETag = %d/%q, want %d/%q", response.StatusCode, response.Header.Get("ETag"), tc.status, newETag)
+				}
+				body, err := io.ReadAll(response.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if tc.status == http.StatusOK && !bytes.Equal(body, data) {
+					t.Fatal("response did not contain the modified document")
+				}
+				if tc.status == http.StatusNotModified && len(body) != 0 {
+					t.Fatal("304 response contained a body")
+				}
+			}
+		})
+	}
+}
 
 func TestPDFDownloadRanges(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)

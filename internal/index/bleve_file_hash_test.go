@@ -73,8 +73,15 @@ func TestIndexFileUpdatesHashWithoutMetadataChanges(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if file.Data != nil || fs.opens != 0 {
-			t.Fatal("updated indexed hash was not reused")
+		if file.Data != nil || fs.opens != 1 {
+			t.Fatal("conditional download did not read and validate the current content")
+		}
+		doc, err := idx.Document(slug)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if doc.ContentHash != fmt.Sprintf("%x", sha256.Sum256([]byte(content))) {
+			t.Fatal("indexing did not update the stored content hash")
 		}
 	}
 }
@@ -93,6 +100,7 @@ func TestFileHash(t *testing.T) {
 			{name: "indexed hash survives enrichment and restart", conditional: true},
 			{name: "unconditional read returns bytes"},
 			{name: "same size change", content: "modified content", changeTime: true, conditional: true},
+			{name: "same size and timestamp change", content: "modified content", conditional: true},
 			{name: "size change with unchanged timestamp", content: "longer modified content", conditional: true},
 			{name: "missing hash uses response-only hash", missingHash: true, conditional: true},
 			{name: "missing file rejects cached hash", missingFile: true, conditional: true},
@@ -199,11 +207,20 @@ func TestFileHash(t *testing.T) {
 				}
 				unchanged := tc.conditional && !tc.missingHash && (tc.content == "" || tc.reindex)
 				if unchanged {
-					if file.Data != nil || fs.opens != 0 {
-						t.Error("unchanged validation read the file")
+					if file.Data != nil || fs.opens != 1 {
+						t.Error("unchanged validation did not read the file and omit the response body")
 					}
 				} else if !bytes.Equal(file.Data, data) || fs.opens != 1 {
 					t.Error("download did not read and return the complete file")
+				}
+				if tc.content != "" {
+					validated, err := idx.File("book", file.ETag)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if validated.ETag != file.ETag || validated.Data != nil {
+						t.Error("current content ETag did not validate without a response body")
+					}
 				}
 				after, err := idx.Document("book")
 				if err != nil {

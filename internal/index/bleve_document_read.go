@@ -650,6 +650,7 @@ type IndexedFile struct {
 }
 
 // File returns document metadata and its ETag without modifying the index.
+// Every request hashes the bytes read; size and mtime cannot establish freshness.
 // An empty ifNoneMatch always returns bytes; a matching ETag omits them.
 func (b *BleveIndexer) File(slug, ifNoneMatch string) (*IndexedFile, error) {
 	doc, err := b.Document(slug)
@@ -667,13 +668,6 @@ func (b *BleveIndexer) File(slug, ifNoneMatch string) (*IndexedFile, error) {
 		}
 		return nil, fmt.Errorf("stat document %s: %w", doc.ID, err)
 	}
-	result := newIndexedFile(doc, nil)
-	modTime := info.ModTime().UTC().Format(time.RFC3339Nano)
-	current := doc.ContentHash != "" && doc.ContentSize == info.Size() && doc.ContentModTime == modTime
-	if current && ifNoneMatch == result.ETag {
-		return result, nil
-	}
-
 	data, err := afero.ReadFile(b.fs, path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -688,10 +682,7 @@ func (b *BleveIndexer) File(slug, ifNoneMatch string) (*IndexedFile, error) {
 	if info.Size() != after.Size() || !info.ModTime().Equal(after.ModTime()) || int64(len(data)) != after.Size() {
 		return nil, fmt.Errorf("document %s changed while reading", doc.ID)
 	}
-	// Hash bytes already read for a full download, including changes that
-	// happen to preserve the file's size and modification time.
-	result = newIndexedFile(doc, data)
-	result.ETag = fmt.Sprintf(`"%x"`, sha256.Sum256(data))
+	result := newIndexedFile(doc, data)
 	if ifNoneMatch == result.ETag {
 		result.Data = nil
 	}
@@ -705,12 +696,10 @@ func newIndexedFile(doc Document, data []byte) *IndexedFile {
 		Data:        data,
 		FileName:    filepath.Base(doc.ID),
 		ContentType: "application/pdf",
+		ETag:        fmt.Sprintf(`"%x"`, sha256.Sum256(data)),
 	}
 	if ext == ".epub" {
 		result.ContentType = "application/epub+zip"
-	}
-	if doc.ContentHash != "" {
-		result.ETag = `"` + doc.ContentHash + `"`
 	}
 	return result
 }

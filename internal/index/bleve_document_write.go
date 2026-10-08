@@ -459,6 +459,8 @@ func (b *BleveIndexer) metadataJobResultFor(path string) metadataJobResult {
 		job.err = err
 		return job
 	}
+	// This detects observable concurrent writes, not all content changes.
+	// Downloads independently hash their bytes rather than trusting this snapshot.
 	if size != after.Size() || before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) {
 		job.err = fmt.Errorf("file changed while hashing")
 		return job
