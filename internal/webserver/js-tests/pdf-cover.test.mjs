@@ -111,6 +111,49 @@ test('the thumbnail cache is bounded and distinguishes widths', async t => {
     assert.equal(calls.filter(([name]) => name === 'document').length, 35)
 })
 
+test('rendered covers persist across renderer instances and are bounded', async t => {
+    const entries = new Map()
+    const cache = {
+        match: async key => entries.get(String(key)),
+        put: async (key, response) => { entries.set(String(key), response) },
+        keys: async () => [...entries.keys()],
+        delete: async key => entries.delete(String(key)),
+    }
+    const descriptors = ['caches', 'location'].map(name => [
+        name,
+        Object.getOwnPropertyDescriptor(globalThis, name),
+    ])
+    Object.defineProperty(globalThis, 'caches', {
+        configurable: true,
+        value: { open: async name => {
+            assert.equal(name, 'coreander-pdf-covers-v1')
+            return cache
+        } },
+    })
+    Object.defineProperty(globalThis, 'location', {
+        configurable: true,
+        value: { origin: 'https://coreander.test' },
+    })
+    t.after(() => {
+        for (const [name, descriptor] of descriptors) {
+            if (descriptor) Object.defineProperty(globalThis, name, descriptor)
+            else delete globalThis[name]
+        }
+    })
+
+    const first = setup(t)
+    await first.renderer('/book', 600)
+    assert.equal(entries.size, 1)
+
+    const nextPage = setup(t)
+    assert.equal(await (await nextPage.renderer('/book', 600)).text(), 'first-page')
+    assert.equal(nextPage.calls.filter(([name]) => name === 'document').length, 0)
+    await nextPage.renderer('/book', 300)
+    for (let i = 0; i < 31; i++) await nextPage.renderer(`/book-${i}`, 600)
+    assert.equal(entries.size, 32)
+    assert.ok(![...entries.keys()].some(key => key.includes('url=%2Fbook&width=600')))
+})
+
 function setupCovers(renderPDFCover) {
     const images = []
     const observed = []

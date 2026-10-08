@@ -123,9 +123,9 @@ class Reader {
     #fontSizeStep = 10
     annotations = new Map()
     annotationsByValue = new Map()
-    async saveOffline(url, blob) {
+    async saveOffline(url, blob, etag) {
         try {
-            await saveOfflineReader(url, blob)
+            await saveOfflineReader(url, blob, etag)
         } catch (error) {
             console.error('Could not save document for offline reading:', error)
             this.#toast.show('warning', this.translations.offline_failed)
@@ -926,6 +926,7 @@ const open = async file => {
 }
 
 const url = document.getElementById('url').value
+let documentETag
 if (url) fetch(url)
     .then(res => {
         if (res.status == 403) {
@@ -947,12 +948,13 @@ if (url) fetch(url)
         if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);
         }
+        documentETag = res.headers.get('ETag')
         return res.blob()
     })
     .then(async blob => {
         if (!blob) return
         await open(new File([blob], new URL(url, window.location.href).pathname))
-        await globalThis.reader.saveOffline(url, blob)
+        await globalThis.reader.saveOffline(url, blob, documentETag)
     })
     .catch(e => {
         if (e.message !== 'Authentication required') {
