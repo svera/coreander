@@ -1,6 +1,6 @@
 const documentCacheName = 'coreander-reader-documents'
 
-export async function saveOfflineReader(url, blob) {
+export async function saveOfflineReader(url, blob, etag) {
     if (!window.isSecureContext || !('serviceWorker' in navigator)) {
         throw new Error('Offline reading requires HTTPS and service worker support')
     }
@@ -17,6 +17,8 @@ export async function saveOfflineReader(url, blob) {
     const page = await fetch(window.location.href)
     if (!page.ok || page.redirected) throw new Error(`Could not save reader page: ${page.status}`)
     const cache = await caches.open(documentCacheName)
-    await cache.put(url, new Response(blob, { headers: { 'Content-Type': blob.type } }))
+    const headers = new Headers({ 'Content-Type': blob.type })
+    if (etag) headers.set('ETag', etag)
+    await cache.put(url, new Response(blob, { headers }))
     await cache.put(window.location.href, page)
 }

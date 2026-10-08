@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
@@ -129,5 +130,26 @@ func TestPDFDownloadRangesAndLegacyCoverCache(t *testing.T) {
 				}
 			}
 		})
+	}
+
+	response, err := app.Test(httptest.NewRequest(http.MethodGet, "/documents/john-doe-test-pdf/download", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	etag := response.Header.Get("ETag")
+	_ = response.Body.Close()
+	if etag == "" {
+		t.Fatal("document response is missing ETag")
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/documents/john-doe-test-pdf/download", nil)
+	request.Header.Set("If-None-Match", etag)
+	response, err = app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusNotModified {
+		t.Fatalf("conditional download status = %d, want %d", response.StatusCode, http.StatusNotModified)
 	}
 }
