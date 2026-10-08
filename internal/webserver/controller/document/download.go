@@ -22,8 +22,9 @@ import (
 func (d *Controller) Download(c fiber.Ctx) error {
 	slug := c.Params("slug")
 
+	asKepub := strings.EqualFold(c.Query("format"), "kepub")
 	conditional := c.Get("If-None-Match")
-	if strings.EqualFold(c.Query("format"), "kepub") {
+	if asKepub {
 		conditional = ""
 	}
 	result, err := d.idx.File(slug, conditional)
@@ -40,7 +41,7 @@ func (d *Controller) Download(c fiber.Ctx) error {
 	contentType := result.ContentType
 	etag := result.ETag
 
-	if strings.ToLower(c.Query("format")) == "kepub" && result.ContentType == "application/epub+zip" {
+	if asKepub && contentType == "application/epub+zip" {
 		z, err := zip.NewReader(bytes.NewReader(result.Data), int64(len(result.Data)))
 		if err != nil {
 			log.Println(err)

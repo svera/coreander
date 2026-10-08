@@ -20,6 +20,25 @@ import (
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
+func (b *BleveIndexer) saveContentHash(id, hash string, size int64, modTime string) (Document, error) {
+	b.documentsMu.Lock()
+	defer b.documentsMu.Unlock()
+
+	// Reload under the write lock to preserve concurrent enrichment updates.
+	doc, err := b.documentByIndexIDLocked(id)
+	if err != nil {
+		return Document{}, fmt.Errorf("load document %s for hash update: %w", id, err)
+	}
+	if doc.ID == "" {
+		return Document{}, ErrDocumentNotFound
+	}
+	doc.ContentHash, doc.ContentSize, doc.ContentModTime = hash, size, modTime
+	if err := b.documentsIdx.Index(id, doc); err != nil {
+		return Document{}, fmt.Errorf("save document hash %s: %w", id, err)
+	}
+	return doc, nil
+}
+
 // documentSlugCollisionPattern matches slugs like "title--2" used for disambiguation.
 var documentSlugCollisionPattern = regexp.MustCompile(`^[a-zA-Z0-9\-]+(--)[0-9]+$`)
 
