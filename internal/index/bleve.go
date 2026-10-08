@@ -219,7 +219,7 @@ type BleveIndexer struct {
 	fileLocks sync.Map
 	// lastIndexed holds the Document most recently written by indexFile per
 	// document ID, letting a serialized duplicate call detect unchanged
-	// metadata and skip re-indexing instead of picking a colliding slug.
+	// metadata/content and skip duplicate indexing instead of picking a colliding slug.
 	lastIndexed sync.Map
 }
 

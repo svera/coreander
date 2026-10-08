@@ -624,16 +624,12 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 }
 
 func (b *BleveIndexer) documentByIndexID(id string) (Document, error) {
-	b.documentsMu.RLock()
-	defer b.documentsMu.RUnlock()
-	return b.documentByIndexIDLocked(id)
-}
-
-func (b *BleveIndexer) documentByIndexIDLocked(id string) (Document, error) {
 	query := bleve.NewDocIDQuery([]string{id})
 	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
+	b.documentsMu.RLock()
 	searchResult, err := b.documentsIdx.Search(searchOptions)
+	b.documentsMu.RUnlock()
 	if err != nil {
 		return Document{}, err
 	}
@@ -653,8 +649,8 @@ type IndexedFile struct {
 	ETag        string
 }
 
-// File returns document metadata and its ETag, lazily persisting the hash in the
-// index. An empty ifNoneMatch always returns bytes; a matching ETag omits them.
+// File returns document metadata and its ETag without modifying the index.
+// An empty ifNoneMatch always returns bytes; a matching ETag omits them.
 func (b *BleveIndexer) File(slug, ifNoneMatch string) (*IndexedFile, error) {
 	doc, err := b.Document(slug)
 	if err != nil {
@@ -663,16 +659,6 @@ func (b *BleveIndexer) File(slug, ifNoneMatch string) (*IndexedFile, error) {
 	if doc.ID == "" {
 		return nil, ErrDocumentNotFound
 	}
-	unlock := b.lockFile(doc.ID)
-	defer unlock()
-	doc, err = b.Document(slug)
-	if err != nil {
-		return nil, err
-	}
-	if doc.ID == "" {
-		return nil, ErrDocumentNotFound
-	}
-
 	path := filepath.Join(b.libraryPath, doc.ID)
 	info, err := b.fs.Stat(path)
 	if err != nil {
@@ -704,14 +690,8 @@ func (b *BleveIndexer) File(slug, ifNoneMatch string) (*IndexedFile, error) {
 	}
 	// Hash bytes already read for a full download, including changes that
 	// happen to preserve the file's size and modification time.
-	hash := fmt.Sprintf("%x", sha256.Sum256(data))
-	if !current || hash != doc.ContentHash {
-		doc, err = b.saveContentHash(doc.ID, hash, info.Size(), modTime)
-		if err != nil {
-			return nil, err
-		}
-	}
 	result = newIndexedFile(doc, data)
+	result.ETag = fmt.Sprintf(`"%x"`, sha256.Sum256(data))
 	if ifNoneMatch == result.ETag {
 		result.Data = nil
 	}

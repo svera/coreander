@@ -85,40 +85,12 @@ func (b *BleveIndexer) scheduleTextRankEnrichment(document Document) {
 // waiting on TextRank.
 func (b *BleveIndexer) enrichTextRankAndReindex(document Document) {
 	enriched := b.rankDocument(document)
-	err := b.persistTextRankDocuments([]Document{enriched}, true)
+	b.documentsMu.Lock()
+	err := b.documentsIdx.Index(enriched.ID, enriched)
+	b.documentsMu.Unlock()
 	if err != nil {
 		log.Printf("Error indexing TextRank-enriched document %s: %s\n", enriched.ID, err)
 	}
-}
-
-// Merge background results into current records so concurrent lazy hash updates
-// and document deletion are not undone by older enrichment/pruning snapshots.
-func (b *BleveIndexer) persistTextRankDocuments(documents []Document, enriched bool) error {
-	b.documentsMu.Lock()
-	defer b.documentsMu.Unlock()
-	batch := b.documentsIdx.NewBatch()
-	for _, document := range documents {
-		current, err := b.documentByIndexIDLocked(document.ID)
-		if err != nil {
-			return err
-		}
-		if current.ID == "" {
-			continue
-		}
-		current.TextRankPhrases = document.TextRankPhrases
-		current.TextRankWords = document.TextRankWords
-		if enriched {
-			current.Words = document.Words
-			current.TextRankEnriched = document.TextRankEnriched
-		}
-		if err := batch.Index(current.ID, current); err != nil {
-			return err
-		}
-	}
-	if batch.Size() == 0 {
-		return nil
-	}
-	return b.documentsIdx.Batch(batch)
 }
 
 // rankTextFromContent runs TextRank analysis on textContent (already
@@ -291,7 +263,15 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 
 			enriched := b.rankDocuments(chunk, workers)
 
-			err = b.persistTextRankDocuments(enriched, true)
+			batch := b.documentsIdx.NewBatch()
+			for _, document := range enriched {
+				if err := batch.Index(document.ID, document); err != nil {
+					log.Printf("Error indexing enriched document %s: %s\n", document.ID, err)
+				}
+			}
+			b.documentsMu.Lock()
+			err = b.documentsIdx.Batch(batch)
+			b.documentsMu.Unlock()
 			if err != nil {
 				b.endTextRankEnrichment()
 				return err
@@ -549,7 +529,7 @@ func (b *BleveIndexer) rewriteCommonTextRankEntries(docCount uint64, batchSize i
 			return pruned, err
 		}
 
-		var updates []Document
+		batch := b.documentsIdx.NewBatch()
 		for _, hit := range docSearchResult.Hits {
 			document := hydrateDocument(hit)
 			p, ok := toPrune[document.ID]
@@ -558,12 +538,17 @@ func (b *BleveIndexer) rewriteCommonTextRankEntries(docCount uint64, batchSize i
 			}
 			document.TextRankPhrases = p.phrases
 			document.TextRankWords = p.words
-			updates = append(updates, document)
+			if err := batch.Index(document.ID, document); err != nil {
+				log.Printf("Error indexing document %s while pruning common TextRank entries: %s\n", document.ID, err)
+				continue
+			}
 			pruned++
 		}
 
-		if len(updates) > 0 {
-			err = b.persistTextRankDocuments(updates, false)
+		if batch.Size() > 0 {
+			b.documentsMu.Lock()
+			err = b.documentsIdx.Batch(batch)
+			b.documentsMu.Unlock()
 			if err != nil {
 				return pruned, err
 			}
