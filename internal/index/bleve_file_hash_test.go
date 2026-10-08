@@ -141,8 +141,7 @@ func TestFileHash(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if doc.ContentHash != fmt.Sprintf("%x", sha256.Sum256(data)) ||
-					doc.ContentSize != int64(len(data)) || doc.ContentModTime != modTime.UTC().Format(time.RFC3339Nano) {
+				if doc.ContentHash != fmt.Sprintf("%x", sha256.Sum256(data)) {
 					t.Fatalf("indexed hash fields = %#v", doc)
 				}
 				idx.enrichTextRankAndReindex(doc)
@@ -173,7 +172,7 @@ func TestFileHash(t *testing.T) {
 					}
 				}
 				if tc.missingHash {
-					doc.ContentHash, doc.ContentSize, doc.ContentModTime = "", 0, ""
+					doc.ContentHash = ""
 					if err := documents.Index(doc.ID, doc); err != nil {
 						t.Fatal(err)
 					}

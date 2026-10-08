@@ -74,6 +74,7 @@ function setup() {
     const origin = 'https://books.example.com'
     const handlers = new Map()
     const stores = new Map()
+    let matchCache = async response => response
     const cache = name => {
         if (!stores.has(name)) stores.set(name, new Map())
         const store = stores.get(name)
@@ -87,7 +88,7 @@ function setup() {
                 const target = key(request)
                 for (const [url, response] of store) {
                     if (url === target || (options?.ignoreSearch &&
-                        new URL(url).pathname === new URL(target).pathname)) return response.clone()
+                        new URL(url).pathname === new URL(target).pathname)) return matchCache(response.clone())
                 }
             },
             keys: async () => [...store.keys()].map(url => new Request(url)),
@@ -127,6 +128,7 @@ function setup() {
         get claims() { return claims },
         network: callback => { network = callback },
         matchClients: callback => { matchClients = callback },
+        matchCache: callback => { matchCache = callback },
         background: async () => {
             while (background.length) await Promise.all(background.splice(0))
         },
@@ -360,6 +362,82 @@ test('account changes discard in-flight background results', async () => {
     await worker.background()
     assert.equal(worker.stores.has('coreander-reader-documents'), false)
     assert.equal(worker.messages.length, 0)
+})
+
+test('session resets discard 304, failed fetch, and successful old-session responses', async () => {
+    for (const method of ['POST', 'DELETE']) {
+        for (const outcome of ['304', 'failure', '200']) {
+            const worker = setup()
+            await worker.cache('coreander-reader-documents').put('/documents/book/read', new Response('private page'))
+            let finish
+            let started
+            const fetching = new Promise(resolve => { started = resolve })
+            worker.network(request => {
+                if (request.method === method) return Promise.resolve(new Response('session reset'))
+                started()
+                return new Promise((resolve, reject) => {
+                    finish = () => outcome === 'failure'
+                        ? reject(new TypeError('offline'))
+                        : resolve(new Response(outcome === '304' ? null : 'private response',
+                            { status: Number(outcome) }))
+                })
+            })
+            const pending = worker.request('/documents/book/read')
+            const discarded = assert.rejects(pending, /session changed/)
+            await fetching
+            await worker.request('/sessions', { method })
+            finish()
+            await discarded
+            await worker.background()
+            assert.equal(worker.stores.has('coreander-reader-documents'), false)
+            assert.equal(worker.messages.length, 0)
+        }
+    }
+})
+
+test('session resets during cache lookup prevent immediate cached document delivery', async () => {
+    const worker = setup()
+    await worker.cache('coreander-reader-documents').put('/documents/book/download', new Response('private book'))
+    let finish
+    let started
+    const lookup = new Promise(resolve => { started = resolve })
+    worker.matchCache(response => {
+        started()
+        return new Promise(resolve => { finish = () => resolve(response) })
+    })
+    const pending = worker.request('/documents/book/download')
+    const discarded = assert.rejects(pending, /session changed/)
+    await lookup
+    await worker.request('/sessions', { method: 'DELETE' })
+    finish()
+    await discarded
+    await worker.background()
+    assert.equal(worker.stores.has('coreander-reader-documents'), false)
+    assert.equal(worker.messages.length, 0)
+})
+
+test('background 304 and network-error fallbacks are discarded after a session reset', async () => {
+    for (const failure of [false, true]) {
+        const worker = setup()
+        await worker.cache('coreander-reader-documents').put('/documents/book/download',
+            new Response('private book', { headers: { ETag: '"v1"' } }))
+        let finish
+        worker.network(request => request.method === 'DELETE'
+            ? Promise.resolve(new Response('signed out'))
+            : new Promise((resolve, reject) => {
+                finish = () => failure ? reject(new TypeError('offline')) :
+                    resolve(new Response(null, { status: 304 }))
+            }))
+        // Content already delivered before logout cannot be recalled.
+        assert.equal(await (await worker.request('/documents/book/download')).text(), 'private book')
+        await worker.request('/sessions', { method: 'DELETE' })
+        finish()
+        await worker.background()
+        assert.equal(worker.stores.has('coreander-reader-documents'), false)
+        assert.equal(worker.messages.length, 0)
+        assert.equal(worker.errors.length, 1)
+        assert.match(String(worker.errors[0][1]), /session changed/)
+    }
 })
 
 test('successful revalidation updates the cache when the reader navigates away or closes before notification', async () => {

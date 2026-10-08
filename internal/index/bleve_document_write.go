@@ -118,32 +118,27 @@ func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
 		return "", fmt.Errorf("error reading metadata and hash from file %s: %w", file, job.err)
 	}
 
-	// Preserve author counts and enrichment when duplicate events only change
-	// file timestamps; content-only changes still refresh the hash.
+	// Duplicate events preserve author counts and enrichment.
 	if existingIface, ok := b.lastIndexed.Load(id); ok {
 		existing := existingIface.(Document)
 		if reflect.DeepEqual(existing.Metadata, job.meta) {
-			if existing.ContentHash == job.hash && existing.ContentModTime == job.modTime && existing.ContentSize == job.size {
+			if existing.ContentHash == job.hash {
 				return existing.Slug, nil
 			}
 			document, err := b.documentByIndexID(id)
 			if err != nil {
 				return "", err
 			}
-			contentChanged := existing.ContentHash != job.hash
-			document.ContentHash, document.ContentSize, document.ContentModTime = job.hash, job.size, job.modTime
-			if contentChanged {
-				document.TextRankEnriched = !b.supportsTextRank(file)
-			}
+			document.ContentHash = job.hash
+			document.TextRankEnriched = !b.supportsTextRank(file)
 			b.documentsMu.Lock()
 			err = b.documentsIdx.Index(id, document)
 			b.documentsMu.Unlock()
 			if err != nil {
 				return "", fmt.Errorf("error updating indexed file %s: %w", file, err)
 			}
-			existing.ContentHash, existing.ContentSize, existing.ContentModTime = job.hash, job.size, job.modTime
-			b.lastIndexed.Store(id, existing)
-			if contentChanged && !document.TextRankEnriched {
+			b.lastIndexed.Store(id, document)
+			if !document.TextRankEnriched {
 				b.scheduleTextRankEnrichment(document)
 			}
 			return document.Slug, nil
@@ -418,12 +413,10 @@ func (b *BleveIndexer) indexedDocumentLanguages() (map[string]string, error) {
 }
 
 type metadataJobResult struct {
-	path    string
-	meta    metadata.Metadata
-	hash    string
-	size    int64
-	modTime string
-	err     error
+	path string
+	meta metadata.Metadata
+	hash string
+	err  error
 }
 
 // metadataJobResultFor extracts metadata and a streaming content hash, shared by
@@ -466,8 +459,6 @@ func (b *BleveIndexer) metadataJobResultFor(path string) metadataJobResult {
 		return job
 	}
 	job.hash = fmt.Sprintf("%x", hash.Sum(nil))
-	job.size = size
-	job.modTime = after.ModTime().UTC().Format(time.RFC3339Nano)
 	return job
 }
 
@@ -504,8 +495,6 @@ func (b *BleveIndexer) createDocument(job metadataJobResult, batchSlugs map[stri
 		SeriesSlug:        slug.Make(meta.Series),
 		SubjectsSlugs:     make([]string, len(meta.Subjects)),
 		ContentHash:       job.hash,
-		ContentSize:       job.size,
-		ContentModTime:    job.modTime,
 	}
 
 	document.Slug = b.Slug(document, batchSlugs, documentsSeen)

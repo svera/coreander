@@ -682,15 +682,6 @@ func (b *BleveIndexer) File(slug, ifNoneMatch string) (*IndexedFile, error) {
 	if info.Size() != after.Size() || !info.ModTime().Equal(after.ModTime()) || int64(len(data)) != after.Size() {
 		return nil, fmt.Errorf("document %s changed while reading", doc.ID)
 	}
-	result := newIndexedFile(doc, data)
-	if ifNoneMatch == result.ETag {
-		result.Data = nil
-	}
-	return result, nil
-}
-
-func newIndexedFile(doc Document, data []byte) *IndexedFile {
-	ext := strings.ToLower(filepath.Ext(doc.ID))
 	result := &IndexedFile{
 		Document:    doc,
 		Data:        data,
@@ -698,10 +689,13 @@ func newIndexedFile(doc Document, data []byte) *IndexedFile {
 		ContentType: "application/pdf",
 		ETag:        fmt.Sprintf(`"%x"`, sha256.Sum256(data)),
 	}
-	if ext == ".epub" {
+	if strings.EqualFold(filepath.Ext(doc.ID), ".epub") {
 		result.ContentType = "application/epub+zip"
 	}
-	return result
+	if ifNoneMatch == result.ETag {
+		result.Data = nil
+	}
+	return result, nil
 }
 
 // Cover returns the cover image for the document identified by slug, resized to at most coverMaxWidth pixels wide.
@@ -1057,12 +1051,6 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 
 	if value, ok := match.Fields["ContentHash"].(string); ok {
 		doc.ContentHash = value
-	}
-	if value, ok := match.Fields["ContentModTime"].(string); ok {
-		doc.ContentModTime = value
-	}
-	if value, ok := match.Fields["ContentSize"].(float64); ok {
-		doc.ContentSize = int64(value)
 	}
 	return doc
 }

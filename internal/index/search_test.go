@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/pirmd/epub"
@@ -76,14 +75,9 @@ func TestIndexAndSearch(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error searching: %s", err.Error())
 			}
-			info, err := appFS.Stat(tcase.filename)
-			if err != nil {
-				t.Fatal(err)
-			}
 			for i := range tcase.expectedResult.Hits() {
 				expected := &tcase.expectedResult.Hits()[i]
 				expected.ContentHash = fmt.Sprintf("%x", sha256.Sum256(nil))
-				expected.ContentModTime = info.ModTime().UTC().Format(time.RFC3339Nano)
 			}
 			if !reflect.DeepEqual(res, tcase.expectedResult) {
 				t.Errorf("Wrong result returned, expected\n %#v,\n got\n %#v\n", tcase.expectedResult, res)

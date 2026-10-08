@@ -42,9 +42,6 @@ type Document struct {
 	SubjectsSlugs     []string
 	AddedOn           time.Time
 	ContentHash       string
-	ContentSize       int64
-	// Stored as text to preserve nanosecond precision through Bleve hydration.
-	ContentModTime string
 	// TextRankPhrases holds the word pairs (two-word phrases, e.g. "robert
 	// oppenheimer") extracted by TextRank analysis at indexing time (EPUB
 	// only), one phrase per element, ordered by descending TextRank weight

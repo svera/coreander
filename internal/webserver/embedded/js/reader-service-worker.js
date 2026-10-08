@@ -4,6 +4,12 @@ const documentCacheName = 'coreander-reader-documents'
 const assetPaths = new Set(assets)
 let sessionGeneration = 0
 
+function checkSession(generation) {
+    if (generation !== sessionGeneration) {
+        throw new Error('Reader request discarded because the session changed')
+    }
+}
+
 async function clearDocumentCache(cache, path) {
     const keys = await cache.keys()
     await Promise.all(keys.filter(key =>
@@ -38,24 +44,37 @@ async function readerResponse(request, cache, saved, isDownload, generation) {
             networkRequest = new Request(request, { headers, cache: 'no-cache' })
         }
         response = await fetch(networkRequest)
-        if (response.status === 304 && saved) return saved
     } catch (error) {
+        checkSession(generation)
         if (saved) return saved
         throw error
     }
-    if (generation !== sessionGeneration) return response
+    checkSession(generation)
+    if (response.status === 304 && saved) return saved
     if (response.ok && isDownload && !response.redirected) {
         try {
             await cache.put(request, response.clone())
         } catch (error) {
             console.error('Could not update cached document:', error)
+            checkSession(generation)
+            return response
+        }
+        const etag = response.headers.get('ETag')
+        if (saved && etag && etag !== saved.headers.get('ETag')) {
+            await notifyReader(request, generation, 'reader-document-updated', etag)
         }
     }
     // Never substitute a saved document for an explicit access denial or deletion.
     if ([401, 403, 404].includes(response.status)) {
         const path = new URL(request.url).pathname.replace(/\/(read|download)$/, '')
         await clearDocumentCache(cache, path)
+        if (saved && isDownload) {
+            await notifyReader(request, generation, 'reader-document-unavailable')
+        }
+    } else if (saved && isDownload && (!response.ok || response.redirected)) {
+        console.error('Could not revalidate cached document:', response.status, response.url)
     }
+    checkSession(generation)
     return response
 }
 
@@ -74,33 +93,17 @@ async function documentResponse(event) {
     const { request } = event
     const generation = sessionGeneration
     const cache = await caches.open(documentCacheName)
+    checkSession(generation)
     const saved = await cache.match(request)
+    checkSession(generation)
     const isDownload = new URL(request.url).pathname.endsWith('/download')
     if (!isDownload || !saved) {
         return readerResponse(request, cache, saved, isDownload, generation)
     }
 
-    event.waitUntil((async () => {
-        try {
-            const response = await readerResponse(request, cache, saved, true, generation)
-            if (generation !== sessionGeneration) return
-            if ([401, 403, 404].includes(response.status)) {
-                await notifyReader(request, generation, 'reader-document-unavailable')
-            } else if (response.ok && !response.redirected &&
-                response.headers.get('ETag') !== saved.headers.get('ETag')) {
-                // Only offer a reload after the new document was successfully cached.
-                const updated = await cache.match(request)
-                const etag = response.headers.get('ETag')
-                if (etag && updated?.headers.get('ETag') === etag) {
-                    await notifyReader(request, generation, 'reader-document-updated', etag)
-                }
-            } else if (!response.ok || response.redirected) {
-                console.error('Could not revalidate cached document:', response.status, response.url)
-            }
-        } catch (error) {
-            console.error('Could not revalidate cached document:', error)
-        }
-    })())
+    event.waitUntil(readerResponse(request, cache, saved, true, generation).catch(error => {
+        console.error('Could not revalidate cached document:', error)
+    }))
     const headers = new Headers(saved.headers)
     headers.set('X-Coreander-Cached', 'true')
     return new Response(saved.body, { status: saved.status, statusText: saved.statusText, headers })

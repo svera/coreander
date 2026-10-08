@@ -28,7 +28,7 @@ func TestCreateDocumentsMappingUsesBM25Scoring(t *testing.T) {
 	}
 }
 
-func TestContentFieldsAreStoredOnly(t *testing.T) {
+func TestContentHashIsStoredOnly(t *testing.T) {
 	m, ok := CreateDocumentsMapping().(*mapping.IndexMappingImpl)
 	if !ok {
 		t.Fatal("expected *mapping.IndexMappingImpl")
@@ -39,15 +39,13 @@ func TestContentFieldsAreStoredOnly(t *testing.T) {
 	}
 	for name, document := range documents {
 		t.Run(name, func(t *testing.T) {
-			for _, name := range []string{"ContentHash", "ContentSize", "ContentModTime"} {
-				property := document.Properties[name]
-				if property == nil || len(property.Fields) != 1 {
-					t.Fatalf("%s must have one explicit field mapping", name)
-				}
-				field := property.Fields[0]
-				if !field.Store || field.Index || field.IncludeInAll || field.DocValues || field.IncludeTermVectors {
-					t.Errorf("%s is not storage-only: %+v", name, field)
-				}
+			property := document.Properties["ContentHash"]
+			if property == nil || len(property.Fields) != 1 {
+				t.Fatal("ContentHash must have one explicit field mapping")
+			}
+			field := property.Fields[0]
+			if !field.Store || field.Index || field.IncludeInAll || field.DocValues || field.IncludeTermVectors {
+				t.Errorf("ContentHash is not storage-only: %+v", field)
 			}
 		})
 	}

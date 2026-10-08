@@ -385,10 +385,6 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	storedText.IncludeInAll = false
 	storedText.DocValues = false
 	storedText.IncludeTermVectors = false
-	storedNumber := bleve.NewNumericFieldMapping()
-	storedNumber.Index = false
-	storedNumber.IncludeInAll = false
-	storedNumber.DocValues = false
 
 	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()
@@ -442,8 +438,6 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("ContentHash", storedText)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("ContentModTime", storedText)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("ContentSize", storedNumber)
 	}
 
 	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
@@ -469,8 +463,6 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("ContentHash", storedText)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("ContentModTime", storedText)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("ContentSize", storedNumber)
 
 	return indexMapping
 }
