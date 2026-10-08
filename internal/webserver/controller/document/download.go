@@ -46,7 +46,8 @@ func (d *Controller) Download(c fiber.Ctx) error {
 
 	etag := fmt.Sprintf(`"%x"`, sha256.Sum256(data))
 	c.Set("ETag", etag)
-	c.Set("Cache-Control", "no-cache")
+	// Compression rewrites strong ETags, breaking validation of offline copies.
+	c.Set("Cache-Control", "no-cache, no-transform")
 	if c.Get("If-None-Match") == etag {
 		return c.Status(http.StatusNotModified).Send(nil)
 	}
