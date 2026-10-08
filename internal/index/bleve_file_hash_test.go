@@ -58,14 +58,44 @@ func TestFileHash(t *testing.T) {
 	t.Cleanup(func() { _ = idx.Close() })
 	expected := fmt.Sprintf(`"%x"`, sha256.Sum256(data))
 
-	t.Run("backfills existing index on first download", func(t *testing.T) {
-		file, err := idx.File("book", "")
+	readFile := func(t *testing.T, conditional string, wantData []byte) *IndexedFile {
+		t.Helper()
+		file, err := idx.File("book", conditional)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if file.ETag != expected || !bytes.Equal(file.Data, data) {
-			t.Fatalf("first download = %#v", file)
+		if file.ETag != expected || !bytes.Equal(file.Data, wantData) || (wantData == nil && file.Data != nil) {
+			t.Fatalf("ETag = %q, payload = %q; want %q, %q", file.ETag, file.Data, expected, wantData)
 		}
+		return file
+	}
+	validateConcurrently := func(t *testing.T, backgroundWrites bool) {
+		t.Helper()
+		var wg sync.WaitGroup
+		for range 8 {
+			if backgroundWrites {
+				wg.Go(func() {
+					if err := idx.persistTextRankDocuments([]Document{doc}, true); err != nil {
+						t.Error(err)
+					}
+				})
+			}
+			wg.Go(func() {
+				file, err := idx.File("book", expected)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				if file.Data != nil || file.ETag != expected {
+					t.Error("concurrent validation did not reuse hash")
+				}
+			})
+		}
+		wg.Wait()
+	}
+
+	t.Run("backfills existing index on first download", func(t *testing.T) {
+		readFile(t, "", data)
 		if fs.opens.Load() != 1 {
 			t.Fatalf("file opens = %d, want 1", fs.opens.Load())
 		}
@@ -84,13 +114,7 @@ func TestFileHash(t *testing.T) {
 
 	t.Run("unchanged conditional requests do not open file", func(t *testing.T) {
 		for range 3 {
-			file, err := idx.File("book", expected)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if file.ETag != expected || file.Data != nil {
-				t.Fatalf("conditional download = %#v", file)
-			}
+			readFile(t, expected, nil)
 		}
 		if fs.opens.Load() != 1 {
 			t.Fatalf("file opens = %d, want 1", fs.opens.Load())
@@ -117,11 +141,8 @@ func TestFileHash(t *testing.T) {
 			t.Fatal(err)
 		}
 		idx = NewBleve(documents, authors, fs, "lib", nil, Config{})
-		file, err := idx.File("book", expected)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if file.Data != nil || fs.opens.Load() != 1 {
+		file := readFile(t, expected, nil)
+		if fs.opens.Load() != 1 {
 			t.Fatal("persisted hash was not reused")
 		}
 		if len(file.Document.TextRankWords) != 1 || file.Document.TextRankWords[0] != "enriched" {
@@ -142,31 +163,16 @@ func TestFileHash(t *testing.T) {
 		if err := fs.Chtimes(path, changed, changed); err != nil {
 			t.Fatal(err)
 		}
-		file, err := idx.File("book", expected)
-		if err != nil {
-			t.Fatal(err)
-		}
+		oldETag := expected
 		expected = fmt.Sprintf(`"%x"`, sha256.Sum256(data))
-		if file.ETag != expected || !bytes.Equal(file.Data, data) || fs.opens.Load() != 2 {
+		readFile(t, oldETag, data)
+		if fs.opens.Load() != 2 {
 			t.Fatal("changed file did not refresh hash and payload")
 		}
 	})
 
 	t.Run("concurrent validation reuses cached hash", func(t *testing.T) {
-		var wg sync.WaitGroup
-		for range 8 {
-			wg.Go(func() {
-				file, err := idx.File("book", expected)
-				if err != nil {
-					t.Error(err)
-					return
-				}
-				if file.Data != nil || file.ETag != expected {
-					t.Error("concurrent validation did not reuse hash")
-				}
-			})
-		}
-		wg.Wait()
+		validateConcurrently(t, false)
 		if fs.opens.Load() != 2 {
 			t.Fatalf("file opens = %d, want 2", fs.opens.Load())
 		}
@@ -184,12 +190,10 @@ func TestFileHash(t *testing.T) {
 		if err := fs.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
 			t.Fatal(err)
 		}
-		file, err := idx.File("book", expected)
-		if err != nil {
-			t.Fatal(err)
-		}
+		oldETag := expected
 		expected = fmt.Sprintf(`"%x"`, sha256.Sum256(data))
-		if file.ETag != expected || !bytes.Equal(file.Data, data) || fs.opens.Load() != 3 {
+		readFile(t, oldETag, data)
+		if fs.opens.Load() != 3 {
 			t.Fatal("size change did not refresh hash and payload")
 		}
 	})
@@ -219,55 +223,18 @@ func TestFileHash(t *testing.T) {
 		if err := documents.Index(current.ID, current); err != nil {
 			t.Fatal(err)
 		}
-		var wg sync.WaitGroup
-		for range 8 {
-			wg.Go(func() {
-				file, err := idx.File("book", expected)
-				if err != nil {
-					t.Error(err)
-					return
-				}
-				if file.Data != nil || file.ETag != expected {
-					t.Error("backfill did not validate known ETag")
-				}
-			})
-		}
-		wg.Wait()
+		validateConcurrently(t, false)
 		if fs.opens.Load() != 4 {
 			t.Fatalf("file opens = %d, want 4", fs.opens.Load())
 		}
 	})
 
 	t.Run("unconditional reads return bytes even with a cached hash", func(t *testing.T) {
-		file, err := idx.File("book", "")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if file.ETag != expected || !bytes.Equal(file.Data, data) {
-			t.Fatal("unconditional read did not return the full document")
-		}
+		readFile(t, "", data)
 	})
 
 	t.Run("concurrent background writes preserve hash fields", func(t *testing.T) {
-		var wg sync.WaitGroup
-		for range 8 {
-			wg.Go(func() {
-				if err := idx.persistTextRankDocuments([]Document{doc}, true); err != nil {
-					t.Error(err)
-				}
-			})
-			wg.Go(func() {
-				file, err := idx.File("book", expected)
-				if err != nil {
-					t.Error(err)
-					return
-				}
-				if file.Data != nil || file.ETag != expected {
-					t.Error("background write lost hash fields")
-				}
-			})
-		}
-		wg.Wait()
+		validateConcurrently(t, true)
 	})
 
 	t.Run("deletion removes persisted hash", func(t *testing.T) {
