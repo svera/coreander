@@ -400,3 +400,6 @@
 "Default action": "Standardaktion"
 "Filters": "Filter"
 "This document could not be saved for offline reading. Use HTTPS and check available browser storage.": "Dieses Dokument konnte nicht zum Offline-Lesen gespeichert werden. Verwenden Sie HTTPS und prüfen Sie den verfügbaren Browserspeicher."
+"A newer version of this document is available.": "Eine neuere Version dieses Dokuments ist verfügbar."
+"This document is no longer available. Its offline copy has been removed.": "Dieses Dokument ist nicht mehr verfügbar. Seine Offline-Kopie wurde entfernt."
+"Reload document": "Dokument neu laden"

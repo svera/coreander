@@ -9,6 +9,7 @@ function setup(t, autoHide = true, viewport = null) {
     const classes = new Set()
     const button = new EventTarget()
     const message = {}
+    const action = {}
     const book = {}
     const toast = {
         hidden: true,
@@ -18,7 +19,8 @@ function setup(t, autoHide = true, viewport = null) {
             add: value => classes.add(value),
             remove: (...values) => values.forEach(value => classes.delete(value)),
         },
-        querySelector: selector => selector === '.toast-close' ? button : message,
+        querySelector: selector => selector === '.toast-close' ? button :
+            selector === '.toast-action' ? action : message,
         show: () => assert.fail('Notifications must not invoke dialog focusing steps'),
         close: () => assert.fail('Notifications must not invoke dialog focus restoration'),
     }
@@ -46,7 +48,7 @@ function setup(t, autoHide = true, viewport = null) {
     t.mock.method(globalThis, 'clearTimeout', id => timers.delete(id))
     return {
         reader: new ReaderToast(),
-        toast, button, message, classes, book, timers,
+        toast, button, message, action, classes, book, timers,
         render() {
             for (const callback of frames.splice(0)) callback()
         },
@@ -102,6 +104,26 @@ test('notifications with auto-hide disabled remain open', t => {
     fixture.render()
     assert.equal(fixture.toast.hidden, false)
     assert.equal(fixture.timers.size, 0)
+})
+
+test('reload actions stay visible, run only on click, and clear on replacement', t => {
+    const fixture = setup(t)
+    let reloads = 0
+    fixture.reader.show('info', 'A newer version is available.', {
+        label: 'Reload document', onClick: () => { reloads++ },
+    })
+    fixture.render()
+    assert.equal(reloads, 0)
+    assert.equal(fixture.action.hidden, false)
+    assert.equal(fixture.action.textContent, 'Reload document')
+    assert.equal(fixture.timers.size, 0)
+    fixture.action.onclick()
+    assert.equal(reloads, 1)
+    fixture.reader.show('warning', 'Document unavailable.')
+    fixture.render()
+    assert.equal(fixture.action.hidden, true)
+    assert.equal(fixture.action.onclick, null)
+    assert.equal(fixture.timers.size, 1)
 })
 
 test('the toast is bounded by the visible mobile viewport, not the wider layout viewport', t => {

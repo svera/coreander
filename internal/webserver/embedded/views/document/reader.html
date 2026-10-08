@@ -172,6 +172,9 @@
     "annotation_remove_failed": {{t .Lang "The annotation could not be removed. Please try again."}},
     "annotations_load_failed": {{t .Lang "Your saved annotations could not be loaded."}},
     "offline_failed": {{t .Lang "This document could not be saved for offline reading. Use HTTPS and check available browser storage."}},
+    "document_updated": {{t .Lang "A newer version of this document is available."}},
+    "document_unavailable": {{t .Lang "This document is no longer available. Its offline copy has been removed."}},
+    "reload_document": {{t .Lang "Reload document"}},
     "no_annotations": {{t .Lang "You haven't saved any annotations in this book yet."}},
     "annotations_display_failed": {{t .Lang "Some saved annotations could not be displayed. The document may have changed."}}
 }}</script>
@@ -179,6 +182,7 @@
 <div id="reader-toast" role="alert" aria-live="assertive" aria-atomic="true" data-auto-hide="true" data-delay="5000" hidden>
     <div class="toast-content">
         <div class="toast-message"></div>
+        <button type="button" class="toast-action" hidden></button>
         <button type="button" class="toast-close" aria-label="Close">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M.293.293a1 1 0 011.414 0L8 6.586 14.293.293a1 1 0 111.414 1.414L9.414 8l6.293 6.293a1 1 0 01-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 01-1.414-1.414L6.586 8 .293 1.707a1 1 0 010-1.414z"/>

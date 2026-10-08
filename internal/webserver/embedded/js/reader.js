@@ -10,7 +10,7 @@ const [
     { ReaderAnnotations },
     { ReaderPopup },
     { bindReaderWheel },
-    { saveOfflineReader },
+    { saveOfflineReader, watchOfflineReader },
 ] = await Promise.all([
     importVersioned('./foliate-js/view.js'),
     importVersioned('./foliate-js/ui/tree.js'),
@@ -910,6 +910,16 @@ class Reader {
     showPositionUpdated() {
         this.#toast.show('success', this.translations.position_updated_from_server)
     }
+    showDocumentChange(message) {
+        if (message.type === 'reader-document-unavailable') {
+            this.#toast.show('warning', this.translations.document_unavailable)
+        } else {
+            this.#toast.show('info', this.translations.document_updated, {
+                label: this.translations.reload_document,
+                onClick: () => window.location.reload(),
+            })
+        }
+    }
     showNotLoggedIn() {
         // Only show the notification once
         if (this.#notLoggedInShown) return
@@ -927,6 +937,14 @@ const open = async file => {
 
 const url = document.getElementById('url').value
 let documentETag
+let documentCached = false
+let documentChange
+watchOfflineReader(url, message => {
+    documentChange = message
+    if (globalThis.reader && message.etag !== documentETag) {
+        globalThis.reader.showDocumentChange(message)
+    }
+})
 if (url) fetch(url)
     .then(res => {
         if (res.status == 403) {
@@ -949,12 +967,18 @@ if (url) fetch(url)
             throw new Error(`HTTP error! status: ${res.status}`);
         }
         documentETag = res.headers.get('ETag')
+        documentCached = res.headers.get('X-Coreander-Cached') === 'true'
         return res.blob()
     })
     .then(async blob => {
         if (!blob) return
         await open(new File([blob], new URL(url, window.location.href).pathname))
-        await globalThis.reader.saveOffline(url, blob, documentETag)
+        if (documentChange && documentChange.etag !== documentETag) {
+            globalThis.reader.showDocumentChange(documentChange)
+        }
+        if (!documentCached && !documentChange) {
+            await globalThis.reader.saveOffline(url, blob, documentETag)
+        }
     })
     .catch(e => {
         if (e.message !== 'Authentication required') {
