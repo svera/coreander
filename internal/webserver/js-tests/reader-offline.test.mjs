@@ -20,7 +20,7 @@ function browserGlobals(t, values) {
     }
 }
 
-test('the first loaded document saves the complete blob and reader page', async t => {
+test('the first loaded document saves its version signal with the complete blob', async t => {
     const saved = new Map()
     const blob = new Blob(['complete document'], { type: 'application/epub+zip' })
     browserGlobals(t, {
@@ -37,9 +37,10 @@ test('the first loaded document saves the complete blob and reader page', async 
         }) },
     })
     t.mock.method(globalThis, 'fetch', async () => new Response('<html>reader</html>'))
-    await saveOfflineReader('/documents/book/download', blob)
+    await saveOfflineReader('/documents/book/download', blob, '"version-1"')
     assert.equal(await saved.get('/documents/book/download').text(), 'complete document')
     assert.equal(saved.get('/documents/book/download').headers.get('Content-Type'), 'application/epub+zip')
+    assert.equal(saved.get('/documents/book/download').headers.get('ETag'), '"version-1"')
     assert.equal(await saved.get(window.location.href).text(), '<html>reader</html>')
     globalThis.caches.open = async () => { throw new Error('Storage quota exceeded') }
     await assert.rejects(saveOfflineReader('/documents/book/download', blob), /quota/)
@@ -108,7 +109,7 @@ function setup() {
             keys: async () => [...stores.keys()],
             delete: async name => stores.delete(name),
         },
-        URL, console,
+        URL, Request, Headers, console,
         fetch: request => network(request),
     })
     return {
@@ -165,9 +166,15 @@ test('saved documents are preferred while reader pages still check the server', 
     const worker = setup()
     const cache = worker.cache('coreander-reader-documents')
     await cache.put('/documents/book/read', new Response('old page'))
-    await cache.put('/documents/book/download', new Response('old book'))
+    await cache.put('/documents/book/download', new Response('old book', {
+        headers: { ETag: '"book-v1"' },
+    }))
     await cache.put('/documents/another/download', new Response('another book'))
-    worker.network(async () => assert.fail('A saved document should not be reloaded'))
+
+    worker.network(async request => {
+        assert.equal(request.headers.get('If-None-Match'), '"book-v1"')
+        return new Response(null, { status: 304 })
+    })
     assert.equal(await (await worker.request('/documents/book/download')).text(), 'old book')
 
     worker.network(async () => new Response('current page'))
@@ -177,6 +184,24 @@ test('saved documents are preferred while reader pages still check the server', 
     assert.equal(await cache.match('/documents/book/read'), undefined)
     assert.equal(await cache.match('/documents/book/download'), undefined)
     assert.ok(await cache.match('/documents/another/download'))
+})
+
+test('changed online document version refreshes cache while offline uses cached copy', async () => {
+    const worker = setup()
+    const cache = worker.cache('coreander-reader-documents')
+    await cache.put('/documents/book/download', new Response('old book', {
+        headers: { ETag: '"book-v1"' },
+    }))
+
+    worker.network(async request => {
+        assert.equal(request.headers.get('If-None-Match'), '"book-v1"')
+        return new Response('replacement book', { headers: { ETag: '"book-v2"' } })
+    })
+    assert.equal(await (await worker.request('/documents/book/download')).text(), 'replacement book')
+    assert.equal((await cache.match('/documents/book/download')).headers.get('ETag'), '"book-v2"')
+
+    worker.network(async () => { throw new TypeError('offline') })
+    assert.equal(await (await worker.request('/documents/book/download')).text(), 'replacement book')
 })
 
 test('signing in and out clears private offline documents but keeps assets', async () => {
