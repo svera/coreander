@@ -23,7 +23,7 @@
             {{range $i, $document := .Reading}}
             {{if lt $i 4}}
             <div class="{{if gt (len $reading) 3}}col-md-3{{else if eq (len $reading) 3}}col-md-4{{else if eq (len $reading) 2}}col-md-6{{else}}col-md-4{{end}}">
-                {{template "partials/cover" dict "Lang" $lang "Document" $document "Session" $session "DisableActions" true "LinkToReader" true "CoverTitleSuffix" (printf "resume-md-%d" $i) "ReadingPercentage" $document.ReadingPercentage}}
+                {{template "partials/cover" dict "Lang" $lang "Document" $document "Session" $session "FixedAspectRatio" true "DisableActions" true "LinkToReader" true "CoverTitleSuffix" (printf "resume-md-%d" $i) "ReadingPercentage" $document.ReadingPercentage}}
             </div>
             {{end}}
             {{end}}
