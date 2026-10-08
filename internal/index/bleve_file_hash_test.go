@@ -41,6 +41,10 @@ func TestFileHash(t *testing.T) {
 	if err := afero.WriteFile(fs, path, data, 0644); err != nil {
 		t.Fatal(err)
 	}
+	modTime := time.Unix(1700000000, 123456789)
+	if err := fs.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatal(err)
+	}
 	doc := Document{
 		ID: "book.epub", Slug: "book",
 		Metadata:         metadata.Metadata{Title: "Book", Format: "EPUB"},
@@ -65,6 +69,17 @@ func TestFileHash(t *testing.T) {
 		if fs.opens.Load() != 1 {
 			t.Fatalf("file opens = %d, want 1", fs.opens.Load())
 		}
+		stored, err := idx.Document("book")
+		if err != nil {
+			t.Fatal(err)
+		}
+		info, err := fs.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if `"`+stored.ContentHash+`"` != expected || stored.ContentSize != int64(len(data)) || stored.ContentModTime != info.ModTime().UTC().Format(time.RFC3339Nano) {
+			t.Fatalf("stored hash fields = %#v", stored)
+		}
 	})
 
 	t.Run("unchanged conditional requests do not open file", func(t *testing.T) {
@@ -84,7 +99,10 @@ func TestFileHash(t *testing.T) {
 
 	t.Run("survives document enrichment and index reopen", func(t *testing.T) {
 		doc.TextRankWords = []string{"enriched"}
-		if err := documents.Index(doc.ID, doc); err != nil {
+		if err := idx.persistTextRankDocuments([]Document{doc}, true); err != nil {
+			t.Fatal(err)
+		}
+		if err := idx.persistTextRankDocuments([]Document{doc}, false); err != nil {
 			t.Fatal(err)
 		}
 		if err := idx.Close(); err != nil {
@@ -191,7 +209,14 @@ func TestFileHash(t *testing.T) {
 	})
 
 	t.Run("concurrent backfill reads the file only once", func(t *testing.T) {
-		if err := documents.DeleteInternal(fileHashKey(doc.ID)); err != nil {
+		current, err := idx.Document("book")
+		if err != nil {
+			t.Fatal(err)
+		}
+		current.ContentHash = ""
+		current.ContentSize = 0
+		current.ContentModTime = ""
+		if err := documents.Index(current.ID, current); err != nil {
 			t.Fatal(err)
 		}
 		var wg sync.WaitGroup
@@ -223,16 +248,41 @@ func TestFileHash(t *testing.T) {
 		}
 	})
 
+	t.Run("concurrent background writes preserve hash fields", func(t *testing.T) {
+		var wg sync.WaitGroup
+		for range 8 {
+			wg.Go(func() {
+				if err := idx.persistTextRankDocuments([]Document{doc}, true); err != nil {
+					t.Error(err)
+				}
+			})
+			wg.Go(func() {
+				file, err := idx.File("book", expected)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				if file.Data != nil || file.ETag != expected {
+					t.Error("background write lost hash fields")
+				}
+			})
+		}
+		wg.Wait()
+	})
+
 	t.Run("deletion removes persisted hash", func(t *testing.T) {
 		if err := idx.DeleteDocument("book"); err != nil {
 			t.Fatal(err)
 		}
-		stored, err := documents.GetInternal(fileHashKey(doc.ID))
+		stored, err := idx.documentByIndexID(doc.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(stored) != 0 {
+		if stored.ContentHash != "" || stored.ID != "" {
 			t.Fatal("deleted document hash remains in index")
+		}
+		if err := idx.persistTextRankDocuments([]Document{doc}, true); err != nil {
+			t.Fatal(err)
 		}
 		if _, err := idx.File("book", expected); err != ErrDocumentNotFound {
 			t.Fatalf("deleted document error = %v", err)

@@ -620,12 +620,16 @@ func (b *BleveIndexer) Document(slug string) (Document, error) {
 }
 
 func (b *BleveIndexer) documentByIndexID(id string) (Document, error) {
+	b.documentsMu.RLock()
+	defer b.documentsMu.RUnlock()
+	return b.documentByIndexIDLocked(id)
+}
+
+func (b *BleveIndexer) documentByIndexIDLocked(id string) (Document, error) {
 	query := bleve.NewDocIDQuery([]string{id})
 	searchOptions := bleve.NewSearchRequest(query)
 	searchOptions.Fields = []string{"*"}
-	b.documentsMu.RLock()
 	searchResult, err := b.documentsIdx.Search(searchOptions)
-	b.documentsMu.RUnlock()
 	if err != nil {
 		return Document{}, err
 	}
@@ -1010,6 +1014,15 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		TextRankEnriched:  textRankEnriched,
 	}
 
+	if value, ok := match.Fields["ContentHash"].(string); ok {
+		doc.ContentHash = value
+	}
+	if value, ok := match.Fields["ContentModTime"].(string); ok {
+		doc.ContentModTime = value
+	}
+	if value, ok := match.Fields["ContentSize"].(float64); ok {
+		doc.ContentSize = int64(value)
+	}
 	return doc
 }
 

@@ -30,7 +30,7 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v13"
+const DocumentVersion = "v14"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
@@ -380,6 +380,12 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	numericFieldMapping := bleve.NewNumericFieldMapping()
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
 	booleanFieldMapping := bleve.NewBooleanFieldMapping()
+	storedText := bleve.NewKeywordFieldMapping()
+	storedText.Index = false
+	storedText.IncludeInAll = false
+	storedNumber := bleve.NewNumericFieldMapping()
+	storedNumber.Index = false
+	storedNumber.IncludeInAll = false
 
 	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()
@@ -432,6 +438,9 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrations", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("ContentHash", storedText)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("ContentModTime", storedText)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("ContentSize", storedNumber)
 	}
 
 	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
@@ -456,6 +465,9 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Illustrations", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("ContentHash", storedText)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("ContentModTime", storedText)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("ContentSize", storedNumber)
 
 	return indexMapping
 }
