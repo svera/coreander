@@ -69,6 +69,11 @@ func (b *BleveIndexer) endIndexing() {
 // its base name to prevent path traversal (e.g. "../../etc/cron.d/evil.epub")
 // from writing outside libraryPath.
 func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error) {
+	if !b.libraryMu.TryRLock() {
+		return "", ErrLibraryIndexing
+	}
+	defer b.libraryMu.RUnlock()
+
 	fullPath := filepath.Join(b.libraryPath, filepath.Base(fileName))
 	unlock := b.lockFile(b.id(fullPath))
 	defer unlock()
@@ -101,6 +106,9 @@ func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error)
 // callers - NewFile (document upload) and the file watcher - don't block on
 // it for potentially large documents.
 func (b *BleveIndexer) indexFile(file string) (string, error) {
+	b.libraryMu.RLock()
+	defer b.libraryMu.RUnlock()
+
 	unlock := b.lockFile(b.id(file))
 	defer unlock()
 	return b.indexFileLocked(file)
@@ -128,8 +136,8 @@ func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
 	}
 
 	// Duplicate events preserve author counts and enrichment.
-	if existingIface, ok := b.lastIndexed.Load(id); ok {
-		existing := existingIface.(indexedFileState)
+	if state, ok := b.lastIndexed.Load(id); ok {
+		existing := state.(indexedFileState)
 		if reflect.DeepEqual(existing.document.Metadata, job.meta) {
 			if existing.hash == hash {
 				return existing.document.Slug, nil
@@ -145,7 +153,7 @@ func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
 			if err != nil {
 				return "", fmt.Errorf("error updating indexed file %s: %w", file, err)
 			}
-			b.lastIndexed.Store(id, indexedFileState{document: document, hash: hash})
+			b.lastIndexed.Store(id, indexedFileState{document: existing.document, hash: hash})
 			if !document.TextRankEnriched {
 				b.scheduleTextRankEnrichment(document)
 			}
@@ -191,6 +199,9 @@ func (b *BleveIndexer) lockFile(id string) func() {
 
 // removeFile removes a file from the index
 func (b *BleveIndexer) removeFile(file string) error {
+	b.libraryMu.RLock()
+	defer b.libraryMu.RUnlock()
+
 	id := b.id(file)
 	document, err := b.documentByIndexID(id)
 	if err != nil {
@@ -211,6 +222,9 @@ func (b *BleveIndexer) removeFile(file string) error {
 
 // DeleteDocument removes the document identified by slug from the index and deletes its file from the filesystem.
 func (b *BleveIndexer) DeleteDocument(slug string) error {
+	b.libraryMu.RLock()
+	defer b.libraryMu.RUnlock()
+
 	document, err := b.Document(slug)
 	if err != nil {
 		return err
@@ -282,6 +296,10 @@ func authorSlugsFromDocument(document Document) []string {
 // next, so documents appear incrementally instead of only after every pending file has been processed.
 // EnrichTextRankKeywords fills in TextRank keywords afterward, in the background.
 func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWorkers int) error {
+	b.libraryMu.Lock()
+	defer b.libraryMu.Unlock()
+
+	b.lastIndexed.Clear()
 	b.beginIndexing()
 
 	pending, languages, err := b.collectPendingLibraryPaths(forceIndexing)
@@ -300,6 +318,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 
 		batch := b.documentsIdx.NewBatch()
 		batchSlugs := make(map[string]struct{}, len(chunk))
+		var indexedDocuments []Document
 
 		for _, job := range metaJobs {
 			if job.err != nil {
@@ -320,6 +339,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 				log.Printf("Error indexing file %s: %s\n", job.path, err)
 				continue
 			}
+			indexedDocuments = append(indexedDocuments, document)
 		}
 
 		b.documentsMu.Lock()
@@ -328,6 +348,9 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 		if err != nil {
 			b.endIndexing()
 			return err
+		}
+		for _, document := range indexedDocuments {
+			b.lastIndexed.Store(document.ID, indexedFileState{document: document})
 		}
 	}
 

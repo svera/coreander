@@ -157,6 +157,7 @@
 "Invalid file type": "Недопустимый тип файла"
 "Invalid file type. Only JPEG and PNG images are allowed.": "Недопустимый тип файла. Разрешены только изображения JPEG и PNG."
 "Upload": "Загрузить"
+"Library indexing is running. Please try uploading again later.": "Выполняется индексация библиотеки. Попробуйте загрузить документ позже."
 "Failed to upload image": "Не удалось загрузить изображение"
 "An error occurred while uploading the image": "Произошла ошибка при загрузке изображения"
 "Click to upload a custom image": "Нажмите, чтобы загрузить пользовательское изображение"

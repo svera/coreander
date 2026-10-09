@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,6 +37,152 @@ func (hashTestReader) Metadata(path string) (metadata.Metadata, error) {
 
 func (hashTestReader) Cover(string, int) (image.Image, error) {
 	return nil, nil
+}
+
+type blockingLibraryReader struct {
+	hashTestReader
+	started chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (r *blockingLibraryReader) Metadata(path string) (metadata.Metadata, error) {
+	r.once.Do(func() {
+		close(r.started)
+		<-r.release
+	})
+	meta, err := r.hashTestReader.Metadata(path)
+	meta.Authors = []string{"Writer"}
+	return meta, err
+}
+
+func TestLibraryMutationsWaitForBulkIndexing(t *testing.T) {
+	for _, operation := range []string{"watcher", "delete", "remove"} {
+		t.Run(operation, func(t *testing.T) {
+			documents, err := bleve.NewMemOnly(CreateDocumentsMapping())
+			if err != nil {
+				t.Fatal(err)
+			}
+			authors, err := bleve.NewMemOnly(CreateAuthorsMapping())
+			if err != nil {
+				t.Fatal(err)
+			}
+			fs := afero.NewMemMapFs()
+			if err := afero.WriteFile(fs, "lib/book.epub", []byte("original content"), 0644); err != nil {
+				t.Fatal(err)
+			}
+			reader := &blockingLibraryReader{started: make(chan struct{}), release: make(chan struct{})}
+			var release sync.Once
+			unblock := func() { release.Do(func() { close(reader.release) }) }
+			t.Cleanup(unblock)
+			idx := NewBleve(documents, authors, fs, "lib",
+				map[string]metadata.Reader{".epub": reader}, Config{})
+			t.Cleanup(func() { _ = idx.Close() })
+			bulk := make(chan error, 1)
+			go func() { bulk <- idx.AddLibrary(1, true, 1) }()
+			<-reader.started
+			if _, err := idx.NewFile("rejected.epub", []byte("upload")); err != ErrLibraryIndexing {
+				t.Fatalf("upload during bulk indexing returned %v", err)
+			}
+			if exists, err := afero.Exists(fs, "lib/rejected.epub"); err != nil || exists {
+				t.Fatalf("rejected upload wrote a file: exists=%v, err=%v", exists, err)
+			}
+			if _, err := idx.TotalDocs(); err != nil {
+				t.Fatalf("reads unavailable during indexing: %v", err)
+			}
+			mutation := make(chan error, 1)
+			go func() {
+				var err error
+				switch operation {
+				case "watcher":
+					_, err = idx.indexFile("lib/book.epub")
+				case "delete":
+					err = idx.DeleteDocument("writer-book")
+				case "remove":
+					err = idx.removeFile("lib/book.epub")
+				}
+				mutation <- err
+			}()
+			select {
+			case err := <-mutation:
+				t.Fatalf("mutation completed before bulk indexing finished: %v", err)
+			case <-time.After(25 * time.Millisecond):
+			}
+			data, err := afero.ReadFile(fs, "lib/book.epub")
+			if err != nil || string(data) != "original content" {
+				t.Fatalf("file changed during bulk indexing: %q, %v", data, err)
+			}
+			unblock()
+			if err := <-bulk; err != nil {
+				t.Fatal(err)
+			}
+			if err := <-mutation; err != nil {
+				t.Fatal(err)
+			}
+			if operation == "watcher" {
+				if _, err := idx.NewFile("book.epub", []byte("modified content")); err != nil {
+					t.Fatalf("retry after indexing failed: %v", err)
+				}
+			}
+			want := uint64(1)
+			if operation == "delete" || operation == "remove" {
+				want = 0
+			}
+			count, err := idx.TotalDocs()
+			if err != nil || count != want {
+				t.Fatalf("document count = %d, %v; want %d", count, err, want)
+			}
+			author, err := idx.Author("writer", "")
+			if err != nil || author.DocumentCount != want {
+				t.Fatalf("author count = %d, %v; want %d", author.DocumentCount, err, want)
+			}
+		})
+	}
+}
+
+func TestBulkIndexingWaitsForUpload(t *testing.T) {
+	documents, err := bleve.NewMemOnly(CreateDocumentsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	authors, err := bleve.NewMemOnly(CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := &blockingLibraryReader{started: make(chan struct{}), release: make(chan struct{})}
+	var release sync.Once
+	unblock := func() { release.Do(func() { close(reader.release) }) }
+	t.Cleanup(unblock)
+	idx := NewBleve(documents, authors, afero.NewMemMapFs(), "lib",
+		map[string]metadata.Reader{".epub": reader}, Config{})
+	t.Cleanup(func() { _ = idx.Close() })
+	upload := make(chan error, 1)
+	go func() {
+		_, err := idx.NewFile("book.epub", []byte("original content"))
+		upload <- err
+	}()
+	<-reader.started
+	bulk := make(chan error, 1)
+	go func() { bulk <- idx.AddLibrary(1, true, 1) }()
+	select {
+	case err := <-bulk:
+		t.Fatalf("bulk indexing completed during the upload: %v", err)
+	case <-time.After(25 * time.Millisecond):
+	}
+	if idx.indexProgress.startNanos.Load() != 0 {
+		t.Fatal("bulk indexing started before the upload completed")
+	}
+	unblock()
+	if err := <-upload; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-bulk; err != nil {
+		t.Fatal(err)
+	}
+	author, err := idx.Author("writer", "")
+	if err != nil || author.DocumentCount != 1 {
+		t.Fatalf("author count = %d, %v; want 1", author.DocumentCount, err)
+	}
 }
 
 func TestIndexFileUpdatesHashWithoutMetadataChanges(t *testing.T) {

@@ -157,6 +157,7 @@
 "Invalid file type": "Ungültiger Dateityp"
 "Invalid file type. Only JPEG and PNG images are allowed.": "Ungültiger Dateityp. Es sind nur JPEG- und PNG-Bilder erlaubt."
 "Upload": "Hochladen"
+"Library indexing is running. Please try uploading again later.": "Die Bibliothek wird indexiert. Versuchen Sie den Upload später erneut."
 "Failed to upload image": "Fehler beim Hochladen des Bildes"
 "An error occurred while uploading the image": "Beim Hochladen des Bildes ist ein Fehler aufgetreten"
 "Click to upload a custom image": "Klicken Sie, um ein benutzerdefiniertes Bild hochzuladen"

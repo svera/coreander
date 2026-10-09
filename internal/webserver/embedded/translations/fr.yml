@@ -156,6 +156,7 @@
 "Invalid file type": "Type de fichier invalide"
 "Invalid file type. Only JPEG and PNG images are allowed.": "Type de fichier invalide. Seules les images JPEG et PNG sont autorisées."
 "Upload": "Télécharger"
+"Library indexing is running. Please try uploading again later.": "L'indexation de la bibliothèque est en cours. Veuillez réessayer d'envoyer le document plus tard."
 "Failed to upload image": "Échec du téléchargement de l'image"
 "An error occurred while uploading the image": "Une erreur s'est produite lors du téléchargement de l'image"
 "Click to upload a custom image": "Cliquez pour télécharger une image personnalisée"

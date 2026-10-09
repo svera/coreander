@@ -49,6 +49,8 @@ var (
 // ErrDocumentNotFound is returned when a document cannot be found by slug.
 var ErrDocumentNotFound = errors.New("document not found")
 
+var ErrLibraryIndexing = errors.New("library indexing is running; try uploading again later")
+
 var noStopWordsFilters = map[string][]string{
 	es.AnalyzerName: {lowercase.Name, es.NormalizeName, es.LightStemmerName},
 	en.AnalyzerName: {lowercase.Name, en.PossessiveName, porter.Name},
@@ -192,8 +194,10 @@ type BleveIndexer struct {
 	// while the webserver concurrently searches them, and without this guard
 	// concurrent Batch/Search calls have been observed to panic inside
 	// bleve/zapx (an out-of-range read while decoding a segment being merged).
-	documentsMu                    sync.RWMutex
-	authorsMu                      sync.RWMutex
+	documentsMu sync.RWMutex
+	authorsMu   sync.RWMutex
+	// Bulk indexing excludes complete upload, watcher, and deletion operations.
+	libraryMu                      sync.RWMutex
 	libraryPath                    string
 	reader                         map[string]metadata.Reader
 	indexProgress                  progressTracker
