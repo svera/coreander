@@ -123,6 +123,7 @@ func init() {
 func main() {
 	defer idx.Close()
 
+	idx.BeginIndexing()
 	go startIndex(idx, input.BatchSize, input.LibPath, resolvedIndexWorkers)
 
 	sender = &infrastructure.NoEmail{}

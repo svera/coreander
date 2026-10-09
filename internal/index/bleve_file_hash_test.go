@@ -56,8 +56,8 @@ func (r *blockingLibraryReader) Metadata(path string) (metadata.Metadata, error)
 	return meta, err
 }
 
-func TestLibraryMutationsWaitForBulkIndexing(t *testing.T) {
-	for _, operation := range []string{"watcher", "delete", "remove"} {
+func TestStartupIndexingRejectsMutations(t *testing.T) {
+	for _, operation := range []string{"upload", "delete"} {
 		t.Run(operation, func(t *testing.T) {
 			documents, err := bleve.NewMemOnly(CreateDocumentsMapping())
 			if err != nil {
@@ -78,6 +78,13 @@ func TestLibraryMutationsWaitForBulkIndexing(t *testing.T) {
 			idx := NewBleve(documents, authors, fs, "lib",
 				map[string]metadata.Reader{".epub": reader}, Config{})
 			t.Cleanup(func() { _ = idx.Close() })
+			idx.BeginIndexing()
+			if _, err := idx.NewFile("rejected.epub", []byte("upload")); err != ErrLibraryIndexing {
+				t.Fatalf("upload before indexing goroutine started returned %v", err)
+			}
+			if err := idx.DeleteDocument("writer-book"); err != ErrLibraryIndexing {
+				t.Fatalf("delete before indexing goroutine started returned %v", err)
+			}
 			bulk := make(chan error, 1)
 			go func() { bulk <- idx.AddLibrary(1, true, 1) }()
 			<-reader.started
@@ -90,23 +97,8 @@ func TestLibraryMutationsWaitForBulkIndexing(t *testing.T) {
 			if _, err := idx.TotalDocs(); err != nil {
 				t.Fatalf("reads unavailable during indexing: %v", err)
 			}
-			mutation := make(chan error, 1)
-			go func() {
-				var err error
-				switch operation {
-				case "watcher":
-					_, err = idx.indexFile("lib/book.epub")
-				case "delete":
-					err = idx.DeleteDocument("writer-book")
-				case "remove":
-					err = idx.removeFile("lib/book.epub")
-				}
-				mutation <- err
-			}()
-			select {
-			case err := <-mutation:
-				t.Fatalf("mutation completed before bulk indexing finished: %v", err)
-			case <-time.After(25 * time.Millisecond):
+			if err := idx.DeleteDocument("writer-book"); err != ErrLibraryIndexing {
+				t.Fatalf("delete during indexing returned %v", err)
 			}
 			data, err := afero.ReadFile(fs, "lib/book.epub")
 			if err != nil || string(data) != "original content" {
@@ -116,16 +108,15 @@ func TestLibraryMutationsWaitForBulkIndexing(t *testing.T) {
 			if err := <-bulk; err != nil {
 				t.Fatal(err)
 			}
-			if err := <-mutation; err != nil {
-				t.Fatal(err)
-			}
-			if operation == "watcher" {
+			if operation == "upload" {
 				if _, err := idx.NewFile("book.epub", []byte("modified content")); err != nil {
 					t.Fatalf("retry after indexing failed: %v", err)
 				}
+			} else if err := idx.DeleteDocument("writer-book"); err != nil {
+				t.Fatalf("delete after indexing failed: %v", err)
 			}
 			want := uint64(1)
-			if operation == "delete" || operation == "remove" {
+			if operation == "delete" {
 				want = 0
 			}
 			count, err := idx.TotalDocs()
@@ -137,51 +128,6 @@ func TestLibraryMutationsWaitForBulkIndexing(t *testing.T) {
 				t.Fatalf("author count = %d, %v; want %d", author.DocumentCount, err, want)
 			}
 		})
-	}
-}
-
-func TestBulkIndexingWaitsForUpload(t *testing.T) {
-	documents, err := bleve.NewMemOnly(CreateDocumentsMapping())
-	if err != nil {
-		t.Fatal(err)
-	}
-	authors, err := bleve.NewMemOnly(CreateAuthorsMapping())
-	if err != nil {
-		t.Fatal(err)
-	}
-	reader := &blockingLibraryReader{started: make(chan struct{}), release: make(chan struct{})}
-	var release sync.Once
-	unblock := func() { release.Do(func() { close(reader.release) }) }
-	t.Cleanup(unblock)
-	idx := NewBleve(documents, authors, afero.NewMemMapFs(), "lib",
-		map[string]metadata.Reader{".epub": reader}, Config{})
-	t.Cleanup(func() { _ = idx.Close() })
-	upload := make(chan error, 1)
-	go func() {
-		_, err := idx.NewFile("book.epub", []byte("original content"))
-		upload <- err
-	}()
-	<-reader.started
-	bulk := make(chan error, 1)
-	go func() { bulk <- idx.AddLibrary(1, true, 1) }()
-	select {
-	case err := <-bulk:
-		t.Fatalf("bulk indexing completed during the upload: %v", err)
-	case <-time.After(25 * time.Millisecond):
-	}
-	if idx.indexProgress.startNanos.Load() != 0 {
-		t.Fatal("bulk indexing started before the upload completed")
-	}
-	unblock()
-	if err := <-upload; err != nil {
-		t.Fatal(err)
-	}
-	if err := <-bulk; err != nil {
-		t.Fatal(err)
-	}
-	author, err := idx.Author("writer", "")
-	if err != nil || author.DocumentCount != 1 {
-		t.Fatalf("author count = %d, %v; want 1", author.DocumentCount, err)
 	}
 }
 

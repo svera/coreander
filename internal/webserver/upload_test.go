@@ -32,6 +32,10 @@ func (busyUploadIndex) NewFile(string, []byte) (string, error) {
 	return "", index.ErrLibraryIndexing
 }
 
+func (busyUploadIndex) DeleteDocument(string) error {
+	return index.ErrLibraryIndexing
+}
+
 type uploadErrorView struct{}
 
 func (uploadErrorView) Load() error { return nil }
@@ -45,6 +49,7 @@ func TestUploadRejectedDuringBulkIndexing(t *testing.T) {
 	controller := document.NewController(nil, nil, nil, nil, nil, busyUploadIndex{}, nil, document.Config{}, nil)
 	app := fiber.New(fiber.Config{Views: uploadErrorView{}})
 	app.Post("/documents", controller.Upload)
+	app.Delete("/documents/:slug", controller.Delete)
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 	header := make(textproto.MIMEHeader)
@@ -79,6 +84,25 @@ func TestUploadRejectedDuringBulkIndexing(t *testing.T) {
 	}
 	if string(message) != "Library indexing is running. Please try uploading again later." {
 		t.Fatalf("unexpected error message: %q", message)
+	}
+	request, err = http.NewRequest(http.MethodDelete, "/documents/book", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err = app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("deletion status = %d, want 503", response.StatusCode)
+	}
+	message, err = io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(message) != "Library indexing is running. Please try deleting again later." {
+		t.Fatalf("unexpected deletion error message: %q", message)
 	}
 }
 

@@ -56,7 +56,8 @@ func (b *BleveIndexer) progressFrom(kind ProgressKind, startNanos int64, process
 	return progress
 }
 
-func (b *BleveIndexer) beginIndexing() {
+// BeginIndexing marks startup indexing active before the HTTP server can accept mutations.
+func (b *BleveIndexer) BeginIndexing() {
 	b.indexProgress.begin(0)
 }
 
@@ -69,10 +70,9 @@ func (b *BleveIndexer) endIndexing() {
 // its base name to prevent path traversal (e.g. "../../etc/cron.d/evil.epub")
 // from writing outside libraryPath.
 func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error) {
-	if !b.libraryMu.TryRLock() {
+	if b.indexProgress.startNanos.Load() != 0 {
 		return "", ErrLibraryIndexing
 	}
-	defer b.libraryMu.RUnlock()
 
 	fullPath := filepath.Join(b.libraryPath, filepath.Base(fileName))
 	unlock := b.lockFile(b.id(fullPath))
@@ -106,9 +106,6 @@ func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error)
 // callers - NewFile (document upload) and the file watcher - don't block on
 // it for potentially large documents.
 func (b *BleveIndexer) indexFile(file string) (string, error) {
-	b.libraryMu.RLock()
-	defer b.libraryMu.RUnlock()
-
 	unlock := b.lockFile(b.id(file))
 	defer unlock()
 	return b.indexFileLocked(file)
@@ -199,9 +196,6 @@ func (b *BleveIndexer) lockFile(id string) func() {
 
 // removeFile removes a file from the index
 func (b *BleveIndexer) removeFile(file string) error {
-	b.libraryMu.RLock()
-	defer b.libraryMu.RUnlock()
-
 	id := b.id(file)
 	document, err := b.documentByIndexID(id)
 	if err != nil {
@@ -222,8 +216,9 @@ func (b *BleveIndexer) removeFile(file string) error {
 
 // DeleteDocument removes the document identified by slug from the index and deletes its file from the filesystem.
 func (b *BleveIndexer) DeleteDocument(slug string) error {
-	b.libraryMu.RLock()
-	defer b.libraryMu.RUnlock()
+	if b.indexProgress.startNanos.Load() != 0 {
+		return ErrLibraryIndexing
+	}
 
 	document, err := b.Document(slug)
 	if err != nil {
@@ -296,15 +291,12 @@ func authorSlugsFromDocument(document Document) []string {
 // next, so documents appear incrementally instead of only after every pending file has been processed.
 // EnrichTextRankKeywords fills in TextRank keywords afterward, in the background.
 func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWorkers int) error {
-	b.libraryMu.Lock()
-	defer b.libraryMu.Unlock()
-
 	b.lastIndexed.Clear()
-	b.beginIndexing()
+	b.BeginIndexing()
+	defer b.endIndexing()
 
 	pending, languages, err := b.collectPendingLibraryPaths(forceIndexing)
 	if err != nil {
-		b.endIndexing()
 		return err
 	}
 	b.indexProgress.total.Store(b.indexProgress.processed.Load() + uint64(len(pending)))
@@ -346,7 +338,6 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 		err = b.documentsIdx.Batch(batch)
 		b.documentsMu.Unlock()
 		if err != nil {
-			b.endIndexing()
 			return err
 		}
 		for _, document := range indexedDocuments {
@@ -368,16 +359,13 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 	err = b.documentsIdx.Batch(internalBatch)
 	b.documentsMu.Unlock()
 	if err != nil {
-		b.endIndexing()
 		return err
 	}
 
 	if err := b.RebuildAuthorsFromDocuments(batchSize); err != nil {
-		b.endIndexing()
 		return err
 	}
 
-	b.endIndexing()
 	return nil
 }
 
