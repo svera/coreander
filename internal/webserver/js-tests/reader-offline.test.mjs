@@ -21,6 +21,12 @@ function browserGlobals(t, values) {
     }
 }
 
+function deferred() {
+    let resolve, reject
+    const promise = new Promise((res, rej) => { resolve = res; reject = rej })
+    return { promise, resolve, reject }
+}
+
 test('the first loaded document saves its version signal with the complete blob', async t => {
     const saved = new Map()
     const blob = new Blob(['complete document'], { type: 'application/epub+zip' })
@@ -236,16 +242,16 @@ test('a cached download does not wait for background validation', async () => {
     const worker = setup()
     const cache = worker.cache('coreander-reader-documents')
     await cache.put('/documents/book/download', new Response('saved book', { headers: { ETag: '"v1"' } }))
-    let finish
+    const validation = deferred()
     worker.network(request => {
         assert.equal(request.headers.get('If-None-Match'), '"v1"')
         assert.equal(request.cache, 'no-cache')
-        return new Promise(resolve => { finish = resolve })
+        return validation.promise
     })
     const response = await worker.request('/documents/book/download')
     assert.equal(await response.text(), 'saved book')
     assert.equal(worker.messages.length, 0)
-    finish(new Response(null, { status: 304 }))
+    validation.resolve(new Response(null, { status: 304 }))
     await worker.background()
     assert.equal(worker.messages.length, 0)
 })
@@ -316,8 +322,7 @@ test('reader loading preserves refreshed caches and buffers early update notific
             let onChange
             let saved = 0
             const messages = []
-            let opened
-            const opening = new Promise(resolve => { opened = resolve })
+            const opening = deferred()
             const context = {
                 document: { getElementById: () => ({ value: '/documents/book/download' }) },
                 window: { location: { href: 'https://books.example.com/documents/book/read' } },
@@ -333,12 +338,12 @@ test('reader loading preserves refreshed caches and buffers early update notific
                         showDocumentChange: message => messages.push(message),
                         saveOffline: async () => { saved++ },
                     }
-                    opened()
+                    opening.resolve()
                 },
                 File, URL, console,
             }
             vm.runInNewContext(readerSource.slice(readerSource.indexOf("const url = document.getElementById('url').value")), context)
-            await opening
+            await opening.promise
             // Let the reader's post-open continuation finish.
             await new Promise(resolve => setImmediate(resolve))
             assert.equal(saved, !cached && !change ? 1 : 0)
@@ -348,49 +353,43 @@ test('reader loading preserves refreshed caches and buffers early update notific
     }
 })
 
-test('account changes discard in-flight background results', async () => {
-    const worker = setup()
-    await worker.cache('coreander-reader-documents').put('/documents/book/download',
-        new Response('old book', { headers: { ETag: '"v1"' } }))
-    let finish
-    worker.network(request => request.method === 'DELETE'
-        ? Promise.resolve(new Response('signed out'))
-        : new Promise(resolve => { finish = resolve }))
-    await worker.request('/documents/book/download')
-    await worker.request('/sessions', { method: 'DELETE' })
-    finish(new Response('new book', { headers: { ETag: '"v2"' } }))
-    await worker.background()
-    assert.equal(worker.stores.has('coreander-reader-documents'), false)
-    assert.equal(worker.messages.length, 0)
-})
-
-test('session resets discard 304, failed fetch, and successful old-session responses', async () => {
+test('session resets discard pending responses and background cache fallbacks', async t => {
     for (const method of ['POST', 'DELETE']) {
-        for (const outcome of ['304', 'failure', '200']) {
-            const worker = setup()
-            await worker.cache('coreander-reader-documents').put('/documents/book/read', new Response('private page'))
-            let finish
-            let started
-            const fetching = new Promise(resolve => { started = resolve })
-            worker.network(request => {
-                if (request.method === method) return Promise.resolve(new Response('session reset'))
-                started()
-                return new Promise((resolve, reject) => {
-                    finish = () => outcome === 'failure'
-                        ? reject(new TypeError('offline'))
-                        : resolve(new Response(outcome === '304' ? null : 'private response',
-                            { status: Number(outcome) }))
+        for (const endpoint of ['read', 'download']) {
+            for (const outcome of [304, 200, 'failure']) {
+                await t.test(`${method}/${endpoint}/${outcome}`, async () => {
+                    const worker = setup()
+                    const path = `/documents/book/${endpoint}`
+                    await worker.cache('coreander-reader-documents').put(path,
+                        new Response('private content', { headers: { ETag: '"v1"' } }))
+                    const network = deferred()
+                    const started = deferred()
+                    worker.network(request => {
+                        if (request.method === method) return Promise.resolve(new Response('session reset'))
+                        started.resolve()
+                        return network.promise
+                    })
+                    const pending = worker.request(path)
+                    const discarded = endpoint === 'read'
+                        ? assert.rejects(pending, /session changed/)
+                        : pending.then(async response => assert.equal(await response.text(), 'private content'))
+                    await started.promise
+                    if (endpoint === 'download') await discarded
+                    await worker.request('/sessions', { method })
+                    if (outcome === 'failure') network.reject(new TypeError('offline'))
+                    else network.resolve(new Response(outcome === 304 ? null : 'new content', {
+                        status: outcome, headers: { ETag: '"v2"' },
+                    }))
+                    await discarded
+                    await worker.background()
+                    assert.equal(worker.stores.has('coreander-reader-documents'), false)
+                    assert.equal(worker.messages.length, 0)
+                    if (endpoint === 'download') {
+                        assert.equal(worker.errors.length, 1)
+                        assert.match(String(worker.errors[0][1]), /session changed/)
+                    }
                 })
-            })
-            const pending = worker.request('/documents/book/read')
-            const discarded = assert.rejects(pending, /session changed/)
-            await fetching
-            await worker.request('/sessions', { method })
-            finish()
-            await discarded
-            await worker.background()
-            assert.equal(worker.stores.has('coreander-reader-documents'), false)
-            assert.equal(worker.messages.length, 0)
+            }
         }
     }
 })
@@ -398,46 +397,21 @@ test('session resets discard 304, failed fetch, and successful old-session respo
 test('session resets during cache lookup prevent immediate cached document delivery', async () => {
     const worker = setup()
     await worker.cache('coreander-reader-documents').put('/documents/book/download', new Response('private book'))
-    let finish
-    let started
-    const lookup = new Promise(resolve => { started = resolve })
+    const lookup = deferred()
+    const started = deferred()
     worker.matchCache(response => {
-        started()
-        return new Promise(resolve => { finish = () => resolve(response) })
+        started.resolve(response)
+        return lookup.promise
     })
     const pending = worker.request('/documents/book/download')
     const discarded = assert.rejects(pending, /session changed/)
-    await lookup
+    const saved = await started.promise
     await worker.request('/sessions', { method: 'DELETE' })
-    finish()
+    lookup.resolve(saved)
     await discarded
     await worker.background()
     assert.equal(worker.stores.has('coreander-reader-documents'), false)
     assert.equal(worker.messages.length, 0)
-})
-
-test('background 304 and network-error fallbacks are discarded after a session reset', async () => {
-    for (const failure of [false, true]) {
-        const worker = setup()
-        await worker.cache('coreander-reader-documents').put('/documents/book/download',
-            new Response('private book', { headers: { ETag: '"v1"' } }))
-        let finish
-        worker.network(request => request.method === 'DELETE'
-            ? Promise.resolve(new Response('signed out'))
-            : new Promise((resolve, reject) => {
-                finish = () => failure ? reject(new TypeError('offline')) :
-                    resolve(new Response(null, { status: 304 }))
-            }))
-        // Content already delivered before logout cannot be recalled.
-        assert.equal(await (await worker.request('/documents/book/download')).text(), 'private book')
-        await worker.request('/sessions', { method: 'DELETE' })
-        finish()
-        await worker.background()
-        assert.equal(worker.stores.has('coreander-reader-documents'), false)
-        assert.equal(worker.messages.length, 0)
-        assert.equal(worker.errors.length, 1)
-        assert.match(String(worker.errors[0][1]), /session changed/)
-    }
 })
 
 test('successful revalidation updates the cache when the reader navigates away or closes before notification', async () => {
@@ -445,19 +419,18 @@ test('successful revalidation updates the cache when the reader navigates away o
         const worker = setup()
         const cache = worker.cache('coreander-reader-documents')
         await cache.put('/documents/book/download', new Response('old book', { headers: { ETag: '"v1"' } }))
-        let finishClients
-        let lookupStarted
-        const lookup = new Promise(resolve => { lookupStarted = resolve })
+        const clients = deferred()
+        const lookup = deferred()
         worker.matchClients(() => {
-            lookupStarted()
-            return new Promise(resolve => { finishClients = resolve })
+            lookup.resolve()
+            return clients.promise
         })
         worker.network(async () => new Response('new book', { headers: { ETag: '"v2"' } }))
         assert.equal(await (await worker.request('/documents/book/download')).text(), 'old book')
-        await lookup
+        await lookup.promise
         // The download succeeded, but the original reader is no longer present.
         assert.equal(await (await cache.match('/documents/book/download')).text(), 'new book')
-        finishClients(closed ? [] : [{
+        clients.resolve(closed ? [] : [{
             url: 'https://books.example.com/documents/another/read',
             postMessage: () => assert.fail('Notified a client that navigated away'),
         }])
