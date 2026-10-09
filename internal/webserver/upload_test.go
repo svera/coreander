@@ -3,6 +3,7 @@ package webserver_test
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -15,11 +16,95 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/controller/document"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
+
+type busyUploadIndex struct {
+	document.IdxReaderWriter
+}
+
+func (busyUploadIndex) NewFile(string, []byte) (string, error) {
+	return "", index.ErrLibraryIndexing
+}
+
+func (busyUploadIndex) DeleteDocument(string) error {
+	return index.ErrLibraryIndexing
+}
+
+type uploadErrorView struct{}
+
+func (uploadErrorView) Load() error { return nil }
+
+func (uploadErrorView) Render(out io.Writer, _ string, binding any, _ ...string) error {
+	_, err := fmt.Fprint(out, binding.(fiber.Map)["Error"])
+	return err
+}
+
+func TestUploadRejectedDuringBulkIndexing(t *testing.T) {
+	controller := document.NewController(nil, nil, nil, nil, nil, busyUploadIndex{}, nil, document.Config{}, nil)
+	app := fiber.New(fiber.Config{Views: uploadErrorView{}})
+	app.Post("/documents", controller.Upload)
+	app.Delete("/documents/:slug", controller.Delete)
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", `form-data; name="filename"; filename="book.epub"`)
+	header.Set("Content-Type", "application/epub+zip")
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte("book")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request, err := http.NewRequest(http.MethodPost, "/documents", &body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", response.StatusCode)
+	}
+	message, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(message) != "Library indexing is running. Please try uploading again later." {
+		t.Fatalf("unexpected error message: %q", message)
+	}
+	request, err = http.NewRequest(http.MethodDelete, "/documents/book", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err = app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("deletion status = %d, want 503", response.StatusCode)
+	}
+	message, err = io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(message) != "Library indexing is running. Please try deleting again later." {
+		t.Fatalf("unexpected deletion error message: %q", message)
+	}
+}
 
 func TestUpload(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)

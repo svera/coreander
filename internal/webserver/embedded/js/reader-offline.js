@@ -1,5 +1,18 @@
 const documentCacheName = 'coreander-reader-documents'
 
+export function watchOfflineReader(url, onChange) {
+    if (!('serviceWorker' in navigator)) return
+    const path = new URL(url, window.location.href).pathname
+    navigator.serviceWorker.addEventListener('message', event => {
+        if (event.source !== navigator.serviceWorker.controller) return
+        const message = event.data
+        if (message?.path === path &&
+            ['reader-document-updated', 'reader-document-unavailable'].includes(message.type)) {
+            onChange(message)
+        }
+    })
+}
+
 export async function saveOfflineReader(url, blob, etag) {
     if (!window.isSecureContext || !('serviceWorker' in navigator)) {
         throw new Error('Offline reading requires HTTPS and service worker support')

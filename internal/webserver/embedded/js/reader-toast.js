@@ -28,7 +28,7 @@ export class ReaderToast {
         this.#toastEl.hidden = true
     }
 
-    show(variant, message) {
+    show(variant, message, action = null) {
         if (!this.#toastEl) return
 
         try {
@@ -37,12 +37,18 @@ export class ReaderToast {
             this.#toastEl.classList.add(`toast-${variant}`)
             const messageEl = this.#toastEl.querySelector('.toast-message')
             if (messageEl) messageEl.innerHTML = message
+            const actionEl = this.#toastEl.querySelector('.toast-action')
+            if (actionEl) {
+                actionEl.hidden = !action
+                actionEl.textContent = action?.label ?? ''
+                actionEl.onclick = action?.onClick ?? null
+            }
 
             requestAnimationFrame(() => {
                 try {
                     this.#positionToast()
                     this.#toastEl.hidden = false
-                    if (this.#toastEl.dataset.autoHide === 'true') {
+                    if (!action && this.#toastEl.dataset.autoHide === 'true') {
                         this.#autoHideTimeout = setTimeout(() => this.#hide(),
                             parseInt(this.#toastEl.dataset.delay) || 5000)
                     }

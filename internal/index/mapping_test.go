@@ -22,6 +22,7 @@ func TestCreateDocumentsMappingUsesBM25Scoring(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected CreateDocumentsMapping to return *mapping.IndexMappingImpl, got %T", got)
 	}
+
 	if m.ScoringModel != index.BM25Scoring {
 		t.Errorf("expected ScoringModel to be %q, got %q", index.BM25Scoring, m.ScoringModel)
 	}

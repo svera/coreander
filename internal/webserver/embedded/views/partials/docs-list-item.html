@@ -42,7 +42,7 @@
             </div>
             {{if and .Session (eq .Session.Role 2)}}
             <div class="col-5 text-end">
-                <button href="#" data-bs-toggle="modal" data-bs-target="#delete-modal" data-url="/documents/{{.Document.Slug}}" class="btn btn-sm btn-danger" title="{{.Document.ID}}">
+                <button href="#" data-bs-toggle="modal" data-bs-target="#delete-modal" data-url="/documents/{{.Document.Slug}}" class="btn btn-sm btn-danger" title="{{.Document.ID}}" {{if eq .IndexingProgressKind "documents"}}disabled{{end}}>
                     <i class="bi-trash3-fill"></i>
                 </button>
             </div>

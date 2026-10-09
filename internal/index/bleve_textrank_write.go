@@ -269,7 +269,6 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 					log.Printf("Error indexing enriched document %s: %s\n", document.ID, err)
 				}
 			}
-
 			b.documentsMu.Lock()
 			err = b.documentsIdx.Batch(batch)
 			b.documentsMu.Unlock()

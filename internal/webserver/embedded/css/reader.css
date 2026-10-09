@@ -764,6 +764,16 @@ html[style*="color-scheme: dark"] .menu hr[role="separator"] {
 }
 
 
+.toast-action {
+    background: none;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
 .toast-close {
     background: none;
     border: none;

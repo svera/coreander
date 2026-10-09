@@ -49,6 +49,8 @@ var (
 // ErrDocumentNotFound is returned when a document cannot be found by slug.
 var ErrDocumentNotFound = errors.New("document not found")
 
+var ErrLibraryIndexing = errors.New("library indexing is running; try again later")
+
 var noStopWordsFilters = map[string][]string{
 	es.AnalyzerName: {lowercase.Name, es.NormalizeName, es.LightStemmerName},
 	en.AnalyzerName: {lowercase.Name, en.PossessiveName, porter.Name},
@@ -217,9 +219,9 @@ type BleveIndexer struct {
 	// indexFile calls for the same file (upload vs. file watcher reacting to
 	// the same write).
 	fileLocks sync.Map
-	// lastIndexed holds the Document most recently written by indexFile per
+	// lastIndexed holds the document and in-memory hash most recently written by indexFile per
 	// document ID, letting a serialized duplicate call detect unchanged
-	// metadata and skip re-indexing instead of picking a colliding slug.
+	// metadata/content and skip duplicate indexing instead of picking a colliding slug.
 	lastIndexed sync.Map
 }
 

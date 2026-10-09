@@ -2,11 +2,14 @@ package index
 
 import (
 	"cmp"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"html/template"
 	"image"
 	"math"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -643,32 +646,54 @@ type IndexedFile struct {
 	Data        []byte
 	FileName    string
 	ContentType string
+	ETag        string
 }
 
-// File returns the raw document payload and metadata for the given slug.
-func (b *BleveIndexer) File(slug string) (*IndexedFile, error) {
+// File returns document metadata and its ETag without modifying the index.
+// Every request hashes the bytes read; size and mtime cannot establish freshness.
+// An empty ifNoneMatch always returns bytes; a matching ETag omits them.
+func (b *BleveIndexer) File(slug, ifNoneMatch string) (*IndexedFile, error) {
 	doc, err := b.Document(slug)
-	if err != nil || doc.ID == "" {
-		return nil, ErrDocumentNotFound
-	}
-	fullPath := filepath.Join(b.libraryPath, doc.ID)
-	exists, err := afero.Exists(b.fs, fullPath)
-	if err != nil || !exists {
-		return nil, errors.New("document file not found")
-	}
-	data, err := afero.ReadFile(b.fs, fullPath)
 	if err != nil {
 		return nil, err
 	}
-	ext := strings.ToLower(filepath.Ext(doc.ID))
+	if doc.ID == "" {
+		return nil, ErrDocumentNotFound
+	}
+	path := filepath.Join(b.libraryPath, doc.ID)
+	info, err := b.fs.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrDocumentNotFound
+		}
+		return nil, fmt.Errorf("stat document %s: %w", doc.ID, err)
+	}
+	data, err := afero.ReadFile(b.fs, path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrDocumentNotFound
+		}
+		return nil, fmt.Errorf("read document %s: %w", doc.ID, err)
+	}
+	after, err := b.fs.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("stat document after reading %s: %w", doc.ID, err)
+	}
+	if info.Size() != after.Size() || !info.ModTime().Equal(after.ModTime()) || int64(len(data)) != after.Size() {
+		return nil, fmt.Errorf("document %s changed while reading", doc.ID)
+	}
 	result := &IndexedFile{
 		Document:    doc,
 		Data:        data,
 		FileName:    filepath.Base(doc.ID),
 		ContentType: "application/pdf",
+		ETag:        fmt.Sprintf(`"%x"`, sha256.Sum256(data)),
 	}
-	if ext == ".epub" {
+	if strings.EqualFold(filepath.Ext(doc.ID), ".epub") {
 		result.ContentType = "application/epub+zip"
+	}
+	if ifNoneMatch == result.ETag {
+		result.Data = nil
 	}
 	return result, nil
 }

@@ -1,7 +1,9 @@
 package index
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"os"
@@ -54,7 +56,8 @@ func (b *BleveIndexer) progressFrom(kind ProgressKind, startNanos int64, process
 	return progress
 }
 
-func (b *BleveIndexer) beginIndexing() {
+// BeginIndexing marks startup indexing active before the HTTP server can accept mutations.
+func (b *BleveIndexer) BeginIndexing() {
 	b.indexProgress.begin(0)
 }
 
@@ -67,7 +70,14 @@ func (b *BleveIndexer) endIndexing() {
 // its base name to prevent path traversal (e.g. "../../etc/cron.d/evil.epub")
 // from writing outside libraryPath.
 func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error) {
+	if b.indexProgress.startNanos.Load() != 0 {
+		return "", ErrLibraryIndexing
+	}
+
 	fullPath := filepath.Join(b.libraryPath, filepath.Base(fileName))
+	unlock := b.lockFile(b.id(fullPath))
+	defer unlock()
+
 	f, err := b.fs.Create(fullPath)
 	if err != nil {
 		return "", fmt.Errorf("creating file %s: %w", fullPath, err)
@@ -82,7 +92,7 @@ func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error)
 		_ = b.fs.Remove(fullPath)
 		return "", fmt.Errorf("closing file %s: %w", fullPath, err)
 	}
-	slug, err := b.indexFile(fullPath)
+	slug, err := b.indexFileLocked(fullPath)
 	if err != nil {
 		_ = b.fs.Remove(fullPath)
 		return "", err
@@ -91,35 +101,65 @@ func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error)
 }
 
 // indexFile adds a file to the index. Like AddLibrary, this is a fast,
-// metadata-only pass: TextRank analysis is deferred to a background
+// metadata and content-hash pass: TextRank analysis is deferred to a background
 // goroutine (see enrichTextRankAndReindex) instead of running inline, so
 // callers - NewFile (document upload) and the file watcher - don't block on
 // it for potentially large documents.
 func (b *BleveIndexer) indexFile(file string) (string, error) {
+	unlock := b.lockFile(b.id(file))
+	defer unlock()
+	return b.indexFileLocked(file)
+}
+
+type indexedFileState struct {
+	document Document
+	hash     string
+}
+
+func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(file))
 	if _, ok := b.reader[ext]; !ok {
 		return "", fmt.Errorf("file extension %s not supported", ext)
 	}
 
 	id := b.id(file)
-	unlock := b.lockFile(id)
-	defer unlock()
-
-	meta, err := b.reader[ext].Metadata(file)
+	job := b.metadataJobResultFor(file)
+	if job.err != nil {
+		return "", fmt.Errorf("error reading metadata from file %s: %w", file, job.err)
+	}
+	hash, err := b.fileHash(file)
 	if err != nil {
-		return "", fmt.Errorf("error extracting metadata from file %s: %s", file, err)
+		return "", fmt.Errorf("error hashing file %s: %w", file, err)
 	}
 
-	// Skip if this is a duplicate event for an unchanged file (e.g. upload's
-	// own indexFile call racing the file watcher's), not a real content change.
-	if existingIface, ok := b.lastIndexed.Load(id); ok {
-		existing := existingIface.(Document)
-		if reflect.DeepEqual(existing.Metadata, meta) {
-			return existing.Slug, nil
+	// Duplicate events preserve author counts and enrichment.
+	if state, ok := b.lastIndexed.Load(id); ok {
+		existing := state.(indexedFileState)
+		if reflect.DeepEqual(existing.document.Metadata, job.meta) {
+			if existing.hash == hash {
+				return existing.document.Slug, nil
+			}
+			document, err := b.documentByIndexID(id)
+			if err != nil {
+				return "", err
+			}
+			document.Metadata = job.meta
+			document.TextRankEnriched = !b.supportsTextRank(file)
+			b.documentsMu.Lock()
+			err = b.documentsIdx.Index(id, document)
+			b.documentsMu.Unlock()
+			if err != nil {
+				return "", fmt.Errorf("error updating indexed file %s: %w", file, err)
+			}
+			b.lastIndexed.Store(id, indexedFileState{document: document, hash: hash})
+			if !document.TextRankEnriched {
+				b.scheduleTextRankEnrichment(document)
+			}
+			return document.Slug, nil
 		}
 	}
 
-	document := b.createDocument(meta, file, nil, nil)
+	document := b.createDocument(job, nil, nil)
 	document.AddedOn = time.Now().UTC()
 	document.TextRankEnriched = !b.supportsTextRank(file)
 
@@ -129,7 +169,7 @@ func (b *BleveIndexer) indexFile(file string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
 	}
-	b.lastIndexed.Store(id, document)
+	b.lastIndexed.Store(id, indexedFileState{document: document, hash: hash})
 
 	if err := b.incrementAuthorCounts(document.Authors, document.AuthorsSlugs); err != nil {
 		return document.Slug, err
@@ -177,6 +217,10 @@ func (b *BleveIndexer) removeFile(file string) error {
 
 // DeleteDocument removes the document identified by slug from the index and deletes its file from the filesystem.
 func (b *BleveIndexer) DeleteDocument(slug string) error {
+	if b.indexProgress.startNanos.Load() != 0 {
+		return ErrLibraryIndexing
+	}
+
 	document, err := b.Document(slug)
 	if err != nil {
 		return err
@@ -242,17 +286,18 @@ func authorSlugsFromDocument(document Document) []string {
 // metadataWorkers controls parallel metadata extraction after CLI resolution: 1 is fully sequential; values
 // greater than 1 use a bounded worker pool while Bleve batching and slug resolution stay on a single goroutine.
 //
-// This is intentionally a fast, metadata-only pass: it does not run TextRank analysis, so a document
+// This pass reads only metadata, without content hashing or TextRank analysis, so a document
 // becomes searchable as soon as its batch commits rather than waiting on the whole library's worth of
 // ranking. Each batchSize-sized chunk of pending paths is extracted and committed before moving on to the
 // next, so documents appear incrementally instead of only after every pending file has been processed.
 // EnrichTextRankKeywords fills in TextRank keywords afterward, in the background.
 func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWorkers int) error {
-	b.beginIndexing()
+	b.lastIndexed.Clear()
+	b.BeginIndexing()
+	defer b.endIndexing()
 
 	pending, languages, err := b.collectPendingLibraryPaths(forceIndexing)
 	if err != nil {
-		b.endIndexing()
 		return err
 	}
 	b.indexProgress.total.Store(b.indexProgress.processed.Load() + uint64(len(pending)))
@@ -266,14 +311,15 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 
 		batch := b.documentsIdx.NewBatch()
 		batchSlugs := make(map[string]struct{}, len(chunk))
+		var indexedDocuments []Document
 
 		for _, job := range metaJobs {
 			if job.err != nil {
-				log.Printf("Error extracting metadata from file %s: %s\n", job.path, job.err)
+				log.Printf("Error reading metadata from file %s: %s\n", job.path, job.err)
 				continue
 			}
 
-			document := b.createDocument(job.meta, job.path, batchSlugs, documentsSeen)
+			document := b.createDocument(job, batchSlugs, documentsSeen)
 			batchSlugs[document.Slug] = struct{}{}
 			languages = addLanguage(job.meta.Language, languages)
 			document.AddedOn = time.Time{}
@@ -286,14 +332,17 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 				log.Printf("Error indexing file %s: %s\n", job.path, err)
 				continue
 			}
+			indexedDocuments = append(indexedDocuments, document)
 		}
 
 		b.documentsMu.Lock()
 		err = b.documentsIdx.Batch(batch)
 		b.documentsMu.Unlock()
 		if err != nil {
-			b.endIndexing()
 			return err
+		}
+		for _, document := range indexedDocuments {
+			b.lastIndexed.Store(document.ID, indexedFileState{document: document})
 		}
 	}
 
@@ -311,16 +360,13 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 	err = b.documentsIdx.Batch(internalBatch)
 	b.documentsMu.Unlock()
 	if err != nil {
-		b.endIndexing()
 		return err
 	}
 
 	if err := b.RebuildAuthorsFromDocuments(batchSize); err != nil {
-		b.endIndexing()
 		return err
 	}
 
-	b.endIndexing()
 	return nil
 }
 
@@ -392,7 +438,7 @@ type metadataJobResult struct {
 	err  error
 }
 
-// metadataJobResultFor extracts metadata (only) for a single path, shared by
+// metadataJobResultFor extracts metadata, shared by
 // readMetadataForPaths' sequential and worker-pool branches. TextRank
 // analysis, and for EPUBs the Words count, are deliberately not run here -
 // see AddLibrary, EnrichTextRankKeywords and rankDocument.
@@ -400,6 +446,33 @@ func (b *BleveIndexer) metadataJobResultFor(path string) metadataJobResult {
 	ext := strings.ToLower(filepath.Ext(path))
 	meta, err := b.reader[ext].Metadata(path)
 	return metadataJobResult{path: path, meta: meta, err: err}
+}
+
+func (b *BleveIndexer) fileHash(path string) (string, error) {
+	file, err := b.fs.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	before, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+	hash := sha256.New()
+	size, err := io.Copy(hash, file)
+	if err != nil {
+		return "", err
+	}
+	after, err := b.fs.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	// This detects observable concurrent writes, not all content changes.
+	// Downloads independently hash their bytes rather than trusting this snapshot.
+	if size != after.Size() || before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) {
+		return "", fmt.Errorf("file changed while hashing")
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 func (b *BleveIndexer) readMetadataForPaths(paths []string, workers int) []metadataJobResult {
@@ -424,9 +497,10 @@ func addLanguage(lang string, languages []string) []string {
 	return languages
 }
 
-func (b *BleveIndexer) createDocument(meta metadata.Metadata, fullPath string, batchSlugs map[string]struct{}, documentsSeen map[string]Document) Document {
+func (b *BleveIndexer) createDocument(job metadataJobResult, batchSlugs map[string]struct{}, documentsSeen map[string]Document) Document {
+	meta := job.meta
 	document := Document{
-		ID:                b.id(fullPath),
+		ID:                b.id(job.path),
 		Metadata:          meta,
 		Slug:              slug.Make(meta.Title),
 		AuthorsSlugs:      make([]string, len(meta.Authors)),

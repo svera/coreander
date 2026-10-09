@@ -13,6 +13,9 @@ func (d *Controller) Delete(c fiber.Ctx) error {
 	slug := c.Params("slug")
 
 	if err := d.idx.DeleteDocument(slug); err != nil {
+		if errors.Is(err, index.ErrLibraryIndexing) {
+			return fiber.NewError(fiber.StatusServiceUnavailable, "Library indexing is running. Please try deleting again later.")
+		}
 		if errors.Is(err, index.ErrDocumentNotFound) {
 			return fiber.ErrNotFound
 		}

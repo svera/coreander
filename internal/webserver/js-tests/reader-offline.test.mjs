@@ -7,7 +7,8 @@ const workerSource = await readFile(new URL('../embedded/js/reader-service-worke
 const syncSource = await readFile(new URL('../embedded/js/reader-sync.js', import.meta.url), 'utf8')
 const { ReaderSync } = await import(`data:text/javascript;base64,${Buffer.from(syncSource).toString('base64')}`)
 const offlineSource = await readFile(new URL('../embedded/js/reader-offline.js', import.meta.url), 'utf8')
-const { saveOfflineReader } = await import(`data:text/javascript;base64,${Buffer.from(offlineSource).toString('base64')}`)
+const readerSource = await readFile(new URL('../embedded/js/reader.js', import.meta.url), 'utf8')
+const { saveOfflineReader, watchOfflineReader } = await import(`data:text/javascript;base64,${Buffer.from(offlineSource).toString('base64')}`)
 
 function browserGlobals(t, values) {
     for (const [name, value] of Object.entries(values)) {
@@ -18,6 +19,12 @@ function browserGlobals(t, values) {
         })
         Object.defineProperty(globalThis, name, { value, configurable: true, writable: true })
     }
+}
+
+function deferred() {
+    let resolve, reject
+    const promise = new Promise((res, rej) => { resolve = res; reject = rej })
+    return { promise, resolve, reject }
 }
 
 test('the first loaded document saves its version signal with the complete blob', async t => {
@@ -73,6 +80,7 @@ function setup() {
     const origin = 'https://books.example.com'
     const handlers = new Map()
     const stores = new Map()
+    let matchCache = async response => response
     const cache = name => {
         if (!stores.has(name)) stores.set(name, new Map())
         const store = stores.get(name)
@@ -86,7 +94,7 @@ function setup() {
                 const target = key(request)
                 for (const [url, response] of store) {
                     if (url === target || (options?.ignoreSearch &&
-                        new URL(url).pathname === new URL(target).pathname)) return response.clone()
+                        new URL(url).pathname === new URL(target).pathname)) return matchCache(response.clone())
                 }
             },
             keys: async () => [...store.keys()].map(url => new Request(url)),
@@ -95,6 +103,14 @@ function setup() {
     }
     let network = async () => new Response('online')
     let claims = 0
+    const background = []
+    const messages = []
+    const errors = []
+    const clients = [
+        { url: `${origin}/documents/book/read?l=es`, postMessage: message => messages.push(message) },
+        { url: `${origin}/documents/another/read`, postMessage: () => assert.fail('Notified an unrelated reader') },
+    ]
+    let matchClients = async () => clients
     vm.runInNewContext(workerSource.replace('__READER_CONFIG__', JSON.stringify({
         assets: ['/js/reader.js', '/css/reader.css'], assetVersion: 'test',
     })), {
@@ -102,20 +118,26 @@ function setup() {
             location: { origin },
             addEventListener: (name, handler) => handlers.set(name, handler),
             skipWaiting: async () => {},
-            clients: { claim: async () => { claims++ } },
+            clients: { claim: async () => { claims++ }, matchAll: () => matchClients() },
         },
         caches: {
             open: async name => cache(name),
             keys: async () => [...stores.keys()],
             delete: async name => stores.delete(name),
         },
-        URL, Request, Headers, console,
+        URL, Request, Response, Headers,
+        console: { error: (...args) => errors.push(args) },
         fetch: request => network(request),
     })
     return {
-        cache, stores,
+        cache, stores, messages, errors,
         get claims() { return claims },
         network: callback => { network = callback },
+        matchClients: callback => { matchClients = callback },
+        matchCache: callback => { matchCache = callback },
+        background: async () => {
+            while (background.length) await Promise.all(background.splice(0))
+        },
         lifecycle: async name => {
             let work
             handlers.get(name)({ waitUntil: promise => { work = promise } })
@@ -126,6 +148,7 @@ function setup() {
             handlers.get('fetch')({
                 request: new Request(new URL(path, origin), options),
                 respondWith: promise => { response = promise },
+                waitUntil: promise => background.push(promise),
             })
             return response
         },
@@ -176,6 +199,8 @@ test('saved documents are preferred while reader pages still check the server', 
         return new Response(null, { status: 304 })
     })
     assert.equal(await (await worker.request('/documents/book/download')).text(), 'old book')
+    await worker.background()
+    assert.equal(worker.messages.length, 0)
 
     worker.network(async () => new Response('current page'))
     assert.equal(await (await worker.request('/documents/book/read')).text(), 'current page')
@@ -197,11 +222,243 @@ test('changed online document version refreshes cache while offline uses cached 
         assert.equal(request.headers.get('If-None-Match'), '"book-v1"')
         return new Response('replacement book', { headers: { ETag: '"book-v2"' } })
     })
-    assert.equal(await (await worker.request('/documents/book/download')).text(), 'replacement book')
+    const response = await worker.request('/documents/book/download')
+    assert.equal(await response.text(), 'old book')
+    assert.equal(response.headers.get('X-Coreander-Cached'), 'true')
+    await worker.background()
     assert.equal((await cache.match('/documents/book/download')).headers.get('ETag'), '"book-v2"')
+    assert.equal(worker.messages.length, 1)
+    assert.equal(worker.messages[0].type, 'reader-document-updated')
+    assert.equal(worker.messages[0].path, '/documents/book/download')
+    assert.equal(worker.messages[0].etag, '"book-v2"')
 
     worker.network(async () => { throw new TypeError('offline') })
     assert.equal(await (await worker.request('/documents/book/download')).text(), 'replacement book')
+    await worker.background()
+    assert.equal(worker.messages.length, 1)
+})
+
+test('a cached download does not wait for background validation', async () => {
+    const worker = setup()
+    const cache = worker.cache('coreander-reader-documents')
+    await cache.put('/documents/book/download', new Response('saved book', { headers: { ETag: '"v1"' } }))
+    const validation = deferred()
+    worker.network(request => {
+        assert.equal(request.headers.get('If-None-Match'), '"v1"')
+        assert.equal(request.cache, 'no-cache')
+        return validation.promise
+    })
+    const response = await worker.request('/documents/book/download')
+    assert.equal(await response.text(), 'saved book')
+    assert.equal(worker.messages.length, 0)
+    validation.resolve(new Response(null, { status: 304 }))
+    await worker.background()
+    assert.equal(worker.messages.length, 0)
+})
+
+test('uncached downloads use the server and cache the complete response', async () => {
+    const worker = setup()
+    worker.network(async () => new Response('first book', { headers: { ETag: '"v1"' } }))
+    const response = await worker.request('/documents/book/download')
+    assert.equal(await response.text(), 'first book')
+    assert.equal(response.headers.get('X-Coreander-Cached'), null)
+    assert.equal(await (await worker.cache('coreander-reader-documents').match('/documents/book/download')).text(), 'first book')
+    assert.equal(worker.messages.length, 0)
+})
+
+test('background access denial or deletion clears offline copies and notifies the reader', async () => {
+    for (const status of [401, 403, 404]) {
+        const worker = setup()
+        const cache = worker.cache('coreander-reader-documents')
+        await cache.put('/documents/book/download', new Response('old book'))
+        await cache.put('/documents/book/read', new Response('old page'))
+        worker.network(async () => new Response('unavailable', { status }))
+        assert.equal(await (await worker.request('/documents/book/download')).text(), 'old book')
+        await worker.background()
+        assert.equal(await cache.match('/documents/book/download'), undefined)
+        assert.equal(await cache.match('/documents/book/read'), undefined)
+        assert.equal(worker.messages[0].type, 'reader-document-unavailable')
+    }
+})
+
+test('failed cache updates do not offer a reload of a stale copy', async () => {
+    const worker = setup()
+    const cache = worker.cache('coreander-reader-documents')
+    await cache.put('/documents/book/download', new Response('old book', { headers: { ETag: '"v1"' } }))
+    // Simulate quota exhaustion by returning a response whose clone fails.
+    worker.network(async () => {
+        const response = new Response('new book', { headers: { ETag: '"v2"' } })
+        response.clone = () => { throw new Error('Storage quota exceeded') }
+        return response
+    })
+    assert.equal(await (await worker.request('/documents/book/download')).text(), 'old book')
+    await worker.background()
+    assert.equal(worker.messages.length, 0)
+    assert.equal(worker.errors.length, 1)
+    assert.equal((await cache.match('/documents/book/download')).headers.get('ETag'), '"v1"')
+})
+
+test('server failures and redirects preserve the cache without offering a reload', async () => {
+    for (const redirected of [false, true]) {
+        const worker = setup()
+        const cache = worker.cache('coreander-reader-documents')
+        await cache.put('/documents/book/download', new Response('old book'))
+        worker.network(async () => {
+            const response = new Response('not a document', { status: redirected ? 200 : 500 })
+            Object.defineProperty(response, 'redirected', { value: redirected })
+            return response
+        })
+        assert.equal(await (await worker.request('/documents/book/download')).text(), 'old book')
+        await worker.background()
+        assert.equal(await (await cache.match('/documents/book/download')).text(), 'old book')
+        assert.equal(worker.messages.length, 0)
+        assert.equal(worker.errors.length, 1)
+    }
+})
+
+test('reader loading preserves refreshed caches and buffers early update notifications', async () => {
+    for (const cached of [false, true]) {
+        for (const change of [null, 'reader-document-updated', 'reader-document-unavailable']) {
+            let onChange
+            let saved = 0
+            const messages = []
+            const opening = deferred()
+            const context = {
+                document: { getElementById: () => ({ value: '/documents/book/download' }) },
+                window: { location: { href: 'https://books.example.com/documents/book/read' } },
+                watchOfflineReader: (url, callback) => { onChange = callback },
+                fetch: async () => {
+                    if (change) onChange({ type: change, etag: change === 'reader-document-updated' ? '"v2"' : undefined })
+                    return new Response('old book', { headers: {
+                        ETag: '"v1"', ...(cached ? { 'X-Coreander-Cached': 'true' } : {}),
+                    } })
+                },
+                open: async () => {
+                    context.reader = {
+                        showDocumentChange: message => messages.push(message),
+                        saveOffline: async () => { saved++ },
+                    }
+                    opening.resolve()
+                },
+                File, URL, console,
+            }
+            vm.runInNewContext(readerSource.slice(readerSource.indexOf("const url = document.getElementById('url').value")), context)
+            await opening.promise
+            // Let the reader's post-open continuation finish.
+            await new Promise(resolve => setImmediate(resolve))
+            assert.equal(saved, !cached && !change ? 1 : 0)
+            assert.equal(messages.length, change ? 1 : 0)
+            if (change) assert.equal(messages[0].type, change)
+        }
+    }
+})
+
+test('session resets discard pending responses and background cache fallbacks', async t => {
+    for (const method of ['POST', 'DELETE']) {
+        for (const endpoint of ['read', 'download']) {
+            for (const outcome of [304, 200, 'failure']) {
+                await t.test(`${method}/${endpoint}/${outcome}`, async () => {
+                    const worker = setup()
+                    const path = `/documents/book/${endpoint}`
+                    await worker.cache('coreander-reader-documents').put(path,
+                        new Response('private content', { headers: { ETag: '"v1"' } }))
+                    const network = deferred()
+                    const started = deferred()
+                    worker.network(request => {
+                        if (request.method === method) return Promise.resolve(new Response('session reset'))
+                        started.resolve()
+                        return network.promise
+                    })
+                    const pending = worker.request(path)
+                    const discarded = endpoint === 'read'
+                        ? assert.rejects(pending, /session changed/)
+                        : pending.then(async response => assert.equal(await response.text(), 'private content'))
+                    await started.promise
+                    if (endpoint === 'download') await discarded
+                    await worker.request('/sessions', { method })
+                    if (outcome === 'failure') network.reject(new TypeError('offline'))
+                    else network.resolve(new Response(outcome === 304 ? null : 'new content', {
+                        status: outcome, headers: { ETag: '"v2"' },
+                    }))
+                    await discarded
+                    await worker.background()
+                    assert.equal(worker.stores.has('coreander-reader-documents'), false)
+                    assert.equal(worker.messages.length, 0)
+                    if (endpoint === 'download') {
+                        assert.equal(worker.errors.length, 1)
+                        assert.match(String(worker.errors[0][1]), /session changed/)
+                    }
+                })
+            }
+        }
+    }
+})
+
+test('session resets during cache lookup prevent immediate cached document delivery', async () => {
+    const worker = setup()
+    await worker.cache('coreander-reader-documents').put('/documents/book/download', new Response('private book'))
+    const lookup = deferred()
+    const started = deferred()
+    worker.matchCache(response => {
+        started.resolve(response)
+        return lookup.promise
+    })
+    const pending = worker.request('/documents/book/download')
+    const discarded = assert.rejects(pending, /session changed/)
+    const saved = await started.promise
+    await worker.request('/sessions', { method: 'DELETE' })
+    lookup.resolve(saved)
+    await discarded
+    await worker.background()
+    assert.equal(worker.stores.has('coreander-reader-documents'), false)
+    assert.equal(worker.messages.length, 0)
+})
+
+test('successful revalidation updates the cache when the reader navigates away or closes before notification', async () => {
+    for (const closed of [false, true]) {
+        const worker = setup()
+        const cache = worker.cache('coreander-reader-documents')
+        await cache.put('/documents/book/download', new Response('old book', { headers: { ETag: '"v1"' } }))
+        const clients = deferred()
+        const lookup = deferred()
+        worker.matchClients(() => {
+            lookup.resolve()
+            return clients.promise
+        })
+        worker.network(async () => new Response('new book', { headers: { ETag: '"v2"' } }))
+        assert.equal(await (await worker.request('/documents/book/download')).text(), 'old book')
+        await lookup.promise
+        // The download succeeded, but the original reader is no longer present.
+        assert.equal(await (await cache.match('/documents/book/download')).text(), 'new book')
+        clients.resolve(closed ? [] : [{
+            url: 'https://books.example.com/documents/another/read',
+            postMessage: () => assert.fail('Notified a client that navigated away'),
+        }])
+        await worker.background()
+        assert.equal(worker.messages.length, 0)
+        assert.equal(worker.errors.length, 0)
+        const updated = await cache.match('/documents/book/download')
+        assert.equal(updated.headers.get('ETag'), '"v2"')
+        assert.equal(await updated.text(), 'new book')
+    }
+})
+
+test('reader notifications are scoped to the document and active worker', t => {
+    const serviceWorker = Object.assign(new EventTarget(), { controller: {} })
+    browserGlobals(t, {
+        window: { location: { href: 'https://books.example.com/documents/book/read' } },
+        navigator: { serviceWorker },
+    })
+    const messages = []
+    watchOfflineReader('/documents/book/download', message => messages.push(message))
+    const send = (data, source = serviceWorker.controller) =>
+        serviceWorker.dispatchEvent(Object.assign(new Event('message'), { data, source }))
+    send({ type: 'reader-document-updated', path: '/documents/book/download', etag: '"v2"' })
+    send({ type: 'reader-document-unavailable', path: '/documents/book/download' })
+    send({ type: 'reader-document-updated', path: '/documents/another/download' })
+    send({ type: 'unrelated', path: '/documents/book/download' })
+    send({ type: 'reader-document-updated', path: '/documents/book/download' }, {})
+    assert.equal(messages.length, 2)
 })
 
 test('signing in and out clears private offline documents but keeps assets', async () => {
