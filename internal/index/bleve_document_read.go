@@ -1049,9 +1049,6 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		TextRankEnriched:  textRankEnriched,
 	}
 
-	if value, ok := match.Fields["ContentHash"].(string); ok {
-		doc.ContentHash = value
-	}
 	return doc
 }
 

@@ -22,7 +22,9 @@ type hashCountingFs struct {
 }
 
 func (fs *hashCountingFs) Open(name string) (afero.File, error) {
-	fs.opens++
+	if info, err := fs.Fs.Stat(name); err == nil && !info.IsDir() {
+		fs.opens++
+	}
 	return fs.Fs.Open(name)
 }
 
@@ -76,12 +78,9 @@ func TestIndexFileUpdatesHashWithoutMetadataChanges(t *testing.T) {
 		if file.Data != nil || fs.opens != 1 {
 			t.Fatal("conditional download did not read and validate the current content")
 		}
-		doc, err := idx.Document(slug)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if doc.ContentHash != fmt.Sprintf("%x", sha256.Sum256([]byte(content))) {
-			t.Fatal("indexing did not update the stored content hash")
+		state, ok := idx.lastIndexed.Load("book.epub")
+		if !ok || state.(indexedFileState).hash != fmt.Sprintf("%x", sha256.Sum256([]byte(content))) {
+			t.Fatal("indexing did not update the in-memory content hash")
 		}
 	}
 }
@@ -93,18 +92,14 @@ func TestFileHash(t *testing.T) {
 			content     string
 			changeTime  bool
 			conditional bool
-			missingHash bool
 			missingFile bool
-			reindex     bool
 		}{
-			{name: "indexed hash survives enrichment and restart", conditional: true},
+			{name: "conditional read after enrichment and restart", conditional: true},
 			{name: "unconditional read returns bytes"},
 			{name: "same size change", content: "modified content", changeTime: true, conditional: true},
 			{name: "same size and timestamp change", content: "modified content", conditional: true},
 			{name: "size change with unchanged timestamp", content: "longer modified content", conditional: true},
-			{name: "missing hash uses response-only hash", missingHash: true, conditional: true},
 			{name: "missing file rejects cached hash", missingFile: true, conditional: true},
-			{name: "reindex refreshes hash", content: "modified content", changeTime: true, conditional: true, reindex: true},
 		} {
 			t.Run(format+"/"+tc.name, func(t *testing.T) {
 				indexPath := filepath.Join(t.TempDir(), "documents")
@@ -131,18 +126,19 @@ func TestFileHash(t *testing.T) {
 				}
 
 				writeFile()
+				originalETag := fmt.Sprintf(`"%x"`, sha256.Sum256(data))
 				idx := NewBleve(documents, authors, fs, "lib",
 					map[string]metadata.Reader{"." + format: hashTestReader{}}, Config{})
 				t.Cleanup(func() { _ = idx.Close() })
 				if err := idx.AddLibrary(1, true, 1); err != nil {
 					t.Fatal(err)
 				}
+				if fs.opens != 0 {
+					t.Fatal("bulk indexing read file contents beyond metadata extraction")
+				}
 				doc, err := idx.Document("book")
 				if err != nil {
 					t.Fatal(err)
-				}
-				if doc.ContentHash != fmt.Sprintf("%x", sha256.Sum256(data)) {
-					t.Fatalf("indexed hash fields = %#v", doc)
 				}
 				idx.enrichTextRankAndReindex(doc)
 				if err := idx.Close(); err != nil {
@@ -165,18 +161,6 @@ func TestFileHash(t *testing.T) {
 					}
 					writeFile()
 				}
-				if tc.reindex {
-					idx.reader = map[string]metadata.Reader{"." + format: hashTestReader{}}
-					if err := idx.AddLibrary(1, true, 1); err != nil {
-						t.Fatal(err)
-					}
-				}
-				if tc.missingHash {
-					doc.ContentHash = ""
-					if err := documents.Index(doc.ID, doc); err != nil {
-						t.Fatal(err)
-					}
-				}
 				if tc.missingFile {
 					if err := fs.Remove(path); err != nil {
 						t.Fatal(err)
@@ -189,7 +173,7 @@ func TestFileHash(t *testing.T) {
 				fs.opens = 0
 				conditional := ""
 				if tc.conditional {
-					conditional = `"` + before.ContentHash + `"`
+					conditional = originalETag
 				}
 				file, err := idx.File("book", conditional)
 				if tc.missingFile {
@@ -204,7 +188,7 @@ func TestFileHash(t *testing.T) {
 				if want := fmt.Sprintf(`"%x"`, sha256.Sum256(data)); file.ETag != want {
 					t.Errorf("ETag = %q, want %q", file.ETag, want)
 				}
-				unchanged := tc.conditional && !tc.missingHash && (tc.content == "" || tc.reindex)
+				unchanged := tc.conditional && tc.content == ""
 				if unchanged {
 					if file.Data != nil || fs.opens != 1 {
 						t.Error("unchanged validation did not read the file and omit the response body")

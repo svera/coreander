@@ -27,26 +27,3 @@ func TestCreateDocumentsMappingUsesBM25Scoring(t *testing.T) {
 		t.Errorf("expected ScoringModel to be %q, got %q", index.BM25Scoring, m.ScoringModel)
 	}
 }
-
-func TestContentHashIsStoredOnly(t *testing.T) {
-	m, ok := CreateDocumentsMapping().(*mapping.IndexMappingImpl)
-	if !ok {
-		t.Fatal("expected *mapping.IndexMappingImpl")
-	}
-	documents := map[string]*mapping.DocumentMapping{"default": m.DefaultMapping}
-	for language, document := range m.TypeMapping {
-		documents[language] = document
-	}
-	for name, document := range documents {
-		t.Run(name, func(t *testing.T) {
-			property := document.Properties["ContentHash"]
-			if property == nil || len(property.Fields) != 1 {
-				t.Fatal("ContentHash must have one explicit field mapping")
-			}
-			field := property.Fields[0]
-			if !field.Store || field.Index || field.IncludeInAll || field.DocValues || field.IncludeTermVectors {
-				t.Errorf("ContentHash is not storage-only: %+v", field)
-			}
-		})
-	}
-}

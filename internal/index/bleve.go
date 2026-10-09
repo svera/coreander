@@ -30,7 +30,7 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v14"
+const DocumentVersion = "v13"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
@@ -217,7 +217,7 @@ type BleveIndexer struct {
 	// indexFile calls for the same file (upload vs. file watcher reacting to
 	// the same write).
 	fileLocks sync.Map
-	// lastIndexed holds the Document most recently written by indexFile per
+	// lastIndexed holds the document and in-memory hash most recently written by indexFile per
 	// document ID, letting a serialized duplicate call detect unchanged
 	// metadata/content and skip duplicate indexing instead of picking a colliding slug.
 	lastIndexed sync.Map
@@ -380,11 +380,6 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	numericFieldMapping := bleve.NewNumericFieldMapping()
 	dateTimeFieldMapping := bleve.NewDateTimeFieldMapping()
 	booleanFieldMapping := bleve.NewBooleanFieldMapping()
-	storedText := bleve.NewKeywordFieldMapping()
-	storedText.Index = false
-	storedText.IncludeInAll = false
-	storedText.DocValues = false
-	storedText.IncludeTermVectors = false
 
 	for lang := range noStopWordsFilters {
 		textFieldMapping := bleve.NewTextFieldMapping()
@@ -437,7 +432,6 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrations", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("ContentHash", storedText)
 	}
 
 	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
@@ -462,7 +456,6 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Illustrations", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("ContentHash", storedText)
 
 	return indexMapping
 }

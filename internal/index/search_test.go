@@ -1,8 +1,6 @@
 package index_test
 
 import (
-	"crypto/sha256"
-	"fmt"
 	"image"
 	"path/filepath"
 	"reflect"
@@ -74,10 +72,6 @@ func TestIndexAndSearch(t *testing.T) {
 			res, err := idx.Search(tcase.search, 1, 10)
 			if err != nil {
 				t.Errorf("Error searching: %s", err.Error())
-			}
-			for i := range tcase.expectedResult.Hits() {
-				expected := &tcase.expectedResult.Hits()[i]
-				expected.ContentHash = fmt.Sprintf("%x", sha256.Sum256(nil))
 			}
 			if !reflect.DeepEqual(res, tcase.expectedResult) {
 				t.Errorf("Wrong result returned, expected\n %#v,\n got\n %#v\n", tcase.expectedResult, res)

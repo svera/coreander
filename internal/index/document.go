@@ -41,7 +41,6 @@ type Document struct {
 	SeriesSlug        string
 	SubjectsSlugs     []string
 	AddedOn           time.Time
-	ContentHash       string
 	// TextRankPhrases holds the word pairs (two-word phrases, e.g. "robert
 	// oppenheimer") extracted by TextRank analysis at indexing time (EPUB
 	// only), one phrase per element, ordered by descending TextRank weight
