@@ -143,6 +143,7 @@ func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
 			if err != nil {
 				return "", err
 			}
+			document.Metadata = job.meta
 			document.TextRankEnriched = !b.supportsTextRank(file)
 			b.documentsMu.Lock()
 			err = b.documentsIdx.Index(id, document)
@@ -150,7 +151,7 @@ func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
 			if err != nil {
 				return "", fmt.Errorf("error updating indexed file %s: %w", file, err)
 			}
-			b.lastIndexed.Store(id, indexedFileState{document: existing.document, hash: hash})
+			b.lastIndexed.Store(id, indexedFileState{document: document, hash: hash})
 			if !document.TextRankEnriched {
 				b.scheduleTextRankEnrichment(document)
 			}

@@ -141,7 +141,15 @@ func TestIndexFileUpdatesHashWithoutMetadataChanges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, content := range []string{"original content", "modified content"} {
+	doc, err := idx.Document(slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc.TextRankWords = []string{"enriched"}
+	if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
+		t.Fatal(err)
+	}
+	for _, content := range []string{"original content", "modified content", "modified content"} {
 		if err := afero.WriteFile(fs, "lib/book.epub", []byte(content), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -167,6 +175,11 @@ func TestIndexFileUpdatesHashWithoutMetadataChanges(t *testing.T) {
 		state, ok := idx.lastIndexed.Load("book.epub")
 		if !ok || state.(indexedFileState).hash != fmt.Sprintf("%x", sha256.Sum256([]byte(content))) {
 			t.Fatal("indexing did not update the in-memory content hash")
+		}
+		if content == "modified content" {
+			if !reflect.DeepEqual(state.(indexedFileState).document.TextRankWords, doc.TextRankWords) {
+				t.Fatal("in-memory document state does not reflect the reindexed document")
+			}
 		}
 	}
 }
