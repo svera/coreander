@@ -33,17 +33,31 @@ self.addEventListener('activate', event => {
     }))
 })
 
+function conditionalRequest(request, etag) {
+    if (!etag) return request
+    const headers = new Headers(request.headers)
+    headers.set('If-None-Match', etag)
+    return new Request(request, { headers, cache: 'no-cache' })
+}
+
+async function refreshDocumentCache(request, cache, saved, response, generation) {
+    try {
+        await cache.put(request, response.clone())
+    } catch (error) {
+        console.error('Could not update cached document:', error)
+        checkSession(generation)
+        return
+    }
+    const etag = response.headers.get('ETag')
+    if (saved && etag && etag !== saved.headers.get('ETag')) {
+        await notifyReader(request, generation, 'reader-document-updated', etag)
+    }
+}
+
 async function readerResponse(request, cache, saved, isDownload, generation) {
     let response
     try {
-        let networkRequest = request
-        const etag = isDownload && saved?.headers.get('ETag')
-        if (etag) {
-            const headers = new Headers(request.headers)
-            headers.set('If-None-Match', etag)
-            networkRequest = new Request(request, { headers, cache: 'no-cache' })
-        }
-        response = await fetch(networkRequest)
+        response = await fetch(conditionalRequest(request, isDownload && saved?.headers.get('ETag')))
     } catch (error) {
         checkSession(generation)
         if (saved) return saved
@@ -52,17 +66,7 @@ async function readerResponse(request, cache, saved, isDownload, generation) {
     checkSession(generation)
     if (response.status === 304 && saved) return saved
     if (response.ok && isDownload && !response.redirected) {
-        try {
-            await cache.put(request, response.clone())
-        } catch (error) {
-            console.error('Could not update cached document:', error)
-            checkSession(generation)
-            return response
-        }
-        const etag = response.headers.get('ETag')
-        if (saved && etag && etag !== saved.headers.get('ETag')) {
-            await notifyReader(request, generation, 'reader-document-updated', etag)
-        }
+        await refreshDocumentCache(request, cache, saved, response, generation)
     }
     // Never substitute a saved document for an explicit access denial or deletion.
     if ([401, 403, 404].includes(response.status)) {
@@ -109,15 +113,20 @@ async function documentResponse(event) {
     return new Response(saved.body, { status: saved.status, statusText: saved.statusText, headers })
 }
 
+async function resetSession(request) {
+    // Invalidate pending requests before changing accounts, even on failed sign-ins.
+    sessionGeneration++
+    await caches.delete(documentCacheName)
+    return fetch(request)
+}
+
 self.addEventListener('fetch', event => {
     const { request } = event
     const url = new URL(request.url)
     if (url.origin !== self.location.origin) return
 
-    // Clear private offline copies before changing accounts, including failed sign-ins.
     if (url.pathname === '/sessions' && ['POST', 'DELETE'].includes(request.method)) {
-        sessionGeneration++
-        event.respondWith(caches.delete(documentCacheName).then(() => fetch(request)))
+        event.respondWith(resetSession(request))
         return
     }
     if (request.method !== 'GET') return
