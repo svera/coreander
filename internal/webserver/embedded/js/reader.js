@@ -939,6 +939,12 @@ const url = document.getElementById('url').value
 let documentETag
 let documentCached = false
 let documentChange
+
+function shouldSaveOfflineCopy() {
+    // The worker owns cached copies and any updates received while opening.
+    return !documentCached && !documentChange
+}
+
 watchOfflineReader(url, message => {
     documentChange = message
     if (globalThis.reader && message.etag !== documentETag) {
@@ -976,7 +982,7 @@ if (url) fetch(url)
         if (documentChange && documentChange.etag !== documentETag) {
             globalThis.reader.showDocumentChange(documentChange)
         }
-        if (!documentCached && !documentChange) {
+        if (shouldSaveOfflineCopy()) {
             await globalThis.reader.saveOffline(url, blob, documentETag)
         }
     })
