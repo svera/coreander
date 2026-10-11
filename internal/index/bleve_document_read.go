@@ -956,7 +956,9 @@ func (b *BleveIndexer) SearchBySeries(searchFields SearchFields, page, resultsPe
 	aq := bleve.NewTermQuery(searchFields.Keywords)
 	aq.SetField("SeriesSlug")
 
-	return b.runPaginatedQuery(aq, page, resultsPerPage, searchFields.SortBy)
+	filtersQuery := bleve.NewConjunctionQuery(aq)
+	b.addFilters(searchFields, filtersQuery)
+	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 }
 
 func (b *BleveIndexer) LatestDocs(limit int) ([]Document, error) {

@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/webserver/controller/search"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 	"github.com/svera/coreander/v5/internal/webserver/view"
 )
@@ -33,18 +34,35 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		page = 1
 	}
 
-	searchFields := index.SearchFields{
-		Keywords: seriesSlug,
-		SortBy:   a.parseSortBy(c),
+	searchFields, err := search.ParseDocumentSearchQuery(c, a.config.WordsPerMinute)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrBadRequest
 	}
+	searchFields.Keywords = seriesSlug
+	searchFields.SortBy = a.parseSortBy(c)
 
 	if documentResults, err = a.idx.SearchBySeries(searchFields, page, model.ResultsPerPage); err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	if documentResults.TotalHits() == 0 {
-		return fiber.ErrNotFound
+	title := ""
+	if len(documentResults.Hits()) > 0 {
+		title = documentResults.Hits()[0].Series
+	} else {
+		seriesResults, err := a.idx.SearchBySeries(index.SearchFields{
+			Keywords: seriesSlug,
+			SortBy:   a.parseSortBy(c),
+		}, 1, 1)
+		if err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
+		if seriesResults.TotalHits() == 0 {
+			return fiber.ErrNotFound
+		}
+		title = seriesResults.Hits()[0].Series
 	}
 
 	searchResults := model.AugmentedDocumentsFromDocuments(documentResults)
@@ -53,17 +71,18 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
 
-	title := documentResults.Hits()[0].Series
-
 	templateVars := fiber.Map{
-		"Results":        searchResults,
-		"Paginator":      view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":          title,
-		"EmailFrom":      a.sender.From(),
-		"WordsPerMinute": a.config.WordsPerMinute,
-		"URL":            view.URL(c),
-		"SortURL":        view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":         c.Query("sort-by"),
+		"SeriesTitle":          title,
+		"DocumentSearchFields": searchFields,
+		"DocumentsOnly":        true,
+		"Results":              searchResults,
+		"Paginator":            view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":                title,
+		"EmailFrom":            a.sender.From(),
+		"WordsPerMinute":       a.config.WordsPerMinute,
+		"URL":                  view.URL(c),
+		"SortURL":              view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":               c.Query("sort-by"),
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
@@ -78,7 +97,7 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 	}
 
 	if c.Get("hx-request") == "true" {
-		if err = c.Render("partials/docs-list-content", templateVars); err != nil {
+		if err = c.Render("partials/docs-list-fragments", templateVars); err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
