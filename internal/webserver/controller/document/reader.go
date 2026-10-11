@@ -1,9 +1,7 @@
 package document
 
 import (
-	"fmt"
 	"log"
-	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v5/internal/webserver/model"
@@ -33,15 +31,12 @@ func (d *Controller) Reader(c fiber.Ctx) error {
 		}
 	}
 
-	title := document.Title
-	authors := strings.Join(document.Authors, ", ")
-	if authors != "" {
-		title = fmt.Sprintf("%s - %s", authors, document.Title)
-	}
+	title, authors := documentPageTitle(document)
 	return c.Render("document/reader", fiber.Map{
-		"Title":       title,
-		"Author":      strings.Join(document.Authors, ", "),
-		"Description": document.Description,
-		"Slug":        document.Slug,
+		"Title":               title,
+		"Author":              authors,
+		"Description":         document.Description,
+		"Slug":                document.Slug,
+		"SupportsAnnotations": document.SupportsAnnotations(),
 	})
 }

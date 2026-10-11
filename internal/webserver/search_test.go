@@ -7,9 +7,93 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v3"
+	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
+
+func TestLanguageFilterVisibility(t *testing.T) {
+	cases := []struct {
+		name      string
+		files     []string
+		languages []string
+	}{
+		{name: "no languages"},
+		{
+			name:      "one language",
+			files:     []string{"testdata/library/metadata.epub"},
+			languages: []string{"en"},
+		},
+		{
+			name:      "multiple languages",
+			files:     []string{"testdata/library/metadata.epub", "testdata/library/quijote.epub"},
+			languages: []string{"en", "es"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var appFS afero.Fs = afero.NewMemMapFs()
+			if len(tc.files) > 0 {
+				appFS = loadFilesInMemoryFs(tc.files)
+			}
+			db := infrastructure.Connect(":memory:", 250)
+			app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS, webserver.Config{})
+
+			for _, path := range []string{"/", "/search?type=documents&language=en"} {
+				t.Run(path, func(t *testing.T) {
+					req, err := http.NewRequest(http.MethodGet, path, nil)
+					if err != nil {
+						t.Fatal(err)
+					}
+					response, err := app.Test(req)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer response.Body.Close()
+					if response.StatusCode != http.StatusOK {
+						t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+					}
+					doc, err := goquery.NewDocumentFromReader(response.Body)
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					filters := doc.Find(`select[name="language"]`)
+					if len(tc.languages) <= 1 {
+						if filters.Length() != 0 {
+							t.Error("Expected no language dropdown with fewer than two languages")
+						}
+						return
+					}
+
+					selectors := []string{"#language"}
+					if path != "/" {
+						selectors = append(selectors, "#sidebar-language")
+					}
+					for _, selector := range selectors {
+						filter := doc.Find(selector)
+						if filter.Length() != 1 {
+							t.Errorf("Expected language dropdown %s", selector)
+							continue
+						}
+						if got := filter.Find("option").Length(); got != len(tc.languages)+1 {
+							t.Errorf("Expected all-languages option and %d languages, got %d options", len(tc.languages), got)
+						}
+						for _, language := range tc.languages {
+							if filter.Find(`option[value="`+language+`"]`).Length() != 1 {
+								t.Errorf("Expected %s option in %s", language, selector)
+							}
+						}
+					}
+					if path != "/" && doc.Find(`#sidebar-language option[value="en"][selected]`).Length() != 1 {
+						t.Error("Expected selected language to be preserved")
+					}
+				})
+			}
+		})
+	}
+}
 
 func TestUnifiedSearch(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)

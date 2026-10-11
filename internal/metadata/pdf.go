@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/hhrutter/tiff"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
@@ -115,23 +114,10 @@ func normalizePDFDate(creation, modification string) string {
 	return ""
 }
 
-// Cover parses the document looking for a cover image and returns it
+// Cover cannot extract a PDF cover: page 1 may contain text and vector graphics.
+// The web interface renders the complete first page using the bundled PDF.js.
 func (p PdfReader) Cover(documentFullPath string, coverMaxWidth int) (image.Image, error) {
-	f, err := readFile(p.Fs, documentFullPath)
-	if err != nil {
-		return nil, err
-	}
-	pr, err := decodePDF(bytes.NewBuffer(f))
-	if err != nil {
-		return nil, err
-	}
-
-	src, err := decodeImage(pr)
-	if err != nil {
-		return nil, err
-	}
-
-	return resize(src, coverMaxWidth), nil
+	return nil, fmt.Errorf("PDF cover for %s requires rendering page 1", documentFullPath)
 }
 
 // Illustrations returns the number of distinct embedded images with pixel count >= minMegapixels.
@@ -176,57 +162,4 @@ func (p PdfReader) Illustrations(documentFullPath string, minMegapixels float64)
 		}
 	}
 	return count, nil
-}
-
-func decodePDF(r io.Reader) (io.Reader, error) {
-	conf := model.NewDefaultConfiguration()
-	conf.ValidationMode = model.ValidationRelaxed
-
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx, err := pdfcpu.Read(bytes.NewReader(b), conf)
-	if err != nil {
-		return nil, err
-	}
-	// Ensure page count is set (pdfcpu may leave it 0 when validation is skipped or for some PDFs).
-	if err := ctx.EnsurePageCount(); err != nil {
-		return nil, fmt.Errorf("no image found")
-	}
-	if err := api.OptimizeContext(ctx); err != nil {
-		return nil, err
-	}
-	if ctx.PageCount == 0 {
-		return nil, fmt.Errorf("page count is zero")
-	}
-
-	for p := 1; p <= ctx.PageCount; p++ {
-		imgs, err := pdfcpu.ExtractPageImages(ctx, p, false)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, img := range imgs {
-			if img.Reader != nil {
-				return img, nil
-			}
-		}
-	}
-	return nil, fmt.Errorf("no image found")
-}
-
-func decodeImage(r io.Reader) (image.Image, error) {
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-
-	img, format, err := image.Decode(bytes.NewBuffer(b))
-	if format == "tiff" && err != nil {
-		return tiff.Decode(bytes.NewBuffer(b))
-	}
-
-	return img, err
 }

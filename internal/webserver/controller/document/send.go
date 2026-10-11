@@ -16,7 +16,7 @@ func (d *Controller) Send(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	file, err := d.idx.File(slug)
+	file, err := d.idx.File(slug, "")
 	if errors.Is(err, index.ErrDocumentNotFound) {
 		return fiber.ErrNotFound
 	} else if err != nil {

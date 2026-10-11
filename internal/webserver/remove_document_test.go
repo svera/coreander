@@ -8,11 +8,60 @@ import (
 	"os"
 	"testing"
 
+	"github.com/PuerkitoBio/goquery"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/result"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
+
+func TestDocumentDeleteButtonDuringIndexing(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), defaultTestConfig())
+	t.Cleanup(func() { _ = app.Shutdown() })
+	documents := []model.AugmentedDocument{{Document: index.Document{
+		Slug: "book", ID: "book.epub", Metadata: metadata.Metadata{Title: "Book", Format: "EPUB"},
+	}}}
+	app.Get("/test-delete-button", func(c fiber.Ctx) error {
+		return c.Render("partials/"+c.Query("partial"), fiber.Map{
+			"Session":              model.Session{User: model.User{Role: model.RoleAdmin}},
+			"Results":              result.NewPaginated(10, 1, 1, documents),
+			"Paginator":            fiber.Map{"Pages": []int{}},
+			"IndexingProgressKind": c.Query("phase"),
+		})
+	})
+	for _, partial := range []string{"docs-list-content", "highlights-list"} {
+		for _, phase := range []string{"", "documents", "authors", "textrank", "pruning"} {
+			t.Run(partial+"/"+phase, func(t *testing.T) {
+				response, err := app.Test(mustGetRequest(t, "/test-delete-button?partial="+partial+"&phase="+phase))
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer response.Body.Close()
+				if response.StatusCode != http.StatusOK {
+					t.Fatalf("status = %d", response.StatusCode)
+				}
+				page, err := goquery.NewDocumentFromReader(response.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				button := page.Find("button[data-url='/documents/book']")
+				if button.Length() != 1 || button.Is("[disabled]") != (phase == "documents") {
+					t.Fatalf("incorrect delete button state for phase %q", phase)
+				}
+			})
+		}
+	}
+}
 
 func TestRemoveDocument(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)

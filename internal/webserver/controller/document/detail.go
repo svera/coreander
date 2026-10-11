@@ -3,7 +3,6 @@ package document
 import (
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -41,10 +40,7 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 
-	title := document.Title
-	if len(document.Authors) > 0 {
-		title = fmt.Sprintf("%s - %s", strings.Join(document.Authors, ", "), document.Title)
-	}
+	title, _ := documentPageTitle(document)
 
 	lang, _ := c.Locals("Lang").(string)
 	authorSummaries, illustratorSummaries := d.authorAndIllustratorSummaries(document, lang)

@@ -17,6 +17,29 @@ import (
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
+func TestDocumentSupportsAnnotations(t *testing.T) {
+	tests := []struct {
+		name   string
+		format string
+		want   bool
+	}{
+		{name: "EPUB", format: "EPUB", want: true},
+		{name: "PDF", format: "PDF", want: false},
+		{name: "unknown format", format: "UNKNOWN", want: false},
+		{name: "empty format", format: "", want: false},
+		{name: "lowercase EPUB", format: "epub", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			document := index.Document{Metadata: metadata.Metadata{Format: tt.format}}
+			if got := document.SupportsAnnotations(); got != tt.want {
+				t.Errorf("SupportsAnnotations() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestIndexAndSearch(t *testing.T) {
 	for _, tcase := range testIndexAndSearchCases() {
 		t.Run(tcase.name, func(t *testing.T) {

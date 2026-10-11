@@ -4,61 +4,53 @@ export class ReaderToast {
 
     constructor() {
         this.#toastEl = document.getElementById('reader-toast')
-    }
-
-    #setupCloseButton() {
         if (!this.#toastEl) return
-        
-        const closeBtn = this.#toastEl.querySelector('.toast-close')
-        if (closeBtn && !closeBtn.onclick) {
-            closeBtn.onclick = () => {
-                clearTimeout(this.#autoHideTimeout)
-                this.#toastEl.close()
-            }
+        this.#toastEl.querySelector('.toast-close')?.addEventListener('click', () => this.#hide())
+        const reposition = () => {
+            if (!this.#toastEl.hidden) this.#positionToast()
         }
+        window.addEventListener('resize', reposition)
+        window.visualViewport?.addEventListener('resize', reposition)
+        window.visualViewport?.addEventListener('scroll', reposition)
     }
 
-    show(variant, message) {
+    #positionToast() {
+        const viewport = window.visualViewport
+        const width = viewport?.width ?? document.documentElement.clientWidth
+        const gap = 16
+        this.#toastEl.style.left = `${(viewport?.offsetLeft ?? 0) + gap}px`
+        this.#toastEl.style.top = `${(viewport?.offsetTop ?? 0) + gap}px`
+        this.#toastEl.style.width = `${Math.max(0, width - 2 * gap)}px`
+    }
+
+    #hide() {
+        clearTimeout(this.#autoHideTimeout)
+        this.#toastEl.hidden = true
+    }
+
+    show(variant, message, action = null) {
         if (!this.#toastEl) return
 
         try {
-            // Set up close button on first use
-            this.#setupCloseButton()
-            
-            // Clear any existing auto-hide timeout
-            clearTimeout(this.#autoHideTimeout)
-            
-            // Close if already open to reset animation
-            if (this.#toastEl.open) {
-                this.#toastEl.close()
-            }
-            
-            // Remove all variant classes
+            this.#hide()
             this.#toastEl.classList.remove('toast-warning', 'toast-success', 'toast-info')
-            
-            // Add the appropriate variant class
             this.#toastEl.classList.add(`toast-${variant}`)
-            
-            // Set the message
             const messageEl = this.#toastEl.querySelector('.toast-message')
-            if (messageEl) {
-                messageEl.innerHTML = message
+            if (messageEl) messageEl.innerHTML = message
+            const actionEl = this.#toastEl.querySelector('.toast-action')
+            if (actionEl) {
+                actionEl.hidden = !action
+                actionEl.textContent = action?.label ?? ''
+                actionEl.onclick = action?.onClick ?? null
             }
-            
-            // Show the toast using native dialog API
-            // Use requestAnimationFrame to ensure the close() completes before show()
+
             requestAnimationFrame(() => {
                 try {
-                    this.#toastEl.show()
-                    
-                    // Auto-hide after delay if data-auto-hide is true
-                    const autoHide = this.#toastEl.dataset.autoHide === 'true'
-                    const delay = parseInt(this.#toastEl.dataset.delay) || 5000
-                    
-                    if (autoHide) {
-                        this.#autoHideTimeout = setTimeout(() => {
-                            this.#toastEl.close()
-                        }, delay)
+                    this.#positionToast()
+                    this.#toastEl.hidden = false
+                    if (!action && this.#toastEl.dataset.autoHide === 'true') {
+                        this.#autoHideTimeout = setTimeout(() => this.#hide(),
+                            parseInt(this.#toastEl.dataset.delay) || 5000)
                     }
                 } catch (error) {
                     console.error('Error showing toast:', error)
@@ -69,4 +61,3 @@ export class ReaderToast {
         }
     }
 }
-

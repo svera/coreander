@@ -12,11 +12,19 @@ type Page struct {
 	IsCurrent bool
 }
 
+// EdgePage holds the number and URL of the first or last page, when it isn't part of the set of pages shown
+type EdgePage struct {
+	Number int
+	Link   string
+}
+
 // PagesNavigator contains all pages links, as well as links to the previous and next pages from the current one
 type PagesNavigator struct {
 	Pages        map[int]Page
 	PreviousLink string
 	NextLink     string
+	FirstPage    *EdgePage
+	LastPage     *EdgePage
 }
 
 func Pagination[T any](size int, results result.Paginated[T], params map[string]string) PagesNavigator {
@@ -61,6 +69,20 @@ func Pagination[T any](size int, results result.Paginated[T], params map[string]
 			}
 		}
 		nav.Pages[i] = p
+	}
+	if start > 1 {
+		params["page"] = "1"
+		nav.FirstPage = &EdgePage{
+			Number: 1,
+			Link:   fmt.Sprintf("?%s", ToQueryString(params)),
+		}
+	}
+	if end < results.TotalPages() {
+		params["page"] = fmt.Sprintf("%d", results.TotalPages())
+		nav.LastPage = &EdgePage{
+			Number: results.TotalPages(),
+			Link:   fmt.Sprintf("?%s", ToQueryString(params)),
+		}
 	}
 	return nav
 }

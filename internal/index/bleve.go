@@ -42,11 +42,14 @@ var (
 	internalVersion             = []byte("version")
 	internalIllustratedMinSize  = []byte("illustrated_min_size")
 	internalMinOccurrenceRatio  = []byte("min_occurrence_ratio")
+	internalMaxTextRankWords    = []byte("max_textrank_words")
 	internalDocCountAtLastPrune = []byte("doc_count_at_last_prune")
 )
 
 // ErrDocumentNotFound is returned when a document cannot be found by slug.
 var ErrDocumentNotFound = errors.New("document not found")
+
+var ErrLibraryIndexing = errors.New("library indexing is running; try again later")
 
 var noStopWordsFilters = map[string][]string{
 	es.AnalyzerName: {lowercase.Name, es.NormalizeName, es.LightStemmerName},
@@ -155,7 +158,8 @@ type Config struct {
 	// phrase or word may appear in before it's treated as too generic to be
 	// useful for keyword search or "similar document" recommendations (e.g. a
 	// genre-wide word, or a series' recurring character name) and stripped
-	// from every document that has it.
+	// from every document that has it. Phrases are also stripped if either
+	// word is common.
 	CommonTextRankEntryRatio float64
 	// MinCommonTextRankAbsoluteCount floors the document-count threshold
 	// computed from CommonTextRankEntryRatio, so a small library can't have
@@ -215,9 +219,9 @@ type BleveIndexer struct {
 	// indexFile calls for the same file (upload vs. file watcher reacting to
 	// the same write).
 	fileLocks sync.Map
-	// lastIndexed holds the Document most recently written by indexFile per
+	// lastIndexed holds the document and in-memory hash most recently written by indexFile per
 	// document ID, letting a serialized duplicate call detect unchanged
-	// metadata and skip re-indexing instead of picking a colliding slug.
+	// metadata/content and skip duplicate indexing instead of picking a colliding slug.
 	lastIndexed sync.Map
 }
 
@@ -515,10 +519,10 @@ func (b *BleveIndexer) Close() error {
 }
 
 // NeedsReindex reports whether the documents index must be rebuilt because a stored config value
-// differs from its current counterpart (or is missing): illustrated-min-size, or min-occurrence-ratio,
+// differs from its current counterpart (or is missing): illustrated-min-size, min-occurrence-ratio,
 // which decides which TextRank keywords get stored per document at indexing time (see
-// Config.MinOccurrenceRatio).
-func NeedsReindex(documentsIndex bleve.Index, currentMinSize float64, currentMinOccurrenceRatio float64) (bool, error) {
+// Config.MinOccurrenceRatio), or max-textrank-words, which limits how much text is analyzed.
+func NeedsReindex(documentsIndex bleve.Index, currentMinSize float64, currentMinOccurrenceRatio float64, currentMaxTextRankWords int) (bool, error) {
 	storedMinSize, err := documentsIndex.GetInternal(internalIllustratedMinSize)
 	if err != nil {
 		return true, err
@@ -545,5 +549,20 @@ func NeedsReindex(documentsIndex bleve.Index, currentMinSize float64, currentMin
 	if err != nil {
 		return true, err
 	}
-	return ratio != currentMinOccurrenceRatio, nil
+	if ratio != currentMinOccurrenceRatio {
+		return true, nil
+	}
+
+	storedMaxTextRankWords, err := documentsIndex.GetInternal(internalMaxTextRankWords)
+	if err != nil {
+		return true, err
+	}
+	if len(storedMaxTextRankWords) == 0 {
+		return true, nil
+	}
+	maxTextRankWords, err := strconv.Atoi(string(storedMaxTextRankWords))
+	if err != nil {
+		return true, err
+	}
+	return maxTextRankWords != currentMaxTextRankWords, nil
 }

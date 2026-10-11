@@ -277,6 +277,11 @@ main .form-control:focus {
 }
 
 .cover {
+    aspect-ratio: auto;
+    object-fit: contain;
+}
+
+.cover-fixed-ratio img.cover {
     aspect-ratio: 2 / 3;
     object-fit: cover;
 }

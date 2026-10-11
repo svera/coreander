@@ -12,6 +12,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * New documents added or removed to/from the library folder are automatically indexed (Linux only).
 * [Send to email supported](#send-to-email).
 * Read indexed epubs and PDFs from Coreander's interface thanks to [foliate-js](https://github.com/johnfactotum/foliate-js).
+* Select text while logged in to save an annotation with an optional comment. Saved annotations are highlighted when you reopen the book; click one to view its comment or remove it. Annotations are not yet supported in PDFs or books with fixed page layouts.
 * Reading progress sync between multiple devices, E.G.: start reading in your cellphone and resume reading from your tablet where you left off.
 * Restrictable access only to registered users.
 * Upload documents through the web interface.
@@ -34,6 +35,8 @@ git clone git@github.com:svera/coreander.git --recurse-submodules
 There are two possibilities for building Coreander from source:
 * If you have [Mage](https://magefile.org) installed in your system, just type `mage install` from the source code folder.
 * Otherwise, a simple `go build` or `go install` will do, although no version information will be added to the executable.
+
+Reader interaction regression tests can be run with Node.js using its built-in test runner: `node --test internal/webserver/js-tests/*.test.mjs`.
 
 ## How to use
 Although it can be executed as any desktop app, Coreander is designed to be run as a service managed by [systemd](https://systemd.io) or any other service manager. For example, in Raspberry Pi OS, just create a file called `/etc/systemd/system/coreander.service` with the following contents:
@@ -64,6 +67,8 @@ Every time it is run, the application scans the library folder only for document
 
 Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` with the hostname / IP address of the machine where the server is running if you want to access it from another system). It is possible to change the listening port just executing the application with the `-p` or `--port` flags, or the `PORT` environment variable (e. g. `coreander -p 4000` or `PORT=4000 coreander`)
 
+For access over your local network, set `FQDN` to the server's hostname or IP address. When `FQDN` has no explicit port, Coreander appends the listening port: `FQDN=192.168.1.139` with `PORT=4000` generates links to `192.168.1.139:4000`. An explicit port in `FQDN` overrides this default. `FQDN` does not change the listening address or port. The document reader loads documents from the same address and port as the page you opened, independently of `FQDN`.
+
 ### Setting up an Internet-facing server
 
 If you plan to set up Coreander in a public Internet server such as a VPS, using [Caddy](https://caddyserver.com/) as a reverse proxy is strongly recommended, as it is dead simple to set up and comes with several niceties such as HTTPS out of the box through [Let's Encrypt](https://letsencrypt.org/).
@@ -77,6 +82,8 @@ coreander.example.com {
 ```
 
 Refer to [Caddy documentation](https://caddyserver.com/docs) for more information.
+
+When using a reverse proxy, include its client-facing port in `FQDN`, for example `FQDN=coreander.example.com:443` for the HTTPS setup above (or `:80` for HTTP), so generated links do not use Coreander's internal listening port.
 
 ### Email
 
@@ -129,7 +136,7 @@ Before ranking, Coreander detects the document's language(s) (falling back to fu
 
 Not every word or phrase TextRank finds is kept: only those whose occurrence count is close enough to the most frequent one survive, controlled by `--min-occurrence-ratio` (see table below). This avoids keeping words that only appear once or twice in an otherwise repetitive document, which would otherwise look important simply because they're compared against a low baseline.
 
-Separately, once keywords exist across the whole library, any phrase or word that turns out to be too common there (a genre-wide word, or a series' recurring character name) is stripped from every document that has it, since a signal shared by a large fraction of the library isn't distinctive enough for keyword search or "similar documents" to rely on. This whole-library pruning pass runs after every full (re)indexing, and again in the background whenever enough documents are added or removed since the last pass, controlled by `--common-textrank-entry-ratio`, `--min-common-textrank-absolute-count` and `--prune-change-trigger-ratio` (see table below).
+Separately, once keywords exist across the whole library, any phrase or word that turns out to be too common there (a genre-wide word, or a series' recurring character name) is stripped from every document that has it. A phrase is also stripped if either of its words is too common, since a pair built around a common word may not be distinctive enough to relate documents. This whole-library pruning pass runs after every full (re)indexing, and again in the background whenever enough documents are added or removed since the last pass, controlled by `--common-textrank-entry-ratio`, `--min-common-textrank-absolute-count` and `--prune-change-trigger-ratio` (see table below).
 
 You can fine-tune this behavior with the following flags:
 
@@ -140,11 +147,11 @@ You can fine-tune this behavior with the following flags:
 |`--max-similarity-candidates`        |`MAX_SIMILARITY_CANDIDATES`          |Doesn't affect TextRank extraction itself, but controls how strict the "similar documents" feature is once keywords exist. Maximum number of top-scoring matches a "similar document" query considers before pruning by `min-similarity-score-ratio` and paginating. Higher values lower the chance of a genuinely similar document being cut off before scoring, at the cost of slower queries; lower values speed queries up but risk missing weaker true matches. Defaults to 200.|
 |`--min-similarity-score-ratio`       |`MIN_SIMILARITY_SCORE_RATIO`         |Doesn't affect TextRank extraction itself, but controls how strict the "similar documents" feature is once keywords exist. Minimum fraction of the best match's score a document must reach to be considered similar enough to show in a "similar document" query. Higher values give fewer but more relevant results (a "similar documents" list can end up empty); lower values show more results but risk weak, coincidental matches. Defaults to 0.3.|
 |`--max-textrank-words`               |`MAX_TEXTRANK_WORDS`                 |Caps how many words of a document's text TextRank analysis considers. If a document's text is longer, only its first `max-textrank-words` words are analyzed, and its keywords end up based on that opening portion rather than the whole text (its word count still reflects the whole document). TextRank builds an in-memory graph that grows with every word occurrence, not just distinct words, so a very long or repetitive document can use a large amount of RAM for a single document, even without concurrent indexing. Defaults to `-1`, which computes a safe value automatically from the host's total RAM and the number of indexing workers (see `--index-workers`); set it to a positive number to override that with an explicit cap, or to `0` to disable the cap entirely.|
-|`--common-textrank-entry-ratio`      |`COMMON_TEXTRANK_ENTRY_RATIO`        |Raise it so only phrases/words shared by a larger fraction of the library get pruned as "too common" (less aggressive pruning, more keywords kept); lower it to prune more aggressively.|
+|`--common-textrank-entry-ratio`      |`COMMON_TEXTRANK_ENTRY_RATIO`        |Raise it so only phrases/words shared by a larger fraction of the library get pruned as "too common" (less aggressive pruning, more keywords kept); lower it to prune more aggressively. A phrase is pruned if the exact phrase is common or if either constituent word is common.|
 |`--min-common-textrank-absolute-count`|`MIN_COMMON_TEXTRANK_ABSOLUTE_COUNT`|Raise it so small libraries need more documents sharing a phrase/word before it's considered common enough to prune; mainly relevant for small libraries, where a low document count could otherwise make a ratio-based threshold trigger on just a couple of shared documents.|
 |`--prune-change-trigger-ratio`       |`PRUNE_CHANGE_TRIGGER_RATIO`         |Raise it so the whole-library pruning pass only re-runs in the background after a bigger fraction of the library has changed since the last pass; lower it to keep common-entry statistics fresher at the cost of more frequent background scans.|
 
-Since keyword extraction runs once per document during indexing, changing `--min-occurrence-ratio` only affects documents indexed (or re-indexed with `--force-indexing`) after the change.
+Changing `--min-occurrence-ratio` or the effective `--max-textrank-words` limit triggers a full reindex so stored keywords match the settings.
 
 ### Other settings
 
@@ -181,7 +188,7 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`-u` or `--upload-document-max-size` |`UPLOAD_DOCUMENT_MAX_SIZE`| Maximum document size allowed to be uploaded to the library, in megabytes. Set this to 0 to unlimit upload size. Defaults to 20 megabytes.
 |`-m` or `--share-comment-max-size`   |`SHARE_COMMENT_MAX_SIZE`  | Maximum length for share comments in characters. Defaults to 280.
 |`--share-max-recipients`             |`SHARE_MAX_RECIPIENTS`    | Maximum number of recipients allowed when sharing a document. Defaults to 10.
-|`-d` or `--fqdn`                     |`FQDN`                    | Domain name of the server. If Coreander is listening to a non-standard HTTP / HTTPS port, include it using a colon (e. g. example.com:3000). Defaults to `localhost`.
+|`-d` or `--fqdn`                     |`FQDN`                    | Hostname or IP address of the server. Defaults to `localhost` and uses `PORT` unless an explicit port is included (e. g. example.com:443 for an HTTPS reverse proxy).
 |`-v` or `--version`                  |                          | Show version number.
 
 

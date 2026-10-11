@@ -13,6 +13,9 @@ func (d *Controller) Delete(c fiber.Ctx) error {
 	slug := c.Params("slug")
 
 	if err := d.idx.DeleteDocument(slug); err != nil {
+		if errors.Is(err, index.ErrLibraryIndexing) {
+			return fiber.NewError(fiber.StatusServiceUnavailable, "Library indexing is running. Please try deleting again later.")
+		}
 		if errors.Is(err, index.ErrDocumentNotFound) {
 			return fiber.ErrNotFound
 		}
@@ -25,6 +28,9 @@ func (d *Controller) Delete(c fiber.Ctx) error {
 
 	if err := d.readingRepository.RemoveDocument(slug); err != nil {
 		log.Printf("error removing document %s from readings\n", slug)
+	}
+	if err := d.annotationsRepository.RemoveDocument(slug); err != nil {
+		log.Printf("error removing annotations for document %s: %v\n", slug, err)
 	}
 
 	coverPath := d.config.CacheDir + "/covers/" + slug + ".webp"

@@ -11,6 +11,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/log"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/valyala/fasthttp"
 )
 
@@ -56,22 +57,23 @@ func (d *Controller) Upload(c fiber.Ctx) error {
 		return c.Status(fiber.StatusRequestEntityTooLarge).Render("document/upload", templateVars, "layout")
 	}
 
-	internalServerErrorStatus := c.Status(fiber.StatusInternalServerError).Render("document/upload", fiber.Map{
-		"Title":   "Upload Document",
-		"Error":   "Error uploading document",
-		"MaxSize": d.config.UploadDocumentMaxSize,
-	}, "layout")
-
 	contents, err := fileToBytes(file)
 	if err != nil {
 		log.Error(err)
-		return internalServerErrorStatus
+		templateVars["Error"] = "Error uploading document"
+		return c.Status(fiber.StatusInternalServerError).Render("document/upload", templateVars, "layout")
 	}
 
 	slug, err := d.idx.NewFile(file.Filename, contents)
 	if err != nil {
+		if errors.Is(err, index.ErrLibraryIndexing) {
+			templateVars["Error"] = "Library indexing is running. Please try uploading again later."
+			templateVars["UploadDisabled"] = true
+			return c.Status(fiber.StatusServiceUnavailable).Render("document/upload", templateVars, "layout")
+		}
 		log.Error(err)
-		return internalServerErrorStatus
+		templateVars["Error"] = "Error uploading document"
+		return c.Status(fiber.StatusInternalServerError).Render("document/upload", templateVars, "layout")
 	}
 
 	c.Cookie(&fiber.Cookie{

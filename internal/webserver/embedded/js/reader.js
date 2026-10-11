@@ -7,6 +7,10 @@ const [
     { Overlayer },
     { ReaderSync },
     { ReaderToast },
+    { ReaderAnnotations },
+    { ReaderPopup },
+    { bindReaderWheel },
+    { saveOfflineReader, watchOfflineReader },
 ] = await Promise.all([
     importVersioned('./foliate-js/view.js'),
     importVersioned('./foliate-js/ui/tree.js'),
@@ -14,6 +18,10 @@ const [
     importVersioned('./foliate-js/overlayer.js'),
     importVersioned('./reader-sync.js'),
     importVersioned('./reader-toast.js'),
+    importVersioned('./reader-annotations.js'),
+    importVersioned('./reader-popup.js'),
+    importVersioned('./reader-wheel.js'),
+    importVersioned('./reader-offline.js'),
 ])
 
 document.addEventListener('click', e => {
@@ -92,6 +100,7 @@ class Reader {
     #tocView
     #footnoteModal
     #footnoteContent
+    #footnotePopup
     #toast
     #sessionExpiredShown = false
     #notLoggedInShown = false
@@ -114,13 +123,44 @@ class Reader {
     #fontSizeStep = 10
     annotations = new Map()
     annotationsByValue = new Map()
-    closeSideBar() {
+    async saveOffline(url, blob, etag) {
+        try {
+            await saveOfflineReader(url, blob, etag)
+        } catch (error) {
+            console.error('Could not save document for offline reading:', error)
+            this.#toast.show('warning', this.translations.offline_failed)
+        }
+    }
+    closeSideBar(refocus = true) {
         $('#dimming-overlay').classList.remove('show')
         $('#side-bar').classList.remove('show')
-        // Refocus the view so keyboard navigation works
-        if (this.view) {
-            this.view.focus()
+        const annotationsPanel = $('#annotations-side-bar')
+        if (annotationsPanel) {
+            annotationsPanel.classList.remove('show')
+            annotationsPanel.inert = true
+            $('#annotations-button').setAttribute('aria-expanded', 'false')
         }
+        // Refocus the view so keyboard navigation works
+        if (refocus && this.view) {
+            this.view.focus({ preventScroll: true })
+        }
+    }
+    #openSideBar(id) {
+        this.closeSideBar(false)
+        this.#sidebarOpening = true
+        this.#skipNextPush = true
+        $('#dimming-overlay').classList.add('show')
+        const panel = document.getElementById(id)
+        panel.inert = false
+        panel.classList.add('show')
+        if (id === 'annotations-side-bar') {
+            $('#annotations-button').setAttribute('aria-expanded', 'true')
+            $('#annotations-side-bar-close').focus({ preventScroll: true })
+        }
+        setTimeout(() => {
+            this.#sidebarOpening = false
+            this.#skipNextPush = false
+        }, 500)
     }
     #increaseFontSize() {
         if (this.style.fontSize < this.#maxFontSize) {
@@ -253,25 +293,14 @@ class Reader {
         // Apply current font size to modal
         this.#footnoteModal.style.fontSize = `${this.style.fontSize}%`
 
-        // Set up close button
         const closeBtn = $('#footnote-close')
-        if (closeBtn) {
-            closeBtn.onclick = () => this.#footnoteModal.close()
-        }
-
-        // Close on backdrop click
-        this.#footnoteModal.onclick = (e) => {
-            if (e.target === this.#footnoteModal) {
-                this.#footnoteModal.close()
-            }
-        }
-
-        // Close on Escape key
-        this.#footnoteModal.onkeydown = (e) => {
-            if (e.key === 'Escape') {
-                this.#footnoteModal.close()
-            }
-        }
+        this.#footnotePopup = new ReaderPopup({
+            element: this.#footnoteModal,
+            mode: 'modal',
+            closeButton: closeBtn,
+            closeLabel: closeBtn.getAttribute('aria-label'),
+            focusTarget: this.#footnoteContent,
+        })
     }
     constructor() {
         // Check if user is authenticated
@@ -295,16 +324,17 @@ class Reader {
             this.showNotLoggedIn()
         }
 
-        $('#side-bar-button').addEventListener('click', () => {
-            this.#sidebarOpening = true
-            this.#skipNextPush = true
-            $('#dimming-overlay').classList.add('show')
-            $('#side-bar').classList.add('show')
-            // Clear the flags after a short delay to allow normal syncing to resume
-            setTimeout(() => {
-                this.#sidebarOpening = false
-                this.#skipNextPush = false
-            }, 500)
+        $('#side-bar-button').addEventListener('click', () => this.#openSideBar('side-bar'))
+        $('#annotations-button')?.addEventListener('click', () => {
+            if (this.sync.isAuthenticated) this.#openSideBar('annotations-side-bar')
+        })
+        $('#annotations-side-bar-close')?.addEventListener('click', () => this.closeSideBar())
+        $('#annotations-side-bar')?.addEventListener('keydown', event => {
+            event.stopPropagation()
+            if (event.key === 'Escape') {
+                this.closeSideBar()
+                $('#annotations-button').focus()
+            }
         })
         $('#dimming-overlay').addEventListener('click', () => this.closeSideBar())
         $('#side-bar-close').addEventListener('click', () => this.closeSideBar())
@@ -550,6 +580,20 @@ class Reader {
         const slug = document.getElementById('slug').value
         document.body.append(this.view)
         await this.view.open(file)
+        bindReaderWheel(this.view)
+
+        if (this.sync.isAuthenticated && $('#annotations-side-bar')) {
+            const annotations = new ReaderAnnotations({
+                view: this.view,
+                sync: this.sync,
+                translations: this.translations,
+                notify: (variant, message) => this.#toast.show(variant, message),
+                draw: Overlayer.highlight,
+                slug,
+                onNavigate: () => this.closeSideBar(),
+            })
+            await annotations.load()
+        }
 
         const localData = this.sync.getLocalPosition(slug)
         let lastLocation = localData.position
@@ -717,16 +761,18 @@ class Reader {
             })
             this.view.addEventListener('draw-annotation', e => {
                 const { draw, annotation } = e.detail
+                if (!this.annotationsByValue.has(annotation.value)) return
                 const { color } = annotation
                 draw(Overlayer.highlight, { color })
             })
             this.view.addEventListener('show-annotation', e => {
                 const annotation = this.annotationsByValue.get(e.detail.value)
-                if (annotation.note) alert(annotation.note)
+                if (annotation?.note) alert(annotation.note)
             })
         }
     }
     #handleKeydown(event) {
+        if (event.defaultPrevented) return
         // Don't handle navigation keys when focus is on input elements
         const target = event.target
         if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
@@ -735,16 +781,10 @@ class Reader {
 
         const k = event.key
         if (k === 'ArrowLeft' || k === 'h') {
-            // Prevent default behavior on buttons to avoid triggering button actions
-            if (target && target.tagName === 'BUTTON') {
-                event.preventDefault()
-            }
+            event.preventDefault()
             this.view.goLeft()
         } else if(k === 'ArrowRight' || k === 'l') {
-            // Prevent default behavior on buttons to avoid triggering button actions
-            if (target && target.tagName === 'BUTTON') {
-                event.preventDefault()
-            }
+            event.preventDefault()
             this.view.goRight()
         }
     }
@@ -818,24 +858,14 @@ class Reader {
 
         this.#footnoteContent.innerHTML = ''
         this.#footnoteContent.appendChild(clonedContent)
-        this.#footnoteModal.showModal()
-
-        // Focus the content for keyboard navigation
-        setTimeout(() => {
-            this.#footnoteContent.focus()
-        }, 0)
+        this.#footnotePopup.show()
     }
     #showFootnoteError() {
         if (!this.#footnoteModal || !this.#footnoteContent) return
 
         const errorMessage = this.#footnoteModal.dataset.errorMessage || '<p><em>Footnote content could not be loaded.</em></p>'
         this.#footnoteContent.innerHTML = errorMessage
-        this.#footnoteModal.showModal()
-
-        // Focus the content for keyboard navigation
-        setTimeout(() => {
-            this.#footnoteContent.focus()
-        }, 0)
+        this.#footnotePopup.show()
     }
     #onRelocate({ detail }) {
         const storage = window.localStorage
@@ -867,6 +897,10 @@ class Reader {
         if (tocItem?.href) this.#tocView?.setCurrentHref?.(tocItem.href)
     }
     showSessionExpired() {
+        if ($('#annotations-side-bar')) {
+            this.closeSideBar()
+            $('#annotations-button').hidden = true
+        }
         // Only show the notification once
         if (this.#sessionExpiredShown) return
         this.#sessionExpiredShown = true
@@ -875,6 +909,16 @@ class Reader {
     }
     showPositionUpdated() {
         this.#toast.show('success', this.translations.position_updated_from_server)
+    }
+    showDocumentChange(message) {
+        if (message.type === 'reader-document-unavailable') {
+            this.#toast.show('warning', this.translations.document_unavailable)
+        } else {
+            this.#toast.show('info', this.translations.document_updated, {
+                label: this.translations.reload_document,
+                onClick: () => window.location.reload(),
+            })
+        }
     }
     showNotLoggedIn() {
         // Only show the notification once
@@ -892,6 +936,21 @@ const open = async file => {
 }
 
 const url = document.getElementById('url').value
+let documentETag
+let documentCached = false
+let documentChange
+
+function shouldSaveOfflineCopy() {
+    // The worker owns cached copies and any updates received while opening.
+    return !documentCached && !documentChange
+}
+
+watchOfflineReader(url, message => {
+    documentChange = message
+    if (globalThis.reader && message.etag !== documentETag) {
+        globalThis.reader.showDocumentChange(message)
+    }
+})
 if (url) fetch(url)
     .then(res => {
         if (res.status == 403) {
@@ -913,10 +972,19 @@ if (url) fetch(url)
         if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);
         }
+        documentETag = res.headers.get('ETag')
+        documentCached = res.headers.get('X-Coreander-Cached') === 'true'
         return res.blob()
     })
-    .then(blob => {
-        if (blob) open(new File([blob], new URL(url).pathname))
+    .then(async blob => {
+        if (!blob) return
+        await open(new File([blob], new URL(url, window.location.href).pathname))
+        if (documentChange && documentChange.etag !== documentETag) {
+            globalThis.reader.showDocumentChange(documentChange)
+        }
+        if (shouldSaveOfflineCopy()) {
+            await globalThis.reader.saveOffline(url, blob, documentETag)
+        }
     })
     .catch(e => {
         if (e.message !== 'Authentication required') {
