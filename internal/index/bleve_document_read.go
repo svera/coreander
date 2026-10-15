@@ -1079,21 +1079,6 @@ func slicer(val any) []string {
 	return termsStrings
 }
 
-// SimilarTo returns an array of metadata of documents by other authors, which
-// are content-similar to the passed one (sharing TextRank word pairs) and
-// does not belong to the same collection. Delegates to Search's
-// SearchFields.SimilarTo path so the document detail page's "related
-// documents" widget and the "similar" search show documents in the same
-// order and using identical matching.
-func (b *BleveIndexer) SimilarTo(slugID string, quantity int) ([]Document, error) {
-	paginated, err := b.Search(SearchFields{SimilarTo: slugID, SortBy: DefaultDocumentSortBy}, 1, quantity)
-	if err != nil {
-		return []Document{}, err
-	}
-
-	return paginated.Hits(), nil
-}
-
 // similarToQuery builds Search's SearchFields.SimilarTo candidate query:
 // documents sharing a TextRank word pair with doc, excluding doc itself,
 // documents in the same series, and documents by the same authors. Subjects

@@ -51,11 +51,8 @@ func slugsOf(docs []index.Document) []string {
 	return slugs
 }
 
-// TestSimilarToMatchesBySharedTextRankPhrasesOnly guards SimilarTo's
-// contract: it delegates to Search's SearchFields.SimilarTo path
-// (similarToQuery), so it matches purely on shared TextRankPhrases and never
-// considers Subjects at all.
-func TestSimilarToMatchesBySharedTextRankPhrasesOnly(t *testing.T) {
+// Similarity searches match on shared TextRankPhrases, never Subjects alone.
+func TestSearchSimilarToMatchesBySharedTextRankPhrasesOnly(t *testing.T) {
 	sharedPairs := []string{"oppenheimer manhattan", "atomic bomb", "los alamos"}
 
 	docWithPhrases := index.Document{
@@ -73,7 +70,7 @@ func TestSimilarToMatchesBySharedTextRankPhrasesOnly(t *testing.T) {
 		TextRankPhrases: sharedPairs,
 	}
 	// docSharedSubjectOnly shares a subject with docWithPhrases but no
-	// TextRank phrase, so it must not appear in SimilarTo's results.
+	// TextRank phrase, so it must not appear in similarity results.
 	docSharedSubjectOnly := index.Document{
 		ID:            "shared-subject.epub",
 		Slug:          "shared-subject",
@@ -100,12 +97,12 @@ func TestSimilarToMatchesBySharedTextRankPhrasesOnly(t *testing.T) {
 		docWithPhrases, docSharedPhrases, docSharedSubjectOnly, docUnrelated, docSameAuthor,
 	})
 
-	got, err := idx.SimilarTo("with-phrases", 10)
+	got, err := idx.Search(index.SearchFields{SimilarTo: "with-phrases", SortBy: index.DefaultDocumentSortBy}, 1, 10)
 	if err != nil {
-		t.Fatalf("SimilarTo returned an error: %s", err)
+		t.Fatalf("Search returned an error: %s", err)
 	}
 
-	gotSlugs := slugsOf(got)
+	gotSlugs := slugsOf(got.Hits())
 	if !slices.Contains(gotSlugs, "shared-phrases") {
 		t.Errorf("expected %q to be present in results %v", "shared-phrases", gotSlugs)
 	}
@@ -116,11 +113,11 @@ func TestSimilarToMatchesBySharedTextRankPhrasesOnly(t *testing.T) {
 		t.Errorf("did not expect unrelated document to match, got %v", gotSlugs)
 	}
 	if slices.Contains(gotSlugs, "same-author") {
-		t.Errorf("did not expect same-author document to match (SimilarTo excludes same-author documents), got %v", gotSlugs)
+		t.Errorf("did not expect same-author document to match (similarity searches exclude same-author documents), got %v", gotSlugs)
 	}
 }
 
-// TestSimilarToWidgetUsesDefaultSortOrder guards against a regression where
+// TestSearchSimilarToUsesDefaultSortOrder guards against a regression where
 // the widget's SearchFields left SortBy unset: runSimilarityQuery only
 // applies the "-_score" comparator sortSimilarityResults sorts by, so with a
 // nil SortBy it fell back to sorting purely by closeness to the reference
@@ -128,9 +125,9 @@ func TestSimilarToMatchesBySharedTextRankPhrasesOnly(t *testing.T) {
 // matched. That could rank a weakly-matching but date-close document above a
 // strongly-matching one, producing a different top N than the "similar"
 // search, which always sets SortBy (via parseDocumentSortBy, defaulting to
-// DefaultDocumentSortBy) - see TestSimilarToWidgetMatchesSeeAllSearch for the
+// DefaultDocumentSortBy) - see TestSearchSimilarToPreviewMatchesFullSearch for the
 // consistency guard this complements.
-func TestSimilarToWidgetUsesDefaultSortOrder(t *testing.T) {
+func TestSearchSimilarToUsesDefaultSortOrder(t *testing.T) {
 	docA := index.Document{
 		ID:              "a.epub",
 		Slug:            "doc-a",
@@ -162,12 +159,12 @@ func TestSimilarToWidgetUsesDefaultSortOrder(t *testing.T) {
 
 	idx := newTextRankTestIndex(t, []index.Document{docA, docStrongMatch, docWeakMatch})
 
-	widgetResults, err := idx.SimilarTo("doc-a", 1)
+	widgetResults, err := idx.Search(index.SearchFields{SimilarTo: "doc-a", SortBy: index.DefaultDocumentSortBy}, 1, 1)
 	if err != nil {
-		t.Fatalf("SimilarTo returned an error: %s", err)
+		t.Fatalf("Search returned an error: %s", err)
 	}
 
-	widgetSlugs := slugsOf(widgetResults)
+	widgetSlugs := slugsOf(widgetResults.Hits())
 	if !slices.Contains(widgetSlugs, "strong-match") {
 		t.Errorf("expected the top widget result to be the strongest TextRank match regardless of publication date, got %v", widgetSlugs)
 	}
@@ -222,15 +219,8 @@ func TestSearchSimilarToIgnoresSingleWords(t *testing.T) {
 	}
 }
 
-// TestSimilarToWidgetMatchesSeeAllSearch guards that the document detail
-// page's "related documents" widget (BleveIndexer.SimilarTo) and its "See
-// all" link (Search's SearchFields.SimilarTo) return the same documents,
-// since SimilarTo delegates to Search. Also guards against a document that
-// shares only a subject (no TextRank phrase) with the reference document
-// showing up in either: a shared subject slug (e.g. a broad genre like
-// "History") is too weak/generic a signal for content similarity - see
-// similarToQuery.
-func TestSimilarToWidgetMatchesSeeAllSearch(t *testing.T) {
+// Preview-sized and full similarity searches must agree on content matching.
+func TestSearchSimilarToPreviewMatchesFullSearch(t *testing.T) {
 	docA := index.Document{
 		ID:              "a.epub",
 		Slug:            "doc-a",
@@ -263,21 +253,21 @@ func TestSimilarToWidgetMatchesSeeAllSearch(t *testing.T) {
 
 	idx := newTextRankTestIndex(t, []index.Document{docA, docSameSubject, docSharedKeywords, docUnrelated})
 
-	widgetResults, err := idx.SimilarTo("doc-a", 4)
-	if err != nil {
-		t.Fatalf("SimilarTo returned an error: %s", err)
-	}
-
-	seeAllResults, err := idx.Search(index.SearchFields{SimilarTo: "doc-a"}, 1, 10)
+	widgetResults, err := idx.Search(index.SearchFields{SimilarTo: "doc-a", SortBy: index.DefaultDocumentSortBy}, 1, 4)
 	if err != nil {
 		t.Fatalf("Search returned an error: %s", err)
 	}
 
-	widgetSlugs := slugsOf(widgetResults)
+	seeAllResults, err := idx.Search(index.SearchFields{SimilarTo: "doc-a", SortBy: index.DefaultDocumentSortBy}, 1, 10)
+	if err != nil {
+		t.Fatalf("Search returned an error: %s", err)
+	}
+
+	widgetSlugs := slugsOf(widgetResults.Hits())
 	seeAllSlugs := slugsOf(seeAllResults.Hits())
 
 	if slices.Contains(widgetSlugs, "same-subject") {
-		t.Errorf("did not expect the SimilarTo widget to match on shared subjects alone, got %v", widgetSlugs)
+		t.Errorf("did not expect the similarity widget to match on shared subjects alone, got %v", widgetSlugs)
 	}
 	if slices.Contains(seeAllSlugs, "same-subject") {
 		t.Errorf("did not expect the \"similar\" search to match on shared subjects alone, got %v", seeAllSlugs)

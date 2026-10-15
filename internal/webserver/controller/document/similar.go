@@ -9,7 +9,7 @@ import (
 )
 
 // Similar renders the "similar documents" section of a document's detail
-// page. It's loaded asynchronously via htmx so the SimilarTo query, which
+// page. It's loaded asynchronously via htmx so the similarity query, which
 // can be expensive on large libraries, doesn't block the initial page render.
 func (d *Controller) Similar(c fiber.Ctx) error {
 	var session model.Session
@@ -22,7 +22,10 @@ func (d *Controller) Similar(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	similar, err := d.idx.Search(index.SearchFields{SimilarTo: docSlug, SortBy: index.DefaultDocumentSortBy}, 1, relatedDocuments)
+	similar, err := d.idx.Search(index.SearchFields{
+		SimilarTo: docSlug,
+		SortBy:    index.DefaultDocumentSortBy,
+	}, 1, relatedDocuments)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
