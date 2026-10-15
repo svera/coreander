@@ -1,7 +1,6 @@
 package document
 
 import (
-	"fmt"
 	"log"
 	"time"
 
@@ -45,7 +44,11 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 	lang, _ := c.Locals("Lang").(string)
 	authorSummaries, illustratorSummaries := d.authorAndIllustratorSummaries(document, lang)
 
-	sameSeries := d.sameSeries(document.Slug, int(session.ID))
+	sameSeries, sameSeriesTotal, err := d.sameSeries(document.Slug, int(session.ID))
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
 
 	var completedOn *time.Time
 	result := model.AugmentedDocument{Document: document}
@@ -63,6 +66,7 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"Document":             result,
 		"EmailFrom":            d.sender.From(),
 		"SameSeries":           sameSeries,
+		"SameSeriesTotal":      sameSeriesTotal,
 		"WordsPerMinute":       d.config.WordsPerMinute,
 		"AuthorSummaries":      authorSummaries,
 		"IllustratorSummaries": illustratorSummaries,
@@ -116,16 +120,17 @@ func (d *Controller) authorSummaryFor(authorSlug, lang string) authorSummary {
 	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug)}
 }
 
-func (d *Controller) sameSeries(slug string, sessionID int) (sameSeries []model.AugmentedDocument) {
+func (d *Controller) sameSeries(slug string, sessionID int) ([]model.AugmentedDocument, int, error) {
 	series, err := d.idx.SameSeries(slug, relatedDocuments)
 	if err != nil {
-		fmt.Println(err)
+		return nil, 0, err
 	}
-	for i := range series {
-		result := model.AugmentedDocument{Document: series[i]}
+	var sameSeries []model.AugmentedDocument
+	for _, document := range series.Hits() {
+		result := model.AugmentedDocument{Document: document}
 		result = d.hlRepository.Highlighted(sessionID, result)
 		sameSeries = append(sameSeries, result)
 	}
 
-	return sameSeries
+	return sameSeries, series.TotalHits(), nil
 }

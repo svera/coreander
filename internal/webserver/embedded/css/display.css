@@ -281,8 +281,12 @@ main .form-control:focus {
     object-fit: contain;
 }
 
-.cover-fixed-ratio img.cover {
+.cover-fixed-ratio img.cover,
+.placeholder.cover {
     aspect-ratio: 2 / 3;
+}
+
+.cover-fixed-ratio img.cover {
     object-fit: cover;
 }
 
