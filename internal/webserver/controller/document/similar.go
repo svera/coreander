@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
@@ -21,21 +22,22 @@ func (d *Controller) Similar(c fiber.Ctx) error {
 		return fiber.ErrBadRequest
 	}
 
-	similar, err := d.idx.SimilarTo(docSlug, relatedDocuments)
+	similar, err := d.idx.Search(index.SearchFields{SimilarTo: docSlug, SortBy: index.DefaultDocumentSortBy}, 1, relatedDocuments)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
 	var similarDocuments []model.AugmentedDocument
-	for i := range similar {
-		result := model.AugmentedDocument{Document: similar[i]}
+	for _, document := range similar.Hits() {
+		result := model.AugmentedDocument{Document: document}
 		result = d.hlRepository.Highlighted(int(session.ID), result)
 		similarDocuments = append(similarDocuments, result)
 	}
 
 	return c.Render("partials/document-similar", fiber.Map{
-		"DocumentSlug":     docSlug,
-		"SimilarDocuments": similarDocuments,
+		"DocumentSlug":          docSlug,
+		"SimilarDocuments":      similarDocuments,
+		"SimilarDocumentsTotal": similar.TotalHits(),
 	})
 }

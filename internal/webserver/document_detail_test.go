@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
@@ -130,6 +133,117 @@ func TestDocumentDetail(t *testing.T) {
 			}
 			if response.StatusCode != tcase.expectedStatus {
 				t.Errorf("Expected status %d, received %d", tcase.expectedStatus, response.StatusCode)
+			}
+		})
+	}
+}
+
+func TestRelatedDocumentHeadersShowFullTotals(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	documents, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	authors, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	appFS := afero.NewMemMapFs()
+	idx := index.NewBleve(documents, authors, appFS, testLibraryDir, nil, index.Config{})
+	t.Cleanup(func() { _ = idx.Close() })
+
+	source := index.Document{
+		ID: "source.epub", Slug: "source", SeriesSlug: "collection",
+		Metadata:        metadata.Metadata{Title: "Source", Series: "Collection", Format: "EPUB"},
+		TextRankPhrases: []string{"atomic bomb", "los alamos"},
+	}
+	if err := documents.Index(source.ID, source); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 6; i++ {
+		for _, kind := range []string{"series", "similar"} {
+			doc := index.Document{
+				ID: fmt.Sprintf("%s-%d.epub", kind, i), Slug: fmt.Sprintf("%s-%d", kind, i),
+				Metadata: metadata.Metadata{Title: fmt.Sprintf("%s %d", kind, i), Format: "EPUB"},
+			}
+			if kind == "series" {
+				doc.Series = source.Series
+				doc.SeriesSlug = source.SeriesSlug
+			} else {
+				doc.TextRankPhrases = source.TextRankPhrases
+			}
+			if err := documents.Index(doc.ID, doc); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	cfg := defaultTestConfig()
+	sender := &infrastructure.NoEmail{}
+	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, nil)
+	app := webserver.New(cfg, controllers, sender, idx, &model.UserRepository{DB: db})
+	t.Cleanup(func() { _ = app.Shutdown() })
+
+	for _, tc := range []struct {
+		name string
+		path string
+		link string
+	}{
+		{"collection", "/documents/source", "/series/collection"},
+		{"similar", "/documents/source/similar?widget=1", "/documents/source/similar"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			response, err := app.Test(mustGetRequest(t, tc.path))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			if response.StatusCode != http.StatusOK {
+				t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusOK)
+			}
+			page, err := goquery.NewDocumentFromReader(response.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			link := page.Find(fmt.Sprintf(`h2 > a[href="%s"]`, tc.link))
+			if link.Length() != 1 {
+				t.Fatalf("expected one heading link to %s, got %d", tc.link, link.Length())
+			}
+			if !strings.HasSuffix(strings.TrimSpace(link.Parent().Text()), " (6)") {
+				t.Errorf("heading = %q, want full total (6)", link.Parent().Text())
+			}
+			if strings.Contains(link.Text(), "(6)") {
+				t.Error("document count must be outside the hyperlink")
+			}
+			if got := link.Closest("section").Find(".col-6").Length(); got != 4 {
+				t.Errorf("preview contains %d documents, want 4", got)
+			}
+			if got := link.Closest("section").ChildrenFiltered(".col-6.col-lg-3").Length(); got != 4 {
+				t.Errorf("expected four cover columns directly in the section grid, got %d", got)
+			}
+			if !link.Closest("section").HasClass("gx-2") {
+				t.Error("related cover grids must use narrow horizontal gutters")
+			}
+			if got := link.Closest("section").Find(".cover-fixed-ratio").Length(); got != 4 {
+				t.Errorf("expected four fixed-ratio covers in each related block, got %d", got)
+			}
+			if tc.name == "collection" {
+				placeholder := page.Find(`[hx-get="/documents/source/similar?widget=1"]`)
+				if swap, _ := placeholder.Attr("hx-swap"); swap != "outerHTML" {
+					t.Error("similar documents must replace the placeholder to avoid a nested row")
+				}
+				if !placeholder.HasClass("gx-2") {
+					t.Error("similar documents placeholder must use the same narrow gutters")
+				}
+				if got := placeholder.ChildrenFiltered(".col-6.col-lg-3").Find(".placeholder.cover.d-block.w-100").Length(); got != 4 {
+					t.Errorf("expected four full-width cover skeletons in the responsive grid, got %d", got)
+				}
 			}
 		})
 	}

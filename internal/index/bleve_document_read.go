@@ -1201,15 +1201,15 @@ func (b *BleveIndexer) SameAuthors(slugID string, quantity int) ([]Document, err
 	return b.runQuery(bq, quantity, DefaultDocumentSortBy)
 }
 
-// SameSeries returns an array of metadata of documents in the same series
-func (b *BleveIndexer) SameSeries(slugID string, quantity int) ([]Document, error) {
+// SameSeries returns a limited preview and the total number of other documents in the same series.
+func (b *BleveIndexer) SameSeries(slugID string, quantity int) (result.Paginated[[]Document], error) {
 	doc, err := b.Document(slugID)
 	if err != nil {
-		return []Document{}, err
+		return result.Paginated[[]Document]{}, err
 	}
 
 	if doc.Series == "" {
-		return []Document{}, err
+		return result.Paginated[[]Document]{}, nil
 	}
 
 	bq := bleve.NewBooleanQuery()
@@ -1219,5 +1219,5 @@ func (b *BleveIndexer) SameSeries(slugID string, quantity int) ([]Document, erro
 	sq.SetField("SeriesSlug")
 	bq.AddMust(sq)
 
-	return b.runQuery(bq, quantity, DefaultDocumentSortBy)
+	return b.runPaginatedQuery(bq, 1, quantity, DefaultDocumentSortBy)
 }

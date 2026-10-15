@@ -80,22 +80,16 @@
         {{end}}
 
         {{ $length := len .SameSeries }} {{ if gt $length 0 }}
-        <section class="row mt-5">
-            <div class="col-9">
-                <h2>{{t .Lang "Other titles in collection \"%s\"" .Document.Series}}</h2>
-            </div>
-            <div class="col-3 text-end">
-                <a  href="/series/{{.Document.SeriesSlug}}">
-                        {{t .Lang "See all" }}</a>
+        <section class="row gx-2 mt-5">
+            <div class="col-12">
+                <h2><a href="/series/{{.Document.SeriesSlug}}">{{t .Lang "Other titles in collection \"%s\"" .Document.Series}}</a> ({{.SameSeriesTotal}})</h2>
             </div>
 
-            <div class="row pe-0 align-items-end">
-                {{range $i, $doc := .SameSeries}}
-                    <div class="col-6 col-lg-3 pe-0 mt-3">
-                        {{template "partials/cover" dict "Lang" $.Lang "Document" $doc "Session" $.Session}}
-                    </div>
-                {{end}}
-            </div>
+            {{range $i, $doc := .SameSeries}}
+                <div class="col-6 col-lg-3 mt-3 align-self-end">
+                    {{template "partials/cover" dict "Lang" $.Lang "Document" $doc "Session" $.Session "FixedAspectRatio" true}}
+                </div>
+            {{end}}
         </section>
         {{end}}
 
