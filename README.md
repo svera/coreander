@@ -65,6 +65,22 @@ On first run, Coreander will index the documents in your library, creating a dat
 
 Every time it is run, the application scans the library folder only for documents not yet indexed and adds them to the index. You can force to index all documents whether they were previously indexed or not by passing the `--force-indexing` flag or setting the environment variable `FORCE_INDEXING` to `true`.
 
+When author indexing resolves a Wikidata identity, Coreander also writes the ID
+back to the matching EPUB creator or author/illustrator contributor as the
+`cdr:wd_id` refinement. EPUB 3 files declare `cdr` as
+`https://github.com/svera/coreander/vocab/`; EPUB 2 files store a direct namespaced
+`wd_id` attribute on the creator/contributor using that same namespace URI,
+without upgrading the book. The writer uses `cdr:wd_id`, declares `xmlns:cdr` once
+on the metadata element, and reuses inherited `dc` and `opf` namespace declarations.
+Older unnamespaced `wd_id` attributes and Coreander `epub:refinement` entries for
+the updated author are migrated when their metadata is written. IDs are space-separated
+when one creator entry contains several authors. Existing unrelated metadata and
+publication resources are preserved. Correcting or clearing an author's identity
+updates the stored ID, including changes submitted from the document detail
+page's author form, and newly indexed books inherit known author IDs.
+This modifies library EPUB files and requires write access; metadata edits may
+invalidate digital signatures.
+
 Even if the application is still indexing entries, you can access its web interface right away. Just open a web browser and go to `localhost:3000` (replace `localhost` with the hostname / IP address of the machine where the server is running if you want to access it from another system). It is possible to change the listening port just executing the application with the `-p` or `--port` flags, or the `PORT` environment variable (e. g. `coreander -p 4000` or `PORT=4000 coreander`)
 
 For access over your local network, set `FQDN` to the server's hostname or IP address. When `FQDN` has no explicit port, Coreander appends the listening port: `FQDN=192.168.1.139` with `PORT=4000` generates links to `192.168.1.139:4000`. An explicit port in `FQDN` overrides this default. `FQDN` does not change the listening address or port. The document reader loads documents from the same address and port as the page you opened, independently of `FQDN`.

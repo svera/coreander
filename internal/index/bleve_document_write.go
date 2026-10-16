@@ -74,6 +74,8 @@ func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error)
 		return "", ErrLibraryIndexing
 	}
 
+	b.authorMetadataMu.RLock()
+	defer b.authorMetadataMu.RUnlock()
 	fullPath := filepath.Join(b.libraryPath, filepath.Base(fileName))
 	unlock := b.lockFile(b.id(fullPath))
 	defer unlock()
@@ -106,6 +108,8 @@ func (b *BleveIndexer) NewFile(fileName string, contents []byte) (string, error)
 // callers - NewFile (document upload) and the file watcher - don't block on
 // it for potentially large documents.
 func (b *BleveIndexer) indexFile(file string) (string, error) {
+	b.authorMetadataMu.RLock()
+	defer b.authorMetadataMu.RUnlock()
 	unlock := b.lockFile(b.id(file))
 	defer unlock()
 	return b.indexFileLocked(file)
@@ -126,6 +130,10 @@ func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
 	job := b.metadataJobResultFor(file)
 	if job.err != nil {
 		return "", fmt.Errorf("error reading metadata from file %s: %w", file, job.err)
+	}
+	document := b.createDocument(job, nil, nil)
+	if err := b.writeDocumentAuthorIDs(file, document, nil); err != nil {
+		return "", err
 	}
 	hash, err := b.fileHash(file)
 	if err != nil {
@@ -159,7 +167,6 @@ func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
 		}
 	}
 
-	document := b.createDocument(job, nil, nil)
 	document.AddedOn = time.Now().UTC()
 	document.TextRankEnriched = !b.supportsTextRank(file)
 
@@ -292,6 +299,8 @@ func authorSlugsFromDocument(document Document) []string {
 // next, so documents appear incrementally instead of only after every pending file has been processed.
 // EnrichTextRankKeywords fills in TextRank keywords afterward, in the background.
 func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWorkers int) error {
+	b.authorMetadataMu.RLock()
+	defer b.authorMetadataMu.RUnlock()
 	b.lastIndexed.Clear()
 	b.BeginIndexing()
 	defer b.endIndexing()
@@ -320,6 +329,12 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 			}
 
 			document := b.createDocument(job, batchSlugs, documentsSeen)
+			unlock := b.lockFile(document.ID)
+			err := b.writeDocumentAuthorIDs(job.path, document, nil)
+			unlock()
+			if err != nil {
+				return err
+			}
 			batchSlugs[document.Slug] = struct{}{}
 			languages = addLanguage(job.meta.Language, languages)
 			document.AddedOn = time.Time{}

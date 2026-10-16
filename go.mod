@@ -17,7 +17,6 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
-	github.com/hhrutter/tiff v1.0.5
 	github.com/kovidgoyal/imaging v1.8.24-0.20260924154130-9d31d6c5221b
 	github.com/magefile/mage v1.17.2
 	github.com/microcosm-cc/bluemonday v1.0.27
@@ -38,7 +37,7 @@ require (
 	github.com/MicahParks/keyfunc/v2 v2.1.0 // indirect
 	github.com/RoaringBitmap/roaring/v2 v2.19.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
-	github.com/beevik/etree v1.6.0 // indirect
+	github.com/beevik/etree v1.8.1 // indirect
 	github.com/blevesearch/go-faiss v1.1.5 // indirect
 	github.com/blevesearch/zapx/v16 v16.3.4 // indirect
 	github.com/blevesearch/zapx/v17 v17.1.9 // indirect
@@ -52,6 +51,7 @@ require (
 	github.com/govalues/decimal v0.1.36 // indirect
 	github.com/hhrutter/lzw v1.0.0 // indirect
 	github.com/hhrutter/pkcs7 v0.2.2 // indirect
+	github.com/hhrutter/tiff v1.0.5 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/kovidgoyal/go-parallel v1.1.1 // indirect
@@ -119,3 +119,5 @@ require (
 )
 
 replace github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.3
+
+replace github.com/pirmd/epub => ../epub

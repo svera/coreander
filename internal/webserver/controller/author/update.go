@@ -58,6 +58,7 @@ func (a *Controller) Update(c fiber.Ctx) error {
 
 	if err := a.idx.IndexAuthor(author); err != nil {
 		log.Println(err)
+		return fiber.ErrInternalServerError
 	}
 
 	templateVars := fiber.Map{

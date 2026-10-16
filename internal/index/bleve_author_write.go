@@ -1,11 +1,15 @@
 package index
 
 import (
+	"fmt"
 	"log"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
+	"github.com/svera/coreander/v5/internal/metadata"
 )
 
 func (b *BleveIndexer) incrementAuthorCounts(names, slugs []string) error {
@@ -152,10 +156,89 @@ func accumulateContributors(counts map[string]uint64, names map[string]string, s
 }
 
 func (b *BleveIndexer) IndexAuthor(author Author) error {
+	b.authorMetadataMu.Lock()
+	defer b.authorMetadataMu.Unlock()
+	if err := b.writeAuthorIDs(author); err != nil {
+		return err
+	}
 	b.authorsMu.Lock()
 	defer b.authorsMu.Unlock()
 	if err := b.authorsIdx.Index(author.Slug, author); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (b *BleveIndexer) writeAuthorIDs(author Author) error {
+	const batchSize = 100
+	for page := 1; ; page++ {
+		documents, err := b.SearchByAuthor(SearchFields{
+			AuthorSlug: author.Slug, SortBy: []string{"_id"},
+		}, page, batchSize)
+		if err != nil {
+			return err
+		}
+		for _, document := range documents.Hits() {
+			fullPath := filepath.Join(b.libraryPath, document.ID)
+			unlock := b.lockFile(document.ID)
+			err := b.writeDocumentAuthorIDs(fullPath, document, &author)
+			unlock()
+			if err != nil {
+				return err
+			}
+		}
+		if len(documents.Hits()) < batchSize {
+			return nil
+		}
+	}
+}
+
+func (b *BleveIndexer) writeDocumentAuthorIDs(filename string, document Document, override *Author) error {
+	writer, ok := b.reader[strings.ToLower(filepath.Ext(filename))].(metadata.AuthorIDWriter)
+	if !ok {
+		return nil
+	}
+	ids := make(map[string]string)
+	for _, authorSlug := range authorSlugsFromDocument(document) {
+		if override != nil && override.Slug == authorSlug {
+			ids[authorSlug] = override.DataSourceID
+			continue
+		}
+		author, err := b.Author(authorSlug, "")
+		if err != nil {
+			return err
+		}
+		if author.DataSourceID != "" {
+			ids[authorSlug] = author.DataSourceID
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	var unchangedState *indexedFileState
+	if state, ok := b.lastIndexed.Load(document.ID); ok {
+		existing := state.(indexedFileState)
+		if existing.hash != "" {
+			hash, err := b.fileHash(filename)
+			if err != nil {
+				return err
+			}
+			if hash == existing.hash {
+				unchangedState = &existing
+			}
+		}
+	}
+	changed, err := writer.WriteAuthorIDs(filename, ids)
+	if err != nil {
+		return fmt.Errorf("writing author Wikidata IDs to %s: %w", filename, err)
+	}
+	if changed && unchangedState != nil {
+		hash, err := b.fileHash(filename)
+		if err != nil {
+			return fmt.Errorf("hashing updated EPUB %s: %w", filename, err)
+		}
+		unchangedState.hash = hash
+		b.lastIndexed.Store(document.ID, *unchangedState)
 	}
 	return nil
 }
@@ -270,7 +353,7 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 			author.RetrievedOn = time.Now().UTC()
 		}
 		if err := b.IndexAuthor(author); err != nil {
-			log.Printf("Error indexing enriched author %s: %s", author.Name, err)
+			return fmt.Errorf("indexing enriched author %s: %w", author.Name, err)
 		}
 		b.recordAuthorEnrichmentProgress()
 		return nil

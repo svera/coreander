@@ -631,16 +631,16 @@ func testIndexAndSearchCases() []testCase {
 			"Look for a term without accent must return accented results",
 			"lib/book1.epub",
 			&epub.Information{
-				Title: []string{"Test A"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Test A")},
 				Creator: []epub.Author{
 					{
 						FullName: "Pérez",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"Just test metadata"},
-				Language:    []string{"es"},
-				Subject:     []string{"History", "Middle age"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("Just test metadata")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("es")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("History"), epub.NewMetadataValue("Middle age")},
 				Date: []epub.Date{
 					{
 						Stamp: "2023-10-01",
@@ -677,16 +677,16 @@ func testIndexAndSearchCases() []testCase {
 			"Look for a term without circumflex accent must return circumflexed results",
 			"lib/book2.epub",
 			&epub.Information{
-				Title: []string{"Test B"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Test B")},
 				Creator: []epub.Author{
 					{
 						FullName: "Benoît",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"Just test metadata"},
-				Language:    []string{"fr"},
-				Subject:     []string{},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("Just test metadata")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("fr")},
+				Subject:     []epub.MetadataValue{},
 				Date: []epub.Date{
 					{
 						Stamp: "1974",
@@ -723,16 +723,16 @@ func testIndexAndSearchCases() []testCase {
 			"Look for several, not exact terms must return a result with all those terms, even if there is something in between",
 			"lib/book3.epub",
 			&epub.Information{
-				Title: []string{"Test C"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Test C")},
 				Creator: []epub.Author{
 					{
 						FullName: "Clifford D. Simak",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"Just test metadata"},
-				Language:    []string{"en"},
-				Subject:     []string{},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("Just test metadata")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("en")},
+				Subject:     []epub.MetadataValue{},
 				Date: []epub.Date{
 					{
 						Stamp: "1950-11-02T00:00:00Z",
@@ -769,16 +769,16 @@ func testIndexAndSearchCases() []testCase {
 			"Look for several, not exact terms must return a result with all those terms, even if there is something in between",
 			"lib/book4.epub",
 			&epub.Information{
-				Title: []string{"Test D"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Test D")},
 				Creator: []epub.Author{
 					{
 						FullName: "James Ellroy",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"Just test metadata"},
-				Language:    []string{"en"},
-				Subject:     []string{},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("Just test metadata")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("en")},
+				Subject:     []epub.MetadataValue{},
 			},
 			index.SearchFields{Keywords: "james ellroy"},
 			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
@@ -808,16 +808,16 @@ func testIndexAndSearchCases() []testCase {
 			"Look for several, not exact terms with multiple leading, trailing and in-between spaces must return a result with all those terms, even if there is something in between",
 			"lib/book5.epub",
 			&epub.Information{
-				Title: []string{"Test E"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Test E")},
 				Creator: []epub.Author{
 					{
 						FullName: "James Ellroy",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"Just test metadata"},
-				Language:    []string{"en"},
-				Subject:     []string{},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("Just test metadata")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("en")},
+				Subject:     []epub.MetadataValue{},
 			},
 			index.SearchFields{Keywords: " james       ellroy "},
 			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
@@ -847,16 +847,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test genre spanish stemmer",
 			"lib/book6.epub",
 			&epub.Information{
-				Title: []string{"La Guerrera"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("La Guerrera")},
 				Creator: []epub.Author{
 					{
 						FullName: "Anónimo",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"Just test metadata"},
-				Language:    []string{"es"},
-				Subject:     []string{"History", "Middle age"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("Just test metadata")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("es")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("History"), epub.NewMetadataValue("Middle age")},
 			},
 			index.SearchFields{Keywords: "guerrero"},
 			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
@@ -887,16 +887,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test plural italian stemmer",
 			"lib/book7.epub",
 			&epub.Information{
-				Title: []string{"Fratelli"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Fratelli")},
 				Creator: []epub.Author{
 					{
 						FullName: "Anónimo",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"Just test metadata"},
-				Language:    []string{"it"},
-				Subject:     []string{"History", "Middle age"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("Just test metadata")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("it")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("History"), epub.NewMetadataValue("Middle age")},
 			},
 			index.SearchFields{Keywords: "fratello"},
 			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
@@ -927,16 +927,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test genre spanish stemmer",
 			"lib/book8.epub",
 			&epub.Information{
-				Title: []string{"El Infinito en un Junco"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("El Infinito en un Junco")},
 				Creator: []epub.Author{
 					{
 						FullName: "Irene Vallejo",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"Just test metadata"},
-				Language:    []string{"es"},
-				Subject:     []string{"History", "Middle age"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("Just test metadata")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("es")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("History"), epub.NewMetadataValue("Middle age")},
 			},
 			index.SearchFields{Keywords: "infinito junco"},
 			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
@@ -967,16 +967,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test spanish stemmer returning accented word while using unaccented word in search",
 			"lib/book9.epub",
 			&epub.Information{
-				Title: []string{"Últimos días en Colditz"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Últimos días en Colditz")},
 				Creator: []epub.Author{
 					{
 						FullName: "Patrick R. Reid",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"Just test metadata"},
-				Language:    []string{"es"},
-				Subject:     []string{"History", "WWII"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("Just test metadata")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("es")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("History"), epub.NewMetadataValue("WWII")},
 			},
 			index.SearchFields{Keywords: "ultimos"},
 			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
@@ -1007,16 +1007,16 @@ func testIndexAndSearchCases() []testCase {
 			"Weird case with ',' as subject or '&' as author",
 			"lib/book10.epub",
 			&epub.Information{
-				Title: []string{"Sin nombre"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Sin nombre")},
 				Creator: []epub.Author{
 					{
 						FullName: "&",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"Just test metadata"},
-				Language:    []string{"es"},
-				Subject:     []string{","},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("Just test metadata")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("es")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue(",")},
 			},
 			index.SearchFields{Keywords: "sin nombre"},
 			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
@@ -1047,16 +1047,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test search with partial title and author",
 			"lib/book8.epub",
 			&epub.Information{
-				Title: []string{"El Infinito en un Junco"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("El Infinito en un Junco")},
 				Creator: []epub.Author{
 					{
 						FullName: "Irene Vallejo",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"Just test metadata"},
-				Language:    []string{"es"},
-				Subject:     []string{"History", "Middle age"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("Just test metadata")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("es")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("History"), epub.NewMetadataValue("Middle age")},
 			},
 			index.SearchFields{Keywords: "irene junco"},
 			result.CappedPaginatedResult[[]index.Document]{Paginated: result.NewPaginated(
@@ -1087,16 +1087,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test date range search",
 			"lib/book11.epub",
 			&epub.Information{
-				Title: []string{"Modern History Book"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Modern History Book")},
 				Creator: []epub.Author{
 					{
 						FullName: "John Smith",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"A book about modern history"},
-				Language:    []string{"en"},
-				Subject:     []string{"History", "Modern"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("A book about modern history")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("en")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("History"), epub.NewMetadataValue("Modern")},
 				Date: []epub.Date{
 					{
 						Stamp: "2020-06-15",
@@ -1137,16 +1137,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test date range search with year precision",
 			"lib/book12.epub",
 			&epub.Information{
-				Title: []string{"Ancient History Book"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Ancient History Book")},
 				Creator: []epub.Author{
 					{
 						FullName: "Jane Doe",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"A book about ancient history"},
-				Language:    []string{"en"},
-				Subject:     []string{"History", "Ancient"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("A book about ancient history")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("en")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("History"), epub.NewMetadataValue("Ancient")},
 				Date: []epub.Date{
 					{
 						Stamp: "1975",
@@ -1187,16 +1187,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test search results sorted by publication date older first",
 			"lib/book13.epub",
 			&epub.Information{
-				Title: []string{"Old Book"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Old Book")},
 				Creator: []epub.Author{
 					{
 						FullName: "Ancient Author",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"An old book"},
-				Language:    []string{"en"},
-				Subject:     []string{"History"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("An old book")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("en")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("History")},
 				Date: []epub.Date{
 					{
 						Stamp: "1800-01-01",
@@ -1236,16 +1236,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test search results sorted by publication date newer first",
 			"lib/book14.epub",
 			&epub.Information{
-				Title: []string{"New Book"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("New Book")},
 				Creator: []epub.Author{
 					{
 						FullName: "Modern Author",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"A new book"},
-				Language:    []string{"en"},
-				Subject:     []string{"Technology"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("A new book")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("en")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("Technology")},
 				Date: []epub.Date{
 					{
 						Stamp: "2023-12-31",
@@ -1285,16 +1285,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test multiple books sorted by publication date older first",
 			"lib/book15.epub",
 			&epub.Information{
-				Title: []string{"Middle Book"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Middle Book")},
 				Creator: []epub.Author{
 					{
 						FullName: "Middle Author",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"A middle-aged book"},
-				Language:    []string{"en"},
-				Subject:     []string{"Literature"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("A middle-aged book")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("en")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("Literature")},
 				Date: []epub.Date{
 					{
 						Stamp: "1950-06-15",
@@ -1334,16 +1334,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test books with different date precisions sorted by publication date",
 			"lib/book16.epub",
 			&epub.Information{
-				Title: []string{"Decade Book"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Decade Book")},
 				Creator: []epub.Author{
 					{
 						FullName: "Decade Author",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"A book from a specific decade"},
-				Language:    []string{"en"},
-				Subject:     []string{"History"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("A book from a specific decade")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("en")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("History")},
 				Date: []epub.Date{
 					{
 						Stamp: "1980",
@@ -1383,16 +1383,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test search results sorted by reading time shorter first",
 			"lib/book17.epub",
 			&epub.Information{
-				Title: []string{"Short Book"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Short Book")},
 				Creator: []epub.Author{
 					{
 						FullName: "Short Author",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"A short book"},
-				Language:    []string{"en"},
-				Subject:     []string{"Short Stories"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("A short book")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("en")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("Short Stories")},
 				Date: []epub.Date{
 					{
 						Stamp: "2020-01-01",
@@ -1432,16 +1432,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test search results sorted by reading time longer first",
 			"lib/book18.epub",
 			&epub.Information{
-				Title: []string{"Long Book"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Long Book")},
 				Creator: []epub.Author{
 					{
 						FullName: "Long Author",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"A long book"},
-				Language:    []string{"en"},
-				Subject:     []string{"Novels"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("A long book")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("en")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("Novels")},
 				Date: []epub.Date{
 					{
 						Stamp: "2020-12-31",
@@ -1481,16 +1481,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test estimated reading time range search",
 			"lib/book19.epub",
 			&epub.Information{
-				Title: []string{"Medium Length Book"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Medium Length Book")},
 				Creator: []epub.Author{
 					{
 						FullName: "Medium Author",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"A medium length book"},
-				Language:    []string{"en"},
-				Subject:     []string{"Fiction"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("A medium length book")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("en")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("Fiction")},
 				Date: []epub.Date{
 					{
 						Stamp: "2021-06-15",
@@ -1533,16 +1533,16 @@ func testIndexAndSearchCases() []testCase {
 			"Test language filter - search for Spanish documents only",
 			"lib/book_spanish.epub",
 			&epub.Information{
-				Title: []string{"Spanish Book"},
+				Title: []epub.MetadataValue{epub.NewMetadataValue("Spanish Book")},
 				Creator: []epub.Author{
 					{
 						FullName: "Spanish Author",
 						Role:     "aut",
 					},
 				},
-				Description: []string{"A book in Spanish"},
-				Language:    []string{"es"},
-				Subject:     []string{"Literature"},
+				Description: []epub.MetadataValue{epub.NewMetadataValue("A book in Spanish")},
+				Language:    []epub.MetadataValue{epub.NewMetadataValue("es")},
+				Subject:     []epub.MetadataValue{epub.NewMetadataValue("Literature")},
 				Date: []epub.Date{
 					{
 						Stamp: "2023-01-01",

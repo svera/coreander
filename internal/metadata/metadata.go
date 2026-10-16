@@ -58,6 +58,11 @@ type Reader interface {
 	Cover(documentFullPath string, coverMaxWidth int) (image.Image, error)
 }
 
+// AuthorIDWriter is implemented by readers that can persist Wikidata IDs.
+type AuthorIDWriter interface {
+	WriteAuthorIDs(file string, idsBySlug map[string]string) (changed bool, err error)
+}
+
 // TextExtractor is implemented by Reader types that can return their full
 // extracted text content alongside Metadata in a single pass (currently just
 // EpubReader). Callers that also need a TextRanker's analysis right after

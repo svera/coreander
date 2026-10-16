@@ -53,25 +53,25 @@ func (r epubTestReader) RankText(minOccurrenceRatio float64, textContent, filena
 func languageFilterLibrary() map[string]*epub.Information {
 	return map[string]*epub.Information{
 		"lib/english_book.epub": {
-			Title:       []string{"English Book"},
+			Title:       []epub.MetadataValue{epub.NewMetadataValue("English Book")},
 			Creator:     []epub.Author{{FullName: "English Author", Role: "aut"}},
-			Description: []string{"A book in English"},
-			Language:    []string{"en"},
-			Subject:     []string{"Fiction"},
+			Description: []epub.MetadataValue{epub.NewMetadataValue("A book in English")},
+			Language:    []epub.MetadataValue{epub.NewMetadataValue("en")},
+			Subject:     []epub.MetadataValue{epub.NewMetadataValue("Fiction")},
 		},
 		"lib/spanish_book.epub": {
-			Title:       []string{"Spanish Book"},
+			Title:       []epub.MetadataValue{epub.NewMetadataValue("Spanish Book")},
 			Creator:     []epub.Author{{FullName: "Spanish Author", Role: "aut"}},
-			Description: []string{"A book in Spanish"},
-			Language:    []string{"es"},
-			Subject:     []string{"Fiction"},
+			Description: []epub.MetadataValue{epub.NewMetadataValue("A book in Spanish")},
+			Language:    []epub.MetadataValue{epub.NewMetadataValue("es")},
+			Subject:     []epub.MetadataValue{epub.NewMetadataValue("Fiction")},
 		},
 		"lib/french_book.epub": {
-			Title:       []string{"French Book"},
+			Title:       []epub.MetadataValue{epub.NewMetadataValue("French Book")},
 			Creator:     []epub.Author{{FullName: "French Author", Role: "aut"}},
-			Description: []string{"A book in French"},
-			Language:    []string{"fr"},
-			Subject:     []string{"Fiction"},
+			Description: []epub.MetadataValue{epub.NewMetadataValue("A book in French")},
+			Language:    []epub.MetadataValue{epub.NewMetadataValue("fr")},
+			Subject:     []epub.MetadataValue{epub.NewMetadataValue("Fiction")},
 		},
 	}
 }
@@ -79,28 +79,28 @@ func languageFilterLibrary() map[string]*epub.Information {
 func publicationDateSortLibrary() map[string]*epub.Information {
 	return map[string]*epub.Information{
 		"lib/oldest.epub": {
-			Title: []string{"Oldest Book"}, Creator: []epub.Author{{FullName: "Ancient Author", Role: "aut"}},
-			Description: []string{"The oldest book"}, Language: []string{"en"}, Subject: []string{"History"},
+			Title: []epub.MetadataValue{epub.NewMetadataValue("Oldest Book")}, Creator: []epub.Author{{FullName: "Ancient Author", Role: "aut"}},
+			Description: []epub.MetadataValue{epub.NewMetadataValue("The oldest book")}, Language: []epub.MetadataValue{epub.NewMetadataValue("en")}, Subject: []epub.MetadataValue{epub.NewMetadataValue("History")},
 			Date: []epub.Date{{Stamp: "1800-01-01", Event: "publication"}},
 		},
 		"lib/older.epub": {
-			Title: []string{"Older Book"}, Creator: []epub.Author{{FullName: "Old Author", Role: "aut"}},
-			Description: []string{"An older book"}, Language: []string{"en"}, Subject: []string{"History"},
+			Title: []epub.MetadataValue{epub.NewMetadataValue("Older Book")}, Creator: []epub.Author{{FullName: "Old Author", Role: "aut"}},
+			Description: []epub.MetadataValue{epub.NewMetadataValue("An older book")}, Language: []epub.MetadataValue{epub.NewMetadataValue("en")}, Subject: []epub.MetadataValue{epub.NewMetadataValue("History")},
 			Date: []epub.Date{{Stamp: "1900-06-15", Event: "publication"}},
 		},
 		"lib/newer.epub": {
-			Title: []string{"Newer Book"}, Creator: []epub.Author{{FullName: "New Author", Role: "aut"}},
-			Description: []string{"A newer book"}, Language: []string{"en"}, Subject: []string{"History"},
+			Title: []epub.MetadataValue{epub.NewMetadataValue("Newer Book")}, Creator: []epub.Author{{FullName: "New Author", Role: "aut"}},
+			Description: []epub.MetadataValue{epub.NewMetadataValue("A newer book")}, Language: []epub.MetadataValue{epub.NewMetadataValue("en")}, Subject: []epub.MetadataValue{epub.NewMetadataValue("History")},
 			Date: []epub.Date{{Stamp: "2000-12-31", Event: "publication"}},
 		},
 		"lib/newest.epub": {
-			Title: []string{"Newest Book"}, Creator: []epub.Author{{FullName: "Modern Author", Role: "aut"}},
-			Description: []string{"The newest book"}, Language: []string{"en"}, Subject: []string{"History"},
+			Title: []epub.MetadataValue{epub.NewMetadataValue("Newest Book")}, Creator: []epub.Author{{FullName: "Modern Author", Role: "aut"}},
+			Description: []epub.MetadataValue{epub.NewMetadataValue("The newest book")}, Language: []epub.MetadataValue{epub.NewMetadataValue("en")}, Subject: []epub.MetadataValue{epub.NewMetadataValue("History")},
 			Date: []epub.Date{{Stamp: "2023-03-20", Event: "publication"}},
 		},
 		"lib/no-date.epub": {
-			Title: []string{"No Date Book"}, Creator: []epub.Author{{FullName: "Unknown Author", Role: "aut"}},
-			Description: []string{"A book without publication date"}, Language: []string{"en"}, Subject: []string{"History"},
+			Title: []epub.MetadataValue{epub.NewMetadataValue("No Date Book")}, Creator: []epub.Author{{FullName: "Unknown Author", Role: "aut"}},
+			Description: []epub.MetadataValue{epub.NewMetadataValue("A book without publication date")}, Language: []epub.MetadataValue{epub.NewMetadataValue("en")}, Subject: []epub.MetadataValue{epub.NewMetadataValue("History")},
 			Date: []epub.Date{},
 		},
 	}
@@ -109,28 +109,28 @@ func publicationDateSortLibrary() map[string]*epub.Information {
 func readingTimeSortReader() epubTestReader {
 	info := map[string]*epub.Information{
 		"lib/shortest.epub": {
-			Title: []string{"Shortest Book"}, Creator: []epub.Author{{FullName: "Short Author", Role: "aut"}},
-			Description: []string{"The shortest book"}, Language: []string{"en"}, Subject: []string{"Short Stories"},
+			Title: []epub.MetadataValue{epub.NewMetadataValue("Shortest Book")}, Creator: []epub.Author{{FullName: "Short Author", Role: "aut"}},
+			Description: []epub.MetadataValue{epub.NewMetadataValue("The shortest book")}, Language: []epub.MetadataValue{epub.NewMetadataValue("en")}, Subject: []epub.MetadataValue{epub.NewMetadataValue("Short Stories")},
 			Date: []epub.Date{{Stamp: "2020-01-01", Event: "publication"}},
 		},
 		"lib/shorter.epub": {
-			Title: []string{"Shorter Book"}, Creator: []epub.Author{{FullName: "Medium Author", Role: "aut"}},
-			Description: []string{"A shorter book"}, Language: []string{"en"}, Subject: []string{"Short Stories"},
+			Title: []epub.MetadataValue{epub.NewMetadataValue("Shorter Book")}, Creator: []epub.Author{{FullName: "Medium Author", Role: "aut"}},
+			Description: []epub.MetadataValue{epub.NewMetadataValue("A shorter book")}, Language: []epub.MetadataValue{epub.NewMetadataValue("en")}, Subject: []epub.MetadataValue{epub.NewMetadataValue("Short Stories")},
 			Date: []epub.Date{{Stamp: "2020-06-15", Event: "publication"}},
 		},
 		"lib/longer.epub": {
-			Title: []string{"Longer Book"}, Creator: []epub.Author{{FullName: "Long Author", Role: "aut"}},
-			Description: []string{"A longer book"}, Language: []string{"en"}, Subject: []string{"Novels"},
+			Title: []epub.MetadataValue{epub.NewMetadataValue("Longer Book")}, Creator: []epub.Author{{FullName: "Long Author", Role: "aut"}},
+			Description: []epub.MetadataValue{epub.NewMetadataValue("A longer book")}, Language: []epub.MetadataValue{epub.NewMetadataValue("en")}, Subject: []epub.MetadataValue{epub.NewMetadataValue("Novels")},
 			Date: []epub.Date{{Stamp: "2020-12-31", Event: "publication"}},
 		},
 		"lib/longest.epub": {
-			Title: []string{"Longest Book"}, Creator: []epub.Author{{FullName: "Epic Author", Role: "aut"}},
-			Description: []string{"The longest book"}, Language: []string{"en"}, Subject: []string{"Epic Novels"},
+			Title: []epub.MetadataValue{epub.NewMetadataValue("Longest Book")}, Creator: []epub.Author{{FullName: "Epic Author", Role: "aut"}},
+			Description: []epub.MetadataValue{epub.NewMetadataValue("The longest book")}, Language: []epub.MetadataValue{epub.NewMetadataValue("en")}, Subject: []epub.MetadataValue{epub.NewMetadataValue("Epic Novels")},
 			Date: []epub.Date{{Stamp: "2023-03-20", Event: "publication"}},
 		},
 		"lib/no-words.epub": {
-			Title: []string{"No Words Book"}, Creator: []epub.Author{{FullName: "Unknown Author", Role: "aut"}},
-			Description: []string{"A book without word count"}, Language: []string{"en"}, Subject: []string{"Mystery"},
+			Title: []epub.MetadataValue{epub.NewMetadataValue("No Words Book")}, Creator: []epub.Author{{FullName: "Unknown Author", Role: "aut"}},
+			Description: []epub.MetadataValue{epub.NewMetadataValue("A book without word count")}, Language: []epub.MetadataValue{epub.NewMetadataValue("en")}, Subject: []epub.MetadataValue{epub.NewMetadataValue("Mystery")},
 			Date: []epub.Date{},
 		},
 	}

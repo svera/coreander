@@ -194,8 +194,10 @@ type BleveIndexer struct {
 	// while the webserver concurrently searches them, and without this guard
 	// concurrent Batch/Search calls have been observed to panic inside
 	// bleve/zapx (an out-of-range read while decoding a segment being merged).
-	documentsMu                    sync.RWMutex
-	authorsMu                      sync.RWMutex
+	documentsMu sync.RWMutex
+	authorsMu   sync.RWMutex
+	// Keep EPUB writes and author-index commits consistent with file indexing.
+	authorMetadataMu               sync.RWMutex
 	libraryPath                    string
 	reader                         map[string]metadata.Reader
 	indexProgress                  progressTracker

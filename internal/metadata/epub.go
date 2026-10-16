@@ -151,8 +151,8 @@ func (e EpubReader) RankText(minOccurrenceRatio float64, textContent, language s
 // EpubReader.Metadata uses this then fills illustrations and word count from the package/zip.
 func BuildEpubMetadataFields(meta *epub.Information, filename string) (Metadata, error) {
 	title := strings.TrimSuffix(filepath.Base(filename), filepath.Ext(filename))
-	if len(meta.Title) > 0 && len(meta.Title[0]) > 0 {
-		title = meta.Title[0]
+	if len(meta.Title) > 0 && meta.Title[0].String() != "" {
+		title = meta.Title[0].String()
 	}
 	var authors []string
 	var illustrators []string
@@ -167,8 +167,8 @@ func BuildEpubMetadataFields(meta *epub.Information, filename string) (Metadata,
 	}
 
 	var subjects []string
-	for _, subject := range meta.Subject {
-		subject = strings.TrimSpace(subject)
+	for _, value := range meta.Subject {
+		subject := strings.TrimSpace(value.String())
 		if subject == "" {
 			continue
 		}
@@ -184,12 +184,12 @@ func BuildEpubMetadataFields(meta *epub.Information, filename string) (Metadata,
 
 	description := ""
 	if len(meta.Description) > 0 {
-		description = SanitizeDescription(meta.Description[0])
+		description = SanitizeDescription(meta.Description[0].String())
 	}
 
 	lang := ""
 	if len(meta.Language) > 0 {
-		lang = meta.Language[0]
+		lang = meta.Language[0].String()
 	}
 
 	publication := precisiondate.PrecisionDate{Precision: precisiondate.PrecisionDay}
@@ -204,7 +204,7 @@ func BuildEpubMetadataFields(meta *epub.Information, filename string) (Metadata,
 		}
 	}
 
-	seriesIndex, _ := strconv.ParseFloat(meta.SeriesIndex, 64)
+	seriesIndex, _ := strconv.ParseFloat(meta.SeriesIndex.String(), 64)
 
 	return Metadata{
 		Title:        title,
@@ -213,7 +213,7 @@ func BuildEpubMetadataFields(meta *epub.Information, filename string) (Metadata,
 		Description:  template.HTML(description),
 		Language:     lang,
 		Publication:  publication,
-		Series:       meta.Series,
+		Series:       meta.Series.String(),
 		SeriesIndex:  seriesIndex,
 		Format:       "EPUB",
 		Subjects:     subjects,
