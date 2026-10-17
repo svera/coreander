@@ -49,11 +49,12 @@ func (a *Controller) Update(c fiber.Ctx) error {
 			return fiber.ErrNotFound
 		}
 
-		if err := a.appFs.Remove(a.config.CacheDir + "/authors/" + author.Slug + ".webp"); err != nil && !os.IsNotExist(err) {
-			fmt.Println(err)
-		}
-
 		index.CombineWithDataSource(&author, authorDataSource, supportedLanguages)
+	}
+
+	if err := a.appFs.Remove(a.config.CacheDir + "/authors/" + author.Slug + ".webp"); err != nil && !os.IsNotExist(err) {
+		log.Println(fmt.Errorf("error removing cached image for author %s: %w", author.Slug, err))
+		return fiber.ErrInternalServerError
 	}
 
 	if err := a.idx.IndexAuthor(author); err != nil {

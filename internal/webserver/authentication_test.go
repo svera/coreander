@@ -263,6 +263,23 @@ func TestRecover(t *testing.T) {
 		}
 	})
 
+	t.Run("Try to access the update password with an unknown recovery ID", func(t *testing.T) {
+		reset(2 * time.Hour)
+
+		req, err := http.NewRequest(http.MethodGet, "/reset-password?id=unknown-token", nil)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		req.Header.Set("Accept-Language", "en")
+		response, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if expectedStatus := http.StatusBadRequest; response.StatusCode != expectedStatus {
+			t.Errorf("Expected status %d, received %d", expectedStatus, response.StatusCode)
+		}
+	})
+
 	t.Run("Check that posting an existing email sends a recovery email and resetting the password successfully redirects to the login page", func(t *testing.T) {
 		reset(2 * time.Hour)
 
