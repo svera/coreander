@@ -63,7 +63,10 @@ func (a *Controller) validateRecoveryAccess(recoveryUuid string) (*model.User, e
 	}
 	user, err := a.repository.FindByRecoveryUuid(recoveryUuid)
 	if err != nil {
-		return user, fiber.ErrInternalServerError
+		return nil, fiber.ErrInternalServerError
+	}
+	if user == nil {
+		return nil, fiber.ErrBadRequest
 	}
 
 	if user.RecoveryValidUntil.UTC().After(time.Now().UTC()) {
