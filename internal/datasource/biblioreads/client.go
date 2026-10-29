@@ -23,6 +23,7 @@ const (
 
 	searchBooksPath    = "/api/search/books"
 	bookScraperPath    = "/api/book-scraper"
+	authorInfoPath     = "/api/author/info"
 	reviewsScraperPath = "/api/reviews-scraper"
 )
 
@@ -143,6 +144,17 @@ func (c *Client) Book(ctx context.Context, id string) (BookResponse, error) {
 		QueryURL: goodreadsBaseURL + "/book/show/" + url.PathEscape(id),
 	}
 	err := c.post(ctx, bookScraperPath, payload, &res)
+	return res, err
+}
+
+// Author returns the details of the Goodreads author identified by id, which can be
+// either a numeric ID ("151155") or an ID with slug ("151155.Alice_Borchardt").
+func (c *Client) Author(ctx context.Context, id string) (AuthorResponse, error) {
+	var res AuthorResponse
+	payload := queryURLPayload{
+		QueryURL: goodreadsBaseURL + "/author/show/" + url.PathEscape(id),
+	}
+	err := c.post(ctx, authorInfoPath, payload, &res)
 	return res, err
 }
 

@@ -1,0 +1,35 @@
+{
+    "status": "Received",
+    "source": "https://github.com/nesaku/biblioreads",
+    "scrapeURL": "https://www.goodreads.com/author/show/151155.Alice_Borchardt",
+    "image": "https://images.gr-assets.com/authors/1237783268p5/151155.jpg",
+    "name": "Alice Borchardt",
+    "website": "",
+    "genre": ["Historical Fiction", "Science Fiction & Fantasy"],
+    "influences": [],
+    "birthDate": "\n        October 06, 1939\n    ",
+    "deathDate": "July 24, 2007",
+    "desc": "Author of <a href=\"https://www.goodreads.com/book/show/258657.The_Silver_Wolf\">The Silver Wolf</a>.",
+    "books": [
+        {
+            "id": 1,
+            "cover": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1327131705i/258657._SX50_.jpg",
+            "title": "The Silver Wolf (Legends of the Wolf #1)",
+            "url": "/book/show/258657.The_Silver_Wolf",
+            "rating": " 3.92 avg rating From 4627 ratings",
+            "publishDate": "\n                 3.92 avg rating — 4,627 ratings\n              —\n                published\n               1998\n              —\n              2 editions\n          "
+        }
+    ],
+    "series": [
+        {
+            "id": 1,
+            "cover": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1327131705l/258657._SX50_.jpg",
+            "title": "Legends of the Wolf",
+            "seriesURL": "/series/49775-legends-of-the-wolf",
+            "author": "Alice Borchardt",
+            "authorURL": "/author/show/151155.Alice_Borchardt",
+            "rating": " 3.91 avg rating — 8,472 ratings"
+        }
+    ],
+    "lastScraped": "2026-10-29T12:25:21.332Z"
+}

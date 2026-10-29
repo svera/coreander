@@ -70,6 +70,42 @@ type ReviewBreakdown struct {
 	Rating5 string `json:"rating5"`
 }
 
+type AuthorResponse struct {
+	Status      string         `json:"status"`
+	Source      string         `json:"source"`
+	ScrapeURL   string         `json:"scrapeURL"`
+	Image       string         `json:"image"`
+	Name        string         `json:"name"`
+	Website     string         `json:"website"`
+	Genre       []string       `json:"genre"`
+	Influences  []string       `json:"influences"`
+	BirthDate   string         `json:"birthDate"`
+	DeathDate   string         `json:"deathDate"`
+	Desc        string         `json:"desc"`
+	Books       []AuthorBook   `json:"books"`
+	Series      []AuthorSeries `json:"series"`
+	LastScraped string         `json:"lastScraped"`
+}
+
+type AuthorBook struct {
+	ID          int    `json:"id"`
+	Cover       string `json:"cover"`
+	Title       string `json:"title"`
+	URL         string `json:"url"`
+	Rating      string `json:"rating"`
+	PublishDate string `json:"publishDate"`
+}
+
+type AuthorSeries struct {
+	ID        int    `json:"id"`
+	Cover     string `json:"cover"`
+	Title     string `json:"title"`
+	SeriesURL string `json:"seriesURL"`
+	Author    string `json:"author"`
+	AuthorURL string `json:"authorURL"`
+	Rating    string `json:"rating"`
+}
+
 type ReviewsResponse struct {
 	Status        string   `json:"status"`
 	StatusCode    int      `json:"statusCode"`

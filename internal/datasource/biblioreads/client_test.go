@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -130,6 +131,81 @@ func TestBook(t *testing.T) {
 	}
 	if res.ReviewBreakdown.Rating5 != "726" {
 		t.Errorf("unexpected review breakdown: %+v", res.ReviewBreakdown)
+	}
+}
+
+func TestAuthor(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		id   string
+		url  string
+	}{
+		{"numeric ID", "151155", "https://www.goodreads.com/author/show/151155"},
+		{"ID with slug", "151155.Alice_Borchardt", "https://www.goodreads.com/author/show/151155.Alice_Borchardt"},
+		{"escaped ID", "151155.Alice/Borchardt?#", "https://www.goodreads.com/author/show/151155.Alice%2FBorchardt%3F%23"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var captured capturedRequest
+			server := newMockServer(t, http.StatusOK, "author-info.json", &captured)
+			client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
+
+			res, err := client.Author(context.Background(), tt.id)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			assertRequest(t, captured, "/api/author/info", map[string]any{"queryURL": tt.url})
+
+			fixture, err := os.ReadFile("fixtures/author-info.json")
+			if err != nil {
+				t.Fatalf("couldn't read author fixture: %v", err)
+			}
+			encoded, err := json.Marshal(res)
+			if err != nil {
+				t.Fatalf("couldn't encode author response: %v", err)
+			}
+			var want, got map[string]any
+			if err := json.Unmarshal(fixture, &want); err != nil {
+				t.Fatalf("couldn't decode author fixture: %v", err)
+			}
+			if err := json.Unmarshal(encoded, &got); err != nil {
+				t.Fatalf("couldn't decode encoded author response: %v", err)
+			}
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("author response did not preserve all fixture fields:\ngot: %+v\nwant: %+v", got, want)
+			}
+		})
+	}
+}
+
+func TestAuthorErrors(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		status      int
+		body        string
+		unavailable bool
+	}{
+		{"API error", http.StatusNotFound, `{"status":"Error - Author not found"}`, false},
+		{"non-JSON response", http.StatusOK, "<html>Bad Gateway</html>", true},
+		{"invalid field type", http.StatusOK, `{"books":"invalid"}`, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var hits atomic.Int32
+			server := newCountingServer(t, tt.status, tt.body, &hits)
+			client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}))
+
+			for range 2 {
+				_, err := client.Author(context.Background(), "151155")
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if errors.Is(err, biblioreads.ErrUnavailable) != tt.unavailable {
+					t.Errorf("expected unavailable=%v, got %v", tt.unavailable, err)
+				}
+			}
+			if hits.Load() != 2 {
+				t.Errorf("expected errors not to be cached, got %d requests", hits.Load())
+			}
+		})
 	}
 }
 
@@ -449,7 +525,12 @@ func TestCache(t *testing.T) {
 		if _, err := client.Reviews(context.Background(), "kca://work/abc", 1, "token"); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if hits.Load() != 5 {
+		for range 2 {
+			if _, err := client.Author(context.Background(), "1"); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		}
+		if hits.Load() != 6 {
 			t.Errorf("expected different requests not to share cache entries, got %d requests", hits.Load())
 		}
 	})
