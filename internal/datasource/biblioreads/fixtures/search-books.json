@@ -1,0 +1,19 @@
+{
+    "status": "Received",
+    "source": "https://github.com/nesaku/biblioreads",
+    "apiURL": "https://www.goodreads.com/book/auto_complete?format=json&q=La%20Reina%20Drag%C3%B3n%20Alice%20Borchardt",
+    "searchType": "books",
+    "numberOfResults": "1 results",
+    "result": [
+        {
+            "id": 1,
+            "cover": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1332599049i/12207444._SX50_.jpg",
+            "title": "La Reina Dragon  (La leyenda de Guinevere, #1)",
+            "bookURL": "/book/show/12207444-la-reina-dragon",
+            "author": "Alice Borchardt",
+            "authorURL": "/author/show/151155.Alice_Borchardt",
+            "rating": "3.82"
+        }
+    ],
+    "lastScraped": "2026-10-28T17:45:31.333Z"
+}

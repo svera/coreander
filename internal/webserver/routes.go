@@ -125,6 +125,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		c.Locals("SimilarToSlug", c.Params("slug"))
 		return controllers.Search.SearchDocuments(c)
 	})
+	docsGroup.Get("/:slug/goodreads", controllers.Documents.GoodReads)
 	docsGroup.Get("/:slug/read", controllers.Documents.Reader)
 	docsGroup.Get("/:slug/annotations", alwaysRequireAuthentication, controllers.Annotations.List)
 	docsGroup.Post("/:slug/annotations", alwaysRequireAuthentication, controllers.Annotations.Save)

@@ -18,6 +18,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Upload documents through the web interface.
 * Download as kepub (epub for Kobo devices) converted on the fly thanks to [Kepubify](https://github.com/pgaskin/kepubify).
 * Gather information about authors from [Wikidata](https://wikidata.org).
+* Show Goodreads ratings and book and author links through [BiblioReads](#biblioreads-integration).
 
 ## Installation
 
@@ -84,6 +85,26 @@ coreander.example.com {
 Refer to [Caddy documentation](https://caddyserver.com/docs) for more information.
 
 When using a reverse proxy, include its client-facing port in `FQDN`, for example `FQDN=coreander.example.com:443` for the HTTPS setup above (or `:80` for HTTP), so generated links do not use Coreander's internal listening port.
+
+### BiblioReads integration
+
+Coreander uses [BiblioReads](https://github.com/nesaku/biblioreads), an alternative Goodreads front-end, to find Goodreads book and author links and display book ratings on document detail pages. The integration is enabled by default and does not require an API key or a Goodreads account.
+
+Coreander searches using the title and first author, then retries with the title alone if no result qualifies. A result must match both the title and one of the document's authors, ignoring capitalization, accents, punctuation, and whitespace differences (including spacing between author initials). Trailing series annotations such as `(Series name, #1)` and omnibus ranges such as `(#1-#3)` are ignored when comparing titles, but arbitrary subtitles and standalone volume numbers such as `(#1)` are not removed. Exact normalized titles are preferred over titles with an added series annotation. Similar-looking titles alone are not enough: if no result passes these checks, no Goodreads link or rating is shown. Matches may still refer to a different edition of the same book.
+
+Coreander looks up documents in the background after indexing and can also look up a document when its detail page is opened. Ratings load asynchronously, without blocking the rest of the page. Previously saved lookup outcomes, including books with no match, are reused; to re-evaluate them with the current matching rules, restart Coreander with `--force-indexing` (or `FORCE_INDEXING=true`). This reindexes the whole library and repeats Goodreads lookups.
+
+By default, requests are spread across built-in public BiblioReads instances, with automatic failover when an instance is unavailable. To use your own instance or a different set of public instances, pass a comma-separated list:
+
+```sh
+coreander --biblioreads-instances=https://br.example.org,https://br2.example.org /absolute/path/to/library
+```
+
+Alternatively, set `BIBLIOREADS_INSTANCES` to the same comma-separated list. The flag may also be repeated, overrides the environment variable, and replaces the built-in instance list. Instance URLs must use HTTP or HTTPS.
+
+Successful responses are cached in memory for 24 hours by default. Change this with `--biblioreads-cache-ttl` or `BIBLIOREADS_CACHE_TTL`, in seconds; set it to `0` to disable response caching. Discovered book and author links are stored in the document index.
+
+Lookups send document titles and author names to the configured BiblioReads instances. To disable the integration, use `--disable-biblioreads` or set `DISABLE_BIBLIOREADS=true`. If no instance can serve a request, Goodreads information may be unavailable, but the rest of Coreander remains usable.
 
 ### Email
 
@@ -175,6 +196,9 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`--client-dynamic-image-cache-ttl`   |`CLIENT_DYNAMIC_IMAGE_CACHE_TTL`  | Client-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 86400 (24 hours).
 |`--server-static-cache-ttl`          |`SERVER_STATIC_CACHE_TTL`         | Server-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 31536000 (1 year).
 |`--server-dynamic-image-cache-ttl`   |`SERVER_DYNAMIC_IMAGE_CACHE_TTL`  | Server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 86400 (24 hours).
+|`--disable-biblioreads`              |`DISABLE_BIBLIOREADS`             | Disable fetching Goodreads data (book and author links) from BiblioReads. Defaults to false.
+|`--biblioreads-instances`            |`BIBLIOREADS_INSTANCES`           | Comma-separated HTTP or HTTPS BiblioReads instance URLs, replacing the built-in public instances. The flag may be repeated. For example: `--biblioreads-instances=https://br.example.org,https://br2.example.org`. Uses the built-in instances when omitted.
+|`--biblioreads-cache-ttl`            |`BIBLIOREADS_CACHE_TTL`           | Duration in seconds for which BiblioReads responses are cached in memory. Set to 0 to disable caching. Defaults to 86400 (24 hours).
 |`-f` or `--force-indexing`           |`FORCE_INDEXING`          | Whether to force indexing already indexed documents or not. Defaults to false.
 |`-s` or `--jwt-secret`               |`JWT_SECRET`              | String to use to sign JWTs.
 |`-a` or `--require-auth`             |`REQUIRE_AUTH`            | Require authentication to access the application if true. Defaults to false.

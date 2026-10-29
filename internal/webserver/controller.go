@@ -30,7 +30,7 @@ type Controllers struct {
 	Series      *series.Controller
 }
 
-func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {
+func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource, bookSource document.BookSource) Controllers {
 	usersRepository := &model.UserRepository{DB: db}
 	invitationsRepository := &model.InvitationRepository{DB: db}
 	highlightsRepository := &model.HighlightRepository{DB: db, Idx: idx, IllustratedMinAmount: cfg.IllustratedMinAmount}
@@ -111,7 +111,7 @@ func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender S
 		Users:       user.NewController(usersRepository, invitationsRepository, usersCfg, sender, translator),
 		Completed:   completed.NewController(readingRepository, idx),
 		Highlights:  highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
-		Documents:   document.NewController(highlightsRepository, usersRepository, readingRepository, annotationsRepository, sender, idx, appFs, documentsCfg, translator),
+		Documents:   document.NewController(highlightsRepository, usersRepository, readingRepository, annotationsRepository, sender, idx, appFs, documentsCfg, translator, bookSource),
 		Home:        home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),
 		Authors:     authorsController,
 		Search:      search.NewController(highlightsRepository, readingRepository, sender, idx, searchCfg),

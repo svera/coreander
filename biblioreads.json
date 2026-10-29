@@ -1,0 +1,765 @@
+//POST https://biblioreads.eu.org/api/search/books
+//PAYLOAD 
+//{queryURL: "https://www.goodreads.com/search?q=La%20Reina%20Drag%C3%B3n%20Alice%20Borchardt"}
+//RESPONSE
+{
+    "status": "Received",
+    "source": "https://github.com/nesaku/biblioreads",
+    "apiURL": "https://www.goodreads.com/book/auto_complete?format=json&q=La%20Reina%20Drag%C3%B3n%20Alice%20Borchardt",
+    "searchType": "books",
+    "numberOfResults": "1 results",
+    "result": [
+        {
+            "id": 1,
+            "cover": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/books/1332599049i/12207444._SX50_.jpg",
+            "title": "La Reina Dragon  (La leyenda de Guinevere, #1)",
+            "bookURL": "/book/show/12207444-la-reina-dragon",
+            "author": "Alice Borchardt",
+            "authorURL": "/author/show/151155.Alice_Borchardt",
+            "rating": "3.82"
+        }
+    ],
+    "lastScraped": "2026-10-28T17:45:31.333Z"
+}
+
+//POST https://biblioreads.eu.org/api/book-scraper
+// PAYLOAD
+// {queryURL: "https://www.goodreads.com/book/show/12207444-la-reina-dragon"}
+// RESPONSE
+{
+    "status": "Received",
+    "statusCode": 200,
+    "source": "https://github.com/nesaku/biblioreads",
+    "scrapeURL": "https://www.goodreads.com/book/show/12207444-la-reina-dragon",
+    "legacyBookID": 12207444,
+    "bookID": "kca://book/amzn1.gr.book.v1.4FDu7eHal9NDfA3jGNhOXw",
+    "resourceID": "kca://work/amzn1.gr.work.v1.dbcQjzlbvXR8RBZBdd8J6g",
+    "cover": "https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1332599049i/12207444.jpg",
+    "series": "Tales of Guinevere",
+    "seriesURL": "/series/50072-tales-of-guinevere",
+    "seriesPosition": "1",
+    "workURL": "https://www.goodreads.com/book/show/12207444-la-reina-dragon",
+    "title": "La Reina Dragon",
+    "author": [
+        {
+            "id": 1,
+            "name": "Alice Borchardt",
+            "role": "Author",
+            "url": "/author/show/151155.Alice_Borchardt"
+        }
+    ],
+    "rating": "3.82",
+    "ratingCount": "2,285",
+    "reviewsCount": "115",
+    "desc": "Arturo se dio la vuelta y vino resueltamente hacia nosotros. Estaba espléndido, y nunca olvidaré que en ese momento comencé a amarlo. Y ya nunca dejé de hacerlo. Nunca nadie me ha provocado tanta pena, dolor y alegría como él. Ni siquiera por mis hijos he sentido el amor que le profeso todavía ahora. Y creo que aunque hubiera sabido lo que nos deparaba el futuro (preocupaciones, tormentos, batallas y penas), aun así levaría entregado mi corazón tal como hice entonces.\r\n\r\nAlice Brondchardt entra en el reino de la leyenda artúrica y lo hace suyo. La reina Dragón es el primer volumen de la trilogía que recrea el mundo de Camelot con la reina Guinevere convertida en una guerrea sagaz y obstinada.\r\n\r\nNacida en un entorno en el que los enfrentamientos son constantes y las armas están siempre presentes en la vida de hombres y mujeres, Guinevere, hija de una poderosa reina pagana, es una amenaza para su gente y una preciada presa para el temible mago Merlín.\r\n\r\nEnviada a u lugar secreto, crece bajo la protección de un hombre-lobo y de un druida de agrio carácter. Pero ni siquiera en las remotas costas de Escocia, donde los dragones velan por ella, está a salvo del todopoderoso mago. Merlín conoce el destino de la bella joven y no se detendrá ante nada para evitar el cumplimiento de la profecía, puesto que si Guinevere y Arturo llegan a reinar, llevarán un paz al país que convertirá a Merlín, hambriento de poder, en un personaje secundario.",
+    "genres": [
+        "Fantasy",
+        "Arthurian",
+        "Fiction",
+        "Historical Fiction",
+        "Dragons",
+        "Historical",
+        "Mythology",
+        "Magic",
+        "Science Fiction Fantasy",
+        "Retellings"
+    ],
+    "bookEdition": "452 pages, Hardcover",
+    "publishDate": "Wed Jan 01 2003",
+    "publisher": "Timun Mas",
+    "language": "Spanish; Castilian",
+    "asin": "8448033183",
+    "isbn": "8448033183",
+    "isbn13": "9788448033187",
+    "related": [],
+    "reviews": [],
+    "reviewBreakdown": {
+        "rating1": "72",
+        "rating2": "170",
+        "rating3": "586",
+        "rating4": "731",
+        "rating5": "726"
+    },
+    "quotes": "4",
+    "quotesURL": "/work/quotes/2440721",
+    "questions": "1",
+    "questionsURL": "/book/258666/questions",
+    "lastScraped": "2026-10-28T18:34:27.525Z"
+}
+
+// POST https://biblioreads.eu.org/api/reviews-scraper
+// PAYLOAD
+// {resourceID: "kca://work/amzn1.gr.work.v1.dbcQjzlbvXR8RBZBdd8J6g", legacyBookID: 12207444,…}
+// RESPONSE
+{
+    "status": "Received",
+    "statusCode": 200,
+    "source": "https://github.com/nesaku/biblioreads",
+    "scrapeURL": "https://www.goodreads.com/book/show/12207444/reviews",
+    "totalCount": 115,
+    "nextPageToken": "NTgsMTcwNTAxNjc4NjQzNA",
+    "prevPageToken": "MTgwMSwxMjE0MTUxODU5MDAw",
+    "reviews": [
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.gH7Sf4_G4iz72wvI_yVVyg",
+            "reviewer": {
+                "id": 1259454,
+                "name": "Shawna Astley",
+                "url": "/user/show/1259454-shawna-astley",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1214150161i/1259454._UY200_CR33,0,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 42,
+                "followerCount": 0
+            },
+            "rating": 5,
+            "text": "Women fighting men with swords - whats not to like? ",
+            "createdAt": "Sun Jun 22 2008",
+            "updatedAt": "Tue Jan 07 2025",
+            "spoiler": false,
+            "likeCount": 18,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/25118938"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.be94OXB9ezWIlFZvdGMKvA",
+            "reviewer": {
+                "id": 2478293,
+                "name": "Zeek",
+                "url": "/user/show/2478293-zeek",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1339154824i/2478293.jpg",
+                "isAuthor": false,
+                "reviewCount": 939,
+                "followerCount": 149
+            },
+            "rating": 3,
+            "text": "Although I liked this tale overall, there were pieces of it that bogged the story down for me.<br /><br />The Dragon Queen is yet another entry into the tales of Arthur and The Knights of the Round Table. For those who love their Arthurian legends with Merlin as the big bad- then this book's for you. For those who don't-then Run away!<br /><br />TDQ centers around Guinevere, the warrior queen of Arthur and in Borchardt's version she is indeed a warrior. Guinevere, has the beauty of previous Arthurian tales, but in TDQ she's not the sweet little misguided star-crossed lover of Lancelot that we usually see her portrayed to be. Courageous and bold she has power in her right hand where ferocious fire emanates (grand super power that!), and healing in her left. Moreover, arrows flyout her bow as if an extension of her arm, she communicates with dragons- as well with the dead- displays prophetic abilities, and audaciously defeats asundry of evil beasts that Merlin flings at her.<br /><br />The story begins with Maeniel, Guinevere's soon to be foster father. Maeniel, otherwise knows as the Gray Watcher, is a shapeshifting man/wolf who has personally felt the destructive powers of Merlin. Deciding that being a wolf was much preferred to living with the humans, he escapes to the wilds and begins a family. It is during his time with the wolves that Guinevere falls into his care, and the Gray Watcher, along with the sorcerer Dugald- who Merlin chased into hiding long ago- take up the charge of raising her. The Gray Watcher's wolf mate nurses<br />Guinevere from the time they find her left on a cliff and later a woman joins them who will teach her the ways of her people- a people she never knew.<br /><br />As a child, Guinevere helps her village to defeat a marauding group of seafarers- and it is here where we see her potential for greatness begin to come forth. Guinevere grows in stature, wisdom and power and, though still only a young teen through much of the story, she quickly finds herself thrust into peril. Merlin wants her dead, and though the author details many things in TDQ, I never quite got the gist of his motive for seeking to destroy her so passionately. The only thing I can figure is that she must be the one who either precipitates or actually carries out Merlin's eventual destruction.<br /><br />Many other side characters show up to aid or engage her in battle. There are all kinds of fantasy creatures- including mythological gods- that she meets up with and, eventually, she meets her future in the boy of Arthur.<br /><br />Arthur is just as strong as she- and closer to her age then what I've seen portrayed before. Set long before Camalot, he's young and only discovering who and what he's eventually going to be. Much of the middle of the book is from his POV, where he meets the Lady of the Lake. I was disappointed however, that at the end of TDQ, he and Guinevere do not meet up again. (I suppose that will come in later installments.)<br /><br />The jumping around of POV's was rather confusing for me and the author lost me a bit until it began to pick up again toward the end. The book is full of detailed descriptions of the world Borchardt has created and some of it became overwhelming. To me her descriptions dragged the story down and lost me for most of the middle of the book. But, as I said before, by the end I was back with her.<br /><br />This is definitely sequel bait- the story is far from over. I'm interested to see where the author- who was Anne Rice's sister, btw- will take it.",
+            "createdAt": "Thu May 20 2010",
+            "updatedAt": "Sun May 24 2026",
+            "spoiler": false,
+            "likeCount": 10,
+            "commentCount": 4,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/103546143"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.sC0IQDlAXY4LbkJ3LTJHvA",
+            "reviewer": {
+                "id": 80386185,
+                "name": "Rial",
+                "url": "/user/show/80386185-rial",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1545932910i/80386185._UX200_CR0,0,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 30,
+                "followerCount": 0
+            },
+            "rating": 1,
+            "text": "I did not like this book. However, it is my first 1 Star, so it's got that going for it.<br /><br />Why did I read this? It was selected for my wife and roommate's book club, and I parasitically piggyback a lot of their books (gives me something to talk about...). It's Arthurian! It's from Guinivere's perspective! Magic! Celtic! Post 'Fall of the Western Empire'! These things and more!<br /><br />No, it's terrible. Why did I keep reading it? It did take me on a journey: I experienced all the 'Stages of Grief' (some of them more than once.<br /><br />Denial: Ha, it's so weird, but it'll get better! The chapters are long, but that's okay! Weird, the perspective shifted...?<br />Anger: I liked the other character; this one is dumb. She's a Mary Sue! WTF? That just worked out for her with zero effort! Okay, she needs to show some growth...<br />Bargaining: ...Okay, the parts with Arthur aren't bad, maybe?<br />Anger: Why are they having revenge sex in the forest?<br />Denial: Arthur is cool, yes, he's very cool... :|<br />Depression: I really shouldn't be reading this anymore; I think it's actively hurting me.<br />Acceptance: There is only book. Oh yeah, I guess your shoes can do that. Yep, you're definitely super fucking hot, and everyone wants to be or be with you. Sure why not? I don't have enough brain power to think it should be any different. After all, you're the best, Gwen!<br /><br />But the real joy of this book is in not starting it. If you made that mistake and you're too masochistic to give up, then finishing it is an exultant experience<br /><br />The contents are one thing, but they aren't even well served by the writing. Transitions are abrupt and jarring. I back-read multiple times to try and figure out where the hell I was, only to realize there wasn't any explanation; it just got there and it was fine (it wasn't fine).<br /><br />This thing had such potential: Arthurian set in the 'proper' time frame, the Christianization of Britannia and the clashes with pagan beliefs that ensue, Celtic and Brythonic myth woven throughout. But it all reads so poorly in the end. The author is far too verbose and floral with her language. First person POV ruins any sense of actual accomplishment because we only see the character succeeding; no real growth or change is experienced. I find Divine Right to be problematic, and this book is very much into the romanticism of a destined ruler (both for Arthur and for Gwen).<br /><br />Oh yeah, Merlin is evil and helps Arthur's mom torment Arthur, I guess? Like, if you hate the kid so much just kill him? Oh wait, 'destiny'... <br /><br />Tedious tripe, glorified garbage, wretched rubbish. What a waste of time.",
+            "createdAt": "Mon Nov 05 2018",
+            "updatedAt": "Fri Jun 10 2022",
+            "spoiler": false,
+            "likeCount": 6,
+            "commentCount": 2,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/2578561727"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.rwxYpuQEynxP2f5dSLFmPQ",
+            "reviewer": {
+                "id": 90733221,
+                "name": "Monique Mihalitsianos",
+                "url": "/user/show/90733221-monique-mihalitsianos",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1773156601i/90733221._UX200_CR0,29,200,200_.jpg",
+                "isAuthor": true,
+                "reviewCount": 88,
+                "followerCount": 9
+            },
+            "rating": 3,
+            "text": "This book was splendid in the story-telling sense. The story was epic and magical and engaging. Also, this is, by far, the best Guinevere I have encountered in modern fiction so far. She was strong but not brass, brave but not stupid, powerful yet humble, compassionate but not weak, feminine yet full of agency. Perhaps what I liked the most about her was that she was in communion with animals and gods alike and knew her place in the wheel of existence. She was wise like that, but never overbearingly so. I loved her. I wanted to *be* her.<br /><br />Arthur I also liked very much, and I liked that this was a tortured Arthur who had suffered child abuse at the hands of her horrible queen mother Igrane (*the* worst evil queen ever) but was still good and noble and could not lie and never feared danger. I liked his relationship with his father, Uther, the High King, which was refreshingly healthy and loving. Merlin I hated. This is a book with a bad Merlin in it, which I don't like as a trope. I much prefer my Merlins to be good and Gandalf-like, but in this case it worked to have him be so evil and act as the villain. The black magic he wrought was one of the sickest and most horrifying ones I've ever read in a story. <br /><br />Alice Borchardt seems to know her history well, so much so in fact that it's almost like if she lived in this period of time (Roman - Saxon) in a past life. I, for one, appreciated all of the extraneous detail relating to the customs and mores of the time because it made the world-building that much better. <br /><br />The magic system in this book was refreshingly deep and believable. So many magic systems in recent fantasy books are light and superficial, as if they had been thought up in brainstorming sessions instead of being fully inspired. Not so with Borchardt's story; the magic here seemed inspired by the author's own psyche and thus, was multilayered and poliphacetic, changeable and malleable but also essentially true to its own core.<br /><br />I also liked that an existencial and historical struggle was hinted at: the convergence between paganism and Christianity, if there can be a convergence at all. It was only hinted at here but I wouldn't mind if this theme in particular were elaborated more in the second book (The Raven Warrior) because it is of particular interest to me. On some level I think it was also of particular interest to Borchardt, as well. I am a huge fan of Anne Rice's (Alice Borchardt's sister) Vampire Chronicles, and Rice definitely waxes philosophical about her own struggles with different faith systems and beliefs in her own fiction, much more so than Borchardt, who chose to focus more on the story. But I wouldn't have minded if she had expanded on this in her fiction, just like her sister did. But then again, I am of a philosophical bent and like these kinds of tangents.<br /><br />Why the three-star rating, then, if I liked the book so much? Well, the story was golden, but the writing was confusing at times, especially at the beginning and end. Sometimes it was almost stream-of-consciousness like, and I got lost and confused. At other times, when a character referred to somebody else as 'she', for example, I didn't know who they were talking about, because there were several 'she's' they could have been referring to. So some more specificity in this and other similar instances would have been appreciated. Sometimes, also, the writing got too dream-like, too airy fairy and dreamy...and perhaps more concrete writing would have served the book better overall. I also suspect this book could have had tighter editing. I know for a fact Anne Rice is not a fan of people editing her writing, and I don't know if Alice Borchardt felt the same as her sister does in this matter, but I for one think good editing is absolutely crucial in any book.<br /><br />Putting this aside, though, I can say that I thoroughly enjoyed this book and am looking forward to reading the second and final installment. This was meant to be a trilogy, but unfortunately, the author died from illness before she could complete the third book, so two books is all we have. I will read her other books as well, though. She's a gem of a story-teller, at least in my estimation.",
+            "createdAt": "Wed Mar 18 2020",
+            "updatedAt": "Thu Nov 30 2023",
+            "spoiler": false,
+            "likeCount": 3,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/3208179930"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.XvL2nHk7Bt4tULNXUE2yaA",
+            "reviewer": {
+                "id": 2207539,
+                "name": "Steen",
+                "url": "/user/show/2207539-steen",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1408254648i/2207539._UY200_CR33,0,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 473,
+                "followerCount": 4
+            },
+            "rating": 1,
+            "text": "This was a did not finish book for me. <br /><br />So after reading about 185 pages of The Dragon Queen by Alice Borchardt I have decided to thrown it down and stop reading. I thought I would like it being about Quinevere and all but I hate it. It's not like the Arthur legends I've ever known. But that's not really even it though. I could handle a different take on the stories ( I still have yet to read any books about Arthur that are out there that are more well known) it's just the way she has written it. She jumps from one place to another and it's like when did that happen? Also sometimes when there are a few people talking 'she says...' your like who is talking? Which one is saying what. UGH. I hate not finishing a book but I really can't continue to read it anymore.<br /><br />Having said that I really have no urge to read Bequiled which is also by her. I read the first in that series and while it was better written then The Dragon Queen I really don't love the characters in the first book to continue to read the second one anymore. Not after trying to get through The Dragon Queen and hating it. It's sad but yeah. I love Anne Rice's books and hoped that I would equally like her sister's books. But I guess they are just not for me. <br /><br />I've read reviews on these two books and it sounds like her werewolf books are pretty good but I think I may wait a while to even attempt to try those ones.<br /><br />So now its off to the library today to pick up some more to read.",
+            "createdAt": "Sat Apr 11 2009",
+            "updatedAt": "Wed Jan 23 2019",
+            "spoiler": false,
+            "likeCount": 3,
+            "commentCount": 3,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/52264098"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.rZ5icbmFfLHPKpEQOm2kNw",
+            "reviewer": {
+                "id": 41814516,
+                "name": "Alberto García",
+                "url": "/user/show/41814516-alberto-garc-a",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1508706260i/41814516._UX200_CR0,33,200,200_.jpg",
+                "isAuthor": true,
+                "reviewCount": 45,
+                "followerCount": 40
+            },
+            "rating": 4,
+            "text": "Voto de confianza... esta m¡¡bien escrito y la revisión de la leyenda artúrica es muy interesante. Al final, en algunos capítulos, se le va un poco la pinza con salidas algo paranoicas que me han dejado bastante descolocado... lo que es seguro es que no me lo esperaba... pero tampoco comprendo demasiado la razón para ello. Veremos cómo acaba y si se queda en una anécdota.",
+            "createdAt": "Fri Jun 21 2019",
+            "updatedAt": "Mon Sep 14 2026",
+            "spoiler": false,
+            "likeCount": 3,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/2796875885"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.G3-a2b8-oopoAbpH6RmbsA",
+            "reviewer": {
+                "id": 73527602,
+                "name": "Rachel",
+                "url": "/user/show/73527602-rachel",
+                "avatar": "",
+                "isAuthor": false,
+                "reviewCount": 13,
+                "followerCount": 0
+            },
+            "rating": 3,
+            "text": "This was like reading someone's dream. The ideas were all loosely connected but the transitions were weird and random or completely non-existent. However, the characters and concepts were fun and interesting and I did like this book.",
+            "createdAt": "Fri Jan 04 2019",
+            "updatedAt": "Mon Nov 17 2025",
+            "spoiler": false,
+            "likeCount": 4,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/2582029737"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.juoLRbi8R_urzbj6jgRAww",
+            "reviewer": {
+                "id": 101256289,
+                "name": "Malischa Nijenhuis",
+                "url": "/user/show/101256289-malischa-nijenhuis",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1773261867i/101256289._UX200_CR0,0,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 1222,
+                "followerCount": 32
+            },
+            "rating": 5,
+            "text": "Eigenlijks lees ik nu een boek van mijn man maar wauw wat is dit een gave uitgave en boek. Nu op naar boek 2",
+            "createdAt": "Sat Mar 21 2020",
+            "updatedAt": "Mon Mar 23 2020",
+            "spoiler": false,
+            "likeCount": 2,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/3238259324"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.GLjLEKHIsU-RrmRdU73hGQ",
+            "reviewer": {
+                "id": 3504881,
+                "name": "Suzanne",
+                "url": "/user/show/3504881-suzanne",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1294105241i/3504881.jpg",
+                "isAuthor": false,
+                "reviewCount": 546,
+                "followerCount": 12
+            },
+            "rating": 2,
+            "text": "I'm very sorry to say, I could not finish this book. I REALLY wanted to be in love with this story. I even purchased the 2nd book from Thrift Books soon after I started this one. I figured they would become part of my Arthurian obsession, and I would need to own them. It started out with a great concept, and I liked the differences in the legend that I hadn't read before. I wanted to know more about the different characters, but it was so choppy, from one point of view to another back and forth, I couldn't keep track of which character I was reading about.<br /><br />It just dragged on and on and on and on....it was trial after trial after trial. The characters would accomplish one win and suddenly face another trial. I felt like I was reading a bad rendition of The Odyssey. I REALLY wanted to love it. But reading became a chore, and I fell into a reading slump. The book sat in one spot for a couple weeks, and I felt it hanging over my head. I finally decided enough was enough. I wanted to be eager to read again. So I took out the bookmark, and this is going on my \"couldn't finish\" list.<br /><br />I will donate the set to a Free Little Library somewhere, and I hope someone else will get some pleasure out of them.",
+            "createdAt": "Sun Oct 14 2018",
+            "updatedAt": "Fri Oct 30 2020",
+            "spoiler": false,
+            "likeCount": 2,
+            "commentCount": 2,
+            "recommendFor": null,
+            "shelf": "did-not-finish",
+            "reviewURL": "/review/show/2522667985"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.73ge1ENF_VjVNC1CSJb8iw",
+            "reviewer": {
+                "id": 67537582,
+                "name": "Kaylee",
+                "url": "/user/show/67537582-kaylee",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1627453497i/67537582._UX200_CR0,1,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 793,
+                "followerCount": 33
+            },
+            "rating": 1,
+            "text": "I do have to start by saying that this is the first Arthurian legend I can recall reading. I don't think that really affected my POV but...<br /><br />Extremely hard to get through from the beginning. Kept hoping it would get better but nope. Not only was the switching between third and first POV annoying but it was made worse by the main character. Did not want her voice at all. It was also hard to tell what was going on/who was speaking at times (during the third POV of course). In the beginning I went back to the and re-read things but quickly learned there was no point. Sometimes things arrived randomly and others I realized I had just spaced out because of all the needless words.  You could take out half the words in this book and be all the better off for it...<br /><br />Also if I had to read \"As I said...\" one more time...!<br /><br />I can't remember the last time I didn't finish a book and if I hadn't had to read this because of my book club I don't think I would have finished. Says everything in a nutshell. <br /><br />So much more but I'll just leave it at that. Extremely glad to be done with this book!",
+            "createdAt": "Fri Nov 09 2018",
+            "updatedAt": "Fri Oct 30 2020",
+            "spoiler": false,
+            "likeCount": 2,
+            "commentCount": 2,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/2577596943"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.6kd8QVi2sBrNhUslyz1aUQ",
+            "reviewer": {
+                "id": 54738977,
+                "name": "TigerLily ",
+                "url": "/user/show/54738977-tigerlily",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1460164836i/54738977.jpg",
+                "isAuthor": false,
+                "reviewCount": 133,
+                "followerCount": 3
+            },
+            "rating": 5,
+            "text": "Really enjoyable, a page Turner that I didn't want to be finished. I am looking forward to reading the 2nd book.",
+            "createdAt": "Sun Jan 10 2021",
+            "updatedAt": "Sun Mar 21 2021",
+            "spoiler": false,
+            "likeCount": 2,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/3732026445"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.njxZJZUHk2BVK8mcTJp2aQ",
+            "reviewer": {
+                "id": 40251914,
+                "name": "Elizabeth Sanders",
+                "url": "/user/show/40251914-elizabeth-sanders",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1530132382i/40251914.jpg",
+                "isAuthor": false,
+                "reviewCount": 38,
+                "followerCount": 0
+            },
+            "rating": 4,
+            "text": "It's an interesting retelling of Guinevere and Arthur. I loved every bit of it and can't wait to read the sequel.",
+            "createdAt": "Thu Jul 04 2019",
+            "updatedAt": "Thu Jul 11 2019",
+            "spoiler": false,
+            "likeCount": 1,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/2871843590"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.HegnVxYZnLTsNGxJeVV2cA",
+            "reviewer": {
+                "id": 11384547,
+                "name": "Lyndsay MacDonald",
+                "url": "/user/show/11384547-lyndsay-macdonald",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1371265927i/11384547.jpg",
+                "isAuthor": false,
+                "reviewCount": 38,
+                "followerCount": 0
+            },
+            "rating": 2,
+            "text": "This book was weird. I think it might have been tolerable if the author didn't try to weave it into the Arthurian legend (ie. if she made up original characters), but as it is I just couldn't get into it. There were some parts/scenes that I did enjoy, and others that I didn't... but overall I found it very confusing, and often found myself asking \"What is happening right now?\" and \"Why?\"<br /><br />The story line flip-flopped around a lot... the characters were not wholly believable (Guinevere did NOT seem like a 13 year old girl, by any stretch of the imagination).. and I found parts of the plot silly and unrelated.<br /><br />I won't be reading any of the other books in this sequence.",
+            "createdAt": "Wed Jan 22 2014",
+            "updatedAt": "Fri Aug 12 2016",
+            "spoiler": false,
+            "likeCount": 1,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/831334767"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.oazwOZoGnu8yIQJ_48FVMw",
+            "reviewer": {
+                "id": 27373770,
+                "name": "Andrea Krivak",
+                "url": "/user/show/27373770-andrea-krivak",
+                "avatar": "",
+                "isAuthor": false,
+                "reviewCount": 26,
+                "followerCount": 1
+            },
+            "rating": 2,
+            "text": "I think you have to really like arthurian legends to read this book. I liked it in the beginning, it started telling the story of Geunivere as a young girl and the \"what if\" this was her upbringing. There were wizards, men who turned into wolves and of course, merlin and morgana. About halfway through she meets Arthur, and then the book divides into the telling of each of their lives and they each stray into their own mystic journeys. To me, it spent too much time on these mystic journeys and by the end, i was ready to be done with this whole story. Not interesting enough ending for me to read into the sequel.",
+            "createdAt": "Mon Mar 24 2014",
+            "updatedAt": "Fri Aug 12 2016",
+            "spoiler": false,
+            "likeCount": 1,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/890822661"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.IxTTRac3W8gbXoHFdfTu5g",
+            "reviewer": {
+                "id": 1009204,
+                "name": "Cindy",
+                "url": "/user/show/1009204-cindy",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1228465282i/1009204._UX200_CR0,28,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 856,
+                "followerCount": 105
+            },
+            "rating": 1,
+            "text": "Maybe some day I'll come back to this book, but I just don't think I can read this book. I find myself wondering if I'm not following something of if this book is just beyond my reading. The writing is in a way that makes it seems like, wow we want the read to think this author is just so descriptive and great. Only it becomes confusing and bored. If you aren't familiar with the story of Guinevere then there is no point in reading it because nothing is explained and you are just sitting there wondering what the heck is going on. ",
+            "createdAt": "Wed Aug 27 2008",
+            "updatedAt": "Thu Jan 25 2018",
+            "spoiler": false,
+            "likeCount": 0,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/31374042"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1._BHlRCbTwy-DJRq5mCTQnw",
+            "reviewer": {
+                "id": 4804714,
+                "name": "Angela",
+                "url": "/user/show/4804714-angela",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1294946776i/4804714.jpg",
+                "isAuthor": false,
+                "reviewCount": 129,
+                "followerCount": 6
+            },
+            "rating": 3,
+            "text": "I enjoyed this book up until the last third and then it got way too much involved with Arthur. It didn't quite wrap up the way I had expected and I would suggest not reading it unless you want to continue on with the series. I may read the sequel at a later time but I need a break from the acid trip like sections with Arthur.",
+            "createdAt": "Thu Mar 28 2013",
+            "updatedAt": "Tue Aug 09 2016",
+            "spoiler": false,
+            "likeCount": 1,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/572964102"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.P4s-Ysv7_6bKQAupxDvCwA",
+            "reviewer": {
+                "id": 4018173,
+                "name": "Misty",
+                "url": "/user/show/4018173-misty",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1286250306i/4018173._UY200_CR33,0,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 307,
+                "followerCount": 0
+            },
+            "rating": 2,
+            "text": "I really wanted to like this book. <br /><br />About halfway through, I got bored and tried to push through it, but ultimately gave up. There was so much description and not enough happening. <br /><br />Also, considering this was titled the Dragon Queen, I expected more dragons. Their lack of presence was disappointing.",
+            "createdAt": "Tue Nov 26 2013",
+            "updatedAt": "Thu Jun 23 2016",
+            "spoiler": false,
+            "likeCount": 1,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "could-not-finish",
+            "reviewURL": "/review/show/774467120"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.2E0pSS7MyztIPHdoIbH4Nw",
+            "reviewer": {
+                "id": 120860,
+                "name": "Lassarina Aoibhell",
+                "url": "/user/show/120860-lassarina-aoibhell",
+                "avatar": "",
+                "isAuthor": false,
+                "reviewCount": 487,
+                "followerCount": 5
+            },
+            "rating": 1,
+            "text": "I am DNFing this book on page 84 and we're going to go on a wild ride about why.<br /><br />NB: If you are a scholar of Arthuriana, history, religion, or....well, almost anything, you might want to put down your drink. I'm not responsible for the state of your monitor. <br /><br />We begin with the cover copy: <i>Daughter of a mighty pagan queen, Guinevere has become a threat to her people and a prize to the dreaded sorcerer Merlin. Sent into hiding, she grows up under the protection of a shapeshifting man-wolf and an ornery Druid. But even on the remote coast of Scotland, where dragons feed and watch over her, she is not safe. Merlin knows the young beauty's destiny--and he will stop at nothing to prevent what has been foretold...</i><br /><br />I also need to strongly highlight one of the blurbs. Like, really strongly. \"In addition to being exceptionally well written, [<i>The Dragon Queen</i>] has enormous integrity: All of the stories--of Arthur's parentage, of Merlin, of the characters' daily struggles--are well grounded in the history, politics, and religions of the time.....This is a trilogy to watch.\" --San Jose Mercury News<br /><br />I want you to look at that quote carefully, and then come on a ride with me.<br /><br />I will acknowledge up front my own reading comprehension fail, because I had forgotten that the shapeshifter <i>was</i> actually in the blurb and was yelling about \"what the fuck.\". I'm still saying \"what the fuck,\" just about plenty of other things.<br /><br />Let's start with: It takes until page 48 for Guinevere to show up in any real sense. 500 page book; the main character doesn't actually appear until 10% in. Don't like that. Instead we are following around Dugald, the druid, and Maeniel, the shapeshifter. He's allegedly from Gaul. We begin at Tintagel in the year 470 CE, where Merlin and some of his cronies murder Vortigen. Some kind of magical snake is involved. (Aside: absolutely no problem with Merlin as the villain, particularly in anything allegedly centering the women of this tale.) Maeniel the shifter teleports??? out of the carnage, finds himself a she-wolf who has recently given birth, and shacks up with her. They encounter Dugald and the toddler Guinevere, who is currently disguised as a boy. For some reason, although everyone complains about disliking the Romans, we re-enact the founding of Rome, with Maeniel's mate suckling little Guinevere. Why does the she-wolf agree to this? Who can say. Dugald, meanwhile, talks about the influence of St. Patrick. Yes, that one. \"We don't call ourselves [druids] any longer. Not since Patrick came to Ireland bearing Christ's message.\"<br /><br />....ten pages ago we called Merlin a chief druid. Also. It's the year 470. We don't have exact dates of the saint's life, but we know it was <i>roughly</i> in that century. More importantly, it was the <i>Romans</i> who banned druidic practices, fucking 400 years earlier (Augustus had no chill.) So there is no way that Patrick's actions in Ireland are affecting the order in England. Remember that blurb I highlighted? HMMMM. ALSO WHY ARE YOU, A GUY IN CORNWALL, TALKING ABOUT PATRICK. why. what is even your deal.<br /><br />Also also, in this variation of the story (?), apparently, Dugald had a philosophical disagreement with Merlin and \"lost,\" so he was expected by the rules of his order to commit suicide because he lost.<br /><br />Me: I do not remember reading this in <i>any</i> of the books I consumed during my obsessive period about Celtic histories and cultures and archaeology. (Wiki and checking with knowledgeable friends suggests I am not alone in not remembering this.)<br /><br />If nothing else, that seems like a giant fucking waste of a 20 year apprenticeship, man.<br /><br />(At this point I also stopped to verify my memory that Dugald and Maeniel do not appear in other Arthurian sources. I seem to be correct. And like, yeah, we add characters to stories all the time, I'm just. why are you making me deal with men in a book about Guinevere!)<br /><br />There's also a point where young Guinevere, Dugald, and Maeniel are involved in helping to fight off a ship of slavers, which conveniently results in there being a woman to join the household and teach Guinevere How To Be A Girl. I should specify that the captain of said slaver's ship was apparently named Cymry. Why is he literally named \"Welsh\"? fuck if I know.<br /><br />There's also a particular kind of ambient misogyny that I find tiresome, and like, I know we're in the fifth century and the Romans were assholes, and also I am aware that Celtic cultures were not paragons of equality and virtue, but the available evidence both of Romans being bitchy about how ass-backward Celtic societies were (omg they let their women do things!!!!) and the remnants of brehon law allocating specific property to women after divorce and categorizing a type of marriage as \"she married down and gets to keep all her stuff\" <a href=\"https://celt.ucc.ie//marriage_ei.html\" target=\"_blank\" rel=\"nofollow noopener\">[wildly paraphrased]</a> I'm just like<br /><br />what. what are you doing, ma'am<br /><br />and once again I'm going to refer back to that blurb. About being well grounded in the history, politics, and religions of the time.<br /><br />I do not recommend actually reading this unless you want to play a drinking game, in which case, may I suggest that the drink you use should perhaps be water?",
+            "createdAt": "Thu Apr 09 2026",
+            "updatedAt": "Thu Apr 09 2026",
+            "spoiler": false,
+            "likeCount": 0,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "did-not-finish",
+            "reviewURL": "/review/show/1761732484"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.9X0QSJx7BxHSTHSctKMkwg",
+            "reviewer": {
+                "id": 11348002,
+                "name": "Laural",
+                "url": "/user/show/11348002-laural",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1349329030i/11348002._UX200_CR0,5,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 36,
+                "followerCount": 5
+            },
+            "rating": 2,
+            "text": "I got about halfway through this book. Someday I'll give it another chance, or maybe try to figure out what exactly the author did wrong. A sword weilding Gweneviere? It could have been great. I thought it would be after reading the description on the back of the gorgeous cover. ",
+            "createdAt": "Thu Oct 04 2012",
+            "updatedAt": "Thu Jun 23 2016",
+            "spoiler": false,
+            "likeCount": 1,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/427412066"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.p0mSKsHft_BTv2vScLHOsQ",
+            "reviewer": {
+                "id": 1250008,
+                "name": "Giuila",
+                "url": "/user/show/1250008-giuila",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1244141968i/1250008._UY200_CR2,0,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 61,
+                "followerCount": 0
+            },
+            "rating": 0,
+            "text": "... t read",
+            "createdAt": "Thu Jul 17 2008",
+            "updatedAt": "Fri Mar 24 2017",
+            "spoiler": false,
+            "likeCount": 1,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "to-read",
+            "reviewURL": "/review/show/27520982"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.QMO0-GkHiX0UEYcsOaO7lw",
+            "reviewer": {
+                "id": 1431136,
+                "name": "Matt",
+                "url": "/user/show/1431136-matt",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1218856549i/1431136._UY200_CR25,0,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 6,
+                "followerCount": 0
+            },
+            "rating": 5,
+            "text": "an overall awesome book",
+            "createdAt": "Sat Aug 16 2008",
+            "updatedAt": "Fri Mar 24 2017",
+            "spoiler": false,
+            "likeCount": 1,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/30279062"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.qOdgrbVKU-XMQR5DSbHfDQ",
+            "reviewer": {
+                "id": 16979552,
+                "name": "Sarah Garner",
+                "url": "/user/show/16979552-sarah-garner",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1408284741i/16979552._UX200_CR0,53,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 84,
+                "followerCount": 18
+            },
+            "rating": 2,
+            "text": "I struggled with this book and I couldn't finish it, although it was a great idea, I didn't love this book.",
+            "createdAt": "Sat Sep 20 2014",
+            "updatedAt": "Thu Aug 20 2020",
+            "spoiler": false,
+            "likeCount": 1,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/1059961768"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.JjlmKD1eCF28HlpY4KmCGw",
+            "reviewer": {
+                "id": 34744007,
+                "name": "Michael D.",
+                "url": "/user/show/34744007-michael-d",
+                "avatar": "",
+                "isAuthor": false,
+                "reviewCount": 81,
+                "followerCount": 1
+            },
+            "rating": 2,
+            "text": "I had this book about 20 years ago, tried to read it, but I just couldn't get into it. I got another copy used and gave it another try. While not as bad as my first experience in the first 20 pages, I found in the ensuing pages that the narrative is quite disjointed, and timelines are fluid and unclear to me. Perhaps that was Borchardt's intent, but I was confused by it. Additionally, it seems that characters are magically transported to strange places without any transition that I could discern. This narrative was hard to follow.<br /><br />The book begins in a scene in 470 in Tintigal (not Tintagil, the famous castle in Cornwall where Arthur was conceived and born in the traditional romance). Ostensibly, the main character is a wolfman (a wolf who changes into a man when he chooses to) named Maeniel, and he is a friend to the British king Vortigen, who is not the villain he is normally portrayed as in history and the romances. Merlin shows up with a contingent of Saxons, and a battle ensues in which Vortigen is slain and Maeniel is knocked unconscious by an unknown cudgel. In the next scene, he wakes up on a hillside far away, presumably the far north, near Hadrian's Wall, and he becomes the mate of a she-wolf, who bears him a son, Black Leg (who will become Lancelot in the second novel The Raven Warrior). Sometime later, we find that 70 years have passed since Vortigen's death. Oddly, there is a baby girl in the nearby village, Guenevere (Borchardt spells her name differently depending on who is addressing her), who is one of the major characters of this series, the eponymous destined Dragon Queen. When Guenevere is 15, we are then told that 100 years have passed since Vortigen died. Confusion abounds.<br /><br />This story had occasional high points, with modern fantastical treatments of the transformation duels, but I really had a hard time following the flow of Borchardt's narrative. I am a pretty astute reader, so I find it difficult to believe this was my fault. Borchardt seemed to be playing coy with the unfolding of events, and that was annoying. She was the sister of the better-known Anne Rice, author of the Vampire Chronicles, so I tried hard to give this a chance. <br /><br />Borchardt intended to make this a trilogy, but the passed away in 2007 before the third book in the trilogy could be published. I don't know if anyone picked up her notes with the intent to complete her work, and I can't imagine that there was a demand for it. I do intend to slog through The Raven Warrior, as it is my rule to read books through and evaluate them honestly. If they're bad, I point out why. The lack of comprehensible transitions in time and space are my primary complaint with this novel. I hope that The Raven Warrior is more cognizant of walking me through how characters get from Point A to Point B than this one was.<br />",
+            "createdAt": "Thu Nov 09 2023",
+            "updatedAt": "Thu Nov 09 2023",
+            "spoiler": false,
+            "likeCount": 0,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/5944805120"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v2.2025072400.a7efbaf3-dd61-4567-b4e1-d3f344fabb0c",
+            "reviewer": {
+                "id": 42506425,
+                "name": "Michelle M",
+                "url": "/user/show/42506425-michelle-m",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1715615833i/42506425._UX200_CR0,0,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 380,
+                "followerCount": 3
+            },
+            "rating": 5,
+            "text": "Honestly? 5/6 or 4.75/6<br />I really loved this book! It's hard to describe what exactly I loved about it though lol. It had a very ethereal quality to it... The magic in this world is just a fact of life, some peple have it, while others don't, and yet, it didn't feel fantastical. Everyone knows about magic and most peoples still believe in the gods and things even though \"The Church\" (christianity) is present on the British Isles. <br /><br />Borchardt grounds the story in the time right after Rome leaves the Isles, though they are still very much an influence on the peoples. It was a very mystical vibe to the whole story, kind of like there is a shroud of fog that is the magic of the world. IDK, like I said, hard to describe lol. <br /><br />I loved Guinevere, and I liked how different characters referred to her by various spellings/pronouciations thoughout the story, as if they were speaking different languages. It is a very different take on the Arthur/Guinevere story, and very much an action oriented one, with Guinevere being the focus of the action and not just a passive bystander. <br /><br />I though the portrayal of the other major characters interesting, and they were given roles that they are not usual given in the story. Arthur is \"good\", Merlin and Ingrane are the \"evil\" ones, Guinevere is strong willed and knows what she wants and sets out to get it. She doesn't seem like the type of person who will betray Arthur with Lancelot, but we'll just have to find out! (I hope she doesn't). The portrayal of these characters (and other named characters) made me do some research to try to get a better picture of if they had ever been portayed like this before. My search was unsucessful lol, as they were very diffefrent from \"traditional\" stories, but I haven't really read many retellings, so I cant be sure if they are exclusive to this story. <br /><br />My only compaint with this book is that I found out it was supposed to be a trilogy!!!! And YET there are only two books! T.T *cries* I know the author can't help that she passed away, but book 2 came out in 2003 and she passed in 2007! That seems like a decent amount of time to finish the third book (I'm being very ungrateful, I know I am, I just lament what never was). Also apparently Anne Rice of vampire fame is Borchardt's sister?!?!?! She doesn't have like an early draft of her sister's just laying around??? T.T <br /><br />I will def be reading the next one! (this one took me so long because I paused to participate in a read a thon and then got distracted by other books lol and then I got busy with work so I didn't have as much time to read)",
+            "createdAt": "Thu Jul 24 2025",
+            "updatedAt": "Thu Jul 24 2025",
+            "spoiler": false,
+            "likeCount": 0,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/7714101862"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.HXGbQg0020aQJjD9G6pW2A",
+            "reviewer": {
+                "id": 163241100,
+                "name": "Alex",
+                "url": "/user/show/163241100-alex",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1763011908i/163241100._UY200_CR11,0,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 98,
+                "followerCount": 0
+            },
+            "rating": 2,
+            "text": "I enjoyed Guinevere’s character early on in the book. It was interesting watching her being raised alongside her foster brother, Black Leg, by a wolf shifter (Maniel) and a she-wolf. I do appreciate her relationship with the She Wolf, who Guinevere calls Mother. The thing that really kept me going through this book was Guinevere’s interactions with the dragons of the land and her connection to the land. I was also intrigued by some of the same conversations about religion in this book since Guinevere is raised in nature and has regular interactions with a Druid and some interactions with Christiany.<br />All this being said I struggled with the writing. There are huge chunks of it that are confusing since it’s not always clear who is being talked about when he, she or they are mentioned considering there might be multiple people mentioned previously in the scene. Transitions between moments are also rough. I was questioning when things changed and what was being talked about. The long descriptions of things really didn’t help either and me zoning out as I read. <br />It was also a bit rough to read this because of how things were worded/certain sciences being really uncomfortable for seemingly no reason out of nowhere. The dynamics between Igraine and Merlin’s relationship being one them. Scenes with them were sexual with zero warning and it wasn’t just limited to them. It happened a lot with various characters. Things were also made pretty uncomfortable with minors even if it was a scene that wasn’t intended to uncomfortably sexual, it was made that way by directly saying things like they “were far too young for even a dream of passion.” With how confusing the writing was I couldn’t even tell if there was a reason for why these sort of scenes were written in detail outside of making the audience feel uncomfortable and actively dislike the characters who are at fault for these behaviors.",
+            "createdAt": "Sun May 24 2026",
+            "updatedAt": "Sun May 24 2026",
+            "spoiler": false,
+            "likeCount": 0,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/5900548383"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.VoNZbtbhrTyL1Fhg43jpGw",
+            "reviewer": {
+                "id": 42064438,
+                "name": "Briana",
+                "url": "/user/show/42064438-briana",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1715717411i/42064438._UY200_CR5,0,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 161,
+                "followerCount": 1
+            },
+            "rating": 2,
+            "text": "This book was not for me. I had high hopes, the summary sounded interesting. It took me much longer than usual to finish this book as I struggled to enjoy it and I will not be picking up the second installment. I almost DNF'd this book several times but decided to stick with it.<br /><br />The first half of the book felt like it was the author's freewriting development of the book, which she never bothered to go back and actually edit into a cohesive and understandable story. It was like being is some kind of dream where everything was hazy and only loosely connected. Sometimes you ended up in an entirely different location or time without even realizing it. It was also almost impossible to understand who was being discussed as the author tends to avoid using names and simply use pronouns leaving the reader to try and figure out (usually without success) who the \"she\" is that is being discussed. It was also very interesting that the author (or editor) chose to spell Guinevere's name differently throughout the book.<br /><br />The second half was a little better and is the only reason I didn't give this book a one star. I don't mind Merlin as the antagonist as some other reviewers do and I found his character interesting. However, I did not really like the relationship between Arthur and Guinevere. I'm not sure how I am supposed to be convinced that this was some fated love story when they met for all of maybe an hour total. It seemed more insta-lust than anything else and there was no relationship development at all after that.<br /><br />Overall I spent my time either being very confused and a little bored or kind of confused and mildly interested.",
+            "createdAt": "Thu Aug 15 2024",
+            "updatedAt": "Thu Aug 15 2024",
+            "spoiler": false,
+            "likeCount": 0,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/6728900786"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.IoZW54HX8Qad9w5IgbQB9A",
+            "reviewer": {
+                "id": 6424389,
+                "name": "Joy Pouros",
+                "url": "/user/show/6424389-joy-pouros",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1567889312i/6424389._UY200_CR47,0,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 125,
+                "followerCount": 2
+            },
+            "rating": 3,
+            "text": "2.5 stars. <br /><br />I REALLY like the character of Guinevere, but there were other parts of the story I didn't enjoy. <br /><br />The writing style can be very winding and even abstract in some ways. There are whole parts you can skim without missing much. There aren't a ton of people, but enough to get them confused, especially a couple with similar names. <br /><br />I'm always very frustrated with stories that try to have strong female characters but still have an overly sexually charged world. There are so many wonderfully creative parts of this world and then we default back to several tired tropes. There's just no need. <br /><br />Some chapters are 30 pages, some are 5. It doesn't appear based on POV or time, so why is this so inconsistent? <br /><br />And finally... I understand this is the first book of the trilogy, but this book just felt like a long prologue. Other series the first book is still a worthwhile read and entertaining story. This is more of an origin story before you fully appreciate the main story. So there are very mixed feelings about continuing the series because while I love Guinevere, there's an awful lot to overlook. ",
+            "createdAt": "Tue Aug 30 2022",
+            "updatedAt": "Tue Aug 30 2022",
+            "spoiler": false,
+            "likeCount": 0,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/4955253716"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.ahVbGwMWksFfbjRS9c6Vbg",
+            "reviewer": {
+                "id": 29405146,
+                "name": "Anita",
+                "url": "/user/show/29405146-anita",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1407269712i/29405146._CR0,33,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 614,
+                "followerCount": 3
+            },
+            "rating": 1,
+            "text": "First of all, I love Arthurian legends. Second, I always finish books, constantly hopeful that the story will improve, but I must confess that I skimmed this book to the end. I just cannot read any more!<br />This story has no cohesion, no main narrator and skips from one location to another mid-chapter. Plus there are men suddenly shapeshifting into wolves, and back again; no reasons given; no context for the intrigue and killings taking place; and a young girl child, supposedly Guinevere of Arthurian legend, being suckled by a she-wolf after being kidnapped. <br />Imaginative description is great in a fantasy story; confusion is not. This book is one long puzzle - a maze with apparently no direction, interspersed with some flowery descriptions of sunsets and misty mornings; visions of ravens and dragons (fishing); and a cast of hundreds of unrelated and irrelevant characters. Reading this book feels akin to experiencing one of those dreams in which you are lost and desperately trying to find your way back home.<br />Need I add that I did not enjoy this book, and will not be reading the sequel?",
+            "createdAt": "Fri Oct 30 2020",
+            "updatedAt": "Fri Oct 30 2020",
+            "spoiler": true,
+            "likeCount": 0,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/3618732305"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.zo7-0bYwOUS0LlPXyqeuXQ",
+            "reviewer": {
+                "id": 3198878,
+                "name": "Stevie",
+                "url": "/user/show/3198878-stevie",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1560478233i/3198878._UX200_CR0,33,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 71,
+                "followerCount": 0
+            },
+            "rating": 2,
+            "text": "Rating this book was a challenge. It was an impulse grab. I suspected it would be wonderfully terrible or terribly wonderful and there was only one way to find out.<br /><br />What I liked: Arthurian legend from Guin's point of view. Cool. That awkward time period in history when they were both Christian but still observed many pagan rites. It had all the names I knew, and some of the tropes I knew: Vortigen, the witch in the well, so on and so forth from various movies I've seen. <br /><br />What I disliked: the writing. Some of the dialogue wasn't needed. The descriptions could be too much in places and entirely lacking in others. Who is speaking? What do they look like? They were a human in a tower and now they are a fish? When? How? Transitions don't exist. This makes it hard to follow. <br /><br />It was a wild ride, and I hung on until the end because I was curious as to how it would turn out. Turns out there's a sequel...I don't know that I have that in me...",
+            "createdAt": "Sat Mar 21 2020",
+            "updatedAt": "Sat Mar 21 2020",
+            "spoiler": false,
+            "likeCount": 0,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/3240571912"
+        },
+        {
+            "id": "kca://review:goodreads/amzn1.gr.review:goodreads.v1.E7XotAu3DvsavlUw1u62eA",
+            "reviewer": {
+                "id": 107938758,
+                "name": "Danai",
+                "url": "/user/show/107938758-danai",
+                "avatar": "https://i.gr-assets.com/images/S/compressed.photo.goodreads.com/users/1705239736i/107938758._UX200_CR0,33,200,200_.jpg",
+                "isAuthor": false,
+                "reviewCount": 133,
+                "followerCount": 0
+            },
+            "rating": 3,
+            "text": "I didn't love it, nor did I hate it.<br /><br />Everything was magical, mystical, and mysterious; Borchardt painted an imaginative world with interesting and diverse characters. She evidently has a deep knowledge of the British Isles, its history, and its lore.<br /><br />But the writing was, at times, completely chaotic and confusing. As if someone was just spilling their string of thoughts without sufficient context or details - or too many of the wrong details. More than once, I found myself confused by abrupt changes in the situation, only to learn - through narration - that a memory was being shared. <br /><br />This book didn't capture me nor engross me by any means, but it did beckon me to come back and finish it. If I come across the next book in the series, I will read it simply out of curiosity - what happens next for our heroes and villains? But I won't go hunting for a copy of it anytime soon...",
+            "createdAt": "Thu Jan 11 2024",
+            "updatedAt": "Thu Jan 11 2024",
+            "spoiler": false,
+            "likeCount": 0,
+            "commentCount": 0,
+            "recommendFor": null,
+            "shelf": "read",
+            "reviewURL": "/review/show/5638508977"
+        }
+    ],
+    "lastScraped": "2026-10-28T18:38:19.808Z"
+}

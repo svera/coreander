@@ -1023,6 +1023,10 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		textRankEnriched = match.Fields["TextRankEnriched"].(bool)
 	}
 
+	goodReadsBookURL, _ := match.Fields["GoodReadsBookURL"].(string)
+	goodReadsAuthorURL, _ := match.Fields["GoodReadsAuthorURL"].(string)
+	goodReadsEnriched, _ := match.Fields["GoodReadsEnriched"].(bool)
+
 	doc := Document{
 		ID: match.ID,
 		Metadata: metadata.Metadata{
@@ -1040,15 +1044,18 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 			Illustrations: illustrations,
 			Format:        match.Fields["Format"].(string),
 		},
-		Slug:              match.Fields["Slug"].(string),
-		AuthorsSlugs:      slicer(match.Fields["AuthorsSlugs"]),
-		IllustratorsSlugs: illustratorsSlugs,
-		SeriesSlug:        match.Fields["SeriesSlug"].(string),
-		SubjectsSlugs:     slicer(match.Fields["SubjectsSlugs"]),
-		AddedOn:           addedOn,
-		TextRankPhrases:   textRankPhrases,
-		TextRankWords:     textRankWords,
-		TextRankEnriched:  textRankEnriched,
+		Slug:               match.Fields["Slug"].(string),
+		AuthorsSlugs:       slicer(match.Fields["AuthorsSlugs"]),
+		IllustratorsSlugs:  illustratorsSlugs,
+		SeriesSlug:         match.Fields["SeriesSlug"].(string),
+		SubjectsSlugs:      slicer(match.Fields["SubjectsSlugs"]),
+		AddedOn:            addedOn,
+		TextRankPhrases:    textRankPhrases,
+		TextRankWords:      textRankWords,
+		TextRankEnriched:   textRankEnriched,
+		GoodReadsBookURL:   goodReadsBookURL,
+		GoodReadsAuthorURL: goodReadsAuthorURL,
+		GoodReadsEnriched:  goodReadsEnriched,
 	}
 
 	return doc

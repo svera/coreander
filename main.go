@@ -15,11 +15,13 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/versioncheck"
 	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/controller/document"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
@@ -34,6 +36,7 @@ var (
 	input                CLIInput
 	appFs                afero.Fs
 	idx                  *index.BleveIndexer
+	biblioreadsClient    *biblioreads.Client
 	db                   *gorm.DB
 	homeDir              string
 	err                  error
@@ -98,6 +101,14 @@ func init() {
 	var documentsIndex, authorsIndex bleve.Index
 	var needsReindex bool
 	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize, input.MinOccurrenceRatio, maxTextRankWords)
+	var goodReadsSource index.GoodReadsSource
+	if !input.DisableBiblioreads {
+		biblioreadsClient = biblioreads.NewClient(
+			biblioreads.WithInstances(input.BiblioreadsInstances),
+			biblioreads.WithCacheTTL(time.Duration(input.BiblioreadsCacheTTL)*time.Second),
+		)
+		goodReadsSource = biblioreadsClient
+	}
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
 		IllustratedMinAmount:           input.IllustratedMinAmount,
 		IllustratedMinSize:             input.IllustratedMinSize,
@@ -110,6 +121,7 @@ func init() {
 		MinCommonTextRankAbsoluteCount: input.MinCommonTextRankAbsoluteCount,
 		PruneChangeTriggerRatio:        input.PruneChangeTriggerRatio,
 		TextRankEnrichWorkers:          resolvedIndexWorkers,
+		GoodReadsSource:                goodReadsSource,
 	})
 
 	// If index was newly created or recreated, force reindexing
@@ -156,6 +168,7 @@ func main() {
 		ClientDynamicImageCacheTTL: input.ClientDynamicImageCacheTTL,
 		ServerStaticCacheTTL:       input.ServerStaticCacheTTL,
 		ServerDynamicImageCacheTTL: input.ServerDynamicImageCacheTTL,
+		BiblioreadsCacheTTL:        input.BiblioreadsCacheTTL,
 		ShareCommentMaxSize:        input.ShareCommentMaxSize,
 		ShareMaxRecipients:         input.ShareMaxRecipients,
 		IllustratedMinAmount:       input.IllustratedMinAmount,
@@ -194,7 +207,11 @@ func main() {
 
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
-	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource)
+	var bookSource document.BookSource
+	if biblioreadsClient != nil {
+		bookSource = biblioreadsClient
+	}
+	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, bookSource)
 	usersRepository := &model.UserRepository{DB: db}
 	app := webserver.New(webserverConfig, controllers, sender, idx, usersRepository)
 	if strings.ToLower(input.FQDN) == "localhost" {
@@ -218,6 +235,13 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWor
 	end := time.Now().Unix()
 	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 	log.Printf("Indexing finished, took %d seconds", int(dur.Seconds()))
+
+	// Network-bound, so it runs alongside the CPU-bound TextRank enrichment.
+	go func() {
+		if err := idx.EnrichGoodReads(batchSize); err != nil {
+			log.Printf("Error enriching documents with GoodReads data: %s", err)
+		}
+	}()
 
 	if err := idx.EnrichTextRankKeywords(batchSize, indexWorkers); err != nil {
 		log.Printf("Error enriching documents with TextRank keywords: %s", err)

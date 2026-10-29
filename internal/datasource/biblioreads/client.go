@@ -1,0 +1,297 @@
+// Package biblioreads implements a client for the BiblioReads API
+// (https://github.com/nesaku/biblioreads), an alternative Goodreads front-end.
+package biblioreads
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"math/rand/v2"
+	"net/http"
+	"net/url"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/svera/coreander/v5/internal/datasource/httpjson"
+)
+
+const (
+	goodreadsBaseURL = "https://www.goodreads.com"
+
+	searchBooksPath    = "/api/search/books"
+	bookScraperPath    = "/api/book-scraper"
+	reviewsScraperPath = "/api/reviews-scraper"
+)
+
+// DefaultInstances lists public BiblioReads instances.
+var DefaultInstances = []string{
+	"https://biblioreads.eu.org",
+	"https://biblioreads.mooo.com",
+	"https://biblioreads.lunar.icu",
+	"https://biblioreads.ducks.party",
+	"https://biblioreads.privacyredirect.com",
+	"https://br.bloat.cat",
+	"https://biblioreads.utilibre.org",
+}
+
+// ErrUnavailable is returned when no instance could serve a request (network errors, rate limits,
+// non-JSON responses), as opposed to an instance answering with an error of its own.
+var ErrUnavailable = errors.New("biblioreads: all instances failed")
+
+type Client struct {
+	instances  []string
+	httpClient *http.Client
+	cache      *responseCache
+
+	mu            sync.Mutex
+	cooldownUntil map[string]time.Time
+}
+
+type options struct {
+	instances  []string
+	httpClient *http.Client
+	cacheTTL   time.Duration
+}
+
+type Option func(*options)
+
+// WithInstances sets the BiblioReads instances to use. An empty list keeps DefaultInstances.
+func WithInstances(instances []string) Option {
+	return func(o *options) {
+		if len(instances) > 0 {
+			o.instances = instances
+		}
+	}
+}
+
+// WithHTTPClient sets the HTTP client used for requests. A nil client keeps the default one,
+// which has a 15 seconds timeout.
+func WithHTTPClient(httpClient *http.Client) Option {
+	return func(o *options) {
+		if httpClient != nil {
+			o.httpClient = httpClient
+		}
+	}
+}
+
+// WithCacheTTL sets how long successful responses are cached. A zero or negative ttl disables caching.
+func WithCacheTTL(ttl time.Duration) Option {
+	return func(o *options) {
+		o.cacheTTL = ttl
+	}
+}
+
+// NewClient returns a client that spreads requests across instances. Each request starts at a
+// random instance and fails over to the next ones if it is unavailable (network error, 429 or a
+// non-JSON response). Unavailable instances are skipped until their Retry-After time, or
+// httpjson.DefaultRetryAfter, has passed. Successful responses are cached in memory for
+// DefaultCacheTTL unless changed with WithCacheTTL.
+func NewClient(opts ...Option) *Client {
+	o := options{
+		instances:  DefaultInstances,
+		httpClient: &http.Client{Timeout: 15 * time.Second},
+		cacheTTL:   DefaultCacheTTL,
+	}
+	for _, opt := range opts {
+		opt(&o)
+	}
+
+	normalized := make([]string, len(o.instances))
+	for i, instance := range o.instances {
+		normalized[i] = strings.TrimRight(instance, "/")
+	}
+
+	c := &Client{
+		instances:     normalized,
+		httpClient:    o.httpClient,
+		cooldownUntil: make(map[string]time.Time),
+	}
+	if o.cacheTTL > 0 {
+		c.cache = newResponseCache(o.cacheTTL)
+	}
+	return c
+}
+
+type queryURLPayload struct {
+	QueryURL string `json:"queryURL"`
+}
+
+type reviewsPayload struct {
+	ResourceID    string `json:"resourceID"`
+	LegacyBookID  int    `json:"legacyBookID"`
+	NextPageToken string `json:"nextPageToken,omitempty"`
+}
+
+// SearchBooks searches Goodreads books matching query.
+func (c *Client) SearchBooks(ctx context.Context, query string) (SearchBooksResponse, error) {
+	var res SearchBooksResponse
+	payload := queryURLPayload{
+		QueryURL: goodreadsBaseURL + "/search?q=" + escapeQuery(query),
+	}
+	err := c.post(ctx, searchBooksPath, payload, &res)
+	return res, err
+}
+
+// Book returns the details of the Goodreads book identified by id, which can be
+// either a numeric ID ("12207444") or an ID with slug ("12207444-la-reina-dragon").
+func (c *Client) Book(ctx context.Context, id string) (BookResponse, error) {
+	var res BookResponse
+	payload := queryURLPayload{
+		QueryURL: goodreadsBaseURL + "/book/show/" + url.PathEscape(id),
+	}
+	err := c.post(ctx, bookScraperPath, payload, &res)
+	return res, err
+}
+
+// Reviews returns a page of reviews for the work identified by resourceID and legacyBookID
+// (both available in BookResponse). Pass an empty nextPageToken to get the first page.
+func (c *Client) Reviews(ctx context.Context, resourceID string, legacyBookID int, nextPageToken string) (ReviewsResponse, error) {
+	var res ReviewsResponse
+	payload := reviewsPayload{
+		ResourceID:    resourceID,
+		LegacyBookID:  legacyBookID,
+		NextPageToken: nextPageToken,
+	}
+	err := c.post(ctx, reviewsScraperPath, payload, &res)
+	return res, err
+}
+
+// unavailableError means the instance can't serve requests right now and another one should be tried.
+type unavailableError struct {
+	endpoint   string
+	retryAfter time.Duration
+	reason     error
+}
+
+func (e *unavailableError) Error() string {
+	return fmt.Sprintf("%s: %v", e.endpoint, e.reason)
+}
+
+func (e *unavailableError) Unwrap() error {
+	return e.reason
+}
+
+func (c *Client) post(ctx context.Context, path string, payload, dest any) error {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	cacheKey := path + "\x00" + string(body)
+	if c.cache != nil {
+		if cached, ok := c.cache.get(cacheKey); ok {
+			return json.Unmarshal(cached, dest)
+		}
+	}
+
+	var errs []error
+	for _, instance := range c.candidates() {
+		endpoint := instance + path
+		respBody, err := c.postToInstance(ctx, endpoint, body)
+		if err == nil {
+			c.clearCooldown(instance)
+			if err := json.Unmarshal(respBody, dest); err != nil {
+				return fmt.Errorf("biblioreads: error decoding response from %s: %w", endpoint, err)
+			}
+			if c.cache != nil {
+				c.cache.set(cacheKey, respBody)
+			}
+			return nil
+		}
+		var unavailable *unavailableError
+		if !errors.As(err, &unavailable) {
+			return err
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		c.setCooldown(instance, unavailable.retryAfter)
+		errs = append(errs, err)
+	}
+	return fmt.Errorf("%w: %w", ErrUnavailable, errors.Join(errs...))
+}
+
+// candidates returns the instances that are not cooling down, starting at a random one.
+// If all of them are cooling down, the one whose cooldown ends first is returned, so
+// requests don't fail without trying when every instance had a transient error.
+func (c *Client) candidates() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	now := time.Now()
+	start := rand.IntN(len(c.instances))
+	candidates := make([]string, 0, len(c.instances))
+	soonest := ""
+	for i := range c.instances {
+		instance := c.instances[(start+i)%len(c.instances)]
+		until, coolingDown := c.cooldownUntil[instance]
+		if !coolingDown || !now.Before(until) {
+			candidates = append(candidates, instance)
+			continue
+		}
+		if soonest == "" || until.Before(c.cooldownUntil[soonest]) {
+			soonest = instance
+		}
+	}
+	if len(candidates) == 0 {
+		return []string{soonest}
+	}
+	return candidates
+}
+
+func (c *Client) setCooldown(instance string, d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cooldownUntil[instance] = time.Now().Add(d)
+}
+
+func (c *Client) clearCooldown(instance string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.cooldownUntil, instance)
+}
+
+// postToInstance returns the body of a successful response.
+func (c *Client) postToInstance(ctx context.Context, endpoint string, body []byte) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := httpjson.Do(c.httpClient, req)
+	if err != nil {
+		return nil, &unavailableError{endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter, reason: err}
+	}
+
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, &unavailableError{
+			endpoint:   endpoint,
+			retryAfter: httpjson.ParseRetryAfter(resp.Header.Get("Retry-After")),
+			reason:     fmt.Errorf("status code %d", resp.StatusCode),
+		}
+	}
+
+	// BiblioReads always answers with JSON, even on errors (e.g. a 504 for a book that
+	// doesn't exist), so anything else comes from a broken instance or a proxy in front of it.
+	if !json.Valid(resp.Body) {
+		return nil, &unavailableError{
+			endpoint:   endpoint,
+			retryAfter: httpjson.DefaultRetryAfter,
+			reason:     fmt.Errorf("status code %d with non-JSON response", resp.StatusCode),
+		}
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("biblioreads: request to %s failed with status code %d: %s", endpoint, resp.StatusCode, resp.Body)
+	}
+	return resp.Body, nil
+}
+
+// escapeQuery escapes a search string using %20 for spaces, as Goodreads does.
+func escapeQuery(query string) string {
+	return strings.ReplaceAll(url.QueryEscape(query), "+", "%20")
+}

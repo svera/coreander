@@ -71,6 +71,7 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"AuthorSummaries":      authorSummaries,
 		"IllustratorSummaries": illustratorSummaries,
 		"Debug":                c.RequestCtx().QueryArgs().Has("debug"),
+		"GoodReadsEnabled":     d.bookSource != nil,
 	}, "layout")
 }
 

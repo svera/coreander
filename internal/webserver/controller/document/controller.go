@@ -1,6 +1,7 @@
 package document
 
 import (
+	"context"
 	"image"
 	"time"
 
@@ -35,6 +36,7 @@ type IdxReaderWriter interface {
 	Languages() ([]string, error)
 	Subjects() (map[string][]string, error)
 	Author(slug, lang string) (index.Author, error)
+	GoodReadsBookURL(ctx context.Context, document index.Document) (string, error)
 }
 
 type highlightsRepository interface {
@@ -88,9 +90,11 @@ type Controller struct {
 	config                Config
 	appFs                 afero.Fs
 	translator            i18n.Translator
+	bookSource            BookSource
 }
 
-func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, annotationsRepository annotationsRepository, sender Sender, idx IdxReaderWriter, appFs afero.Fs, cfg Config, translator i18n.Translator) *Controller {
+// NewController creates a document controller. bookSource may be nil, which disables Goodreads data.
+func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, annotationsRepository annotationsRepository, sender Sender, idx IdxReaderWriter, appFs afero.Fs, cfg Config, translator i18n.Translator, bookSource BookSource) *Controller {
 	return &Controller{
 		hlRepository:          hlRepository,
 		usersRepository:       usersRepository,
@@ -101,5 +105,6 @@ func NewController(hlRepository highlightsRepository, usersRepository usersRepos
 		config:                cfg,
 		appFs:                 appFs,
 		translator:            translator,
+		bookSource:            bookSource,
 	}
 }
