@@ -130,8 +130,11 @@ func goodReadsPlaceholders(t *testing.T, html string) *goquery.Selection {
 }
 
 func TestDocumentDetailGoodReadsRating(t *testing.T) {
-	source := &fakeBookSource{book: biblioreads.BookResponse{Rating: "3.82", RatingCount: "2,285"}}
-	app, _ := newGoodReadsTestApp(t, source)
+	source := &fakeBookSource{book: biblioreads.BookResponse{
+		Rating: "3.82", RatingCount: "2,285",
+		ResourceID: "work-id", LegacyBookID: 12207444,
+	}}
+	app, idx := newGoodReadsTestApp(t, source)
 
 	placeholder := goodReadsPlaceholders(t, getBody(t, app, "/documents/linked"))
 	if placeholder.Length() != 1 {
@@ -161,11 +164,18 @@ func TestDocumentDetailGoodReadsRating(t *testing.T) {
 	if len(source.queries) != 0 {
 		t.Errorf("expected no search for a linked document, got %q", source.queries)
 	}
+	stored, err := idx.Document("linked")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.GoodReadsResourceID != source.book.ResourceID || stored.GoodReadsLegacyBookID != source.book.LegacyBookID {
+		t.Fatalf("expected book identifiers to be stored, got %+v", stored)
+	}
 }
 
 func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
 	source := &fakeBookSource{
-		book:    biblioreads.BookResponse{Rating: "4.10"},
+		book:    biblioreads.BookResponse{Rating: "4.10", ResourceID: "work-id", LegacyBookID: 1},
 		results: []biblioreads.SearchResult{{Title: "Unlinked", Author: "Jane Doe", BookURL: "/book/show/1-unlinked", AuthorURL: "/author/show/1.Jane_Doe"}, {BookURL: "/book/show/2-other"}},
 	}
 	app, idx := newGoodReadsTestApp(t, source)
@@ -194,6 +204,9 @@ func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
 	}
 	if stored.GoodReadsBookURL != "/book/show/1-unlinked" || stored.GoodReadsAuthorURL != "/author/show/1.Jane_Doe" || !stored.GoodReadsEnriched {
 		t.Errorf("expected the found link to be stored, got %+v", stored)
+	}
+	if stored.GoodReadsResourceID != "work-id" || stored.GoodReadsLegacyBookID != 1 {
+		t.Fatalf("expected identifiers for newly linked document to be stored, got %+v", stored)
 	}
 
 	if err := idx.EnrichGoodReads(10); err != nil {
@@ -230,6 +243,37 @@ func TestDocumentDetailGoodReadsRatingRendersNothingWhenUnavailable(t *testing.T
 				t.Errorf("expected empty response, got %q", body)
 			}
 		})
+	}
+}
+
+func TestDocumentDetailGoodReadsIdentifiersWithoutRating(t *testing.T) {
+	source := &fakeBookSource{book: biblioreads.BookResponse{ResourceID: "work-id", LegacyBookID: 12207444}}
+	app, idx := newGoodReadsTestApp(t, source)
+	if body := strings.TrimSpace(getBody(t, app, "/documents/linked/goodreads")); body != "" {
+		t.Fatalf("expected no rating, got %q", body)
+	}
+	stored, err := idx.Document("linked")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.GoodReadsResourceID != "work-id" || stored.GoodReadsLegacyBookID != 12207444 {
+		t.Fatalf("expected identifiers even without a rating, got %+v", stored)
+	}
+
+	for _, book := range []biblioreads.BookResponse{
+		{},
+		{ResourceID: "partial-work"},
+		{LegacyBookID: 2},
+	} {
+		source.book = book
+		getBody(t, app, "/documents/linked/goodreads")
+		stored, err = idx.Document("linked")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if stored.GoodReadsResourceID != "work-id" || stored.GoodReadsLegacyBookID != 12207444 {
+			t.Fatalf("incomplete response overwrote stored identifiers: %+v", stored)
+		}
 	}
 }
 

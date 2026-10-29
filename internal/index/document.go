@@ -84,6 +84,11 @@ type Document struct {
 	// (e.g. "/book/show/12207444-la-reina-dragon"), as returned by BiblioReads.
 	GoodReadsBookURL   string
 	GoodReadsAuthorURL string
+	// GoodReadsResourceID identifies the work; GoodReadsLegacyBookID identifies
+	// the edition. Both are stored only, populated when book details are fetched,
+	// and used together by BiblioReads to retrieve reviews.
+	GoodReadsResourceID   string
+	GoodReadsLegacyBookID int
 	// GoodReadsEnriched is false until the GoodReads enrichment has looked
 	// this document up, whether or not a match was found.
 	GoodReadsEnriched bool

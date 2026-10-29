@@ -30,7 +30,7 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v14"
+const DocumentVersion = "v15"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
@@ -407,6 +407,11 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	storedOnlyFieldMapping.IncludeInAll = false
 	storedOnlyFieldMapping.DocValues = false
 
+	storedOnlyNumericFieldMapping := bleve.NewNumericFieldMapping()
+	storedOnlyNumericFieldMapping.Index = false
+	storedOnlyNumericFieldMapping.IncludeInAll = false
+	storedOnlyNumericFieldMapping.DocValues = false
+
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
 
@@ -467,6 +472,8 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsBookURL", storedOnlyFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsAuthorURL", storedOnlyFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsResourceID", storedOnlyFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsLegacyBookID", storedOnlyNumericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsEnriched", booleanFieldMapping)
 	}
 
@@ -494,6 +501,8 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsBookURL", storedOnlyFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsAuthorURL", storedOnlyFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsResourceID", storedOnlyFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsLegacyBookID", storedOnlyNumericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsEnriched", booleanFieldMapping)
 
 	return indexMapping

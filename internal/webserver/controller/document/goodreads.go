@@ -57,6 +57,11 @@ func (d *Controller) GoodReads(c fiber.Ctx) error {
 		log.Printf("Error retrieving GoodReads book %s: %s\n", id, err)
 		return c.SendString("")
 	}
+	if book.ResourceID != "" && book.LegacyBookID > 0 {
+		if err := d.idx.StoreGoodReadsBookIDs(document, bookURL, book.ResourceID, book.LegacyBookID); err != nil {
+			log.Printf("Error saving GoodReads identifiers for %s: %s\n", document.ID, err)
+		}
+	}
 	if book.Rating == "" {
 		return c.SendString("")
 	}

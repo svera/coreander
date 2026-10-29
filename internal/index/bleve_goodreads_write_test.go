@@ -210,6 +210,9 @@ func TestTextRankWritesPreserveGoodReadsFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	stale.TextRankEnriched = false
+	if err := idx.StoreGoodReadsBookIDs(stale, wantGoodReadsBookURL, "work-id", 12207444); err != nil {
+		t.Fatal(err)
+	}
 	stale.TextRankWords = []string{"dragon"}
 	idx.enrichTextRankAndReindex(stale)
 
@@ -219,6 +222,9 @@ func TestTextRankWritesPreserveGoodReadsFields(t *testing.T) {
 	}
 	if !doc.GoodReadsEnriched || doc.GoodReadsBookURL != wantGoodReadsBookURL {
 		t.Errorf("expected GoodReads fields to survive a TextRank write, got %+v", doc)
+	}
+	if doc.GoodReadsResourceID != "work-id" || doc.GoodReadsLegacyBookID != 12207444 {
+		t.Errorf("expected GoodReads identifiers to survive a TextRank write, got %+v", doc)
 	}
 	if !doc.TextRankEnriched {
 		t.Error("expected TextRank write to be persisted")
@@ -493,6 +499,8 @@ func TestForceIndexingRefreshesGoodReadsMatch(t *testing.T) {
 	}
 	doc.GoodReadsBookURL = "/book/show/1-wrong"
 	doc.GoodReadsAuthorURL = "/author/show/1.Wrong"
+	doc.GoodReadsResourceID = "wrong-work"
+	doc.GoodReadsLegacyBookID = 1
 	doc.GoodReadsEnriched = true
 	if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
 		t.Fatal(err)
@@ -509,5 +517,71 @@ func TestForceIndexingRefreshesGoodReadsMatch(t *testing.T) {
 	}
 	if doc.GoodReadsBookURL != wantGoodReadsBookURL || doc.GoodReadsAuthorURL != wantGoodReadsAuthorURL {
 		t.Fatalf("expected refreshed links, got %q and %q", doc.GoodReadsBookURL, doc.GoodReadsAuthorURL)
+	}
+	if doc.GoodReadsResourceID != "" || doc.GoodReadsLegacyBookID != 0 {
+		t.Fatalf("expected old identifiers to be cleared, got %q and %d", doc.GoodReadsResourceID, doc.GoodReadsLegacyBookID)
+	}
+}
+
+func TestStoreGoodReadsBookIDs(t *testing.T) {
+	for _, scenario := range []string{"linked", "newly linked", "changed metadata", "changed match", "deleted", "invalid identifiers"} {
+		t.Run(scenario, func(t *testing.T) {
+			idx := newGoodReadsTestIndexer(t, nil)
+			doc := Document{
+				ID:                goodReadsTestID,
+				Metadata:          metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}},
+				GoodReadsBookURL:  wantGoodReadsBookURL,
+				GoodReadsEnriched: true,
+				TextRankWords:     []string{"dragon"},
+			}
+			stale := doc
+			resourceID := "work-id"
+			switch scenario {
+			case "newly linked":
+				stale.GoodReadsBookURL = ""
+				stale.GoodReadsEnriched = false
+			case "changed metadata":
+				doc.Title = "Another title"
+			case "changed match":
+				doc.GoodReadsBookURL = "/book/show/2-other"
+			case "invalid identifiers":
+				resourceID = ""
+			}
+			if scenario != "deleted" {
+				if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
+					t.Fatal(err)
+				}
+			}
+			err := idx.StoreGoodReadsBookIDs(stale, wantGoodReadsBookURL, resourceID, 12207444)
+			wantError := scenario != "linked" && scenario != "newly linked"
+			if (err != nil) != wantError {
+				t.Fatalf("StoreGoodReadsBookIDs error = %v, want error %v", err, wantError)
+			}
+			if scenario == "deleted" {
+				if !errors.Is(err, ErrDocumentNotFound) {
+					t.Fatalf("expected ErrDocumentNotFound, got %v", err)
+				}
+				return
+			}
+			stored, err := idx.documentByIndexID(doc.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if wantError {
+				if stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 {
+					t.Fatalf("unexpected identifiers persisted: %+v", stored)
+				}
+				return
+			}
+			if stored.GoodReadsResourceID != resourceID || stored.GoodReadsLegacyBookID != 12207444 {
+				t.Fatalf("identifiers not persisted: %+v", stored)
+			}
+			if !stored.GoodReadsEnriched || !slices.Equal(stored.TextRankWords, doc.TextRankWords) {
+				t.Fatalf("existing enrichment was lost: %+v", stored)
+			}
+			if err := idx.StoreGoodReadsBookIDs(stale, wantGoodReadsBookURL, resourceID, 12207444); err != nil {
+				t.Fatalf("repeated store failed: %v", err)
+			}
+		})
 	}
 }

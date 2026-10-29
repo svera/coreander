@@ -1025,6 +1025,8 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 
 	goodReadsBookURL, _ := match.Fields["GoodReadsBookURL"].(string)
 	goodReadsAuthorURL, _ := match.Fields["GoodReadsAuthorURL"].(string)
+	goodReadsResourceID, _ := match.Fields["GoodReadsResourceID"].(string)
+	goodReadsLegacyBookID, _ := match.Fields["GoodReadsLegacyBookID"].(float64)
 	goodReadsEnriched, _ := match.Fields["GoodReadsEnriched"].(bool)
 
 	doc := Document{
@@ -1044,18 +1046,20 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 			Illustrations: illustrations,
 			Format:        match.Fields["Format"].(string),
 		},
-		Slug:               match.Fields["Slug"].(string),
-		AuthorsSlugs:       slicer(match.Fields["AuthorsSlugs"]),
-		IllustratorsSlugs:  illustratorsSlugs,
-		SeriesSlug:         match.Fields["SeriesSlug"].(string),
-		SubjectsSlugs:      slicer(match.Fields["SubjectsSlugs"]),
-		AddedOn:            addedOn,
-		TextRankPhrases:    textRankPhrases,
-		TextRankWords:      textRankWords,
-		TextRankEnriched:   textRankEnriched,
-		GoodReadsBookURL:   goodReadsBookURL,
-		GoodReadsAuthorURL: goodReadsAuthorURL,
-		GoodReadsEnriched:  goodReadsEnriched,
+		Slug:                  match.Fields["Slug"].(string),
+		AuthorsSlugs:          slicer(match.Fields["AuthorsSlugs"]),
+		IllustratorsSlugs:     illustratorsSlugs,
+		SeriesSlug:            match.Fields["SeriesSlug"].(string),
+		SubjectsSlugs:         slicer(match.Fields["SubjectsSlugs"]),
+		AddedOn:               addedOn,
+		TextRankPhrases:       textRankPhrases,
+		TextRankWords:         textRankWords,
+		TextRankEnriched:      textRankEnriched,
+		GoodReadsBookURL:      goodReadsBookURL,
+		GoodReadsAuthorURL:    goodReadsAuthorURL,
+		GoodReadsResourceID:   goodReadsResourceID,
+		GoodReadsLegacyBookID: int(goodReadsLegacyBookID),
+		GoodReadsEnriched:     goodReadsEnriched,
 	}
 
 	return doc

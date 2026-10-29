@@ -27,7 +27,7 @@ type GoodReadsSource interface {
 	SearchBooks(ctx context.Context, query string) (biblioreads.SearchBooksResponse, error)
 }
 
-var goodReadsFields = []string{"GoodReadsBookURL", "GoodReadsAuthorURL", "GoodReadsEnriched"}
+var goodReadsFields = []string{"GoodReadsBookURL", "GoodReadsAuthorURL", "GoodReadsResourceID", "GoodReadsLegacyBookID", "GoodReadsEnriched"}
 
 // Strip named series annotations and omnibus ranges, not standalone volume numbers.
 var goodReadsSeriesSuffix = regexp.MustCompile(`\s*\((?:[^()]+,\s*#[0-9]+(?:\.[0-9]+)?|#[0-9]+\s*[-–]\s*#?[0-9]+)\)\s*$`)
@@ -167,6 +167,35 @@ func (b *BleveIndexer) GoodReadsBookURL(ctx context.Context, document Document) 
 		return document.GoodReadsBookURL, nil
 	}
 	return b.enrichGoodReads(ctx, document, false)
+}
+
+// StoreGoodReadsBookIDs persists identifiers fetched for bookURL, provided the
+// document still has the same metadata and Goodreads match as when it was read.
+func (b *BleveIndexer) StoreGoodReadsBookIDs(document Document, bookURL, resourceID string, legacyBookID int) error {
+	if bookURL == "" || resourceID == "" || legacyBookID <= 0 {
+		return fmt.Errorf("invalid GoodReads identifiers for document %s", document.ID)
+	}
+	b.documentsMu.Lock()
+	defer b.documentsMu.Unlock()
+	current, found, err := b.documentByIndexIDLocked(document.ID)
+	if err != nil {
+		return fmt.Errorf("error reading document %s for GoodReads identifiers: %w", document.ID, err)
+	}
+	if !found {
+		return ErrDocumentNotFound
+	}
+	if goodReadsQuery(current) != goodReadsQuery(document) || current.GoodReadsBookURL != bookURL {
+		return fmt.Errorf("GoodReads match changed for document %s", document.ID)
+	}
+	if current.GoodReadsResourceID == resourceID && current.GoodReadsLegacyBookID == legacyBookID {
+		return nil
+	}
+	current.GoodReadsResourceID = resourceID
+	current.GoodReadsLegacyBookID = legacyBookID
+	if err := b.documentsIdx.Index(current.ID, current); err != nil {
+		return fmt.Errorf("error storing GoodReads identifiers for document %s: %w", document.ID, err)
+	}
+	return nil
 }
 
 // enrichGoodReads searches document on Goodreads, unless it already has a
@@ -310,13 +339,17 @@ func (b *BleveIndexer) preserveGoodReadsLocked(documents []Document) {
 	for _, hit := range searchResult.Hits {
 		bookURL, _ := hit.Fields["GoodReadsBookURL"].(string)
 		authorURL, _ := hit.Fields["GoodReadsAuthorURL"].(string)
+		resourceID, _ := hit.Fields["GoodReadsResourceID"].(string)
+		legacyBookID, _ := hit.Fields["GoodReadsLegacyBookID"].(float64)
 		enriched, _ := hit.Fields["GoodReadsEnriched"].(bool)
-		stored[hit.ID] = Document{GoodReadsBookURL: bookURL, GoodReadsAuthorURL: authorURL, GoodReadsEnriched: enriched}
+		stored[hit.ID] = Document{GoodReadsBookURL: bookURL, GoodReadsAuthorURL: authorURL, GoodReadsResourceID: resourceID, GoodReadsLegacyBookID: int(legacyBookID), GoodReadsEnriched: enriched}
 	}
 	for i := range documents {
 		if s, ok := stored[documents[i].ID]; ok {
 			documents[i].GoodReadsBookURL = s.GoodReadsBookURL
 			documents[i].GoodReadsAuthorURL = s.GoodReadsAuthorURL
+			documents[i].GoodReadsResourceID = s.GoodReadsResourceID
+			documents[i].GoodReadsLegacyBookID = s.GoodReadsLegacyBookID
 			documents[i].GoodReadsEnriched = s.GoodReadsEnriched
 		}
 	}

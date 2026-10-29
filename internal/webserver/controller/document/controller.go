@@ -37,6 +37,7 @@ type IdxReaderWriter interface {
 	Subjects() (map[string][]string, error)
 	Author(slug, lang string) (index.Author, error)
 	GoodReadsBookURL(ctx context.Context, document index.Document) (string, error)
+	StoreGoodReadsBookIDs(document index.Document, bookURL, resourceID string, legacyBookID int) error
 }
 
 type highlightsRepository interface {
