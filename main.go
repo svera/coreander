@@ -45,7 +45,7 @@ var (
 	resolvedIndexWorkers int
 )
 
-func init() {
+func main() {
 	ctx := kong.Parse(&input, kong.Description(`
 		Coreander is a document management system which indexes metadata from documents in a library and allows users to search and read them through a web interface.
 	`),
@@ -130,9 +130,6 @@ func init() {
 	}
 
 	db = infrastructure.Connect(homeDir+databasePath, input.WordsPerMinute)
-}
-
-func main() {
 	defer idx.Close()
 
 	idx.BeginIndexing()
