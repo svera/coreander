@@ -187,6 +187,9 @@ func TestAuthorSummaryGoodReadsLink(t *testing.T) {
 					}
 					link := page.Find(`a[href="` + authorURL + `"]`)
 					if !tc.goodreads {
+						if page.Find(`img[src^="/images/goodreads.svg"]`).Length() != 0 {
+							t.Error("expected no Goodreads icon without an author URL")
+						}
 						if link.Length() != 0 {
 							t.Fatal("expected no Goodreads link without an author URL")
 						}
@@ -194,6 +197,10 @@ func TestAuthorSummaryGoodReadsLink(t *testing.T) {
 					}
 					if link.Length() != 1 || strings.TrimSpace(link.Text()) != locale.label {
 						t.Fatalf("expected one localized Goodreads link %q, got %d links with text %q", locale.label, link.Length(), link.Text())
+					}
+					icon := link.PrevFiltered(`img[src^="/images/goodreads.svg"]`)
+					if icon.Length() != 1 || icon.AttrOr("alt", "missing") != "" || icon.AttrOr("width", "") != "16" || icon.AttrOr("height", "") != "16" {
+						t.Error("expected a decorative Goodreads SVG icon before the author link")
 					}
 					if tc.wikipedia {
 						if href, _ := link.Parent().Prev().Find("a").Attr("href"); href != wikipediaURL {

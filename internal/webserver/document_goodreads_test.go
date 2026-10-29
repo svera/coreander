@@ -155,6 +155,9 @@ func TestDocumentDetailGoodReadsRating(t *testing.T) {
 		t.Fatal(err)
 	}
 	link := page.Find(`li a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`)
+	if page.Find("li i.bi-star-fill").Length() != 1 {
+		t.Error("expected the rating row to retain its star icon")
+	}
 	if strings.TrimSpace(link.Text()) != "3.82" {
 		t.Errorf("expected rating link with 3.82, got %q", link.Text())
 	}
