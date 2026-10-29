@@ -214,6 +214,7 @@
 "BC": "av. J.-C."
 "Before Christ": "Avant Jésus-Christ"
 "Go to Wikipedia entry": "Aller à l'entrée Wikipedia"
+"Go to Goodreads author page": "Voir la page de l'auteur sur Goodreads"
 "Website": "Site"
 "Is not the right author?": "N'est-ce pas le bon auteur ou les données sont obsolètes?"
 "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here.": "L'ID Wikidata est un identifiant unique pour l'auteur dans la base de données Wikidata. Si vous connaissez l'ID correct, vous pouvez le mettre à jour ici."
@@ -403,4 +404,5 @@
 "This document is no longer available. Its offline copy has been removed.": "Ce document n'est plus disponible. Sa copie hors connexion a été supprimée."
 "Reload document": "Recharger le document"
 "Goodreads rating": "Note Goodreads"
+"No score": "Aucune note"
 "%s ratings": "%s notes"

@@ -14,6 +14,8 @@
     {{ end }}
     {{ if and .GoodReadsEnabled (or .Document.GoodReadsBookURL (not .Document.GoodReadsEnriched)) }}
         <li class="placeholder-glow" hx-get="/documents/{{.Document.Slug}}/goodreads" hx-trigger="load" hx-target="this" hx-swap="outerHTML"><span class="placeholder col-4"></span></li>
+    {{ else if .GoodReadsEnabled }}
+        {{template "partials/document-goodreads" dict "Lang" .Lang}}
     {{ end }}
     {{ if and .IllustratedMinAmount (ge .Document.Illustrations .IllustratedMinAmount) }}
         <li class="fw-bold"><i class="bi bi-images me-2" alt="{{t .Lang "Illustrated"}}" title="{{t .Lang "Illustrated"}}"></i>{{t .Lang "Illustrated"}}</li>

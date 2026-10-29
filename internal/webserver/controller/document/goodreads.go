@@ -23,8 +23,8 @@ type BookSource interface {
 
 // GoodReads renders the Goodreads rating shown in a document's detail page
 // metadata. It's loaded asynchronously via htmx, so slow BiblioReads
-// responses don't block the page. Renders nothing if the rating can't be
-// retrieved.
+// responses don't block the page. Shows "no score" for an unmatched document,
+// but renders nothing if the rating request fails.
 func (d *Controller) GoodReads(c fiber.Ctx) error {
 	if d.bookSource == nil {
 		return c.SendString("")
@@ -41,11 +41,26 @@ func (d *Controller) GoodReads(c fiber.Ctx) error {
 
 	ctx, cancel := context.WithTimeout(c.Context(), goodReadsBookTimeout)
 	defer cancel()
-	// Searches the document first if it hasn't been linked to Goodreads yet.
-	bookURL, err := d.idx.GoodReadsBookURL(ctx, document)
-	if err != nil {
-		log.Println(err)
-		return c.SendString("")
+	bookURL := document.GoodReadsBookURL
+	if bookURL == "" {
+		result, err := d.idx.GoodReadsBook(ctx, document)
+		if err != nil {
+			log.Println(err)
+			return c.SendString("")
+		}
+		if result.BookURL == "" {
+			return c.Render("partials/document-goodreads", fiber.Map{})
+		}
+		if result.Rating == "" {
+			return c.SendString("")
+		}
+		if id, ok := strings.CutPrefix(result.BookURL, goodReadsBookPrefix); !ok || id == "" {
+			return c.SendString("")
+		}
+		return c.Render("partials/document-goodreads", fiber.Map{
+			"Rating": result.Rating,
+			"URL":    goodReadsBaseURL + result.BookURL,
+		})
 	}
 	id, ok := strings.CutPrefix(bookURL, goodReadsBookPrefix)
 	if !ok || id == "" {

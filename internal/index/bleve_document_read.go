@@ -1024,7 +1024,6 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 	}
 
 	goodReadsBookURL, _ := match.Fields["GoodReadsBookURL"].(string)
-	goodReadsAuthorURL, _ := match.Fields["GoodReadsAuthorURL"].(string)
 	goodReadsResourceID, _ := match.Fields["GoodReadsResourceID"].(string)
 	goodReadsLegacyBookID, _ := match.Fields["GoodReadsLegacyBookID"].(float64)
 	goodReadsEnriched, _ := match.Fields["GoodReadsEnriched"].(bool)
@@ -1056,7 +1055,6 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		TextRankWords:         textRankWords,
 		TextRankEnriched:      textRankEnriched,
 		GoodReadsBookURL:      goodReadsBookURL,
-		GoodReadsAuthorURL:    goodReadsAuthorURL,
 		GoodReadsResourceID:   goodReadsResourceID,
 		GoodReadsLegacyBookID: int(goodReadsLegacyBookID),
 		GoodReadsEnriched:     goodReadsEnriched,

@@ -168,6 +168,7 @@ func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
 		Pseudonyms:      slicer(fields["Pseudonyms"]),
 		DocumentCount:   documentCount,
 	}
+	author.GoodReadsAuthorURL, _ = fields["GoodReadsAuthorURL"].(string)
 
 	// Extract Wikipedia links and descriptions for all languages
 	for key, value := range fields {

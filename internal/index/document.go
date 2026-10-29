@@ -76,14 +76,10 @@ type Document struct {
 	// in the background. See documentsNeedingTextRank, which drives that pass
 	// off this field so it survives (and resumes correctly across) restarts.
 	TextRankEnriched bool
-	// GoodReadsBookURL and GoodReadsAuthorURL link the document to its
-	// Goodreads book and author pages. They are stored but not indexed (see
-	// CreateDocumentsMapping), so they never affect search results. They are
-	// filled in the background by the GoodReads enrichment (see
-	// EnrichGoodReads), with paths relative to https://www.goodreads.com
-	// (e.g. "/book/show/12207444-la-reina-dragon"), as returned by BiblioReads.
-	GoodReadsBookURL   string
-	GoodReadsAuthorURL string
+	// GoodReadsBookURL is the Goodreads book path returned by BiblioReads.
+	// It is stored but not indexed, and filled by EnrichGoodReads.
+	// Author URLs are stored on Author instead.
+	GoodReadsBookURL string
 	// GoodReadsResourceID identifies the work; GoodReadsLegacyBookID identifies
 	// the edition. Both are stored only, populated when book details are fetched,
 	// and used together by BiblioReads to retrieve reviews.

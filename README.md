@@ -90,8 +90,6 @@ When using a reverse proxy, include its client-facing port in `FQDN`, for exampl
 
 Coreander uses [BiblioReads](https://github.com/nesaku/biblioreads), an alternative Goodreads front-end, to find Goodreads book and author links and display book ratings on document detail pages. The integration is enabled by default and does not require an API key or a Goodreads account.
 
-Coreander searches using the title and first author, then retries with the title alone if no result qualifies. A result must match both the title and one of the document's authors, ignoring capitalization, accents, punctuation, and whitespace differences (including spacing between author initials). Trailing series annotations such as `(Series name, #1)` and omnibus ranges such as `(#1-#3)` are ignored when comparing titles, but arbitrary subtitles and standalone volume numbers such as `(#1)` are not removed. Exact normalized titles are preferred over titles with an added series annotation. Similar-looking titles alone are not enough: if no result passes these checks, no Goodreads link or rating is shown. Matches may still refer to a different edition of the same book.
-
 Coreander looks up documents in the background after indexing and can also look up a document when its detail page is opened. Ratings load asynchronously, without blocking the rest of the page. Previously saved lookup outcomes, including books with no match, are reused; to re-evaluate them with the current matching rules, restart Coreander with `--force-indexing` (or `FORCE_INDEXING=true`). This reindexes the whole library and repeats Goodreads lookups.
 
 By default, requests are spread across built-in public BiblioReads instances, with automatic failover when an instance is unavailable. To use your own instance or a different set of public instances, pass a comma-separated list:
@@ -101,8 +99,6 @@ coreander --biblioreads-instances=https://br.example.org,https://br2.example.org
 ```
 
 Alternatively, set `BIBLIOREADS_INSTANCES` to the same comma-separated list. The flag may also be repeated, overrides the environment variable, and replaces the built-in instance list. Instance URLs must use HTTP or HTTPS.
-
-Successful responses are cached in memory for 24 hours by default. Change this with `--biblioreads-cache-ttl` or `BIBLIOREADS_CACHE_TTL`, in seconds; set it to `0` to disable response caching. Discovered book and author links are stored in the document index.
 
 Lookups send document titles and author names to the configured BiblioReads instances. To disable the integration, use `--disable-biblioreads` or set `DISABLE_BIBLIOREADS=true`. If no instance can serve a request, Goodreads information may be unavailable, but the rest of Coreander remains usable.
 

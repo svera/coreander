@@ -34,7 +34,7 @@ const DocumentVersion = "v15"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const AuthorVersion = "2"
+const AuthorVersion = "3"
 
 // Metadata fields
 var (
@@ -471,7 +471,6 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsBookURL", storedOnlyFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsAuthorURL", storedOnlyFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsResourceID", storedOnlyFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsLegacyBookID", storedOnlyNumericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsEnriched", booleanFieldMapping)
@@ -500,7 +499,6 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsBookURL", storedOnlyFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsAuthorURL", storedOnlyFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsResourceID", storedOnlyFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsLegacyBookID", storedOnlyNumericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsEnriched", booleanFieldMapping)
@@ -529,6 +527,10 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	keywordFieldMapping := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable.Index = false
+	storedOnlyFieldMapping := bleve.NewKeywordFieldMapping()
+	storedOnlyFieldMapping.Index = false
+	storedOnlyFieldMapping.IncludeInAll = false
+	storedOnlyFieldMapping.DocValues = false
 
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
@@ -544,6 +546,7 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceID", keywordFieldMappingNotIndexable)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceImage", keywordFieldMappingNotIndexable)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Website", keywordFieldMappingNotIndexable)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsAuthorURL", storedOnlyFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfBirth.Date", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfDeath.Date", numericFieldMapping)

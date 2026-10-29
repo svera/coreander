@@ -215,6 +215,7 @@
 "BC": "до н. э."
 "Before Christ": "До Рождества Христова"
 "Go to Wikipedia entry": "Перейти к статье в Википедии"
+"Go to Goodreads author page": "Перейти на страницу автора в Goodreads"
 "Website": "Сайт"
 "Is not the right author?": "Это не тот автор или данные устарели?"
 "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here.": "Идентификатор Wikidata — уникальный идентификатор автора в базе данных Wikidata. Если вы знаете правильный ID, укажите его здесь."
@@ -397,4 +398,5 @@
 "This document is no longer available. Its offline copy has been removed.": "Этот документ больше недоступен. Его копия для чтения без подключения к сети удалена."
 "Reload document": "Перезагрузить документ"
 "Goodreads rating": "Рейтинг Goodreads"
+"No score": "Нет оценки"
 "%s ratings": "Оценок: %s"

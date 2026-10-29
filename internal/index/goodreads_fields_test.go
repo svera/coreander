@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/mapping"
 	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
@@ -39,7 +40,6 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 			},
 			AuthorsSlugs:          []string{"alice-borchardt"},
 			GoodReadsBookURL:      bookURL,
-			GoodReadsAuthorURL:    authorURL,
 			GoodReadsResourceID:   resourceID,
 			GoodReadsLegacyBookID: legacyBookID,
 		}
@@ -51,8 +51,8 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got.GoodReadsBookURL != bookURL || got.GoodReadsAuthorURL != authorURL {
-			t.Errorf("language %q: expected stored URLs to be returned, got %q and %q", lang, got.GoodReadsBookURL, got.GoodReadsAuthorURL)
+		if got.GoodReadsBookURL != bookURL {
+			t.Errorf("language %q: expected stored book URL, got %q", lang, got.GoodReadsBookURL)
 		}
 		if got.GoodReadsResourceID != resourceID || got.GoodReadsLegacyBookID != legacyBookID {
 			t.Errorf("language %q: expected stored identifiers, got %q and %d", lang, got.GoodReadsResourceID, got.GoodReadsLegacyBookID)
@@ -96,8 +96,55 @@ func legacyBookIDQuery(id int) *query.NumericRangeQuery {
 	return q
 }
 
+func TestAuthorGoodReadsURLIsStoredButNotSearchable(t *testing.T) {
+	authors, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer authors.Close()
+	const authorURL = "/author/show/151155.Zyxwv_Author"
+	if err := authors.Index("alice", index.Author{Slug: "alice", Name: "Alice Borchardt", GoodReadsAuthorURL: authorURL}); err != nil {
+		t.Fatal(err)
+	}
+	req := bleve.NewSearchRequest(bleve.NewDocIDQuery([]string{"alice"}))
+	req.Fields = []string{"GoodReadsAuthorURL"}
+	result, err := authors.Search(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Hits) != 1 || result.Hits[0].Fields["GoodReadsAuthorURL"] != authorURL {
+		t.Fatalf("expected stored author URL, got %+v", result.Hits)
+	}
+	for _, q := range []query.Query{
+		fieldTermQuery("GoodReadsAuthorURL", authorURL),
+		bleve.NewTermQuery(authorURL),
+		bleve.NewMatchQuery("Zyxwv_Author"),
+		bleve.NewQueryStringQuery(`GoodReadsAuthorURL:"` + authorURL + `"`),
+	} {
+		result, err := authors.Search(bleve.NewSearchRequest(q))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.Total != 0 {
+			t.Errorf("author URL must not affect search results, got %d hits", result.Total)
+		}
+	}
+}
+
 func fieldTermQuery(field, term string) *query.TermQuery {
 	q := bleve.NewTermQuery(term)
 	q.SetField(field)
 	return q
+}
+
+func TestDocumentsMappingHasNoAuthorURL(t *testing.T) {
+	m := index.CreateDocumentsMapping().(*mapping.IndexMappingImpl)
+	for name, documentMapping := range m.TypeMapping {
+		if _, exists := documentMapping.Properties["GoodReadsAuthorURL"]; exists {
+			t.Errorf("mapping %q still contains an author URL field", name)
+		}
+	}
+	if _, exists := m.DefaultMapping.Properties["GoodReadsAuthorURL"]; exists {
+		t.Error("default mapping still contains an author URL field")
+	}
 }

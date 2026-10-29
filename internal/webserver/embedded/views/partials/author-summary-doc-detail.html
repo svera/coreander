@@ -70,6 +70,8 @@
                 </dd>
             {{end}}
         </dl>
+        {{end}}
+        {{if or .Author.Website (index .Author.WikipediaLink .Lang) .Author.GoodReadsAuthorURL}}
         <ul class="list-unstyled">
             {{if .Author.Website}}
                 <li>
@@ -82,6 +84,12 @@
                 <li>
                     <i class="bi-wikipedia me-2"></i>
                     <a href="{{index .Author.WikipediaLink .Lang}}">{{t .Lang "Go to Wikipedia entry"}}</a>
+                </li>
+            {{end}}
+            {{if .Author.GoodReadsAuthorURL}}
+                <li>
+                    <i class="bi-book me-2"></i>
+                    <a href="https://www.goodreads.com{{.Author.GoodReadsAuthorURL}}">{{t .Lang "Go to Goodreads author page"}}</a>
                 </li>
             {{end}}
         </ul>

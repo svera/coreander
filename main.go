@@ -123,7 +123,6 @@ func main() {
 		TextRankEnrichWorkers:          resolvedIndexWorkers,
 		GoodReadsSource:                goodReadsSource,
 	})
-
 	// If index was newly created or recreated, force reindexing
 	if needsReindex {
 		input.ForceIndexing = true
@@ -264,11 +263,13 @@ func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, max
 	}
 
 	// Open or create authors index
-	authorsIndex, err := bleve.Open(homeDir + authorsIndexPath)
+	authorsIndex, err := index.OpenAuthorsIndex(homeDir+authorsIndexPath, input.BatchSize)
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No authors index found, creating a new one.")
 		authorsIndex = index.CreateAuthorsIndex(homeDir + authorsIndexPath)
 		needsReindex = true
+	} else if err != nil {
+		log.Fatal(err)
 	}
 
 	// Check documents index version

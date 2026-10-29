@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/i18n"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/result"
@@ -36,7 +37,7 @@ type IdxReaderWriter interface {
 	Languages() ([]string, error)
 	Subjects() (map[string][]string, error)
 	Author(slug, lang string) (index.Author, error)
-	GoodReadsBookURL(ctx context.Context, document index.Document) (string, error)
+	GoodReadsBook(ctx context.Context, document index.Document) (biblioreads.SearchResult, error)
 	StoreGoodReadsBookIDs(document index.Document, bookURL, resourceID string, legacyBookID int) error
 }
 
