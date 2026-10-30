@@ -113,6 +113,12 @@ func matchingGoodReadsBook(document Document, results []biblioreads.SearchResult
 	if title == "" {
 		return biblioreads.SearchResult{}, false
 	}
+	fullTitle := normalizeGoodReadsName(document.Title)
+	mainTitle := goodReadsMainTitle(document.Title)
+	authors := make(map[string]struct{}, len(document.Authors))
+	for _, name := range document.Authors {
+		authors[strings.ReplaceAll(normalizeGoodReadsName(name), " ", "")] = struct{}{}
+	}
 	var best biblioreads.SearchResult
 	bestScore := 0
 	for _, result := range results {
@@ -123,24 +129,18 @@ func matchingGoodReadsBook(document Document, results []biblioreads.SearchResult
 		score := 1
 		if resultTitle == title {
 			score = 2
-			if normalizeGoodReadsName(result.Title) == normalizeGoodReadsName(document.Title) {
+			if normalizeGoodReadsName(result.Title) == fullTitle {
 				score = 3
 			}
-		} else if resultTitle == "" || (goodReadsMainTitle(result.Title) != title && goodReadsMainTitle(document.Title) != resultTitle) {
+		} else if resultTitle == "" || (goodReadsMainTitle(result.Title) != title && mainTitle != resultTitle) {
 			continue
 		}
 		author := strings.ReplaceAll(normalizeGoodReadsName(result.Author), " ", "")
 		if author == "" {
 			continue
 		}
-		for _, name := range document.Authors {
-			if strings.ReplaceAll(normalizeGoodReadsName(name), " ", "") != author {
-				continue
-			}
-			if score > bestScore {
-				best, bestScore = result, score
-			}
-			break
+		if _, matches := authors[author]; matches && score > bestScore {
+			best, bestScore = result, score
 		}
 	}
 	return best, bestScore > 0

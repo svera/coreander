@@ -208,50 +208,25 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 	for _, instance := range c.candidates() {
 		endpoint := instance + path
 		respBody, err := c.postToInstance(ctx, endpoint, body)
-		if err == nil && path == bookScraperPath {
-			var book BookResponse
-			if decodeErr := json.Unmarshal(respBody, &book); decodeErr != nil {
-				err = &unavailableError{endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter, reason: decodeErr}
-			} else if book.Status != "Received" || book.StatusCode != http.StatusOK {
-				err = &unavailableError{
-					endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter,
-					reason: fmt.Errorf("invalid book response: status %q, code %d", book.Status, book.StatusCode),
+		if err == nil {
+			var complete bool
+			complete, err = decodeResponse(respBody, payload, dest)
+			if err != nil {
+				if path != bookScraperPath && path != reviewsScraperPath {
+					return fmt.Errorf("biblioreads: error decoding response from %s: %w", endpoint, err)
 				}
-			} else if book.Rating == "" || book.ResourceID == "" || book.LegacyBookID <= 0 {
-				// Scrapers can omit scores or review identifiers. Prefer a
-				// complete response and never cache incomplete book details.
-				if incompleteResponse == nil || book.Rating != "" {
+				err = &unavailableError{endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter, reason: err}
+			} else if !complete {
+				// Keep a fallback, preferring book details that include a score.
+				book, isBook := dest.(*BookResponse)
+				if incompleteResponse == nil || !isBook || book.Rating != "" {
 					incompleteResponse = respBody
 				}
 				continue
 			}
 		}
-		if request, isReviews := payload.(reviewsPayload); err == nil && isReviews {
-			var reviews ReviewsResponse
-			if decodeErr := json.Unmarshal(respBody, &reviews); decodeErr != nil {
-				err = &unavailableError{endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter, reason: decodeErr}
-			} else if request.LanguageCode != "" && !supportsReviewLanguage(reviews.Version) {
-				err = &unavailableError{
-					endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter,
-					reason: fmt.Errorf("review language filtering requires BiblioReads v4.4.0 or newer, got %q", reviews.Version),
-				}
-			} else if reviews.Status != "Received" || reviews.StatusCode != http.StatusOK || reviews.Reviews == nil ||
-				(request.NextPageToken == "" && reviews.TotalCount > 0 && len(reviews.Reviews) == 0) {
-				err = &unavailableError{
-					endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter,
-					reason: fmt.Errorf("invalid reviews response: status %q, code %d, total %d, reviews %d",
-						reviews.Status, reviews.StatusCode, reviews.TotalCount, len(reviews.Reviews)),
-				}
-			} else if request.NextPageToken == "" && len(reviews.Reviews) == 0 {
-				incompleteResponse = respBody
-				continue
-			}
-		}
 		if err == nil {
 			c.clearCooldown(instance)
-			if err := json.Unmarshal(respBody, dest); err != nil {
-				return fmt.Errorf("biblioreads: error decoding response from %s: %w", endpoint, err)
-			}
 			reviews, isReviews := dest.(*ReviewsResponse)
 			if c.cache != nil && (!isReviews || len(reviews.Reviews) > 0) {
 				c.cache.set(cacheKey, respBody)
@@ -272,9 +247,45 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		return json.Unmarshal(incompleteResponse, dest)
+		_, err := decodeResponse(incompleteResponse, payload, dest)
+		return err
 	}
 	return fmt.Errorf("%w: %w", ErrUnavailable, errors.Join(errs...))
+}
+
+// decodeResponse reports whether a valid response is complete enough to stop failover.
+func decodeResponse(body []byte, payload, dest any) (bool, error) {
+	switch response := dest.(type) {
+	case *BookResponse:
+		*response = BookResponse{}
+		if err := json.Unmarshal(body, response); err != nil {
+			return false, err
+		}
+		if response.Status != "Received" || response.StatusCode != http.StatusOK {
+			return false, fmt.Errorf("invalid book response: status %q, code %d", response.Status, response.StatusCode)
+		}
+		return response.Rating != "" && response.ResourceID != "" && response.LegacyBookID > 0, nil
+	case *ReviewsResponse:
+		*response = ReviewsResponse{}
+		if err := json.Unmarshal(body, response); err != nil {
+			return false, err
+		}
+		request, ok := payload.(reviewsPayload)
+		if !ok {
+			return false, fmt.Errorf("invalid reviews request payload %T", payload)
+		}
+		if request.LanguageCode != "" && !supportsReviewLanguage(response.Version) {
+			return false, fmt.Errorf("review language filtering requires BiblioReads v4.4.0 or newer, got %q", response.Version)
+		}
+		if response.Status != "Received" || response.StatusCode != http.StatusOK || response.Reviews == nil ||
+			(request.NextPageToken == "" && response.TotalCount > 0 && len(response.Reviews) == 0) {
+			return false, fmt.Errorf("invalid reviews response: status %q, code %d, total %d, reviews %d",
+				response.Status, response.StatusCode, response.TotalCount, len(response.Reviews))
+		}
+		return request.NextPageToken != "" || len(response.Reviews) > 0, nil
+	default:
+		return true, json.Unmarshal(body, dest)
+	}
 }
 
 func supportsReviewLanguage(version string) bool {

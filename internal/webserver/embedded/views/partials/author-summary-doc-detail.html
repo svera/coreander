@@ -86,12 +86,7 @@
                     <a href="{{index .Author.WikipediaLink .Lang}}">{{t .Lang "Go to Wikipedia entry"}}</a>
                 </li>
             {{end}}
-            {{if .ServiceLink.URL}}
-                <li>
-                    {{if .ServiceLink.Icon}}<img src="{{.ServiceLink.Icon}}{{versionParam}}" class="me-2 color-invertible" width="16" height="16" alt="" />{{end}}
-                    <a href="{{.ServiceLink.URL}}">{{t .Lang "Go to %s author page" .ServiceLink.Source}}</a>
-                </li>
-            {{end}}
+            {{template "partials/author-service-link" dict "Lang" .Lang "ServiceLink" .ServiceLink}}
         </ul>
         {{end}}
     </div>

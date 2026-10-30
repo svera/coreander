@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -108,7 +109,7 @@ func TestBookResponseRecovery(t *testing.T) {
 		{"JSON server error", http.StatusGatewayTimeout, `{"status":"Error - Book not found"}`},
 		{"invalid success", http.StatusOK, `{}`},
 		{"application error", http.StatusOK, `{"status":"Error","statusCode":503}`},
-		{"missing score", http.StatusOK, `{"status":"Received","statusCode":200,"resourceID":"work-id","legacyBookID":5898652}`},
+		{"missing score", http.StatusOK, `{"status":"Received","statusCode":200,"resourceID":"work-id","legacyBookID":5898652,"title":"Incomplete result"}`},
 		{"missing review identifiers", http.StatusOK, `{"status":"Received","statusCode":200,"rating":"3.92"}`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -131,6 +132,9 @@ func TestBookResponseRecovery(t *testing.T) {
 				if err != nil || book.Rating != "3.92" || book.ResourceID != "work-id" || book.LegacyBookID != 5898652 {
 					t.Fatalf("expected complete book after failover, got %+v, %v", book, err)
 				}
+				if book.Title != "" {
+					t.Fatalf("fields from previous attempts must not survive failover, got title %q", book.Title)
+				}
 			}
 			if hits.Load() != 2 {
 				t.Fatalf("expected recovered book to be cached, got %d requests", hits.Load())
@@ -151,6 +155,40 @@ func TestIncompleteBookResponsesAreNotCached(t *testing.T) {
 	}
 	if hits.Load() != 2 {
 		t.Fatal("incomplete book details must not be cached")
+	}
+}
+
+func TestIncompleteBookFallbackPrefersScore(t *testing.T) {
+	scored := `{"status":"Received","statusCode":200,"rating":"3.92","title":"Scored result"}`
+	unscored := `{"status":"Received","statusCode":200,"resourceID":"work-id","legacyBookID":5898652,"title":"Unscored result"}`
+	for _, scoredFirst := range []bool{false, true} {
+		t.Run(fmt.Sprintf("scored first=%t", scoredFirst), func(t *testing.T) {
+			var hits atomic.Int32
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body := unscored
+				if (hits.Add(1)%2 == 1) == scoredFirst {
+					body = scored
+				}
+				_, _ = w.Write([]byte(body))
+			})
+			first := httptest.NewServer(handler)
+			defer first.Close()
+			second := httptest.NewServer(handler)
+			defer second.Close()
+			client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
+			for range 2 {
+				book, err := client.Book(context.Background(), "5898652")
+				if err != nil || book.Rating != "3.92" || book.Title != "Scored result" {
+					t.Fatalf("expected scored fallback, got %+v, %v", book, err)
+				}
+				if book.ResourceID != "" || book.LegacyBookID != 0 {
+					t.Fatalf("fields from separate incomplete responses must not be combined, got %+v", book)
+				}
+			}
+			if hits.Load() != 4 {
+				t.Fatalf("expected both instances tried without caching incomplete results, got %d requests", hits.Load())
+			}
+		})
 	}
 }
 
@@ -355,6 +393,29 @@ func TestReviewsEmptyResponsesAreNotCached(t *testing.T) {
 	}
 	if hits.Load() != 2 {
 		t.Fatal("empty results must not hide reviews behind the response cache")
+	}
+}
+
+func TestReviewsEmptyFallbackSurvivesInvalidResponse(t *testing.T) {
+	var hits atomic.Int32
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body := `{"version":"BiblioReads v4.4.0","status":"Received","statusCode":200,"totalCount":0,"reviews":[],"nextPageToken":"empty-page"}`
+		if hits.Add(1) > 1 {
+			body = `{"reviews":[{"text":"Unfiltered review"}],"nextPageToken":"invalid-page"}`
+		}
+		_, _ = w.Write([]byte(body))
+	})
+	first := httptest.NewServer(handler)
+	defer first.Close()
+	second := httptest.NewServer(handler)
+	defer second.Close()
+	client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
+	response, err := client.Reviews(context.Background(), "work", 1, "", "es")
+	if err != nil || len(response.Reviews) != 0 || response.NextPageToken != "empty-page" {
+		t.Fatalf("expected original empty fallback without fields from the invalid response, got %+v, %v", response, err)
+	}
+	if hits.Load() != 2 {
+		t.Fatalf("expected both instances tried, got %d requests", hits.Load())
 	}
 }
 
