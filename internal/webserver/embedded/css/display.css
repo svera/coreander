@@ -179,21 +179,12 @@ main .form-control:focus {
     .document-detail-layout {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-        grid-template-rows: auto auto 1fr;
-    }
-
-    .document-detail-layout > .col-12 {
-        grid-column: 1 / -1;
-    }
-
-    .document-detail-title,
-    .document-detail-content {
-        grid-column: 2;
+        grid-template-rows: auto 1fr;
     }
 
     .document-detail-sidebar {
         grid-column: 1;
-        grid-row: 2 / 4;
+        grid-row: 1 / span 2;
         position: sticky;
         top: 5rem;
         align-self: flex-start;

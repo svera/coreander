@@ -1,11 +1,13 @@
 {{$lang := .Lang}}
-<div class="row document-detail-layout">
+<div class="row">
     <div class="col-12">
         <div class="mb-2">
             <a href="#" class="text-decoration-none" onclick="event.preventDefault(); history.back();">&larr; {{t $lang "Return"}}</a>
         </div>
         <hr />
     </div>
+</div>
+<div class="row document-detail-layout">
     <header class="mt-3 ps-md-3 document-detail-title">
         {{ if ne .Document.Series "" }}
             <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</p>
