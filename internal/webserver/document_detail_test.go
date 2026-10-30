@@ -206,7 +206,7 @@ func TestRelatedDocumentHeadersShowFullTotals(t *testing.T) {
 
 	cfg := defaultTestConfig()
 	sender := &infrastructure.NoEmail{}
-	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, nil, nil)
+	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, nil, nil, nil)
 	app := webserver.New(cfg, controllers, sender, idx, &model.UserRepository{DB: db})
 	t.Cleanup(func() { _ = app.Shutdown() })
 

@@ -124,6 +124,7 @@ type reviewsPayload struct {
 	ResourceID    string `json:"resourceID"`
 	LegacyBookID  int    `json:"legacyBookID"`
 	NextPageToken string `json:"nextPageToken,omitempty"`
+	LanguageCode  string `json:"languageCode,omitempty"`
 }
 
 // SearchBooks searches Goodreads books matching query.
@@ -160,12 +161,14 @@ func (c *Client) Author(ctx context.Context, id string) (AuthorResponse, error) 
 
 // Reviews returns a page of reviews for the work identified by resourceID and legacyBookID
 // (both available in BookResponse). Pass an empty nextPageToken to get the first page.
-func (c *Client) Reviews(ctx context.Context, resourceID string, legacyBookID int, nextPageToken string) (ReviewsResponse, error) {
+// languageCode filters reviews by a two-letter ISO language code; empty means all languages.
+func (c *Client) Reviews(ctx context.Context, resourceID string, legacyBookID int, nextPageToken, languageCode string) (ReviewsResponse, error) {
 	var res ReviewsResponse
 	payload := reviewsPayload{
 		ResourceID:    resourceID,
 		LegacyBookID:  legacyBookID,
 		NextPageToken: nextPageToken,
+		LanguageCode:  languageCode,
 	}
 	err := c.post(ctx, reviewsScraperPath, payload, &res)
 	return res, err
@@ -200,15 +203,51 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 	}
 
 	var errs []error
+	var incompleteResponse []byte
 	for _, instance := range c.candidates() {
 		endpoint := instance + path
 		respBody, err := c.postToInstance(ctx, endpoint, body)
+		if err == nil && path == bookScraperPath {
+			var book BookResponse
+			if decodeErr := json.Unmarshal(respBody, &book); decodeErr != nil {
+				err = &unavailableError{endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter, reason: decodeErr}
+			} else if book.Status != "Received" || book.StatusCode != http.StatusOK {
+				err = &unavailableError{
+					endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter,
+					reason: fmt.Errorf("invalid book response: status %q, code %d", book.Status, book.StatusCode),
+				}
+			} else if book.Rating == "" || book.ResourceID == "" || book.LegacyBookID <= 0 {
+				// Scrapers can omit scores or review identifiers. Prefer a
+				// complete response and never cache incomplete book details.
+				if incompleteResponse == nil || book.Rating != "" {
+					incompleteResponse = respBody
+				}
+				continue
+			}
+		}
+		if request, isReviews := payload.(reviewsPayload); err == nil && isReviews {
+			var reviews ReviewsResponse
+			if decodeErr := json.Unmarshal(respBody, &reviews); decodeErr != nil {
+				err = &unavailableError{endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter, reason: decodeErr}
+			} else if reviews.Status != "Received" || reviews.StatusCode != http.StatusOK || reviews.Reviews == nil ||
+				(request.NextPageToken == "" && reviews.TotalCount > 0 && len(reviews.Reviews) == 0) {
+				err = &unavailableError{
+					endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter,
+					reason: fmt.Errorf("invalid reviews response: status %q, code %d, total %d, reviews %d",
+						reviews.Status, reviews.StatusCode, reviews.TotalCount, len(reviews.Reviews)),
+				}
+			} else if request.NextPageToken == "" && len(reviews.Reviews) == 0 {
+				incompleteResponse = respBody
+				continue
+			}
+		}
 		if err == nil {
 			c.clearCooldown(instance)
 			if err := json.Unmarshal(respBody, dest); err != nil {
 				return fmt.Errorf("biblioreads: error decoding response from %s: %w", endpoint, err)
 			}
-			if c.cache != nil {
+			reviews, isReviews := dest.(*ReviewsResponse)
+			if c.cache != nil && (!isReviews || len(reviews.Reviews) > 0) {
 				c.cache.set(cacheKey, respBody)
 			}
 			return nil
@@ -222,6 +261,12 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 		}
 		c.setCooldown(instance, unavailable.retryAfter)
 		errs = append(errs, err)
+	}
+	if incompleteResponse != nil {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		return json.Unmarshal(incompleteResponse, dest)
 	}
 	return fmt.Errorf("%w: %w", ErrUnavailable, errors.Join(errs...))
 }
@@ -284,6 +329,12 @@ func (c *Client) postToInstance(ctx context.Context, endpoint string, body []byt
 			endpoint:   endpoint,
 			retryAfter: httpjson.ParseRetryAfter(resp.Header.Get("Retry-After")),
 			reason:     fmt.Errorf("status code %d", resp.StatusCode),
+		}
+	}
+	if resp.StatusCode >= http.StatusInternalServerError {
+		return nil, &unavailableError{
+			endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter,
+			reason: fmt.Errorf("status code %d: %s", resp.StatusCode, resp.Body),
 		}
 	}
 

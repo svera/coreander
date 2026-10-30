@@ -31,7 +31,7 @@
         {{template "partials/actions" dict "Lang" .Lang "Document" .Document "Session" .Session "FQDN" .fqdn "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "EmailFrom" .EmailFrom "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize "ButtonSize" "btn-lg" "ButtonStyle" "btn-primary"}}
 
         <div id="document-metadata-{{.Document.Slug}}">
-            {{template "partials/document-metadata" dict "Lang" .Lang "Document" .Document "Session" .Session "WordsPerMinute" .WordsPerMinute "IllustratedMinAmount" .IllustratedMinAmount "GoodReadsEnabled" .GoodReadsEnabled}}
+            {{template "partials/document-metadata" dict "Lang" .Lang "Document" .Document "Session" .Session "WordsPerMinute" .WordsPerMinute "IllustratedMinAmount" .IllustratedMinAmount "ReviewsEnabled" .ReviewsEnabled}}
         </div>
 
 
@@ -60,7 +60,7 @@
             <hr>
             {{range .AuthorSummaries}}
                 {{if not .Author.RetrievedOn.IsZero}}
-                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" .Author "Session" $.Session "ImageVersion" .ImageVersion}}
+                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" .Author "Session" $.Session "ImageVersion" .ImageVersion "ServiceLink" .ServiceLink}}
                 {{else}}
                     {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" .Author.Slug}}
                 {{end}}
@@ -71,7 +71,7 @@
             {{range $i, $entry := .IllustratorSummaries}}
                 {{if eq $i 0}}<hr>{{end}}
                 {{if not $entry.Author.RetrievedOn.IsZero}}
-                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" $entry.Author "Session" $.Session "ImageVersion" $entry.ImageVersion}}
+                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" $entry.Author "Session" $.Session "ImageVersion" $entry.ImageVersion "ServiceLink" $entry.ServiceLink}}
                 {{else}}
                     {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" $entry.Author.Slug}}
                 {{end}}
@@ -119,6 +119,9 @@
             </div>
         </section>
         {{end}}
+        {{if .ReviewsEnabled}}
+        <div id="document-reviews-{{.Document.Slug}}"></div>
+        {{end}}
     </div>
 </div>
 
@@ -126,3 +129,6 @@
 <script type="module" src="/js/complete.js{{versionParam}}"></script>
 <script type="module" src="/js/cover.js{{versionParam}}"></script>
 <script type="module" src="/js/datetime.js{{versionParam}}"></script>
+{{if .ReviewsEnabled}}
+<script type="module" src="/js/document-reviews.js{{versionParam}}"></script>
+{{end}}

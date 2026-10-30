@@ -6,11 +6,16 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/servicelinks"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 type Sender interface {
 	From() string
+}
+
+type LinkProvider interface {
+	Author(author index.Author) servicelinks.Link
 }
 
 // IdxReader defines a set of author reading operations over an index
@@ -48,9 +53,10 @@ type Controller struct {
 	dataSource        DataSource
 	appFs             afero.Fs
 	embeddedImagesFS  fs.FS
+	linkProvider      LinkProvider
 }
 
-func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReader, cfg Config, dataSource DataSource, appFs afero.Fs, embeddedImagesFS fs.FS) *Controller {
+func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReader, cfg Config, dataSource DataSource, appFs afero.Fs, embeddedImagesFS fs.FS, linkProvider LinkProvider) *Controller {
 	return &Controller{
 		hlRepository:      hlRepository,
 		readingRepository: readingRepository,
@@ -60,5 +66,13 @@ func NewController(hlRepository highlightsRepository, readingRepository readingR
 		dataSource:        dataSource,
 		appFs:             appFs,
 		embeddedImagesFS:  embeddedImagesFS,
+		linkProvider:      linkProvider,
 	}
+}
+
+func (a *Controller) authorLink(author index.Author) servicelinks.Link {
+	if a.linkProvider == nil {
+		return servicelinks.Link{}
+	}
+	return a.linkProvider.Author(author)
 }

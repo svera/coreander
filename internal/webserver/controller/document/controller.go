@@ -6,14 +6,25 @@ import (
 	"time"
 
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/i18n"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/reviews"
+	"github.com/svera/coreander/v5/internal/servicelinks"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 const relatedDocuments = 4
+
+type ReviewProvider interface {
+	Score(ctx context.Context, document index.Document) (reviews.Score, error)
+	// Reviews returns reviews in the current UI language (a two-letter ISO code).
+	Reviews(ctx context.Context, document index.Document, language string) (reviews.Page, error)
+}
+
+type LinkProvider interface {
+	Author(author index.Author) servicelinks.Link
+}
 
 type Sender interface {
 	SendBCC(addresses []string, subject, body string) error
@@ -37,8 +48,6 @@ type IdxReaderWriter interface {
 	Languages() ([]string, error)
 	Subjects() (map[string][]string, error)
 	Author(slug, lang string) (index.Author, error)
-	GoodReadsBook(ctx context.Context, document index.Document) (biblioreads.SearchResult, error)
-	StoreGoodReadsBookIDs(document index.Document, bookURL, resourceID string, legacyBookID int) error
 }
 
 type highlightsRepository interface {
@@ -92,11 +101,12 @@ type Controller struct {
 	config                Config
 	appFs                 afero.Fs
 	translator            i18n.Translator
-	bookSource            BookSource
+	reviewProvider        ReviewProvider
+	linkProvider          LinkProvider
 }
 
-// NewController creates a document controller. bookSource may be nil, which disables Goodreads data.
-func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, annotationsRepository annotationsRepository, sender Sender, idx IdxReaderWriter, appFs afero.Fs, cfg Config, translator i18n.Translator, bookSource BookSource) *Controller {
+// NewController creates a document controller. A nil reviewProvider disables scores and reviews.
+func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, annotationsRepository annotationsRepository, sender Sender, idx IdxReaderWriter, appFs afero.Fs, cfg Config, translator i18n.Translator, reviewProvider ReviewProvider, linkProvider LinkProvider) *Controller {
 	return &Controller{
 		hlRepository:          hlRepository,
 		usersRepository:       usersRepository,
@@ -107,6 +117,7 @@ func NewController(hlRepository highlightsRepository, usersRepository usersRepos
 		config:                cfg,
 		appFs:                 appFs,
 		translator:            translator,
-		bookSource:            bookSource,
+		reviewProvider:        reviewProvider,
+		linkProvider:          linkProvider,
 	}
 }

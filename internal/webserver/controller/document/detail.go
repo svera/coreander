@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gosimple/slug"
 	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/servicelinks"
 	"github.com/svera/coreander/v5/internal/webserver/controller/fsutil"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
@@ -17,6 +18,7 @@ import (
 type authorSummary struct {
 	Author       index.Author
 	ImageVersion string
+	ServiceLink  servicelinks.Link
 }
 
 func (d *Controller) Detail(c fiber.Ctx) error {
@@ -71,7 +73,7 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"AuthorSummaries":      authorSummaries,
 		"IllustratorSummaries": illustratorSummaries,
 		"Debug":                c.RequestCtx().QueryArgs().Has("debug"),
-		"GoodReadsEnabled":     d.bookSource != nil,
+		"ReviewsEnabled":       d.reviewProvider != nil,
 	}, "layout")
 }
 
@@ -118,7 +120,11 @@ func (d *Controller) authorSummaryFor(authorSlug, lang string) authorSummary {
 		log.Println(err)
 	}
 
-	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug)}
+	var link servicelinks.Link
+	if d.linkProvider != nil {
+		link = d.linkProvider.Author(author)
+	}
+	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug), ServiceLink: link}
 }
 
 func (d *Controller) sameSeries(slug string, sessionID int) ([]model.AugmentedDocument, int, error) {

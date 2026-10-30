@@ -63,6 +63,7 @@ func (a *Controller) Update(c fiber.Ctx) error {
 
 	templateVars := fiber.Map{
 		"Author":       author,
+		"ServiceLink":  a.authorLink(author),
 		"ImageVersion": a.getImageVersion(author.Slug),
 		"Lang":         lang,
 		"Session":      session,

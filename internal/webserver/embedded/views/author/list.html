@@ -1,6 +1,6 @@
 {{if ne .Author.Name ""}}
     {{if not .Author.RetrievedOn.IsZero}}
-        {{template "partials/author-summary" dict "Lang" .Lang "Author" .Author "Session" .Session "ImageVersion" .ImageVersion}}
+        {{template "partials/author-summary" dict "Lang" .Lang "Author" .Author "Session" .Session "ImageVersion" .ImageVersion "ServiceLink" .ServiceLink}}
     {{else}}
     <div hx-get="/authors/{{.Author.Slug}}/summary" hx-trigger="load" hx-target="this">
         <div class="card mb-3 bg-body-secondary placeholder-glow">

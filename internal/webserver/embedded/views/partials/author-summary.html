@@ -71,7 +71,7 @@
                 {{end}}
             </dl>
             {{end}}
-            {{if or .Author.Website (index .Author.WikipediaLink .Lang) .Author.GoodReadsAuthorURL}}
+            {{if or .Author.Website (index .Author.WikipediaLink .Lang) .ServiceLink.URL}}
             <ul class="list-unstyled px-3">
                 {{if .Author.Website}}
                     <li>
@@ -86,10 +86,10 @@
                         <a href="{{index .Author.WikipediaLink .Lang}}">{{t .Lang "Go to Wikipedia entry"}}</a>
                     </li>
                 {{end}}
-                {{if .Author.GoodReadsAuthorURL}}
+                {{if .ServiceLink.URL}}
                     <li>
-                        <img src="/images/goodreads.svg{{versionParam}}" class="me-2 color-invertible" width="16" height="16" alt="" />
-                        <a href="https://www.goodreads.com{{.Author.GoodReadsAuthorURL}}">{{t .Lang "Go to Goodreads author page"}}</a>
+                        {{if .ServiceLink.Icon}}<img src="{{.ServiceLink.Icon}}{{versionParam}}" class="me-2 color-invertible" width="16" height="16" alt="" />{{end}}
+                        <a href="{{.ServiceLink.URL}}">{{t .Lang "Go to %s author page" .ServiceLink.Source}}</a>
                     </li>
                 {{end}}
             </ul>

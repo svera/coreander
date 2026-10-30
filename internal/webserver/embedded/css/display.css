@@ -347,6 +347,11 @@ main .form-control:focus {
     overflow: hidden;
 }
 
+.review-content.clamp {
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
+}
+
 #searchbox-container .input-group .form-control:focus {
     box-shadow: none !important;
 }

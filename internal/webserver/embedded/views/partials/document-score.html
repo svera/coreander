@@ -1,0 +1,6 @@
+<li><i class="bi bi-star-fill me-2" alt="{{t .Lang "%s rating" .Source}}" title="{{t .Lang "%s rating" .Source}}"></i>{{if .Rating}}<a href="{{.URL}}" class="fw-bold text-decoration-none" target="_blank" rel="noopener noreferrer" title="{{t .Lang "%s rating" .Source}}">{{.Rating}}</a>{{if .RatingCount}} <small>({{t .Lang "%s ratings" .RatingCount}})</small>{{end}}{{else}}<span class="text-body-secondary">{{t .Lang "No score"}}</span>{{end}}</li>
+{{if and .Rating .DocumentSlug}}
+<div id="document-reviews-{{.DocumentSlug}}" class="mt-5 placeholder-glow" hx-swap-oob="outerHTML" hx-get="/documents/{{.DocumentSlug}}/reviews" hx-trigger="intersect once" hx-target="this" hx-swap="outerHTML">
+    <span class="placeholder col-4"></span>
+</div>
+{{end}}
