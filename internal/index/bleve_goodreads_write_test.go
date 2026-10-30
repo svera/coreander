@@ -458,7 +458,15 @@ func TestMatchingGoodReadsBook(t *testing.T) {
 		{name: "document omnibus range", title: correct.Title + " (#1-#3)", results: []biblioreads.SearchResult{correct}, want: correct.BookURL},
 		{name: "standalone volume retained", results: []biblioreads.SearchResult{{Title: correct.Title + " (#1)", Author: correct.Author, BookURL: correct.BookURL}}},
 		{name: "exact preferred", results: []biblioreads.SearchResult{{Title: correct.Title + " (Middle Earth, #1)", Author: correct.Author, BookURL: "/book/show/2"}, correct}, want: correct.BookURL},
-		{name: "subtitle retained", results: []biblioreads.SearchResult{{Title: correct.Title + ": A parody", Author: correct.Author, BookURL: correct.BookURL}}},
+		{name: "colon subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + ": Una historia", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
+		{name: "period subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + ". Una historia", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
+		{name: "dash subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + " — Una historia", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
+		{name: "document subtitle", title: correct.Title + ": Una historia", results: []biblioreads.SearchResult{correct}, want: correct.BookURL},
+		{name: "different subtitles rejected", title: correct.Title + ": Primera historia", results: []biblioreads.SearchResult{{Title: correct.Title + ": Otra historia", Author: correct.Author, BookURL: correct.BookURL}}},
+		{name: "subtitle wrong author rejected", results: []biblioreads.SearchResult{{Title: correct.Title + ": Una historia", Author: parody.Author, BookURL: correct.BookURL}}},
+		{name: "exact preferred over subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + ": Una historia", Author: correct.Author, BookURL: "/book/show/2"}, correct}, want: correct.BookURL},
+		{name: "series preferred over subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + ": Una historia", Author: correct.Author, BookURL: "/book/show/2"}, {Title: correct.Title + " (#1-#3)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
+		{name: "arbitrary prefix rejected", results: []biblioreads.SearchResult{{Title: correct.Title + " y otras historias", Author: correct.Author, BookURL: correct.BookURL}}},
 		{name: "volume retained", results: []biblioreads.SearchResult{{Title: correct.Title + " 2", Author: correct.Author, BookURL: correct.BookURL}}},
 		{name: "arbitrary parenthetical retained", results: []biblioreads.SearchResult{{Title: correct.Title + " (A parody)", Author: correct.Author, BookURL: correct.BookURL}}},
 		{name: "missing result author", results: []biblioreads.SearchResult{{Title: correct.Title, BookURL: correct.BookURL}}},
@@ -482,6 +490,35 @@ func TestMatchingGoodReadsBook(t *testing.T) {
 				t.Fatalf("got %q, %v; want %q", match.BookURL, ok, tt.want)
 			}
 		})
+	}
+}
+
+func TestGoodReadsBookMatchesDolnickSubtitle(t *testing.T) {
+	const title = "La escritura de los dioses"
+	const author = "Edward Dolnick"
+	const bookURL = "/book/show/208277727-la-escritura-de-los-dioses-descifrando-la-piedra-de-rosetta"
+	source := &fakeGoodReadsSource{results: []biblioreads.SearchResult{{
+		Title: title + ". Descifrando la piedra de Rosetta", Author: author,
+		BookURL: bookURL, Rating: "4.19",
+	}}}
+	idx := newGoodReadsTestIndexer(t, source)
+	doc := Document{
+		ID: goodReadsTestID, AuthorsSlugs: []string{"edward-dolnick"},
+		Metadata: metadata.Metadata{Title: title, Authors: []string{author}},
+	}
+	if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
+		t.Fatal(err)
+	}
+	got, err := idx.GoodReadsBook(context.Background(), doc)
+	if err != nil || got.BookURL != bookURL || got.Rating != "4.19" {
+		t.Fatalf("expected Dolnick's book and score, got %+v, %v", got, err)
+	}
+	stored, err := idx.documentByIndexID(doc.ID)
+	if err != nil || !stored.GoodReadsEnriched || stored.GoodReadsBookURL != bookURL {
+		t.Fatalf("expected subtitle match persisted, got %+v, %v", stored, err)
+	}
+	if want := []string{title + " " + author}; !slices.Equal(source.Queries(), want) {
+		t.Fatalf("expected combined title/author search to match, got %q", source.Queries())
 	}
 }
 

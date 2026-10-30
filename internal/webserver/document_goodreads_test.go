@@ -576,6 +576,18 @@ func TestDocumentDetailGoodReadsReviewsLazyPlaceholder(t *testing.T) {
 	if placeholder.Length() != 1 {
 		t.Fatal("expected successful rating to enable reviews on intersection only")
 	}
+	skeletons := placeholder.Find(".border-top")
+	if skeletons.Length() != 2 || placeholder.Find(`div[aria-hidden="true"]`).Length() != 1 {
+		t.Fatal("expected two decorative review-shaped skeletons")
+	}
+	skeletons.Each(func(i int, skeleton *goquery.Selection) {
+		if skeleton.Find(".fs-5 .placeholder").Length() != 1 ||
+			skeleton.Find("i.bi-star").Length() != 5 ||
+			skeleton.Find(".placeholder.ms-auto").Length() != 1 ||
+			skeleton.ChildrenFiltered("div").Length() != 6 {
+			t.Errorf("skeleton %d must include a name, five stars, a date and five text lines", i)
+		}
+	})
 	if len(source.reviewCalls) != 0 {
 		t.Fatal("page and rating requests must not fetch reviews")
 	}
@@ -641,12 +653,13 @@ func TestDocumentDetailGoodReadsReviews(t *testing.T) {
 
 func TestDocumentDetailGoodReadsReviewsAvailability(t *testing.T) {
 	for _, tt := range []struct {
-		name   string
-		source *fakeBookSource
-		slug   string
-		status int
-		calls  int
-		text   string
+		name     string
+		source   *fakeBookSource
+		slug     string
+		status   int
+		calls    int
+		text     string
+		language string
 	}{
 		{name: "disabled", slug: "linked", status: http.StatusOK},
 		{name: "unmatched", source: &fakeBookSource{}, slug: "unmatched", status: http.StatusOK},
@@ -654,12 +667,16 @@ func TestDocumentDetailGoodReadsReviewsAvailability(t *testing.T) {
 		{name: "book unavailable", source: &fakeBookSource{err: errors.New("unavailable")}, slug: "linked", status: http.StatusInternalServerError},
 		{name: "missing identifiers", source: &fakeBookSource{book: biblioreads.BookResponse{Rating: "4"}}, slug: "linked", status: http.StatusInternalServerError},
 		{name: "reviews unavailable", source: &fakeBookSource{book: biblioreads.BookResponse{Rating: "4", ResourceID: "work", LegacyBookID: 1}, reviewErr: errors.New("unavailable")}, slug: "linked", status: http.StatusInternalServerError, calls: 1},
-		{name: "empty reviews", source: &fakeBookSource{book: biblioreads.BookResponse{Rating: "4", ResourceID: "work", LegacyBookID: 1}}, slug: "linked", status: http.StatusOK, calls: 1, text: "No user reviews available"},
+		{name: "empty reviews", source: &fakeBookSource{book: biblioreads.BookResponse{Rating: "4", ResourceID: "work", LegacyBookID: 1}}, slug: "linked", status: http.StatusOK, calls: 1, text: "No user reviews available in the current language"},
+		{name: "empty Spanish reviews", source: &fakeBookSource{book: biblioreads.BookResponse{Rating: "4", ResourceID: "work", LegacyBookID: 1}}, slug: "linked", status: http.StatusOK, calls: 1, language: "es", text: "No hay reseñas de usuarios disponibles en el idioma actual"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			app, _ := newGoodReadsTestApp(t, tt.source)
 			req := mustGetRequest(t, "/documents/"+tt.slug+"/reviews")
 			req.Header.Set("Accept-Language", "en")
+			if tt.language != "" {
+				req.Header.Set("Accept-Language", tt.language)
+			}
 			response, err := app.Test(req)
 			if err != nil {
 				t.Fatal(err)

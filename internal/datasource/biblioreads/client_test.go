@@ -358,6 +358,85 @@ func TestReviewsEmptyResponsesAreNotCached(t *testing.T) {
 	}
 }
 
+func TestReviewsLanguageVersionCompatibility(t *testing.T) {
+	for _, tt := range []struct {
+		version   string
+		supported bool
+	}{
+		{"", false},
+		{"BiblioReads v4.3.1", false},
+		{"BiblioReads v4.4.0-beta.1", false},
+		{"unknown", false},
+		{"BiblioReads v4.4.0", true},
+		{"BiblioReads v4.5.0", true},
+	} {
+		t.Run(tt.version, func(t *testing.T) {
+			var hits atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				hits.Add(1)
+				if err := json.NewEncoder(w).Encode(biblioreads.ReviewsResponse{
+					Version: tt.version, Status: "Received", StatusCode: http.StatusOK, TotalCount: 1,
+					Reviews: []biblioreads.Review{{Text: "Review"}},
+				}); err != nil {
+					t.Errorf("encode response: %v", err)
+				}
+			}))
+			defer server.Close()
+			client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}))
+			for range 2 {
+				_, err := client.Reviews(context.Background(), "work", 1, "", "es")
+				if tt.supported && err != nil {
+					t.Fatalf("expected supported language filter, got %v", err)
+				}
+				if !tt.supported && !errors.Is(err, biblioreads.ErrUnavailable) {
+					t.Fatalf("expected unsupported instance to fail, got %v", err)
+				}
+			}
+			wantHits := int32(2)
+			if tt.supported {
+				wantHits = 1
+			}
+			if hits.Load() != wantHits {
+				t.Fatalf("expected %d requests, got %d", wantHits, hits.Load())
+			}
+		})
+	}
+}
+
+func TestReviewsLanguageFailsOverFromLegacyInstance(t *testing.T) {
+	var hits atomic.Int32
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := biblioreads.ReviewsResponse{
+			Status: "Received", StatusCode: http.StatusOK, TotalCount: 1,
+			Reviews: []biblioreads.Review{{Text: "An unfiltered English review"}},
+		}
+		if hits.Add(1) > 1 {
+			response.Version = "BiblioReads v4.4.0"
+			response.Reviews[0].Text = "Una reseña en español"
+		}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Errorf("encode response: %v", err)
+		}
+	})
+	first := httptest.NewServer(handler)
+	defer first.Close()
+	second := httptest.NewServer(handler)
+	defer second.Close()
+	client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
+	for range 2 {
+		response, err := client.Reviews(context.Background(), "work", 1, "", "es")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(response.Reviews) != 1 || response.Reviews[0].Text != "Una reseña en español" {
+			t.Fatalf("expected Spanish reviews rather than legacy unfiltered results, got %+v", response)
+		}
+	}
+	if hits.Load() != 2 {
+		t.Fatalf("expected failover followed by a cache hit, got %d requests", hits.Load())
+	}
+}
+
 func TestReviewsLanguageCache(t *testing.T) {
 	var hits atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -376,7 +455,7 @@ func TestReviewsLanguageCache(t *testing.T) {
 			return
 		}
 		_ = json.NewEncoder(w).Encode(biblioreads.ReviewsResponse{
-			Status: "Received", StatusCode: http.StatusOK, TotalCount: 1,
+			Version: "BiblioReads v4.4.0", Status: "Received", StatusCode: http.StatusOK, TotalCount: 1,
 			Reviews: []biblioreads.Review{{Text: payload.LanguageCode}},
 		})
 	}))
@@ -429,7 +508,18 @@ func TestReviews(t *testing.T) {
 
 	t.Run("next page", func(t *testing.T) {
 		var captured capturedRequest
-		server := newMockServer(t, http.StatusOK, "reviews-scraper.json", &captured)
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			captured.method = r.Method
+			captured.path = r.URL.Path
+			captured.contentType = r.Header.Get("Content-Type")
+			if err := json.NewDecoder(r.Body).Decode(&captured.payload); err != nil {
+				t.Errorf("decode request: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			_, _ = w.Write([]byte(`{"version":"BiblioReads v4.4.0","status":"Received","statusCode":200,"totalCount":1,"reviews":[{"text":"Una reseña"}]}`))
+		}))
+		defer server.Close()
 		client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
 
 		if _, err := client.Reviews(context.Background(), "kca://work/abc", 1, "token", "es"); err != nil {

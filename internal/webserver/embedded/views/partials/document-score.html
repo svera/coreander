@@ -1,6 +1,24 @@
 <li><i class="bi bi-star-fill me-2" alt="{{t .Lang "%s rating" .Source}}" title="{{t .Lang "%s rating" .Source}}"></i>{{if .Rating}}<a href="{{.URL}}" class="fw-bold text-decoration-none" target="_blank" rel="noopener noreferrer" title="{{t .Lang "%s rating" .Source}}">{{.Rating}}</a>{{if .RatingCount}} <small>({{t .Lang "%s ratings" .RatingCount}})</small>{{end}}{{else}}<span class="text-body-secondary">{{t .Lang "No score"}}</span>{{end}}</li>
 {{if and .Rating .DocumentSlug}}
 <div id="document-reviews-{{.DocumentSlug}}" class="mt-5 placeholder-glow" hx-swap-oob="outerHTML" hx-get="/documents/{{.DocumentSlug}}/reviews" hx-trigger="intersect once" hx-target="this" hx-swap="outerHTML">
-    <span class="placeholder col-4"></span>
+    <div aria-hidden="true">
+        <h2><span class="placeholder col-6"></span></h2>
+        {{range 2}}
+        <div class="border-top pt-3 mt-3">
+            <div class="mb-2">
+                <div class="fs-5 fw-bold mb-1"><span class="placeholder col-4"></span></div>
+                <div class="d-flex align-items-baseline gap-2">
+                    <span class="text-muted">{{range 5}}<i class="bi bi-star"></i>{{end}}</span>
+                    <span class="placeholder col-3 ms-auto"></span>
+                </div>
+            </div>
+            <div><span class="placeholder col-12"></span></div>
+            <div><span class="placeholder col-11"></span></div>
+            <div><span class="placeholder col-12"></span></div>
+            <div><span class="placeholder col-10"></span></div>
+            <div><span class="placeholder col-7"></span></div>
+        </div>
+        {{end}}
+    </div>
 </div>
 {{end}}

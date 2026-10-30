@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/svera/coreander/v5/internal/datasource/httpjson"
+	"golang.org/x/mod/semver"
 )
 
 const (
@@ -229,6 +230,11 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 			var reviews ReviewsResponse
 			if decodeErr := json.Unmarshal(respBody, &reviews); decodeErr != nil {
 				err = &unavailableError{endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter, reason: decodeErr}
+			} else if request.LanguageCode != "" && !supportsReviewLanguage(reviews.Version) {
+				err = &unavailableError{
+					endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter,
+					reason: fmt.Errorf("review language filtering requires BiblioReads v4.4.0 or newer, got %q", reviews.Version),
+				}
 			} else if reviews.Status != "Received" || reviews.StatusCode != http.StatusOK || reviews.Reviews == nil ||
 				(request.NextPageToken == "" && reviews.TotalCount > 0 && len(reviews.Reviews) == 0) {
 				err = &unavailableError{
@@ -269,6 +275,11 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 		return json.Unmarshal(incompleteResponse, dest)
 	}
 	return fmt.Errorf("%w: %w", ErrUnavailable, errors.Join(errs...))
+}
+
+func supportsReviewLanguage(version string) bool {
+	version = strings.TrimPrefix(version, "BiblioReads ")
+	return semver.IsValid(version) && semver.Compare(version, "v4.4.0") >= 0
 }
 
 // candidates returns the instances that are not cooling down, starting at a random one.

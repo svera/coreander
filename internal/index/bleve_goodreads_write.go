@@ -32,6 +32,8 @@ var goodReadsFields = []string{"GoodReadsBookURL", "GoodReadsResourceID", "GoodR
 // Strip named series annotations and omnibus ranges, not standalone volume numbers.
 var goodReadsSeriesSuffix = regexp.MustCompile(`\s*\((?:[^()]+,\s*#[0-9]+(?:\.[0-9]+)?|#[0-9]+\s*[-–]\s*#?[0-9]+)\)\s*$`)
 
+var goodReadsSubtitleSeparator = regexp.MustCompile(`:\s*|\.\s+|\s+[-–—]\s+`)
+
 func normalizeGoodReadsName(value string) string {
 	var result strings.Builder
 	for _, r := range norm.NFD.String(strings.ToLower(value)) {
@@ -98,6 +100,14 @@ func goodReadsTitle(value string) string {
 	return normalizeGoodReadsName(goodReadsSeriesSuffix.ReplaceAllString(value, ""))
 }
 
+func goodReadsMainTitle(value string) string {
+	value = goodReadsSeriesSuffix.ReplaceAllString(value, "")
+	if separator := goodReadsSubtitleSeparator.FindStringIndex(value); separator != nil {
+		value = value[:separator[0]]
+	}
+	return normalizeGoodReadsName(value)
+}
+
 func matchingGoodReadsBook(document Document, results []biblioreads.SearchResult) (biblioreads.SearchResult, bool) {
 	title := goodReadsTitle(document.Title)
 	if title == "" {
@@ -106,7 +116,17 @@ func matchingGoodReadsBook(document Document, results []biblioreads.SearchResult
 	var best biblioreads.SearchResult
 	bestScore := 0
 	for _, result := range results {
-		if result.BookURL == "" || goodReadsTitle(result.Title) != title {
+		if result.BookURL == "" {
+			continue
+		}
+		resultTitle := goodReadsTitle(result.Title)
+		score := 1
+		if resultTitle == title {
+			score = 2
+			if normalizeGoodReadsName(result.Title) == normalizeGoodReadsName(document.Title) {
+				score = 3
+			}
+		} else if resultTitle == "" || (goodReadsMainTitle(result.Title) != title && goodReadsMainTitle(document.Title) != resultTitle) {
 			continue
 		}
 		author := strings.ReplaceAll(normalizeGoodReadsName(result.Author), " ", "")
@@ -116,10 +136,6 @@ func matchingGoodReadsBook(document Document, results []biblioreads.SearchResult
 		for _, name := range document.Authors {
 			if strings.ReplaceAll(normalizeGoodReadsName(name), " ", "") != author {
 				continue
-			}
-			score := 1
-			if normalizeGoodReadsName(result.Title) == normalizeGoodReadsName(document.Title) {
-				score = 2
 			}
 			if score > bestScore {
 				best, bestScore = result, score

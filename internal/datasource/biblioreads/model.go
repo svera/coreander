@@ -107,6 +107,7 @@ type AuthorSeries struct {
 }
 
 type ReviewsResponse struct {
+	Version       string   `json:"version"`
 	Status        string   `json:"status"`
 	StatusCode    int      `json:"statusCode"`
 	Source        string   `json:"source"`
