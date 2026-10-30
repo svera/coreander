@@ -175,6 +175,33 @@ main .form-control:focus {
     margin-inline: 0;
 }
 
+@media (min-width: 768px) {
+    .document-detail-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+        grid-template-rows: auto auto 1fr;
+    }
+
+    .document-detail-layout > .col-12 {
+        grid-column: 1 / -1;
+    }
+
+    .document-detail-title,
+    .document-detail-content {
+        grid-column: 2;
+    }
+
+    .document-detail-sidebar {
+        grid-column: 1;
+        grid-row: 2 / 4;
+        position: sticky;
+        top: 5rem;
+        align-self: flex-start;
+        max-height: calc(100dvh - 6rem);
+        overflow-y: auto;
+    }
+}
+
 /* Only pin/stick the filters box when it's rendered inline (desktop sidebar).
    Below this breakpoint it may be a Bootstrap .offcanvas-xl drawer instead, whose
    own position:fixed (while hidden/sliding in) must not be fought by this rule. */

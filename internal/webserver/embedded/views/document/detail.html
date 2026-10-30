@@ -1,31 +1,28 @@
 {{$lang := .Lang}}
-<div class="row mt-5">
+<div class="row document-detail-layout">
     <div class="col-12">
         <div class="mb-2">
             <a href="#" class="text-decoration-none" onclick="event.preventDefault(); history.back();">&larr; {{t $lang "Return"}}</a>
         </div>
         <hr />
-        {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s" .Document.Series}}
+    </div>
+    <header class="mt-3 ps-md-3 document-detail-title">
+        {{ if ne .Document.Series "" }}
             <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</p>
         {{ end }}
-        <header>
-            <h1>
-                {{.Document.Title}}
-            </h1>
-
-            {{if .Document.Authors}}
-                <p class="fs-2 mb-0">
-                    {{range $i, $author := .Document.Authors}}{{if $i}}, {{end}}<a href="/authors/{{index $.Document.AuthorsSlugs $i}}" class="text-decoration-none">{{$author}}</a>{{end}}
-                </p>
-            {{else}}
-                <p class="fs-2 mb-0">{{t .Lang "Unknown author"}}</p>
-            {{end}}
-            {{if .Document.Illustrators}}
-                <p class="fs-2"><span class="text-muted">{{t $lang "Illustrations"}}:</span> {{join .Document.Illustrators ", "}}</p>
-            {{end}}
-        </header>
-    </div>
-    <div class="col-12 col-md-4 mt-3 pe-md-3">
+        <h1>{{.Document.Title}}</h1>
+        {{if .Document.Authors}}
+            <p class="fs-2 mb-0">
+                {{range $i, $author := .Document.Authors}}{{if $i}}, {{end}}<a href="/authors/{{index $.Document.AuthorsSlugs $i}}" class="text-decoration-none">{{$author}}</a>{{end}}
+            </p>
+        {{else}}
+            <p class="fs-2 mb-0">{{t .Lang "Unknown author"}}</p>
+        {{end}}
+        {{if .Document.Illustrators}}
+            <p class="fs-2"><span class="text-muted">{{t $lang "Illustrations"}}:</span> {{join .Document.Illustrators ", "}}</p>
+        {{end}}
+    </header>
+    <div class="mt-3 pe-md-3 document-detail-sidebar">
         <div class="mb-3">
             {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true "Eager" true}}
         </div>
@@ -46,7 +43,7 @@
         </ul>
         {{ end }}
     </div>
-    <div class="col-12 col-md-8 ps-md-3">
+    <div class="ps-md-3 document-detail-content">
         <div class="row">
             <div class="col-12 text-start">
                 {{if .Document.Description}}
