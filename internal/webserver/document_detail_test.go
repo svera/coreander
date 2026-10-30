@@ -87,6 +87,26 @@ func TestDocumentPageTitles(t *testing.T) {
 				if got := doc.Find("title").Text(); got != page.title {
 					t.Errorf("%s title = %q, want %q", page.path, got, page.title)
 				}
+				if page.path == detailPath {
+					content := doc.Find(".document-detail-content")
+					title := doc.Find(".document-detail-title")
+					if got := strings.TrimSpace(title.Find("h1").Text()); got != "TheArcade_PDF" {
+						t.Errorf("document heading = %q, want TheArcade_PDF", got)
+					}
+					if doc.Find("main h1").Length() != 1 {
+						t.Error("document detail must have exactly one title heading")
+					}
+					sidebar := doc.Find(".document-detail-sidebar")
+					if sidebar.Length() != 1 || sidebar.Find("figure").Length() != 1 || sidebar.Find("[id^='document-metadata-']").Length() != 1 {
+						t.Error("sticky sidebar must contain the cover and document metadata")
+					}
+					if content.Prev().Is(".document-detail-sidebar") == false {
+						t.Error("description column must follow the sticky sidebar")
+					}
+					if !sidebar.Prev().Is(".document-detail-title") {
+						t.Error("title must precede the cover on mobile")
+					}
+				}
 				if page.path == detailPath+"/read" {
 					if got, ok := doc.Find("meta[name='author']").Attr("content"); !ok || got != tc.author {
 						t.Errorf("%s author metadata = %q (present: %v), want %q", page.path, got, ok, tc.author)
