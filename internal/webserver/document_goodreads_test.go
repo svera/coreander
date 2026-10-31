@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -444,6 +445,153 @@ func TestDocumentDetailGoodReadsRating(t *testing.T) {
 	if stored.GoodReadsResourceID != source.book.ResourceID || stored.GoodReadsLegacyBookID != source.book.LegacyBookID {
 		t.Fatalf("expected book identifiers to be stored, got %+v", stored)
 	}
+}
+
+func TestDocumentGoodReadsEditor(t *testing.T) {
+	source := &fakeBookSource{book: biblioreads.BookResponse{Rating: "3.82"}}
+	app, _ := newGoodReadsTestApp(t, source)
+	adminCookie, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		name   string
+		cookie *http.Cookie
+		want   int
+	}{
+		{name: "anonymous", cookie: &http.Cookie{}},
+		{name: "administrator", cookie: adminCookie, want: 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			response, err := getRequest(tt.cookie, app, "/documents/linked/score", t)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			mustReturnStatus(response, http.StatusOK, t)
+			page, err := goquery.NewDocumentFromReader(response.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			control := page.Find(`li a[data-bs-toggle="collapse"][href="#edit-goodreads-linked"]`)
+			if control.Length() != tt.want {
+				t.Fatalf("expected %d edit links, got %d", tt.want, control.Length())
+			}
+			if tt.want == 0 {
+				if page.Find(`input[name="bookURL"]`).Length() != 0 {
+					t.Fatal("anonymous readers must not receive the editor")
+				}
+				return
+			}
+			if control.Text() != "Edit Goodreads link" ||
+				page.Find(`#edit-goodreads-linked.collapse:not(.show)`).Length() != 1 ||
+				page.Find(`form[hx-put="/documents/linked/goodreads"][hx-target="this"]`).Length() != 1 ||
+				page.Find(`label[for="goodreads-book-url-linked"]`).Length() != 1 {
+				t.Fatal("expected accessible, initially collapsed Goodreads editor beside the score")
+			}
+			if value, _ := page.Find(`input[name="bookURL"]`).Attr("value"); value != "https://www.goodreads.com/book/show/12207444-la-reina-dragon" {
+				t.Fatalf("editor must be prefilled with the current link, got %q", value)
+			}
+		})
+	}
+
+	source.err = biblioreads.ErrUnavailable
+	response, err := getRequest(adminCookie, app, "/documents/linked/score", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	page, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(page.Find("li").Text(), "Unable to load Goodreads score") ||
+		page.Find(`input[name="bookURL"]`).Length() != 1 {
+		t.Fatal("an unavailable score must not prevent administrators from correcting the link")
+	}
+}
+
+func TestDocumentUpdateGoodReads(t *testing.T) {
+	source := &fakeBookSource{book: biblioreads.BookResponse{
+		Rating: "3.82", ResourceID: "old-work", LegacyBookID: 12207444,
+	}}
+	app, idx := newGoodReadsTestApp(t, source)
+	getBody(t, app, "/documents/linked/score")
+	adminCookie, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := putRequest(url.Values{
+		"bookURL": {"https://www.goodreads.com/book/show/1368314.El_Cercano_Oriente?from_search=true"},
+	}, adminCookie, app, "/documents/linked/goodreads", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	mustReturnStatus(response, http.StatusNoContent, t)
+	if response.Header.Get("HX-Refresh") != "true" {
+		t.Fatal("successful correction must reload the detail page")
+	}
+	stored, err := idx.Document("linked")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.GoodReadsBookURL != "/book/show/1368314.El_Cercano_Oriente" ||
+		stored.GoodReadsRating != "" || stored.GoodReadsRatingValue != 0 ||
+		stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 ||
+		!stored.GoodReadsEnriched {
+		t.Fatalf("expected correction persisted without stale rating/review identifiers: %+v", stored)
+	}
+	source.book = biblioreads.BookResponse{Rating: "4.2", ResourceID: "new-work", LegacyBookID: 1368314}
+	body := getBody(t, app, "/documents/linked/score")
+	if !strings.Contains(body, `href="https://www.goodreads.com/book/show/1368314.El_Cercano_Oriente"`) ||
+		source.ids[len(source.ids)-1] != "1368314.El_Cercano_Oriente" {
+		t.Fatal("subsequent scores must use the corrected book")
+	}
+	getBody(t, app, "/documents/linked/reviews")
+	if len(source.reviewCalls) != 1 || source.reviewCalls[0].resourceID != "new-work" ||
+		source.reviewCalls[0].legacyBookID != 1368314 {
+		t.Fatalf("subsequent reviews must use the corrected book: %+v", source.reviewCalls)
+	}
+}
+
+func TestDocumentUpdateGoodReadsValidation(t *testing.T) {
+	app, idx := newGoodReadsTestApp(t, nil)
+	adminCookie, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{"", "https://example.org/book/show/123", "https://www.goodreads.com/author/show/16667"} {
+		response, err := putRequest(url.Values{"bookURL": {value}}, adminCookie, app, "/documents/linked/goodreads", t)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mustReturnStatus(response, http.StatusUnprocessableEntity, t)
+		page, err := goquery.NewDocumentFromReader(response.Body)
+		response.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if page.Find(`form#goodreads-link-form-linked input[aria-invalid="true"]`).Length() != 1 ||
+			page.Find(`[role="alert"]`).Text() != "Enter a valid Goodreads book URL." {
+			t.Fatal("invalid URLs must render inline validation feedback")
+		}
+		if got, _ := page.Find(`input[name="bookURL"]`).Attr("value"); got != value {
+			t.Fatalf("invalid input should be retained for correction, got %q", got)
+		}
+		stored, err := idx.Document("linked")
+		if err != nil || stored.GoodReadsBookURL != "/book/show/12207444-la-reina-dragon" || stored.GoodReadsRating != "3.82" {
+			t.Fatalf("invalid input must not change the stored match: %+v, %v", stored, err)
+		}
+	}
+	response, err := putRequest(url.Values{
+		"bookURL": {"https://www.goodreads.com/book/show/1368314"},
+	}, adminCookie, app, "/documents/missing/goodreads", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	mustReturnStatus(response, http.StatusNotFound, t)
 }
 
 func TestDocumentDetailUpdatesStoredGoodReadsRating(t *testing.T) {

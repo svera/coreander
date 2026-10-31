@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -37,6 +38,10 @@ var goodReadsSeriesSuffix = regexp.MustCompile(`\s*\((?:[^()]+,\s*#[0-9]+(?:\.[0
 var goodReadsSubtitleSeparator = regexp.MustCompile(`:\s*|\.\s+|\s+[-–—]\s+`)
 
 var goodReadsParentheticalTitle = regexp.MustCompile(`\s+\([\p{L}][^()]*\)\s*$`)
+
+var goodReadsBookPath = regexp.MustCompile(`^/book/show/[1-9][0-9]*(?:[.-][A-Za-z0-9._~-]+)?/?$`)
+
+var ErrInvalidGoodReadsBookURL = errors.New("invalid Goodreads book URL")
 
 func normalizeGoodReadsName(value string) string {
 	var result strings.Builder
@@ -112,6 +117,38 @@ func goodReadsMainTitle(value string) string {
 	return normalizeGoodReadsName(value)
 }
 
+func goodReadsTitleMatchScore(candidate, title, fullTitle, mainTitle string) int {
+	candidateTitle := goodReadsTitle(candidate)
+	if candidateTitle == "" {
+		return 0
+	}
+	if candidateTitle == title {
+		if normalizeGoodReadsName(candidate) == fullTitle {
+			return 3
+		}
+		return 2
+	}
+	if goodReadsMainTitle(candidate) == title || mainTitle == candidateTitle ||
+		goodReadsTitle(goodReadsParentheticalTitle.ReplaceAllString(candidate, "")) == title {
+		return 1
+	}
+	return 0
+}
+
+func preferGoodReadsBook(candidate, best biblioreads.SearchResult, score, bestScore int) bool {
+	if bestScore == 0 {
+		return true
+	}
+	if score == bestScore && candidate.ID > 0 && best.ID > 0 && candidate.ID != best.ID {
+		return candidate.ID < best.ID
+	}
+	hasRating, bestHasRating := hasGoodReadsRating(candidate.Rating), hasGoodReadsRating(best.Rating)
+	if hasRating != bestHasRating {
+		return hasRating
+	}
+	return score > bestScore
+}
+
 func matchingGoodReadsBook(document Document, results []biblioreads.SearchResult) (biblioreads.SearchResult, bool) {
 	title := goodReadsTitle(document.Title)
 	if title == "" {
@@ -125,41 +162,20 @@ func matchingGoodReadsBook(document Document, results []biblioreads.SearchResult
 	}
 	var best biblioreads.SearchResult
 	bestScore := 0
-	bestHasRating := false
 	for _, result := range results {
 		if result.BookURL == "" {
 			continue
 		}
-		resultTitle := goodReadsTitle(result.Title)
-		score := 1
-		if resultTitle == title {
-			score = 2
-			if normalizeGoodReadsName(result.Title) == fullTitle {
-				score = 3
-			}
-		} else if resultTitle == "" || (goodReadsMainTitle(result.Title) != title && mainTitle != resultTitle &&
-			goodReadsTitle(goodReadsParentheticalTitle.ReplaceAllString(result.Title, "")) != title) {
+		score := goodReadsTitleMatchScore(result.Title, title, fullTitle, mainTitle)
+		if score == 0 {
 			continue
 		}
 		author := strings.ReplaceAll(normalizeGoodReadsName(result.Author), " ", "")
 		if author == "" {
 			continue
 		}
-		if _, matches := authors[author]; matches {
-			hasRating := hasGoodReadsRating(result.Rating)
-			prefer := bestScore == 0
-			if !prefer && score == bestScore && result.ID > 0 && best.ID > 0 && result.ID != best.ID {
-				prefer = result.ID < best.ID
-			} else if !prefer {
-				if hasRating != bestHasRating {
-					prefer = hasRating
-				} else {
-					prefer = score > bestScore
-				}
-			}
-			if prefer {
-				best, bestScore, bestHasRating = result, score, hasRating
-			}
+		if _, matches := authors[author]; matches && preferGoodReadsBook(result, best, score, bestScore) {
+			best, bestScore = result, score
 		}
 	}
 	return best, bestScore > 0
@@ -286,49 +302,57 @@ func (b *BleveIndexer) GoodReadsBook(ctx context.Context, document Document) (bi
 	return b.enrichGoodReads(ctx, document)
 }
 
-// StoreGoodReadsBookIDs persists identifiers fetched for bookURL, provided the
-// document still has the same metadata and Goodreads match as when it was read.
-func (b *BleveIndexer) StoreGoodReadsBookIDs(document Document, bookURL, resourceID string, legacyBookID int) error {
-	if bookURL == "" || resourceID == "" || legacyBookID <= 0 {
-		return fmt.Errorf("invalid GoodReads identifiers for document %s", document.ID)
+// UpdateGoodReadsBookURL saves an administrator's correction without retaining
+// the previous book's rating or review identifiers.
+func (b *BleveIndexer) UpdateGoodReadsBookURL(documentID, rawURL string) error {
+	bookURL, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || len(rawURL) > 2048 || bookURL.User != nil ||
+		(bookURL.Scheme != "https" && bookURL.Scheme != "http") ||
+		(bookURL.Host != "www.goodreads.com" && bookURL.Host != "goodreads.com") ||
+		!goodReadsBookPath.MatchString(bookURL.Path) {
+		return ErrInvalidGoodReadsBookURL
 	}
+	path := strings.TrimSuffix(bookURL.Path, "/")
+
 	b.documentsMu.Lock()
 	defer b.documentsMu.Unlock()
-	current, found, err := b.documentByIndexIDLocked(document.ID)
+	current, found, err := b.documentByIndexIDLocked(documentID)
 	if err != nil {
-		return fmt.Errorf("error reading document %s for GoodReads identifiers: %w", document.ID, err)
+		return fmt.Errorf("reading document %s for Goodreads correction: %w", documentID, err)
 	}
 	if !found {
 		return ErrDocumentNotFound
 	}
-	if goodReadsQuery(current) != goodReadsQuery(document) || current.GoodReadsBookURL != bookURL {
-		return fmt.Errorf("GoodReads match changed for document %s", document.ID)
-	}
-	if current.GoodReadsResourceID == resourceID && current.GoodReadsLegacyBookID == legacyBookID {
+	if current.GoodReadsBookURL == path {
 		return nil
 	}
-	current.GoodReadsResourceID = resourceID
-	current.GoodReadsLegacyBookID = legacyBookID
+	current.GoodReadsBookURL = path
+	current.GoodReadsRating = ""
+	current.GoodReadsRatingValue = 0
+	current.GoodReadsResourceID = ""
+	current.GoodReadsLegacyBookID = 0
+	current.GoodReadsEnriched = true
 	if err := b.documentsIdx.Index(current.ID, current); err != nil {
-		return fmt.Errorf("error storing GoodReads identifiers for document %s: %w", document.ID, err)
+		return fmt.Errorf("saving Goodreads correction for document %s: %w", documentID, err)
 	}
 	return nil
 }
 
-// StoreGoodReadsRating persists the current rating for the same document and
-// Goodreads match that were read before fetching the book details.
-func (b *BleveIndexer) StoreGoodReadsRating(document Document, bookURL, rating string) error {
+// StoreGoodReadsDetails persists a nonempty rating and complete review identifiers,
+// provided the document still has the metadata and match read before the fetch.
+func (b *BleveIndexer) StoreGoodReadsDetails(document Document, bookURL string, book biblioreads.BookResponse) error {
 	if bookURL == "" {
 		return fmt.Errorf("invalid GoodReads book URL for document %s", document.ID)
 	}
-	if rating == "" {
+	hasIDs := book.ResourceID != "" && book.LegacyBookID > 0
+	if book.Rating == "" && !hasIDs {
 		return nil
 	}
 	b.documentsMu.Lock()
 	defer b.documentsMu.Unlock()
 	current, found, err := b.documentByIndexIDLocked(document.ID)
 	if err != nil {
-		return fmt.Errorf("error reading document %s for GoodReads rating: %w", document.ID, err)
+		return fmt.Errorf("error reading document %s for GoodReads details: %w", document.ID, err)
 	}
 	if !found {
 		return ErrDocumentNotFound
@@ -336,14 +360,25 @@ func (b *BleveIndexer) StoreGoodReadsRating(document Document, bookURL, rating s
 	if goodReadsQuery(current) != goodReadsQuery(document) || current.GoodReadsBookURL != bookURL {
 		return fmt.Errorf("GoodReads match changed for document %s", document.ID)
 	}
-	ratingValue := parseGoodReadsRating(rating, document.ID)
-	if current.GoodReadsRating == rating && current.GoodReadsRatingValue == ratingValue {
+	changed := false
+	if book.Rating != "" {
+		ratingValue := parseGoodReadsRating(book.Rating, document.ID)
+		if current.GoodReadsRating != book.Rating || current.GoodReadsRatingValue != ratingValue {
+			current.GoodReadsRating = book.Rating
+			current.GoodReadsRatingValue = ratingValue
+			changed = true
+		}
+	}
+	if hasIDs && (current.GoodReadsResourceID != book.ResourceID || current.GoodReadsLegacyBookID != book.LegacyBookID) {
+		current.GoodReadsResourceID = book.ResourceID
+		current.GoodReadsLegacyBookID = book.LegacyBookID
+		changed = true
+	}
+	if !changed {
 		return nil
 	}
-	current.GoodReadsRating = rating
-	current.GoodReadsRatingValue = ratingValue
 	if err := b.documentsIdx.Index(current.ID, current); err != nil {
-		return fmt.Errorf("error storing GoodReads rating for document %s: %w", document.ID, err)
+		return fmt.Errorf("error storing GoodReads details for document %s: %w", document.ID, err)
 	}
 	return nil
 }

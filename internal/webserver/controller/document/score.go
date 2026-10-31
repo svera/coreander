@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 const reviewsTimeout = 30 * time.Second
@@ -26,9 +27,15 @@ func (d *Controller) Score(c fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), reviewsTimeout)
 	defer cancel()
 	score, err := d.reviewProvider.Score(ctx, document)
+	session, _ := c.Locals("Session").(model.Session)
+	canEditGoodReads := session.Role == model.RoleAdmin && score.Source == "Goodreads"
 	if err != nil {
 		log.Printf("Error retrieving score for %s: %s", document.ID, err)
-		return c.SendString("")
+		if !canEditGoodReads {
+			return c.SendString("")
+		}
+		score.Value, score.Count = "", ""
+		score.URL = d.documentServiceLink(document).URL
 	}
 	return c.Render("partials/document-score", fiber.Map{
 		"Lang":               c.Locals("Lang"),
@@ -40,5 +47,7 @@ func (d *Controller) Score(c fiber.Ctx) error {
 		"Scored":             score.HasScore(),
 		"URL":                score.URL,
 		"DocumentSlug":       document.Slug,
+		"CanEditGoodReads":   canEditGoodReads,
+		"ScoreUnavailable":   err != nil,
 	})
 }

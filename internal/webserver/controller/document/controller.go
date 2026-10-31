@@ -44,6 +44,7 @@ type IdxReaderWriter interface {
 	SameSeries(slug string, quantity int) (result.Paginated[[]index.Document], error)
 	NewFile(fileName string, contents []byte) (string, error)
 	DeleteDocument(slug string) error
+	UpdateGoodReadsBookURL(documentID, bookURL string) error
 	Documents(slugs []string) (map[string]index.Document, error)
 	Languages() ([]string, error)
 	Subjects() (map[string][]string, error)

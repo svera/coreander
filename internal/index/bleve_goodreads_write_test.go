@@ -282,7 +282,7 @@ func TestTextRankWritesPreserveGoodReadsFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	stale.TextRankEnriched = false
-	if err := idx.StoreGoodReadsBookIDs(stale, wantGoodReadsBookURL, "work-id", 12207444); err != nil {
+	if err := idx.StoreGoodReadsDetails(stale, wantGoodReadsBookURL, biblioreads.BookResponse{ResourceID: "work-id", LegacyBookID: 12207444}); err != nil {
 		t.Fatal(err)
 	}
 	stale.TextRankWords = []string{"dragon"}
@@ -448,6 +448,59 @@ func TestGoodReadsBookReturnsErrorWhenUnavailable(t *testing.T) {
 	}
 	if doc, _ = idx.documentByIndexID(goodReadsTestID); doc.GoodReadsEnriched {
 		t.Error("expected document to stay unenriched for a later retry")
+	}
+}
+
+func TestGoodReadsTitleMatchScore(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		title     string
+		candidate string
+		want      int
+	}{
+		{name: "normalized exact", title: "La promesa", candidate: "LA PROMESA!", want: 3},
+		{name: "series suffix", title: "La promesa", candidate: "La promesa (Series, #1)", want: 2},
+		{name: "subtitle", title: "La promesa", candidate: "La promesa: Una historia", want: 1},
+		{name: "document subtitle", title: "La promesa: Una historia", candidate: "La promesa", want: 1},
+		{name: "parenthetical", title: "La promesa", candidate: "La promesa (The Promise)", want: 1},
+		{name: "different subtitles", title: "La promesa: Una historia", candidate: "La promesa: Otra historia"},
+		{name: "standalone volume", title: "La promesa", candidate: "La promesa (#1)"},
+		{name: "unrelated", title: "La promesa", candidate: "Otro libro"},
+		{name: "empty candidate", title: "La promesa"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got := goodReadsTitleMatchScore(tt.candidate, goodReadsTitle(tt.title),
+				normalizeGoodReadsName(tt.title), goodReadsMainTitle(tt.title))
+			if got != tt.want {
+				t.Fatalf("title match score = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPreferGoodReadsBook(t *testing.T) {
+	for _, tt := range []struct {
+		name             string
+		candidate, best  biblioreads.SearchResult
+		score, bestScore int
+		want             bool
+	}{
+		{name: "first match", score: 1, want: true},
+		{name: "lower ID before rating for equal strength", candidate: biblioreads.SearchResult{ID: 1}, best: biblioreads.SearchResult{ID: 2, Rating: "4"}, score: 3, bestScore: 3, want: true},
+		{name: "higher ID loses despite rating", candidate: biblioreads.SearchResult{ID: 2, Rating: "4"}, best: biblioreads.SearchResult{ID: 1}, score: 3, bestScore: 3},
+		{name: "rating before strength for different strength", candidate: biblioreads.SearchResult{ID: 2, Rating: "4"}, best: biblioreads.SearchResult{ID: 1}, score: 1, bestScore: 3, want: true},
+		{name: "stronger unrated loses to rated", best: biblioreads.SearchResult{Rating: "4"}, score: 3, bestScore: 1},
+		{name: "strength with same rating status", score: 3, bestScore: 1, want: true},
+		{name: "weaker match loses with same rating status", score: 1, bestScore: 3},
+		{name: "unknown ID falls back to rating", candidate: biblioreads.SearchResult{Rating: "4"}, best: biblioreads.SearchResult{ID: 1}, score: 3, bestScore: 3, want: true},
+		{name: "same ID falls back to rating", candidate: biblioreads.SearchResult{ID: 1, Rating: "4"}, best: biblioreads.SearchResult{ID: 1}, score: 3, bestScore: 3, want: true},
+		{name: "complete tie retains first match", candidate: biblioreads.SearchResult{ID: 1, Rating: "4"}, best: biblioreads.SearchResult{ID: 1, Rating: "3"}, score: 3, bestScore: 3},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := preferGoodReadsBook(tt.candidate, tt.best, tt.score, tt.bestScore); got != tt.want {
+				t.Fatalf("candidate preference = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -717,8 +770,8 @@ func TestForceIndexingRefreshesGoodReadsMatch(t *testing.T) {
 	}
 }
 
-func TestStoreGoodReadsBookIDs(t *testing.T) {
-	for _, scenario := range []string{"linked", "newly linked", "changed metadata", "changed match", "deleted", "invalid identifiers"} {
+func TestStoreGoodReadsDetails(t *testing.T) {
+	for _, scenario := range []string{"linked", "newly linked", "changed metadata", "changed match", "deleted", "partial identifiers"} {
 		t.Run(scenario, func(t *testing.T) {
 			idx := newGoodReadsTestIndexer(t, nil)
 			doc := Document{
@@ -738,7 +791,7 @@ func TestStoreGoodReadsBookIDs(t *testing.T) {
 				doc.Title = "Another title"
 			case "changed match":
 				doc.GoodReadsBookURL = "/book/show/2-other"
-			case "invalid identifiers":
+			case "partial identifiers":
 				resourceID = ""
 			}
 			if scenario != "deleted" {
@@ -746,10 +799,14 @@ func TestStoreGoodReadsBookIDs(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			err := idx.StoreGoodReadsBookIDs(stale, wantGoodReadsBookURL, resourceID, 12207444)
-			wantError := scenario != "linked" && scenario != "newly linked"
+
+			book := biblioreads.BookResponse{Rating: "4.12", ResourceID: resourceID, LegacyBookID: 12207444}
+			writes := &goodReadsWriteCountingIndex{countedGoodReadsIndex: idx.documentsIdx}
+			idx.documentsIdx = writes
+			err := idx.StoreGoodReadsDetails(stale, wantGoodReadsBookURL, book)
+			wantError := scenario != "linked" && scenario != "newly linked" && scenario != "partial identifiers"
 			if (err != nil) != wantError {
-				t.Fatalf("StoreGoodReadsBookIDs error = %v, want error %v", err, wantError)
+				t.Fatalf("StoreGoodReadsDetails error = %v, want error %v", err, wantError)
 			}
 			if scenario == "deleted" {
 				if !errors.Is(err, ErrDocumentNotFound) {
@@ -762,20 +819,185 @@ func TestStoreGoodReadsBookIDs(t *testing.T) {
 				t.Fatal(err)
 			}
 			if wantError {
-				if stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 {
-					t.Fatalf("unexpected identifiers persisted: %+v", stored)
+				if writes.count != 0 {
+					t.Fatal("stale details must not cause any index writes")
+				}
+				if stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 || stored.GoodReadsRating != "" {
+					t.Fatalf("unexpected details persisted: %+v", stored)
 				}
 				return
 			}
-			if stored.GoodReadsResourceID != resourceID || stored.GoodReadsLegacyBookID != 12207444 {
+			wantLegacyBookID := 12207444
+			if scenario == "partial identifiers" {
+				wantLegacyBookID = 0
+			}
+			if stored.GoodReadsResourceID != resourceID || stored.GoodReadsLegacyBookID != wantLegacyBookID {
 				t.Fatalf("identifiers not persisted: %+v", stored)
+			}
+			if stored.GoodReadsRating != book.Rating || stored.GoodReadsRatingValue != 4.12 {
+				t.Fatalf("rating not persisted with identifiers: %+v", stored)
 			}
 			if !stored.GoodReadsEnriched || !slices.Equal(stored.TextRankWords, doc.TextRankWords) {
 				t.Fatalf("existing enrichment was lost: %+v", stored)
 			}
-			if err := idx.StoreGoodReadsBookIDs(stale, wantGoodReadsBookURL, resourceID, 12207444); err != nil {
+			if err := idx.StoreGoodReadsDetails(stale, wantGoodReadsBookURL, book); err != nil {
 				t.Fatalf("repeated store failed: %v", err)
 			}
+			if writes.count != 1 {
+				t.Fatalf("expected one combined write and no write for unchanged details, got %d", writes.count)
+			}
 		})
+	}
+}
+
+type countedGoodReadsIndex interface {
+	bleve.Index
+}
+
+type goodReadsWriteCountingIndex struct {
+	countedGoodReadsIndex
+	count int
+}
+
+func (i *goodReadsWriteCountingIndex) Index(id string, data any) error {
+	i.count++
+	return i.countedGoodReadsIndex.Index(id, data)
+}
+
+func TestStoreGoodReadsDetailsPreservesMissingFields(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		book       biblioreads.BookResponse
+		wantRating string
+		wantWork   string
+		wantID     int
+	}{
+		{name: "rating only", book: biblioreads.BookResponse{Rating: "4.12"}, wantRating: "4.12", wantWork: "old-work", wantID: 1},
+		{name: "identifiers only", book: biblioreads.BookResponse{ResourceID: "new-work", LegacyBookID: 2}, wantRating: "3.82", wantWork: "new-work", wantID: 2},
+		{name: "missing work", book: biblioreads.BookResponse{Rating: "4.12", LegacyBookID: 2}, wantRating: "4.12", wantWork: "old-work", wantID: 1},
+		{name: "missing edition", book: biblioreads.BookResponse{Rating: "4.12", ResourceID: "new-work"}, wantRating: "4.12", wantWork: "old-work", wantID: 1},
+		{name: "empty response", wantRating: "3.82", wantWork: "old-work", wantID: 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			idx := newGoodReadsTestIndexer(t, nil)
+			doc := Document{
+				ID: goodReadsTestID, GoodReadsBookURL: wantGoodReadsBookURL,
+				GoodReadsRating: "3.82", GoodReadsRatingValue: 3.82,
+				GoodReadsResourceID: "old-work", GoodReadsLegacyBookID: 1,
+			}
+			if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
+				t.Fatal(err)
+			}
+			if err := idx.StoreGoodReadsDetails(doc, doc.GoodReadsBookURL, tt.book); err != nil {
+				t.Fatal(err)
+			}
+			stored, err := idx.documentByIndexID(doc.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stored.GoodReadsRating != tt.wantRating || stored.GoodReadsRatingValue != parseGoodReadsRating(tt.wantRating, doc.ID) ||
+				stored.GoodReadsResourceID != tt.wantWork || stored.GoodReadsLegacyBookID != tt.wantID {
+				t.Fatalf("partial details changed fields that were not supplied: %+v", stored)
+			}
+		})
+	}
+}
+
+func TestUpdateGoodReadsBookURL(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{name: "numeric ID", url: "https://www.goodreads.com/book/show/1368314", want: "/book/show/1368314"},
+		{name: "dotted slug", url: "https://www.goodreads.com/book/show/1368314.El_Cercano_Oriente", want: "/book/show/1368314.El_Cercano_Oriente"},
+		{name: "hyphenated slug", url: "https://www.goodreads.com/book/show/243175949-el-cercano-oriente", want: "/book/show/243175949-el-cercano-oriente"},
+		{name: "normalize shared URL", url: " http://goodreads.com/book/show/1368314/?from_search=true#reviews ", want: "/book/show/1368314"},
+		{name: "same URL", url: "https://www.goodreads.com" + wantGoodReadsBookURL, want: wantGoodReadsBookURL},
+		{name: "empty"},
+		{name: "relative", url: "/book/show/1368314"},
+		{name: "other domain", url: "https://example.com/book/show/1368314"},
+		{name: "deceptive domain", url: "https://www.goodreads.com.example.com/book/show/1368314"},
+		{name: "credentials", url: "https://reader@www.goodreads.com/book/show/1368314"},
+		{name: "port", url: "https://www.goodreads.com:4000/book/show/1368314"},
+		{name: "wrong scheme", url: "ftp://www.goodreads.com/book/show/1368314"},
+		{name: "author", url: "https://www.goodreads.com/author/show/16667.Isaac_Asimov"},
+		{name: "non-numeric ID", url: "https://www.goodreads.com/book/show/not-a-book"},
+		{name: "zero ID", url: "https://www.goodreads.com/book/show/0"},
+		{name: "extra path", url: "https://www.goodreads.com/book/show/1368314/other"},
+		{name: "encoded path separator", url: "https://www.goodreads.com/book/show/1368314%2Fother"},
+		{name: "malformed URL", url: "https://%zz/book/show/1368314"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := &fakeGoodReadsSource{results: goodReadsTestResults}
+			idx := newGoodReadsTestIndexer(t, source)
+			doc := Document{
+				ID: goodReadsTestID, Slug: "la-reina-dragon",
+				Metadata:              metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}},
+				TextRankWords:         []string{"dragon"},
+				GoodReadsBookURL:      wantGoodReadsBookURL,
+				GoodReadsRating:       "3.82",
+				GoodReadsRatingValue:  3.82,
+				GoodReadsResourceID:   "old-work",
+				GoodReadsLegacyBookID: 12207444,
+				GoodReadsEnriched:     true,
+			}
+			if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
+				t.Fatal(err)
+			}
+			err := idx.UpdateGoodReadsBookURL(doc.ID, tt.url)
+			if tt.want == "" {
+				if !errors.Is(err, ErrInvalidGoodReadsBookURL) {
+					t.Fatalf("expected invalid URL error, got %v", err)
+				}
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			stored, err := idx.documentByIndexID(doc.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tt.want == "" || tt.want == doc.GoodReadsBookURL {
+				if stored.GoodReadsBookURL != doc.GoodReadsBookURL ||
+					stored.GoodReadsRating != doc.GoodReadsRating ||
+					stored.GoodReadsResourceID != doc.GoodReadsResourceID ||
+					stored.GoodReadsLegacyBookID != doc.GoodReadsLegacyBookID {
+					t.Fatalf("invalid or unchanged URL modified stored data: %+v", stored)
+				}
+				return
+			}
+			if stored.GoodReadsBookURL != tt.want || !stored.GoodReadsEnriched ||
+				stored.GoodReadsRating != "" || stored.GoodReadsRatingValue != 0 ||
+				stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 {
+				t.Fatalf("correction must clear old rating and review identifiers: %+v", stored)
+			}
+			if stored.Title != doc.Title || stored.Slug != doc.Slug || !slices.Equal(stored.TextRankWords, doc.TextRankWords) {
+				t.Fatalf("correction changed unrelated document data: %+v", stored)
+			}
+			if err := idx.StoreGoodReadsDetails(doc, doc.GoodReadsBookURL, biblioreads.BookResponse{Rating: "4.5"}); err == nil {
+				t.Fatal("stale rating write must not overwrite corrected book")
+			}
+			if err := idx.StoreGoodReadsDetails(doc, doc.GoodReadsBookURL, biblioreads.BookResponse{ResourceID: "old-work", LegacyBookID: 12207444}); err == nil {
+				t.Fatal("stale review identifiers must not overwrite corrected book")
+			}
+			got, err := idx.enrichGoodReads(context.Background(), doc)
+			if err != nil || got.BookURL != tt.want {
+				t.Fatalf("in-flight enrichment must keep the correction: %+v, %v", got, err)
+			}
+			if err := idx.EnrichGoodReads(10); err != nil {
+				t.Fatal(err)
+			}
+			if len(source.Queries()) != 0 {
+				t.Fatal("corrected book must not be automatically rematched")
+			}
+		})
+	}
+}
+
+func TestUpdateGoodReadsBookURLMissingDocument(t *testing.T) {
+	idx := newGoodReadsTestIndexer(t, nil)
+	if err := idx.UpdateGoodReadsBookURL("missing", "https://www.goodreads.com/book/show/1368314"); !errors.Is(err, ErrDocumentNotFound) {
+		t.Fatalf("expected missing-document error, got %v", err)
 	}
 }

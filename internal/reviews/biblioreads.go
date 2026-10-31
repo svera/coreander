@@ -25,8 +25,7 @@ type BiblioReadsClient interface {
 
 type GoodReadsIndex interface {
 	GoodReadsBook(ctx context.Context, document index.Document) (biblioreads.SearchResult, error)
-	StoreGoodReadsBookIDs(document index.Document, bookURL, resourceID string, legacyBookID int) error
-	StoreGoodReadsRating(document index.Document, bookURL, rating string) error
+	StoreGoodReadsDetails(document index.Document, bookURL string, book biblioreads.BookResponse) error
 }
 
 type BiblioReads struct {
@@ -60,17 +59,13 @@ func (b *BiblioReads) book(ctx context.Context, document index.Document) (biblio
 	if err != nil {
 		return book, fmt.Errorf("retrieving Goodreads book %s: %w", id, err)
 	}
+	details := book
 	if book.Rating != "" && document.GoodReadsRatingValue > 0 && isZeroRating(book.Rating) {
 		book.Rating = document.GoodReadsRating
-	} else if book.Rating != "" {
-		if err := b.index.StoreGoodReadsRating(document, document.GoodReadsBookURL, book.Rating); err != nil {
-			log.Printf("Error saving Goodreads rating for %s: %s", document.ID, err)
-		}
+		details.Rating = ""
 	}
-	if book.ResourceID != "" && book.LegacyBookID > 0 {
-		if err := b.index.StoreGoodReadsBookIDs(document, document.GoodReadsBookURL, book.ResourceID, book.LegacyBookID); err != nil {
-			log.Printf("Error saving Goodreads identifiers for %s: %s", document.ID, err)
-		}
+	if err := b.index.StoreGoodReadsDetails(document, document.GoodReadsBookURL, details); err != nil {
+		log.Printf("Error saving Goodreads details for %s: %s", document.ID, err)
 	}
 	return book, nil
 }

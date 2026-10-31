@@ -11,7 +11,6 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -327,22 +326,19 @@ func (c *Client) acquireInstance(ctx context.Context, tried map[string]bool) (st
 		}
 		c.mu.Lock()
 		start := rand.IntN(len(c.instances))
-		candidates := make([]string, 0, len(c.instances))
+		instance := ""
 		now := time.Now()
 		for i := range c.instances {
-			instance := c.instances[(start+i)%len(c.instances)]
-			if !tried[instance] && !now.Before(c.cooldownUntil[instance]) {
-				candidates = append(candidates, instance)
+			candidate := c.instances[(start+i)%len(c.instances)]
+			if !tried[candidate] && !now.Before(c.cooldownUntil[candidate]) &&
+				(instance == "" || c.nextRequest[candidate].Before(c.nextRequest[instance])) {
+				instance = candidate
 			}
 		}
-		sort.SliceStable(candidates, func(i, j int) bool {
-			return c.nextRequest[candidates[i]].Before(c.nextRequest[candidates[j]])
-		})
-		if len(candidates) == 0 {
+		if instance == "" {
 			c.mu.Unlock()
 			return "", fmt.Errorf("%w: no untried instance is outside its cooldown", ErrUnavailable)
 		}
-		instance := candidates[0]
 		wait := time.Until(c.nextRequest[instance])
 		if wait <= 0 {
 			c.nextRequest[instance] = time.Now().Add(c.requestInterval)
