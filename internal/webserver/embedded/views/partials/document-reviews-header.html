@@ -1,0 +1,14 @@
+<header class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+    <h2 class="mb-0"><a href="{{.BookURL}}" target="_blank" rel="noopener noreferrer">{{t .Lang "%s user reviews" .Source}}</a></h2>
+    {{if gt (len .SupportedLanguages) 1}}
+    <label class="visually-hidden" for="review-language-{{.Slug}}">{{t .Lang "Language"}}</label>
+    <select class="form-select form-select-sm w-auto" id="review-language-{{.Slug}}" name="language"
+        aria-label='{{t .Lang "Language"}}' hx-get="/documents/{{.Slug}}/reviews" hx-trigger="change"
+        hx-target="#document-reviews-{{.Slug}}" hx-swap="outerHTML" hx-include="this"
+        hx-indicator="#document-reviews-{{.Slug}}">
+        {{range $language := .SupportedLanguages}}
+        <option value="{{$language}}" {{if eq $language $.ReviewLanguage}}selected{{end}}>{{languageName $language}}</option>
+        {{end}}
+    </select>
+    {{end}}
+</header>

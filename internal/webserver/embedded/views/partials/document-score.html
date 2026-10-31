@@ -1,8 +1,9 @@
-<li><i class="bi bi-star-fill me-2" alt="{{t .Lang "%s rating" .Source}}" title="{{t .Lang "%s rating" .Source}}"></i>{{if .Rating}}<a href="{{.URL}}" class="fw-bold text-decoration-none" target="_blank" rel="noopener noreferrer" title="{{t .Lang "%s rating" .Source}}">{{.Rating}}</a>{{if .RatingCount}} <small>({{t .Lang "%s ratings" .RatingCount}})</small>{{end}}{{else}}<span class="text-body-secondary">{{t .Lang "No score"}}</span>{{end}}</li>
-{{if and .Rating .DocumentSlug}}
-<div id="document-reviews-{{.DocumentSlug}}" class="mt-5 placeholder-glow" hx-swap-oob="outerHTML" hx-get="/documents/{{.DocumentSlug}}/reviews" hx-trigger="intersect once" hx-target="this" hx-swap="outerHTML">
+<li><i class="bi bi-star-fill me-2" alt="{{t .Lang "%s rating" .Source}}" title="{{t .Lang "%s rating" .Source}}"></i>{{if .Scored}}<a href="{{.URL}}" class="fw-bold text-decoration-none" target="_blank" rel="noopener noreferrer" title="{{t .Lang "%s rating" .Source}}">{{.Rating}}</a>{{if .RatingCount}} <small>({{t .Lang "%s ratings" .RatingCount}})</small>{{end}}{{else}}<span class="text-body-secondary">{{t .Lang "Not scored"}}</span>{{end}}</li>
+{{if and .URL .DocumentSlug}}
+<div id="document-reviews-{{.DocumentSlug}}" class="mt-5 placeholder-glow" hx-swap-oob="outerHTML"{{if .Rating}} hx-get="/documents/{{.DocumentSlug}}/reviews" hx-trigger="intersect once" hx-target="this" hx-swap="outerHTML"{{end}}>
+    {{template "partials/document-reviews-header" dict "Lang" .Lang "Source" .Source "BookURL" .URL "Slug" .DocumentSlug "SupportedLanguages" .SupportedLanguages "ReviewLanguage" .ReviewLanguage}}
+    {{if .Rating}}
     <div aria-hidden="true">
-        <h2><span class="placeholder col-6"></span></h2>
         {{range 2}}
         <div class="border-top pt-3 mt-3">
             <div class="mb-2">
@@ -20,5 +21,6 @@
         </div>
         {{end}}
     </div>
+    {{end}}
 </div>
 {{end}}

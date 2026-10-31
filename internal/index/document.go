@@ -20,16 +20,18 @@ type SearchFields struct {
 	// author and its own series - deliberately not its subjects, see
 	// similarToQuery), ranked by score and pruned to those scoring close
 	// enough to the best match (see runSimilarityQuery).
-	SimilarTo       string
-	PubDateFrom     date.Date
-	PubDateTo       date.Date
-	EstReadTimeFrom float64
-	EstReadTimeTo   float64
-	WordsPerMinute  float64
-	PagesFrom       float64
-	PagesTo         float64
-	IllustratedOnly bool
-	SortBy          []string
+	SimilarTo           string
+	PubDateFrom         date.Date
+	PubDateTo           date.Date
+	EstReadTimeFrom     float64
+	EstReadTimeTo       float64
+	WordsPerMinute      float64
+	PagesFrom           float64
+	PagesTo             float64
+	GoodReadsRatingFrom float64
+	GoodReadsRatingTo   float64
+	IllustratedOnly     bool
+	SortBy              []string
 }
 
 type Document struct {
@@ -80,6 +82,10 @@ type Document struct {
 	// It is stored but not indexed, and filled by EnrichGoodReads.
 	// Author URLs are stored on Author instead.
 	GoodReadsBookURL string
+	// GoodReadsRating is the score returned with the Goodreads book search result.
+	// The string is retained for display; GoodReadsRatingValue is indexed for filtering.
+	GoodReadsRating      string
+	GoodReadsRatingValue float64
 	// GoodReadsResourceID identifies the work; GoodReadsLegacyBookID identifies
 	// the edition. Both are stored only, populated when book details are fetched,
 	// and used together by BiblioReads to retrieve reviews.

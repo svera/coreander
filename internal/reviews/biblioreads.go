@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ type BiblioReadsClient interface {
 type GoodReadsIndex interface {
 	GoodReadsBook(ctx context.Context, document index.Document) (biblioreads.SearchResult, error)
 	StoreGoodReadsBookIDs(document index.Document, bookURL, resourceID string, legacyBookID int) error
+	StoreGoodReadsRating(document index.Document, bookURL, rating string) error
 }
 
 type BiblioReads struct {
@@ -34,6 +36,11 @@ type BiblioReads struct {
 
 func NewBiblioReads(client BiblioReadsClient, idx GoodReadsIndex) *BiblioReads {
 	return &BiblioReads{client: client, index: idx}
+}
+
+// DocumentLink returns the indexed book link without making a network request.
+func (b *BiblioReads) DocumentLink(document index.Document) servicelinks.Link {
+	return (servicelinks.Goodreads{}).Document(document)
 }
 
 func bookID(bookURL string) (string, error) {
@@ -53,12 +60,24 @@ func (b *BiblioReads) book(ctx context.Context, document index.Document) (biblio
 	if err != nil {
 		return book, fmt.Errorf("retrieving Goodreads book %s: %w", id, err)
 	}
+	if book.Rating != "" && document.GoodReadsRatingValue > 0 && isZeroRating(book.Rating) {
+		book.Rating = document.GoodReadsRating
+	} else if book.Rating != "" {
+		if err := b.index.StoreGoodReadsRating(document, document.GoodReadsBookURL, book.Rating); err != nil {
+			log.Printf("Error saving Goodreads rating for %s: %s", document.ID, err)
+		}
+	}
 	if book.ResourceID != "" && book.LegacyBookID > 0 {
 		if err := b.index.StoreGoodReadsBookIDs(document, document.GoodReadsBookURL, book.ResourceID, book.LegacyBookID); err != nil {
 			log.Printf("Error saving Goodreads identifiers for %s: %s", document.ID, err)
 		}
 	}
 	return book, nil
+}
+
+func isZeroRating(rating string) bool {
+	value, err := strconv.ParseFloat(rating, 64)
+	return err == nil && value == 0
 }
 
 func (b *BiblioReads) Score(ctx context.Context, document index.Document) (Score, error) {

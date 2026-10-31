@@ -40,6 +40,8 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 			},
 			AuthorsSlugs:          []string{"alice-borchardt"},
 			GoodReadsBookURL:      bookURL,
+			GoodReadsRating:       "4.25",
+			GoodReadsRatingValue:  4.25,
 			GoodReadsResourceID:   resourceID,
 			GoodReadsLegacyBookID: legacyBookID,
 		}
@@ -54,12 +56,15 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 		if got.GoodReadsBookURL != bookURL {
 			t.Errorf("language %q: expected stored book URL, got %q", lang, got.GoodReadsBookURL)
 		}
+		if got.GoodReadsRating != "4.25" {
+			t.Errorf("language %q: expected stored rating, got %q", lang, got.GoodReadsRating)
+		}
 		if got.GoodReadsResourceID != resourceID || got.GoodReadsLegacyBookID != legacyBookID {
 			t.Errorf("language %q: expected stored identifiers, got %q and %d", lang, got.GoodReadsResourceID, got.GoodReadsLegacyBookID)
 		}
 	}
 
-	for _, keywords := range []string{"zyxwvbook", "Zyxwv_Author", "12207444", "151155", "zyxwvresource", resourceID} {
+	for _, keywords := range []string{"zyxwvbook", "Zyxwv_Author", "12207444", "151155", "zyxwvresource", resourceID, "4.25"} {
 		res, err := idx.Search(index.SearchFields{Keywords: keywords}, 1, 10)
 		if err != nil {
 			t.Fatal(err)
@@ -68,9 +73,18 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 			t.Errorf("expected no results searching keywords %q, got %d", keywords, res.TotalHits())
 		}
 	}
+	filtered, err := idx.Search(index.SearchFields{GoodReadsRatingFrom: 4.2, GoodReadsRatingTo: 4.3}, 1, 10)
+	if err != nil || filtered.TotalHits() != 2 {
+		t.Errorf("expected both documents in the Goodreads score range, got %d results and error %v", filtered.TotalHits(), err)
+	}
+	filtered, err = idx.Search(index.SearchFields{GoodReadsRatingFrom: 4.3}, 1, 10)
+	if err != nil || filtered.TotalHits() != 0 {
+		t.Errorf("expected no documents above the Goodreads score, got %d results and error %v", filtered.TotalHits(), err)
+	}
 
 	queries := map[string]bleve.SearchRequest{
 		"book URL field term":     *bleve.NewSearchRequest(fieldTermQuery("GoodReadsBookURL", bookURL)),
+		"book rating field term":  *bleve.NewSearchRequest(fieldTermQuery("GoodReadsRating", "4.25")),
 		"author URL field term":   *bleve.NewSearchRequest(fieldTermQuery("GoodReadsAuthorURL", authorURL)),
 		"resource ID field term":  *bleve.NewSearchRequest(fieldTermQuery("GoodReadsResourceID", resourceID)),
 		"legacy ID numeric field": *bleve.NewSearchRequest(legacyBookIDQuery(legacyBookID)),

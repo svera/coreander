@@ -226,6 +226,20 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 		bq.SetBoost(0)
 		filtersQuery.AddQuery(bq)
 	}
+	if searchFields.GoodReadsRatingFrom > 0 || searchFields.GoodReadsRatingTo > 0 {
+		min := math.SmallestNonzeroFloat64
+		var max *float64
+		if searchFields.GoodReadsRatingFrom > 0 {
+			min = searchFields.GoodReadsRatingFrom
+		}
+		if searchFields.GoodReadsRatingTo > 0 {
+			max = &searchFields.GoodReadsRatingTo
+		}
+		ratingQuery := newInclusiveNumericRangeQuery(&min, max)
+		ratingQuery.SetField("GoodReadsRatingValue")
+		ratingQuery.SetBoost(0)
+		filtersQuery.AddQuery(ratingQuery)
+	}
 	if searchFields.IllustratedOnly && b.illustratedMinAmount > 0 {
 		minIllustrations := float64(b.illustratedMinAmount)
 		q := bleve.NewNumericRangeQuery(&minIllustrations, nil)
@@ -1024,6 +1038,8 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 	}
 
 	goodReadsBookURL, _ := match.Fields["GoodReadsBookURL"].(string)
+	goodReadsRating, _ := match.Fields["GoodReadsRating"].(string)
+	goodReadsRatingValue, _ := match.Fields["GoodReadsRatingValue"].(float64)
 	goodReadsResourceID, _ := match.Fields["GoodReadsResourceID"].(string)
 	goodReadsLegacyBookID, _ := match.Fields["GoodReadsLegacyBookID"].(float64)
 	goodReadsEnriched, _ := match.Fields["GoodReadsEnriched"].(bool)
@@ -1055,6 +1071,8 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		TextRankWords:         textRankWords,
 		TextRankEnriched:      textRankEnriched,
 		GoodReadsBookURL:      goodReadsBookURL,
+		GoodReadsRating:       goodReadsRating,
+		GoodReadsRatingValue:  goodReadsRatingValue,
 		GoodReadsResourceID:   goodReadsResourceID,
 		GoodReadsLegacyBookID: int(goodReadsLegacyBookID),
 		GoodReadsEnriched:     goodReadsEnriched,

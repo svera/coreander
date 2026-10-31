@@ -71,7 +71,7 @@
                 </p>
                 {{end}}
 
-                {{template "partials/document-metadata" dict "Lang" .Lang "Document" .Document "Session" .Session "WordsPerMinute" .WordsPerMinute "IllustratedMinAmount" .IllustratedMinAmount}}
+                {{template "partials/document-metadata" dict "Lang" .Lang "Document" .Document "Session" .Session "WordsPerMinute" .WordsPerMinute "IllustratedMinAmount" .IllustratedMinAmount "ShowGoodReadsScore" true}}
 
                 {{ if .Document.Subjects }}
                 <ul class="list-inline mt-3">

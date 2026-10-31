@@ -30,7 +30,7 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v15"
+const DocumentVersion = "v14"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
@@ -185,9 +185,6 @@ type Config struct {
 	// GoodReadsSource, if set, is used to fill each document's GoodReads URLs
 	// in the background (see EnrichGoodReads). Nil disables it.
 	GoodReadsSource GoodReadsSource
-	// GoodReadsEnrichInterval is the minimum time between two GoodReads
-	// lookups; <= 0 falls back to DefaultGoodReadsEnrichInterval.
-	GoodReadsEnrichInterval time.Duration
 }
 
 type BleveIndexer struct {
@@ -223,11 +220,9 @@ type BleveIndexer struct {
 	textRankEnrichJobs chan Document
 	// goodReadsEnrichJobs feeds IDs of documents queued by indexFile to
 	// runGoodReadsEnrichWorker; only used when goodReadsSource is set.
-	goodReadsEnrichJobs  chan string
-	goodReadsSource      GoodReadsSource
-	goodReadsInterval    time.Duration
-	goodReadsThrottleMu  sync.Mutex
-	goodReadsLastRequest time.Time
+	goodReadsEnrichJobs chan string
+	goodReadsSource     GoodReadsSource
+	goodReadsSlots      chan struct{}
 	// fileLocks holds a *sync.Mutex per document ID, serializing concurrent
 	// indexFile calls for the same file (upload vs. file watcher reacting to
 	// the same write).
@@ -333,19 +328,18 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		pruneChangeTriggerRatio:        pruneChangeTriggerRatio,
 		textRankEnrichJobs:             make(chan Document, textRankEnrichWorkers),
 		goodReadsSource:                cfg.GoodReadsSource,
-		goodReadsInterval:              cfg.GoodReadsEnrichInterval,
+		goodReadsSlots:                 make(chan struct{}, goodReadsEnrichWorkers),
 	}
 
 	for range textRankEnrichWorkers {
 		go b.runTextRankEnrichWorker()
 	}
 
-	if b.goodReadsInterval <= 0 {
-		b.goodReadsInterval = DefaultGoodReadsEnrichInterval
-	}
 	if b.goodReadsSource != nil {
-		b.goodReadsEnrichJobs = make(chan string, 1)
-		go b.runGoodReadsEnrichWorker()
+		b.goodReadsEnrichJobs = make(chan string, goodReadsEnrichWorkers)
+		for range goodReadsEnrichWorkers {
+			go b.runGoodReadsEnrichWorker()
+		}
 	}
 
 	return b
@@ -471,6 +465,8 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsBookURL", storedOnlyFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsRating", storedOnlyFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsRatingValue", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsResourceID", storedOnlyFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsLegacyBookID", storedOnlyNumericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsEnriched", booleanFieldMapping)
@@ -499,6 +495,8 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsBookURL", storedOnlyFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsRating", storedOnlyFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsRatingValue", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsResourceID", storedOnlyFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsLegacyBookID", storedOnlyNumericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsEnriched", booleanFieldMapping)

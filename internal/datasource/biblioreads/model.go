@@ -122,7 +122,7 @@ type ReviewsResponse struct {
 type Review struct {
 	ID           string   `json:"id"`
 	Reviewer     Reviewer `json:"reviewer"`
-	Rating       int      `json:"rating"`
+	Rating       float64  `json:"rating"`
 	Text         string   `json:"text"`
 	CreatedAt    string   `json:"createdAt"`
 	UpdatedAt    string   `json:"updatedAt"`

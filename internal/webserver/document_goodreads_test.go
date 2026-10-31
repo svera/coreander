@@ -3,6 +3,7 @@ package webserver_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -37,6 +38,61 @@ type fakeBookSource struct {
 	reviews     biblioreads.ReviewsResponse
 	reviewErr   error
 	reviewCalls []reviewCall
+}
+
+func TestDocumentReviewsCanSelectSupportedLanguage(t *testing.T) {
+	source := &fakeBookSource{book: biblioreads.BookResponse{
+		Rating: "4", ResourceID: "work-id", LegacyBookID: 1,
+	}}
+	app, _ := newGoodReadsTestApp(t, source)
+	req := mustGetRequest(t, "/documents/linked/reviews?language=fr")
+	req.Header.Set("Accept-Language", "es")
+	response, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	mustReturnStatus(response, http.StatusOK, t)
+	page, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(source.reviewCalls) != 1 || source.reviewCalls[0].languageCode != "fr" {
+		t.Fatalf("expected Goodreads reviews in French, got %+v", source.reviewCalls)
+	}
+	if page.Find("h2").Text() != "Reseñas de usuarios de Goodreads" {
+		t.Fatalf("expected page language to remain Spanish while selecting French reviews, got %q", page.Find("h2").Text())
+	}
+	selectBox := page.Find(`#review-language-linked`)
+	if selectBox.Length() != 1 || selectBox.Find(`option[value="fr"][selected]`).Length() != 1 {
+		html, _ := selectBox.Html()
+		t.Fatalf("expected the review-language selector to retain the selected language: %q", html)
+	}
+	if indicator, _ := selectBox.Attr("hx-indicator"); indicator != "#document-reviews-linked" ||
+		page.Find(`#document-reviews-linked .document-reviews-loading > div`).Length() != 2 {
+		t.Fatal("expected a review skeleton indicator for language changes")
+	}
+	for _, language := range webserver.SupportedLanguages() {
+		if selectBox.Find(`option[value="`+language+`"]`).Length() != 1 {
+			t.Errorf("expected supported language %q in the review selector", language)
+		}
+	}
+}
+
+func TestDocumentReviewsRejectUnsupportedLanguage(t *testing.T) {
+	source := &fakeBookSource{book: biblioreads.BookResponse{
+		Rating: "4", ResourceID: "work-id", LegacyBookID: 1,
+	}}
+	app, _ := newGoodReadsTestApp(t, source)
+	response, err := app.Test(mustGetRequest(t, "/documents/linked/reviews?language=zz"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	mustReturnStatus(response, http.StatusBadRequest, t)
+	if len(source.reviewCalls) != 0 {
+		t.Fatalf("unsupported language must not be sent to Goodreads, got %+v", source.reviewCalls)
+	}
 }
 
 type fakeReviewProvider struct {
@@ -121,7 +177,7 @@ func TestDocumentAlternativeReviewProvider(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		link := page.Find(`a[href="https://example.org/books/book-1"]`)
+		link := page.Find(`li a[href="https://example.org/books/book-1"]`)
 		if link.Text() != "4.5" || !strings.Contains(body, "Another service rating") || strings.Contains(body, "goodreads.com") {
 			t.Fatalf("score must use the selected provider's labels, value and URL: %s", body)
 		}
@@ -142,6 +198,42 @@ func TestDocumentAlternativeReviewProvider(t *testing.T) {
 	}
 	if len(provider.reviewLanguages) != 1 || provider.reviewLanguages[0] != "en" {
 		t.Fatalf("expected the current UI language to reach alternative providers, got %q", provider.reviewLanguages)
+	}
+}
+
+func TestDocumentScoreMarksZeroWithoutValuationsAsNotScored(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		count      string
+		wantScore  string
+		wantScored bool
+	}{
+		{name: "zero valuations", count: "0", wantScore: "Not scored"},
+		{name: "valuations exist", count: "650", wantScore: "0.00", wantScored: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := &fakeReviewProvider{
+				score: reviews.Score{
+					Source: "Goodreads", Value: "0.00", Count: tt.count,
+					URL: "https://www.goodreads.com/book/show/1",
+				},
+			}
+			app, _ := newReviewProviderTestApp(t, nil, provider)
+			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/unmatched/score")))
+			if err != nil {
+				t.Fatal(err)
+			}
+			row := page.Find("li")
+			if tt.wantScored {
+				if got := strings.TrimSpace(row.Find("a").Text()); got != tt.wantScore {
+					t.Fatalf("expected score %q, got %q", tt.wantScore, got)
+				}
+				return
+			}
+			if got := strings.TrimSpace(row.Text()); got != tt.wantScore || row.Find("a").Length() != 0 {
+				t.Fatalf("expected unlinked %q label, got %q", tt.wantScore, got)
+			}
+		})
 	}
 }
 
@@ -214,9 +306,11 @@ func newServiceProvidersTestApp(t *testing.T, source *fakeBookSource, provider d
 	for _, doc := range []index.Document{
 		{
 			ID: "linked.epub", Slug: "linked",
-			Metadata:          metadata.Metadata{Title: "La Reina Dragon", Format: "EPUB"},
-			GoodReadsBookURL:  "/book/show/12207444-la-reina-dragon",
-			GoodReadsEnriched: true,
+			Metadata:             metadata.Metadata{Title: "La Reina Dragon", Format: "EPUB"},
+			GoodReadsBookURL:     "/book/show/12207444-la-reina-dragon",
+			GoodReadsRating:      "3.82",
+			GoodReadsRatingValue: 3.82,
+			GoodReadsEnriched:    true,
 		},
 		{
 			ID: "unlinked.epub", Slug: "unlinked",
@@ -240,6 +334,41 @@ func newServiceProvidersTestApp(t *testing.T, source *fakeBookSource, provider d
 	app := webserver.New(cfg, controllers, sender, idx, &model.UserRepository{DB: db})
 	t.Cleanup(func() { _ = app.Shutdown() })
 	return app, idx
+}
+
+func TestSearchResultsShowStoredGoodReadsRating(t *testing.T) {
+	app, _ := newGoodReadsTestApp(t, nil)
+	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/search?type=documents&search=La")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rating := page.Find(`a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`)
+	if rating.Length() != 1 || strings.TrimSpace(rating.Text()) != "3.82" {
+		t.Fatalf("expected stored Goodreads rating in search result, got %q", rating.Text())
+	}
+	if page.Find(`li:has(a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]) i.bi-star-fill`).Length() != 1 {
+		t.Fatal("expected a star icon beside the Goodreads score")
+	}
+}
+
+func TestDocumentDetailShowsStoredZeroRatingAsNotScored(t *testing.T) {
+	source := &fakeBookSource{results: []biblioreads.SearchResult{{
+		Title: "Unlinked", Author: "Jane Doe", BookURL: "/book/show/1-unlinked", Rating: "0.00",
+	}}}
+	app, _ := newGoodReadsTestApp(t, source)
+	getBody(t, app, "/documents/unlinked/goodreads")
+
+	body := getBody(t, app, "/search?type=documents&search=Unlinked")
+	page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := page.Find("li").FilterFunction(func(_ int, item *goquery.Selection) bool {
+		return strings.TrimSpace(item.Text()) == "Not scored" && item.Find("i.bi-star-fill").Length() == 1
+	})
+	if row.Length() == 0 || row.Find("a").Length() != 0 {
+		t.Fatalf("expected stored zero rating to render as Not scored, got %q in %s", row.Text(), body)
+	}
 }
 
 func getBody(t *testing.T, app *fiber.App, path string) string {
@@ -317,6 +446,56 @@ func TestDocumentDetailGoodReadsRating(t *testing.T) {
 	}
 }
 
+func TestDocumentDetailUpdatesStoredGoodReadsRating(t *testing.T) {
+	source := &fakeBookSource{book: biblioreads.BookResponse{
+		Rating: "4.12", ResourceID: "work-id", LegacyBookID: 12207444,
+	}}
+	app, idx := newGoodReadsTestApp(t, source)
+
+	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/goodreads")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	link := page.Find(`li a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`)
+	if got := strings.TrimSpace(link.Text()); got != "4.12" {
+		t.Fatalf("expected latest Goodreads rating 4.12, got %q", got)
+	}
+	stored, err := idx.Document("linked")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.GoodReadsRating != "4.12" || stored.GoodReadsRatingValue != 4.12 {
+		t.Fatalf("expected latest rating and searchable value to be stored, got %+v", stored)
+	}
+	results, err := idx.Search(index.SearchFields{GoodReadsRatingFrom: 4.1, GoodReadsRatingTo: 4.2}, 1, 10)
+	if err != nil || results.TotalHits() != 1 {
+		t.Fatalf("expected document to match updated rating range, got %d results and error %v", results.TotalHits(), err)
+	}
+}
+
+func TestDocumentDetailKeepsStoredGoodReadsRatingWhenScraperReturnsZero(t *testing.T) {
+	source := &fakeBookSource{book: biblioreads.BookResponse{
+		Rating: "0.00", RatingCount: "650", ResourceID: "work-id", LegacyBookID: 12207444,
+	}}
+	app, idx := newGoodReadsTestApp(t, source)
+
+	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/goodreads")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	link := page.Find(`li a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`)
+	if got := strings.TrimSpace(link.Text()); got != "3.82" {
+		t.Fatalf("expected known Goodreads rating to be retained, got %q", got)
+	}
+	stored, err := idx.Document("linked")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.GoodReadsRating != "3.82" || stored.GoodReadsRatingValue != 3.82 {
+		t.Fatalf("zero scraper rating must not replace indexed Goodreads score, got %+v", stored)
+	}
+}
+
 func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
 	source := &fakeBookSource{
 		book:    biblioreads.BookResponse{Rating: "4.20", RatingCount: "10", ResourceID: "work-id", LegacyBookID: 1},
@@ -332,7 +511,7 @@ func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.TrimSpace(page.Find(`a[href="https://www.goodreads.com/book/show/1-unlinked"]`).Text()); got != "4.10" {
+	if got := strings.TrimSpace(page.Find(`li a[href="https://www.goodreads.com/book/show/1-unlinked"]`).Text()); got != "4.10" {
 		t.Errorf("expected rating link with 4.10, got %q", got)
 	}
 	if len(source.queries) != 1 || source.queries[0] != "Unlinked Jane Doe" {
@@ -367,7 +546,7 @@ func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.TrimSpace(page.Find(`a[href="https://www.goodreads.com/book/show/1-unlinked"]`).Text()); got != "4.20" {
+	if got := strings.TrimSpace(page.Find(`li a[href="https://www.goodreads.com/book/show/1-unlinked"]`).Text()); got != "4.20" {
 		t.Errorf("expected later request to use book-scraper rating, got %q", got)
 	}
 	if len(source.queries) != 1 {
@@ -392,7 +571,7 @@ func TestDocumentDetailGoodReadsSkipsUnmatchedDocuments(t *testing.T) {
 		score := page.Find("li").FilterFunction(func(_ int, item *goquery.Selection) bool {
 			return item.Find("i.bi-star-fill").Length() == 1
 		})
-		if strings.TrimSpace(score.Text()) != "No score" || score.Find("a").Length() != 0 {
+		if strings.TrimSpace(score.Text()) != "Not scored" || score.Find("a").Length() != 0 {
 			t.Errorf("%s: expected unlinked no-score row, got %q", path, score.Text())
 		}
 	}
@@ -403,8 +582,7 @@ func TestDocumentDetailGoodReadsSkipsUnmatchedDocuments(t *testing.T) {
 
 func TestDocumentDetailGoodReadsRatingRendersNothingWhenUnavailable(t *testing.T) {
 	for name, source := range map[string]*fakeBookSource{
-		"error":     {err: errors.New("unavailable")},
-		"no rating": {},
+		"error": {err: errors.New("unavailable")},
 	} {
 		t.Run(name, func(t *testing.T) {
 			app, _ := newGoodReadsTestApp(t, source)
@@ -418,8 +596,12 @@ func TestDocumentDetailGoodReadsRatingRendersNothingWhenUnavailable(t *testing.T
 func TestDocumentDetailGoodReadsIdentifiersWithoutRating(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{ResourceID: "work-id", LegacyBookID: 12207444}}
 	app, idx := newGoodReadsTestApp(t, source)
-	if body := strings.TrimSpace(getBody(t, app, "/documents/linked/goodreads")); body != "" {
-		t.Fatalf("expected no rating, got %q", body)
+	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/goodreads")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(page.Find("li").Text()) != "Not scored" || page.Find("h2").Text() != "Goodreads user reviews" {
+		t.Fatal("expected no score and a reviews heading for a matched book without a rating")
 	}
 	stored, err := idx.Document("linked")
 	if err != nil {
@@ -493,8 +675,17 @@ func TestDocumentDetailGoodReadsSearchDoesNotScrape(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if strings.TrimSpace(page.Find("li").Text()) != "No score" || page.Find("a").Length() != 0 {
+				if strings.TrimSpace(page.Find("li").Text()) != "Not scored" || page.Find("a").Length() != 0 {
 					t.Errorf("expected no-score row without a link, got %q", body)
+				}
+			} else if tt.enriched && len(tt.results) > 0 {
+				page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if page.Find("#document-reviews-unlinked h2").Text() != "Goodreads user reviews" ||
+					page.Find("#document-reviews-unlinked[hx-get]").Length() != 0 {
+					t.Fatal("a match without a rating must show the heading without fetching reviews")
 				}
 			} else if body != "" {
 				t.Errorf("expected no rating from search, got %q", body)
@@ -517,11 +708,11 @@ func TestDocumentDetailGoodReadsNoScoreTranslations(t *testing.T) {
 		lang string
 		text string
 	}{
-		{"en", "No score"},
-		{"es", "Sin puntuación"},
-		{"de", "Keine Bewertung"},
-		{"fr", "Aucune note"},
-		{"ru", "Нет оценки"},
+		{"en", "Not scored"},
+		{"es", "Sin puntuar"},
+		{"de", "Nicht bewertet"},
+		{"fr", "Non noté"},
+		{"ru", "Не оценено"},
 	} {
 		for _, path := range []string{"/documents/unmatched/score", "/documents/unmatched/goodreads"} {
 			t.Run(locale.lang+path, func(t *testing.T) {
@@ -565,6 +756,9 @@ func TestDocumentDetailGoodReadsReviewsLazyPlaceholder(t *testing.T) {
 	if target.Length() != 1 || target.Is("[hx-get]") {
 		t.Fatal("expected an inactive reviews target before the rating loads")
 	}
+	if target.Find("h2").Text() != "Goodreads user reviews" {
+		t.Fatal("expected the reviews heading before the score loads")
+	}
 	if !target.Is(".document-detail-content > :last-child") {
 		t.Fatal("reviews must appear at the bottom of the document content")
 	}
@@ -575,6 +769,9 @@ func TestDocumentDetailGoodReadsReviewsLazyPlaceholder(t *testing.T) {
 	placeholder := page.Find(`#document-reviews-linked[hx-get="/documents/linked/reviews"][hx-trigger="intersect once"][hx-swap-oob="outerHTML"]`)
 	if placeholder.Length() != 1 {
 		t.Fatal("expected successful rating to enable reviews on intersection only")
+	}
+	if placeholder.Find("h2").Text() != "Goodreads user reviews" || placeholder.Find(`[aria-hidden="true"] h2`).Length() != 0 {
+		t.Fatal("the reviews heading must remain visible and accessible while reviews load")
 	}
 	skeletons := placeholder.Find(".border-top")
 	if skeletons.Length() != 2 || placeholder.Find(`div[aria-hidden="true"]`).Length() != 1 {
@@ -590,6 +787,43 @@ func TestDocumentDetailGoodReadsReviewsLazyPlaceholder(t *testing.T) {
 	})
 	if len(source.reviewCalls) != 0 {
 		t.Fatal("page and rating requests must not fetch reviews")
+	}
+}
+
+func TestDocumentDetailGoodReadsReviewsHeader(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		source *fakeBookSource
+		slug   string
+		want   int
+	}{
+		{name: "matched", source: &fakeBookSource{}, slug: "linked", want: 1},
+		{name: "zero score", source: &fakeBookSource{book: biblioreads.BookResponse{Rating: "0.00"}}, slug: "linked", want: 1},
+		{name: "unavailable", source: &fakeBookSource{err: biblioreads.ErrUnavailable}, slug: "linked", want: 1},
+		{name: "disabled", slug: "linked"},
+		{name: "unmatched", source: &fakeBookSource{}, slug: "unmatched"},
+		{name: "not looked up", source: &fakeBookSource{}, slug: "unlinked"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			app, _ := newGoodReadsTestApp(t, tt.source)
+			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/"+tt.slug)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			header := page.Find(`#document-reviews-` + tt.slug + ` h2 a`)
+			if header.Length() != tt.want {
+				t.Fatalf("expected %d reviews headings, got %d", tt.want, header.Length())
+			}
+			if tt.want == 1 {
+				url, _ := header.Attr("href")
+				if header.Text() != "Goodreads user reviews" || url != "https://www.goodreads.com/book/show/12207444-la-reina-dragon" {
+					t.Fatal("expected a linked Goodreads reviews heading")
+				}
+			}
+			if tt.source != nil && (len(tt.source.ids) != 0 || len(tt.source.reviewCalls) != 0 || len(tt.source.queries) != 0) {
+				t.Fatal("rendering the heading must not make any API calls")
+			}
+		})
 	}
 }
 
@@ -651,6 +885,97 @@ func TestDocumentDetailGoodReadsReviews(t *testing.T) {
 	}
 }
 
+func TestDocumentReviewFractionalStars(t *testing.T) {
+	for _, tt := range []struct {
+		rating float64
+		full   int
+		empty  int
+		width  int
+	}{
+		{rating: 0},
+		{rating: 0.25, empty: 4, width: 25},
+		{rating: 3.5, full: 3, empty: 1, width: 50},
+		{rating: 4.25, full: 4, width: 25},
+		{rating: 4.75, full: 4, width: 75},
+		{rating: 4, full: 4, empty: 1},
+		{rating: 5, full: 5},
+	} {
+		t.Run(fmt.Sprint(tt.rating), func(t *testing.T) {
+			source := &fakeBookSource{
+				book: biblioreads.BookResponse{Rating: "4", ResourceID: "work", LegacyBookID: 1},
+				reviews: biblioreads.ReviewsResponse{Reviews: []biblioreads.Review{
+					{Reviewer: biblioreads.Reviewer{Name: "Reader"}, Rating: tt.rating},
+				}},
+			}
+			app, _ := newGoodReadsTestApp(t, source)
+			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/reviews")))
+			if err != nil {
+				t.Fatal(err)
+			}
+			stars := page.Find(`article span[role="img"]`)
+			if tt.rating == 0 {
+				if stars.Length() != 0 {
+					t.Fatal("unrated reviews must not display stars")
+				}
+				if page.Find("article header span.text-muted").Text() != "Not scored" {
+					t.Fatal("unrated reviews must display Not scored")
+				}
+				return
+			}
+			if page.Find("article header span.text-muted").Length() != 0 {
+				t.Fatal("scored reviews must not display the unrated label")
+			}
+			if label, _ := stars.Attr("aria-label"); label != fmt.Sprintf("%g/5", tt.rating) {
+				t.Fatalf("expected exact accessible rating, got %q", label)
+			}
+			if stars.ChildrenFiltered("i.bi-star-fill").Length() != tt.full ||
+				stars.ChildrenFiltered("i.bi-star").Length() != tt.empty ||
+				stars.Children().Length() != 5 {
+				t.Fatalf("unexpected full/empty star counts: %s", stars.Text())
+			}
+			partial := stars.Find(".review-star-fill")
+			if tt.width == 0 {
+				if partial.Length() != 0 {
+					t.Fatal("whole ratings must not include a partial star")
+				}
+			} else if style, _ := partial.Attr("style"); style != fmt.Sprintf("width: %d%%", tt.width) ||
+				stars.Find(`.review-star[aria-hidden="true"]`).Length() != 1 {
+				t.Fatalf("expected a %d%% decorative star fill, got %q", tt.width, style)
+			}
+		})
+	}
+}
+
+func TestDocumentReviewNotScoredTranslations(t *testing.T) {
+	source := &fakeBookSource{
+		book: biblioreads.BookResponse{Rating: "4", ResourceID: "work", LegacyBookID: 1},
+		reviews: biblioreads.ReviewsResponse{Reviews: []biblioreads.Review{
+			{Reviewer: biblioreads.Reviewer{Name: "Reader"}, Text: "A review without a rating"},
+		}},
+	}
+	app, _ := newGoodReadsTestApp(t, source)
+	for _, tt := range []struct {
+		lang string
+		text string
+	}{
+		{"en", "Not scored"},
+		{"de", "Nicht bewertet"},
+		{"es", "Sin puntuar"},
+		{"fr", "Non noté"},
+		{"ru", "Не оценено"},
+	} {
+		t.Run(tt.lang, func(t *testing.T) {
+			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/reviews?l="+tt.lang)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := page.Find("article header span.text-muted").Text(); got != tt.text {
+				t.Fatalf("expected %q, got %q", tt.text, got)
+			}
+		})
+	}
+}
+
 func TestDocumentDetailGoodReadsReviewsAvailability(t *testing.T) {
 	for _, tt := range []struct {
 		name     string
@@ -663,7 +988,7 @@ func TestDocumentDetailGoodReadsReviewsAvailability(t *testing.T) {
 	}{
 		{name: "disabled", slug: "linked", status: http.StatusOK},
 		{name: "unmatched", source: &fakeBookSource{}, slug: "unmatched", status: http.StatusOK},
-		{name: "no score", source: &fakeBookSource{book: biblioreads.BookResponse{ResourceID: "work", LegacyBookID: 1}}, slug: "linked", status: http.StatusOK},
+		{name: "no score", source: &fakeBookSource{book: biblioreads.BookResponse{ResourceID: "work", LegacyBookID: 1}}, slug: "linked", status: http.StatusOK, text: "Goodreads user reviews"},
 		{name: "book unavailable", source: &fakeBookSource{err: errors.New("unavailable")}, slug: "linked", status: http.StatusInternalServerError},
 		{name: "missing identifiers", source: &fakeBookSource{book: biblioreads.BookResponse{Rating: "4"}}, slug: "linked", status: http.StatusInternalServerError},
 		{name: "reviews unavailable", source: &fakeBookSource{book: biblioreads.BookResponse{Rating: "4", ResourceID: "work", LegacyBookID: 1}, reviewErr: errors.New("unavailable")}, slug: "linked", status: http.StatusInternalServerError, calls: 1},

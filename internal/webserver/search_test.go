@@ -145,6 +145,40 @@ func TestUnifiedSearch(t *testing.T) {
 	}
 }
 
+func TestGoodReadsScoreFilter(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), webserver.Config{})
+
+	response, err := app.Test(mustGetRequest(t, "/search?type=documents&goodreads-score-from=4.2&goodreads-score-to=4.8"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []struct {
+		name  string
+		value string
+	}{
+		{name: "goodreads-score-from", value: "4.2"},
+		{name: "goodreads-score-to", value: "4.8"},
+	} {
+		input := doc.Find(`input[name="` + field.name + `"]`)
+		if input.Length() == 0 {
+			t.Errorf("Expected Goodreads score filter %q", field.name)
+			continue
+		}
+		if got, _ := input.First().Attr("value"); got != field.value {
+			t.Errorf("Expected %s value %q, got %q", field.name, field.value, got)
+		}
+	}
+}
+
 // TestSimilarDocumentsFullPage checks that navigating to a document's
 // /similar route (the "Similar documents" > "See all" link) renders the same
 // full search UI as a regular search, scoped to that document, with any

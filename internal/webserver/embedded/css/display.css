@@ -352,6 +352,31 @@ main .form-control:focus {
     line-clamp: 5;
 }
 
+.document-reviews-loading {
+    display: none;
+}
+
+.document-reviews.htmx-request .document-reviews-content {
+    display: none;
+}
+
+.document-reviews.htmx-request .document-reviews-loading {
+    display: block;
+}
+
+.review-star {
+    position: relative;
+    display: inline-block;
+}
+
+.review-star-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
 #searchbox-container .input-group .form-control:focus {
     box-shadow: none !important;
 }

@@ -74,7 +74,17 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"IllustratorSummaries": illustratorSummaries,
 		"Debug":                c.RequestCtx().QueryArgs().Has("debug"),
 		"ReviewsEnabled":       d.reviewProvider != nil,
+		"DocumentServiceLink":  d.documentServiceLink(document),
 	}, "layout")
+}
+
+func (d *Controller) documentServiceLink(document index.Document) servicelinks.Link {
+	if provider, ok := d.reviewProvider.(interface {
+		DocumentLink(index.Document) servicelinks.Link
+	}); ok {
+		return provider.DocumentLink(document)
+	}
+	return servicelinks.Link{}
 }
 
 // authorAndIllustratorSummaries resolves the (up to 2) authors and (up to 2)

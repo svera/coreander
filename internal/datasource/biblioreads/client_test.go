@@ -25,6 +25,10 @@ type capturedRequest struct {
 
 const validBookResponse = `{"status":"Received","statusCode":200,"rating":"3.92","resourceID":"work-id","legacyBookID":5898652}`
 
+func newTestClient(opts ...biblioreads.Option) *biblioreads.Client {
+	return biblioreads.NewClient(append([]biblioreads.Option{biblioreads.WithRequestInterval(0)}, opts...)...)
+}
+
 func newMockServer(t *testing.T, status int, fixture string, captured *capturedRequest) *httptest.Server {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -73,7 +77,7 @@ func assertRequest(t *testing.T, captured capturedRequest, path string, payload 
 func TestSearchBooks(t *testing.T) {
 	var captured capturedRequest
 	server := newMockServer(t, http.StatusOK, "search-books.json", &captured)
-	client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
+	client := newTestClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
 
 	res, err := client.SearchBooks(context.Background(), "La Reina Dragón Alice Borchardt")
 	if err != nil {
@@ -126,7 +130,7 @@ func TestBookResponseRecovery(t *testing.T) {
 			defer first.Close()
 			second := httptest.NewServer(handler)
 			defer second.Close()
-			client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
+			client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
 			for range 2 {
 				book, err := client.Book(context.Background(), "5898652-la-cinta-roja")
 				if err != nil || book.Rating != "3.92" || book.ResourceID != "work-id" || book.LegacyBookID != 5898652 {
@@ -146,7 +150,7 @@ func TestBookResponseRecovery(t *testing.T) {
 func TestIncompleteBookResponsesAreNotCached(t *testing.T) {
 	var hits atomic.Int32
 	server := newCountingServer(t, http.StatusOK, `{"status":"Received","statusCode":200,"rating":"3.92"}`, &hits)
-	client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}))
+	client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
 	for range 2 {
 		book, err := client.Book(context.Background(), "5898652")
 		if err != nil || book.Rating != "3.92" {
@@ -175,7 +179,7 @@ func TestIncompleteBookFallbackPrefersScore(t *testing.T) {
 			defer first.Close()
 			second := httptest.NewServer(handler)
 			defer second.Close()
-			client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
+			client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
 			for range 2 {
 				book, err := client.Book(context.Background(), "5898652")
 				if err != nil || book.Rating != "3.92" || book.Title != "Scored result" {
@@ -195,7 +199,7 @@ func TestIncompleteBookFallbackPrefersScore(t *testing.T) {
 func TestBook(t *testing.T) {
 	var captured capturedRequest
 	server := newMockServer(t, http.StatusOK, "book-scraper.json", &captured)
-	client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
+	client := newTestClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
 
 	res, err := client.Book(context.Background(), "12207444-la-reina-dragon")
 	if err != nil {
@@ -242,7 +246,7 @@ func TestAuthor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var captured capturedRequest
 			server := newMockServer(t, http.StatusOK, "author-info.json", &captured)
-			client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
+			client := newTestClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
 
 			res, err := client.Author(context.Background(), tt.id)
 			if err != nil {
@@ -286,18 +290,24 @@ func TestAuthorErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var hits atomic.Int32
 			server := newCountingServer(t, tt.status, tt.body, &hits)
-			client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}))
+			client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
 
 			for range 2 {
-				_, err := client.Author(context.Background(), "151155")
+				ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+				_, err := client.Author(ctx, "151155")
+				cancel()
 				if err == nil {
 					t.Fatal("expected error, got nil")
 				}
-				if errors.Is(err, biblioreads.ErrUnavailable) != tt.unavailable {
+				if errors.Is(err, biblioreads.ErrUnavailable) != tt.unavailable && !errors.Is(err, context.DeadlineExceeded) {
 					t.Errorf("expected unavailable=%v, got %v", tt.unavailable, err)
 				}
 			}
-			if hits.Load() != 2 {
+			wantHits := int32(2)
+			if tt.unavailable {
+				wantHits = 1
+			}
+			if hits.Load() != wantHits {
 				t.Errorf("expected errors not to be cached, got %d requests", hits.Load())
 			}
 		})
@@ -315,14 +325,17 @@ func TestReviewsInvalidResponses(t *testing.T) {
 		t.Run(body, func(t *testing.T) {
 			var hits atomic.Int32
 			server := newCountingServer(t, http.StatusOK, body, &hits)
-			client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}))
+			client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
 			for range 2 {
-				if _, err := client.Reviews(context.Background(), "work", 1, "", ""); !errors.Is(err, biblioreads.ErrUnavailable) {
+				ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+				_, err := client.Reviews(ctx, "work", 1, "", "")
+				cancel()
+				if !errors.Is(err, biblioreads.ErrUnavailable) && !errors.Is(err, context.DeadlineExceeded) {
 					t.Fatalf("expected unavailable error, got %v", err)
 				}
 			}
-			if hits.Load() != 2 {
-				t.Fatal("invalid responses must not be cached")
+			if hits.Load() != 1 {
+				t.Fatal("invalid responses must trigger cooldown")
 			}
 		})
 	}
@@ -345,7 +358,7 @@ func TestReviewsFailover(t *testing.T) {
 	defer first.Close()
 	second := httptest.NewServer(handler)
 	defer second.Close()
-	client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
+	client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
 	response, err := client.Reviews(context.Background(), "work", 1, "", "")
 	if err != nil || len(response.Reviews) == 0 || hits.Load() != 2 {
 		t.Fatalf("expected failover to working instance, got %d requests, %+v, %v", hits.Load(), response, err)
@@ -369,7 +382,7 @@ func TestReviewsEmptyResponseRecovery(t *testing.T) {
 	defer first.Close()
 	second := httptest.NewServer(handler)
 	defer second.Close()
-	client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
+	client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
 	for range 2 {
 		reviews, err := client.Reviews(context.Background(), "work", 1, "", "")
 		if err != nil || len(reviews.Reviews) == 0 {
@@ -384,7 +397,7 @@ func TestReviewsEmptyResponseRecovery(t *testing.T) {
 func TestReviewsEmptyResponsesAreNotCached(t *testing.T) {
 	var hits atomic.Int32
 	server := newCountingServer(t, http.StatusOK, `{"status":"Received","statusCode":200,"totalCount":0,"reviews":[]}`, &hits)
-	client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}))
+	client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
 	for range 2 {
 		response, err := client.Reviews(context.Background(), "work", 1, "", "")
 		if err != nil || len(response.Reviews) != 0 {
@@ -409,7 +422,7 @@ func TestReviewsEmptyFallbackSurvivesInvalidResponse(t *testing.T) {
 	defer first.Close()
 	second := httptest.NewServer(handler)
 	defer second.Close()
-	client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
+	client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
 	response, err := client.Reviews(context.Background(), "work", 1, "", "es")
 	if err != nil || len(response.Reviews) != 0 || response.NextPageToken != "empty-page" {
 		t.Fatalf("expected original empty fallback without fields from the invalid response, got %+v, %v", response, err)
@@ -443,7 +456,7 @@ func TestReviewsLanguageVersionCompatibility(t *testing.T) {
 				}
 			}))
 			defer server.Close()
-			client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}))
+			client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
 			for range 2 {
 				_, err := client.Reviews(context.Background(), "work", 1, "", "es")
 				if tt.supported && err != nil {
@@ -453,10 +466,7 @@ func TestReviewsLanguageVersionCompatibility(t *testing.T) {
 					t.Fatalf("expected unsupported instance to fail, got %v", err)
 				}
 			}
-			wantHits := int32(2)
-			if tt.supported {
-				wantHits = 1
-			}
+			wantHits := int32(1)
 			if hits.Load() != wantHits {
 				t.Fatalf("expected %d requests, got %d", wantHits, hits.Load())
 			}
@@ -483,7 +493,7 @@ func TestReviewsLanguageFailsOverFromLegacyInstance(t *testing.T) {
 	defer first.Close()
 	second := httptest.NewServer(handler)
 	defer second.Close()
-	client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
+	client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}))
 	for range 2 {
 		response, err := client.Reviews(context.Background(), "work", 1, "", "es")
 		if err != nil {
@@ -521,7 +531,7 @@ func TestReviewsLanguageCache(t *testing.T) {
 		})
 	}))
 	defer server.Close()
-	client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}))
+	client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
 	for _, language := range []string{"es", "en", "es", "en"} {
 		response, err := client.Reviews(context.Background(), "work", 1, "", language)
 		if err != nil {
@@ -537,10 +547,29 @@ func TestReviewsLanguageCache(t *testing.T) {
 }
 
 func TestReviews(t *testing.T) {
+	t.Run("fractional ratings", func(t *testing.T) {
+		var hits atomic.Int32
+		server := newCountingServer(t, http.StatusOK, `{"status":"Received","statusCode":200,"totalCount":4,"reviews":[{"rating":0.25},{"rating":3.5},{"rating":4.75},{"rating":5}]}`, &hits)
+		client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
+		response, err := client.Reviews(context.Background(), "work", 1, "", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []float64{0.25, 3.5, 4.75, 5}
+		if len(response.Reviews) != len(want) {
+			t.Fatalf("expected %d reviews, got %d", len(want), len(response.Reviews))
+		}
+		for i, rating := range want {
+			if response.Reviews[i].Rating != rating {
+				t.Errorf("review %d: expected rating %g, got %g", i, rating, response.Reviews[i].Rating)
+			}
+		}
+	})
+
 	t.Run("first page", func(t *testing.T) {
 		var captured capturedRequest
 		server := newMockServer(t, http.StatusOK, "reviews-scraper.json", &captured)
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
+		client := newTestClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
 
 		res, err := client.Reviews(context.Background(), "kca://work/amzn1.gr.work.v1.dbcQjzlbvXR8RBZBdd8J6g", 12207444, "", "")
 		if err != nil {
@@ -581,7 +610,7 @@ func TestReviews(t *testing.T) {
 			_, _ = w.Write([]byte(`{"version":"BiblioReads v4.4.0","status":"Received","statusCode":200,"totalCount":1,"reviews":[{"text":"Una reseña"}]}`))
 		}))
 		defer server.Close()
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
+		client := newTestClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
 
 		if _, err := client.Reviews(context.Background(), "kca://work/abc", 1, "token", "es"); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -599,7 +628,7 @@ func TestReviews(t *testing.T) {
 func TestErrorStatus(t *testing.T) {
 	var captured capturedRequest
 	server := newMockServer(t, http.StatusNotFound, "", &captured)
-	client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
+	client := newTestClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithHTTPClient(server.Client()), biblioreads.WithCacheTTL(0))
 
 	if _, err := client.Book(context.Background(), "0"); err == nil {
 		t.Error("expected error on non-200 response, got nil")
@@ -629,7 +658,7 @@ func TestFailover(t *testing.T) {
 
 		instances := []string{down.URL, unavailable.URL, rateLimited.URL, html.URL, working.URL}
 		for range 20 {
-			client := biblioreads.NewClient(biblioreads.WithInstances(instances), biblioreads.WithCacheTTL(0))
+			client := newTestClient(biblioreads.WithInstances(instances), biblioreads.WithCacheTTL(0))
 			res, err := client.Book(context.Background(), "12207444")
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -648,7 +677,7 @@ func TestFailover(t *testing.T) {
 		first := newCountingServer(t, http.StatusOK, validBookResponse, &firstHits)
 		second := newCountingServer(t, http.StatusOK, validBookResponse, &secondHits)
 
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
 		for range 100 {
 			if _, err := client.Book(context.Background(), "1"); err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -664,7 +693,7 @@ func TestFailover(t *testing.T) {
 		first := newCountingServer(t, http.StatusNotFound, `{"status":"Error - Invalid Query"}`, &hits)
 		second := newCountingServer(t, http.StatusNotFound, `{"status":"Error - Invalid Query"}`, &hits)
 
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
 		_, err := client.Book(context.Background(), "0")
 		if err == nil {
 			t.Fatal("expected error, got nil")
@@ -682,7 +711,7 @@ func TestFailover(t *testing.T) {
 		first := newCountingServer(t, http.StatusServiceUnavailable, "", &hits)
 		second := newCountingServer(t, http.StatusServiceUnavailable, "", &hits)
 
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
 		if _, err := client.Book(context.Background(), "1"); !errors.Is(err, biblioreads.ErrUnavailable) {
 			t.Fatalf("expected ErrUnavailable, got %v", err)
 		}
@@ -698,7 +727,7 @@ func TestFailover(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
 		if _, err := client.Book(ctx, "1"); err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -714,7 +743,7 @@ func TestCooldown(t *testing.T) {
 		bad := newCountingServer(t, http.StatusBadGateway, "<html>Bad Gateway</html>", &badHits)
 		good := newCountingServer(t, http.StatusOK, validBookResponse, &goodHits)
 
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{bad.URL, good.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(biblioreads.WithInstances([]string{bad.URL, good.URL}), biblioreads.WithCacheTTL(0))
 		for range 20 {
 			if _, err := client.Book(context.Background(), "1"); err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -741,7 +770,7 @@ func TestCooldown(t *testing.T) {
 		t.Cleanup(limited.Close)
 		other := newCountingServer(t, http.StatusOK, validBookResponse, &otherHits)
 
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{limited.URL, other.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(biblioreads.WithInstances([]string{limited.URL, other.URL}), biblioreads.WithCacheTTL(0))
 		for limitedHits.Load() == 0 {
 			if _, err := client.Book(context.Background(), "1"); err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -767,21 +796,26 @@ func TestCooldown(t *testing.T) {
 		}
 	})
 
-	t.Run("instance is probed when all are cooling down", func(t *testing.T) {
+	t.Run("respects cooldown when all instances are cooling down", func(t *testing.T) {
 		var hits atomic.Int32
 		flaky := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if hits.Add(1) == 1 {
-				w.WriteHeader(http.StatusServiceUnavailable)
+				w.Header().Set("Retry-After", "1")
+				w.WriteHeader(http.StatusTooManyRequests)
 				return
 			}
 			_, _ = w.Write([]byte(validBookResponse))
 		}))
 		t.Cleanup(flaky.Close)
 
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{flaky.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(biblioreads.WithInstances([]string{flaky.URL}), biblioreads.WithCacheTTL(0))
 		if _, err := client.Book(context.Background(), "1"); err == nil {
 			t.Fatal("expected error on first request, got nil")
 		}
+		if _, err := client.Book(context.Background(), "1"); !errors.Is(err, biblioreads.ErrUnavailable) {
+			t.Fatalf("expected unavailable during cooldown, got %v", err)
+		}
+		time.Sleep(1100 * time.Millisecond)
 		if _, err := client.Book(context.Background(), "1"); err != nil {
 			t.Fatalf("expected cooling down instance to be probed, got %v", err)
 		}
@@ -793,7 +827,7 @@ func TestCooldown(t *testing.T) {
 		first := newCountingServer(t, http.StatusNotFound, notFound, &firstHits)
 		second := newCountingServer(t, http.StatusNotFound, notFound, &secondHits)
 
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
 		for range 20 {
 			if _, err := client.Book(context.Background(), "0"); err == nil {
 				t.Fatal("expected error, got nil")
@@ -812,7 +846,7 @@ func TestCooldown(t *testing.T) {
 		first := newCountingServer(t, http.StatusOK, validBookResponse, &firstHits)
 		second := newCountingServer(t, http.StatusOK, validBookResponse, &secondHits)
 
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		for range 5 {
@@ -833,7 +867,7 @@ func TestCache(t *testing.T) {
 	t.Run("successful responses are cached per request", func(t *testing.T) {
 		var hits atomic.Int32
 		server := newCountingServer(t, http.StatusOK, `{"status":"Received","statusCode":200,"rating":"3.92","resourceID":"work-id","legacyBookID":5898652,"title":"La Reina Dragon","genres":["Fantasy"],"totalCount":1,"reviews":[{"id":"review-1"}]}`, &hits)
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}))
+		client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
 
 		first, err := client.Book(context.Background(), "1")
 		if err != nil {
@@ -877,7 +911,7 @@ func TestCache(t *testing.T) {
 	t.Run("entries expire after the TTL", func(t *testing.T) {
 		var hits atomic.Int32
 		server := newCountingServer(t, http.StatusOK, validBookResponse, &hits)
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithCacheTTL(100*time.Millisecond))
+		client := newTestClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithCacheTTL(100*time.Millisecond))
 
 		for range 3 {
 			if _, err := client.Book(context.Background(), "1"); err != nil {
@@ -897,25 +931,25 @@ func TestCache(t *testing.T) {
 		}
 	})
 
-	t.Run("errors are not cached", func(t *testing.T) {
+	t.Run("errors put the instance into cooldown", func(t *testing.T) {
 		var hits atomic.Int32
 		server := newCountingServer(t, http.StatusGatewayTimeout, `{"status":"Error - Book not found"}`, &hits)
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}))
+		client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
 
 		for range 3 {
 			if _, err := client.Book(context.Background(), "0"); err == nil {
 				t.Fatal("expected error, got nil")
 			}
 		}
-		if hits.Load() != 3 {
-			t.Errorf("expected every failed request to reach the server, got %d requests", hits.Load())
+		if hits.Load() != 1 {
+			t.Errorf("expected subsequent requests to respect cooldown, got %d requests", hits.Load())
 		}
 	})
 
 	t.Run("caching can be disabled", func(t *testing.T) {
 		var hits atomic.Int32
 		server := newCountingServer(t, http.StatusOK, validBookResponse, &hits)
-		client := biblioreads.NewClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(biblioreads.WithInstances([]string{server.URL}), biblioreads.WithCacheTTL(0))
 
 		for range 3 {
 			if _, err := client.Book(context.Background(), "1"); err != nil {

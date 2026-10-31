@@ -11,6 +11,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -48,17 +49,28 @@ type Client struct {
 	httpClient *http.Client
 	cache      *responseCache
 
-	mu            sync.Mutex
-	cooldownUntil map[string]time.Time
+	mu              sync.Mutex
+	cooldownUntil   map[string]time.Time
+	nextRequest     map[string]time.Time
+	requestInterval time.Duration
 }
 
 type options struct {
-	instances  []string
-	httpClient *http.Client
-	cacheTTL   time.Duration
+	instances       []string
+	httpClient      *http.Client
+	cacheTTL        time.Duration
+	requestInterval time.Duration
 }
 
 type Option func(*options)
+
+// WithRequestInterval sets the minimum spacing between request starts to each instance.
+// Zero disables spacing; the default is one second.
+func WithRequestInterval(interval time.Duration) Option {
+	return func(o *options) {
+		o.requestInterval = max(interval, 0)
+	}
+}
 
 // WithInstances sets the BiblioReads instances to use. An empty list keeps DefaultInstances.
 func WithInstances(instances []string) Option {
@@ -86,16 +98,18 @@ func WithCacheTTL(ttl time.Duration) Option {
 	}
 }
 
-// NewClient returns a client that spreads requests across instances. Each request starts at a
-// random instance and fails over to the next ones if it is unavailable (network error, 429 or a
-// non-JSON response). Unavailable instances are skipped until their Retry-After time, or
+// NewClient returns a client that spreads requests across instances, preferring
+// instances ready to accept a request and randomizing ties. Requests to each
+// instance are spaced at least one second apart by default, including failover
+// attempts. Unavailable instances are skipped until their Retry-After time, or
 // httpjson.DefaultRetryAfter, has passed. Successful responses are cached in memory for
 // DefaultCacheTTL unless changed with WithCacheTTL.
 func NewClient(opts ...Option) *Client {
 	o := options{
-		instances:  DefaultInstances,
-		httpClient: &http.Client{Timeout: 15 * time.Second},
-		cacheTTL:   DefaultCacheTTL,
+		instances:       DefaultInstances,
+		httpClient:      &http.Client{Timeout: 15 * time.Second},
+		cacheTTL:        DefaultCacheTTL,
+		requestInterval: time.Second,
 	}
 	for _, opt := range opts {
 		opt(&o)
@@ -107,9 +121,11 @@ func NewClient(opts ...Option) *Client {
 	}
 
 	c := &Client{
-		instances:     normalized,
-		httpClient:    o.httpClient,
-		cooldownUntil: make(map[string]time.Time),
+		instances:       normalized,
+		httpClient:      o.httpClient,
+		cooldownUntil:   make(map[string]time.Time),
+		nextRequest:     make(map[string]time.Time),
+		requestInterval: o.requestInterval,
 	}
 	if o.cacheTTL > 0 {
 		c.cache = newResponseCache(o.cacheTTL)
@@ -205,7 +221,17 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 
 	var errs []error
 	var incompleteResponse []byte
-	for _, instance := range c.candidates() {
+	tried := make(map[string]bool)
+	for len(tried) < len(c.instances) {
+		instance, err := c.acquireInstance(ctx, tried)
+		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			errs = append(errs, err)
+			break
+		}
+		tried[instance] = true
 		endpoint := instance + path
 		respBody, err := c.postToInstance(ctx, endpoint, body)
 		if err == nil {
@@ -226,7 +252,6 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 			}
 		}
 		if err == nil {
-			c.clearCooldown(instance)
 			reviews, isReviews := dest.(*ReviewsResponse)
 			if c.cache != nil && (!isReviews || len(reviews.Reviews) > 0) {
 				c.cache.set(cacheKey, respBody)
@@ -293,44 +318,52 @@ func supportsReviewLanguage(version string) bool {
 	return semver.IsValid(version) && semver.Compare(version, "v4.4.0") >= 0
 }
 
-// candidates returns the instances that are not cooling down, starting at a random one.
-// If all of them are cooling down, the one whose cooldown ends first is returned, so
-// requests don't fail without trying when every instance had a transient error.
-func (c *Client) candidates() []string {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	now := time.Now()
-	start := rand.IntN(len(c.instances))
-	candidates := make([]string, 0, len(c.instances))
-	soonest := ""
-	for i := range c.instances {
-		instance := c.instances[(start+i)%len(c.instances)]
-		until, coolingDown := c.cooldownUntil[instance]
-		if !coolingDown || !now.Before(until) {
-			candidates = append(candidates, instance)
-			continue
+// acquireInstance rechecks availability after waiting, so cancellation does not
+// reserve a future slot and concurrent requests cannot take the same slot.
+func (c *Client) acquireInstance(ctx context.Context, tried map[string]bool) (string, error) {
+	for {
+		if err := ctx.Err(); err != nil {
+			return "", err
 		}
-		if soonest == "" || until.Before(c.cooldownUntil[soonest]) {
-			soonest = instance
+		c.mu.Lock()
+		start := rand.IntN(len(c.instances))
+		candidates := make([]string, 0, len(c.instances))
+		now := time.Now()
+		for i := range c.instances {
+			instance := c.instances[(start+i)%len(c.instances)]
+			if !tried[instance] && !now.Before(c.cooldownUntil[instance]) {
+				candidates = append(candidates, instance)
+			}
+		}
+		sort.SliceStable(candidates, func(i, j int) bool {
+			return c.nextRequest[candidates[i]].Before(c.nextRequest[candidates[j]])
+		})
+		if len(candidates) == 0 {
+			c.mu.Unlock()
+			return "", fmt.Errorf("%w: no untried instance is outside its cooldown", ErrUnavailable)
+		}
+		instance := candidates[0]
+		wait := time.Until(c.nextRequest[instance])
+		if wait <= 0 {
+			c.nextRequest[instance] = time.Now().Add(c.requestInterval)
+			c.mu.Unlock()
+			return instance, nil
+		}
+		c.mu.Unlock()
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return "", ctx.Err()
+		case <-timer.C:
 		}
 	}
-	if len(candidates) == 0 {
-		return []string{soonest}
-	}
-	return candidates
 }
 
 func (c *Client) setCooldown(instance string, d time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.cooldownUntil[instance] = time.Now().Add(d)
-}
-
-func (c *Client) clearCooldown(instance string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	delete(c.cooldownUntil, instance)
 }
 
 // postToInstance returns the body of a successful response.

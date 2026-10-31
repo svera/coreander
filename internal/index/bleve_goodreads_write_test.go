@@ -78,7 +78,7 @@ const (
 
 func newGoodReadsTestIndexer(t *testing.T, source GoodReadsSource) *BleveIndexer {
 	t.Helper()
-	idx, _ := newTestTextRankIndexer(t, Config{GoodReadsSource: source, GoodReadsEnrichInterval: time.Millisecond})
+	idx, _ := newTestTextRankIndexer(t, Config{GoodReadsSource: source})
 	appFS := afero.NewMemMapFs()
 	if err := afero.WriteFile(appFS, "lib/book.pdf", []byte(""), 0644); err != nil {
 		t.Fatal(err)
@@ -106,6 +106,9 @@ func TestEnrichGoodReadsStoresMatchingResult(t *testing.T) {
 	}
 	if doc.GoodReadsBookURL != wantGoodReadsBookURL {
 		t.Errorf("unexpected book URL %q", doc.GoodReadsBookURL)
+	}
+	if doc.GoodReadsRating != "3.82" {
+		t.Errorf("unexpected Goodreads rating %q", doc.GoodReadsRating)
 	}
 	assertNoDocumentAuthorURL(t, idx.documentsIdx)
 	if !doc.GoodReadsEnriched {
@@ -289,7 +292,7 @@ func TestTextRankWritesPreserveGoodReadsFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !doc.GoodReadsEnriched || doc.GoodReadsBookURL != wantGoodReadsBookURL {
+	if !doc.GoodReadsEnriched || doc.GoodReadsBookURL != wantGoodReadsBookURL || doc.GoodReadsRating != "3.82" || doc.GoodReadsRatingValue != 3.82 {
 		t.Errorf("expected GoodReads fields to survive a TextRank write, got %+v", doc)
 	}
 	if doc.GoodReadsResourceID != "work-id" || doc.GoodReadsLegacyBookID != 12207444 {
@@ -308,7 +311,7 @@ func TestTextRankWritesPreserveGoodReadsFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	idx.documentsMu.Unlock()
-	if _, err := idx.enrichGoodReads(context.Background(), stale, true); err != nil {
+	if _, err := idx.enrichGoodReads(context.Background(), stale); err != nil {
 		t.Fatal(err)
 	}
 	if doc, _ = idx.documentByIndexID(goodReadsTestID); !slices.Equal(doc.TextRankWords, []string{"guinevere"}) {
@@ -393,8 +396,8 @@ func TestGoodReadsBook(t *testing.T) {
 		t.Errorf("expected the link to be persisted, got %+v", stored)
 	}
 
-	if got, _ := idx.GoodReadsBook(context.Background(), stored); got.BookURL != wantGoodReadsBookURL || got.Rating != "" {
-		t.Errorf("expected stored URL without a persisted rating, got %+v", got)
+	if got, _ := idx.GoodReadsBook(context.Background(), stored); got.BookURL != wantGoodReadsBookURL || got.Rating != "3.82" {
+		t.Errorf("expected stored URL and rating, got %+v", got)
 	}
 	req := bleve.NewSearchRequest(bleve.NewDocIDQuery([]string{stored.ID}))
 	req.Fields = []string{"*"}
@@ -402,7 +405,7 @@ func TestGoodReadsBook(t *testing.T) {
 	if err != nil || len(result.Hits) != 1 {
 		t.Fatalf("reading stored Goodreads fields: %v", err)
 	}
-	for _, field := range []string{"Rating", "rating", "GoodReadsRating"} {
+	for _, field := range []string{"Rating", "rating"} {
 		if _, exists := result.Hits[0].Fields[field]; exists {
 			t.Errorf("rating must not be stored in document field %s", field)
 		}
@@ -412,6 +415,24 @@ func TestGoodReadsBook(t *testing.T) {
 	}
 	if len(source.Queries()) != 1 {
 		t.Errorf("expected a single search, got %q", source.Queries())
+	}
+}
+
+func TestParseGoodReadsRating(t *testing.T) {
+	for _, tt := range []struct {
+		rating string
+		want   float64
+	}{
+		{rating: "0.00", want: 0},
+		{rating: "3.82", want: 3.82},
+		{rating: "5.01", want: 0},
+		{rating: "unavailable", want: 0},
+	} {
+		t.Run(tt.rating, func(t *testing.T) {
+			if got := parseGoodReadsRating(tt.rating, goodReadsTestID); got != tt.want {
+				t.Errorf("parseGoodReadsRating(%q) = %v, want %v", tt.rating, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -458,6 +479,14 @@ func TestMatchingGoodReadsBook(t *testing.T) {
 		{name: "document omnibus range", title: correct.Title + " (#1-#3)", results: []biblioreads.SearchResult{correct}, want: correct.BookURL},
 		{name: "standalone volume retained", results: []biblioreads.SearchResult{{Title: correct.Title + " (#1)", Author: correct.Author, BookURL: correct.BookURL}}},
 		{name: "exact preferred", results: []biblioreads.SearchResult{{Title: correct.Title + " (Middle Earth, #1)", Author: correct.Author, BookURL: "/book/show/2"}, correct}, want: correct.BookURL},
+		{name: "lower Goodreads ID preferred over rating for equal titles", results: []biblioreads.SearchResult{
+			{ID: 1, Title: correct.Title, Author: correct.Author, BookURL: "/book/show/1-unrated", Rating: "0.00"},
+			{ID: 2, Title: correct.Title, Author: correct.Author, BookURL: "/book/show/2-rated", Rating: "4.05"},
+		}, want: "/book/show/1-unrated"},
+		{name: "unrated exact match retained when no rated match exists", results: []biblioreads.SearchResult{
+			{Title: correct.Title, Author: correct.Author, BookURL: "/book/show/1-unrated", Rating: "0.00"},
+			{Title: correct.Title, Author: correct.Author, BookURL: "/book/show/2"},
+		}, want: "/book/show/1-unrated"},
 		{name: "colon subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + ": Una historia", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
 		{name: "period subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + ". Una historia", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
 		{name: "dash subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + " — Una historia", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
@@ -468,7 +497,7 @@ func TestMatchingGoodReadsBook(t *testing.T) {
 		{name: "series preferred over subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + ": Una historia", Author: correct.Author, BookURL: "/book/show/2"}, {Title: correct.Title + " (#1-#3)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
 		{name: "arbitrary prefix rejected", results: []biblioreads.SearchResult{{Title: correct.Title + " y otras historias", Author: correct.Author, BookURL: correct.BookURL}}},
 		{name: "volume retained", results: []biblioreads.SearchResult{{Title: correct.Title + " 2", Author: correct.Author, BookURL: correct.BookURL}}},
-		{name: "arbitrary parenthetical retained", results: []biblioreads.SearchResult{{Title: correct.Title + " (A parody)", Author: correct.Author, BookURL: correct.BookURL}}},
+		{name: "trailing parenthetical accepted as weaker match", results: []biblioreads.SearchResult{{Title: correct.Title + " (An edition)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
 		{name: "missing result author", results: []biblioreads.SearchResult{{Title: correct.Title, BookURL: correct.BookURL}}},
 		{name: "missing result title", results: []biblioreads.SearchResult{{Author: correct.Author, BookURL: correct.BookURL}}},
 		{name: "missing URL", results: []biblioreads.SearchResult{{Title: correct.Title, Author: correct.Author}}},
@@ -490,6 +519,52 @@ func TestMatchingGoodReadsBook(t *testing.T) {
 				t.Fatalf("got %q, %v; want %q", match.BookURL, ok, tt.want)
 			}
 		})
+	}
+}
+
+func TestMatchingGoodReadsBookPrefersLowerIDForEqualTitle(t *testing.T) {
+	const olderBookURL = "/book/show/1368314.El_Cercano_Oriente"
+	const newerBookURL = "/book/show/243175949-el-cercano-oriente"
+	document := Document{Metadata: metadata.Metadata{
+		Title: "El cercano Oriente", Authors: []string{"Isaac Asimov"},
+	}}
+	older := biblioreads.SearchResult{
+		ID: 1368314, Title: "El Cercano Oriente", Author: "Isaac Asimov",
+		BookURL: olderBookURL, Rating: "4.10",
+	}
+	newer := biblioreads.SearchResult{
+		ID: 243175949, Title: "El Cercano Oriente", Author: "Isaac Asimov",
+		BookURL: newerBookURL, Rating: "4.26",
+	}
+
+	for _, results := range [][]biblioreads.SearchResult{{newer, older}, {older, newer}} {
+		match, ok := matchingGoodReadsBook(document, results)
+		if !ok || match.BookURL != olderBookURL {
+			t.Fatalf("expected lower Goodreads ID %q, got %+v, %v", olderBookURL, match, ok)
+		}
+	}
+}
+
+func TestMatchingGoodReadsBookPrefersRatedParentheticalTitle(t *testing.T) {
+	doc := Document{Metadata: metadata.Metadata{Title: "La promesa", Authors: []string{"Pearl S. Buck"}}}
+	rated := biblioreads.SearchResult{
+		Title: "La promesa (The Promise)", Author: "Pearl S. Buck",
+		BookURL: "/book/show/7377104-la-promesa", Rating: "4.04",
+	}
+	unrated := biblioreads.SearchResult{
+		Title: "La promesa", Author: "Pearl S. Buck",
+		BookURL: "/book/show/210898619-la-promesa", Rating: "0.00",
+	}
+	for _, results := range [][]biblioreads.SearchResult{{rated, unrated}, {unrated, rated}} {
+		match, ok := matchingGoodReadsBook(doc, results)
+		if !ok || match.BookURL != rated.BookURL || match.Rating != rated.Rating {
+			t.Fatalf("expected rated translated-title entry, got %+v, %v", match, ok)
+		}
+	}
+	rated.Author = "Another author"
+	match, ok := matchingGoodReadsBook(doc, []biblioreads.SearchResult{rated, unrated})
+	if !ok || match.BookURL != unrated.BookURL {
+		t.Fatalf("rated entry by another author must not win, got %+v, %v", match, ok)
 	}
 }
 

@@ -1,11 +1,13 @@
-<section class="mt-5">
-    <h2><a href="{{.BookURL}}" class="text-decoration-none" target="_blank" rel="noopener noreferrer">{{t .Lang "%s user reviews" .Source}}</a></h2>
+<section id="document-reviews-{{.Slug}}" class="document-reviews mt-5">
+    {{template "partials/document-reviews-header" .}}
+    <div class="document-reviews-content">
+    {{if not .Unavailable}}
     {{range $i, $review := .Reviews}}
     <article class="border-top pt-3 mt-3">
         <header class="mb-2">
             <strong class="d-block fs-5 mb-1">{{.Reviewer}}</strong>
             <div class="d-flex flex-wrap align-items-baseline gap-2">
-                {{if gt .Rating 0}}<span role="img" aria-label="{{.Rating}}/5">{{range $point := 5}}<i class="bi {{if lt $point $review.Rating}}bi-star-fill{{else}}bi-star{{end}}" aria-hidden="true"></i>{{end}}</span>{{end}}
+                {{if gt .Rating 0.0}}<span role="img" aria-label="{{.Rating}}/5">{{range .StarFills}}{{if eq . 100}}<i class="bi bi-star-fill" aria-hidden="true"></i>{{else if eq . 0}}<i class="bi bi-star" aria-hidden="true"></i>{{else}}<span class="review-star" aria-hidden="true"><i class="bi bi-star"></i><span class="review-star-fill" style="width: {{.}}%"><i class="bi bi-star-fill"></i></span></span>{{end}}{{end}}</span>{{else}}<span class="text-muted">{{t $.Lang "Not scored"}}</span>{{end}}
                 {{if .URL}}<a class="ms-auto text-end text-muted text-decoration-none" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{if .CreatedOn}}<time class="locale" datetime="{{.CreatedOn}}">{{.CreatedOn}}</time>{{else}}{{t $.Lang "Read"}}{{end}}</a>{{end}}
             </div>
         </header>
@@ -18,6 +20,26 @@
         {{if .Spoiler}}</details>{{end}}
     </article>
     {{else}}
-    <p class="text-muted">{{t .Lang "No user reviews available in the current language"}}</p>
+    <p class="text-muted mt-3">{{t .Lang "No user reviews available in the current language"}}</p>
     {{end}}
+    {{end}}
+    </div>
+    <div class="document-reviews-loading placeholder-glow" aria-hidden="true">
+        {{range 2}}
+        <div class="border-top pt-3 mt-3">
+            <div class="mb-2">
+                <div class="fs-5 fw-bold mb-1"><span class="placeholder col-4"></span></div>
+                <div class="d-flex align-items-baseline gap-2">
+                    <span class="text-muted">{{range 5}}<i class="bi bi-star"></i>{{end}}</span>
+                    <span class="placeholder col-3 ms-auto"></span>
+                </div>
+            </div>
+            <div><span class="placeholder col-12"></span></div>
+            <div><span class="placeholder col-11"></span></div>
+            <div><span class="placeholder col-12"></span></div>
+            <div><span class="placeholder col-10"></span></div>
+            <div><span class="placeholder col-7"></span></div>
+        </div>
+        {{end}}
+    </div>
 </section>

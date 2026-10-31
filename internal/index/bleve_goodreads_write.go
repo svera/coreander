@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -17,9 +20,8 @@ import (
 )
 
 const (
-	// DefaultGoodReadsEnrichInterval is the minimum time between two GoodReads lookups.
-	DefaultGoodReadsEnrichInterval = time.Second
-	goodReadsRequestTimeout        = 2 * time.Minute
+	goodReadsEnrichWorkers  = 4
+	goodReadsRequestTimeout = 2 * time.Minute
 )
 
 // GoodReadsSource searches books on Goodreads; implemented by *biblioreads.Client.
@@ -27,12 +29,14 @@ type GoodReadsSource interface {
 	SearchBooks(ctx context.Context, query string) (biblioreads.SearchBooksResponse, error)
 }
 
-var goodReadsFields = []string{"GoodReadsBookURL", "GoodReadsResourceID", "GoodReadsLegacyBookID", "GoodReadsEnriched"}
+var goodReadsFields = []string{"GoodReadsBookURL", "GoodReadsRating", "GoodReadsRatingValue", "GoodReadsResourceID", "GoodReadsLegacyBookID", "GoodReadsEnriched"}
 
 // Strip named series annotations and omnibus ranges, not standalone volume numbers.
 var goodReadsSeriesSuffix = regexp.MustCompile(`\s*\((?:[^()]+,\s*#[0-9]+(?:\.[0-9]+)?|#[0-9]+\s*[-–]\s*#?[0-9]+)\)\s*$`)
 
 var goodReadsSubtitleSeparator = regexp.MustCompile(`:\s*|\.\s+|\s+[-–—]\s+`)
+
+var goodReadsParentheticalTitle = regexp.MustCompile(`\s+\([\p{L}][^()]*\)\s*$`)
 
 func normalizeGoodReadsName(value string) string {
 	var result strings.Builder
@@ -121,6 +125,7 @@ func matchingGoodReadsBook(document Document, results []biblioreads.SearchResult
 	}
 	var best biblioreads.SearchResult
 	bestScore := 0
+	bestHasRating := false
 	for _, result := range results {
 		if result.BookURL == "" {
 			continue
@@ -132,18 +137,37 @@ func matchingGoodReadsBook(document Document, results []biblioreads.SearchResult
 			if normalizeGoodReadsName(result.Title) == fullTitle {
 				score = 3
 			}
-		} else if resultTitle == "" || (goodReadsMainTitle(result.Title) != title && mainTitle != resultTitle) {
+		} else if resultTitle == "" || (goodReadsMainTitle(result.Title) != title && mainTitle != resultTitle &&
+			goodReadsTitle(goodReadsParentheticalTitle.ReplaceAllString(result.Title, "")) != title) {
 			continue
 		}
 		author := strings.ReplaceAll(normalizeGoodReadsName(result.Author), " ", "")
 		if author == "" {
 			continue
 		}
-		if _, matches := authors[author]; matches && score > bestScore {
-			best, bestScore = result, score
+		if _, matches := authors[author]; matches {
+			hasRating := hasGoodReadsRating(result.Rating)
+			prefer := bestScore == 0
+			if !prefer && score == bestScore && result.ID > 0 && best.ID > 0 && result.ID != best.ID {
+				prefer = result.ID < best.ID
+			} else if !prefer {
+				if hasRating != bestHasRating {
+					prefer = hasRating
+				} else {
+					prefer = score > bestScore
+				}
+			}
+			if prefer {
+				best, bestScore, bestHasRating = result, score, hasRating
+			}
 		}
 	}
 	return best, bestScore > 0
+}
+
+func hasGoodReadsRating(rating string) bool {
+	value, err := strconv.ParseFloat(rating, 64)
+	return err == nil && value > 0 && value <= 5 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 // goodReadsQuery returns the Goodreads search string for document: its title
@@ -180,7 +204,7 @@ func (b *BleveIndexer) documentsNeedingGoodReads(size int) ([]Document, uint64, 
 
 // EnrichGoodReads looks up on Goodreads every document not processed yet (see
 // Document.GoodReadsEnriched), storing the book URL on the document and the
-// author URL on the matching author. Lookups are throttled (see Config.GoodReadsEnrichInterval).
+// author URL on the matching author. The source handles per-instance throttling.
 // It stops at the first error that means Goodreads can't be reached right
 // now, leaving the remaining documents for the next run.
 func (b *BleveIndexer) EnrichGoodReads(batchSize int) error {
@@ -209,10 +233,8 @@ func (b *BleveIndexer) EnrichGoodReads(batchSize int) error {
 		if len(chunk) == 0 {
 			break
 		}
-		for _, document := range chunk {
-			if _, err := b.enrichGoodReads(context.Background(), document, true); err != nil {
-				return err
-			}
+		if err := b.enrichGoodReadsBatch(chunk); err != nil {
+			return err
 		}
 	}
 
@@ -220,14 +242,48 @@ func (b *BleveIndexer) EnrichGoodReads(batchSize int) error {
 	return nil
 }
 
-// GoodReadsBook returns the stored book URL, or searches a document not looked
-// up yet and persists its match. A fresh search also returns the rating, which
-// is not stored. Returns an empty result if there's no match.
+func (b *BleveIndexer) enrichGoodReadsBatch(documents []Document) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	jobs := make(chan Document, len(documents))
+	for _, document := range documents {
+		jobs <- document
+	}
+	close(jobs)
+	var wg sync.WaitGroup
+	errs := make(chan error, 1)
+	for range min(goodReadsEnrichWorkers, len(documents)) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for document := range jobs {
+				if _, err := b.enrichGoodReads(ctx, document); err != nil {
+					select {
+					case errs <- err:
+						cancel()
+					default:
+					}
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	select {
+	case err := <-errs:
+		return err
+	default:
+		return nil
+	}
+}
+
+// GoodReadsBook returns the stored book URL and rating, or searches a document
+// not looked up yet and persists its match. Returns an empty result if there's no match.
 func (b *BleveIndexer) GoodReadsBook(ctx context.Context, document Document) (biblioreads.SearchResult, error) {
 	if document.GoodReadsBookURL != "" || document.GoodReadsEnriched || b.goodReadsSource == nil {
-		return biblioreads.SearchResult{BookURL: document.GoodReadsBookURL}, nil
+		return biblioreads.SearchResult{BookURL: document.GoodReadsBookURL, Rating: document.GoodReadsRating}, nil
 	}
-	return b.enrichGoodReads(ctx, document, false)
+	return b.enrichGoodReads(ctx, document)
 }
 
 // StoreGoodReadsBookIDs persists identifiers fetched for bookURL, provided the
@@ -259,10 +315,49 @@ func (b *BleveIndexer) StoreGoodReadsBookIDs(document Document, bookURL, resourc
 	return nil
 }
 
+// StoreGoodReadsRating persists the current rating for the same document and
+// Goodreads match that were read before fetching the book details.
+func (b *BleveIndexer) StoreGoodReadsRating(document Document, bookURL, rating string) error {
+	if bookURL == "" {
+		return fmt.Errorf("invalid GoodReads book URL for document %s", document.ID)
+	}
+	if rating == "" {
+		return nil
+	}
+	b.documentsMu.Lock()
+	defer b.documentsMu.Unlock()
+	current, found, err := b.documentByIndexIDLocked(document.ID)
+	if err != nil {
+		return fmt.Errorf("error reading document %s for GoodReads rating: %w", document.ID, err)
+	}
+	if !found {
+		return ErrDocumentNotFound
+	}
+	if goodReadsQuery(current) != goodReadsQuery(document) || current.GoodReadsBookURL != bookURL {
+		return fmt.Errorf("GoodReads match changed for document %s", document.ID)
+	}
+	ratingValue := parseGoodReadsRating(rating, document.ID)
+	if current.GoodReadsRating == rating && current.GoodReadsRatingValue == ratingValue {
+		return nil
+	}
+	current.GoodReadsRating = rating
+	current.GoodReadsRatingValue = ratingValue
+	if err := b.documentsIdx.Index(current.ID, current); err != nil {
+		return fmt.Errorf("error storing GoodReads rating for document %s: %w", document.ID, err)
+	}
+	return nil
+}
+
 // enrichGoodReads searches document on Goodreads, unless it already has a
 // book URL, and stores matching URLs on the document and author respectively.
 // Unavailability or persistence errors leave the document unenriched for retry.
-func (b *BleveIndexer) enrichGoodReads(ctx context.Context, document Document, throttle bool) (biblioreads.SearchResult, error) {
+func (b *BleveIndexer) enrichGoodReads(ctx context.Context, document Document) (biblioreads.SearchResult, error) {
+	select {
+	case b.goodReadsSlots <- struct{}{}:
+		defer func() { <-b.goodReadsSlots }()
+	case <-ctx.Done():
+		return biblioreads.SearchResult{}, ctx.Err()
+	}
 	q := goodReadsQuery(document)
 	result := biblioreads.SearchResult{BookURL: document.GoodReadsBookURL}
 	if result.BookURL == "" && document.Title != "" {
@@ -273,9 +368,6 @@ func (b *BleveIndexer) enrichGoodReads(ctx context.Context, document Document, t
 			queries = append(queries, title)
 		}
 		for _, query := range queries {
-			if throttle {
-				b.waitGoodReadsTurn()
-			}
 			res, err := b.goodReadsSource.SearchBooks(ctx, query)
 			switch {
 			case errors.Is(err, biblioreads.ErrUnavailable), errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
@@ -310,15 +402,18 @@ func (b *BleveIndexer) enrichGoodReads(ctx context.Context, document Document, t
 	// Looked up concurrently (e.g. by the background enrichment and a detail
 	// page request at the same time): keep the stored result.
 	if current.GoodReadsEnriched {
-		if current.GoodReadsBookURL != result.BookURL {
-			result = biblioreads.SearchResult{BookURL: current.GoodReadsBookURL}
-		}
+		result = biblioreads.SearchResult{BookURL: current.GoodReadsBookURL, Rating: current.GoodReadsRating}
 		return result, nil
 	}
 	if current.GoodReadsBookURL != "" && current.GoodReadsBookURL != result.BookURL {
-		result = biblioreads.SearchResult{BookURL: current.GoodReadsBookURL}
+		result = biblioreads.SearchResult{BookURL: current.GoodReadsBookURL, Rating: current.GoodReadsRating}
 	}
 	current.GoodReadsBookURL = result.BookURL
+	if result.Rating == "" {
+		result.Rating = current.GoodReadsRating
+	}
+	current.GoodReadsRating = result.Rating
+	current.GoodReadsRatingValue = parseGoodReadsRating(result.Rating, current.ID)
 	current.GoodReadsEnriched = true
 	if err := b.storeGoodReadsAuthorURL(current, result.AuthorURL, result.Author); err != nil {
 		return result, fmt.Errorf("error storing GoodReads author URL for document %s: %w", current.ID, err)
@@ -329,16 +424,16 @@ func (b *BleveIndexer) enrichGoodReads(ctx context.Context, document Document, t
 	return result, nil
 }
 
-// waitGoodReadsTurn blocks until at least goodReadsInterval has passed since
-// the previous GoodReads lookup, shared by EnrichGoodReads and the per-file
-// worker.
-func (b *BleveIndexer) waitGoodReadsTurn() {
-	b.goodReadsThrottleMu.Lock()
-	defer b.goodReadsThrottleMu.Unlock()
-	if wait := time.Until(b.goodReadsLastRequest.Add(b.goodReadsInterval)); wait > 0 {
-		time.Sleep(wait)
+func parseGoodReadsRating(rating, documentID string) float64 {
+	if rating == "" {
+		return 0
 	}
-	b.goodReadsLastRequest = time.Now()
+	value, err := strconv.ParseFloat(rating, 64)
+	if err != nil || value < 0 || value > 5 || math.IsNaN(value) || math.IsInf(value, 0) {
+		log.Printf("Invalid GoodReads rating for document %s: %q", documentID, rating)
+		return 0
+	}
+	return value
 }
 
 // runGoodReadsEnrichWorker looks up documents queued by indexFile for the
@@ -353,7 +448,7 @@ func (b *BleveIndexer) runGoodReadsEnrichWorker() {
 		if document.ID == "" || document.GoodReadsEnriched {
 			continue
 		}
-		if _, err := b.enrichGoodReads(context.Background(), document, true); err != nil {
+		if _, err := b.enrichGoodReads(context.Background(), document); err != nil {
 			log.Println(err)
 		}
 	}
@@ -403,14 +498,21 @@ func (b *BleveIndexer) preserveGoodReadsLocked(documents []Document) {
 	stored := make(map[string]Document, len(searchResult.Hits))
 	for _, hit := range searchResult.Hits {
 		bookURL, _ := hit.Fields["GoodReadsBookURL"].(string)
+		rating, _ := hit.Fields["GoodReadsRating"].(string)
+		ratingValue, _ := hit.Fields["GoodReadsRatingValue"].(float64)
+		if ratingValue == 0 {
+			ratingValue = parseGoodReadsRating(rating, hit.ID)
+		}
 		resourceID, _ := hit.Fields["GoodReadsResourceID"].(string)
 		legacyBookID, _ := hit.Fields["GoodReadsLegacyBookID"].(float64)
 		enriched, _ := hit.Fields["GoodReadsEnriched"].(bool)
-		stored[hit.ID] = Document{GoodReadsBookURL: bookURL, GoodReadsResourceID: resourceID, GoodReadsLegacyBookID: int(legacyBookID), GoodReadsEnriched: enriched}
+		stored[hit.ID] = Document{GoodReadsBookURL: bookURL, GoodReadsRating: rating, GoodReadsRatingValue: ratingValue, GoodReadsResourceID: resourceID, GoodReadsLegacyBookID: int(legacyBookID), GoodReadsEnriched: enriched}
 	}
 	for i := range documents {
 		if s, ok := stored[documents[i].ID]; ok {
 			documents[i].GoodReadsBookURL = s.GoodReadsBookURL
+			documents[i].GoodReadsRating = s.GoodReadsRating
+			documents[i].GoodReadsRatingValue = s.GoodReadsRatingValue
 			documents[i].GoodReadsResourceID = s.GoodReadsResourceID
 			documents[i].GoodReadsLegacyBookID = s.GoodReadsLegacyBookID
 			documents[i].GoodReadsEnriched = s.GoodReadsEnriched

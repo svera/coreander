@@ -45,12 +45,12 @@ func TestAlternativeServiceLinks(t *testing.T) {
 			t.Fatalf("%s: unexpected Goodreads branding", path)
 		}
 	}
-	for _, path := range []string{"/documents/linked/score", "/documents/linked/reviews"} {
+	for path, wantLinks := range map[string]int{"/documents/linked/score": 2, "/documents/linked/reviews": 1} {
 		page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, path)))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if page.Find(`a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`).Length() != 1 {
+		if page.Find(`a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`).Length() != wantLinks {
 			t.Fatalf("%s: BiblioReads must retain its Goodreads document URL regardless of the author link provider", path)
 		}
 	}

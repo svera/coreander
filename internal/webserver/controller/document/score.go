@@ -30,14 +30,15 @@ func (d *Controller) Score(c fiber.Ctx) error {
 		log.Printf("Error retrieving score for %s: %s", document.ID, err)
 		return c.SendString("")
 	}
-	if score.URL != "" && score.Value == "" {
-		return c.SendString("")
-	}
 	return c.Render("partials/document-score", fiber.Map{
-		"Source":       score.Source,
-		"Rating":       score.Value,
-		"RatingCount":  score.Count,
-		"URL":          score.URL,
-		"DocumentSlug": document.Slug,
+		"Lang":               c.Locals("Lang"),
+		"ReviewLanguage":     c.Locals("Lang"),
+		"SupportedLanguages": c.Locals("SupportedLanguages"),
+		"Source":             score.Source,
+		"Rating":             score.Value,
+		"RatingCount":        score.Count,
+		"Scored":             score.HasScore(),
+		"URL":                score.URL,
+		"DocumentSlug":       document.Slug,
 	})
 }

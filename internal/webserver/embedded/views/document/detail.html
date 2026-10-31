@@ -120,7 +120,11 @@
         </section>
         {{end}}
         {{if .ReviewsEnabled}}
-        <div id="document-reviews-{{.Document.Slug}}"></div>
+        <div id="document-reviews-{{.Document.Slug}}" class="mt-5">
+            {{if .DocumentServiceLink.URL}}
+            {{template "partials/document-reviews-header" dict "Lang" .Lang "Source" .DocumentServiceLink.Source "BookURL" .DocumentServiceLink.URL "Slug" .Document.Slug "SupportedLanguages" .SupportedLanguages "ReviewLanguage" .Lang}}
+            {{end}}
+        </div>
         {{end}}
     </div>
 </div>
