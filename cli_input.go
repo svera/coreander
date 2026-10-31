@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/alecthomas/kong"
 )
@@ -82,6 +83,11 @@ type CLIInput struct {
 	ServerStaticCacheTTL int `env:"SERVER_STATIC_CACHE_TTL" default:"31536000" name:"server-static-cache-ttl" help:"Server-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 1 year (31536000 seconds)."`
 	// ServerDynamicImageCacheTTL defines the server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours.
 	ServerDynamicImageCacheTTL int `env:"SERVER_DYNAMIC_IMAGE_CACHE_TTL" default:"86400" name:"server-dynamic-image-cache-ttl" help:"Server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours (86400 seconds)."`
+	// DisableBiblioreads turns off fetching Goodreads data from BiblioReads.
+	DisableBiblioreads   bool     `env:"DISABLE_BIBLIOREADS" default:"false" name:"disable-biblioreads" help:"Disable fetching Goodreads data (book and author links) from BiblioReads."`
+	BiblioreadsInstances []string `env:"BIBLIOREADS_INSTANCES" name:"biblioreads-instances" sep:"," help:"Comma-separated BiblioReads instance URLs. Overrides the built-in public instances. May be repeated."`
+	// BiblioreadsCacheTTL defines how long responses from BiblioReads are cached in memory, in seconds. Defaults to 24 hours.
+	BiblioreadsCacheTTL int `env:"BIBLIOREADS_CACHE_TTL" default:"86400" name:"biblioreads-cache-ttl" help:"Duration in seconds for which BiblioReads responses are cached in memory. Set to 0 to disable caching. Defaults to 24 hours (86400 seconds)."`
 	// ShareCommentMaxSize defines the maximum length for share comments in characters. Defaults to 280.
 	ShareCommentMaxSize int `env:"SHARE_COMMENT_MAX_SIZE" short:"m" default:"280" name:"share-comment-max-size" help:"Maximum length for share comments in characters. Defaults to 280."`
 	// ShareMaxRecipients defines the maximum number of recipients allowed when sharing a document. Defaults to 10.
@@ -119,6 +125,17 @@ func (c CLIInput) Validate() error {
 	// panics.
 	if c.ShareCommentMaxSize < 0 {
 		return fmt.Errorf("share-comment-max-size must not be negative, got %v", c.ShareCommentMaxSize)
+	}
+	// BiblioreadsCacheTTL must not be negative: 0 is the documented way to
+	// disable caching, so a negative value is most likely a typo.
+	if c.BiblioreadsCacheTTL < 0 {
+		return fmt.Errorf("biblioreads-cache-ttl must not be negative, got %v", c.BiblioreadsCacheTTL)
+	}
+	for _, instance := range c.BiblioreadsInstances {
+		u, err := url.Parse(instance)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+			return fmt.Errorf("biblioreads-instances must contain absolute HTTP or HTTPS URLs, got %q", instance)
+		}
 	}
 	// MinPasswordLength must be positive: 0 or negative disables the minimum
 	// length check entirely, silently allowing empty passwords.

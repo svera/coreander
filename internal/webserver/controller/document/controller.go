@@ -1,6 +1,7 @@
 package document
 
 import (
+	"context"
 	"image"
 	"time"
 
@@ -8,10 +9,22 @@ import (
 	"github.com/svera/coreander/v5/internal/i18n"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/result"
+	"github.com/svera/coreander/v5/internal/reviews"
+	"github.com/svera/coreander/v5/internal/servicelinks"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
 const relatedDocuments = 4
+
+type ReviewProvider interface {
+	Score(ctx context.Context, document index.Document) (reviews.Score, error)
+	// Reviews returns reviews in the current UI language (a two-letter ISO code).
+	Reviews(ctx context.Context, document index.Document, language string) (reviews.Page, error)
+}
+
+type LinkProvider interface {
+	Author(author index.Author) servicelinks.Link
+}
 
 type Sender interface {
 	SendBCC(addresses []string, subject, body string) error
@@ -31,6 +44,7 @@ type IdxReaderWriter interface {
 	SameSeries(slug string, quantity int) (result.Paginated[[]index.Document], error)
 	NewFile(fileName string, contents []byte) (string, error)
 	DeleteDocument(slug string) error
+	UpdateGoodReadsBookURL(documentID, bookURL string) error
 	Documents(slugs []string) (map[string]index.Document, error)
 	Languages() ([]string, error)
 	Subjects() (map[string][]string, error)
@@ -88,9 +102,12 @@ type Controller struct {
 	config                Config
 	appFs                 afero.Fs
 	translator            i18n.Translator
+	reviewProvider        ReviewProvider
+	linkProvider          LinkProvider
 }
 
-func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, annotationsRepository annotationsRepository, sender Sender, idx IdxReaderWriter, appFs afero.Fs, cfg Config, translator i18n.Translator) *Controller {
+// NewController creates a document controller. A nil reviewProvider disables scores and reviews.
+func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, annotationsRepository annotationsRepository, sender Sender, idx IdxReaderWriter, appFs afero.Fs, cfg Config, translator i18n.Translator, reviewProvider ReviewProvider, linkProvider LinkProvider) *Controller {
 	return &Controller{
 		hlRepository:          hlRepository,
 		usersRepository:       usersRepository,
@@ -101,5 +118,7 @@ func NewController(hlRepository highlightsRepository, usersRepository usersRepos
 		config:                cfg,
 		appFs:                 appFs,
 		translator:            translator,
+		reviewProvider:        reviewProvider,
+		linkProvider:          linkProvider,
 	}
 }

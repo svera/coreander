@@ -63,6 +63,17 @@ func TestRebuildAuthorsFromDocuments(t *testing.T) {
 	if author.DocumentCount != 1 {
 		t.Fatalf("expected DocumentCount=1 for George Orwell, got %d", author.DocumentCount)
 	}
+	author.GoodReadsAuthorURL = "/author/show/3706.George_Orwell"
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.RebuildAuthorsFromDocuments(10); err != nil {
+		t.Fatal(err)
+	}
+	author, err = idx.Author("george-orwell", "en")
+	if err != nil || author.GoodReadsAuthorURL != "/author/show/3706.George_Orwell" {
+		t.Fatalf("expected existing author URL preserved during rebuild, got %+v, %v", author, err)
+	}
 
 	illustrator, err := idx.Author("jane-austen", "en")
 	if err != nil {

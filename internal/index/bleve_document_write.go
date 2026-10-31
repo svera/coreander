@@ -145,7 +145,10 @@ func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
 			}
 			document.Metadata = job.meta
 			document.TextRankEnriched = !b.supportsTextRank(file)
+			documents := []Document{document}
 			b.documentsMu.Lock()
+			b.preserveGoodReadsLocked(documents)
+			document = documents[0]
 			err = b.documentsIdx.Index(id, document)
 			b.documentsMu.Unlock()
 			if err != nil {
@@ -181,6 +184,7 @@ func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
 	if !document.TextRankEnriched {
 		b.scheduleTextRankEnrichment(document)
 	}
+	b.scheduleGoodReadsEnrichment(document.ID)
 
 	b.maybePruneForLibraryChange()
 

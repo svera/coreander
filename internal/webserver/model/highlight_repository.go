@@ -141,6 +141,8 @@ func hasSearchFields(sf index.SearchFields) bool {
 		sf.EstReadTimeTo != 0 ||
 		sf.PagesFrom != 0 ||
 		sf.PagesTo != 0 ||
+		sf.GoodReadsRatingFrom != 0 ||
+		sf.GoodReadsRatingTo != 0 ||
 		sf.IllustratedOnly
 }
 
@@ -189,6 +191,14 @@ func matchesSearchFields(doc AugmentedDocument, sf index.SearchFields, illustrat
 
 	if (sf.PagesFrom > 0 || sf.PagesTo > 0) && !matchesPagesRange(doc, sf) {
 		return false
+	}
+
+	if sf.GoodReadsRatingFrom > 0 || sf.GoodReadsRatingTo > 0 {
+		if doc.GoodReadsRatingValue <= 0 ||
+			(sf.GoodReadsRatingFrom > 0 && doc.GoodReadsRatingValue < sf.GoodReadsRatingFrom) ||
+			(sf.GoodReadsRatingTo > 0 && doc.GoodReadsRatingValue > sf.GoodReadsRatingTo) {
+			return false
+		}
 	}
 
 	if sf.IllustratedOnly && illustratedMinAmount > 0 && doc.Illustrations < illustratedMinAmount {

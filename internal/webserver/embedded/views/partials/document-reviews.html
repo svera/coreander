@@ -1,0 +1,30 @@
+<section id="document-reviews-{{.Slug}}" class="document-reviews mt-5">
+    {{template "partials/document-reviews-header" .}}
+    <div class="document-reviews-content">
+    {{if not .Unavailable}}
+    {{range $i, $review := .Reviews}}
+    <article class="border-top pt-3 mt-3">
+        <header class="mb-2">
+            <strong class="d-block fs-5 mb-1">{{.Reviewer}}</strong>
+            <div class="d-flex flex-wrap align-items-baseline gap-2">
+                {{if gt .Rating 0.0}}<span role="img" aria-label="{{.Rating}}/5">{{range .StarFills}}{{if eq . 100}}<i class="bi bi-star-fill" aria-hidden="true"></i>{{else if eq . 0}}<i class="bi bi-star" aria-hidden="true"></i>{{else}}<span class="review-star" aria-hidden="true"><i class="bi bi-star"></i><span class="review-star-fill" style="width: {{.}}%"><i class="bi bi-star-fill"></i></span></span>{{end}}{{end}}</span>{{else}}<span class="text-muted">{{t $.Lang "Not scored"}}</span>{{end}}
+                {{if .URL}}<a class="ms-auto text-end text-muted text-decoration-none" href="{{.URL}}" target="_blank" rel="noopener noreferrer">{{if .CreatedOn}}<time class="locale" datetime="{{.CreatedOn}}">{{.CreatedOn}}</time>{{else}}{{t $.Lang "Read"}}{{end}}</a>{{end}}
+            </div>
+        </header>
+        {{if .Spoiler}}
+        <details>
+            <summary>{{t $.Lang "Show spoiler"}}</summary>
+        {{end}}
+        <div id="review-content-{{$i}}" class="review-content clamp{{if .Spoiler}} mt-2{{end}}">{{.HTML}}</div>
+        <button type="button" class="btn btn-link p-0 mt-2 review-toggle" hidden aria-expanded="false" aria-controls="review-content-{{$i}}" data-show-more="{{t $.Lang "Show more"}}" data-show-less="{{t $.Lang "Show less"}}">{{t $.Lang "Show more"}}</button>
+        {{if .Spoiler}}</details>{{end}}
+    </article>
+    {{else}}
+    <p class="text-muted mt-3">{{t .Lang "No user reviews available in the current language"}}</p>
+    {{end}}
+    {{end}}
+    </div>
+    <div class="document-reviews-loading placeholder-glow" aria-hidden="true">
+        {{template "partials/document-reviews-skeleton" .}}
+    </div>
+</section>

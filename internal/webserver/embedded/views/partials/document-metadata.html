@@ -12,6 +12,12 @@
     {{ if .Document.Pages }}
         <li class="fw-bold"><i class="bi bi-book me-2" alt="{{t .Lang "Pages"}}" title="{{t .Lang "Pages"}}"></i>{{.Document.Pages}}</li>
     {{ end }}
+    {{ if .ReviewsEnabled }}
+        <li class="placeholder-glow" hx-get="/documents/{{.Document.Slug}}/score" hx-trigger="load" hx-target="this" hx-swap="outerHTML"><span class="placeholder col-4"></span></li>
+    {{ end }}
+    {{if and .ShowGoodReadsScore .Document.GoodReadsRating .Document.GoodReadsBookURL}}
+        {{template "partials/document-score" dict "Lang" .Lang "Source" "Goodreads" "Rating" .Document.GoodReadsRating "Scored" (gt .Document.GoodReadsRatingValue 0.0) "URL" (printf "https://www.goodreads.com%s" .Document.GoodReadsBookURL)}}
+    {{end}}
     {{ if and .IllustratedMinAmount (ge .Document.Illustrations .IllustratedMinAmount) }}
         <li class="fw-bold"><i class="bi bi-images me-2" alt="{{t .Lang "Illustrated"}}" title="{{t .Lang "Illustrated"}}"></i>{{t .Lang "Illustrated"}}</li>
     {{ end }}

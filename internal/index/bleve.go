@@ -30,11 +30,11 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v13"
+const DocumentVersion = "v14"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const AuthorVersion = "2"
+const AuthorVersion = "3"
 
 // Metadata fields
 var (
@@ -182,6 +182,9 @@ type Config struct {
 	// to already be resolved (e.g. via ResolveMetadataWorkers); <= 0 falls
 	// back to 1.
 	TextRankEnrichWorkers int
+	// GoodReadsSource, if set, is used to fill each document's GoodReads URLs
+	// in the background (see EnrichGoodReads). Nil disables it.
+	GoodReadsSource GoodReadsSource
 }
 
 type BleveIndexer struct {
@@ -215,6 +218,11 @@ type BleveIndexer struct {
 	// textRankEnrichJobs feeds documents queued by indexFile to a fixed-size
 	// pool of long-lived worker goroutines; see runTextRankEnrichWorker.
 	textRankEnrichJobs chan Document
+	// goodReadsEnrichJobs feeds IDs of documents queued by indexFile to
+	// runGoodReadsEnrichWorker; only used when goodReadsSource is set.
+	goodReadsEnrichJobs chan string
+	goodReadsSource     GoodReadsSource
+	goodReadsSlots      chan struct{}
 	// fileLocks holds a *sync.Mutex per document ID, serializing concurrent
 	// indexFile calls for the same file (upload vs. file watcher reacting to
 	// the same write).
@@ -319,10 +327,19 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		minCommonTextRankAbsoluteCount: minCommonTextRankAbsoluteCount,
 		pruneChangeTriggerRatio:        pruneChangeTriggerRatio,
 		textRankEnrichJobs:             make(chan Document, textRankEnrichWorkers),
+		goodReadsSource:                cfg.GoodReadsSource,
+		goodReadsSlots:                 make(chan struct{}, goodReadsEnrichWorkers),
 	}
 
 	for range textRankEnrichWorkers {
 		go b.runTextRankEnrichWorker()
+	}
+
+	if b.goodReadsSource != nil {
+		b.goodReadsEnrichJobs = make(chan string, goodReadsEnrichWorkers)
+		for range goodReadsEnrichWorkers {
+			go b.runGoodReadsEnrichWorker()
+		}
 	}
 
 	return b
@@ -375,6 +392,19 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	}
 
 	keywordFieldMapping := bleve.NewKeywordFieldMapping()
+
+	// Stored only, so the field can be read back but never matches a search.
+	// IncludeInAll=false is redundant with Index=false today, but keeps the
+	// field out of the composite _all field explicitly.
+	storedOnlyFieldMapping := bleve.NewKeywordFieldMapping()
+	storedOnlyFieldMapping.Index = false
+	storedOnlyFieldMapping.IncludeInAll = false
+	storedOnlyFieldMapping.DocValues = false
+
+	storedOnlyNumericFieldMapping := bleve.NewNumericFieldMapping()
+	storedOnlyNumericFieldMapping.Index = false
+	storedOnlyNumericFieldMapping.IncludeInAll = false
+	storedOnlyNumericFieldMapping.DocValues = false
 
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
@@ -434,6 +464,12 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrations", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsBookURL", storedOnlyFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsRating", storedOnlyFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsRatingValue", numericFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsResourceID", storedOnlyFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsLegacyBookID", storedOnlyNumericFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsEnriched", booleanFieldMapping)
 	}
 
 	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
@@ -458,6 +494,12 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Illustrations", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsBookURL", storedOnlyFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsRating", storedOnlyFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsRatingValue", numericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsResourceID", storedOnlyFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsLegacyBookID", storedOnlyNumericFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsEnriched", booleanFieldMapping)
 
 	return indexMapping
 }
@@ -483,6 +525,10 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	keywordFieldMapping := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable.Index = false
+	storedOnlyFieldMapping := bleve.NewKeywordFieldMapping()
+	storedOnlyFieldMapping.Index = false
+	storedOnlyFieldMapping.IncludeInAll = false
+	storedOnlyFieldMapping.DocValues = false
 
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
@@ -498,6 +544,7 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceID", keywordFieldMappingNotIndexable)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceImage", keywordFieldMappingNotIndexable)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Website", keywordFieldMappingNotIndexable)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsAuthorURL", storedOnlyFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfBirth.Date", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfDeath.Date", numericFieldMapping)

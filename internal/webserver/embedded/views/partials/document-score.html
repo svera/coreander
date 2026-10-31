@@ -1,0 +1,19 @@
+<li>
+    <i class="bi bi-star-fill me-2" alt="{{t .Lang "%s rating" .Source}}" title="{{t .Lang "%s rating" .Source}}"></i>{{if .ScoreUnavailable}}<span class="text-body-secondary">{{t .Lang "Unable to load Goodreads score"}}</span>{{else if .Scored}}<a href="{{.URL}}" class="fw-bold text-decoration-none" target="_blank" rel="noopener noreferrer" title="{{t .Lang "%s rating" .Source}}">{{.Rating}}</a>{{if .RatingCount}} <small>({{t .Lang "%s ratings" .RatingCount}})</small>{{end}}{{else}}<span class="text-body-secondary">{{t .Lang "Not scored"}}</span>{{end}}
+    {{if .CanEditGoodReads}}
+    <a class="small ms-2" data-bs-toggle="collapse" href="#edit-goodreads-{{.DocumentSlug}}" role="button" aria-expanded="false" aria-controls="edit-goodreads-{{.DocumentSlug}}">{{t .Lang "Edit Goodreads link"}}</a>
+    <div class="collapse mt-2" id="edit-goodreads-{{.DocumentSlug}}">
+        {{template "partials/document-goodreads-form" dict "Lang" .Lang "Slug" .DocumentSlug "BookURL" .URL}}
+    </div>
+    {{end}}
+</li>
+{{if and .URL .DocumentSlug}}
+<div id="document-reviews-{{.DocumentSlug}}" class="mt-5 placeholder-glow" hx-swap-oob="outerHTML"{{if .Rating}} hx-get="/documents/{{.DocumentSlug}}/reviews" hx-trigger="intersect once" hx-target="this" hx-swap="outerHTML"{{end}}>
+    {{template "partials/document-reviews-header" dict "Lang" .Lang "Source" .Source "BookURL" .URL "Slug" .DocumentSlug "SupportedLanguages" .SupportedLanguages "ReviewLanguage" .ReviewLanguage}}
+    {{if .Rating}}
+    <div aria-hidden="true">
+        {{template "partials/document-reviews-skeleton" .}}
+    </div>
+    {{end}}
+</div>
+{{end}}

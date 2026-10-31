@@ -6,12 +6,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
@@ -114,6 +117,99 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 				t.Fatalf("expected cleared image URL to persist, got %q", imageURL)
 			}
 		})
+	}
+}
+
+func TestAuthorSummaryGoodReadsLink(t *testing.T) {
+	app, idx := newGoodReadsTestApp(t, nil)
+	const (
+		authorPath   = "/author/show/151155.Alice_Borchardt"
+		authorURL    = "https://www.goodreads.com" + authorPath
+		wikipediaURL = "https://en.wikipedia.org/wiki/Alice_Borchardt"
+	)
+	locales := []struct {
+		lang  string
+		label string
+	}{
+		{"en", "Go to Goodreads author page"},
+		{"es", "Ir a la página del autor en Goodreads"},
+		{"de", "Zur Autorenseite auf Goodreads"},
+		{"fr", "Voir la page de l'auteur sur Goodreads"},
+		{"ru", "Перейти на страницу автора в Goodreads"},
+	}
+	for _, tc := range []struct {
+		name      string
+		goodreads bool
+		wikipedia bool
+		sourceID  string
+	}{
+		{"with-wikipedia", true, true, "Q1"},
+		{"without-goodreads", false, true, "Q1"},
+		{"without-wikipedia", true, false, "Q1"},
+		{"without-wikidata", true, false, ""},
+	} {
+		author := index.Author{
+			Slug: tc.name, Name: "Alice Borchardt",
+			DataSourceID: tc.sourceID, RetrievedOn: time.Now().UTC(),
+			WikipediaLink: make(map[string]string),
+		}
+		if tc.goodreads {
+			author.GoodReadsAuthorURL = authorPath
+		}
+		if tc.wikipedia {
+			for _, locale := range locales {
+				author.WikipediaLink[locale.lang] = wikipediaURL
+			}
+		}
+		if err := idx.IndexAuthor(author); err != nil {
+			t.Fatal(err)
+		}
+		for _, style := range []struct {
+			name  string
+			query string
+		}{
+			{"summary", ""},
+			{"document-detail", "?style=clear"},
+		} {
+			for _, locale := range locales {
+				t.Run(tc.name+"/"+style.name+"/"+locale.lang, func(t *testing.T) {
+					req := mustGetRequest(t, "/authors/"+tc.name+"/summary"+style.query)
+					req.Header.Set("Accept-Language", locale.lang)
+					response, err := app.Test(req)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer response.Body.Close()
+					mustReturnStatus(response, http.StatusOK, t)
+					page, err := goquery.NewDocumentFromReader(response.Body)
+					if err != nil {
+						t.Fatal(err)
+					}
+					link := page.Find(`a[href="` + authorURL + `"]`)
+					if !tc.goodreads {
+						if page.Find(`img[src^="/images/goodreads.svg"]`).Length() != 0 {
+							t.Error("expected no Goodreads icon without an author URL")
+						}
+						if link.Length() != 0 {
+							t.Fatal("expected no Goodreads link without an author URL")
+						}
+						return
+					}
+					if link.Length() != 1 || strings.TrimSpace(link.Text()) != locale.label {
+						t.Fatalf("expected one localized Goodreads link %q, got %d links with text %q", locale.label, link.Length(), link.Text())
+					}
+					icon := link.PrevFiltered(`img[src^="/images/goodreads.svg"]`)
+					if icon.Length() != 1 || icon.AttrOr("alt", "missing") != "" || icon.AttrOr("width", "") != "16" || icon.AttrOr("height", "") != "16" {
+						t.Error("expected a decorative Goodreads SVG icon before the author link")
+					}
+					if tc.wikipedia {
+						if href, _ := link.Parent().Prev().Find("a").Attr("href"); href != wikipediaURL {
+							t.Fatalf("expected Goodreads immediately below Wikipedia, previous link is %q", href)
+						}
+					}
+				})
+			}
+		}
 	}
 }
 

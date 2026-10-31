@@ -9,7 +9,7 @@ import(`./luxon.min.js${versionParam}`).then(({ DateTime }) => {
     const datetimeFormatter = () => {
         const datetime = document.querySelectorAll('time.locale');
         datetime.forEach(function(element) {
-            let dt = DateTime.fromISO(element.textContent);
+            let dt = DateTime.fromISO(element.getAttribute('datetime') || element.textContent);
             if (dt.isValid) {
                 if (element.classList.contains('relative')) {
                     element.textContent = dt.toRelative({ locale: document.documentElement.lang });
@@ -25,7 +25,8 @@ import(`./luxon.min.js${versionParam}`).then(({ DateTime }) => {
         });
     }
 
-    document.addEventListener('DOMContentLoaded', datetimeFormatter());
+    datetimeFormatter();
+    document.body.addEventListener('htmx:afterSwap', datetimeFormatter);
 
     const observer = new MutationObserver(datetimeFormatter);
 

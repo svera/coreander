@@ -65,6 +65,7 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 
 	templateVars := fiber.Map{
 		"Author":               author,
+		"ServiceLink":          a.authorLink(author),
 		"ImageVersion":         a.getImageVersion(author.Slug),
 		"DocumentSearchFields": searchFields,
 		"DocumentsOnly":        true,

@@ -20,16 +20,18 @@ type SearchFields struct {
 	// author and its own series - deliberately not its subjects, see
 	// similarToQuery), ranked by score and pruned to those scoring close
 	// enough to the best match (see runSimilarityQuery).
-	SimilarTo       string
-	PubDateFrom     date.Date
-	PubDateTo       date.Date
-	EstReadTimeFrom float64
-	EstReadTimeTo   float64
-	WordsPerMinute  float64
-	PagesFrom       float64
-	PagesTo         float64
-	IllustratedOnly bool
-	SortBy          []string
+	SimilarTo           string
+	PubDateFrom         date.Date
+	PubDateTo           date.Date
+	EstReadTimeFrom     float64
+	EstReadTimeTo       float64
+	WordsPerMinute      float64
+	PagesFrom           float64
+	PagesTo             float64
+	GoodReadsRatingFrom float64
+	GoodReadsRatingTo   float64
+	IllustratedOnly     bool
+	SortBy              []string
 }
 
 type Document struct {
@@ -76,6 +78,22 @@ type Document struct {
 	// in the background. See documentsNeedingTextRank, which drives that pass
 	// off this field so it survives (and resumes correctly across) restarts.
 	TextRankEnriched bool
+	// GoodReadsBookURL is the Goodreads book path returned by BiblioReads.
+	// It is stored but not indexed, and filled by EnrichGoodReads.
+	// Author URLs are stored on Author instead.
+	GoodReadsBookURL string
+	// GoodReadsRating is the score returned with the Goodreads book search result.
+	// The string is retained for display; GoodReadsRatingValue is indexed for filtering.
+	GoodReadsRating      string
+	GoodReadsRatingValue float64
+	// GoodReadsResourceID identifies the work; GoodReadsLegacyBookID identifies
+	// the edition. Both are stored only, populated when book details are fetched,
+	// and used together by BiblioReads to retrieve reviews.
+	GoodReadsResourceID   string
+	GoodReadsLegacyBookID int
+	// GoodReadsEnriched is false until the GoodReads enrichment has looked
+	// this document up, whether or not a match was found.
+	GoodReadsEnriched bool
 }
 
 func (d Document) SupportsAnnotations() bool {

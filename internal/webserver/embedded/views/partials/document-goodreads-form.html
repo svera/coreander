@@ -1,0 +1,10 @@
+<form id="goodreads-link-form-{{.Slug}}" hx-put="/documents/{{.Slug}}/goodreads" hx-target="this" hx-swap="outerHTML">
+    <label class="form-label small" for="goodreads-book-url-{{.Slug}}">{{t .Lang "Goodreads book URL"}}</label>
+    <div class="input-group input-group-sm">
+        <input class="form-control{{if .InvalidURL}} is-invalid{{end}}" type="url" name="bookURL" id="goodreads-book-url-{{.Slug}}" value="{{.BookURL}}" maxlength="2048" required{{if .InvalidURL}} aria-invalid="true" aria-describedby="goodreads-link-error-{{.Slug}}"{{end}}>
+        <button type="submit" class="btn btn-secondary">{{t .Lang "Update"}}</button>
+    </div>
+    {{if .InvalidURL}}
+    <p class="text-danger small mt-1" id="goodreads-link-error-{{.Slug}}" role="alert">{{t .Lang "Enter a valid Goodreads book URL."}}</p>
+    {{end}}
+</form>

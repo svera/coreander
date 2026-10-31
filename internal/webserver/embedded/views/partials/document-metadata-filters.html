@@ -20,6 +20,32 @@
 </fieldset>
 {{end}}
 <fieldset class="mt-4">
+    <legend class="fs-5"><i class="bi bi-star me-3"></i>{{t .Lang "Goodreads score"}}</legend>
+    <div class="row">
+        <div class="col-12 px-0">
+            <div class="input-group input-group-sm">
+                {{$goodReadsRatingFrom := ""}}
+                {{if .SearchFields}}
+                    {{$goodReadsRatingFrom = .SearchFields.GoodReadsRatingFrom}}
+                {{end}}
+                <div class="form-floating">
+                    <input class="col-9 col-sm-10 form-control" type="number" value="{{if $goodReadsRatingFrom}}{{$goodReadsRatingFrom}}{{end}}" min="0" max="5" step="0.1" name="goodreads-score-from" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}goodreads-score-from" placeholder='{{t .Lang "From"}}'>
+                    <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}goodreads-score-from">{{t .Lang "From"}}</label>
+                </div>
+                {{$goodReadsRatingTo := ""}}
+                {{if .SearchFields}}
+                    {{$goodReadsRatingTo = .SearchFields.GoodReadsRatingTo}}
+                {{end}}
+                <div class="form-floating">
+                    <input class="col-9 col-sm-10 form-control rounded-end" type="number" value="{{if $goodReadsRatingTo}}{{$goodReadsRatingTo}}{{end}}" min="0" max="5" step="0.1" name="goodreads-score-to" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}goodreads-score-to" placeholder='{{t .Lang "To"}}'>
+                    <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}goodreads-score-to">{{t .Lang "To"}}</label>
+                </div>
+                <button type="button" class="input-group-text clear-range-control text-muted border-0 bg-transparent" aria-label='{{t .Lang "Clear Goodreads score"}}' title='{{t .Lang "Clear Goodreads score"}}'><i class="bi bi-x-lg"></i></button>
+            </div>
+        </div>
+    </div>
+</fieldset>
+<fieldset class="mt-4">
     <legend class="fs-5"><i class="bi bi-tags me-3"></i>{{t .Lang "Subjects"}}</legend>
     <div class="row">
         <div class="col-12 px-0">

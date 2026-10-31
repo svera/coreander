@@ -70,6 +70,8 @@
                 </dd>
             {{end}}
         </dl>
+        {{end}}
+        {{if or .Author.Website (index .Author.WikipediaLink .Lang) .ServiceLink.URL}}
         <ul class="list-unstyled">
             {{if .Author.Website}}
                 <li>
@@ -84,6 +86,7 @@
                     <a href="{{index .Author.WikipediaLink .Lang}}">{{t .Lang "Go to Wikipedia entry"}}</a>
                 </li>
             {{end}}
+            {{template "partials/author-service-link" dict "Lang" .Lang "ServiceLink" .ServiceLink}}
         </ul>
         {{end}}
     </div>
