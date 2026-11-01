@@ -1,6 +1,7 @@
 package index_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/blevesearch/bleve/v2"
@@ -9,6 +10,79 @@ import (
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 )
+
+func TestGoodReadsScoreSorting(t *testing.T) {
+	docs := []index.Document{
+		{ID: "high", Slug: "high", GoodReadsRatingValue: 4.75},
+		{ID: "unrated", Slug: "unrated"},
+		{ID: "low", Slug: "low", GoodReadsRatingValue: 3.25},
+	}
+	for i := range docs {
+		docs[i].Metadata = metadata.Metadata{Title: docs[i].Slug, Authors: []string{"Writer"}, Format: "EPUB", Series: "Series"}
+		docs[i].AuthorsSlugs = []string{"writer"}
+		docs[i].SeriesSlug = "series"
+		docs[i].TextRankPhrases = []string{"atomic bomb", "los alamos", "manhattan project"}
+	}
+	reference := index.Document{
+		ID: "reference", Slug: "reference",
+		Metadata:        metadata.Metadata{Title: "Reference", Authors: []string{"Other"}, Format: "EPUB"},
+		AuthorsSlugs:    []string{"other"},
+		TextRankPhrases: docs[0].TextRankPhrases,
+	}
+	idx := newTextRankTestIndex(t, append(docs, reference))
+	t.Cleanup(func() { _ = idx.Close() })
+
+	for _, scope := range []string{"search", "author", "series", "similar"} {
+		for _, direction := range []string{"asc", "desc"} {
+			t.Run(scope+"/"+direction, func(t *testing.T) {
+				key := "GoodReadsRatingValue"
+				want := []string{"low", "high"}
+				if direction == "desc" {
+					key = "-" + key
+					slices.Reverse(want)
+				}
+				want = append(want, "unrated")
+				fields := index.SearchFields{SortBy: []string{key}}
+				switch scope {
+				case "search":
+					fields.Keywords = "writer"
+				case "author":
+					fields.AuthorSlug = "writer"
+				case "series":
+					fields.Keywords = "series"
+				case "similar":
+					fields.SimilarTo = "reference"
+				}
+				var got []string
+				for page := 1; page <= 2; page++ {
+					switch scope {
+					case "author":
+						res, err := idx.SearchByAuthor(fields, page, 2)
+						if err != nil {
+							t.Fatal(err)
+						}
+						got = append(got, slugsOf(res.Hits())...)
+					case "series":
+						res, err := idx.SearchBySeries(fields, page, 2)
+						if err != nil {
+							t.Fatal(err)
+						}
+						got = append(got, slugsOf(res.Hits())...)
+					default:
+						res, err := idx.Search(fields, page, 2)
+						if err != nil {
+							t.Fatal(err)
+						}
+						got = append(got, slugsOf(res.Hits())...)
+					}
+				}
+				if !slices.Equal(got, want) {
+					t.Fatalf("got %v, want %v", got, want)
+				}
+			})
+		}
+	}
+}
 
 func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 	documentsIndexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
@@ -40,7 +114,6 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 			},
 			AuthorsSlugs:          []string{"alice-borchardt"},
 			GoodReadsBookURL:      bookURL,
-			GoodReadsRating:       "4.25",
 			GoodReadsRatingValue:  4.25,
 			GoodReadsResourceID:   resourceID,
 			GoodReadsLegacyBookID: legacyBookID,
@@ -56,8 +129,8 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 		if got.GoodReadsBookURL != bookURL {
 			t.Errorf("language %q: expected stored book URL, got %q", lang, got.GoodReadsBookURL)
 		}
-		if got.GoodReadsRating != "4.25" {
-			t.Errorf("language %q: expected stored rating, got %q", lang, got.GoodReadsRating)
+		if got.GoodReadsRatingValue != 4.25 {
+			t.Errorf("language %q: expected stored rating, got %v", lang, got.GoodReadsRatingValue)
 		}
 		if got.GoodReadsResourceID != resourceID || got.GoodReadsLegacyBookID != legacyBookID {
 			t.Errorf("language %q: expected stored identifiers, got %q and %d", lang, got.GoodReadsResourceID, got.GoodReadsLegacyBookID)
@@ -84,7 +157,6 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 
 	queries := map[string]bleve.SearchRequest{
 		"book URL field term":     *bleve.NewSearchRequest(fieldTermQuery("GoodReadsBookURL", bookURL)),
-		"book rating field term":  *bleve.NewSearchRequest(fieldTermQuery("GoodReadsRating", "4.25")),
 		"author URL field term":   *bleve.NewSearchRequest(fieldTermQuery("GoodReadsAuthorURL", authorURL)),
 		"resource ID field term":  *bleve.NewSearchRequest(fieldTermQuery("GoodReadsResourceID", resourceID)),
 		"legacy ID numeric field": *bleve.NewSearchRequest(legacyBookIDQuery(legacyBookID)),
@@ -100,6 +172,58 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 		if res.Total != 0 {
 			t.Errorf("%s: expected no hits, got %d", name, res.Total)
 		}
+	}
+}
+
+func TestGoodReadsScoreSortingMissingFieldsAndTies(t *testing.T) {
+	documents, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	authors, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx := index.NewBleve(documents, authors, nil, "", nil, index.Config{})
+	t.Cleanup(func() { _ = idx.Close() })
+	for _, doc := range []map[string]any{
+		{"Slug": "unrated-zero", "GoodReadsRatingValue": 0.0, "SeriesIndex": 2.0},
+		{"Slug": "high", "GoodReadsRatingValue": 4.75, "SeriesIndex": 1.0},
+		{"Slug": "unrated-missing", "SeriesIndex": 1.0},
+		{"Slug": "low-second", "GoodReadsRatingValue": 3.25, "SeriesIndex": 2.0},
+		{"Slug": "low-first", "GoodReadsRatingValue": 3.25, "SeriesIndex": 1.0},
+	} {
+		for _, field := range []string{"Title", "Description", "Series", "SeriesSlug", "Format"} {
+			doc[field] = ""
+		}
+		doc["Words"], doc["Pages"] = 0.0, 0.0
+		if err := documents.Index(doc["Slug"].(string), doc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, direction := range []string{"asc", "desc"} {
+		t.Run(direction, func(t *testing.T) {
+			key := "GoodReadsRatingValue"
+			want := []string{"low-first", "low-second", "high", "unrated-missing", "unrated-zero"}
+			if direction == "desc" {
+				key = "-" + key
+				want = []string{"high", "low-first", "low-second", "unrated-missing", "unrated-zero"}
+			}
+			var got []string
+			for page := 1; page <= 3; page++ {
+				res, err := idx.Search(index.SearchFields{SortBy: []string{key, "SeriesIndex"}}, page, 2)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if res.TotalHits() != len(want) {
+					t.Errorf("got %d hits, want %d", res.TotalHits(), len(want))
+				}
+				got = append(got, slugsOf(res.Hits())...)
+			}
+			if !slices.Equal(got, want) {
+				t.Fatalf("got %v, want %v", got, want)
+			}
+		})
 	}
 }
 

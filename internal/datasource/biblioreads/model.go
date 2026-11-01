@@ -11,13 +11,14 @@ type SearchBooksResponse struct {
 }
 
 type SearchResult struct {
-	ID        int    `json:"id"`
-	Cover     string `json:"cover"`
-	Title     string `json:"title"`
-	BookURL   string `json:"bookURL"`
-	Author    string `json:"author"`
-	AuthorURL string `json:"authorURL"`
-	Rating    string `json:"rating"`
+	ID          int    `json:"id"`
+	Cover       string `json:"cover"`
+	Title       string `json:"title"`
+	BookURL     string `json:"bookURL"`
+	Author      string `json:"author"`
+	AuthorURL   string `json:"authorURL"`
+	Rating      string `json:"rating"`
+	RatingCount string `json:"ratingCount"`
 }
 
 type BookResponse struct {

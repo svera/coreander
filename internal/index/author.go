@@ -10,18 +10,17 @@ import (
 )
 
 type Author struct {
-	Slug          string
-	Name          string
-	BirthName     string
-	DataSourceID  string
-	RetrievedOn   time.Time
-	WikipediaLink map[string]string
-	InstanceOf    float64
-	Description   map[string]string
-	DateOfBirth   precisiondate.PrecisionDate
-	DateOfDeath   precisiondate.PrecisionDate
-	Website       string
-	// GoodReadsAuthorURL is the Goodreads author path returned by BiblioReads.
+	Slug               string
+	Name               string
+	BirthName          string
+	DataSourceID       string
+	RetrievedOn        time.Time
+	WikipediaLink      map[string]string
+	InstanceOf         float64
+	Description        map[string]string
+	DateOfBirth        precisiondate.PrecisionDate
+	DateOfDeath        precisiondate.PrecisionDate
+	Website            string
 	GoodReadsAuthorURL string
 	DataSourceImage    string
 	Gender             float64

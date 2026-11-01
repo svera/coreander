@@ -64,7 +64,7 @@ type options struct {
 type Option func(*options)
 
 // WithRequestInterval sets the minimum spacing between request starts to each instance.
-// Zero disables spacing; the default is one second.
+// Zero disables spacing.
 func WithRequestInterval(interval time.Duration) Option {
 	return func(o *options) {
 		o.requestInterval = max(interval, 0)

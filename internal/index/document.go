@@ -82,9 +82,7 @@ type Document struct {
 	// It is stored but not indexed, and filled by EnrichGoodReads.
 	// Author URLs are stored on Author instead.
 	GoodReadsBookURL string
-	// GoodReadsRating is the score returned with the Goodreads book search result.
-	// The string is retained for display; GoodReadsRatingValue is indexed for filtering.
-	GoodReadsRating      string
+	// GoodReadsRatingValue is the Goodreads score, stored and indexed for filtering and sorting.
 	GoodReadsRatingValue float64
 	// GoodReadsResourceID identifies the work; GoodReadsLegacyBookID identifies
 	// the edition. Both are stored only, populated when book details are fetched,

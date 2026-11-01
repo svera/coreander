@@ -40,6 +40,27 @@ const titleBoost = 3.0
 // document detail page's "related documents" widget.
 var DefaultDocumentSortBy = []string{"-_score", "Series", "SeriesIndex"}
 
+// goodReadsScoreSort treats a stored zero as missing without changing the index.
+type goodReadsScoreSort struct {
+	search.SortField
+}
+
+func (s *goodReadsScoreSort) Value(hit *search.DocumentMatch) string {
+	value := s.SortField.Value(hit)
+	if s.SortField.DecodeValue(value) == "0" {
+		if s.Desc {
+			return search.LowTerm
+		}
+		return search.HighTerm
+	}
+	return value
+}
+
+func (s *goodReadsScoreSort) Copy() search.SearchSort {
+	copied := *s
+	return &copied
+}
+
 // Search look for documents which match the passed keywords and filters.
 // Returns a maximum <resultsPerPage> documents, offset by <page>
 func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage int) (result.CappedPaginatedResult[[]Document], error) {
@@ -402,6 +423,16 @@ func (b *BleveIndexer) searchAndHydrate(query query.Query, size, offset int, sor
 	// with an empty sort order, which falls back to arbitrary (index) order instead of relevance.
 	if len(sortBy) > 0 {
 		searchOptions.SortBy(sortBy)
+		for i, key := range sortBy {
+			if strings.TrimPrefix(key, "-") == "GoodReadsRatingValue" {
+				searchOptions.Sort[i] = &goodReadsScoreSort{SortField: search.SortField{
+					Field:   "GoodReadsRatingValue",
+					Desc:    strings.HasPrefix(key, "-"),
+					Type:    search.SortFieldAsNumber,
+					Missing: search.SortFieldMissingLast,
+				}}
+			}
+		}
 	}
 	searchOptions.Fields = []string{"*"}
 	b.documentsMu.RLock()
@@ -591,6 +622,14 @@ func compareDocumentsBySortKey(a, b Document, key string) int {
 		c = cmp.Compare(a.Publication.Date, b.Publication.Date)
 	case "Words":
 		c = cmp.Compare(a.Words, b.Words)
+	case "GoodReadsRatingValue":
+		if (a.GoodReadsRatingValue == 0) != (b.GoodReadsRatingValue == 0) {
+			if a.GoodReadsRatingValue == 0 {
+				return 1
+			}
+			return -1
+		}
+		c = cmp.Compare(a.GoodReadsRatingValue, b.GoodReadsRatingValue)
 	case "Series":
 		c = cmp.Compare(a.Series, b.Series)
 	case "SeriesIndex":
@@ -1038,7 +1077,6 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 	}
 
 	goodReadsBookURL, _ := match.Fields["GoodReadsBookURL"].(string)
-	goodReadsRating, _ := match.Fields["GoodReadsRating"].(string)
 	goodReadsRatingValue, _ := match.Fields["GoodReadsRatingValue"].(float64)
 	goodReadsResourceID, _ := match.Fields["GoodReadsResourceID"].(string)
 	goodReadsLegacyBookID, _ := match.Fields["GoodReadsLegacyBookID"].(float64)
@@ -1071,7 +1109,6 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		TextRankWords:         textRankWords,
 		TextRankEnriched:      textRankEnriched,
 		GoodReadsBookURL:      goodReadsBookURL,
-		GoodReadsRating:       goodReadsRating,
 		GoodReadsRatingValue:  goodReadsRatingValue,
 		GoodReadsResourceID:   goodReadsResourceID,
 		GoodReadsLegacyBookID: int(goodReadsLegacyBookID),

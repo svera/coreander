@@ -107,8 +107,8 @@ func TestEnrichGoodReadsStoresMatchingResult(t *testing.T) {
 	if doc.GoodReadsBookURL != wantGoodReadsBookURL {
 		t.Errorf("unexpected book URL %q", doc.GoodReadsBookURL)
 	}
-	if doc.GoodReadsRating != "3.82" {
-		t.Errorf("unexpected Goodreads rating %q", doc.GoodReadsRating)
+	if doc.GoodReadsRatingValue != 3.82 {
+		t.Errorf("unexpected Goodreads rating %v", doc.GoodReadsRatingValue)
 	}
 	assertNoDocumentAuthorURL(t, idx.documentsIdx)
 	if !doc.GoodReadsEnriched {
@@ -292,7 +292,7 @@ func TestTextRankWritesPreserveGoodReadsFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !doc.GoodReadsEnriched || doc.GoodReadsBookURL != wantGoodReadsBookURL || doc.GoodReadsRating != "3.82" || doc.GoodReadsRatingValue != 3.82 {
+	if !doc.GoodReadsEnriched || doc.GoodReadsBookURL != wantGoodReadsBookURL || doc.GoodReadsRatingValue != 3.82 {
 		t.Errorf("expected GoodReads fields to survive a TextRank write, got %+v", doc)
 	}
 	if doc.GoodReadsResourceID != "work-id" || doc.GoodReadsLegacyBookID != 12207444 {
@@ -459,7 +459,8 @@ func TestGoodReadsTitleMatchScore(t *testing.T) {
 		want      int
 	}{
 		{name: "normalized exact", title: "La promesa", candidate: "LA PROMESA!", want: 3},
-		{name: "series suffix", title: "La promesa", candidate: "La promesa (Series, #1)", want: 2},
+		{name: "series suffix", title: "La promesa", candidate: "La promesa (Series, #1)", want: 3},
+		{name: "document series suffix", title: "La promesa (Series, #1)", candidate: "La promesa", want: 3},
 		{name: "subtitle", title: "La promesa", candidate: "La promesa: Una historia", want: 1},
 		{name: "document subtitle", title: "La promesa: Una historia", candidate: "La promesa", want: 1},
 		{name: "parenthetical", title: "La promesa", candidate: "La promesa (The Promise)", want: 1},
@@ -469,8 +470,7 @@ func TestGoodReadsTitleMatchScore(t *testing.T) {
 		{name: "empty candidate", title: "La promesa"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got := goodReadsTitleMatchScore(tt.candidate, goodReadsTitle(tt.title),
-				normalizeGoodReadsName(tt.title), goodReadsMainTitle(tt.title))
+			got := goodReadsTitleMatchScore(tt.candidate, goodReadsTitle(tt.title), goodReadsMainTitle(tt.title))
 			if got != tt.want {
 				t.Fatalf("title match score = %d, want %d", got, tt.want)
 			}
@@ -486,8 +486,11 @@ func TestPreferGoodReadsBook(t *testing.T) {
 		want             bool
 	}{
 		{name: "first match", score: 1, want: true},
-		{name: "lower ID before rating for equal strength", candidate: biblioreads.SearchResult{ID: 1}, best: biblioreads.SearchResult{ID: 2, Rating: "4"}, score: 3, bestScore: 3, want: true},
-		{name: "higher ID loses despite rating", candidate: biblioreads.SearchResult{ID: 2, Rating: "4"}, best: biblioreads.SearchResult{ID: 1}, score: 3, bestScore: 3},
+		{name: "lower ID before rating for equal strength", candidate: biblioreads.SearchResult{BookURL: "/book/show/1"}, best: biblioreads.SearchResult{BookURL: "/book/show/2", Rating: "4"}, score: 3, bestScore: 3, want: true},
+		{name: "higher ID loses despite rating", candidate: biblioreads.SearchResult{BookURL: "/book/show/2", Rating: "4"}, best: biblioreads.SearchResult{BookURL: "/book/show/1"}, score: 3, bestScore: 3},
+		{name: "more ratings before ID", candidate: biblioreads.SearchResult{BookURL: "/book/show/2", RatingCount: "100"}, best: biblioreads.SearchResult{BookURL: "/book/show/1", RatingCount: "3"}, score: 3, bestScore: 3, want: true},
+		{name: "fewer ratings loses", candidate: biblioreads.SearchResult{RatingCount: "3"}, best: biblioreads.SearchResult{RatingCount: "100"}, score: 3, bestScore: 3},
+		{name: "result rank is not book ID", candidate: biblioreads.SearchResult{ID: 2, BookURL: "/book/show/1"}, best: biblioreads.SearchResult{ID: 1, BookURL: "/book/show/2"}, score: 3, bestScore: 3, want: true},
 		{name: "rating before strength for different strength", candidate: biblioreads.SearchResult{ID: 2, Rating: "4"}, best: biblioreads.SearchResult{ID: 1}, score: 1, bestScore: 3, want: true},
 		{name: "stronger unrated loses to rated", best: biblioreads.SearchResult{Rating: "4"}, score: 3, bestScore: 1},
 		{name: "strength with same rating status", score: 3, bestScore: 1, want: true},
@@ -501,6 +504,89 @@ func TestPreferGoodReadsBook(t *testing.T) {
 				t.Fatalf("candidate preference = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestGoodReadsAuthorNameMatches(t *testing.T) {
+	tests := []struct {
+		name, candidate string
+		want            bool
+	}{
+		{"Paul Kennedy", "Paul M. Kennedy", true},
+		{"Paul Kennedy", "Paul Michael Kennedy", true},
+		{"Paul Michael Kennedy", "Paul Michael James Kennedy", true},
+		{"J. R. R. Tolkien", "J.R.R. Tolkien", true},
+		{"JRR Tolkien", "J.R.R. Tolkien", true},
+		{"José García", "JOSE M. GARCIA", true},
+		{"Paul M. Kennedy", "Paul A. Kennedy", false},
+		{"Paul Michael James Kennedy", "Paul James Michael Kennedy", false},
+		{"Paul Kennedy", "Pauline Kennedy", false},
+		{"Paul Kennedy", "Paul Kennedys", false},
+		{"Paul Kennedy", "John Kennedy", false},
+		{"Kennedy", "Paul M. Kennedy", false},
+		{"Paul", "Paul M. Kennedy", false},
+		{"", "Paul Kennedy", false},
+		{" . ", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name+"/"+tt.candidate, func(t *testing.T) {
+			if got := goodReadsAuthorNameMatches(tt.name, tt.candidate); got != tt.want {
+				t.Errorf("match = %v, want %v", got, tt.want)
+			}
+			if got := goodReadsAuthorNameMatches(tt.candidate, tt.name); got != tt.want {
+				t.Errorf("reverse match = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGoodReadsAuthorPrefersExactAndRejectsAmbiguousPartialMatches(t *testing.T) {
+	doc := Document{
+		Metadata:     metadata.Metadata{Authors: []string{"Paul Kennedy", "Paul M. Kennedy"}},
+		AuthorsSlugs: []string{"paul-kennedy", "paul-m-kennedy"},
+	}
+	if slug, name := goodReadsAuthor(doc, "Paul M. Kennedy"); slug != "paul-m-kennedy" || name != "Paul M. Kennedy" {
+		t.Fatalf("expected exact author, got %q, %q", slug, name)
+	}
+	doc.Authors = []string{"Paul M. Kennedy", "Paul A. Kennedy"}
+	if slug, name := goodReadsAuthor(doc, "Paul Kennedy"); slug != "" || name != "" {
+		t.Fatalf("ambiguous partial match must not select an author, got %q, %q", slug, name)
+	}
+}
+
+func TestGoodReadsBookMatchesKennedyMiddleName(t *testing.T) {
+	const title = "Auge y caída de las grandes potencias"
+	const bookURL = "/book/show/27214"
+	const authorURL = "/author/show/8390124.Paul_M_Kennedy"
+	source := &fakeGoodReadsSource{results: []biblioreads.SearchResult{{
+		Title: title, Author: "Paul M. Kennedy", BookURL: bookURL, AuthorURL: authorURL, Rating: "4.14",
+	}}}
+	idx := newGoodReadsTestIndexer(t, source)
+	doc := Document{
+		ID: goodReadsTestID, AuthorsSlugs: []string{"paul-kennedy", "another-writer"},
+		Metadata: metadata.Metadata{Title: title, Authors: []string{"Paul Kennedy", "Another Writer"}},
+	}
+	if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
+		t.Fatal(err)
+	}
+	got, err := idx.GoodReadsBook(context.Background(), doc)
+	if err != nil || got.BookURL != bookURL || got.Rating != "4.14" {
+		t.Fatalf("expected Kennedy's book and rating, got %+v, %v", got, err)
+	}
+	stored, err := idx.documentByIndexID(doc.ID)
+	if err != nil || !stored.GoodReadsEnriched || stored.GoodReadsBookURL != bookURL || stored.GoodReadsRatingValue != 4.14 {
+		t.Fatalf("expected persisted book match and rating, got %+v, %v", stored, err)
+	}
+	author, err := idx.Author("paul-kennedy", "")
+	if err != nil || author.GoodReadsAuthorURL != authorURL || author.Name != "Paul Kennedy" {
+		t.Fatalf("expected author URL with original name preserved, got %+v, %v", author, err)
+	}
+	other, err := idx.Author("another-writer", "")
+	if err != nil || other.GoodReadsAuthorURL != "" {
+		t.Fatalf("unmatched coauthor must not receive the URL, got %+v, %v", other, err)
+	}
+	if want := []string{title + " Paul Kennedy"}; !slices.Equal(source.Queries(), want) {
+		t.Fatalf("expected combined search to match without fallback, got %q", source.Queries())
 	}
 }
 
@@ -531,7 +617,7 @@ func TestMatchingGoodReadsBook(t *testing.T) {
 		{name: "omnibus range with dash", results: []biblioreads.SearchResult{{Title: correct.Title + " (#1–3)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
 		{name: "document omnibus range", title: correct.Title + " (#1-#3)", results: []biblioreads.SearchResult{correct}, want: correct.BookURL},
 		{name: "standalone volume retained", results: []biblioreads.SearchResult{{Title: correct.Title + " (#1)", Author: correct.Author, BookURL: correct.BookURL}}},
-		{name: "exact preferred", results: []biblioreads.SearchResult{{Title: correct.Title + " (Middle Earth, #1)", Author: correct.Author, BookURL: "/book/show/2"}, correct}, want: correct.BookURL},
+		{name: "series suffix ranks equally", results: []biblioreads.SearchResult{{Title: correct.Title + " (Middle Earth, #1)", Author: correct.Author, BookURL: "/book/show/2"}, correct}, want: "/book/show/2"},
 		{name: "lower Goodreads ID preferred over rating for equal titles", results: []biblioreads.SearchResult{
 			{ID: 1, Title: correct.Title, Author: correct.Author, BookURL: "/book/show/1-unrated", Rating: "0.00"},
 			{ID: 2, Title: correct.Title, Author: correct.Author, BookURL: "/book/show/2-rated", Rating: "4.05"},
@@ -575,6 +661,47 @@ func TestMatchingGoodReadsBook(t *testing.T) {
 	}
 }
 
+func TestMatchingGoodReadsBookPrefersMoreRatingsWithSeriesSuffix(t *testing.T) {
+	document := Document{Metadata: metadata.Metadata{
+		Title: "Los asesinatos de Manhattan", Authors: []string{"Douglas Preston", "Lincoln Child"},
+	}}
+	popular := biblioreads.SearchResult{
+		ID: 1, Title: "Los asesinatos de Manhattan (Pendergast, #3)", Author: "Douglas Preston",
+		BookURL: "/book/show/67005.Los_asesinatos_de_Manhattan", Rating: "4.26", RatingCount: "57,469",
+	}
+	obscure := biblioreads.SearchResult{
+		ID: 3, Title: document.Title, Author: "Douglas Preston",
+		BookURL: "/book/show/152308668-los-asesinatos-de-manhattan", Rating: "3.67", RatingCount: "3",
+	}
+	for _, results := range [][]biblioreads.SearchResult{{popular, obscure}, {obscure, popular}} {
+		match, ok := matchingGoodReadsBook(document, results)
+		if !ok || match.BookURL != popular.BookURL {
+			t.Fatalf("expected popular series entry, got %+v, %v", match, ok)
+		}
+	}
+	popular.Author = "Another author"
+	match, ok := matchingGoodReadsBook(document, []biblioreads.SearchResult{popular, obscure})
+	if !ok || match.BookURL != obscure.BookURL {
+		t.Fatalf("rating count must not bypass author matching, got %+v, %v", match, ok)
+	}
+}
+
+func TestGoodReadsRatingCount(t *testing.T) {
+	for _, tt := range []struct {
+		value string
+		want  uint64
+	}{
+		{"", 0}, {"0", 0}, {"57469", 57469}, {" 57,469 ", 57469},
+		{"unknown", 0}, {"-1", 0}, {"3.5", 0}, {"18446744073709551616", 0},
+	} {
+		t.Run(tt.value, func(t *testing.T) {
+			if got := goodReadsRatingCount(tt.value); got != tt.want {
+				t.Fatalf("rating count = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMatchingGoodReadsBookPrefersLowerIDForEqualTitle(t *testing.T) {
 	const olderBookURL = "/book/show/1368314.El_Cercano_Oriente"
 	const newerBookURL = "/book/show/243175949-el-cercano-oriente"
@@ -582,11 +709,11 @@ func TestMatchingGoodReadsBookPrefersLowerIDForEqualTitle(t *testing.T) {
 		Title: "El cercano Oriente", Authors: []string{"Isaac Asimov"},
 	}}
 	older := biblioreads.SearchResult{
-		ID: 1368314, Title: "El Cercano Oriente", Author: "Isaac Asimov",
+		ID: 2, Title: "El Cercano Oriente", Author: "Isaac Asimov",
 		BookURL: olderBookURL, Rating: "4.10",
 	}
 	newer := biblioreads.SearchResult{
-		ID: 243175949, Title: "El Cercano Oriente", Author: "Isaac Asimov",
+		ID: 1, Title: "El Cercano Oriente", Author: "Isaac Asimov",
 		BookURL: newerBookURL, Rating: "4.26",
 	}
 
@@ -822,7 +949,7 @@ func TestStoreGoodReadsDetails(t *testing.T) {
 				if writes.count != 0 {
 					t.Fatal("stale details must not cause any index writes")
 				}
-				if stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 || stored.GoodReadsRating != "" {
+				if stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 || stored.GoodReadsRatingValue != 0 {
 					t.Fatalf("unexpected details persisted: %+v", stored)
 				}
 				return
@@ -834,12 +961,13 @@ func TestStoreGoodReadsDetails(t *testing.T) {
 			if stored.GoodReadsResourceID != resourceID || stored.GoodReadsLegacyBookID != wantLegacyBookID {
 				t.Fatalf("identifiers not persisted: %+v", stored)
 			}
-			if stored.GoodReadsRating != book.Rating || stored.GoodReadsRatingValue != 4.12 {
+			if stored.GoodReadsRatingValue != 4.12 {
 				t.Fatalf("rating not persisted with identifiers: %+v", stored)
 			}
 			if !stored.GoodReadsEnriched || !slices.Equal(stored.TextRankWords, doc.TextRankWords) {
 				t.Fatalf("existing enrichment was lost: %+v", stored)
 			}
+			book.Rating = "4.120"
 			if err := idx.StoreGoodReadsDetails(stale, wantGoodReadsBookURL, book); err != nil {
 				t.Fatalf("repeated store failed: %v", err)
 			}
@@ -882,8 +1010,8 @@ func TestStoreGoodReadsDetailsPreservesMissingFields(t *testing.T) {
 			idx := newGoodReadsTestIndexer(t, nil)
 			doc := Document{
 				ID: goodReadsTestID, GoodReadsBookURL: wantGoodReadsBookURL,
-				GoodReadsRating: "3.82", GoodReadsRatingValue: 3.82,
-				GoodReadsResourceID: "old-work", GoodReadsLegacyBookID: 1,
+				GoodReadsRatingValue: 3.82,
+				GoodReadsResourceID:  "old-work", GoodReadsLegacyBookID: 1,
 			}
 			if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
 				t.Fatal(err)
@@ -895,7 +1023,7 @@ func TestStoreGoodReadsDetailsPreservesMissingFields(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if stored.GoodReadsRating != tt.wantRating || stored.GoodReadsRatingValue != parseGoodReadsRating(tt.wantRating, doc.ID) ||
+			if stored.GoodReadsRatingValue != parseGoodReadsRating(tt.wantRating, doc.ID) ||
 				stored.GoodReadsResourceID != tt.wantWork || stored.GoodReadsLegacyBookID != tt.wantID {
 				t.Fatalf("partial details changed fields that were not supplied: %+v", stored)
 			}
@@ -937,7 +1065,6 @@ func TestUpdateGoodReadsBookURL(t *testing.T) {
 				Metadata:              metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}},
 				TextRankWords:         []string{"dragon"},
 				GoodReadsBookURL:      wantGoodReadsBookURL,
-				GoodReadsRating:       "3.82",
 				GoodReadsRatingValue:  3.82,
 				GoodReadsResourceID:   "old-work",
 				GoodReadsLegacyBookID: 12207444,
@@ -960,7 +1087,7 @@ func TestUpdateGoodReadsBookURL(t *testing.T) {
 			}
 			if tt.want == "" || tt.want == doc.GoodReadsBookURL {
 				if stored.GoodReadsBookURL != doc.GoodReadsBookURL ||
-					stored.GoodReadsRating != doc.GoodReadsRating ||
+					stored.GoodReadsRatingValue != doc.GoodReadsRatingValue ||
 					stored.GoodReadsResourceID != doc.GoodReadsResourceID ||
 					stored.GoodReadsLegacyBookID != doc.GoodReadsLegacyBookID {
 					t.Fatalf("invalid or unchanged URL modified stored data: %+v", stored)
@@ -968,7 +1095,7 @@ func TestUpdateGoodReadsBookURL(t *testing.T) {
 				return
 			}
 			if stored.GoodReadsBookURL != tt.want || !stored.GoodReadsEnriched ||
-				stored.GoodReadsRating != "" || stored.GoodReadsRatingValue != 0 ||
+				stored.GoodReadsRatingValue != 0 ||
 				stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 {
 				t.Fatalf("correction must clear old rating and review identifiers: %+v", stored)
 			}

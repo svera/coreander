@@ -12,7 +12,8 @@
             "bookURL": "/book/show/12207444-la-reina-dragon",
             "author": "Alice Borchardt",
             "authorURL": "/author/show/151155.Alice_Borchardt",
-            "rating": "3.82"
+            "rating": "3.82",
+            "ratingCount": "2285"
         }
     ],
     "lastScraped": "2026-10-28T17:45:31.333Z"

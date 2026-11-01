@@ -93,6 +93,8 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 			{"pub-date-newer-first", "newer"},
 			{"est-read-time-shorter-first", "shorter"},
 			{"est-read-time-longer-first", "longer"},
+			{"goodreads-score-asc", "Goodreads score (ascending)"},
+			{"goodreads-score-desc", "Goodreads score (descending)"},
 		},
 	}
 
@@ -124,6 +126,10 @@ func (d *Controller) parseSortBy(c fiber.Ctx) []string {
 			return []string{"Words"}
 		case "est-read-time-longer-first":
 			return []string{"-Words"}
+		case "goodreads-score-asc":
+			return []string{"GoodReadsRatingValue", "SeriesIndex"}
+		case "goodreads-score-desc":
+			return []string{"-GoodReadsRatingValue", "SeriesIndex"}
 		}
 	}
 	return []string{"SeriesIndex"}

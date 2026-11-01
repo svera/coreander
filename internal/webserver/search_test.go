@@ -145,6 +145,52 @@ func TestUnifiedSearch(t *testing.T) {
 	}
 }
 
+func TestGoodReadsScoreSortOptions(t *testing.T) {
+	app := bootstrapApp(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{},
+		loadDirInMemoryFs("testdata/library"), webserver.Config{})
+	for _, path := range []string{
+		"/search?type=documents&",
+		"/authors/john-doe?",
+		"/series/the-lord-of-the-rings?",
+	} {
+		for _, direction := range []string{"asc", "desc"} {
+			for _, fragment := range []bool{false, true} {
+				mode := "/full"
+				if fragment {
+					mode = "/fragment"
+				}
+				t.Run(path+direction+mode, func(t *testing.T) {
+					selected := "goodreads-score-" + direction
+					req := mustGetRequest(t, path+"sort-by="+selected)
+					if fragment {
+						req.Header.Set("HX-Request", "true")
+					}
+					response, err := app.Test(req)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer response.Body.Close()
+					if response.StatusCode != http.StatusOK {
+						t.Fatalf("unexpected status %d", response.StatusCode)
+					}
+					doc, err := goquery.NewDocumentFromReader(response.Body)
+					if err != nil {
+						t.Fatal(err)
+					}
+					for _, value := range []string{"goodreads-score-asc", "goodreads-score-desc"} {
+						if doc.Find(`#sort-by option[value="`+value+`"]`).Length() != 1 {
+							t.Errorf("missing sort option %q", value)
+						}
+					}
+					if doc.Find(`#sort-by option[value="`+selected+`"][selected]`).Length() != 1 {
+						t.Errorf("expected selected option %q", selected)
+					}
+				})
+			}
+		}
+	}
+}
+
 func TestGoodReadsScoreFilter(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), webserver.Config{})

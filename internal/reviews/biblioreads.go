@@ -61,7 +61,7 @@ func (b *BiblioReads) book(ctx context.Context, document index.Document) (biblio
 	}
 	details := book
 	if book.Rating != "" && document.GoodReadsRatingValue > 0 && isZeroRating(book.Rating) {
-		book.Rating = document.GoodReadsRating
+		book.Rating = fmt.Sprintf("%.2f", document.GoodReadsRatingValue)
 		details.Rating = ""
 	}
 	if err := b.index.StoreGoodReadsDetails(document, document.GoodReadsBookURL, details); err != nil {

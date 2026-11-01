@@ -222,6 +222,8 @@ func documentSortOptions() []struct {
 		{"pub-date-newer-first", "newer"},
 		{"est-read-time-shorter-first", "shorter"},
 		{"est-read-time-longer-first", "longer"},
+		{"goodreads-score-asc", "Goodreads score (ascending)"},
+		{"goodreads-score-desc", "Goodreads score (descending)"},
 	}
 }
 

@@ -152,6 +152,10 @@ func parseDocumentSortBy(c fiber.Ctx) []string {
 			return []string{"Words"}
 		case "est-read-time-longer-first":
 			return []string{"-Words"}
+		case "goodreads-score-asc":
+			return []string{"GoodReadsRatingValue"}
+		case "goodreads-score-desc":
+			return []string{"-GoodReadsRatingValue"}
 		}
 	}
 	return index.DefaultDocumentSortBy

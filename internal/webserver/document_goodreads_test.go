@@ -309,7 +309,6 @@ func newServiceProvidersTestApp(t *testing.T, source *fakeBookSource, provider d
 			ID: "linked.epub", Slug: "linked",
 			Metadata:             metadata.Metadata{Title: "La Reina Dragon", Format: "EPUB"},
 			GoodReadsBookURL:     "/book/show/12207444-la-reina-dragon",
-			GoodReadsRating:      "3.82",
 			GoodReadsRatingValue: 3.82,
 			GoodReadsEnriched:    true,
 		},
@@ -338,17 +337,35 @@ func newServiceProvidersTestApp(t *testing.T, source *fakeBookSource, provider d
 }
 
 func TestSearchResultsShowStoredGoodReadsRating(t *testing.T) {
-	app, _ := newGoodReadsTestApp(t, nil)
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/search?type=documents&search=La")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	rating := page.Find(`a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`)
-	if rating.Length() != 1 || strings.TrimSpace(rating.Text()) != "3.82" {
-		t.Fatalf("expected stored Goodreads rating in search result, got %q", rating.Text())
-	}
-	if page.Find(`li:has(a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]) i.bi-star-fill`).Length() != 1 {
-		t.Fatal("expected a star icon beside the Goodreads score")
+	for _, tt := range []struct {
+		rating string
+		want   string
+	}{
+		{rating: "3.82", want: "3.82"},
+		{rating: "4.1", want: "4.10"},
+		{rating: "5", want: "5.00"},
+	} {
+		t.Run(tt.rating, func(t *testing.T) {
+			app, idx := newGoodReadsTestApp(t, nil)
+			doc, err := idx.Document("linked")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := idx.StoreGoodReadsDetails(doc, doc.GoodReadsBookURL, biblioreads.BookResponse{Rating: tt.rating}); err != nil {
+				t.Fatal(err)
+			}
+			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/search?type=documents&search=La")))
+			if err != nil {
+				t.Fatal(err)
+			}
+			rating := page.Find(`a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`)
+			if rating.Length() != 1 || strings.TrimSpace(rating.Text()) != tt.want {
+				t.Fatalf("expected stored Goodreads rating in search result, got %q", rating.Text())
+			}
+			if page.Find(`li:has(a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]) i.bi-star-fill`).Length() != 1 {
+				t.Fatal("expected a star icon beside the Goodreads score")
+			}
+		})
 	}
 }
 
@@ -537,7 +554,7 @@ func TestDocumentUpdateGoodReads(t *testing.T) {
 		t.Fatal(err)
 	}
 	if stored.GoodReadsBookURL != "/book/show/1368314.El_Cercano_Oriente" ||
-		stored.GoodReadsRating != "" || stored.GoodReadsRatingValue != 0 ||
+		stored.GoodReadsRatingValue != 0 ||
 		stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 ||
 		!stored.GoodReadsEnriched {
 		t.Fatalf("expected correction persisted without stale rating/review identifiers: %+v", stored)
@@ -580,7 +597,7 @@ func TestDocumentUpdateGoodReadsValidation(t *testing.T) {
 			t.Fatalf("invalid input should be retained for correction, got %q", got)
 		}
 		stored, err := idx.Document("linked")
-		if err != nil || stored.GoodReadsBookURL != "/book/show/12207444-la-reina-dragon" || stored.GoodReadsRating != "3.82" {
+		if err != nil || stored.GoodReadsBookURL != "/book/show/12207444-la-reina-dragon" || stored.GoodReadsRatingValue != 3.82 {
 			t.Fatalf("invalid input must not change the stored match: %+v, %v", stored, err)
 		}
 	}
@@ -612,7 +629,7 @@ func TestDocumentDetailUpdatesStoredGoodReadsRating(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.GoodReadsRating != "4.12" || stored.GoodReadsRatingValue != 4.12 {
+	if stored.GoodReadsRatingValue != 4.12 {
 		t.Fatalf("expected latest rating and searchable value to be stored, got %+v", stored)
 	}
 	results, err := idx.Search(index.SearchFields{GoodReadsRatingFrom: 4.1, GoodReadsRatingTo: 4.2}, 1, 10)
@@ -639,7 +656,7 @@ func TestDocumentDetailKeepsStoredGoodReadsRatingWhenScraperReturnsZero(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.GoodReadsRating != "3.82" || stored.GoodReadsRatingValue != 3.82 {
+	if stored.GoodReadsRatingValue != 3.82 {
 		t.Fatalf("zero scraper rating must not replace indexed Goodreads score, got %+v", stored)
 	}
 }
