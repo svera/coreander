@@ -195,7 +195,7 @@ func TestGoodReadsScoreFilter(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), webserver.Config{})
 
-	response, err := app.Test(mustGetRequest(t, "/search?type=documents&goodreads-score-from=4.2&goodreads-score-to=4.8"))
+	response, err := app.Test(mustGetRequest(t, "/search?type=documents&goodreads-score-from=4&goodreads-score-to=5"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,16 +211,35 @@ func TestGoodReadsScoreFilter(t *testing.T) {
 		name  string
 		value string
 	}{
-		{name: "goodreads-score-from", value: "4.2"},
-		{name: "goodreads-score-to", value: "4.8"},
+		{name: "goodreads-score-from", value: "4"},
+		{name: "goodreads-score-to", value: "5"},
 	} {
-		input := doc.Find(`input[name="` + field.name + `"]`)
-		if input.Length() == 0 {
+		selects := doc.Find(`select[name="` + field.name + `"]`)
+		if selects.Length() == 0 {
 			t.Errorf("Expected Goodreads score filter %q", field.name)
 			continue
 		}
-		if got, _ := input.First().Attr("value"); got != field.value {
-			t.Errorf("Expected %s value %q, got %q", field.name, field.value, got)
+		selects.Each(func(_ int, selectBox *goquery.Selection) {
+			if got, _ := selectBox.Find("option[selected]").Attr("value"); got != field.value {
+				t.Errorf("Expected %s value %q, got %q", field.name, field.value, got)
+			}
+			options := selectBox.Find("option").Map(func(i int, option *goquery.Selection) string {
+				value, _ := option.Attr("value")
+				wantLabel := ""
+				if i > 0 {
+					wantLabel = value + " " + strings.Repeat("\u2605", i)
+				}
+				if option.Text() != wantLabel {
+					t.Errorf("Expected %s option %q label %q, got %q", field.name, value, wantLabel, option.Text())
+				}
+				return value
+			})
+			if strings.Join(options, ",") != ",1,2,3,4,5" {
+				t.Errorf("Expected blank and scores 1 to 5 for %s, got %v", field.name, options)
+			}
+		})
+		if doc.Find(`input[name="` + field.name + `"]`).Length() != 0 {
+			t.Errorf("Expected no numeric input for %s", field.name)
 		}
 	}
 }

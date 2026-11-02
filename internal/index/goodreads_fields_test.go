@@ -115,6 +115,7 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 			AuthorsSlugs:          []string{"alice-borchardt"},
 			GoodReadsBookURL:      bookURL,
 			GoodReadsRatingValue:  4.25,
+			GoodReadsRatingCount:  "2285",
 			GoodReadsResourceID:   resourceID,
 			GoodReadsLegacyBookID: legacyBookID,
 		}
@@ -132,12 +133,15 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 		if got.GoodReadsRatingValue != 4.25 {
 			t.Errorf("language %q: expected stored rating, got %v", lang, got.GoodReadsRatingValue)
 		}
+		if got.GoodReadsRatingCount != "2285" {
+			t.Errorf("language %q: expected stored rating count, got %q", lang, got.GoodReadsRatingCount)
+		}
 		if got.GoodReadsResourceID != resourceID || got.GoodReadsLegacyBookID != legacyBookID {
 			t.Errorf("language %q: expected stored identifiers, got %q and %d", lang, got.GoodReadsResourceID, got.GoodReadsLegacyBookID)
 		}
 	}
 
-	for _, keywords := range []string{"zyxwvbook", "Zyxwv_Author", "12207444", "151155", "zyxwvresource", resourceID, "4.25"} {
+	for _, keywords := range []string{"zyxwvbook", "Zyxwv_Author", "12207444", "151155", "zyxwvresource", resourceID, "4.25", "2285"} {
 		res, err := idx.Search(index.SearchFields{Keywords: keywords}, 1, 10)
 		if err != nil {
 			t.Fatal(err)

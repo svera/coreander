@@ -20,6 +20,8 @@ type ReviewProvider interface {
 	Score(ctx context.Context, document index.Document) (reviews.Score, error)
 	// Reviews returns reviews in the current UI language (a two-letter ISO code).
 	Reviews(ctx context.Context, document index.Document, language string) (reviews.Page, error)
+	// CanEditDocumentLink reports whether this provider supports correcting its document link.
+	CanEditDocumentLink() bool
 }
 
 type LinkProvider interface {

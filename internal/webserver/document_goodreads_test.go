@@ -97,13 +97,18 @@ func TestDocumentReviewsRejectUnsupportedLanguage(t *testing.T) {
 }
 
 type fakeReviewProvider struct {
-	score           reviews.Score
-	page            reviews.Page
-	scoreErr        error
-	reviewsErr      error
-	scoreSlugs      []string
-	reviewSlugs     []string
-	reviewLanguages []string
+	score               reviews.Score
+	page                reviews.Page
+	scoreErr            error
+	reviewsErr          error
+	canEditDocumentLink bool
+	scoreSlugs          []string
+	reviewSlugs         []string
+	reviewLanguages     []string
+}
+
+func (f *fakeReviewProvider) CanEditDocumentLink() bool {
+	return f.canEditDocumentLink
 }
 
 func (f *fakeReviewProvider) Score(_ context.Context, document index.Document) (reviews.Score, error) {
@@ -351,7 +356,7 @@ func TestSearchResultsShowStoredGoodReadsRating(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := idx.StoreGoodReadsDetails(doc, doc.GoodReadsBookURL, biblioreads.BookResponse{Rating: tt.rating}); err != nil {
+			if err := idx.StoreGoodReadsDetails(doc, doc.GoodReadsBookURL, biblioreads.BookResponse{Rating: tt.rating, RatingCount: "2,285"}); err != nil {
 				t.Fatal(err)
 			}
 			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/search?type=documents&search=La")))
@@ -365,7 +370,42 @@ func TestSearchResultsShowStoredGoodReadsRating(t *testing.T) {
 			if page.Find(`li:has(a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]) i.bi-star-fill`).Length() != 1 {
 				t.Fatal("expected a star icon beside the Goodreads score")
 			}
+			if rating.Parent().Find("small").Text() != "(2,285 ratings)" {
+				t.Fatal("expected rating count beside the Goodreads score")
+			}
 		})
+	}
+}
+
+func TestSearchResultsShowGoodReadsSearchRatingCount(t *testing.T) {
+	source := &fakeBookSource{results: []biblioreads.SearchResult{{
+		Title: "Unlinked", Author: "Jane Doe", BookURL: "/book/show/1-unlinked",
+		Rating: "4.20", RatingCount: "1,234",
+	}}}
+	app, idx := newGoodReadsTestApp(t, source)
+	score := getBody(t, app, "/documents/unlinked/score")
+	if !strings.Contains(score, "(1,234 ratings)") {
+		t.Fatal("expected the search-derived rating count in the document score")
+	}
+	stored, err := idx.Document("unlinked")
+	if err != nil || stored.GoodReadsRatingCount != "1,234" {
+		t.Fatalf("expected the search-derived count to be persisted, got %+v, %v", stored, err)
+	}
+	for _, path := range []string{
+		"/search?type=documents&search=Unlinked",
+		"/search?type=documents&search=Unlinked&l=es",
+	} {
+		page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rating := page.Find(`a[href="https://www.goodreads.com/book/show/1-unlinked"]`)
+		if rating.Text() != "4.20" || !strings.Contains(rating.Parent().Find("small").Text(), "1,234") {
+			t.Fatalf("expected the stored score and rating count in search results for %s", path)
+		}
+	}
+	if len(source.ids) != 0 || len(source.queries) != 1 {
+		t.Fatalf("expected one book search and no detail fetches, got queries %q and ids %q", source.queries, source.ids)
 	}
 }
 
@@ -500,7 +540,9 @@ func TestDocumentGoodReadsEditor(t *testing.T) {
 				}
 				return
 			}
-			if control.Text() != "Edit Goodreads link" ||
+			if control.Text() != "" ||
+				control.Find(`i.bi-pencil[alt="Edit Goodreads link"]`).Length() != 1 ||
+				control.Filter(`[title="Edit Goodreads link"][aria-label="Edit Goodreads link"]`).Length() != 1 ||
 				page.Find(`#edit-goodreads-linked.collapse:not(.show)`).Length() != 1 ||
 				page.Find(`form[hx-put="/documents/linked/goodreads"][hx-target="this"]`).Length() != 1 ||
 				page.Find(`label[for="goodreads-book-url-linked"]`).Length() != 1 {

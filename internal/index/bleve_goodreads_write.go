@@ -30,7 +30,7 @@ type GoodReadsSource interface {
 	SearchBooks(ctx context.Context, query string) (biblioreads.SearchBooksResponse, error)
 }
 
-var goodReadsFields = []string{"GoodReadsBookURL", "GoodReadsRatingValue", "GoodReadsResourceID", "GoodReadsLegacyBookID", "GoodReadsEnriched"}
+var goodReadsFields = []string{"GoodReadsBookURL", "GoodReadsRatingValue", "GoodReadsRatingCount", "GoodReadsResourceID", "GoodReadsLegacyBookID", "GoodReadsEnriched"}
 
 // Strip named series annotations and omnibus ranges, not standalone volume numbers.
 var goodReadsSeriesSuffix = regexp.MustCompile(`\s*\((?:[^()]+,\s*#[0-9]+(?:\.[0-9]+)?|#[0-9]+\s*[-–]\s*#?[0-9]+)\)\s*$`)
@@ -357,7 +357,7 @@ func (b *BleveIndexer) enrichGoodReadsBatch(documents []Document) error {
 // not looked up yet and persists its match. Returns an empty result if there's no match.
 func (b *BleveIndexer) GoodReadsBook(ctx context.Context, document Document) (biblioreads.SearchResult, error) {
 	if document.GoodReadsBookURL != "" || document.GoodReadsEnriched || b.goodReadsSource == nil {
-		return biblioreads.SearchResult{BookURL: document.GoodReadsBookURL, Rating: fmt.Sprintf("%.2f", document.GoodReadsRatingValue)}, nil
+		return biblioreads.SearchResult{BookURL: document.GoodReadsBookURL, Rating: fmt.Sprintf("%.2f", document.GoodReadsRatingValue), RatingCount: document.GoodReadsRatingCount}, nil
 	}
 	return b.enrichGoodReads(ctx, document)
 }
@@ -388,6 +388,7 @@ func (b *BleveIndexer) UpdateGoodReadsBookURL(documentID, rawURL string) error {
 	}
 	current.GoodReadsBookURL = path
 	current.GoodReadsRatingValue = 0
+	current.GoodReadsRatingCount = ""
 	current.GoodReadsResourceID = ""
 	current.GoodReadsLegacyBookID = 0
 	current.GoodReadsEnriched = true
@@ -397,14 +398,14 @@ func (b *BleveIndexer) UpdateGoodReadsBookURL(documentID, rawURL string) error {
 	return nil
 }
 
-// StoreGoodReadsDetails persists a nonempty rating and complete review identifiers,
+// StoreGoodReadsDetails persists a nonempty rating, rating count, and complete review identifiers,
 // provided the document still has the metadata and match read before the fetch.
 func (b *BleveIndexer) StoreGoodReadsDetails(document Document, bookURL string, book biblioreads.BookResponse) error {
 	if bookURL == "" {
 		return fmt.Errorf("invalid GoodReads book URL for document %s", document.ID)
 	}
 	hasIDs := book.ResourceID != "" && book.LegacyBookID > 0
-	if book.Rating == "" && !hasIDs {
+	if book.Rating == "" && book.RatingCount == "" && !hasIDs {
 		return nil
 	}
 	b.documentsMu.Lock()
@@ -420,6 +421,10 @@ func (b *BleveIndexer) StoreGoodReadsDetails(document Document, bookURL string, 
 		return fmt.Errorf("GoodReads match changed for document %s", document.ID)
 	}
 	changed := false
+	if book.RatingCount != "" && current.GoodReadsRatingCount != book.RatingCount {
+		current.GoodReadsRatingCount = book.RatingCount
+		changed = true
+	}
 	if book.Rating != "" {
 		ratingValue := parseGoodReadsRating(book.Rating, document.ID)
 		if current.GoodReadsRatingValue != ratingValue {
@@ -495,17 +500,18 @@ func (b *BleveIndexer) enrichGoodReads(ctx context.Context, document Document) (
 	// Looked up concurrently (e.g. by the background enrichment and a detail
 	// page request at the same time): keep the stored result.
 	if current.GoodReadsEnriched {
-		result = biblioreads.SearchResult{BookURL: current.GoodReadsBookURL, Rating: fmt.Sprintf("%.2f", current.GoodReadsRatingValue)}
+		result = biblioreads.SearchResult{BookURL: current.GoodReadsBookURL, Rating: fmt.Sprintf("%.2f", current.GoodReadsRatingValue), RatingCount: current.GoodReadsRatingCount}
 		return result, nil
 	}
 	if current.GoodReadsBookURL != "" && current.GoodReadsBookURL != result.BookURL {
-		result = biblioreads.SearchResult{BookURL: current.GoodReadsBookURL, Rating: fmt.Sprintf("%.2f", current.GoodReadsRatingValue)}
+		result = biblioreads.SearchResult{BookURL: current.GoodReadsBookURL, Rating: fmt.Sprintf("%.2f", current.GoodReadsRatingValue), RatingCount: current.GoodReadsRatingCount}
 	}
 	current.GoodReadsBookURL = result.BookURL
 	if result.Rating == "" && current.GoodReadsRatingValue > 0 {
 		result.Rating = fmt.Sprintf("%.2f", current.GoodReadsRatingValue)
 	}
 	current.GoodReadsRatingValue = parseGoodReadsRating(result.Rating, current.ID)
+	current.GoodReadsRatingCount = result.RatingCount
 	current.GoodReadsEnriched = true
 	if err := b.storeGoodReadsAuthorURL(current, result.AuthorURL, result.Author); err != nil {
 		return result, fmt.Errorf("error storing GoodReads author URL for document %s: %w", current.ID, err)
@@ -591,15 +597,17 @@ func (b *BleveIndexer) preserveGoodReadsLocked(documents []Document) {
 	for _, hit := range searchResult.Hits {
 		bookURL, _ := hit.Fields["GoodReadsBookURL"].(string)
 		ratingValue, _ := hit.Fields["GoodReadsRatingValue"].(float64)
+		ratingCount, _ := hit.Fields["GoodReadsRatingCount"].(string)
 		resourceID, _ := hit.Fields["GoodReadsResourceID"].(string)
 		legacyBookID, _ := hit.Fields["GoodReadsLegacyBookID"].(float64)
 		enriched, _ := hit.Fields["GoodReadsEnriched"].(bool)
-		stored[hit.ID] = Document{GoodReadsBookURL: bookURL, GoodReadsRatingValue: ratingValue, GoodReadsResourceID: resourceID, GoodReadsLegacyBookID: int(legacyBookID), GoodReadsEnriched: enriched}
+		stored[hit.ID] = Document{GoodReadsBookURL: bookURL, GoodReadsRatingValue: ratingValue, GoodReadsRatingCount: ratingCount, GoodReadsResourceID: resourceID, GoodReadsLegacyBookID: int(legacyBookID), GoodReadsEnriched: enriched}
 	}
 	for i := range documents {
 		if s, ok := stored[documents[i].ID]; ok {
 			documents[i].GoodReadsBookURL = s.GoodReadsBookURL
 			documents[i].GoodReadsRatingValue = s.GoodReadsRatingValue
+			documents[i].GoodReadsRatingCount = s.GoodReadsRatingCount
 			documents[i].GoodReadsResourceID = s.GoodReadsResourceID
 			documents[i].GoodReadsLegacyBookID = s.GoodReadsLegacyBookID
 			documents[i].GoodReadsEnriched = s.GoodReadsEnriched

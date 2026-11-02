@@ -28,26 +28,23 @@ func (d *Controller) Score(c fiber.Ctx) error {
 	defer cancel()
 	score, err := d.reviewProvider.Score(ctx, document)
 	session, _ := c.Locals("Session").(model.Session)
-	canEditGoodReads := session.Role == model.RoleAdmin && score.Source == "Goodreads"
+	canEditDocumentLink := session.Role == model.RoleAdmin && d.reviewProvider.CanEditDocumentLink()
 	if err != nil {
 		log.Printf("Error retrieving score for %s: %s", document.ID, err)
-		if !canEditGoodReads {
+		if !canEditDocumentLink {
 			return c.SendString("")
 		}
 		score.Value, score.Count = "", ""
 		score.URL = d.documentServiceLink(document).URL
 	}
 	return c.Render("partials/document-score", fiber.Map{
-		"Lang":               c.Locals("Lang"),
-		"ReviewLanguage":     c.Locals("Lang"),
-		"SupportedLanguages": c.Locals("SupportedLanguages"),
-		"Source":             score.Source,
-		"Rating":             score.Value,
-		"RatingCount":        score.Count,
-		"Scored":             score.HasScore(),
-		"URL":                score.URL,
-		"DocumentSlug":       document.Slug,
-		"CanEditGoodReads":   canEditGoodReads,
-		"ScoreUnavailable":   err != nil,
+		"Source":              score.Source,
+		"Rating":              score.Value,
+		"RatingCount":         score.Count,
+		"Scored":              score.HasScore(),
+		"URL":                 score.URL,
+		"DocumentSlug":        document.Slug,
+		"CanEditDocumentLink": canEditDocumentLink,
+		"ScoreUnavailable":    err != nil,
 	})
 }

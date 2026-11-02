@@ -66,7 +66,7 @@ func (goodReadsTestReader) Cover(string, int) (image.Image, error) {
 }
 
 var goodReadsTestResults = []biblioreads.SearchResult{
-	{Title: "La Reina Dragon", Author: "Alice Borchardt", BookURL: "/book/show/12207444-la-reina-dragon", AuthorURL: "/author/show/151155.Alice_Borchardt", Rating: "3.82"},
+	{Title: "La Reina Dragon", Author: "Alice Borchardt", BookURL: "/book/show/12207444-la-reina-dragon", AuthorURL: "/author/show/151155.Alice_Borchardt", Rating: "3.82", RatingCount: "2,285"},
 	{BookURL: "/book/show/2-other", AuthorURL: "/author/show/2.Other"},
 }
 
@@ -109,6 +109,9 @@ func TestEnrichGoodReadsStoresMatchingResult(t *testing.T) {
 	}
 	if doc.GoodReadsRatingValue != 3.82 {
 		t.Errorf("unexpected Goodreads rating %v", doc.GoodReadsRatingValue)
+	}
+	if doc.GoodReadsRatingCount != "2,285" {
+		t.Errorf("unexpected Goodreads rating count %q", doc.GoodReadsRatingCount)
 	}
 	assertNoDocumentAuthorURL(t, idx.documentsIdx)
 	if !doc.GoodReadsEnriched {
@@ -292,7 +295,7 @@ func TestTextRankWritesPreserveGoodReadsFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !doc.GoodReadsEnriched || doc.GoodReadsBookURL != wantGoodReadsBookURL || doc.GoodReadsRatingValue != 3.82 {
+	if !doc.GoodReadsEnriched || doc.GoodReadsBookURL != wantGoodReadsBookURL || doc.GoodReadsRatingValue != 3.82 || doc.GoodReadsRatingCount != "2,285" {
 		t.Errorf("expected GoodReads fields to survive a TextRank write, got %+v", doc)
 	}
 	if doc.GoodReadsResourceID != "work-id" || doc.GoodReadsLegacyBookID != 12207444 {
@@ -997,6 +1000,7 @@ func TestStoreGoodReadsDetailsPreservesMissingFields(t *testing.T) {
 		name       string
 		book       biblioreads.BookResponse
 		wantRating string
+		wantCount  string
 		wantWork   string
 		wantID     int
 	}{
@@ -1005,12 +1009,15 @@ func TestStoreGoodReadsDetailsPreservesMissingFields(t *testing.T) {
 		{name: "missing work", book: biblioreads.BookResponse{Rating: "4.12", LegacyBookID: 2}, wantRating: "4.12", wantWork: "old-work", wantID: 1},
 		{name: "missing edition", book: biblioreads.BookResponse{Rating: "4.12", ResourceID: "new-work"}, wantRating: "4.12", wantWork: "old-work", wantID: 1},
 		{name: "empty response", wantRating: "3.82", wantWork: "old-work", wantID: 1},
+		{name: "count only", book: biblioreads.BookResponse{RatingCount: "650"}, wantRating: "3.82", wantCount: "650", wantWork: "old-work", wantID: 1},
+		{name: "zero count", book: biblioreads.BookResponse{RatingCount: "0"}, wantRating: "3.82", wantCount: "0", wantWork: "old-work", wantID: 1},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			idx := newGoodReadsTestIndexer(t, nil)
 			doc := Document{
 				ID: goodReadsTestID, GoodReadsBookURL: wantGoodReadsBookURL,
 				GoodReadsRatingValue: 3.82,
+				GoodReadsRatingCount: "2,285",
 				GoodReadsResourceID:  "old-work", GoodReadsLegacyBookID: 1,
 			}
 			if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
@@ -1026,6 +1033,13 @@ func TestStoreGoodReadsDetailsPreservesMissingFields(t *testing.T) {
 			if stored.GoodReadsRatingValue != parseGoodReadsRating(tt.wantRating, doc.ID) ||
 				stored.GoodReadsResourceID != tt.wantWork || stored.GoodReadsLegacyBookID != tt.wantID {
 				t.Fatalf("partial details changed fields that were not supplied: %+v", stored)
+			}
+			wantCount := tt.wantCount
+			if wantCount == "" {
+				wantCount = doc.GoodReadsRatingCount
+			}
+			if stored.GoodReadsRatingCount != wantCount {
+				t.Fatalf("expected rating count %q, got %q", wantCount, stored.GoodReadsRatingCount)
 			}
 		})
 	}
@@ -1066,6 +1080,7 @@ func TestUpdateGoodReadsBookURL(t *testing.T) {
 				TextRankWords:         []string{"dragon"},
 				GoodReadsBookURL:      wantGoodReadsBookURL,
 				GoodReadsRatingValue:  3.82,
+				GoodReadsRatingCount:  "2,285",
 				GoodReadsResourceID:   "old-work",
 				GoodReadsLegacyBookID: 12207444,
 				GoodReadsEnriched:     true,
@@ -1088,6 +1103,7 @@ func TestUpdateGoodReadsBookURL(t *testing.T) {
 			if tt.want == "" || tt.want == doc.GoodReadsBookURL {
 				if stored.GoodReadsBookURL != doc.GoodReadsBookURL ||
 					stored.GoodReadsRatingValue != doc.GoodReadsRatingValue ||
+					stored.GoodReadsRatingCount != doc.GoodReadsRatingCount ||
 					stored.GoodReadsResourceID != doc.GoodReadsResourceID ||
 					stored.GoodReadsLegacyBookID != doc.GoodReadsLegacyBookID {
 					t.Fatalf("invalid or unchanged URL modified stored data: %+v", stored)
@@ -1096,6 +1112,7 @@ func TestUpdateGoodReadsBookURL(t *testing.T) {
 			}
 			if stored.GoodReadsBookURL != tt.want || !stored.GoodReadsEnriched ||
 				stored.GoodReadsRatingValue != 0 ||
+				stored.GoodReadsRatingCount != "" ||
 				stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 {
 				t.Fatalf("correction must clear old rating and review identifiers: %+v", stored)
 			}

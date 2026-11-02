@@ -112,7 +112,7 @@ function updateDateClearButtonState(dateControl) {
 function updateRangeClearButtonState(group) {
     const clearButton = group.querySelector('.clear-range-control')
     if (!clearButton) return
-    clearButton.disabled = !Array.from(group.querySelectorAll('input')).some(hasValue)
+    clearButton.disabled = !Array.from(group.querySelectorAll('input, select')).some(hasValue)
 }
 
 function resetDateControl(dateControl) {
@@ -128,7 +128,7 @@ function resetDateControl(dateControl) {
 }
 
 function resetRangeGroup(group) {
-    group.querySelectorAll('input').forEach(input => { input.value = '' })
+    group.querySelectorAll('input, select').forEach(input => { input.value = '' })
     updateRangeClearButtonState(group)
 }
 
@@ -201,14 +201,15 @@ export function initClearRangeControls(searchFilters) {
         const group = clearLink.closest('.input-group')
         if (!group) return
 
-        group.querySelectorAll('input').forEach(input => {
+        group.querySelectorAll('input, select').forEach(input => {
             input.addEventListener('input', () => updateRangeClearButtonState(group))
+            input.addEventListener('change', () => updateRangeClearButtonState(group))
         })
 
         clearLink.addEventListener('click', (e) => {
             e.preventDefault()
             resetRangeGroup(group)
-            const firstInput = group.querySelector('input')
+            const firstInput = group.querySelector('input, select')
             if (firstInput) firstInput.dispatchEvent(new Event('input', { bubbles: true }))
         })
 

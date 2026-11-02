@@ -84,6 +84,7 @@ type Document struct {
 	GoodReadsBookURL string
 	// GoodReadsRatingValue is the Goodreads score, stored and indexed for filtering and sorting.
 	GoodReadsRatingValue float64
+	GoodReadsRatingCount string
 	// GoodReadsResourceID identifies the work; GoodReadsLegacyBookID identifies
 	// the edition. Both are stored only, populated when book details are fetched,
 	// and used together by BiblioReads to retrieve reviews.

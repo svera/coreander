@@ -42,6 +42,11 @@ func (b *BiblioReads) DocumentLink(document index.Document) servicelinks.Link {
 	return (servicelinks.Goodreads{}).Document(document)
 }
 
+// CanEditDocumentLink reports that Goodreads book links can be corrected.
+func (b *BiblioReads) CanEditDocumentLink() bool {
+	return true
+}
+
 func bookID(bookURL string) (string, error) {
 	id, ok := strings.CutPrefix(bookURL, goodReadsBookPrefix)
 	if !ok || id == "" {
@@ -89,7 +94,7 @@ func (b *BiblioReads) Score(ctx context.Context, document index.Document) (Score
 			return score, err
 		}
 		document.GoodReadsBookURL = result.BookURL
-		score.Value, score.URL = result.Rating, (servicelinks.Goodreads{}).Document(document).URL
+		score.Value, score.Count, score.URL = result.Rating, result.RatingCount, (servicelinks.Goodreads{}).Document(document).URL
 		return score, nil
 	}
 	book, err := b.book(ctx, document)
