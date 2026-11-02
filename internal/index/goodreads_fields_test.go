@@ -150,11 +150,11 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 			t.Errorf("expected no results searching keywords %q, got %d", keywords, res.TotalHits())
 		}
 	}
-	filtered, err := idx.Search(index.SearchFields{GoodReadsRatingFrom: 4.2, GoodReadsRatingTo: 4.3}, 1, 10)
+	filtered, err := idx.Search(index.SearchFields{ReviewScoreFrom: 4.2, ReviewScoreTo: 4.3}, 1, 10)
 	if err != nil || filtered.TotalHits() != 2 {
 		t.Errorf("expected both documents in the Goodreads score range, got %d results and error %v", filtered.TotalHits(), err)
 	}
-	filtered, err = idx.Search(index.SearchFields{GoodReadsRatingFrom: 4.3}, 1, 10)
+	filtered, err = idx.Search(index.SearchFields{ReviewScoreFrom: 4.3}, 1, 10)
 	if err != nil || filtered.TotalHits() != 0 {
 		t.Errorf("expected no documents above the Goodreads score, got %d results and error %v", filtered.TotalHits(), err)
 	}

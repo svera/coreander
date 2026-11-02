@@ -23,7 +23,7 @@ func TestParseGoodReadsScoreSort(t *testing.T) {
 				}
 				return c.SendStatus(fiber.StatusOK)
 			})
-			response, err := app.Test(httptest.NewRequest("GET", "/?sort-by=goodreads-score-"+direction, nil))
+			response, err := app.Test(httptest.NewRequest("GET", "/?sort-by=review-score-"+direction, nil))
 			if err != nil {
 				t.Fatal(err)
 			}

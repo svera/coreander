@@ -20,41 +20,41 @@
 </fieldset>
 {{end}}
 <fieldset class="mt-4">
-    <legend class="fs-5"><i class="bi bi-star me-3"></i>{{t .Lang "Goodreads score"}}</legend>
+    <legend class="fs-5"><i class="bi bi-star me-3"></i>{{if .ReviewSourceName}}{{t .Lang "%s score" .ReviewSourceName}}{{else}}{{t .Lang "Review score"}}{{end}}</legend>
     <div class="row">
         <div class="col-12 px-0">
             <div class="input-group input-group-sm">
-                {{$goodReadsRatingFrom := 0.0}}
+                {{$reviewScoreFrom := 0.0}}
                 {{if .SearchFields}}
-                    {{$goodReadsRatingFrom = .SearchFields.GoodReadsRatingFrom}}
+                    {{$reviewScoreFrom = .SearchFields.ReviewScoreFrom}}
                 {{end}}
                 <div class="form-floating">
-                    <select class="form-select" name="goodreads-score-from" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}goodreads-score-from">
+                    <select class="form-select" name="review-score-from" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}review-score-from">
                         <option value=""></option>
-                        <option value="1" {{if eq $goodReadsRatingFrom 1.0}}selected{{end}}>1 &#9733;</option>
-                        <option value="2" {{if eq $goodReadsRatingFrom 2.0}}selected{{end}}>2 &#9733;&#9733;</option>
-                        <option value="3" {{if eq $goodReadsRatingFrom 3.0}}selected{{end}}>3 &#9733;&#9733;&#9733;</option>
-                        <option value="4" {{if eq $goodReadsRatingFrom 4.0}}selected{{end}}>4 &#9733;&#9733;&#9733;&#9733;</option>
-                        <option value="5" {{if eq $goodReadsRatingFrom 5.0}}selected{{end}}>5 &#9733;&#9733;&#9733;&#9733;&#9733;</option>
+                        <option value="1" {{if eq $reviewScoreFrom 1.0}}selected{{end}}>1 &#9733;</option>
+                        <option value="2" {{if eq $reviewScoreFrom 2.0}}selected{{end}}>2 &#9733;&#9733;</option>
+                        <option value="3" {{if eq $reviewScoreFrom 3.0}}selected{{end}}>3 &#9733;&#9733;&#9733;</option>
+                        <option value="4" {{if eq $reviewScoreFrom 4.0}}selected{{end}}>4 &#9733;&#9733;&#9733;&#9733;</option>
+                        <option value="5" {{if eq $reviewScoreFrom 5.0}}selected{{end}}>5 &#9733;&#9733;&#9733;&#9733;&#9733;</option>
                     </select>
-                    <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}goodreads-score-from">{{t .Lang "From"}}</label>
+                    <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}review-score-from">{{t .Lang "From"}}</label>
                 </div>
-                {{$goodReadsRatingTo := 0.0}}
+                {{$reviewScoreTo := 0.0}}
                 {{if .SearchFields}}
-                    {{$goodReadsRatingTo = .SearchFields.GoodReadsRatingTo}}
+                    {{$reviewScoreTo = .SearchFields.ReviewScoreTo}}
                 {{end}}
                 <div class="form-floating">
-                    <select class="form-select rounded-end" name="goodreads-score-to" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}goodreads-score-to">
+                    <select class="form-select rounded-end" name="review-score-to" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}review-score-to">
                         <option value=""></option>
-                        <option value="1" {{if eq $goodReadsRatingTo 1.0}}selected{{end}}>1 &#9733;</option>
-                        <option value="2" {{if eq $goodReadsRatingTo 2.0}}selected{{end}}>2 &#9733;&#9733;</option>
-                        <option value="3" {{if eq $goodReadsRatingTo 3.0}}selected{{end}}>3 &#9733;&#9733;&#9733;</option>
-                        <option value="4" {{if eq $goodReadsRatingTo 4.0}}selected{{end}}>4 &#9733;&#9733;&#9733;&#9733;</option>
-                        <option value="5" {{if eq $goodReadsRatingTo 5.0}}selected{{end}}>5 &#9733;&#9733;&#9733;&#9733;&#9733;</option>
+                        <option value="1" {{if eq $reviewScoreTo 1.0}}selected{{end}}>1 &#9733;</option>
+                        <option value="2" {{if eq $reviewScoreTo 2.0}}selected{{end}}>2 &#9733;&#9733;</option>
+                        <option value="3" {{if eq $reviewScoreTo 3.0}}selected{{end}}>3 &#9733;&#9733;&#9733;</option>
+                        <option value="4" {{if eq $reviewScoreTo 4.0}}selected{{end}}>4 &#9733;&#9733;&#9733;&#9733;</option>
+                        <option value="5" {{if eq $reviewScoreTo 5.0}}selected{{end}}>5 &#9733;&#9733;&#9733;&#9733;&#9733;</option>
                     </select>
-                    <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}goodreads-score-to">{{t .Lang "To"}}</label>
+                    <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}review-score-to">{{t .Lang "To"}}</label>
                 </div>
-                <button type="button" class="input-group-text clear-range-control text-muted border-0 bg-transparent" aria-label='{{t .Lang "Clear Goodreads score"}}' title='{{t .Lang "Clear Goodreads score"}}'><i class="bi bi-x-lg"></i></button>
+                <button type="button" class="input-group-text clear-range-control text-muted border-0 bg-transparent" aria-label='{{if .ReviewSourceName}}{{t .Lang "Clear %s score" .ReviewSourceName}}{{else}}{{t .Lang "Clear review score"}}{{end}}' title='{{if .ReviewSourceName}}{{t .Lang "Clear %s score" .ReviewSourceName}}{{else}}{{t .Lang "Clear review score"}}{{end}}'><i class="bi bi-x-lg"></i></button>
             </div>
         </div>
     </div>

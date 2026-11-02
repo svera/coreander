@@ -17,11 +17,14 @@ import (
 const relatedDocuments = 4
 
 type ReviewProvider interface {
+	Name() string
 	Score(ctx context.Context, document index.Document) (reviews.Score, error)
 	// Reviews returns reviews in the current UI language (a two-letter ISO code).
 	Reviews(ctx context.Context, document index.Document, language string) (reviews.Page, error)
 	// CanEditDocumentLink reports whether this provider supports correcting its document link.
 	CanEditDocumentLink() bool
+	// UpdateDocumentLink saves an administrator's correction to the provider-specific link.
+	UpdateDocumentLink(document index.Document, link string) error
 }
 
 type LinkProvider interface {
@@ -46,7 +49,6 @@ type IdxReaderWriter interface {
 	SameSeries(slug string, quantity int) (result.Paginated[[]index.Document], error)
 	NewFile(fileName string, contents []byte) (string, error)
 	DeleteDocument(slug string) error
-	UpdateGoodReadsBookURL(documentID, bookURL string) error
 	Documents(slugs []string) (map[string]index.Document, error)
 	Languages() ([]string, error)
 	Subjects() (map[string][]string, error)
@@ -123,4 +125,12 @@ func NewController(hlRepository highlightsRepository, usersRepository usersRepos
 		reviewProvider:        reviewProvider,
 		linkProvider:          linkProvider,
 	}
+}
+
+// ReviewSourceName returns the display name for this controller's review provider.
+func (d *Controller) ReviewSourceName() string {
+	if d.reviewProvider == nil {
+		return ""
+	}
+	return d.reviewProvider.Name()
 }

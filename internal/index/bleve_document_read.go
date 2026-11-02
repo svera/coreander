@@ -247,14 +247,14 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 		bq.SetBoost(0)
 		filtersQuery.AddQuery(bq)
 	}
-	if searchFields.GoodReadsRatingFrom > 0 || searchFields.GoodReadsRatingTo > 0 {
+	if searchFields.ReviewScoreFrom > 0 || searchFields.ReviewScoreTo > 0 {
 		min := math.SmallestNonzeroFloat64
 		var max *float64
-		if searchFields.GoodReadsRatingFrom > 0 {
-			min = searchFields.GoodReadsRatingFrom
+		if searchFields.ReviewScoreFrom > 0 {
+			min = searchFields.ReviewScoreFrom
 		}
-		if searchFields.GoodReadsRatingTo > 0 {
-			max = &searchFields.GoodReadsRatingTo
+		if searchFields.ReviewScoreTo > 0 {
+			max = &searchFields.ReviewScoreTo
 		}
 		ratingQuery := newInclusiveNumericRangeQuery(&min, max)
 		ratingQuery.SetField("GoodReadsRatingValue")

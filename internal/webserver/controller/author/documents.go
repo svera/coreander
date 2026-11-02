@@ -85,8 +85,8 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 			{"pub-date-newer-first", "newer"},
 			{"est-read-time-shorter-first", "shorter"},
 			{"est-read-time-longer-first", "longer"},
-			{"goodreads-score-asc", "Goodreads score (ascending)"},
-			{"goodreads-score-desc", "Goodreads score (descending)"},
+			{"review-score-asc", "review-score-asc"},
+			{"review-score-desc", "review-score-desc"},
 		},
 	}
 

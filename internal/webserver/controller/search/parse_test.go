@@ -6,9 +6,10 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/index"
 )
 
-func TestParseGoodReadsScoreSort(t *testing.T) {
+func TestParseReviewScoreSort(t *testing.T) {
 	for _, direction := range []string{"asc", "desc"} {
 		t.Run(direction, func(t *testing.T) {
 			app := fiber.New()
@@ -18,7 +19,7 @@ func TestParseGoodReadsScoreSort(t *testing.T) {
 					t.Error(err)
 					return c.SendStatus(fiber.StatusBadRequest)
 				}
-				key := "GoodReadsRatingValue"
+				key := index.ScoreValueSortField
 				if direction == "desc" {
 					key = "-" + key
 				}
@@ -27,7 +28,7 @@ func TestParseGoodReadsScoreSort(t *testing.T) {
 				}
 				return c.SendStatus(fiber.StatusOK)
 			})
-			response, err := app.Test(httptest.NewRequest("GET", "/?sort-by=goodreads-score-"+direction, nil))
+			response, err := app.Test(httptest.NewRequest("GET", "/?sort-by=review-score-"+direction, nil))
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -42,12 +42,12 @@ func TestDocumentUpdateGoodReadsRequiresAdmin(t *testing.T) {
 	}{
 		{name: "anonymous", cookie: &http.Cookie{}, status: http.StatusForbidden},
 		{name: "regular user", cookie: regularCookie, status: http.StatusForbidden},
-		{name: "administrator", cookie: adminCookie, status: http.StatusNoContent},
+		{name: "administrator without an editable review provider", cookie: adminCookie, status: http.StatusNotFound},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			response, err := putRequest(url.Values{
 				"bookURL": {"https://www.goodreads.com/book/show/1368314.El_Cercano_Oriente"},
-			}, tt.cookie, app, "/documents/john-doe-test-epub/goodreads", t)
+			}, tt.cookie, app, "/documents/john-doe-test-epub/review-link", t)
 			if err != nil {
 				t.Fatal(err)
 			}

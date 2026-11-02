@@ -111,6 +111,14 @@ func (f *fakeReviewProvider) CanEditDocumentLink() bool {
 	return f.canEditDocumentLink
 }
 
+func (f *fakeReviewProvider) Name() string {
+	return f.score.Source
+}
+
+func (f *fakeReviewProvider) UpdateDocumentLink(index.Document, string) error {
+	return nil
+}
+
 func (f *fakeReviewProvider) Score(_ context.Context, document index.Document) (reviews.Score, error) {
 	f.scoreSlugs = append(f.scoreSlugs, document.Slug)
 	return f.score, f.scoreErr
@@ -172,6 +180,14 @@ func TestDocumentAlternativeReviewProvider(t *testing.T) {
 		},
 	}
 	app, _ := newReviewProviderTestApp(t, nil, provider)
+	searchPage, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/search?type=documents&search=La")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(searchPage.Find(`fieldset legend`).Text(), "Another service score") ||
+		searchPage.Find(`#sort-by option[value="review-score-asc"]`).Text() != "Another service score (ascending)" {
+		t.Fatal("search filters and sort options must use the active review provider's name")
+	}
 	// This document has a cached Goodreads non-match; it must still use the chosen provider.
 	detail := getBody(t, app, "/documents/unmatched")
 	if goodReadsPlaceholders(t, detail).Length() != 1 || len(provider.scoreSlugs) != 0 || len(provider.reviewSlugs) != 0 {
@@ -544,7 +560,7 @@ func TestDocumentGoodReadsEditor(t *testing.T) {
 				control.Find(`i.bi-pencil[alt="Edit Goodreads link"]`).Length() != 1 ||
 				control.Filter(`[title="Edit Goodreads link"][aria-label="Edit Goodreads link"]`).Length() != 1 ||
 				page.Find(`#edit-goodreads-linked.collapse:not(.show)`).Length() != 1 ||
-				page.Find(`form[hx-put="/documents/linked/goodreads"][hx-target="this"]`).Length() != 1 ||
+				page.Find(`form[hx-put="/documents/linked/review-link"][hx-target="this"]`).Length() != 1 ||
 				page.Find(`label[for="goodreads-book-url-linked"]`).Length() != 1 {
 				t.Fatal("expected accessible, initially collapsed Goodreads editor beside the score")
 			}
@@ -582,7 +598,7 @@ func TestDocumentUpdateGoodReads(t *testing.T) {
 	}
 	response, err := putRequest(url.Values{
 		"bookURL": {"https://www.goodreads.com/book/show/1368314.El_Cercano_Oriente?from_search=true"},
-	}, adminCookie, app, "/documents/linked/goodreads", t)
+	}, adminCookie, app, "/documents/linked/review-link", t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -615,13 +631,13 @@ func TestDocumentUpdateGoodReads(t *testing.T) {
 }
 
 func TestDocumentUpdateGoodReadsValidation(t *testing.T) {
-	app, idx := newGoodReadsTestApp(t, nil)
+	app, idx := newGoodReadsTestApp(t, &fakeBookSource{})
 	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, value := range []string{"", "https://example.org/book/show/123", "https://www.goodreads.com/author/show/16667"} {
-		response, err := putRequest(url.Values{"bookURL": {value}}, adminCookie, app, "/documents/linked/goodreads", t)
+		response, err := putRequest(url.Values{"bookURL": {value}}, adminCookie, app, "/documents/linked/review-link", t)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -645,7 +661,7 @@ func TestDocumentUpdateGoodReadsValidation(t *testing.T) {
 	}
 	response, err := putRequest(url.Values{
 		"bookURL": {"https://www.goodreads.com/book/show/1368314"},
-	}, adminCookie, app, "/documents/missing/goodreads", t)
+	}, adminCookie, app, "/documents/missing/review-link", t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -674,7 +690,7 @@ func TestDocumentDetailUpdatesStoredGoodReadsRating(t *testing.T) {
 	if stored.GoodReadsRatingValue != 4.12 {
 		t.Fatalf("expected latest rating and searchable value to be stored, got %+v", stored)
 	}
-	results, err := idx.Search(index.SearchFields{GoodReadsRatingFrom: 4.1, GoodReadsRatingTo: 4.2}, 1, 10)
+	results, err := idx.Search(index.SearchFields{ReviewScoreFrom: 4.1, ReviewScoreTo: 4.2}, 1, 10)
 	if err != nil || results.TotalHits() != 1 {
 		t.Fatalf("expected document to match updated rating range, got %d results and error %v", results.TotalHits(), err)
 	}

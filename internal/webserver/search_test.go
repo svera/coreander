@@ -160,7 +160,7 @@ func TestGoodReadsScoreSortOptions(t *testing.T) {
 					mode = "/fragment"
 				}
 				t.Run(path+direction+mode, func(t *testing.T) {
-					selected := "goodreads-score-" + direction
+					selected := "review-score-" + direction
 					req := mustGetRequest(t, path+"sort-by="+selected)
 					if fragment {
 						req.Header.Set("HX-Request", "true")
@@ -177,7 +177,7 @@ func TestGoodReadsScoreSortOptions(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					for _, value := range []string{"goodreads-score-asc", "goodreads-score-desc"} {
+					for _, value := range []string{"review-score-asc", "review-score-desc"} {
 						if doc.Find(`#sort-by option[value="`+value+`"]`).Length() != 1 {
 							t.Errorf("missing sort option %q", value)
 						}
@@ -191,11 +191,11 @@ func TestGoodReadsScoreSortOptions(t *testing.T) {
 	}
 }
 
-func TestGoodReadsScoreFilter(t *testing.T) {
+func TestReviewScoreFilter(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), webserver.Config{})
 
-	response, err := app.Test(mustGetRequest(t, "/search?type=documents&goodreads-score-from=4&goodreads-score-to=5"))
+	response, err := app.Test(mustGetRequest(t, "/search?type=documents&review-score-from=4&review-score-to=5"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,8 +211,8 @@ func TestGoodReadsScoreFilter(t *testing.T) {
 		name  string
 		value string
 	}{
-		{name: "goodreads-score-from", value: "4"},
-		{name: "goodreads-score-to", value: "5"},
+		{name: "review-score-from", value: "4"},
+		{name: "review-score-to", value: "5"},
 	} {
 		selects := doc.Find(`select[name="` + field.name + `"]`)
 		if selects.Length() == 0 {
@@ -238,7 +238,7 @@ func TestGoodReadsScoreFilter(t *testing.T) {
 				t.Errorf("Expected blank and scores 1 to 5 for %s, got %v", field.name, options)
 			}
 		})
-		if doc.Find(`input[name="` + field.name + `"]`).Length() != 0 {
+		if doc.Find(`input[name="`+field.name+`"]`).Length() != 0 {
 			t.Errorf("Expected no numeric input for %s", field.name)
 		}
 	}

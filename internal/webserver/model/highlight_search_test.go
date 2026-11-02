@@ -23,7 +23,7 @@ func TestMatchesSearchFieldsGoodReadsRatingRange(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			doc := AugmentedDocument{Document: index.Document{GoodReadsRatingValue: tt.score}}
-			fields := index.SearchFields{GoodReadsRatingFrom: tt.from, GoodReadsRatingTo: tt.to}
+			fields := index.SearchFields{ReviewScoreFrom: tt.from, ReviewScoreTo: tt.to}
 			if got := matchesSearchFields(doc, fields, 0); got != tt.want {
 				t.Errorf("matchesSearchFields() = %v, want %v", got, tt.want)
 			}

@@ -7,6 +7,9 @@ import (
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
+// ScoreValueSortField is the index sort key for the current review score.
+const ScoreValueSortField = "GoodReadsRatingValue"
+
 type SearchFields struct {
 	Keywords string
 	// AuthorSlug, when set, scopes the search to documents by (or illustrated
@@ -20,18 +23,18 @@ type SearchFields struct {
 	// author and its own series - deliberately not its subjects, see
 	// similarToQuery), ranked by score and pruned to those scoring close
 	// enough to the best match (see runSimilarityQuery).
-	SimilarTo           string
-	PubDateFrom         date.Date
-	PubDateTo           date.Date
-	EstReadTimeFrom     float64
-	EstReadTimeTo       float64
-	WordsPerMinute      float64
-	PagesFrom           float64
-	PagesTo             float64
-	GoodReadsRatingFrom float64
-	GoodReadsRatingTo   float64
-	IllustratedOnly     bool
-	SortBy              []string
+	SimilarTo       string
+	PubDateFrom     date.Date
+	PubDateTo       date.Date
+	EstReadTimeFrom float64
+	EstReadTimeTo   float64
+	WordsPerMinute  float64
+	PagesFrom       float64
+	PagesTo         float64
+	ReviewScoreFrom float64
+	ReviewScoreTo   float64
+	IllustratedOnly bool
+	SortBy          []string
 }
 
 type Document struct {

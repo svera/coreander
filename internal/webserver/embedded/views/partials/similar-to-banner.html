@@ -9,7 +9,7 @@
         </div>
         {{if ne .Results.TotalHits 0}}
         <div class="col-auto d-none d-xl-block">
-            {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "AdditionalSortOptions" .AdditionalSortOptions}}
+            {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "ReviewSourceName" .ReviewSourceName "AdditionalSortOptions" .AdditionalSortOptions}}
         </div>
         {{end}}
     </div>
@@ -19,7 +19,7 @@
         </div>
         {{if ne .Results.TotalHits 0}}
         <div class="col-7">
-            {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "AdditionalSortOptions" .AdditionalSortOptions}}
+            {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "ReviewSourceName" .ReviewSourceName "AdditionalSortOptions" .AdditionalSortOptions}}
         </div>
         {{end}}
     </div>

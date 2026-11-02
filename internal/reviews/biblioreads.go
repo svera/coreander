@@ -2,6 +2,7 @@ package reviews
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -26,6 +27,7 @@ type BiblioReadsClient interface {
 type GoodReadsIndex interface {
 	GoodReadsBook(ctx context.Context, document index.Document) (biblioreads.SearchResult, error)
 	StoreGoodReadsDetails(document index.Document, bookURL string, book biblioreads.BookResponse) error
+	UpdateGoodReadsBookURL(documentID, bookURL string) error
 }
 
 type BiblioReads struct {
@@ -37,6 +39,10 @@ func NewBiblioReads(client BiblioReadsClient, idx GoodReadsIndex) *BiblioReads {
 	return &BiblioReads{client: client, index: idx}
 }
 
+func (b *BiblioReads) Name() string {
+	return "Goodreads"
+}
+
 // DocumentLink returns the indexed book link without making a network request.
 func (b *BiblioReads) DocumentLink(document index.Document) servicelinks.Link {
 	return (servicelinks.Goodreads{}).Document(document)
@@ -45,6 +51,19 @@ func (b *BiblioReads) DocumentLink(document index.Document) servicelinks.Link {
 // CanEditDocumentLink reports that Goodreads book links can be corrected.
 func (b *BiblioReads) CanEditDocumentLink() bool {
 	return true
+}
+
+// UpdateDocumentLink saves a corrected Goodreads book link and clears stale score details.
+func (b *BiblioReads) UpdateDocumentLink(document index.Document, link string) error {
+	err := b.index.UpdateGoodReadsBookURL(document.ID, link)
+	switch {
+	case errors.Is(err, index.ErrInvalidGoodReadsBookURL):
+		return fmt.Errorf("%w: %v", ErrInvalidDocumentLink, err)
+	case errors.Is(err, index.ErrDocumentNotFound):
+		return ErrDocumentNotFound
+	default:
+		return err
+	}
 }
 
 func bookID(bookURL string) (string, error) {

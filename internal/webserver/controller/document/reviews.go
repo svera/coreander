@@ -56,9 +56,8 @@ func (d *Controller) Reviews(c fiber.Ctx) error {
 			return c.SendString("")
 		}
 		return c.Render("partials/document-reviews", fiber.Map{
-			"Lang": lang, "Slug": document.Slug, "ReviewLanguage": reviewLanguage,
-			"SupportedLanguages": supportedLanguages, "Source": link.Source,
-			"BookURL": link.URL, "Unavailable": true,
+			"Slug": document.Slug, "ReviewLanguage": reviewLanguage,
+			"Source": link.Source, "BookURL": link.URL, "Unavailable": true,
 		})
 	}
 	renderedReviews := make([]documentReview, 0, len(page.Reviews))
@@ -78,8 +77,7 @@ func (d *Controller) Reviews(c fiber.Ctx) error {
 		renderedReviews = append(renderedReviews, rendered)
 	}
 	return c.Render("partials/document-reviews", fiber.Map{
-		"Lang": lang, "Slug": document.Slug, "ReviewLanguage": reviewLanguage,
-		"SupportedLanguages": supportedLanguages, "Reviews": renderedReviews,
-		"Source": page.Source, "BookURL": page.URL,
+		"Slug": document.Slug, "ReviewLanguage": reviewLanguage,
+		"Reviews": renderedReviews, "Source": page.Source, "BookURL": page.URL,
 	})
 }
