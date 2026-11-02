@@ -37,17 +37,15 @@ func TestBookResponseRecovery(t *testing.T) {
 				_, _ = w.Write([]byte(validBookResponse))
 			})
 			client := newFailoverClient(t, handler)
-			for range 2 {
-				book, err := client.Book(context.Background(), "5898652-la-cinta-roja")
-				if err != nil || book.Rating != "3.92" || book.ResourceID != "work-id" || book.LegacyBookID != 5898652 {
-					t.Fatalf("expected complete book after failover, got %+v, %v", book, err)
-				}
-				if book.Title != "" {
-					t.Fatalf("fields from previous attempts must not survive failover, got title %q", book.Title)
-				}
+			book, err := client.Book(context.Background(), "5898652-la-cinta-roja")
+			if err != nil || book.Rating != "3.92" || book.ResourceID != "work-id" || book.LegacyBookID != 5898652 {
+				t.Fatalf("expected complete book after failover, got %+v, %v", book, err)
+			}
+			if book.Title != "" {
+				t.Fatalf("fields from previous attempts must not survive failover, got title %q", book.Title)
 			}
 			if hits.Load() != 2 {
-				t.Fatalf("expected recovered book to be cached, got %d requests", hits.Load())
+				t.Fatalf("expected both instances to be tried, got %d requests", hits.Load())
 			}
 		})
 	}
@@ -101,14 +99,12 @@ func TestReviewsResponseRecovery(t *testing.T) {
 				}
 				_, _ = w.Write(fixture)
 			}))
-			for range 2 {
-				reviews, err := client.Reviews(context.Background(), "work", 1, "", "")
-				if err != nil || len(reviews.Reviews) == 0 {
-					t.Fatalf("expected reviews after failover, got %+v, %v", reviews, err)
-				}
+			reviews, err := client.Reviews(context.Background(), "work", 1, "", "")
+			if err != nil || len(reviews.Reviews) == 0 {
+				t.Fatalf("expected reviews after failover, got %+v, %v", reviews, err)
 			}
 			if hits.Load() != 2 {
-				t.Fatalf("expected failover followed by a cache hit, got %d requests", hits.Load())
+				t.Fatalf("expected both instances to be tried, got %d requests", hits.Load())
 			}
 		})
 	}
@@ -149,17 +145,15 @@ func TestReviewsLanguageFailsOverFromLegacyInstance(t *testing.T) {
 		}
 	})
 	client := newFailoverClient(t, handler)
-	for range 2 {
-		response, err := client.Reviews(context.Background(), "work", 1, "", "es")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(response.Reviews) != 1 || response.Reviews[0].Text != "Una reseña en español" {
-			t.Fatalf("expected Spanish reviews rather than legacy unfiltered results, got %+v", response)
-		}
+	response, err := client.Reviews(context.Background(), "work", 1, "", "es")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Reviews) != 1 || response.Reviews[0].Text != "Una reseña en español" {
+		t.Fatalf("expected Spanish reviews rather than legacy unfiltered results, got %+v", response)
 	}
 	if hits.Load() != 2 {
-		t.Fatalf("expected failover followed by a cache hit, got %d requests", hits.Load())
+		t.Fatalf("expected both instances to be tried, got %d requests", hits.Load())
 	}
 }
 

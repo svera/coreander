@@ -80,6 +80,54 @@ func TestReviewsLanguageCache(t *testing.T) {
 	}
 }
 
+func TestFailoverResponsesAreCached(t *testing.T) {
+	t.Run("book", func(t *testing.T) {
+		var hits atomic.Int32
+		handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			if hits.Add(1) == 1 {
+				w.WriteHeader(http.StatusGatewayTimeout)
+				_, _ = w.Write([]byte(`{"status":"Error - Book not found"}`))
+				return
+			}
+			_, _ = w.Write([]byte(validBookResponse))
+		})
+		client := newFailoverClient(t, handler)
+
+		for range 2 {
+			book, err := client.Book(context.Background(), "5898652")
+			if err != nil || book.Rating != "3.92" {
+				t.Fatalf("expected recovered book, got %+v, %v", book, err)
+			}
+		}
+		if hits.Load() != 2 {
+			t.Fatalf("expected recovered book to be cached after failover, got %d requests", hits.Load())
+		}
+	})
+
+	t.Run("reviews", func(t *testing.T) {
+		var hits atomic.Int32
+		fixture := readFixture(t, "reviews-scraper.json")
+		handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			if hits.Add(1) == 1 {
+				_, _ = w.Write([]byte(`{}`))
+				return
+			}
+			_, _ = w.Write(fixture)
+		})
+		client := newFailoverClient(t, handler)
+
+		for range 2 {
+			response, err := client.Reviews(context.Background(), "work", 1, "", "")
+			if err != nil || len(response.Reviews) == 0 {
+				t.Fatalf("expected recovered reviews, got %+v, %v", response, err)
+			}
+		}
+		if hits.Load() != 2 {
+			t.Fatalf("expected recovered reviews to be cached after failover, got %d requests", hits.Load())
+		}
+	})
+}
+
 func TestCache(t *testing.T) {
 	t.Run("successful responses are cached per request", func(t *testing.T) {
 		var hits atomic.Int32
