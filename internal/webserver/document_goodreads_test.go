@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -388,6 +389,55 @@ func TestSearchResultsShowStoredGoodReadsRating(t *testing.T) {
 			}
 			if rating.Parent().Find("small").Text() != "(2,285 ratings)" {
 				t.Fatal("expected rating count beside the Goodreads score")
+			}
+		})
+	}
+}
+
+func TestDocumentSearchSortsByReviewScore(t *testing.T) {
+	app, idx := newGoodReadsTestApp(t, &fakeBookSource{})
+	scores := map[string]string{
+		"linked":    "3.20",
+		"unlinked":  "4.10",
+		"unmatched": "4.80",
+	}
+	documents, err := idx.Search(index.SearchFields{}, 1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, doc := range documents.Hits() {
+		if err := idx.UpdateGoodReadsBookURL(doc.ID, "https://www.goodreads.com/book/show/1-"+doc.Slug); err != nil {
+			t.Fatalf("set score link for %s: %v", doc.Slug, err)
+		}
+		updated, err := idx.Document(doc.Slug)
+		if err != nil {
+			t.Fatalf("reload %s: %v", doc.Slug, err)
+		}
+		if err := idx.StoreGoodReadsDetails(updated, updated.GoodReadsBookURL, biblioreads.BookResponse{Rating: scores[doc.Slug]}); err != nil {
+			t.Fatalf("set score for %s: %v", doc.Slug, err)
+		}
+	}
+
+	for _, tt := range []struct {
+		direction string
+		want      []string
+	}{
+		{direction: "asc", want: []string{"linked", "unlinked", "unmatched"}},
+		{direction: "desc", want: []string{"unmatched", "unlinked", "linked"}},
+	} {
+		t.Run(tt.direction, func(t *testing.T) {
+			body := getBody(t, app, "/search?type=documents&sort-by=review-score-"+tt.direction)
+			page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			page.Find("#list .list-group-item h2 a").Each(func(_ int, link *goquery.Selection) {
+				href, _ := link.Attr("href")
+				got = append(got, strings.TrimPrefix(href, "/documents/"))
+			})
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("score sort %s: got %v, want %v", tt.direction, got, tt.want)
 			}
 		})
 	}

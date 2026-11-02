@@ -57,6 +57,11 @@ func TestGET(t *testing.T) {
 }
 
 func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig webserver.Config, metadataReaders ...map[string]metadata.Reader) *fiber.App {
+	app, _ := bootstrapAppWithIndexer(db, sender, appFs, webserverConfig, metadataReaders...)
+	return app
+}
+
+func bootstrapAppWithIndexer(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig webserver.Config, metadataReaders ...map[string]metadata.Reader) (*fiber.App, *index.BleveIndexer) {
 	readers := testMetadataReaders()
 	if len(metadataReaders) > 0 {
 		readers = metadataReaders[0]
@@ -92,7 +97,7 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 	}
 	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, nil, servicelinks.Goodreads{})
 	usersRepository := &model.UserRepository{DB: db}
-	return webserver.New(webserverConfig, controllers, sender, idx, usersRepository)
+	return webserver.New(webserverConfig, controllers, sender, idx, usersRepository), idx
 }
 
 func loadFilesInMemoryFs(files []string) afero.Fs {
