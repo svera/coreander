@@ -62,11 +62,11 @@ func (a *Controller) Update(c fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Author":       author,
-		"ServiceLink":  a.authorLink(author),
-		"ImageVersion": a.getImageVersion(author.Slug),
-		"Lang":         lang,
-		"Session":      session,
+		"Author":          author,
+		"DataSourceLinks": a.authorDataSourceLinks(author, lang),
+		"ImageVersion":    a.getImageVersion(author.Slug),
+		"Lang":            lang,
+		"Session":         session,
 	}
 
 	if err = c.Render(template, templateVars); err != nil {

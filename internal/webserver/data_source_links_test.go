@@ -7,21 +7,21 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
-	"github.com/svera/coreander/v5/internal/servicelinks"
 )
 
-type alternativeLinks struct{}
+type alternativeDataSourceLinks struct{}
 
-func (alternativeLinks) Author(author index.Author) servicelinks.Link {
-	return servicelinks.Link{Source: "Another service", URL: "https://example.org/authors/" + author.Slug}
+func (alternativeDataSourceLinks) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
+	return datasourcemodel.DataSourceLink{Source: "Another source", URL: "https://example.org/authors/" + author.Slug}
 }
 
-func TestAlternativeServiceLinks(t *testing.T) {
+func TestAlternativeDataSourceLinks(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{
 		Rating: "4", ResourceID: "work", LegacyBookID: 1,
 	}}
-	app, idx := newServiceProvidersTestApp(t, source, nil, alternativeLinks{})
+	app, idx := newDataSourceProvidersTestApp(t, source, nil, alternativeDataSourceLinks{})
 	for _, slug := range []string{"jane-doe", "john-doe"} {
 		if err := idx.IndexAuthor(index.Author{
 			Slug: slug, Name: slug, RetrievedOn: time.Now().UTC(),
@@ -38,8 +38,8 @@ func TestAlternativeServiceLinks(t *testing.T) {
 			t.Fatal(err)
 		}
 		link := page.Find(`a[href="https://example.org/authors/jane-doe"]`)
-		if link.Length() != 1 || link.Text() != "Go to Another service author page" {
-			t.Fatalf("%s: expected injected author service link, got %q", path, link.Text())
+		if link.Length() != 1 || link.Text() != "Go to Another source author page" {
+			t.Fatalf("%s: expected injected author data-source link, got %q", path, link.Text())
 		}
 		if page.Find(`img[src^="/images/goodreads.svg"]`).Length() != 0 {
 			t.Fatalf("%s: unexpected Goodreads branding", path)
@@ -56,8 +56,8 @@ func TestAlternativeServiceLinks(t *testing.T) {
 	}
 }
 
-func TestServiceLinksWithoutReviewProvider(t *testing.T) {
-	app, idx := newServiceProvidersTestApp(t, nil, nil, alternativeLinks{})
+func TestDataSourceLinksWithoutReviewProvider(t *testing.T) {
+	app, idx := newDataSourceProvidersTestApp(t, nil, nil, alternativeDataSourceLinks{})
 	if err := idx.IndexAuthor(index.Author{Slug: "jane-doe", Name: "Jane Doe", RetrievedOn: time.Now().UTC()}); err != nil {
 		t.Fatal(err)
 	}

@@ -18,12 +18,12 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
+	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/reviews"
-	"github.com/svera/coreander/v5/internal/servicelinks"
 	"github.com/svera/coreander/v5/internal/webserver"
-	"github.com/svera/coreander/v5/internal/webserver/controller/author"
+	authorcontroller "github.com/svera/coreander/v5/internal/webserver/controller/author"
 	"github.com/svera/coreander/v5/internal/webserver/controller/document"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v5/internal/webserver/model"
@@ -295,10 +295,10 @@ func newGoodReadsTestApp(t *testing.T, source *fakeBookSource) (*fiber.App, *ind
 
 func newReviewProviderTestApp(t *testing.T, source *fakeBookSource, provider document.ReviewProvider) (*fiber.App, *index.BleveIndexer) {
 	t.Helper()
-	return newServiceProvidersTestApp(t, source, provider, servicelinks.Goodreads{})
+	return newDataSourceProvidersTestApp(t, source, provider, nil)
 }
 
-func newServiceProvidersTestApp(t *testing.T, source *fakeBookSource, provider document.ReviewProvider, links author.LinkProvider) (*fiber.App, *index.BleveIndexer) {
+func newDataSourceProvidersTestApp(t *testing.T, source *fakeBookSource, provider document.ReviewProvider, dataSourceLinkProvider authorcontroller.DataSourceLinkProvider) (*fiber.App, *index.BleveIndexer) {
 	t.Helper()
 	db := infrastructure.Connect(":memory:", 250)
 	sqlDB, err := db.DB()
@@ -324,6 +324,7 @@ func newServiceProvidersTestApp(t *testing.T, source *fakeBookSource, provider d
 	if source != nil {
 		provider = reviews.NewBiblioReads(source, idx)
 	}
+	goodReadsLinks := reviews.NewBiblioReads(nil, idx)
 	t.Cleanup(func() { _ = idx.Close() })
 
 	for _, doc := range []index.Document{
@@ -352,7 +353,7 @@ func newServiceProvidersTestApp(t *testing.T, source *fakeBookSource, provider d
 
 	cfg := defaultTestConfig()
 	sender := &infrastructure.NoEmail{}
-	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, nil, provider, links)
+	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, wikidata.NewWikidataSource(wikidata.Gowikidata{}), provider, wikidata.NewWikidataSource(wikidata.Gowikidata{}), goodReadsLinks, dataSourceLinkProvider)
 	app := webserver.New(cfg, controllers, sender, idx, &model.UserRepository{DB: db})
 	t.Cleanup(func() { _ = app.Shutdown() })
 	return app, idx

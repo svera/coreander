@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
-	"github.com/svera/coreander/v5/internal/servicelinks"
 )
 
 const (
@@ -44,8 +44,20 @@ func (b *BiblioReads) Name() string {
 }
 
 // DocumentLink returns the indexed book link without making a network request.
-func (b *BiblioReads) DocumentLink(document index.Document) servicelinks.Link {
-	return (servicelinks.Goodreads{}).Document(document)
+func (b *BiblioReads) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
+	return goodReadsDataSourceLink(author.GoodReadsAuthorURL, "/author/show/")
+}
+
+func (b *BiblioReads) DocumentLink(document index.Document) datasourcemodel.DataSourceLink {
+	return goodReadsDataSourceLink(document.GoodReadsBookURL, "/book/show/")
+}
+
+func goodReadsDataSourceLink(path, prefix string) datasourcemodel.DataSourceLink {
+	link := datasourcemodel.DataSourceLink{Source: "Goodreads", Icon: "/images/goodreads.svg", IconInvertible: true}
+	if id, ok := strings.CutPrefix(path, prefix); ok && id != "" {
+		link.URL = goodReadsBaseURL + path
+	}
+	return link
 }
 
 // CanEditDocumentLink reports that Goodreads book links can be corrected.
@@ -113,14 +125,14 @@ func (b *BiblioReads) Score(ctx context.Context, document index.Document) (Score
 			return score, err
 		}
 		document.GoodReadsBookURL = result.BookURL
-		score.Value, score.Count, score.URL = result.Rating, result.RatingCount, (servicelinks.Goodreads{}).Document(document).URL
+		score.Value, score.Count, score.URL = result.Rating, result.RatingCount, b.DocumentLink(document).URL
 		return score, nil
 	}
 	book, err := b.book(ctx, document)
 	if err != nil {
 		return score, err
 	}
-	score.Value, score.Count, score.URL = book.Rating, book.RatingCount, (servicelinks.Goodreads{}).Document(document).URL
+	score.Value, score.Count, score.URL = book.Rating, book.RatingCount, b.DocumentLink(document).URL
 	return score, nil
 }
 
@@ -146,7 +158,7 @@ func (b *BiblioReads) Reviews(ctx context.Context, document index.Document, lang
 	if err != nil {
 		return Page{}, fmt.Errorf("retrieving Goodreads reviews for %s: %w", document.ID, err)
 	}
-	page := Page{Source: "Goodreads", URL: (servicelinks.Goodreads{}).Document(document).URL, Available: true}
+	page := Page{Source: "Goodreads", URL: b.DocumentLink(document).URL, Available: true}
 	for _, review := range response.Reviews {
 		var createdAt time.Time
 		if review.CreatedAt != "" {

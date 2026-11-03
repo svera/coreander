@@ -10,7 +10,7 @@ import (
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/result"
 	"github.com/svera/coreander/v5/internal/reviews"
-	"github.com/svera/coreander/v5/internal/servicelinks"
+	authorcontroller "github.com/svera/coreander/v5/internal/webserver/controller/author"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
@@ -25,10 +25,6 @@ type ReviewProvider interface {
 	CanEditDocumentLink() bool
 	// UpdateDocumentLink saves an administrator's correction to the provider-specific link.
 	UpdateDocumentLink(document index.Document, link string) error
-}
-
-type LinkProvider interface {
-	Author(author index.Author) servicelinks.Link
 }
 
 type Sender interface {
@@ -97,33 +93,33 @@ type Config struct {
 }
 
 type Controller struct {
-	hlRepository          highlightsRepository
-	usersRepository       usersRepository
-	readingRepository     readingRepository
-	annotationsRepository annotationsRepository
-	idx                   IdxReaderWriter
-	sender                Sender
-	config                Config
-	appFs                 afero.Fs
-	translator            i18n.Translator
-	reviewProvider        ReviewProvider
-	linkProvider          LinkProvider
+	hlRepository            highlightsRepository
+	usersRepository         usersRepository
+	readingRepository       readingRepository
+	annotationsRepository   annotationsRepository
+	idx                     IdxReaderWriter
+	sender                  Sender
+	config                  Config
+	appFs                   afero.Fs
+	translator              i18n.Translator
+	reviewProvider          ReviewProvider
+	dataSourceLinkProviders []authorcontroller.DataSourceLinkProvider
 }
 
 // NewController creates a document controller. A nil reviewProvider disables scores and reviews.
-func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, annotationsRepository annotationsRepository, sender Sender, idx IdxReaderWriter, appFs afero.Fs, cfg Config, translator i18n.Translator, reviewProvider ReviewProvider, linkProvider LinkProvider) *Controller {
+func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, annotationsRepository annotationsRepository, sender Sender, idx IdxReaderWriter, appFs afero.Fs, cfg Config, translator i18n.Translator, reviewProvider ReviewProvider, dataSourceLinkProviders ...authorcontroller.DataSourceLinkProvider) *Controller {
 	return &Controller{
-		hlRepository:          hlRepository,
-		usersRepository:       usersRepository,
-		readingRepository:     readingRepository,
-		annotationsRepository: annotationsRepository,
-		idx:                   idx,
-		sender:                sender,
-		config:                cfg,
-		appFs:                 appFs,
-		translator:            translator,
-		reviewProvider:        reviewProvider,
-		linkProvider:          linkProvider,
+		hlRepository:            hlRepository,
+		usersRepository:         usersRepository,
+		readingRepository:       readingRepository,
+		annotationsRepository:   annotationsRepository,
+		idx:                     idx,
+		sender:                  sender,
+		config:                  cfg,
+		appFs:                   appFs,
+		translator:              translator,
+		reviewProvider:          reviewProvider,
+		dataSourceLinkProviders: dataSourceLinkProviders,
 	}
 }
 

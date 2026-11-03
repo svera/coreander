@@ -128,14 +128,15 @@ func TestAuthorSummaryGoodReadsLink(t *testing.T) {
 		wikipediaURL = "https://en.wikipedia.org/wiki/Alice_Borchardt"
 	)
 	locales := []struct {
-		lang  string
-		label string
+		lang           string
+		label          string
+		wikipediaLabel string
 	}{
-		{"en", "Go to Goodreads author page"},
-		{"es", "Ir a la página del autor en Goodreads"},
-		{"de", "Zur Autorenseite auf Goodreads"},
-		{"fr", "Voir la page de l'auteur sur Goodreads"},
-		{"ru", "Перейти на страницу автора в Goodreads"},
+		{"en", "Go to Goodreads author page", "Go to Wikipedia entry"},
+		{"es", "Ir a la página del autor en Goodreads", "Ir al artículo en Wikipedia"},
+		{"de", "Zur Autorenseite auf Goodreads", "Zur Wikipedia-Seite"},
+		{"fr", "Voir la page de l'auteur sur Goodreads", "Aller à l'entrée Wikipedia"},
+		{"ru", "Перейти на страницу автора в Goodreads", "Перейти к статье в Википедии"},
 	}
 	for _, tc := range []struct {
 		name      string
@@ -146,7 +147,7 @@ func TestAuthorSummaryGoodReadsLink(t *testing.T) {
 		{"with-wikipedia", true, true, "Q1"},
 		{"without-goodreads", false, true, "Q1"},
 		{"without-wikipedia", true, false, "Q1"},
-		{"without-wikidata", true, false, ""},
+		{"without-source-id", true, false, ""},
 	} {
 		author := index.Author{
 			Slug: tc.name, Name: "Alice Borchardt",
@@ -158,7 +159,7 @@ func TestAuthorSummaryGoodReadsLink(t *testing.T) {
 		}
 		if tc.wikipedia {
 			for _, locale := range locales {
-				author.WikipediaLink[locale.lang] = wikipediaURL
+				author.WikipediaLink[locale.lang] = strings.Replace(wikipediaURL, "en.wikipedia.org", locale.lang+".wikipedia.org", 1)
 			}
 		}
 		if err := idx.IndexAuthor(author); err != nil {
@@ -185,6 +186,16 @@ func TestAuthorSummaryGoodReadsLink(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
+					wikipediaLink := page.Find(`a[href="https://` + locale.lang + `.wikipedia.org/wiki/Alice_Borchardt"]`)
+					if tc.wikipedia && (wikipediaLink.Length() != 1 || strings.TrimSpace(wikipediaLink.Text()) != locale.wikipediaLabel) {
+						t.Fatalf("expected localized Wikipedia data-source link %q, got %d links with text %q", locale.wikipediaLabel, wikipediaLink.Length(), wikipediaLink.Text())
+					}
+					if tc.wikipedia && wikipediaLink.PrevFiltered("i.bi-wikipedia").Length() != 1 {
+						t.Fatal("expected the Wikipedia provider's Bootstrap icon")
+					}
+					if !tc.wikipedia && page.Find(`a[href$="wikipedia.org/wiki/Alice_Borchardt"]`).Length() != 0 {
+						t.Fatal("expected no Wikipedia link when there is no link for the current language")
+					}
 					link := page.Find(`a[href="` + authorURL + `"]`)
 					if !tc.goodreads {
 						if page.Find(`img[src^="/images/goodreads.svg"]`).Length() != 0 {
@@ -203,7 +214,8 @@ func TestAuthorSummaryGoodReadsLink(t *testing.T) {
 						t.Error("expected a decorative Goodreads SVG icon before the author link")
 					}
 					if tc.wikipedia {
-						if href, _ := link.Parent().Prev().Find("a").Attr("href"); href != wikipediaURL {
+						wantWikipediaURL := strings.Replace(wikipediaURL, "en.wikipedia.org", locale.lang+".wikipedia.org", 1)
+						if href, _ := link.Parent().Prev().Find("a").Attr("href"); href != wantWikipediaURL {
 							t.Fatalf("expected Goodreads immediately below Wikipedia, previous link is %q", href)
 						}
 					}

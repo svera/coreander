@@ -20,7 +20,6 @@ import (
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/reviews"
-	"github.com/svera/coreander/v5/internal/servicelinks"
 	"github.com/svera/coreander/v5/internal/versioncheck"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/controller/document"
@@ -206,11 +205,11 @@ func main() {
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
 	var reviewProvider document.ReviewProvider
-	linkProvider := servicelinks.Goodreads{}
+	biblioReads := reviews.NewBiblioReads(biblioreadsClient, idx)
 	if biblioreadsClient != nil {
-		reviewProvider = reviews.NewBiblioReads(biblioreadsClient, idx)
+		reviewProvider = biblioReads
 	}
-	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, reviewProvider, linkProvider)
+	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, reviewProvider, dataSource, biblioReads)
 	usersRepository := &model.UserRepository{DB: db}
 	app := webserver.New(webserverConfig, controllers, sender, idx, usersRepository)
 	if strings.ToLower(input.FQDN) == "localhost" {

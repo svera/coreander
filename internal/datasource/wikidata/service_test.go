@@ -6,8 +6,26 @@ import (
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
 	"github.com/svera/coreander/v5/internal/datasource/model"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/precisiondate"
 )
+
+func TestWikipediaDataSourceLink(t *testing.T) {
+	source := NewWikidataSource(Gowikidata{})
+	link := source.AuthorLink(index.Author{
+		WikipediaLink: map[string]string{
+			"en": "https://en.wikipedia.org/wiki/Example",
+			"es": "https://es.wikipedia.org/wiki/Ejemplo",
+		},
+	}, "es")
+	if link.Source != "Wikipedia" || link.URL != "https://es.wikipedia.org/wiki/Ejemplo" ||
+		link.IconClass != "bi-wikipedia" || link.Label != "Go to Wikipedia entry" {
+		t.Fatalf("unexpected Wikipedia data-source link: %+v", link)
+	}
+	if missing := source.AuthorLink(index.Author{}, "en"); missing.URL != "" {
+		t.Fatalf("expected no link for missing Wikipedia URL, got %+v", missing)
+	}
+}
 
 func TestAuthor(t *testing.T) {
 	mockServer := NewMockServer(t, "fixtures")

@@ -4,9 +4,9 @@ import (
 	"io/fs"
 
 	"github.com/spf13/afero"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/result"
-	"github.com/svera/coreander/v5/internal/servicelinks"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
 
@@ -14,8 +14,8 @@ type Sender interface {
 	From() string
 }
 
-type LinkProvider interface {
-	Author(author index.Author) servicelinks.Link
+type DataSourceLinkProvider interface {
+	AuthorLink(author index.Author, language string) datasourcemodel.DataSourceLink
 }
 
 // IdxReader defines a set of author reading operations over an index
@@ -45,34 +45,45 @@ type Config struct {
 }
 
 type Controller struct {
-	hlRepository      highlightsRepository
-	readingRepository readingRepository
-	idx               IdxReader
-	sender            Sender
-	config            Config
-	dataSource        DataSource
-	appFs             afero.Fs
-	embeddedImagesFS  fs.FS
-	linkProvider      LinkProvider
+	hlRepository            highlightsRepository
+	readingRepository       readingRepository
+	idx                     IdxReader
+	sender                  Sender
+	config                  Config
+	dataSource              DataSource
+	appFs                   afero.Fs
+	embeddedImagesFS        fs.FS
+	dataSourceLinkProviders []DataSourceLinkProvider
 }
 
-func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReader, cfg Config, dataSource DataSource, appFs afero.Fs, embeddedImagesFS fs.FS, linkProvider LinkProvider) *Controller {
+func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReader, cfg Config, dataSource DataSource, appFs afero.Fs, embeddedImagesFS fs.FS, dataSourceLinkProviders ...DataSourceLinkProvider) *Controller {
 	return &Controller{
-		hlRepository:      hlRepository,
-		readingRepository: readingRepository,
-		idx:               idx,
-		sender:            sender,
-		config:            cfg,
-		dataSource:        dataSource,
-		appFs:             appFs,
-		embeddedImagesFS:  embeddedImagesFS,
-		linkProvider:      linkProvider,
+		hlRepository:            hlRepository,
+		readingRepository:       readingRepository,
+		idx:                     idx,
+		sender:                  sender,
+		config:                  cfg,
+		dataSource:              dataSource,
+		appFs:                   appFs,
+		embeddedImagesFS:        embeddedImagesFS,
+		dataSourceLinkProviders: dataSourceLinkProviders,
 	}
 }
 
-func (a *Controller) authorLink(author index.Author) servicelinks.Link {
-	if a.linkProvider == nil {
-		return servicelinks.Link{}
+func (a *Controller) authorDataSourceLinks(author index.Author, language string) []datasourcemodel.DataSourceLink {
+	return DataSourceLinks(author, language, a.dataSourceLinkProviders...)
+}
+
+func DataSourceLinks(author index.Author, language string, providers ...DataSourceLinkProvider) []datasourcemodel.DataSourceLink {
+	var links []datasourcemodel.DataSourceLink
+	for _, provider := range providers {
+		if provider == nil {
+			continue
+		}
+		link := provider.AuthorLink(author, language)
+		if link.URL != "" {
+			links = append(links, link)
+		}
 	}
-	return a.linkProvider.Author(author)
+	return links
 }

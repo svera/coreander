@@ -60,7 +60,7 @@
             <hr>
             {{range .AuthorSummaries}}
                 {{if not .Author.RetrievedOn.IsZero}}
-                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" .Author "Session" $.Session "ImageVersion" .ImageVersion "ServiceLink" .ServiceLink}}
+                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" .Author "Session" $.Session "ImageVersion" .ImageVersion "DataSourceLinks" .DataSourceLinks}}
                 {{else}}
                     {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" .Author.Slug}}
                 {{end}}
@@ -71,7 +71,7 @@
             {{range $i, $entry := .IllustratorSummaries}}
                 {{if eq $i 0}}<hr>{{end}}
                 {{if not $entry.Author.RetrievedOn.IsZero}}
-                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" $entry.Author "Session" $.Session "ImageVersion" $entry.ImageVersion "ServiceLink" $entry.ServiceLink}}
+                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" $entry.Author "Session" $.Session "ImageVersion" $entry.ImageVersion "DataSourceLinks" $entry.DataSourceLinks}}
                 {{else}}
                     {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" $entry.Author.Slug}}
                 {{end}}
@@ -121,8 +121,8 @@
         {{end}}
         {{if .ReviewsEnabled}}
         <div id="document-reviews-{{.Document.Slug}}" class="mt-5">
-            {{if .DocumentServiceLink.URL}}
-            {{template "partials/document-reviews-header" dict "Lang" .Lang "Source" .DocumentServiceLink.Source "BookURL" .DocumentServiceLink.URL "Slug" .Document.Slug "SupportedLanguages" .SupportedLanguages "ReviewLanguage" .Lang}}
+            {{if .DocumentLink.URL}}
+            {{template "partials/document-reviews-header" dict "Lang" .Lang "Source" .DocumentLink.Source "BookURL" .DocumentLink.URL "Slug" .Document.Slug "SupportedLanguages" .SupportedLanguages "ReviewLanguage" .Lang}}
             {{end}}
         </div>
         {{end}}

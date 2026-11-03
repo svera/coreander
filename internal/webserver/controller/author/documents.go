@@ -34,7 +34,8 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		page = 1
 	}
 
-	author, err := a.idx.Author(authorSlug, c.Locals("Lang").(string))
+	lang := c.Locals("Lang").(string)
+	author, err := a.idx.Author(authorSlug, lang)
 	if err != nil {
 		log.Println(err)
 	}
@@ -65,7 +66,7 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 
 	templateVars := fiber.Map{
 		"Author":               author,
-		"ServiceLink":          a.authorLink(author),
+		"DataSourceLinks":      a.authorDataSourceLinks(author, lang),
 		"ImageVersion":         a.getImageVersion(author.Slug),
 		"DocumentSearchFields": searchFields,
 		"DocumentsOnly":        true,

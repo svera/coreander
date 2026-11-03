@@ -71,7 +71,7 @@
                 {{end}}
             </dl>
             {{end}}
-            {{if or .Author.Website (index .Author.WikipediaLink .Lang) .ServiceLink.URL}}
+            {{if or .Author.Website .DataSourceLinks}}
             <ul class="list-unstyled px-3">
                 {{if .Author.Website}}
                     <li>
@@ -80,13 +80,7 @@
                     </li>
                 {{end}}
 
-                {{if index .Author.WikipediaLink .Lang}}
-                    <li>
-                        <i class="bi-wikipedia me-2"></i>
-                        <a href="{{index .Author.WikipediaLink .Lang}}">{{t .Lang "Go to Wikipedia entry"}}</a>
-                    </li>
-                {{end}}
-                {{template "partials/author-service-link" dict "Lang" .Lang "ServiceLink" .ServiceLink}}
+                {{template "partials/author-data-source-link" dict "Lang" .Lang "DataSourceLinks" .DataSourceLinks}}
             </ul>
             {{end}}
         </div>

@@ -6,8 +6,9 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gosimple/slug"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
-	"github.com/svera/coreander/v5/internal/servicelinks"
+	authorcontroller "github.com/svera/coreander/v5/internal/webserver/controller/author"
 	"github.com/svera/coreander/v5/internal/webserver/controller/fsutil"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
@@ -16,9 +17,9 @@ import (
 // render eagerly (i.e. without the async /summary htmx round-trip), so it can
 // only fall back to that round-trip when the author hasn't been enriched yet.
 type authorSummary struct {
-	Author       index.Author
-	ImageVersion string
-	ServiceLink  servicelinks.Link
+	Author          index.Author
+	ImageVersion    string
+	DataSourceLinks []datasourcemodel.DataSourceLink
 }
 
 func (d *Controller) Detail(c fiber.Ctx) error {
@@ -74,17 +75,17 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"IllustratorSummaries": illustratorSummaries,
 		"Debug":                c.RequestCtx().QueryArgs().Has("debug"),
 		"ReviewsEnabled":       d.reviewProvider != nil,
-		"DocumentServiceLink":  d.documentServiceLink(document),
+		"DocumentLink":         d.documentLink(document),
 	}, "layout")
 }
 
-func (d *Controller) documentServiceLink(document index.Document) servicelinks.Link {
+func (d *Controller) documentLink(document index.Document) datasourcemodel.DataSourceLink {
 	if provider, ok := d.reviewProvider.(interface {
-		DocumentLink(index.Document) servicelinks.Link
+		DocumentLink(index.Document) datasourcemodel.DataSourceLink
 	}); ok {
 		return provider.DocumentLink(document)
 	}
-	return servicelinks.Link{}
+	return datasourcemodel.DataSourceLink{}
 }
 
 // authorAndIllustratorSummaries resolves the (up to 2) authors and (up to 2)
@@ -130,11 +131,8 @@ func (d *Controller) authorSummaryFor(authorSlug, lang string) authorSummary {
 		log.Println(err)
 	}
 
-	var link servicelinks.Link
-	if d.linkProvider != nil {
-		link = d.linkProvider.Author(author)
-	}
-	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug), ServiceLink: link}
+	links := authorcontroller.DataSourceLinks(author, lang, d.dataSourceLinkProviders...)
+	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug), DataSourceLinks: links}
 }
 
 func (d *Controller) sameSeries(slug string, sessionID int) ([]model.AugmentedDocument, int, error) {

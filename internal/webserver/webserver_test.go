@@ -19,7 +19,7 @@ import (
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
-	"github.com/svera/coreander/v5/internal/servicelinks"
+	"github.com/svera/coreander/v5/internal/reviews"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v5/internal/webserver/model"
@@ -95,7 +95,7 @@ func bootstrapAppWithIndexer(db *gorm.DB, sender webserver.Sender, appFs afero.F
 	if err != nil {
 		log.Fatal(err)
 	}
-	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, nil, servicelinks.Goodreads{})
+	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, nil, dataSource, reviews.NewBiblioReads(nil, idx))
 	usersRepository := &model.UserRepository{DB: db}
 	return webserver.New(webserverConfig, controllers, sender, idx, usersRepository), idx
 }

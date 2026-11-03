@@ -51,7 +51,7 @@ func (d *Controller) Reviews(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	if !page.Available {
-		link := d.documentServiceLink(document)
+		link := d.documentLink(document)
 		if link.URL == "" {
 			return c.SendString("")
 		}
