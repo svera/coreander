@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/blevesearch/bleve/v2/mapping"
 )
 
 // OpenAuthorsIndex upgrades version 2 without discarding stored author metadata.
@@ -52,39 +51,36 @@ func OpenAuthorsIndex(path string, batchSize int) (bleve.Index, error) {
 }
 
 func migrateAuthorsIndex(authors bleve.Index, path string, batchSize int) (bleve.Index, error) {
-	return migrateStoredIndex(authors, path, path+".v2-backup", batchSize, CreateAuthorsMapping(), copyAuthors)
-}
-
-func migrateStoredIndex(source bleve.Index, path, backup string, batchSize int, targetMapping mapping.IndexMapping, copyDocuments func(bleve.Index, bleve.Index, int) error) (bleve.Index, error) {
 	if batchSize <= 0 {
-		return nil, fmt.Errorf("index migration batch size must be positive")
+		return nil, fmt.Errorf("authors migration batch size must be positive")
 	}
+	backup := path + ".v2-backup"
 	if _, err := os.Stat(backup); err == nil {
-		return nil, fmt.Errorf("index migration backup already exists: %s", backup)
+		return nil, fmt.Errorf("authors migration backup already exists: %s", backup)
 	} else if !os.IsNotExist(err) {
 		return nil, err
 	}
-	stagingDir, err := os.MkdirTemp(filepath.Dir(path), ".index-migration-")
+	stagingDir, err := os.MkdirTemp(filepath.Dir(path), ".authors-migration-")
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err := os.RemoveAll(stagingDir); err != nil {
-			log.Printf("Error removing index migration staging directory: %s", err)
+			log.Printf("Error removing authors migration staging directory: %s", err)
 		}
 	}()
 	stagingPath := filepath.Join(stagingDir, "index")
-	staged, err := bleve.New(stagingPath, targetMapping)
+	staged, err := bleve.New(stagingPath, CreateAuthorsMapping())
 	if err != nil {
 		return nil, err
 	}
-	if err := copyDocuments(source, staged, batchSize); err != nil {
+	if err := copyAuthors(authors, staged, batchSize); err != nil {
 		return nil, errors.Join(err, staged.Close())
 	}
 	if err := staged.Close(); err != nil {
 		return nil, err
 	}
-	if err := source.Close(); err != nil {
+	if err := authors.Close(); err != nil {
 		return nil, err
 	}
 	if err := os.Rename(path, backup); err != nil {

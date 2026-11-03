@@ -257,7 +257,7 @@ func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, max
 	needsReindex := false
 
 	// Open or create documents index
-	documentsIndex, err := index.OpenDocumentsIndex(homeDir+documentsIndexPath, input.BatchSize)
+	documentsIndex, err := bleve.Open(homeDir + documentsIndexPath)
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No documents index found, creating a new one.")
 		documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)

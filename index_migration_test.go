@@ -32,7 +32,7 @@ func TestGetIndexesMigratesAuthorsWithoutReindexingDocuments(t *testing.T) {
 	}
 	documents := index.CreateDocumentsIndex(homeDir + documentsIndexPath)
 	for key, value := range map[string]string{
-		"version":              "v16",
+		"version":              index.DocumentVersion,
 		"illustrated_min_size": "0.25",
 		"min_occurrence_ratio": "0.1",
 		"max_textrank_words":   "10000",
@@ -86,7 +86,7 @@ func TestGetIndexesMigratesAuthorsWithoutReindexingDocuments(t *testing.T) {
 	}
 	data, err := index.DataSourceData[biblioreads.DocumentData](stored, biblioreads.Source)
 	if err != nil || !data.Enriched {
-		t.Fatalf("document migration lost enrichment state: %+v, %v", data, err)
+		t.Fatalf("author migration changed document enrichment state: %+v, %v", data, err)
 	}
 	author, err := idx.Author("alice-borchardt", "")
 	if err != nil || author.DataSourceID != "Q1" || !author.RetrievedOn.Equal(retrieved) {
