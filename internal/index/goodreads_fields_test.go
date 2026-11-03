@@ -1,6 +1,7 @@
 package index_test
 
 import (
+	"maps"
 	"slices"
 	"testing"
 
@@ -252,30 +253,35 @@ func legacyBookIDQuery(id int) *query.NumericRangeQuery {
 	return q
 }
 
-func TestAuthorGoodReadsURLIsStoredButNotSearchable(t *testing.T) {
+func TestAuthorDataSourceLinksAreStoredButNotSearchable(t *testing.T) {
 	authors, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer authors.Close()
+	idx := index.NewBleve(nil, authors, nil, "", nil, index.Config{})
 	const authorURL = "/author/show/151155.Zyxwv_Author"
-	if err := authors.Index("alice", index.Author{Slug: "alice", Name: "Alice Borchardt", GoodReadsAuthorURL: authorURL}); err != nil {
+	links := map[string]string{
+		"goodreads": authorURL,
+		"other":     "https://example.org/Zyxwv_Author",
+	}
+	if err := idx.IndexAuthor(index.Author{Slug: "alice", Name: "Alice Borchardt", DataSourceLinks: links}); err != nil {
 		t.Fatal(err)
 	}
-	req := bleve.NewSearchRequest(bleve.NewDocIDQuery([]string{"alice"}))
-	req.Fields = []string{"GoodReadsAuthorURL"}
-	result, err := authors.Search(req)
+	author, err := idx.Author("alice", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Hits) != 1 || result.Hits[0].Fields["GoodReadsAuthorURL"] != authorURL {
-		t.Fatalf("expected stored author URL, got %+v", result.Hits)
+	if !maps.Equal(author.DataSourceLinks, links) {
+		t.Fatalf("expected stored author links, got %+v", author.DataSourceLinks)
 	}
 	for _, q := range []query.Query{
-		fieldTermQuery("GoodReadsAuthorURL", authorURL),
+		fieldTermQuery("DataSourceLinks", authorURL),
+		fieldTermQuery("DataSourceLinks.goodreads", authorURL),
+		fieldTermQuery("DataSourceLinks.other", links["other"]),
 		bleve.NewTermQuery(authorURL),
 		bleve.NewMatchQuery("Zyxwv_Author"),
-		bleve.NewQueryStringQuery(`GoodReadsAuthorURL:"` + authorURL + `"`),
+		bleve.NewQueryStringQuery(`DataSourceLinks:"` + authorURL + `"`),
 	} {
 		result, err := authors.Search(bleve.NewSearchRequest(q))
 		if err != nil {

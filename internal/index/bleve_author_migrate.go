@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/blevesearch/bleve/v2"
 )
@@ -105,7 +106,25 @@ func copyAuthors(source, destination bleve.Index, batchSize int) error {
 		}
 		batch := destination.NewBatch()
 		for _, hit := range result.Hits {
-			if err := batch.Index(hit.ID, hydrateAuthor(hit)); err != nil {
+			author := hydrateAuthor(hit)
+			for field, value := range hit.Fields {
+				source := ""
+				switch {
+				case field == "Website":
+					source = "website"
+				case strings.HasPrefix(field, "WikipediaLink."):
+					source = "wikipedia:" + strings.TrimPrefix(field, "WikipediaLink.")
+				}
+				if link, ok := value.(string); source != "" && ok && link != "" {
+					if author.DataSourceLinks == nil {
+						author.DataSourceLinks = make(map[string]string)
+					}
+					if author.DataSourceLinks[source] == "" {
+						author.DataSourceLinks[source] = link
+					}
+				}
+			}
+			if err := indexAuthor(batch, hit.ID, author); err != nil {
 				return err
 			}
 		}

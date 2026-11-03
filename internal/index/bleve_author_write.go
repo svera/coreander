@@ -1,13 +1,29 @@
 package index
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"maps"
+	"strings"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 )
+
+// indexAuthor stores links as one stored-only field so new sources need no mapping changes.
+func indexAuthor(destination interface{ Index(string, any) error }, id string, author Author) error {
+	links, err := json.Marshal(author.DataSourceLinks)
+	if err != nil {
+		return err
+	}
+	author.DataSourceLinks = nil
+	return destination.Index(id, struct {
+		Author
+		DataSourceLinks string
+	}{author, string(links)})
+}
 
 func (b *BleveIndexer) incrementAuthorCounts(names, slugs []string) error {
 	for i, name := range names {
@@ -37,7 +53,7 @@ func (b *BleveIndexer) incrementAuthorCount(name, authorSlug string) error {
 	} else {
 		existing.DocumentCount++
 	}
-	return b.authorsIdx.Index(authorSlug, existing)
+	return indexAuthor(b.authorsIdx, authorSlug, existing)
 }
 
 // RebuildAuthorsFromDocuments recalculates DocumentCount for every author from the documents
@@ -79,7 +95,7 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 			author = Author{Name: names[authorSlug], Slug: authorSlug}
 		}
 		author.DocumentCount = count
-		if err := batch.Index(authorSlug, author); err != nil {
+		if err := indexAuthor(batch, authorSlug, author); err != nil {
 			return err
 		}
 		if batch.Size() >= batchSize {
@@ -157,11 +173,20 @@ func (b *BleveIndexer) IndexAuthor(author Author) error {
 	if err != nil {
 		return err
 	}
-	// Goodreads enrichment runs independently of Wikidata and UI edits.
-	if current.GoodReadsAuthorURL != "" {
-		author.GoodReadsAuthorURL = current.GoodReadsAuthorURL
+	// Link enrichment runs independently of metadata enrichment and UI edits.
+	links := maps.Clone(author.DataSourceLinks)
+	if len(current.DataSourceLinks) > 0 {
+		if links == nil {
+			links = make(map[string]string)
+		}
+		for source, link := range current.DataSourceLinks {
+			if source != "website" && !strings.HasPrefix(source, "wikipedia:") {
+				links[source] = link
+			}
+		}
 	}
-	if err := b.authorsIdx.Index(author.Slug, author); err != nil {
+	author.DataSourceLinks = links
+	if err := indexAuthor(b.authorsIdx, author.Slug, author); err != nil {
 		return err
 	}
 	return nil
@@ -207,12 +232,22 @@ func CombineWithDataSource(author *Author, authorDataSource datasourcemodel.Auth
 	author.DataSourceID = authorDataSource.SourceID()
 	author.BirthName = authorDataSource.BirthName()
 	author.RetrievedOn = authorDataSource.RetrievedOn()
-	author.WikipediaLink = make(map[string]string)
+	author.DataSourceLinks = maps.Clone(author.DataSourceLinks)
+	if author.DataSourceLinks == nil {
+		author.DataSourceLinks = make(map[string]string)
+	}
+	for source := range author.DataSourceLinks {
+		if source == "website" || strings.HasPrefix(source, "wikipedia:") {
+			delete(author.DataSourceLinks, source)
+		}
+	}
 	author.InstanceOf = authorDataSource.InstanceOf()
 	author.Description = make(map[string]string)
 	author.DateOfBirth = authorDataSource.DateOfBirth()
 	author.DateOfDeath = authorDataSource.DateOfDeath()
-	author.Website = authorDataSource.Website()
+	if website := authorDataSource.Website(); website != "" {
+		author.DataSourceLinks["website"] = website
+	}
 	author.DataSourceImage = authorDataSource.Image()
 	author.Gender = authorDataSource.Gender()
 	author.Pseudonyms = make([]string, 0, len(authorDataSource.Pseudonyms()))
@@ -224,7 +259,9 @@ func CombineWithDataSource(author *Author, authorDataSource datasourcemodel.Auth
 	}
 
 	for _, lang := range supportedLanguages {
-		author.WikipediaLink[lang] = authorDataSource.WikipediaLink(lang)
+		if link := authorDataSource.WikipediaLink(lang); link != "" {
+			author.DataSourceLinks["wikipedia:"+lang] = link
+		}
 		author.Description[lang] = authorDataSource.Description(lang)
 	}
 }

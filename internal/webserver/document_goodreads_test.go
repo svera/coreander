@@ -668,7 +668,7 @@ func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
 		t.Errorf("expected the found link to be stored, got %+v", stored)
 	}
 	author, err := idx.Author("jane-doe", "")
-	if err != nil || author.GoodReadsAuthorURL != "/author/show/1.Jane_Doe" || author.DocumentCount != 1 {
+	if err != nil || author.DataSourceLinks["goodreads"] != "/author/show/1.Jane_Doe" || author.DocumentCount != 1 {
 		t.Fatalf("expected missing author entry created with URL and document count, got %+v, %v", author, err)
 	}
 	if stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 {

@@ -71,12 +71,12 @@
             {{end}}
         </dl>
         {{end}}
-        {{if or .Author.Website .DataSourceLinks}}
+        {{if or (index .Author.DataSourceLinks "website") .DataSourceLinks}}
         <ul class="list-unstyled">
-            {{if .Author.Website}}
+            {{with index .Author.DataSourceLinks "website"}}
                 <li>
                     <i class="bi-globe-europe-africa me-2"></i>
-                    <a href="{{.Author.Website}}">{{t .Lang "Website"}}</a>
+                    <a href="{{.}}">{{t $.Lang "Website"}}</a>
                 </li>
             {{end}}
 

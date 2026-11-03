@@ -164,11 +164,11 @@ func TestAuthorSummaryDataSourceLinkTranslations(t *testing.T) {
 		author := index.Author{
 			Slug: tc.name, Name: "Alice Borchardt",
 			DataSourceID: tc.dataSourceID, RetrievedOn: time.Now().UTC(),
-			WikipediaLink: make(map[string]string),
+			DataSourceLinks: map[string]string{"website": "https://author.example/" + tc.name},
 		}
 		if tc.wikipedia {
 			for _, locale := range locales {
-				author.WikipediaLink[locale.lang] = strings.Replace(wikipediaURL, "en.wikipedia.org", locale.lang+".wikipedia.org", 1)
+				author.DataSourceLinks["wikipedia:"+locale.lang] = strings.Replace(wikipediaURL, "en.wikipedia.org", locale.lang+".wikipedia.org", 1)
 			}
 		}
 		if err := idx.IndexAuthor(author); err != nil {
@@ -196,6 +196,10 @@ func TestAuthorSummaryDataSourceLinkTranslations(t *testing.T) {
 						t.Fatal(err)
 					}
 					wikipediaLink := page.Find(`a[href="https://` + locale.lang + `.wikipedia.org/wiki/Alice_Borchardt"]`)
+					websiteLink := page.Find(`a[href="https://author.example/` + tc.name + `"]`)
+					if websiteLink.Length() != 1 || websiteLink.PrevFiltered("i.bi-globe-europe-africa").Length() != 1 {
+						t.Fatal("expected the stored website link and globe icon")
+					}
 					if tc.wikipedia && (wikipediaLink.Length() != 1 || strings.TrimSpace(wikipediaLink.Text()) != locale.wikipediaLabel) {
 						t.Fatalf("expected localized Wikipedia data-source link %q, got %d links with text %q", locale.wikipediaLabel, wikipediaLink.Length(), wikipediaLink.Text())
 					}

@@ -130,11 +130,14 @@ func (b *BleveIndexer) storeGoodReadsAuthorURL(document Document, authorURL, mat
 			author.DocumentCount += result.Total
 		}
 	}
-	if author.GoodReadsAuthorURL != "" {
+	if author.DataSourceLinks["goodreads"] != "" {
 		return nil
 	}
-	author.GoodReadsAuthorURL = authorURL
-	return b.authorsIdx.Index(authorSlug, author)
+	if author.DataSourceLinks == nil {
+		author.DataSourceLinks = make(map[string]string)
+	}
+	author.DataSourceLinks["goodreads"] = authorURL
+	return indexAuthor(b.authorsIdx, authorSlug, author)
 }
 
 func goodReadsTitle(value string) string {

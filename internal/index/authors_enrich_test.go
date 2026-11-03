@@ -76,7 +76,9 @@ func (m *mockAuthorDataSource) RetrieveAuthors(candidates map[string][]string, _
 }
 
 type stubAuthor struct {
-	sourceID string
+	sourceID  string
+	website   string
+	wikipedia map[string]string
 }
 
 func (a stubAuthor) BirthName() string                        { return "" }
@@ -86,11 +88,55 @@ func (a stubAuthor) Gender() float64                          { return 0 }
 func (a stubAuthor) DateOfBirth() precisiondate.PrecisionDate { return precisiondate.PrecisionDate{} }
 func (a stubAuthor) DateOfDeath() precisiondate.PrecisionDate { return precisiondate.PrecisionDate{} }
 func (a stubAuthor) Image() string                            { return "" }
-func (a stubAuthor) Website() string                          { return "" }
-func (a stubAuthor) WikipediaLink(string) string              { return "" }
+func (a stubAuthor) Website() string                          { return a.website }
+func (a stubAuthor) WikipediaLink(lang string) string         { return a.wikipedia[lang] }
 func (a stubAuthor) SourceID() string                         { return a.sourceID }
 func (a stubAuthor) RetrievedOn() time.Time                   { return time.Now().UTC() }
 func (a stubAuthor) Pseudonyms() []string                     { return nil }
+
+func TestAuthorMetadataRefreshUpdatesLinks(t *testing.T) {
+	authors, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer authors.Close()
+	idx := index.NewBleve(nil, authors, nil, "", nil, index.Config{})
+	author := index.Author{
+		Slug: "writer", Name: "Writer",
+		DataSourceLinks: map[string]string{
+			"website":      "https://old.example",
+			"wikipedia:en": "https://en.wikipedia.org/wiki/Old",
+			"wikipedia:es": "https://es.wikipedia.org/wiki/Old",
+			"goodreads":    "/author/show/1.Writer",
+			"catalog":      "https://catalog.example/writer",
+		},
+	}
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range []stubAuthor{
+		{sourceID: "Q1", website: "https://new.example", wikipedia: map[string]string{"en": "https://en.wikipedia.org/wiki/New"}},
+		{sourceID: "Q1"},
+	} {
+		index.CombineWithDataSource(&author, source, []string{"en", "es"})
+		if err := idx.IndexAuthor(author); err != nil {
+			t.Fatal(err)
+		}
+		got, err := idx.Author("writer", "en")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.DataSourceLinks["website"] != source.website ||
+			got.DataSourceLinks["wikipedia:en"] != source.wikipedia["en"] ||
+			got.DataSourceLinks["wikipedia:es"] != "" {
+			t.Fatalf("metadata links were not refreshed: %+v", got.DataSourceLinks)
+		}
+		if got.DataSourceLinks["goodreads"] != "/author/show/1.Writer" ||
+			got.DataSourceLinks["catalog"] != "https://catalog.example/writer" {
+			t.Fatalf("metadata refresh lost independent provider links: %+v", got.DataSourceLinks)
+		}
+	}
+}
 
 func TestAuthorsWithoutInfo(t *testing.T) {
 	authorsIndexMem, err := bleve.NewMemOnly(index.CreateAuthorsMapping())

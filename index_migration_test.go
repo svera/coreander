@@ -44,7 +44,7 @@ func TestGetIndexesMigratesAuthorsWithoutReindexingDocuments(t *testing.T) {
 		t.Fatal(err)
 	}
 	legacyMapping := index.CreateAuthorsMapping().(*mapping.IndexMappingImpl)
-	delete(legacyMapping.DefaultMapping.Properties, "GoodReadsAuthorURL")
+	delete(legacyMapping.DefaultMapping.Properties, "DataSourceLinks")
 	authors, err := bleve.New(homeDir+authorsIndexPath, legacyMapping)
 	if err != nil {
 		t.Fatal(err)

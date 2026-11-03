@@ -10,22 +10,20 @@ import (
 )
 
 type Author struct {
-	Slug               string
-	Name               string
-	BirthName          string
-	DataSourceID       string
-	RetrievedOn        time.Time
-	WikipediaLink      map[string]string
-	InstanceOf         float64
-	Description        map[string]string
-	DateOfBirth        precisiondate.PrecisionDate
-	DateOfDeath        precisiondate.PrecisionDate
-	Website            string
-	GoodReadsAuthorURL string
-	DataSourceImage    string
-	Gender             float64
-	Pseudonyms         []string
-	DocumentCount      uint64
+	Slug            string
+	Name            string
+	BirthName       string
+	DataSourceID    string
+	RetrievedOn     time.Time
+	InstanceOf      float64
+	Description     map[string]string
+	DateOfBirth     precisiondate.PrecisionDate
+	DateOfDeath     precisiondate.PrecisionDate
+	DataSourceLinks map[string]string
+	DataSourceImage string
+	Gender          float64
+	Pseudonyms      []string
+	DocumentCount   uint64
 }
 
 func (a Author) YearOfBirthAbs() int {

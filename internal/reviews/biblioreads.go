@@ -47,11 +47,12 @@ func (b *BiblioReads) Name() string {
 	return "Goodreads"
 }
 
-// DocumentLink returns the indexed book link without making a network request.
+// AuthorLink returns the indexed author link without making a network request.
 func (b *BiblioReads) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
-	return goodReadsDataSourceLink(author.GoodReadsAuthorURL, "/author/show/")
+	return goodReadsDataSourceLink(author.DataSourceLinks["goodreads"], "/author/show/")
 }
 
+// DocumentLink returns the indexed book link without making a network request.
 func (b *BiblioReads) DocumentLink(document index.Document) datasourcemodel.DataSourceLink {
 	return goodReadsDataSourceLink(document.DataSourceLink, "/book/show/")
 }

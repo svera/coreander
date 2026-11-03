@@ -35,7 +35,7 @@ func (d *Controller) Score(c fiber.Ctx) error {
 			return c.SendString("")
 		}
 		score.Value, score.Count = "", ""
-		score.URL = d.documentLink(document).URL
+		score.URL = d.dataSourceDocumentLink(document).URL
 	}
 	return c.Render("partials/document-score", fiber.Map{
 		"Source":              score.Source,

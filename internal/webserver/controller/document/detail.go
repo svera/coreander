@@ -75,11 +75,11 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"IllustratorSummaries": illustratorSummaries,
 		"Debug":                c.RequestCtx().QueryArgs().Has("debug"),
 		"ReviewsEnabled":       d.reviewProvider != nil,
-		"DocumentLink":         d.documentLink(document),
+		"DocumentLink":         d.dataSourceDocumentLink(document),
 	}, "layout")
 }
 
-func (d *Controller) documentLink(document index.Document) datasourcemodel.DataSourceLink {
+func (d *Controller) dataSourceDocumentLink(document index.Document) datasourcemodel.DataSourceLink {
 	if provider, ok := d.reviewProvider.(interface {
 		DocumentLink(index.Document) datasourcemodel.DataSourceLink
 	}); ok {
@@ -131,7 +131,7 @@ func (d *Controller) authorSummaryFor(authorSlug, lang string) authorSummary {
 		log.Println(err)
 	}
 
-	links := authorcontroller.DataSourceLinks(author, lang, d.dataSourceLinkProviders...)
+	links := authorcontroller.DataSourceLinks(author, lang, d.linkProviders...)
 	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug), DataSourceLinks: links}
 }
 

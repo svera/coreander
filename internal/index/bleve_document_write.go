@@ -263,7 +263,7 @@ func (b *BleveIndexer) deleteDocumentFromIndex(document Document) error {
 			err = b.authorsIdx.Delete(authorSlug)
 		} else {
 			author.DocumentCount--
-			err = b.authorsIdx.Index(authorSlug, author)
+			err = indexAuthor(b.authorsIdx, authorSlug, author)
 		}
 		b.authorsMu.Unlock()
 		if err != nil {

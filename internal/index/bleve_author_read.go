@@ -1,6 +1,8 @@
 package index
 
 import (
+	"encoding/json"
+	"log"
 	"strings"
 	"time"
 
@@ -39,9 +41,6 @@ func (b *BleveIndexer) Author(slug, lang string) (Author, error) {
 	author := hydrateAuthor(searchResult.Hits[0])
 
 	// Override language-specific fields if requested language is available
-	if value, ok := searchResult.Hits[0].Fields["WikipediaLink."+lang].(string); ok {
-		author.WikipediaLink[lang] = value
-	}
 	if value, ok := searchResult.Hits[0].Fields["Description."+lang].(string); ok {
 		author.Description[lang] = value
 	}
@@ -116,13 +115,6 @@ func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
 		}
 	}
 
-	website := ""
-	if val, ok := fields["Website"]; ok && val != nil {
-		if str, ok := val.(string); ok {
-			website = str
-		}
-	}
-
 	dataSourceImage := ""
 	if val, ok := fields["DataSourceImage"]; ok && val != nil {
 		if str, ok := val.(string); ok {
@@ -157,27 +149,22 @@ func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
 		Slug:            slug,
 		DataSourceID:    dataSourceID,
 		RetrievedOn:     retrievedOn,
-		WikipediaLink:   make(map[string]string),
 		InstanceOf:      instanceOf,
 		Description:     make(map[string]string),
 		DateOfBirth:     dateOfBirth,
 		DateOfDeath:     dateOfDeath,
-		Website:         website,
 		DataSourceImage: dataSourceImage,
 		Gender:          gender,
 		Pseudonyms:      slicer(fields["Pseudonyms"]),
 		DocumentCount:   documentCount,
 	}
-	author.GoodReadsAuthorURL, _ = fields["GoodReadsAuthorURL"].(string)
-
-	// Extract Wikipedia links and descriptions for all languages
-	for key, value := range fields {
-		if strings.HasPrefix(key, "WikipediaLink.") {
-			lang := strings.TrimPrefix(key, "WikipediaLink.")
-			if str, ok := value.(string); ok {
-				author.WikipediaLink[lang] = str
-			}
+	if links, ok := fields["DataSourceLinks"].(string); ok {
+		if err := json.Unmarshal([]byte(links), &author.DataSourceLinks); err != nil {
+			log.Printf("Error reading data source links for author %s: %s", docID, err)
 		}
+	}
+	// Extract descriptions for all languages.
+	for key, value := range fields {
 		if strings.HasPrefix(key, "Description.") {
 			lang := strings.TrimPrefix(key, "Description.")
 			if str, ok := value.(string); ok {

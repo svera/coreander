@@ -13,9 +13,9 @@ import (
 func TestWikipediaDataSourceLink(t *testing.T) {
 	source := NewWikidataSource(Gowikidata{})
 	link := source.AuthorLink(index.Author{
-		WikipediaLink: map[string]string{
-			"en": "https://en.wikipedia.org/wiki/Example",
-			"es": "https://es.wikipedia.org/wiki/Ejemplo",
+		DataSourceLinks: map[string]string{
+			"wikipedia:en": "https://en.wikipedia.org/wiki/Example",
+			"wikipedia:es": "https://es.wikipedia.org/wiki/Ejemplo",
 		},
 	}, "es")
 	if link.Source != "Wikipedia" || link.URL != "https://es.wikipedia.org/wiki/Ejemplo" ||
