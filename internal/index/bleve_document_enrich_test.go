@@ -16,6 +16,57 @@ type testDocumentEnricher struct {
 	failure error
 }
 
+type blockingDocumentEnricher struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (*blockingDocumentEnricher) Source() string { return "blocking" }
+
+func (*blockingDocumentEnricher) NeedsEnrichment(Document) (bool, error) {
+	return true, nil
+}
+
+func (p *blockingDocumentEnricher) Enrich(ctx context.Context, _ *BleveIndexer, _ Document) error {
+	p.started <- struct{}{}
+	select {
+	case <-p.release:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func TestDocumentEnrichmentUsesBoundedConcurrency(t *testing.T) {
+	const documentCount = 2 * documentEnrichWorkers
+	provider := &blockingDocumentEnricher{
+		started: make(chan struct{}, documentCount),
+		release: make(chan struct{}),
+	}
+	idx, _ := newTestTextRankIndexer(t, Config{})
+	documents := make([]Document, documentCount)
+	done := make(chan error, 1)
+	go func() { done <- idx.enrichProviderBatch(provider, documents) }()
+	defer func() {
+		close(provider.release)
+		if err := <-done; err != nil {
+			t.Errorf("enrichment failed: %v", err)
+		}
+	}()
+	for range documentEnrichWorkers {
+		select {
+		case <-provider.started:
+		case <-time.After(time.Second):
+			t.Fatal("expected concurrent provider lookups")
+		}
+	}
+	select {
+	case <-provider.started:
+		t.Fatal("enrichment exceeded its concurrency bound")
+	case <-time.After(30 * time.Millisecond):
+	}
+}
+
 func (p *testDocumentEnricher) Source() string { return p.source }
 
 func (p *testDocumentEnricher) NeedsEnrichment(document Document) (bool, error) {
