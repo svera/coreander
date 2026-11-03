@@ -43,7 +43,7 @@ func TestGoodReadsEnrichmentUsesBoundedConcurrency(t *testing.T) {
 		documents = append(documents, doc)
 	}
 	done := make(chan error, 1)
-	go func() { done <- idx.enrichGoodReadsBatch(documents) }()
+	go func() { done <- idx.enrichProviderBatch(idx.goodReadsProvider(), documents) }()
 	defer func() {
 		close(source.release)
 		if err := <-done; err != nil {

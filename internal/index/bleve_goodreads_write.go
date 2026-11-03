@@ -11,24 +11,53 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"unicode"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"golang.org/x/text/unicode/norm"
 )
 
 const (
-	goodReadsEnrichWorkers  = 4
+	goodReadsEnrichWorkers  = documentEnrichWorkers
 	goodReadsRequestTimeout = 2 * time.Minute
 )
 
 // GoodReadsSource searches books on Goodreads; implemented by *biblioreads.Client.
 type GoodReadsSource interface {
 	SearchBooks(ctx context.Context, query string) (biblioreads.SearchBooksResponse, error)
+}
+
+// GoodReadsEnricher adapts Goodreads matching to the document enrichment pipeline.
+type GoodReadsEnricher struct {
+	source GoodReadsSource
+	slots  chan struct{}
+}
+
+func NewGoodReadsEnricher(source GoodReadsSource) *GoodReadsEnricher {
+	return &GoodReadsEnricher{source: source, slots: make(chan struct{}, goodReadsEnrichWorkers)}
+}
+
+func (*GoodReadsEnricher) Source() string { return biblioreads.Source }
+
+func (*GoodReadsEnricher) NeedsEnrichment(document Document) (bool, error) {
+	data, err := DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+	return !data.Enriched, err
+}
+
+func (p *GoodReadsEnricher) Enrich(ctx context.Context, b *BleveIndexer, document Document) error {
+	_, err := p.enrich(ctx, b, document)
+	return err
+}
+
+func (b *BleveIndexer) goodReadsProvider() *GoodReadsEnricher {
+	for _, provider := range b.documentEnrichers {
+		if p, ok := provider.(*GoodReadsEnricher); ok {
+			return p
+		}
+	}
+	return nil
 }
 
 var dataSourceFields = []string{"DataSources", "DataSourceScoreValue"}
@@ -258,104 +287,8 @@ func goodReadsQuery(document Document) string {
 	return q
 }
 
-func documentsNeedingGoodReadsQuery() query.Query {
-	enriched := bleve.NewTermQuery(biblioreads.Source)
-	enriched.SetField("EnrichedDataSources")
-	notEnriched := bleve.NewBooleanQuery()
-	notEnriched.AddMust(bleve.NewMatchAllQuery())
-	notEnriched.AddMustNot(enriched)
-	return notEnriched
-}
-
 func (b *BleveIndexer) documentsNeedingGoodReads(size int) ([]Document, uint64, error) {
-	searchReq := bleve.NewSearchRequestOptions(documentsNeedingGoodReadsQuery(), size, 0, false)
-	searchReq.Fields = []string{"*"}
-	b.documentsMu.RLock()
-	searchResult, err := b.documentsIdx.Search(searchReq)
-	b.documentsMu.RUnlock()
-	if err != nil {
-		return nil, 0, err
-	}
-	documents := make([]Document, 0, len(searchResult.Hits))
-	for _, hit := range searchResult.Hits {
-		documents = append(documents, hydrateDocument(hit))
-	}
-	return documents, searchResult.Total, nil
-}
-
-// EnrichGoodReads looks up on Goodreads every document not processed yet (see
-// biblioreads.DocumentData.Enriched), storing the book URL on the document and the
-// author URL on the matching author. The source handles per-instance throttling.
-// It stops at the first error that means Goodreads can't be reached right
-// now, leaving the remaining documents for the next run.
-func (b *BleveIndexer) EnrichGoodReads(batchSize int) error {
-	if b.goodReadsSource == nil {
-		return nil
-	}
-
-	_, total, err := b.documentsNeedingGoodReads(0)
-	if err != nil || total == 0 {
-		return err
-	}
-	log.Printf("Enriching %d documents with GoodReads data", total)
-
-	// Bounds the loop if a document's write keeps failing, which would leave
-	// it in documentsNeedingGoodReads' results forever.
-	maxIterations := int(total) + 10
-	for iterations := 0; ; iterations++ {
-		if iterations >= maxIterations {
-			return fmt.Errorf("GoodReads enrichment did not finish after %d iterations, some documents may be stuck unenriched", iterations)
-		}
-		// Enriched documents drop out of the query, so it always starts from 0.
-		chunk, _, err := b.documentsNeedingGoodReads(batchSize)
-		if err != nil {
-			return err
-		}
-		if len(chunk) == 0 {
-			break
-		}
-		if err := b.enrichGoodReadsBatch(chunk); err != nil {
-			return err
-		}
-	}
-
-	log.Printf("GoodReads enrichment finished")
-	return nil
-}
-
-func (b *BleveIndexer) enrichGoodReadsBatch(documents []Document) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	jobs := make(chan Document, len(documents))
-	for _, document := range documents {
-		jobs <- document
-	}
-	close(jobs)
-	var wg sync.WaitGroup
-	errs := make(chan error, 1)
-	for range min(goodReadsEnrichWorkers, len(documents)) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for document := range jobs {
-				if _, err := b.enrichGoodReads(ctx, document); err != nil {
-					select {
-					case errs <- err:
-						cancel()
-					default:
-					}
-					return
-				}
-			}
-		}()
-	}
-	wg.Wait()
-	select {
-	case err := <-errs:
-		return err
-	default:
-		return nil
-	}
+	return b.documentsNeedingProvider(biblioreads.Source, size)
 }
 
 // GoodReadsBook returns the stored book URL and rating, or searches a document
@@ -365,7 +298,7 @@ func (b *BleveIndexer) GoodReadsBook(ctx context.Context, document Document) (bi
 	if err != nil {
 		return biblioreads.SearchResult{}, err
 	}
-	if data.URL != "" || data.Enriched || b.goodReadsSource == nil {
+	if data.URL != "" || data.Enriched || b.goodReadsProvider() == nil {
 		return biblioreads.SearchResult{BookURL: data.URL, Rating: fmt.Sprintf("%.2f", document.DataSourceScoreValue), RatingCount: data.RatingCount}, nil
 	}
 	return b.enrichGoodReads(ctx, document)
@@ -458,13 +391,21 @@ func (b *BleveIndexer) StoreGoodReadsDetails(document Document, bookURL string, 
 // book URL, and stores matching URLs on the document and author respectively.
 // Unavailability or persistence errors leave the document unenriched for retry.
 func (b *BleveIndexer) enrichGoodReads(ctx context.Context, document Document) (biblioreads.SearchResult, error) {
+	provider := b.goodReadsProvider()
+	if provider == nil {
+		return biblioreads.SearchResult{}, fmt.Errorf("Goodreads enrichment is not configured")
+	}
+	return provider.enrich(ctx, b, document)
+}
+
+func (p *GoodReadsEnricher) enrich(ctx context.Context, b *BleveIndexer, document Document) (biblioreads.SearchResult, error) {
 	data, err := DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
 	if err != nil {
 		return biblioreads.SearchResult{}, err
 	}
 	select {
-	case b.goodReadsSlots <- struct{}{}:
-		defer func() { <-b.goodReadsSlots }()
+	case p.slots <- struct{}{}:
+		defer func() { <-p.slots }()
 	case <-ctx.Done():
 		return biblioreads.SearchResult{}, ctx.Err()
 	}
@@ -478,7 +419,7 @@ func (b *BleveIndexer) enrichGoodReads(ctx context.Context, document Document) (
 			queries = append(queries, title)
 		}
 		for _, query := range queries {
-			res, err := b.goodReadsSource.SearchBooks(ctx, query)
+			res, err := p.source.SearchBooks(ctx, query)
 			switch {
 			case errors.Is(err, biblioreads.ErrUnavailable), errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
 				return biblioreads.SearchResult{}, fmt.Errorf("error searching %q on GoodReads: %w", query, err)
@@ -551,40 +492,6 @@ func parseGoodReadsRating(rating, documentID string) float64 {
 		return 0
 	}
 	return value
-}
-
-// runGoodReadsEnrichWorker looks up documents queued by indexFile for the
-// indexer's lifetime.
-func (b *BleveIndexer) runGoodReadsEnrichWorker() {
-	for id := range b.goodReadsEnrichJobs {
-		document, err := b.documentByIndexID(id)
-		if err != nil {
-			log.Printf("Error reading document %s for GoodReads enrichment: %s\n", id, err)
-			continue
-		}
-		data, err := DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		if document.ID == "" || data.Enriched {
-			continue
-		}
-		if _, err := b.enrichGoodReads(context.Background(), document); err != nil {
-			log.Println(err)
-		}
-	}
-}
-
-// scheduleGoodReadsEnrichment queues the document with the given ID for
-// lookup from a throwaway goroutine, so indexFile never blocks on it.
-func (b *BleveIndexer) scheduleGoodReadsEnrichment(id string) {
-	if b.goodReadsSource == nil {
-		return
-	}
-	go func() {
-		b.goodReadsEnrichJobs <- id
-	}()
 }
 
 // documentByIndexIDLocked is documentByIndexID for callers already holding documentsMu.

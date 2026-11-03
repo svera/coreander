@@ -102,7 +102,11 @@ const (
 
 func newGoodReadsTestIndexer(t *testing.T, source GoodReadsSource) *BleveIndexer {
 	t.Helper()
-	idx, _ := newTestTextRankIndexer(t, Config{GoodReadsSource: source})
+	var providers []DocumentEnricher
+	if source != nil {
+		providers = append(providers, NewGoodReadsEnricher(source))
+	}
+	idx, _ := newTestTextRankIndexer(t, Config{DocumentEnrichers: providers})
 	appFS := afero.NewMemMapFs()
 	if err := afero.WriteFile(appFS, "lib/book.pdf", []byte(""), 0644); err != nil {
 		t.Fatal(err)
@@ -120,7 +124,7 @@ func TestEnrichGoodReadsStoresMatchingResult(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := idx.EnrichGoodReads(10); err != nil {
+	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
 
@@ -153,7 +157,7 @@ func TestEnrichGoodReadsStoresMatchingResult(t *testing.T) {
 		t.Errorf("expected queries %q, got %q", want, source.Queries())
 	}
 
-	if err := idx.EnrichGoodReads(10); err != nil {
+	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
 	if len(source.Queries()) != 1 {
@@ -174,7 +178,7 @@ func TestEnrichGoodReadsMarksDocumentsWithoutMatch(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if err := idx.EnrichGoodReads(10); err != nil {
+			if err := idx.EnrichDocuments(10); err != nil {
 				t.Fatal(err)
 			}
 			doc, err := idx.documentByIndexID(goodReadsTestID)
@@ -208,7 +212,7 @@ func TestEnrichGoodReadsStoresSecondAuthorURLAndPreservesItOnEdits(t *testing.T)
 	if err := idx.IndexAuthor(stale); err != nil {
 		t.Fatal(err)
 	}
-	if err := idx.EnrichGoodReads(10); err != nil {
+	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
 	author, err := idx.Author("second-author", "")
@@ -251,7 +255,7 @@ func TestEnrichGoodReadsLeavesDocumentsForLaterWhenUnavailable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := idx.EnrichGoodReads(10); !errors.Is(err, biblioreads.ErrUnavailable) {
+	if err := idx.EnrichDocuments(10); !errors.Is(err, biblioreads.ErrUnavailable) {
 		t.Fatalf("expected ErrUnavailable, got %v", err)
 	}
 	doc, err := idx.documentByIndexID(goodReadsTestID)
@@ -266,7 +270,7 @@ func TestEnrichGoodReadsLeavesDocumentsForLaterWhenUnavailable(t *testing.T) {
 	source.err = nil
 	source.results = goodReadsTestResults
 	source.mu.Unlock()
-	if err := idx.EnrichGoodReads(10); err != nil {
+	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
 	if doc, _ = idx.documentByIndexID(goodReadsTestID); mustGoodReadsData(t, doc).URL != wantDataSourceLink {
@@ -316,7 +320,7 @@ func TestTextRankWritesPreserveGoodReadsFields(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := idx.EnrichGoodReads(10); err != nil {
+	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
 	stale.TextRankEnriched = false
@@ -367,7 +371,7 @@ func TestEnrichGoodReadsWithoutSourceIsNoop(t *testing.T) {
 	if _, err := idx.NewFile("new.pdf", []byte("")); err != nil {
 		t.Fatal(err)
 	}
-	if err := idx.EnrichGoodReads(10); err != nil {
+	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
 	doc, err := idx.documentByIndexID(goodReadsTestID)
@@ -396,7 +400,7 @@ func TestEnrichGoodReadsSkipsSearchWhenDocumentHasLink(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := idx.EnrichGoodReads(10); err != nil {
+	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
 
@@ -452,7 +456,7 @@ func TestGoodReadsBook(t *testing.T) {
 			t.Errorf("rating must not be stored in document field %s", field)
 		}
 	}
-	if err := idx.EnrichGoodReads(10); err != nil {
+	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
 	if len(source.Queries()) != 1 {
@@ -926,7 +930,7 @@ func TestForceIndexingRefreshesGoodReadsMatch(t *testing.T) {
 	if err := idx.AddLibrary(10, true, 1); err != nil {
 		t.Fatal(err)
 	}
-	if err := idx.EnrichGoodReads(10); err != nil {
+	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
 	doc, err = idx.documentByIndexID(goodReadsTestID)

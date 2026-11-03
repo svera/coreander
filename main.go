@@ -102,13 +102,13 @@ func main() {
 	var documentsIndex, authorsIndex bleve.Index
 	var needsReindex bool
 	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize, input.MinOccurrenceRatio, maxTextRankWords)
-	var goodReadsSource index.GoodReadsSource
+	var documentEnrichers []index.DocumentEnricher
 	if !input.DisableBiblioreads {
 		biblioreadsClient = biblioreads.NewClient(
 			biblioreads.WithInstances(input.BiblioreadsInstances),
 			biblioreads.WithCacheTTL(time.Duration(input.BiblioreadsCacheTTL)*time.Second),
 		)
-		goodReadsSource = biblioreadsClient
+		documentEnrichers = append(documentEnrichers, index.NewGoodReadsEnricher(biblioreadsClient))
 	}
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
 		IllustratedMinAmount:           input.IllustratedMinAmount,
@@ -122,7 +122,7 @@ func main() {
 		MinCommonTextRankAbsoluteCount: input.MinCommonTextRankAbsoluteCount,
 		PruneChangeTriggerRatio:        input.PruneChangeTriggerRatio,
 		TextRankEnrichWorkers:          resolvedIndexWorkers,
-		GoodReadsSource:                goodReadsSource,
+		DocumentEnrichers:              documentEnrichers,
 	})
 	// If index was newly created or recreated, force reindexing
 	if needsReindex {
@@ -236,8 +236,8 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWor
 
 	// Network-bound, so it runs alongside the CPU-bound TextRank enrichment.
 	go func() {
-		if err := idx.EnrichGoodReads(batchSize); err != nil {
-			log.Printf("Error enriching documents with GoodReads data: %s", err)
+		if err := idx.EnrichDocuments(batchSize); err != nil {
+			log.Printf("Error enriching documents with provider data: %s", err)
 		}
 	}()
 

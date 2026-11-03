@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,7 +31,7 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v17"
+const DocumentVersion = "v14"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
@@ -182,9 +183,7 @@ type Config struct {
 	// to already be resolved (e.g. via ResolveMetadataWorkers); <= 0 falls
 	// back to 1.
 	TextRankEnrichWorkers int
-	// GoodReadsSource, if set, is used to fill each document's GoodReads URLs
-	// in the background (see EnrichGoodReads). Nil disables it.
-	GoodReadsSource GoodReadsSource
+	DocumentEnrichers     []DocumentEnricher
 }
 
 type BleveIndexer struct {
@@ -218,11 +217,8 @@ type BleveIndexer struct {
 	// textRankEnrichJobs feeds documents queued by indexFile to a fixed-size
 	// pool of long-lived worker goroutines; see runTextRankEnrichWorker.
 	textRankEnrichJobs chan Document
-	// goodReadsEnrichJobs feeds IDs of documents queued by indexFile to
-	// runGoodReadsEnrichWorker; only used when goodReadsSource is set.
-	goodReadsEnrichJobs chan string
-	goodReadsSource     GoodReadsSource
-	goodReadsSlots      chan struct{}
+	documentEnrichJobs chan string
+	documentEnrichers  []DocumentEnricher
 	// fileLocks holds a *sync.Mutex per document ID, serializing concurrent
 	// indexFile calls for the same file (upload vs. file watcher reacting to
 	// the same write).
@@ -327,18 +323,17 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		minCommonTextRankAbsoluteCount: minCommonTextRankAbsoluteCount,
 		pruneChangeTriggerRatio:        pruneChangeTriggerRatio,
 		textRankEnrichJobs:             make(chan Document, textRankEnrichWorkers),
-		goodReadsSource:                cfg.GoodReadsSource,
-		goodReadsSlots:                 make(chan struct{}, goodReadsEnrichWorkers),
+		documentEnrichers:              slices.Clone(cfg.DocumentEnrichers),
 	}
 
 	for range textRankEnrichWorkers {
 		go b.runTextRankEnrichWorker()
 	}
 
-	if b.goodReadsSource != nil {
-		b.goodReadsEnrichJobs = make(chan string, goodReadsEnrichWorkers)
-		for range goodReadsEnrichWorkers {
-			go b.runGoodReadsEnrichWorker()
+	if len(b.documentEnrichers) > 0 {
+		b.documentEnrichJobs = make(chan string, documentEnrichWorkers)
+		for range documentEnrichWorkers {
+			go b.runDocumentEnrichWorker()
 		}
 	}
 

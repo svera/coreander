@@ -334,7 +334,7 @@ func newDataSourceProvidersTestApp(t *testing.T, source *fakeBookSource, provide
 	appFS := afero.NewMemMapFs()
 	idxCfg := index.Config{}
 	if source != nil {
-		idxCfg.GoodReadsSource = source
+		idxCfg.DocumentEnrichers = []index.DocumentEnricher{index.NewGoodReadsEnricher(source)}
 	}
 	idx := index.NewBleve(documents, authors, appFS, testLibraryDir, nil, idxCfg)
 	if source != nil {
@@ -686,7 +686,7 @@ func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
 		t.Fatalf("search-only lookup must not populate scraper identifiers, got %+v", stored)
 	}
 
-	if err := idx.EnrichGoodReads(10); err != nil {
+	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
 	page, err = goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/unlinked/score")))

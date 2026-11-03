@@ -186,7 +186,7 @@ func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
 	if !document.TextRankEnriched {
 		b.scheduleTextRankEnrichment(document)
 	}
-	b.scheduleGoodReadsEnrichment(document.ID)
+	b.scheduleDocumentEnrichment(document.ID)
 
 	b.maybePruneForLibraryChange()
 
