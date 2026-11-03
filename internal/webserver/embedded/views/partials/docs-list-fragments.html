@@ -1,10 +1,10 @@
 {{if and .Author (ne .Author.Name "")}}
 <div id="author-list-header" class="row mt-5 mb-2 pb-2 border-bottom d-flex mx-0" hx-swap-oob="true">
-    {{template "partials/count-and-sort" dict "Results" .Results "Lang" .Lang "ReviewSourceName" .ReviewSourceName "SortURL" .SortURL "SortBy" .SortBy "AdditionalSortOptions" .AdditionalSortOptions "FilterIdPrefix" "author"}}
+    {{template "partials/count-and-sort" dict "Results" .Results "Lang" .Lang "DataSourceName" .DataSourceName "SortURL" .SortURL "SortBy" .SortBy "AdditionalSortOptions" .AdditionalSortOptions "FilterIdPrefix" "author"}}
 </div>
 {{else if .SeriesTitle}}
 <div id="series-list-header" class="row mt-5 mb-2 pb-2 border-bottom d-flex mx-0" hx-swap-oob="true">
-    {{template "partials/count-and-sort" dict "Results" .Results "Lang" .Lang "ReviewSourceName" .ReviewSourceName "SortURL" .SortURL "SortBy" .SortBy "AdditionalSortOptions" .AdditionalSortOptions "FilterIdPrefix" "series"}}
+    {{template "partials/count-and-sort" dict "Results" .Results "Lang" .Lang "DataSourceName" .DataSourceName "SortURL" .SortURL "SortBy" .SortBy "AdditionalSortOptions" .AdditionalSortOptions "FilterIdPrefix" "series"}}
 </div>
 {{else}}
 <div id="list-header" hx-swap-oob="true">{{template "partials/search-type-tabs" .}}</div>

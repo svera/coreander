@@ -71,7 +71,7 @@ var goodReadsTestResults = []biblioreads.SearchResult{
 }
 
 const (
-	wantGoodReadsBookURL   = "/book/show/12207444-la-reina-dragon"
+	wantDataSourceLink     = "/book/show/12207444-la-reina-dragon"
 	wantGoodReadsAuthorURL = "/author/show/151155.Alice_Borchardt"
 	goodReadsTestID        = "book.pdf"
 )
@@ -104,14 +104,14 @@ func TestEnrichGoodReadsStoresMatchingResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if doc.GoodReadsBookURL != wantGoodReadsBookURL {
-		t.Errorf("unexpected book URL %q", doc.GoodReadsBookURL)
+	if doc.DataSourceLink != wantDataSourceLink {
+		t.Errorf("unexpected book URL %q", doc.DataSourceLink)
 	}
-	if doc.GoodReadsRatingValue != 3.82 {
-		t.Errorf("unexpected Goodreads rating %v", doc.GoodReadsRatingValue)
+	if doc.DataSourceScoreValue != 3.82 {
+		t.Errorf("unexpected Goodreads rating %v", doc.DataSourceScoreValue)
 	}
-	if doc.GoodReadsRatingCount != "2,285" {
-		t.Errorf("unexpected Goodreads rating count %q", doc.GoodReadsRatingCount)
+	if doc.DataSourceScoreCount != "2,285" {
+		t.Errorf("unexpected Goodreads rating count %q", doc.DataSourceScoreCount)
 	}
 	assertNoDocumentAuthorURL(t, idx.documentsIdx)
 	if !doc.GoodReadsEnriched {
@@ -157,7 +157,7 @@ func TestEnrichGoodReadsMarksDocumentsWithoutMatch(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !doc.GoodReadsEnriched || doc.GoodReadsBookURL != "" {
+			if !doc.GoodReadsEnriched || doc.DataSourceLink != "" {
 				t.Errorf("expected document enriched with no URLs, got %+v", doc)
 			}
 			if want := []string{"La Reina Dragon Alice Borchardt", "La Reina Dragon"}; !slices.Equal(source.Queries(), want) {
@@ -170,7 +170,7 @@ func TestEnrichGoodReadsMarksDocumentsWithoutMatch(t *testing.T) {
 func TestEnrichGoodReadsStoresSecondAuthorURLAndPreservesItOnEdits(t *testing.T) {
 	const authorURL = "/author/show/2"
 	source := &fakeGoodReadsSource{results: []biblioreads.SearchResult{
-		{Title: "La Reina Dragon", Author: "Second Author", BookURL: wantGoodReadsBookURL, AuthorURL: authorURL},
+		{Title: "La Reina Dragon", Author: "Second Author", BookURL: wantDataSourceLink, AuthorURL: authorURL},
 	}}
 	idx := newGoodReadsTestIndexer(t, source)
 	if err := idx.AddLibrary(10, true, 1); err != nil {
@@ -234,8 +234,8 @@ func TestEnrichGoodReadsLeavesDocumentsForLaterWhenUnavailable(t *testing.T) {
 	if err := idx.EnrichGoodReads(10); err != nil {
 		t.Fatal(err)
 	}
-	if doc, _ = idx.documentByIndexID(goodReadsTestID); doc.GoodReadsBookURL != wantGoodReadsBookURL {
-		t.Errorf("expected document to be enriched on retry, got %q", doc.GoodReadsBookURL)
+	if doc, _ = idx.documentByIndexID(goodReadsTestID); doc.DataSourceLink != wantDataSourceLink {
+		t.Errorf("expected document to be enriched on retry, got %q", doc.DataSourceLink)
 	}
 }
 
@@ -254,8 +254,8 @@ func TestNewFileSchedulesGoodReadsEnrichment(t *testing.T) {
 			t.Fatal(err)
 		}
 		if doc.GoodReadsEnriched {
-			if doc.GoodReadsBookURL != wantGoodReadsBookURL {
-				t.Errorf("unexpected book URL %q", doc.GoodReadsBookURL)
+			if doc.DataSourceLink != wantDataSourceLink {
+				t.Errorf("unexpected book URL %q", doc.DataSourceLink)
 			}
 			assertNoDocumentAuthorURL(t, idx.documentsIdx)
 			return
@@ -285,7 +285,7 @@ func TestTextRankWritesPreserveGoodReadsFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	stale.TextRankEnriched = false
-	if err := idx.StoreGoodReadsDetails(stale, wantGoodReadsBookURL, biblioreads.BookResponse{ResourceID: "work-id", LegacyBookID: 12207444}); err != nil {
+	if err := idx.StoreGoodReadsDetails(stale, wantDataSourceLink, biblioreads.BookResponse{ResourceID: "work-id", LegacyBookID: 12207444}); err != nil {
 		t.Fatal(err)
 	}
 	stale.TextRankWords = []string{"dragon"}
@@ -295,7 +295,7 @@ func TestTextRankWritesPreserveGoodReadsFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !doc.GoodReadsEnriched || doc.GoodReadsBookURL != wantGoodReadsBookURL || doc.GoodReadsRatingValue != 3.82 || doc.GoodReadsRatingCount != "2,285" {
+	if !doc.GoodReadsEnriched || doc.DataSourceLink != wantDataSourceLink || doc.DataSourceScoreValue != 3.82 || doc.DataSourceScoreCount != "2,285" {
 		t.Errorf("expected GoodReads fields to survive a TextRank write, got %+v", doc)
 	}
 	if doc.GoodReadsResourceID != "work-id" || doc.GoodReadsLegacyBookID != 12207444 {
@@ -352,7 +352,7 @@ func TestEnrichGoodReadsSkipsSearchWhenDocumentHasLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	doc.GoodReadsBookURL = "/book/show/1-existing"
+	doc.DataSourceLink = "/book/show/1-existing"
 	if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
 		t.Fatal(err)
 	}
@@ -368,7 +368,7 @@ func TestEnrichGoodReadsSkipsSearchWhenDocumentHasLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !doc.GoodReadsEnriched || doc.GoodReadsBookURL != "/book/show/1-existing" {
+	if !doc.GoodReadsEnriched || doc.DataSourceLink != "/book/show/1-existing" {
 		t.Errorf("expected existing link kept and document marked enriched, got %+v", doc)
 	}
 }
@@ -388,18 +388,18 @@ func TestGoodReadsBook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.BookURL != wantGoodReadsBookURL || got.Rating != "3.82" {
+	if got.BookURL != wantDataSourceLink || got.Rating != "3.82" {
 		t.Errorf("expected fresh book URL and search rating, got %+v", got)
 	}
 	stored, err := idx.documentByIndexID(goodReadsTestID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !stored.GoodReadsEnriched || stored.GoodReadsBookURL != wantGoodReadsBookURL {
+	if !stored.GoodReadsEnriched || stored.DataSourceLink != wantDataSourceLink {
 		t.Errorf("expected the link to be persisted, got %+v", stored)
 	}
 
-	if got, _ := idx.GoodReadsBook(context.Background(), stored); got.BookURL != wantGoodReadsBookURL || got.Rating != "3.82" {
+	if got, _ := idx.GoodReadsBook(context.Background(), stored); got.BookURL != wantDataSourceLink || got.Rating != "3.82" {
 		t.Errorf("expected stored URL and rating, got %+v", got)
 	}
 	req := bleve.NewSearchRequest(bleve.NewDocIDQuery([]string{stored.ID}))
@@ -577,7 +577,7 @@ func TestGoodReadsBookMatchesKennedyMiddleName(t *testing.T) {
 		t.Fatalf("expected Kennedy's book and rating, got %+v, %v", got, err)
 	}
 	stored, err := idx.documentByIndexID(doc.ID)
-	if err != nil || !stored.GoodReadsEnriched || stored.GoodReadsBookURL != bookURL || stored.GoodReadsRatingValue != 4.14 {
+	if err != nil || !stored.GoodReadsEnriched || stored.DataSourceLink != bookURL || stored.DataSourceScoreValue != 4.14 {
 		t.Fatalf("expected persisted book match and rating, got %+v, %v", stored, err)
 	}
 	author, err := idx.Author("paul-kennedy", "")
@@ -689,7 +689,7 @@ func TestMatchingGoodReadsBookPrefersMoreRatingsWithSeriesSuffix(t *testing.T) {
 	}
 }
 
-func TestGoodReadsRatingCount(t *testing.T) {
+func TestDataSourceScoreCount(t *testing.T) {
 	for _, tt := range []struct {
 		value string
 		want  uint64
@@ -772,7 +772,7 @@ func TestGoodReadsBookMatchesDolnickSubtitle(t *testing.T) {
 		t.Fatalf("expected Dolnick's book and score, got %+v, %v", got, err)
 	}
 	stored, err := idx.documentByIndexID(doc.ID)
-	if err != nil || !stored.GoodReadsEnriched || stored.GoodReadsBookURL != bookURL {
+	if err != nil || !stored.GoodReadsEnriched || stored.DataSourceLink != bookURL {
 		t.Fatalf("expected subtitle match persisted, got %+v, %v", stored, err)
 	}
 	if want := []string{title + " " + author}; !slices.Equal(source.Queries(), want) {
@@ -853,7 +853,7 @@ func TestGoodReadsMatchesTolkienOmnibusSearchResults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !stored.GoodReadsEnriched || stored.GoodReadsBookURL != wantURL {
+	if !stored.GoodReadsEnriched || stored.DataSourceLink != wantURL {
 		t.Fatalf("expected persisted omnibus match, got %+v", stored)
 	}
 	author, err := idx.Author("j-r-r-tolkien", "")
@@ -875,7 +875,7 @@ func TestForceIndexingRefreshesGoodReadsMatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	doc.GoodReadsBookURL = "/book/show/1-wrong"
+	doc.DataSourceLink = "/book/show/1-wrong"
 	doc.GoodReadsResourceID = "wrong-work"
 	doc.GoodReadsLegacyBookID = 1
 	doc.GoodReadsEnriched = true
@@ -892,8 +892,8 @@ func TestForceIndexingRefreshesGoodReadsMatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if doc.GoodReadsBookURL != wantGoodReadsBookURL {
-		t.Fatalf("expected refreshed book link, got %q", doc.GoodReadsBookURL)
+	if doc.DataSourceLink != wantDataSourceLink {
+		t.Fatalf("expected refreshed book link, got %q", doc.DataSourceLink)
 	}
 	if doc.GoodReadsResourceID != "" || doc.GoodReadsLegacyBookID != 0 {
 		t.Fatalf("expected old identifiers to be cleared, got %q and %d", doc.GoodReadsResourceID, doc.GoodReadsLegacyBookID)
@@ -907,7 +907,7 @@ func TestStoreGoodReadsDetails(t *testing.T) {
 			doc := Document{
 				ID:                goodReadsTestID,
 				Metadata:          metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}},
-				GoodReadsBookURL:  wantGoodReadsBookURL,
+				DataSourceLink:    wantDataSourceLink,
 				GoodReadsEnriched: true,
 				TextRankWords:     []string{"dragon"},
 			}
@@ -915,12 +915,12 @@ func TestStoreGoodReadsDetails(t *testing.T) {
 			resourceID := "work-id"
 			switch scenario {
 			case "newly linked":
-				stale.GoodReadsBookURL = ""
+				stale.DataSourceLink = ""
 				stale.GoodReadsEnriched = false
 			case "changed metadata":
 				doc.Title = "Another title"
 			case "changed match":
-				doc.GoodReadsBookURL = "/book/show/2-other"
+				doc.DataSourceLink = "/book/show/2-other"
 			case "partial identifiers":
 				resourceID = ""
 			}
@@ -933,7 +933,7 @@ func TestStoreGoodReadsDetails(t *testing.T) {
 			book := biblioreads.BookResponse{Rating: "4.12", ResourceID: resourceID, LegacyBookID: 12207444}
 			writes := &goodReadsWriteCountingIndex{countedGoodReadsIndex: idx.documentsIdx}
 			idx.documentsIdx = writes
-			err := idx.StoreGoodReadsDetails(stale, wantGoodReadsBookURL, book)
+			err := idx.StoreGoodReadsDetails(stale, wantDataSourceLink, book)
 			wantError := scenario != "linked" && scenario != "newly linked" && scenario != "partial identifiers"
 			if (err != nil) != wantError {
 				t.Fatalf("StoreGoodReadsDetails error = %v, want error %v", err, wantError)
@@ -952,7 +952,7 @@ func TestStoreGoodReadsDetails(t *testing.T) {
 				if writes.count != 0 {
 					t.Fatal("stale details must not cause any index writes")
 				}
-				if stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 || stored.GoodReadsRatingValue != 0 {
+				if stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 || stored.DataSourceScoreValue != 0 {
 					t.Fatalf("unexpected details persisted: %+v", stored)
 				}
 				return
@@ -964,14 +964,14 @@ func TestStoreGoodReadsDetails(t *testing.T) {
 			if stored.GoodReadsResourceID != resourceID || stored.GoodReadsLegacyBookID != wantLegacyBookID {
 				t.Fatalf("identifiers not persisted: %+v", stored)
 			}
-			if stored.GoodReadsRatingValue != 4.12 {
+			if stored.DataSourceScoreValue != 4.12 {
 				t.Fatalf("rating not persisted with identifiers: %+v", stored)
 			}
 			if !stored.GoodReadsEnriched || !slices.Equal(stored.TextRankWords, doc.TextRankWords) {
 				t.Fatalf("existing enrichment was lost: %+v", stored)
 			}
 			book.Rating = "4.120"
-			if err := idx.StoreGoodReadsDetails(stale, wantGoodReadsBookURL, book); err != nil {
+			if err := idx.StoreGoodReadsDetails(stale, wantDataSourceLink, book); err != nil {
 				t.Fatalf("repeated store failed: %v", err)
 			}
 			if writes.count != 1 {
@@ -1015,133 +1015,76 @@ func TestStoreGoodReadsDetailsPreservesMissingFields(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			idx := newGoodReadsTestIndexer(t, nil)
 			doc := Document{
-				ID: goodReadsTestID, GoodReadsBookURL: wantGoodReadsBookURL,
-				GoodReadsRatingValue: 3.82,
-				GoodReadsRatingCount: "2,285",
+				ID: goodReadsTestID, DataSourceLink: wantDataSourceLink,
+				DataSourceScoreValue: 3.82,
+				DataSourceScoreCount: "2,285",
 				GoodReadsResourceID:  "old-work", GoodReadsLegacyBookID: 1,
 			}
 			if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
 				t.Fatal(err)
 			}
-			if err := idx.StoreGoodReadsDetails(doc, doc.GoodReadsBookURL, tt.book); err != nil {
+			if err := idx.StoreGoodReadsDetails(doc, doc.DataSourceLink, tt.book); err != nil {
 				t.Fatal(err)
 			}
 			stored, err := idx.documentByIndexID(doc.ID)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if stored.GoodReadsRatingValue != parseGoodReadsRating(tt.wantRating, doc.ID) ||
+			if stored.DataSourceScoreValue != parseGoodReadsRating(tt.wantRating, doc.ID) ||
 				stored.GoodReadsResourceID != tt.wantWork || stored.GoodReadsLegacyBookID != tt.wantID {
 				t.Fatalf("partial details changed fields that were not supplied: %+v", stored)
 			}
 			wantCount := tt.wantCount
 			if wantCount == "" {
-				wantCount = doc.GoodReadsRatingCount
+				wantCount = doc.DataSourceScoreCount
 			}
-			if stored.GoodReadsRatingCount != wantCount {
-				t.Fatalf("expected rating count %q, got %q", wantCount, stored.GoodReadsRatingCount)
-			}
-		})
-	}
-}
-
-func TestUpdateGoodReadsBookURL(t *testing.T) {
-	tests := []struct {
-		name string
-		url  string
-		want string
-	}{
-		{name: "numeric ID", url: "https://www.goodreads.com/book/show/1368314", want: "/book/show/1368314"},
-		{name: "dotted slug", url: "https://www.goodreads.com/book/show/1368314.El_Cercano_Oriente", want: "/book/show/1368314.El_Cercano_Oriente"},
-		{name: "hyphenated slug", url: "https://www.goodreads.com/book/show/243175949-el-cercano-oriente", want: "/book/show/243175949-el-cercano-oriente"},
-		{name: "normalize shared URL", url: " http://goodreads.com/book/show/1368314/?from_search=true#reviews ", want: "/book/show/1368314"},
-		{name: "same URL", url: "https://www.goodreads.com" + wantGoodReadsBookURL, want: wantGoodReadsBookURL},
-		{name: "empty"},
-		{name: "relative", url: "/book/show/1368314"},
-		{name: "other domain", url: "https://example.com/book/show/1368314"},
-		{name: "deceptive domain", url: "https://www.goodreads.com.example.com/book/show/1368314"},
-		{name: "credentials", url: "https://reader@www.goodreads.com/book/show/1368314"},
-		{name: "port", url: "https://www.goodreads.com:4000/book/show/1368314"},
-		{name: "wrong scheme", url: "ftp://www.goodreads.com/book/show/1368314"},
-		{name: "author", url: "https://www.goodreads.com/author/show/16667.Isaac_Asimov"},
-		{name: "non-numeric ID", url: "https://www.goodreads.com/book/show/not-a-book"},
-		{name: "zero ID", url: "https://www.goodreads.com/book/show/0"},
-		{name: "extra path", url: "https://www.goodreads.com/book/show/1368314/other"},
-		{name: "encoded path separator", url: "https://www.goodreads.com/book/show/1368314%2Fother"},
-		{name: "malformed URL", url: "https://%zz/book/show/1368314"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			source := &fakeGoodReadsSource{results: goodReadsTestResults}
-			idx := newGoodReadsTestIndexer(t, source)
-			doc := Document{
-				ID: goodReadsTestID, Slug: "la-reina-dragon",
-				Metadata:              metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}},
-				TextRankWords:         []string{"dragon"},
-				GoodReadsBookURL:      wantGoodReadsBookURL,
-				GoodReadsRatingValue:  3.82,
-				GoodReadsRatingCount:  "2,285",
-				GoodReadsResourceID:   "old-work",
-				GoodReadsLegacyBookID: 12207444,
-				GoodReadsEnriched:     true,
-			}
-			if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
-				t.Fatal(err)
-			}
-			err := idx.UpdateGoodReadsBookURL(doc.ID, tt.url)
-			if tt.want == "" {
-				if !errors.Is(err, ErrInvalidGoodReadsBookURL) {
-					t.Fatalf("expected invalid URL error, got %v", err)
-				}
-			} else if err != nil {
-				t.Fatal(err)
-			}
-			stored, err := idx.documentByIndexID(doc.ID)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if tt.want == "" || tt.want == doc.GoodReadsBookURL {
-				if stored.GoodReadsBookURL != doc.GoodReadsBookURL ||
-					stored.GoodReadsRatingValue != doc.GoodReadsRatingValue ||
-					stored.GoodReadsRatingCount != doc.GoodReadsRatingCount ||
-					stored.GoodReadsResourceID != doc.GoodReadsResourceID ||
-					stored.GoodReadsLegacyBookID != doc.GoodReadsLegacyBookID {
-					t.Fatalf("invalid or unchanged URL modified stored data: %+v", stored)
-				}
-				return
-			}
-			if stored.GoodReadsBookURL != tt.want || !stored.GoodReadsEnriched ||
-				stored.GoodReadsRatingValue != 0 ||
-				stored.GoodReadsRatingCount != "" ||
-				stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 {
-				t.Fatalf("correction must clear old rating and review identifiers: %+v", stored)
-			}
-			if stored.Title != doc.Title || stored.Slug != doc.Slug || !slices.Equal(stored.TextRankWords, doc.TextRankWords) {
-				t.Fatalf("correction changed unrelated document data: %+v", stored)
-			}
-			if err := idx.StoreGoodReadsDetails(doc, doc.GoodReadsBookURL, biblioreads.BookResponse{Rating: "4.5"}); err == nil {
-				t.Fatal("stale rating write must not overwrite corrected book")
-			}
-			if err := idx.StoreGoodReadsDetails(doc, doc.GoodReadsBookURL, biblioreads.BookResponse{ResourceID: "old-work", LegacyBookID: 12207444}); err == nil {
-				t.Fatal("stale review identifiers must not overwrite corrected book")
-			}
-			got, err := idx.enrichGoodReads(context.Background(), doc)
-			if err != nil || got.BookURL != tt.want {
-				t.Fatalf("in-flight enrichment must keep the correction: %+v, %v", got, err)
-			}
-			if err := idx.EnrichGoodReads(10); err != nil {
-				t.Fatal(err)
-			}
-			if len(source.Queries()) != 0 {
-				t.Fatal("corrected book must not be automatically rematched")
+			if stored.DataSourceScoreCount != wantCount {
+				t.Fatalf("expected rating count %q, got %q", wantCount, stored.DataSourceScoreCount)
 			}
 		})
 	}
 }
 
-func TestUpdateGoodReadsBookURLMissingDocument(t *testing.T) {
+func TestUpdateDataSourceLink(t *testing.T) {
 	idx := newGoodReadsTestIndexer(t, nil)
-	if err := idx.UpdateGoodReadsBookURL("missing", "https://www.goodreads.com/book/show/1368314"); !errors.Is(err, ErrDocumentNotFound) {
+	doc := Document{
+		ID: goodReadsTestID, Slug: "la-reina-dragon",
+		Metadata:              metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}},
+		TextRankWords:         []string{"dragon"},
+		DataSourceLink:        wantDataSourceLink,
+		DataSourceScoreValue:  3.82,
+		DataSourceScoreCount:  "2,285",
+		GoodReadsResourceID:   "old-work",
+		GoodReadsLegacyBookID: 12207444,
+		GoodReadsEnriched:     true,
+	}
+	if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
+		t.Fatal(err)
+	}
+	const newLink = "provider-specific-document-reference"
+	if err := idx.UpdateDataSourceLink(doc.ID, newLink); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := idx.documentByIndexID(doc.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.DataSourceLink != newLink || !stored.GoodReadsEnriched ||
+		stored.DataSourceScoreValue != 0 || stored.DataSourceScoreCount != "" ||
+		stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 {
+		t.Fatalf("updating review link must clear cached score and provider lookup data: %+v", stored)
+	}
+	if stored.Title != doc.Title || stored.Slug != doc.Slug || !slices.Equal(stored.TextRankWords, doc.TextRankWords) {
+		t.Fatalf("review-link update changed unrelated document data: %+v", stored)
+	}
+	if err := idx.StoreGoodReadsDetails(doc, doc.DataSourceLink, biblioreads.BookResponse{Rating: "4.5"}); err == nil {
+		t.Fatal("stale score write must not overwrite the updated link")
+	}
+}
+
+func TestUpdateDataSourceLinkMissingDocument(t *testing.T) {
+	idx := newGoodReadsTestIndexer(t, nil)
+	if err := idx.UpdateDataSourceLink("missing", "provider-specific-document-reference"); !errors.Is(err, ErrDocumentNotFound) {
 		t.Fatalf("expected missing-document error, got %v", err)
 	}
 }

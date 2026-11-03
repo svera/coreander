@@ -16,6 +16,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
@@ -98,6 +99,27 @@ func bootstrapAppWithIndexer(db *gorm.DB, sender webserver.Sender, appFs afero.F
 	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, nil, dataSource, reviews.NewBiblioReads(nil, idx))
 	usersRepository := &model.UserRepository{DB: db}
 	return webserver.New(webserverConfig, controllers, sender, idx, usersRepository), idx
+}
+
+// setReviewScore seeds a document's review score through the current provider-backed index storage.
+func setDataSourceScore(t *testing.T, idx *index.BleveIndexer, doc index.Document, score, count string) {
+	t.Helper()
+	bookURL := doc.DataSourceLink
+	if bookURL == "" {
+		bookURL = "https://www.goodreads.com/book/show/1-" + doc.Slug
+		if err := idx.UpdateDataSourceLink(doc.ID, bookURL); err != nil {
+			t.Fatalf("set review link for %s: %v", doc.Slug, err)
+		}
+	}
+	updated, err := idx.Document(doc.Slug)
+	if err != nil {
+		t.Fatalf("reload %s: %v", doc.Slug, err)
+	}
+	if err := idx.StoreGoodReadsDetails(updated, updated.DataSourceLink, biblioreads.BookResponse{
+		Rating: score, RatingCount: count,
+	}); err != nil {
+		t.Fatalf("set review score for %s: %v", doc.Slug, err)
+	}
 }
 
 func loadFilesInMemoryFs(files []string) afero.Fs {

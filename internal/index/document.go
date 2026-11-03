@@ -7,8 +7,8 @@ import (
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
-// ScoreValueSortField is the index sort key for the current review score.
-const ScoreValueSortField = "GoodReadsRatingValue"
+// DataSourceScoreValueSortField is the index sort key for the configured data-source score.
+const DataSourceScoreValueSortField = "DataSourceScoreValue"
 
 type SearchFields struct {
 	Keywords string
@@ -23,18 +23,19 @@ type SearchFields struct {
 	// author and its own series - deliberately not its subjects, see
 	// similarToQuery), ranked by score and pruned to those scoring close
 	// enough to the best match (see runSimilarityQuery).
-	SimilarTo       string
-	PubDateFrom     date.Date
-	PubDateTo       date.Date
-	EstReadTimeFrom float64
-	EstReadTimeTo   float64
-	WordsPerMinute  float64
-	PagesFrom       float64
-	PagesTo         float64
-	ReviewScoreFrom float64
-	ReviewScoreTo   float64
-	IllustratedOnly bool
-	SortBy          []string
+	SimilarTo           string
+	PubDateFrom         date.Date
+	PubDateTo           date.Date
+	EstReadTimeFrom     float64
+	EstReadTimeTo       float64
+	WordsPerMinute      float64
+	PagesFrom           float64
+	PagesTo             float64
+	DataSourceScoreFrom float64
+	DataSourceScoreTo   float64
+	DataSourceScoreNone bool
+	IllustratedOnly     bool
+	SortBy              []string
 }
 
 type Document struct {
@@ -81,13 +82,12 @@ type Document struct {
 	// in the background. See documentsNeedingTextRank, which drives that pass
 	// off this field so it survives (and resumes correctly across) restarts.
 	TextRankEnriched bool
-	// GoodReadsBookURL is the Goodreads book path returned by BiblioReads.
-	// It is stored but not indexed, and filled by EnrichGoodReads.
-	// Author URLs are stored on Author instead.
-	GoodReadsBookURL string
-	// GoodReadsRatingValue is the Goodreads score, stored and indexed for filtering and sorting.
-	GoodReadsRatingValue float64
-	GoodReadsRatingCount string
+	// DataSourceLink is the configured data source's document link.
+	// It is stored but not indexed.
+	DataSourceLink string
+	// DataSourceScoreValue is the configured data source's score, stored and indexed for filtering and sorting.
+	DataSourceScoreValue float64
+	DataSourceScoreCount string
 	// GoodReadsResourceID identifies the work; GoodReadsLegacyBookID identifies
 	// the edition. Both are stored only, populated when book details are fetched,
 	// and used together by BiblioReads to retrieve reviews.
@@ -96,6 +96,10 @@ type Document struct {
 	// GoodReadsEnriched is false until the GoodReads enrichment has looked
 	// this document up, whether or not a match was found.
 	GoodReadsEnriched bool
+}
+
+func (d Document) DataSourceScore() float64 {
+	return d.DataSourceScoreValue
 }
 
 func (d Document) SupportsAnnotations() bool {

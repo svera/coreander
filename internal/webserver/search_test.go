@@ -2,12 +2,15 @@ package webserver_test
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
@@ -226,21 +229,170 @@ func TestReviewScoreFilter(t *testing.T) {
 			options := selectBox.Find("option").Map(func(i int, option *goquery.Selection) string {
 				value, _ := option.Attr("value")
 				wantLabel := ""
-				if i > 0 {
-					wantLabel = value + " " + strings.Repeat("\u2605", i)
+				switch value {
+				case "none":
+					if strings.TrimSpace(option.Text()) == "" {
+						t.Errorf("Expected a label for %s no-score option", field.name)
+					}
+					wantLabel = option.Text()
+				case "1", "2", "3", "4", "5":
+					wantLabel = value + " " + strings.Repeat("\u2605", i-1)
 				}
 				if option.Text() != wantLabel {
 					t.Errorf("Expected %s option %q label %q, got %q", field.name, value, wantLabel, option.Text())
 				}
 				return value
 			})
-			if strings.Join(options, ",") != ",1,2,3,4,5" {
-				t.Errorf("Expected blank and scores 1 to 5 for %s, got %v", field.name, options)
+			if strings.Join(options, ",") != ",none,1,2,3,4,5" {
+				t.Errorf("Expected blank, no-score, and scores 1 to 5 for %s, got %v", field.name, options)
 			}
 		})
 		if doc.Find(`input[name="`+field.name+`"]`).Length() != 0 {
 			t.Errorf("Expected no numeric input for %s", field.name)
 		}
+
+	}
+
+	response, err = app.Test(mustGetRequest(t, "/search?type=documents&review-score-from=none"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	doc, err = goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"review-score-from", "review-score-to"} {
+		selected, _ := doc.Find(`select[name="` + name + `"] option[selected]`).Attr("value")
+		if selected != "none" {
+			t.Errorf("Expected no-score option selected for %s, got %q", name, selected)
+		}
+	}
+}
+
+func TestSearchResultsShowStoredDataSourceScore(t *testing.T) {
+	for _, tt := range []struct {
+		rating string
+		want   string
+	}{
+		{rating: "3.82", want: "3.82"},
+		{rating: "4.1", want: "4.10"},
+		{rating: "5", want: "5.00"},
+	} {
+		t.Run(tt.rating, func(t *testing.T) {
+			app, idx := newGoodReadsTestApp(t, nil)
+			doc, err := idx.Document("linked")
+			if err != nil {
+				t.Fatal(err)
+			}
+			setDataSourceScore(t, idx, doc, tt.rating, "2,285")
+			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/search?type=documents&search=La")))
+			if err != nil {
+				t.Fatal(err)
+			}
+			rating := page.Find(`a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`)
+			if rating.Length() != 1 || strings.TrimSpace(rating.Text()) != tt.want {
+				t.Fatalf("expected stored review score in search result, got %q", rating.Text())
+			}
+			if page.Find(`li:has(a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]) i.bi-star-fill`).Length() != 1 {
+				t.Fatal("expected a star icon beside the review score")
+			}
+			if rating.Parent().Find("small").Text() != "(2,285 ratings)" {
+				t.Fatal("expected rating count beside the review score")
+			}
+		})
+	}
+}
+
+func TestSearchResultsSortByDataSourceScore(t *testing.T) {
+	app, idx := newGoodReadsTestApp(t, &fakeBookSource{})
+	scores := map[string]string{
+		"linked":    "3.20",
+		"unlinked":  "4.10",
+		"unmatched": "4.80",
+	}
+	documents, err := idx.Search(index.SearchFields{}, 1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, doc := range documents.Hits() {
+		setDataSourceScore(t, idx, doc, scores[doc.Slug], "")
+	}
+
+	for _, tt := range []struct {
+		direction string
+		want      []string
+	}{
+		{direction: "asc", want: []string{"linked", "unlinked", "unmatched"}},
+		{direction: "desc", want: []string{"unmatched", "unlinked", "linked"}},
+	} {
+		t.Run(tt.direction, func(t *testing.T) {
+			body := getBody(t, app, "/search?type=documents&sort-by=review-score-"+tt.direction)
+			page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			page.Find("#list .list-group-item h2 a").Each(func(_ int, link *goquery.Selection) {
+				href, _ := link.Attr("href")
+				got = append(got, strings.TrimPrefix(href, "/documents/"))
+			})
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("score sort %s: got %v, want %v", tt.direction, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSearchResultsShowDataSourceScoreFromSearch(t *testing.T) {
+	source := &fakeBookSource{results: []biblioreads.SearchResult{{
+		Title: "Unlinked", Author: "Jane Doe", BookURL: "/book/show/1-unlinked",
+		Rating: "4.20", RatingCount: "1,234",
+	}}}
+	app, idx := newGoodReadsTestApp(t, source)
+	score := getBody(t, app, "/documents/unlinked/score")
+	if !strings.Contains(score, "(1,234 ratings)") {
+		t.Fatal("expected the search-derived rating count in the document score")
+	}
+	stored, err := idx.Document("unlinked")
+	if err != nil || stored.DataSourceScoreCount != "1,234" {
+		t.Fatalf("expected the search-derived count to be persisted, got %+v, %v", stored, err)
+	}
+	for _, path := range []string{
+		"/search?type=documents&search=Unlinked",
+		"/search?type=documents&search=Unlinked&l=es",
+	} {
+		page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rating := page.Find(`a[href="https://www.goodreads.com/book/show/1-unlinked"]`)
+		if rating.Text() != "4.20" || !strings.Contains(rating.Parent().Find("small").Text(), "1,234") {
+			t.Fatalf("expected the stored score and rating count in search results for %s", path)
+		}
+	}
+	if len(source.ids) != 0 || len(source.queries) != 1 {
+		t.Fatalf("expected one book search and no detail fetches, got queries %q and ids %q", source.queries, source.ids)
+	}
+}
+
+func TestSearchResultsShowStoredZeroRatingAsNotScored(t *testing.T) {
+	source := &fakeBookSource{results: []biblioreads.SearchResult{{
+		Title: "Unlinked", Author: "Jane Doe", BookURL: "/book/show/1-unlinked", Rating: "0.00",
+	}}}
+	app, _ := newGoodReadsTestApp(t, source)
+	getBody(t, app, "/documents/unlinked/goodreads")
+
+	body := getBody(t, app, "/search?type=documents&search=Unlinked")
+	page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := page.Find("li").FilterFunction(func(_ int, item *goquery.Selection) bool {
+		return strings.TrimSpace(item.Text()) == "Not scored" && item.Find("i.bi-star-fill").Length() == 1
+	})
+	if row.Length() == 0 || row.Find("a").Length() != 0 {
+		t.Fatalf("expected stored zero rating to render as Not scored, got %q in %s", row.Text(), body)
 	}
 }
 

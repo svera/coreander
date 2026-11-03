@@ -23,7 +23,7 @@ func (d *Controller) UpdateDocumentLink(c fiber.Ctx) error {
 	link := c.FormValue("bookURL")
 	if err := d.reviewProvider.UpdateDocumentLink(document, link); err != nil {
 		if errors.Is(err, reviews.ErrInvalidDocumentLink) {
-			return c.Status(fiber.StatusUnprocessableEntity).Render("partials/document-goodreads-form", fiber.Map{
+			return c.Status(fiber.StatusUnprocessableEntity).Render("partials/document-review-link-form", fiber.Map{
 				"Slug": document.Slug, "BookURL": link, "InvalidURL": true, "Source": d.reviewProvider.Name(),
 			})
 		}

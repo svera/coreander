@@ -162,6 +162,52 @@ func TestHighlights(t *testing.T) {
 	})
 }
 
+func TestHighlightsReviewScoreFilter(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, loadFilesInMemoryFs([]string{"testdata/library/metadata.epub"}), webserver.Config{})
+	adminCookie, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	response, err := highlight(adminCookie, app, "john-doe-test-epub", fiber.MethodPost, t)
+	if err != nil {
+		t.Fatalf("Unexpected error highlighting document: %v", err)
+	}
+	response.Body.Close()
+	if response.StatusCode != fiber.StatusOK {
+		t.Fatalf("Expected status %d, received %d", fiber.StatusOK, response.StatusCode)
+	}
+
+	for _, test := range []struct {
+		name          string
+		query         string
+		expectedCount int
+	}{
+		{name: "no score", query: "review-score-from=none", expectedCount: 1},
+		{name: "numeric score range", query: "review-score-from=1", expectedCount: 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			response, err := getRequest(adminCookie, app, "/highlights?"+test.query, t)
+			if err != nil {
+				t.Fatalf("Unexpected error fetching highlights: %v", err)
+			}
+			defer response.Body.Close()
+			if response.StatusCode != fiber.StatusOK {
+				t.Fatalf("Expected status %d, received %d", fiber.StatusOK, response.StatusCode)
+			}
+
+			doc, err := goquery.NewDocumentFromReader(response.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := doc.Find("#list .list-group-item").Length(); got != test.expectedCount {
+				t.Errorf("Expected %d highlighted documents, got %d", test.expectedCount, got)
+			}
+		})
+	}
+}
+
 func highlight(cookie *http.Cookie, app *fiber.App, slug string, method string, t *testing.T) (*http.Response, error) {
 	t.Helper()
 	req, err := http.NewRequest(method, fmt.Sprintf("/highlights/%s", slug), nil)

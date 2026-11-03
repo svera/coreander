@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -30,7 +29,7 @@ type GoodReadsSource interface {
 	SearchBooks(ctx context.Context, query string) (biblioreads.SearchBooksResponse, error)
 }
 
-var goodReadsFields = []string{"GoodReadsBookURL", "GoodReadsRatingValue", "GoodReadsRatingCount", "GoodReadsResourceID", "GoodReadsLegacyBookID", "GoodReadsEnriched"}
+var goodReadsFields = []string{"DataSourceLink", "DataSourceScoreValue", "DataSourceScoreCount", "GoodReadsResourceID", "GoodReadsLegacyBookID", "GoodReadsEnriched"}
 
 // Strip named series annotations and omnibus ranges, not standalone volume numbers.
 var goodReadsSeriesSuffix = regexp.MustCompile(`\s*\((?:[^()]+,\s*#[0-9]+(?:\.[0-9]+)?|#[0-9]+\s*[-–]\s*#?[0-9]+)\)\s*$`)
@@ -40,8 +39,6 @@ var goodReadsSubtitleSeparator = regexp.MustCompile(`:\s*|\.\s+|\s+[-–—]\s+`
 var goodReadsParentheticalTitle = regexp.MustCompile(`\s+\([\p{L}][^()]*\)\s*$`)
 
 var goodReadsBookPath = regexp.MustCompile(`^/book/show/([1-9][0-9]*)(?:[.-][A-Za-z0-9._~-]+)?/?$`)
-
-var ErrInvalidGoodReadsBookURL = errors.New("invalid Goodreads book URL")
 
 func normalizeGoodReadsName(value string) string {
 	var result strings.Builder
@@ -356,44 +353,34 @@ func (b *BleveIndexer) enrichGoodReadsBatch(documents []Document) error {
 // GoodReadsBook returns the stored book URL and rating, or searches a document
 // not looked up yet and persists its match. Returns an empty result if there's no match.
 func (b *BleveIndexer) GoodReadsBook(ctx context.Context, document Document) (biblioreads.SearchResult, error) {
-	if document.GoodReadsBookURL != "" || document.GoodReadsEnriched || b.goodReadsSource == nil {
-		return biblioreads.SearchResult{BookURL: document.GoodReadsBookURL, Rating: fmt.Sprintf("%.2f", document.GoodReadsRatingValue), RatingCount: document.GoodReadsRatingCount}, nil
+	if document.DataSourceLink != "" || document.GoodReadsEnriched || b.goodReadsSource == nil {
+		return biblioreads.SearchResult{BookURL: document.DataSourceLink, Rating: fmt.Sprintf("%.2f", document.DataSourceScoreValue), RatingCount: document.DataSourceScoreCount}, nil
 	}
 	return b.enrichGoodReads(ctx, document)
 }
 
-// UpdateGoodReadsBookURL saves an administrator's correction without retaining
-// the previous book's rating or review identifiers.
-func (b *BleveIndexer) UpdateGoodReadsBookURL(documentID, rawURL string) error {
-	bookURL, err := url.Parse(strings.TrimSpace(rawURL))
-	if err != nil || len(rawURL) > 2048 || bookURL.User != nil ||
-		(bookURL.Scheme != "https" && bookURL.Scheme != "http") ||
-		(bookURL.Host != "www.goodreads.com" && bookURL.Host != "goodreads.com") ||
-		!goodReadsBookPath.MatchString(bookURL.Path) {
-		return ErrInvalidGoodReadsBookURL
-	}
-	path := strings.TrimSuffix(bookURL.Path, "/")
-
+// UpdateDataSourceLink saves a provider-normalized link and clears data cached for the previous match.
+func (b *BleveIndexer) UpdateDataSourceLink(documentID, reviewLink string) error {
 	b.documentsMu.Lock()
 	defer b.documentsMu.Unlock()
 	current, found, err := b.documentByIndexIDLocked(documentID)
 	if err != nil {
-		return fmt.Errorf("reading document %s for Goodreads correction: %w", documentID, err)
+		return fmt.Errorf("reading document %s for review-link correction: %w", documentID, err)
 	}
 	if !found {
 		return ErrDocumentNotFound
 	}
-	if current.GoodReadsBookURL == path {
+	if current.DataSourceLink == reviewLink {
 		return nil
 	}
-	current.GoodReadsBookURL = path
-	current.GoodReadsRatingValue = 0
-	current.GoodReadsRatingCount = ""
+	current.DataSourceLink = reviewLink
+	current.DataSourceScoreValue = 0
+	current.DataSourceScoreCount = ""
 	current.GoodReadsResourceID = ""
 	current.GoodReadsLegacyBookID = 0
 	current.GoodReadsEnriched = true
 	if err := b.documentsIdx.Index(current.ID, current); err != nil {
-		return fmt.Errorf("saving Goodreads correction for document %s: %w", documentID, err)
+		return fmt.Errorf("saving review-link correction for document %s: %w", documentID, err)
 	}
 	return nil
 }
@@ -417,18 +404,18 @@ func (b *BleveIndexer) StoreGoodReadsDetails(document Document, bookURL string, 
 	if !found {
 		return ErrDocumentNotFound
 	}
-	if goodReadsQuery(current) != goodReadsQuery(document) || current.GoodReadsBookURL != bookURL {
+	if goodReadsQuery(current) != goodReadsQuery(document) || current.DataSourceLink != bookURL {
 		return fmt.Errorf("GoodReads match changed for document %s", document.ID)
 	}
 	changed := false
-	if book.RatingCount != "" && current.GoodReadsRatingCount != book.RatingCount {
-		current.GoodReadsRatingCount = book.RatingCount
+	if book.RatingCount != "" && current.DataSourceScoreCount != book.RatingCount {
+		current.DataSourceScoreCount = book.RatingCount
 		changed = true
 	}
 	if book.Rating != "" {
 		ratingValue := parseGoodReadsRating(book.Rating, document.ID)
-		if current.GoodReadsRatingValue != ratingValue {
-			current.GoodReadsRatingValue = ratingValue
+		if current.DataSourceScoreValue != ratingValue {
+			current.DataSourceScoreValue = ratingValue
 			changed = true
 		}
 	}
@@ -457,7 +444,7 @@ func (b *BleveIndexer) enrichGoodReads(ctx context.Context, document Document) (
 		return biblioreads.SearchResult{}, ctx.Err()
 	}
 	q := goodReadsQuery(document)
-	result := biblioreads.SearchResult{BookURL: document.GoodReadsBookURL}
+	result := biblioreads.SearchResult{BookURL: document.DataSourceLink}
 	if result.BookURL == "" && document.Title != "" {
 		ctx, cancel := context.WithTimeout(ctx, goodReadsRequestTimeout)
 		defer cancel()
@@ -500,18 +487,18 @@ func (b *BleveIndexer) enrichGoodReads(ctx context.Context, document Document) (
 	// Looked up concurrently (e.g. by the background enrichment and a detail
 	// page request at the same time): keep the stored result.
 	if current.GoodReadsEnriched {
-		result = biblioreads.SearchResult{BookURL: current.GoodReadsBookURL, Rating: fmt.Sprintf("%.2f", current.GoodReadsRatingValue), RatingCount: current.GoodReadsRatingCount}
+		result = biblioreads.SearchResult{BookURL: current.DataSourceLink, Rating: fmt.Sprintf("%.2f", current.DataSourceScoreValue), RatingCount: current.DataSourceScoreCount}
 		return result, nil
 	}
-	if current.GoodReadsBookURL != "" && current.GoodReadsBookURL != result.BookURL {
-		result = biblioreads.SearchResult{BookURL: current.GoodReadsBookURL, Rating: fmt.Sprintf("%.2f", current.GoodReadsRatingValue), RatingCount: current.GoodReadsRatingCount}
+	if current.DataSourceLink != "" && current.DataSourceLink != result.BookURL {
+		result = biblioreads.SearchResult{BookURL: current.DataSourceLink, Rating: fmt.Sprintf("%.2f", current.DataSourceScoreValue), RatingCount: current.DataSourceScoreCount}
 	}
-	current.GoodReadsBookURL = result.BookURL
-	if result.Rating == "" && current.GoodReadsRatingValue > 0 {
-		result.Rating = fmt.Sprintf("%.2f", current.GoodReadsRatingValue)
+	current.DataSourceLink = result.BookURL
+	if result.Rating == "" && current.DataSourceScoreValue > 0 {
+		result.Rating = fmt.Sprintf("%.2f", current.DataSourceScoreValue)
 	}
-	current.GoodReadsRatingValue = parseGoodReadsRating(result.Rating, current.ID)
-	current.GoodReadsRatingCount = result.RatingCount
+	current.DataSourceScoreValue = parseGoodReadsRating(result.Rating, current.ID)
+	current.DataSourceScoreCount = result.RatingCount
 	current.GoodReadsEnriched = true
 	if err := b.storeGoodReadsAuthorURL(current, result.AuthorURL, result.Author); err != nil {
 		return result, fmt.Errorf("error storing GoodReads author URL for document %s: %w", current.ID, err)
@@ -595,19 +582,19 @@ func (b *BleveIndexer) preserveGoodReadsLocked(documents []Document) {
 	}
 	stored := make(map[string]Document, len(searchResult.Hits))
 	for _, hit := range searchResult.Hits {
-		bookURL, _ := hit.Fields["GoodReadsBookURL"].(string)
-		ratingValue, _ := hit.Fields["GoodReadsRatingValue"].(float64)
-		ratingCount, _ := hit.Fields["GoodReadsRatingCount"].(string)
+		bookURL, _ := hit.Fields["DataSourceLink"].(string)
+		ratingValue, _ := hit.Fields["DataSourceScoreValue"].(float64)
+		ratingCount, _ := hit.Fields["DataSourceScoreCount"].(string)
 		resourceID, _ := hit.Fields["GoodReadsResourceID"].(string)
 		legacyBookID, _ := hit.Fields["GoodReadsLegacyBookID"].(float64)
 		enriched, _ := hit.Fields["GoodReadsEnriched"].(bool)
-		stored[hit.ID] = Document{GoodReadsBookURL: bookURL, GoodReadsRatingValue: ratingValue, GoodReadsRatingCount: ratingCount, GoodReadsResourceID: resourceID, GoodReadsLegacyBookID: int(legacyBookID), GoodReadsEnriched: enriched}
+		stored[hit.ID] = Document{DataSourceLink: bookURL, DataSourceScoreValue: ratingValue, DataSourceScoreCount: ratingCount, GoodReadsResourceID: resourceID, GoodReadsLegacyBookID: int(legacyBookID), GoodReadsEnriched: enriched}
 	}
 	for i := range documents {
 		if s, ok := stored[documents[i].ID]; ok {
-			documents[i].GoodReadsBookURL = s.GoodReadsBookURL
-			documents[i].GoodReadsRatingValue = s.GoodReadsRatingValue
-			documents[i].GoodReadsRatingCount = s.GoodReadsRatingCount
+			documents[i].DataSourceLink = s.DataSourceLink
+			documents[i].DataSourceScoreValue = s.DataSourceScoreValue
+			documents[i].DataSourceScoreCount = s.DataSourceScoreCount
 			documents[i].GoodReadsResourceID = s.GoodReadsResourceID
 			documents[i].GoodReadsLegacyBookID = s.GoodReadsLegacyBookID
 			documents[i].GoodReadsEnriched = s.GoodReadsEnriched

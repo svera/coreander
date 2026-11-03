@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/precisiondate"
@@ -85,16 +84,7 @@ func TestSeriesFilters(t *testing.T) {
 		"Third volume":  "4.50",
 	}
 	for _, doc := range seriesDocuments.Hits() {
-		if err := idx.UpdateGoodReadsBookURL(doc.ID, "https://www.goodreads.com/book/show/1-"+doc.Slug); err != nil {
-			t.Fatalf("set review link for %s: %v", doc.Title, err)
-		}
-		updated, err := idx.Document(doc.Slug)
-		if err != nil {
-			t.Fatalf("reload %s: %v", doc.Title, err)
-		}
-		if err := idx.StoreGoodReadsDetails(updated, updated.GoodReadsBookURL, biblioreads.BookResponse{Rating: scores[doc.Title]}); err != nil {
-			t.Fatalf("set review score for %s: %v", doc.Title, err)
-		}
+		setDataSourceScore(t, idx, doc, scores[doc.Title], "")
 	}
 
 	cases := []struct {

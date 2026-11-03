@@ -15,19 +15,24 @@ import (
 // pages-from/to, review score, illustrated-only) into an index.SearchFields.
 func ParseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.SearchFields, error) {
 	searchFields := index.SearchFields{
-		Keywords:        c.Query("search"),
-		Language:        c.Query("language"),
-		Subjects:        c.Query("subjects"),
-		SimilarTo:       similarToSlug(c),
-		SortBy:          parseDocumentSortBy(c),
-		EstReadTimeFrom: fiber.Query[float64](c, "est-read-time-from", 0),
-		EstReadTimeTo:   fiber.Query[float64](c, "est-read-time-to", 0),
-		WordsPerMinute:  wordsPerMinute,
-		PagesFrom:       fiber.Query[float64](c, "pages-from", 0),
-		PagesTo:         fiber.Query[float64](c, "pages-to", 0),
-		ReviewScoreFrom: fiber.Query[float64](c, "review-score-from", 0),
-		ReviewScoreTo:   fiber.Query[float64](c, "review-score-to", 0),
-		IllustratedOnly: c.Query("illustrated-only") == "on" || c.Query("illustrated-only") == "1",
+		Keywords:            c.Query("search"),
+		Language:            c.Query("language"),
+		Subjects:            c.Query("subjects"),
+		SimilarTo:           similarToSlug(c),
+		SortBy:              parseDocumentSortBy(c),
+		EstReadTimeFrom:     fiber.Query[float64](c, "est-read-time-from", 0),
+		EstReadTimeTo:       fiber.Query[float64](c, "est-read-time-to", 0),
+		WordsPerMinute:      wordsPerMinute,
+		PagesFrom:           fiber.Query[float64](c, "pages-from", 0),
+		PagesTo:             fiber.Query[float64](c, "pages-to", 0),
+		DataSourceScoreFrom: fiber.Query[float64](c, "review-score-from", 0),
+		DataSourceScoreTo:   fiber.Query[float64](c, "review-score-to", 0),
+		DataSourceScoreNone: c.Query("review-score-from") == "none" || c.Query("review-score-to") == "none",
+		IllustratedOnly:     c.Query("illustrated-only") == "on" || c.Query("illustrated-only") == "1",
+	}
+	if searchFields.DataSourceScoreNone {
+		searchFields.DataSourceScoreFrom = 0
+		searchFields.DataSourceScoreTo = 0
 	}
 
 	if c.Query("pub-date-from") != "" {
@@ -58,8 +63,8 @@ func ParseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.Search
 		searchFields.PagesFrom, searchFields.PagesTo = searchFields.PagesTo, searchFields.PagesFrom
 	}
 
-	if searchFields.ReviewScoreTo != 0 && searchFields.ReviewScoreFrom > searchFields.ReviewScoreTo {
-		searchFields.ReviewScoreFrom, searchFields.ReviewScoreTo = searchFields.ReviewScoreTo, searchFields.ReviewScoreFrom
+	if !searchFields.DataSourceScoreNone && searchFields.DataSourceScoreTo != 0 && searchFields.DataSourceScoreFrom > searchFields.DataSourceScoreTo {
+		searchFields.DataSourceScoreFrom, searchFields.DataSourceScoreTo = searchFields.DataSourceScoreTo, searchFields.DataSourceScoreFrom
 	}
 
 	return searchFields, nil
@@ -153,9 +158,9 @@ func parseDocumentSortBy(c fiber.Ctx) []string {
 		case "est-read-time-longer-first":
 			return []string{"-Words"}
 		case "review-score-asc":
-			return []string{index.ScoreValueSortField}
+			return []string{index.DataSourceScoreValueSortField}
 		case "review-score-desc":
-			return []string{"-" + index.ScoreValueSortField}
+			return []string{"-" + index.DataSourceScoreValueSortField}
 		}
 	}
 	return index.DefaultDocumentSortBy

@@ -11,11 +11,11 @@ import (
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
-func TestGoodReadsScoreSorting(t *testing.T) {
+func TestReviewScoreSorting(t *testing.T) {
 	docs := []index.Document{
-		{ID: "high", Slug: "high", GoodReadsRatingValue: 4.75},
+		{ID: "high", Slug: "high", DataSourceScoreValue: 4.75},
 		{ID: "unrated", Slug: "unrated"},
-		{ID: "low", Slug: "low", GoodReadsRatingValue: 3.25},
+		{ID: "low", Slug: "low", DataSourceScoreValue: 3.25},
 	}
 	for i := range docs {
 		docs[i].Metadata = metadata.Metadata{Title: docs[i].Slug, Authors: []string{"Writer"}, Format: "EPUB", Series: "Series"}
@@ -35,7 +35,7 @@ func TestGoodReadsScoreSorting(t *testing.T) {
 	for _, scope := range []string{"search", "author", "series", "similar"} {
 		for _, direction := range []string{"asc", "desc"} {
 			t.Run(scope+"/"+direction, func(t *testing.T) {
-				key := "GoodReadsRatingValue"
+				key := "DataSourceScoreValue"
 				want := []string{"low", "high"}
 				if direction == "desc" {
 					key = "-" + key
@@ -84,7 +84,7 @@ func TestGoodReadsScoreSorting(t *testing.T) {
 	}
 }
 
-func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
+func TestReviewFieldsAndProviderMetadataAreStoredButNotSearchable(t *testing.T) {
 	documentsIndexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Fatal(err)
@@ -113,9 +113,9 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 				Format:   "EPUB",
 			},
 			AuthorsSlugs:          []string{"alice-borchardt"},
-			GoodReadsBookURL:      bookURL,
-			GoodReadsRatingValue:  4.25,
-			GoodReadsRatingCount:  "2285",
+			DataSourceLink:        bookURL,
+			DataSourceScoreValue:  4.25,
+			DataSourceScoreCount:  "2285",
 			GoodReadsResourceID:   resourceID,
 			GoodReadsLegacyBookID: legacyBookID,
 		}
@@ -127,18 +127,28 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got.GoodReadsBookURL != bookURL {
-			t.Errorf("language %q: expected stored book URL, got %q", lang, got.GoodReadsBookURL)
+		if got.DataSourceLink != bookURL {
+			t.Errorf("language %q: expected stored book URL, got %q", lang, got.DataSourceLink)
 		}
-		if got.GoodReadsRatingValue != 4.25 {
-			t.Errorf("language %q: expected stored rating, got %v", lang, got.GoodReadsRatingValue)
+		if got.DataSourceScoreValue != 4.25 {
+			t.Errorf("language %q: expected stored rating, got %v", lang, got.DataSourceScoreValue)
 		}
-		if got.GoodReadsRatingCount != "2285" {
-			t.Errorf("language %q: expected stored rating count, got %q", lang, got.GoodReadsRatingCount)
+		if got.DataSourceScoreCount != "2285" {
+			t.Errorf("language %q: expected stored rating count, got %q", lang, got.DataSourceScoreCount)
 		}
 		if got.GoodReadsResourceID != resourceID || got.GoodReadsLegacyBookID != legacyBookID {
 			t.Errorf("language %q: expected stored identifiers, got %q and %d", lang, got.GoodReadsResourceID, got.GoodReadsLegacyBookID)
 		}
+	}
+	if err := documentsIndexMem.Index("unscored", index.Document{
+		ID:   "unscored",
+		Slug: "unscored",
+		Metadata: metadata.Metadata{
+			Title:  "Unscored document",
+			Format: "EPUB",
+		},
+	}); err != nil {
+		t.Fatal(err)
 	}
 
 	for _, keywords := range []string{"zyxwvbook", "Zyxwv_Author", "12207444", "151155", "zyxwvresource", resourceID, "4.25", "2285"} {
@@ -150,23 +160,27 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 			t.Errorf("expected no results searching keywords %q, got %d", keywords, res.TotalHits())
 		}
 	}
-	filtered, err := idx.Search(index.SearchFields{ReviewScoreFrom: 4.2, ReviewScoreTo: 4.3}, 1, 10)
+	filtered, err := idx.Search(index.SearchFields{DataSourceScoreFrom: 4.2, DataSourceScoreTo: 4.3}, 1, 10)
 	if err != nil || filtered.TotalHits() != 2 {
-		t.Errorf("expected both documents in the Goodreads score range, got %d results and error %v", filtered.TotalHits(), err)
+		t.Errorf("expected both documents in the review score range, got %d results and error %v", filtered.TotalHits(), err)
 	}
-	filtered, err = idx.Search(index.SearchFields{ReviewScoreFrom: 4.3}, 1, 10)
+	filtered, err = idx.Search(index.SearchFields{DataSourceScoreFrom: 4.3}, 1, 10)
 	if err != nil || filtered.TotalHits() != 0 {
-		t.Errorf("expected no documents above the Goodreads score, got %d results and error %v", filtered.TotalHits(), err)
+		t.Errorf("expected no documents above the review score, got %d results and error %v", filtered.TotalHits(), err)
+	}
+	filtered, err = idx.Search(index.SearchFields{DataSourceScoreNone: true}, 1, 10)
+	if err != nil || filtered.TotalHits() != 1 || filtered.Hits()[0].DataSourceScoreValue != 0 {
+		t.Errorf("expected only the unscored document, got %d results and error %v", filtered.TotalHits(), err)
 	}
 
 	queries := map[string]bleve.SearchRequest{
-		"book URL field term":     *bleve.NewSearchRequest(fieldTermQuery("GoodReadsBookURL", bookURL)),
+		"book URL field term":     *bleve.NewSearchRequest(fieldTermQuery("DataSourceLink", bookURL)),
 		"author URL field term":   *bleve.NewSearchRequest(fieldTermQuery("GoodReadsAuthorURL", authorURL)),
 		"resource ID field term":  *bleve.NewSearchRequest(fieldTermQuery("GoodReadsResourceID", resourceID)),
 		"legacy ID numeric field": *bleve.NewSearchRequest(legacyBookIDQuery(legacyBookID)),
 		"_all match":              *bleve.NewSearchRequest(bleve.NewMatchQuery("zyxwvbook")),
 		"_all term":               *bleve.NewSearchRequest(bleve.NewTermQuery(bookURL)),
-		"query string field":      *bleve.NewSearchRequest(bleve.NewQueryStringQuery(`GoodReadsBookURL:"` + bookURL + `"`)),
+		"query string field":      *bleve.NewSearchRequest(bleve.NewQueryStringQuery(`DataSourceLink:"` + bookURL + `"`)),
 	}
 	for name, req := range queries {
 		res, err := documentsIndexMem.Search(&req)
@@ -179,7 +193,7 @@ func TestGoodReadsFieldsAreStoredButNotSearchable(t *testing.T) {
 	}
 }
 
-func TestGoodReadsScoreSortingMissingFieldsAndTies(t *testing.T) {
+func TestReviewScoreSortingMissingFieldsAndTies(t *testing.T) {
 	documents, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Fatal(err)
@@ -191,11 +205,11 @@ func TestGoodReadsScoreSortingMissingFieldsAndTies(t *testing.T) {
 	idx := index.NewBleve(documents, authors, nil, "", nil, index.Config{})
 	t.Cleanup(func() { _ = idx.Close() })
 	for _, doc := range []map[string]any{
-		{"Slug": "unrated-zero", "GoodReadsRatingValue": 0.0, "SeriesIndex": 2.0},
-		{"Slug": "high", "GoodReadsRatingValue": 4.75, "SeriesIndex": 1.0},
+		{"Slug": "unrated-zero", "DataSourceScoreValue": 0.0, "SeriesIndex": 2.0},
+		{"Slug": "high", "DataSourceScoreValue": 4.75, "SeriesIndex": 1.0},
 		{"Slug": "unrated-missing", "SeriesIndex": 1.0},
-		{"Slug": "low-second", "GoodReadsRatingValue": 3.25, "SeriesIndex": 2.0},
-		{"Slug": "low-first", "GoodReadsRatingValue": 3.25, "SeriesIndex": 1.0},
+		{"Slug": "low-second", "DataSourceScoreValue": 3.25, "SeriesIndex": 2.0},
+		{"Slug": "low-first", "DataSourceScoreValue": 3.25, "SeriesIndex": 1.0},
 	} {
 		for _, field := range []string{"Title", "Description", "Series", "SeriesSlug", "Format"} {
 			doc[field] = ""
@@ -207,7 +221,7 @@ func TestGoodReadsScoreSortingMissingFieldsAndTies(t *testing.T) {
 	}
 	for _, direction := range []string{"asc", "desc"} {
 		t.Run(direction, func(t *testing.T) {
-			key := "GoodReadsRatingValue"
+			key := "DataSourceScoreValue"
 			want := []string{"low-first", "low-second", "high", "unrated-missing", "unrated-zero"}
 			if direction == "desc" {
 				key = "-" + key

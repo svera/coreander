@@ -127,9 +127,9 @@ func (d *Controller) parseSortBy(c fiber.Ctx) []string {
 		case "est-read-time-longer-first":
 			return []string{"-Words"}
 		case "review-score-asc":
-			return []string{index.ScoreValueSortField, "SeriesIndex"}
+			return []string{index.DataSourceScoreValueSortField, "SeriesIndex"}
 		case "review-score-desc":
-			return []string{"-" + index.ScoreValueSortField, "SeriesIndex"}
+			return []string{"-" + index.DataSourceScoreValueSortField, "SeriesIndex"}
 		}
 	}
 	return []string{"SeriesIndex"}

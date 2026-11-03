@@ -40,12 +40,12 @@ const titleBoost = 3.0
 // document detail page's "related documents" widget.
 var DefaultDocumentSortBy = []string{"-_score", "Series", "SeriesIndex"}
 
-// goodReadsScoreSort treats a stored zero as missing without changing the index.
-type goodReadsScoreSort struct {
+// reviewScoreSort treats a stored zero as missing without changing the index.
+type reviewScoreSort struct {
 	search.SortField
 }
 
-func (s *goodReadsScoreSort) Value(hit *search.DocumentMatch) string {
+func (s *reviewScoreSort) Value(hit *search.DocumentMatch) string {
 	value := s.SortField.Value(hit)
 	if s.SortField.DecodeValue(value) == "0" {
 		if s.Desc {
@@ -56,7 +56,7 @@ func (s *goodReadsScoreSort) Value(hit *search.DocumentMatch) string {
 	return value
 }
 
-func (s *goodReadsScoreSort) Copy() search.SearchSort {
+func (s *reviewScoreSort) Copy() search.SearchSort {
 	copied := *s
 	return &copied
 }
@@ -247,17 +247,23 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 		bq.SetBoost(0)
 		filtersQuery.AddQuery(bq)
 	}
-	if searchFields.ReviewScoreFrom > 0 || searchFields.ReviewScoreTo > 0 {
+	if searchFields.DataSourceScoreNone {
+		unscored := 0.0
+		ratingQuery := newInclusiveNumericRangeQuery(&unscored, &unscored)
+		ratingQuery.SetField("DataSourceScoreValue")
+		ratingQuery.SetBoost(0)
+		filtersQuery.AddQuery(ratingQuery)
+	} else if searchFields.DataSourceScoreFrom > 0 || searchFields.DataSourceScoreTo > 0 {
 		min := math.SmallestNonzeroFloat64
 		var max *float64
-		if searchFields.ReviewScoreFrom > 0 {
-			min = searchFields.ReviewScoreFrom
+		if searchFields.DataSourceScoreFrom > 0 {
+			min = searchFields.DataSourceScoreFrom
 		}
-		if searchFields.ReviewScoreTo > 0 {
-			max = &searchFields.ReviewScoreTo
+		if searchFields.DataSourceScoreTo > 0 {
+			max = &searchFields.DataSourceScoreTo
 		}
 		ratingQuery := newInclusiveNumericRangeQuery(&min, max)
-		ratingQuery.SetField("GoodReadsRatingValue")
+		ratingQuery.SetField("DataSourceScoreValue")
 		ratingQuery.SetBoost(0)
 		filtersQuery.AddQuery(ratingQuery)
 	}
@@ -424,9 +430,9 @@ func (b *BleveIndexer) searchAndHydrate(query query.Query, size, offset int, sor
 	if len(sortBy) > 0 {
 		searchOptions.SortBy(sortBy)
 		for i, key := range sortBy {
-			if strings.TrimPrefix(key, "-") == "GoodReadsRatingValue" {
-				searchOptions.Sort[i] = &goodReadsScoreSort{SortField: search.SortField{
-					Field:   "GoodReadsRatingValue",
+			if strings.TrimPrefix(key, "-") == "DataSourceScoreValue" {
+				searchOptions.Sort[i] = &reviewScoreSort{SortField: search.SortField{
+					Field:   "DataSourceScoreValue",
 					Desc:    strings.HasPrefix(key, "-"),
 					Type:    search.SortFieldAsNumber,
 					Missing: search.SortFieldMissingLast,
@@ -622,14 +628,14 @@ func compareDocumentsBySortKey(a, b Document, key string) int {
 		c = cmp.Compare(a.Publication.Date, b.Publication.Date)
 	case "Words":
 		c = cmp.Compare(a.Words, b.Words)
-	case "GoodReadsRatingValue":
-		if (a.GoodReadsRatingValue == 0) != (b.GoodReadsRatingValue == 0) {
-			if a.GoodReadsRatingValue == 0 {
+	case "DataSourceScoreValue":
+		if (a.DataSourceScoreValue == 0) != (b.DataSourceScoreValue == 0) {
+			if a.DataSourceScoreValue == 0 {
 				return 1
 			}
 			return -1
 		}
-		c = cmp.Compare(a.GoodReadsRatingValue, b.GoodReadsRatingValue)
+		c = cmp.Compare(a.DataSourceScoreValue, b.DataSourceScoreValue)
 	case "Series":
 		c = cmp.Compare(a.Series, b.Series)
 	case "SeriesIndex":
@@ -1076,9 +1082,9 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		textRankEnriched = match.Fields["TextRankEnriched"].(bool)
 	}
 
-	goodReadsBookURL, _ := match.Fields["GoodReadsBookURL"].(string)
-	goodReadsRatingValue, _ := match.Fields["GoodReadsRatingValue"].(float64)
-	goodReadsRatingCount, _ := match.Fields["GoodReadsRatingCount"].(string)
+	reviewLink, _ := match.Fields["DataSourceLink"].(string)
+	reviewScoreValue, _ := match.Fields["DataSourceScoreValue"].(float64)
+	reviewScoreCount, _ := match.Fields["DataSourceScoreCount"].(string)
 	goodReadsResourceID, _ := match.Fields["GoodReadsResourceID"].(string)
 	goodReadsLegacyBookID, _ := match.Fields["GoodReadsLegacyBookID"].(float64)
 	goodReadsEnriched, _ := match.Fields["GoodReadsEnriched"].(bool)
@@ -1109,9 +1115,9 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		TextRankPhrases:       textRankPhrases,
 		TextRankWords:         textRankWords,
 		TextRankEnriched:      textRankEnriched,
-		GoodReadsBookURL:      goodReadsBookURL,
-		GoodReadsRatingValue:  goodReadsRatingValue,
-		GoodReadsRatingCount:  goodReadsRatingCount,
+		DataSourceLink:        reviewLink,
+		DataSourceScoreValue:  reviewScoreValue,
+		DataSourceScoreCount:  reviewScoreCount,
 		GoodReadsResourceID:   goodReadsResourceID,
 		GoodReadsLegacyBookID: int(goodReadsLegacyBookID),
 		GoodReadsEnriched:     goodReadsEnriched,

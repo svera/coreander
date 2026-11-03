@@ -18,7 +18,7 @@ func TestBiblioReadsDataSourceLinks(t *testing.T) {
 	}
 
 	document := provider.DocumentLink(index.Document{
-		GoodReadsBookURL: "/book/show/456.A_Book",
+		DataSourceLink: "/book/show/456.A_Book",
 	})
 	if document.URL != "https://www.goodreads.com/book/show/456.A_Book" ||
 		document.Source != "Goodreads" || document.Icon != "/images/goodreads.svg" || !document.IconInvertible {

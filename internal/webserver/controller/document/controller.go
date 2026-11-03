@@ -123,8 +123,8 @@ func NewController(hlRepository highlightsRepository, usersRepository usersRepos
 	}
 }
 
-// ReviewSourceName returns the display name for this controller's review provider.
-func (d *Controller) ReviewSourceName() string {
+// DataSourceName returns the source name used for review-score labels.
+func (d *Controller) DataSourceName() string {
 	if d.reviewProvider == nil {
 		return ""
 	}

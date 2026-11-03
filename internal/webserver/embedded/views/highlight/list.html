@@ -1,7 +1,7 @@
 <h1 class="mt-5">{{t .Lang "Highlights"}}</h1>
 
 <div id="highlight-list-header" class="row mt-5 mb-2 pb-2 border-bottom d-flex mx-0">
-    {{template "partials/count-and-sort" dict "Results" .Results "Lang" .Lang "ReviewSourceName" .ReviewSourceName "SortURL" .SortURL "SortBy" .SortBy "AdditionalSortOptions" .AdditionalSortOptions "FilterIdPrefix" "highlight"}}
+    {{template "partials/count-and-sort" dict "Results" .Results "Lang" .Lang "DataSourceName" .DataSourceName "SortURL" .SortURL "SortBy" .SortBy "AdditionalSortOptions" .AdditionalSortOptions "FilterIdPrefix" "highlight"}}
 </div>
 
 <div class="row">
@@ -28,7 +28,7 @@
                             </div>
                         </div>
                     </fieldset>
-                    {{template "partials/document-metadata-filters" dict "Lang" .Lang "ReviewSourceName" .ReviewSourceName "FilterIdPrefix" "highlight" "SearchFields" .SearchFields "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs}}
+                    {{template "partials/document-metadata-filters" dict "Lang" .Lang "DataSourceName" .DataSourceName "FilterIdPrefix" "highlight" "SearchFields" .SearchFields "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs}}
                     {{template "partials/search-filters-actions" dict "Lang" .Lang "ShowSearchButton" false}}
                 </div>
                 </form>

@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -331,8 +330,8 @@ func newDataSourceProvidersTestApp(t *testing.T, source *fakeBookSource, provide
 		{
 			ID: "linked.epub", Slug: "linked",
 			Metadata:             metadata.Metadata{Title: "La Reina Dragon", Format: "EPUB"},
-			GoodReadsBookURL:     "/book/show/12207444-la-reina-dragon",
-			GoodReadsRatingValue: 3.82,
+			DataSourceLink:       "/book/show/12207444-la-reina-dragon",
+			DataSourceScoreValue: 3.82,
 			GoodReadsEnriched:    true,
 		},
 		{
@@ -357,143 +356,6 @@ func newDataSourceProvidersTestApp(t *testing.T, source *fakeBookSource, provide
 	app := webserver.New(cfg, controllers, sender, idx, &model.UserRepository{DB: db})
 	t.Cleanup(func() { _ = app.Shutdown() })
 	return app, idx
-}
-
-func TestSearchResultsShowStoredGoodReadsRating(t *testing.T) {
-	for _, tt := range []struct {
-		rating string
-		want   string
-	}{
-		{rating: "3.82", want: "3.82"},
-		{rating: "4.1", want: "4.10"},
-		{rating: "5", want: "5.00"},
-	} {
-		t.Run(tt.rating, func(t *testing.T) {
-			app, idx := newGoodReadsTestApp(t, nil)
-			doc, err := idx.Document("linked")
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := idx.StoreGoodReadsDetails(doc, doc.GoodReadsBookURL, biblioreads.BookResponse{Rating: tt.rating, RatingCount: "2,285"}); err != nil {
-				t.Fatal(err)
-			}
-			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/search?type=documents&search=La")))
-			if err != nil {
-				t.Fatal(err)
-			}
-			rating := page.Find(`a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`)
-			if rating.Length() != 1 || strings.TrimSpace(rating.Text()) != tt.want {
-				t.Fatalf("expected stored Goodreads rating in search result, got %q", rating.Text())
-			}
-			if page.Find(`li:has(a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]) i.bi-star-fill`).Length() != 1 {
-				t.Fatal("expected a star icon beside the Goodreads score")
-			}
-			if rating.Parent().Find("small").Text() != "(2,285 ratings)" {
-				t.Fatal("expected rating count beside the Goodreads score")
-			}
-		})
-	}
-}
-
-func TestDocumentSearchSortsByReviewScore(t *testing.T) {
-	app, idx := newGoodReadsTestApp(t, &fakeBookSource{})
-	scores := map[string]string{
-		"linked":    "3.20",
-		"unlinked":  "4.10",
-		"unmatched": "4.80",
-	}
-	documents, err := idx.Search(index.SearchFields{}, 1, 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, doc := range documents.Hits() {
-		if err := idx.UpdateGoodReadsBookURL(doc.ID, "https://www.goodreads.com/book/show/1-"+doc.Slug); err != nil {
-			t.Fatalf("set score link for %s: %v", doc.Slug, err)
-		}
-		updated, err := idx.Document(doc.Slug)
-		if err != nil {
-			t.Fatalf("reload %s: %v", doc.Slug, err)
-		}
-		if err := idx.StoreGoodReadsDetails(updated, updated.GoodReadsBookURL, biblioreads.BookResponse{Rating: scores[doc.Slug]}); err != nil {
-			t.Fatalf("set score for %s: %v", doc.Slug, err)
-		}
-	}
-
-	for _, tt := range []struct {
-		direction string
-		want      []string
-	}{
-		{direction: "asc", want: []string{"linked", "unlinked", "unmatched"}},
-		{direction: "desc", want: []string{"unmatched", "unlinked", "linked"}},
-	} {
-		t.Run(tt.direction, func(t *testing.T) {
-			body := getBody(t, app, "/search?type=documents&sort-by=review-score-"+tt.direction)
-			page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
-			if err != nil {
-				t.Fatal(err)
-			}
-			var got []string
-			page.Find("#list .list-group-item h2 a").Each(func(_ int, link *goquery.Selection) {
-				href, _ := link.Attr("href")
-				got = append(got, strings.TrimPrefix(href, "/documents/"))
-			})
-			if !slices.Equal(got, tt.want) {
-				t.Fatalf("score sort %s: got %v, want %v", tt.direction, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestSearchResultsShowGoodReadsSearchRatingCount(t *testing.T) {
-	source := &fakeBookSource{results: []biblioreads.SearchResult{{
-		Title: "Unlinked", Author: "Jane Doe", BookURL: "/book/show/1-unlinked",
-		Rating: "4.20", RatingCount: "1,234",
-	}}}
-	app, idx := newGoodReadsTestApp(t, source)
-	score := getBody(t, app, "/documents/unlinked/score")
-	if !strings.Contains(score, "(1,234 ratings)") {
-		t.Fatal("expected the search-derived rating count in the document score")
-	}
-	stored, err := idx.Document("unlinked")
-	if err != nil || stored.GoodReadsRatingCount != "1,234" {
-		t.Fatalf("expected the search-derived count to be persisted, got %+v, %v", stored, err)
-	}
-	for _, path := range []string{
-		"/search?type=documents&search=Unlinked",
-		"/search?type=documents&search=Unlinked&l=es",
-	} {
-		page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, path)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		rating := page.Find(`a[href="https://www.goodreads.com/book/show/1-unlinked"]`)
-		if rating.Text() != "4.20" || !strings.Contains(rating.Parent().Find("small").Text(), "1,234") {
-			t.Fatalf("expected the stored score and rating count in search results for %s", path)
-		}
-	}
-	if len(source.ids) != 0 || len(source.queries) != 1 {
-		t.Fatalf("expected one book search and no detail fetches, got queries %q and ids %q", source.queries, source.ids)
-	}
-}
-
-func TestDocumentDetailShowsStoredZeroRatingAsNotScored(t *testing.T) {
-	source := &fakeBookSource{results: []biblioreads.SearchResult{{
-		Title: "Unlinked", Author: "Jane Doe", BookURL: "/book/show/1-unlinked", Rating: "0.00",
-	}}}
-	app, _ := newGoodReadsTestApp(t, source)
-	getBody(t, app, "/documents/unlinked/goodreads")
-
-	body := getBody(t, app, "/search?type=documents&search=Unlinked")
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
-	if err != nil {
-		t.Fatal(err)
-	}
-	row := page.Find("li").FilterFunction(func(_ int, item *goquery.Selection) bool {
-		return strings.TrimSpace(item.Text()) == "Not scored" && item.Find("i.bi-star-fill").Length() == 1
-	})
-	if row.Length() == 0 || row.Find("a").Length() != 0 {
-		t.Fatalf("expected stored zero rating to render as Not scored, got %q in %s", row.Text(), body)
-	}
 }
 
 func getBody(t *testing.T, app *fiber.App, path string) string {
@@ -597,7 +459,7 @@ func TestDocumentGoodReadsEditor(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			control := page.Find(`li a[data-bs-toggle="collapse"][href="#edit-goodreads-linked"]`)
+			control := page.Find(`li a[data-bs-toggle="collapse"][href="#edit-review-link-linked"]`)
 			if control.Length() != tt.want {
 				t.Fatalf("expected %d edit links, got %d", tt.want, control.Length())
 			}
@@ -610,9 +472,9 @@ func TestDocumentGoodReadsEditor(t *testing.T) {
 			if control.Text() != "" ||
 				control.Find(`i.bi-pencil[alt="Edit Goodreads link"]`).Length() != 1 ||
 				control.Filter(`[title="Edit Goodreads link"][aria-label="Edit Goodreads link"]`).Length() != 1 ||
-				page.Find(`#edit-goodreads-linked.collapse:not(.show)`).Length() != 1 ||
+				page.Find(`#edit-review-link-linked.collapse:not(.show)`).Length() != 1 ||
 				page.Find(`form[hx-put="/documents/linked/review-link"][hx-target="this"]`).Length() != 1 ||
-				page.Find(`label[for="goodreads-book-url-linked"]`).Length() != 1 {
+				page.Find(`label[for="document-book-url-linked"]`).Length() != 1 {
 				t.Fatal("expected accessible, initially collapsed Goodreads editor beside the score")
 			}
 			if value, _ := page.Find(`input[name="bookURL"]`).Attr("value"); value != "https://www.goodreads.com/book/show/12207444-la-reina-dragon" {
@@ -662,8 +524,8 @@ func TestDocumentUpdateGoodReads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.GoodReadsBookURL != "/book/show/1368314.El_Cercano_Oriente" ||
-		stored.GoodReadsRatingValue != 0 ||
+	if stored.DataSourceLink != "/book/show/1368314.El_Cercano_Oriente" ||
+		stored.DataSourceScoreValue != 0 ||
 		stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 ||
 		!stored.GoodReadsEnriched {
 		t.Fatalf("expected correction persisted without stale rating/review identifiers: %+v", stored)
@@ -698,7 +560,7 @@ func TestDocumentUpdateGoodReadsValidation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if page.Find(`form#goodreads-link-form-linked input[aria-invalid="true"]`).Length() != 1 ||
+		if page.Find(`form#review-link-form-linked input[aria-invalid="true"]`).Length() != 1 ||
 			page.Find(`[role="alert"]`).Text() != "Enter a valid Goodreads book URL." {
 			t.Fatal("invalid URLs must render inline validation feedback")
 		}
@@ -706,7 +568,7 @@ func TestDocumentUpdateGoodReadsValidation(t *testing.T) {
 			t.Fatalf("invalid input should be retained for correction, got %q", got)
 		}
 		stored, err := idx.Document("linked")
-		if err != nil || stored.GoodReadsBookURL != "/book/show/12207444-la-reina-dragon" || stored.GoodReadsRatingValue != 3.82 {
+		if err != nil || stored.DataSourceLink != "/book/show/12207444-la-reina-dragon" || stored.DataSourceScoreValue != 3.82 {
 			t.Fatalf("invalid input must not change the stored match: %+v, %v", stored, err)
 		}
 	}
@@ -738,10 +600,10 @@ func TestDocumentDetailUpdatesStoredGoodReadsRating(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.GoodReadsRatingValue != 4.12 {
+	if stored.DataSourceScoreValue != 4.12 {
 		t.Fatalf("expected latest rating and searchable value to be stored, got %+v", stored)
 	}
-	results, err := idx.Search(index.SearchFields{ReviewScoreFrom: 4.1, ReviewScoreTo: 4.2}, 1, 10)
+	results, err := idx.Search(index.SearchFields{DataSourceScoreFrom: 4.1, DataSourceScoreTo: 4.2}, 1, 10)
 	if err != nil || results.TotalHits() != 1 {
 		t.Fatalf("expected document to match updated rating range, got %d results and error %v", results.TotalHits(), err)
 	}
@@ -765,7 +627,7 @@ func TestDocumentDetailKeepsStoredGoodReadsRatingWhenScraperReturnsZero(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.GoodReadsRatingValue != 3.82 {
+	if stored.DataSourceScoreValue != 3.82 {
 		t.Fatalf("zero scraper rating must not replace indexed Goodreads score, got %+v", stored)
 	}
 }
@@ -802,7 +664,7 @@ func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.GoodReadsBookURL != "/book/show/1-unlinked" || !stored.GoodReadsEnriched {
+	if stored.DataSourceLink != "/book/show/1-unlinked" || !stored.GoodReadsEnriched {
 		t.Errorf("expected the found link to be stored, got %+v", stored)
 	}
 	author, err := idx.Author("jane-doe", "")

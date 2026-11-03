@@ -141,8 +141,9 @@ func hasSearchFields(sf index.SearchFields) bool {
 		sf.EstReadTimeTo != 0 ||
 		sf.PagesFrom != 0 ||
 		sf.PagesTo != 0 ||
-		sf.ReviewScoreFrom != 0 ||
-		sf.ReviewScoreTo != 0 ||
+		sf.DataSourceScoreFrom != 0 ||
+		sf.DataSourceScoreTo != 0 ||
+		sf.DataSourceScoreNone ||
 		sf.IllustratedOnly
 }
 
@@ -193,10 +194,14 @@ func matchesSearchFields(doc AugmentedDocument, sf index.SearchFields, illustrat
 		return false
 	}
 
-	if sf.ReviewScoreFrom > 0 || sf.ReviewScoreTo > 0 {
-		if doc.GoodReadsRatingValue <= 0 ||
-			(sf.ReviewScoreFrom > 0 && doc.GoodReadsRatingValue < sf.ReviewScoreFrom) ||
-			(sf.ReviewScoreTo > 0 && doc.GoodReadsRatingValue > sf.ReviewScoreTo) {
+	if sf.DataSourceScoreNone || sf.DataSourceScoreFrom > 0 || sf.DataSourceScoreTo > 0 {
+		score := doc.DataSourceScore()
+		if sf.DataSourceScoreNone && score != 0 {
+			return false
+		}
+		if !sf.DataSourceScoreNone && (score <= 0 ||
+			(sf.DataSourceScoreFrom > 0 && score < sf.DataSourceScoreFrom) ||
+			(sf.DataSourceScoreTo > 0 && score > sf.DataSourceScoreTo)) {
 			return false
 		}
 	}
