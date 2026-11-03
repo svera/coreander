@@ -87,8 +87,10 @@ func (b *BleveIndexer) enrichTextRankAndReindex(document Document) {
 	enriched := b.rankDocument(document)
 	documents := []Document{enriched}
 	b.documentsMu.Lock()
-	b.preserveGoodReadsLocked(documents)
-	err := b.documentsIdx.Index(enriched.ID, documents[0])
+	err := b.preserveDataSourcesLocked(documents)
+	if err == nil {
+		err = IndexDocument(b.documentsIdx, enriched.ID, documents[0])
+	}
 	b.documentsMu.Unlock()
 	if err != nil {
 		log.Printf("Error indexing TextRank-enriched document %s: %s\n", enriched.ID, err)
@@ -266,10 +268,14 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 			enriched := b.rankDocuments(chunk, workers)
 
 			b.documentsMu.Lock()
-			b.preserveGoodReadsLocked(enriched)
+			if err := b.preserveDataSourcesLocked(enriched); err != nil {
+				b.documentsMu.Unlock()
+				b.endTextRankEnrichment()
+				return err
+			}
 			batch := b.documentsIdx.NewBatch()
 			for _, document := range enriched {
-				if err := batch.Index(document.ID, document); err != nil {
+				if err := IndexDocument(batch, document.ID, document); err != nil {
 					log.Printf("Error indexing enriched document %s: %s\n", document.ID, err)
 				}
 			}
@@ -545,10 +551,13 @@ func (b *BleveIndexer) rewriteCommonTextRankEntries(docCount uint64, batchSize i
 		}
 
 		b.documentsMu.Lock()
-		b.preserveGoodReadsLocked(documents)
+		if err := b.preserveDataSourcesLocked(documents); err != nil {
+			b.documentsMu.Unlock()
+			return pruned, err
+		}
 		batch := b.documentsIdx.NewBatch()
 		for _, document := range documents {
-			if err := batch.Index(document.ID, document); err != nil {
+			if err := IndexDocument(batch, document.ID, document); err != nil {
 				log.Printf("Error indexing document %s while pruning common TextRank entries: %s\n", document.ID, err)
 				continue
 			}

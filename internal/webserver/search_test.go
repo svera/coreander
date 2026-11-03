@@ -9,6 +9,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/webserver"
@@ -280,13 +281,13 @@ func TestSearchResultsShowStoredDataSourceScore(t *testing.T) {
 		{score: 5, want: "5.00"},
 	} {
 		t.Run(tt.want, func(t *testing.T) {
-			app, _ := newSearchResultsTestApp(t, []index.Document{{
+			app, _ := newSearchResultsTestApp(t, []index.Document{withGoodReadsData(t, index.Document{
 				ID: "linked.epub", Slug: "linked",
-				Metadata:             metadata.Metadata{Title: "La Reina Dragon", Format: "EPUB"},
-				DataSourceLink:       "/provider/items/linked",
+				Metadata: metadata.Metadata{Title: "La Reina Dragon", Format: "EPUB"},
+
 				DataSourceScoreValue: tt.score,
-				DataSourceScoreCount: "2,285",
-			}})
+			}, biblioreads.DocumentData{URL: "/book/show/linked", RatingCount: "2,285"}),
+			})
 			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/search?type=documents&search=La")))
 			if err != nil {
 				t.Fatal(err)
@@ -303,22 +304,19 @@ func TestSearchResultsShowStoredDataSourceScore(t *testing.T) {
 }
 
 func TestSearchResultsSortByDataSourceScore(t *testing.T) {
-	app, _ := newSearchResultsTestApp(t, []index.Document{
-		{
-			ID: "linked.epub", Slug: "linked",
-			Metadata:       metadata.Metadata{Title: "Linked", Format: "EPUB"},
-			DataSourceLink: "/provider/items/linked", DataSourceScoreValue: 3.2,
-		},
-		{
-			ID: "unlinked.epub", Slug: "unlinked",
-			Metadata:       metadata.Metadata{Title: "Unlinked", Format: "EPUB"},
-			DataSourceLink: "/provider/items/unlinked", DataSourceScoreValue: 4.1,
-		},
-		{
-			ID: "unmatched.epub", Slug: "unmatched",
-			Metadata:       metadata.Metadata{Title: "Unmatched", Format: "EPUB"},
-			DataSourceLink: "/provider/items/unmatched", DataSourceScoreValue: 4.8,
-		},
+	app, _ := newSearchResultsTestApp(t, []index.Document{withGoodReadsData(t, index.Document{
+		ID: "linked.epub", Slug: "linked",
+		Metadata:             metadata.Metadata{Title: "Linked", Format: "EPUB"},
+		DataSourceScoreValue: 3.2,
+	}, biblioreads.DocumentData{URL: "/book/show/linked"}), withGoodReadsData(t, index.Document{
+		ID: "unlinked.epub", Slug: "unlinked",
+		Metadata:             metadata.Metadata{Title: "Unlinked", Format: "EPUB"},
+		DataSourceScoreValue: 4.1,
+	}, biblioreads.DocumentData{URL: "/book/show/unlinked"}), withGoodReadsData(t, index.Document{
+		ID: "unmatched.epub", Slug: "unmatched",
+		Metadata:             metadata.Metadata{Title: "Unmatched", Format: "EPUB"},
+		DataSourceScoreValue: 4.8,
+	}, biblioreads.DocumentData{URL: "/book/show/unmatched"}),
 	})
 	for _, tt := range []struct {
 		direction string
@@ -346,11 +344,11 @@ func TestSearchResultsSortByDataSourceScore(t *testing.T) {
 }
 
 func TestSearchResultsShowStoredZeroRatingAsNotScored(t *testing.T) {
-	app, _ := newSearchResultsTestApp(t, []index.Document{{
+	app, _ := newSearchResultsTestApp(t, []index.Document{withGoodReadsData(t, index.Document{
 		ID: "unscored.epub", Slug: "unscored",
-		Metadata:       metadata.Metadata{Title: "Unscored", Format: "EPUB"},
-		DataSourceLink: "/provider/items/unscored",
-	}})
+		Metadata: metadata.Metadata{Title: "Unscored", Format: "EPUB"},
+	}, biblioreads.DocumentData{URL: "/book/show/unscored"}),
+	})
 	body := getBody(t, app, "/search?type=documents&search=Unscored")
 	page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
 	if err != nil {

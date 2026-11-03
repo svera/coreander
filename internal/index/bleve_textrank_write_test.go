@@ -36,7 +36,7 @@ func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 	})
 
 	for i := 0; i < 4; i++ {
-		if err := documentsIndexMem.Index(strconv.Itoa(i), Document{ID: strconv.Itoa(i)}); err != nil {
+		if err := IndexDocument(documentsIndexMem, strconv.Itoa(i), Document{ID: strconv.Itoa(i)}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -60,7 +60,7 @@ func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 	// PruneChangeTriggerRatio is 0.5 of the 4 documents recorded above (i.e.
 	// 2), so 3 more documents is enough to cross it.
 	for i := 0; i < 3; i++ {
-		if err := documentsIndexMem.Index("extra"+strconv.Itoa(i), Document{ID: "extra" + strconv.Itoa(i)}); err != nil {
+		if err := IndexDocument(documentsIndexMem, "extra"+strconv.Itoa(i), Document{ID: "extra" + strconv.Itoa(i)}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -83,7 +83,7 @@ func TestPruningReportsProgress(t *testing.T) {
 			TextRankPhrases: []string{"phrase " + id},
 			TextRankWords:   []string{"word" + id},
 		}
-		if err := documentsIndexMem.Index(id, document); err != nil {
+		if err := IndexDocument(documentsIndexMem, id, document); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -140,7 +140,7 @@ func TestPruneCommonTextRankEntriesRewritesCommonEntries(t *testing.T) {
 			TextRankPhrases: []string{"common phrase", "commonword distinctive" + id, "unique phrase " + id},
 			TextRankWords:   []string{"commonword", "unique" + id},
 		}
-		if err := documentsIndexMem.Index(id, document); err != nil {
+		if err := IndexDocument(documentsIndexMem, id, document); err != nil {
 			t.Fatal(err)
 		}
 	}

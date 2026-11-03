@@ -3,10 +3,12 @@ package index
 import (
 	"cmp"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
 	"image"
+	"log"
 	"math"
 	"net/url"
 	"os"
@@ -1082,12 +1084,7 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		textRankEnriched = match.Fields["TextRankEnriched"].(bool)
 	}
 
-	reviewLink, _ := match.Fields["DataSourceLink"].(string)
 	reviewScoreValue, _ := match.Fields["DataSourceScoreValue"].(float64)
-	reviewScoreCount, _ := match.Fields["DataSourceScoreCount"].(string)
-	goodReadsResourceID, _ := match.Fields["GoodReadsResourceID"].(string)
-	goodReadsLegacyBookID, _ := match.Fields["GoodReadsLegacyBookID"].(float64)
-	goodReadsEnriched, _ := match.Fields["GoodReadsEnriched"].(bool)
 
 	doc := Document{
 		ID: match.ID,
@@ -1106,24 +1103,38 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 			Illustrations: illustrations,
 			Format:        match.Fields["Format"].(string),
 		},
-		Slug:                  match.Fields["Slug"].(string),
-		AuthorsSlugs:          slicer(match.Fields["AuthorsSlugs"]),
-		IllustratorsSlugs:     illustratorsSlugs,
-		SeriesSlug:            match.Fields["SeriesSlug"].(string),
-		SubjectsSlugs:         slicer(match.Fields["SubjectsSlugs"]),
-		AddedOn:               addedOn,
-		TextRankPhrases:       textRankPhrases,
-		TextRankWords:         textRankWords,
-		TextRankEnriched:      textRankEnriched,
-		DataSourceLink:        reviewLink,
-		DataSourceScoreValue:  reviewScoreValue,
-		DataSourceScoreCount:  reviewScoreCount,
-		GoodReadsResourceID:   goodReadsResourceID,
-		GoodReadsLegacyBookID: int(goodReadsLegacyBookID),
-		GoodReadsEnriched:     goodReadsEnriched,
+		Slug:                 match.Fields["Slug"].(string),
+		AuthorsSlugs:         slicer(match.Fields["AuthorsSlugs"]),
+		IllustratorsSlugs:    illustratorsSlugs,
+		SeriesSlug:           match.Fields["SeriesSlug"].(string),
+		SubjectsSlugs:        slicer(match.Fields["SubjectsSlugs"]),
+		AddedOn:              addedOn,
+		TextRankPhrases:      textRankPhrases,
+		TextRankWords:        textRankWords,
+		TextRankEnriched:     textRankEnriched,
+		DataSources:          hydrateDataSources(match.Fields, match.ID),
+		DataSourceScoreValue: reviewScoreValue,
 	}
 
 	return doc
+}
+
+func hydrateDataSources(fields map[string]any, documentID string) map[string]json.RawMessage {
+	sources, err := decodeDataSources(fields, documentID)
+	if err != nil {
+		log.Println(err)
+	}
+	return sources
+}
+
+func decodeDataSources(fields map[string]any, documentID string) (map[string]json.RawMessage, error) {
+	var sources map[string]json.RawMessage
+	if raw, ok := fields["DataSources"].(string); ok {
+		if err := json.Unmarshal([]byte(raw), &sources); err != nil {
+			return nil, fmt.Errorf("reading data sources for document %s: %w", documentID, err)
+		}
+	}
+	return sources, nil
 }
 
 func slicer(val any) []string {

@@ -8,9 +8,18 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/mapping"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 )
+
+func withGoodReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
+	t.Helper()
+	if err := index.SetDataSourceData(&document, biblioreads.Source, data); err != nil {
+		t.Fatal(err)
+	}
+	return document
+}
 
 func TestGetIndexesMigratesAuthorsWithoutReindexingDocuments(t *testing.T) {
 	previousHome, previousInput := homeDir, input
@@ -23,7 +32,7 @@ func TestGetIndexesMigratesAuthorsWithoutReindexingDocuments(t *testing.T) {
 	}
 	documents := index.CreateDocumentsIndex(homeDir + documentsIndexPath)
 	for key, value := range map[string]string{
-		"version":              index.DocumentVersion,
+		"version":              "v16",
 		"illustrated_min_size": "0.25",
 		"min_occurrence_ratio": "0.1",
 		"max_textrank_words":   "10000",
@@ -32,12 +41,12 @@ func TestGetIndexesMigratesAuthorsWithoutReindexingDocuments(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	doc := index.Document{
+	doc := withGoodReadsData(t, index.Document{
 		ID: "book", Slug: "book", AuthorsSlugs: []string{"alice-borchardt"},
-		Metadata:          metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}},
-		GoodReadsEnriched: true,
-	}
-	if err := documents.Index(doc.ID, doc); err != nil {
+		Metadata: metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}},
+	}, biblioreads.DocumentData{Enriched: true})
+
+	if err := index.IndexDocument(documents, doc.ID, doc); err != nil {
 		t.Fatal(err)
 	}
 	if err := documents.Close(); err != nil {
@@ -71,8 +80,19 @@ func TestGetIndexesMigratesAuthorsWithoutReindexingDocuments(t *testing.T) {
 	if count, err := documents.DocCount(); err != nil || count != 1 {
 		t.Fatalf("document index was not preserved: count=%d, err=%v", count, err)
 	}
+	stored, err := idx.Document("book")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := index.DataSourceData[biblioreads.DocumentData](stored, biblioreads.Source)
+	if err != nil || !data.Enriched {
+		t.Fatalf("document migration lost enrichment state: %+v, %v", data, err)
+	}
 	author, err := idx.Author("alice-borchardt", "")
 	if err != nil || author.DataSourceID != "Q1" || !author.RetrievedOn.Equal(retrieved) {
 		t.Fatalf("expected existing author metadata preserved: %+v, %v", author, err)
+	}
+	if pending, err := idx.AuthorsWithoutInfo(); err != nil || len(pending) != 0 {
+		t.Fatalf("index migrations queued enriched authors again: %+v, %v", pending, err)
 	}
 }

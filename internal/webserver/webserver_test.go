@@ -123,7 +123,7 @@ func newSearchResultsTestApp(t *testing.T, documents []index.Document) (*fiber.A
 	idx := index.NewBleve(documentIndex, authorsIndex, appFS, testLibraryDir, nil, index.Config{})
 	t.Cleanup(func() { _ = idx.Close() })
 	for _, doc := range documents {
-		if err := documentIndex.Index(doc.ID, doc); err != nil {
+		if err := index.IndexDocument(documentIndex, doc.ID, doc); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -139,7 +139,7 @@ func newSearchResultsTestApp(t *testing.T, documents []index.Document) (*fiber.A
 // setReviewScore seeds a document's review score through the current provider-backed index storage.
 func setDataSourceScore(t *testing.T, idx *index.BleveIndexer, doc index.Document, score, count string) {
 	t.Helper()
-	bookURL := doc.DataSourceLink
+	bookURL := mustGoodReadsData(t, doc).URL
 	if bookURL == "" {
 		bookURL = "https://www.goodreads.com/book/show/1-" + doc.Slug
 		if err := idx.UpdateDataSourceLink(doc.ID, bookURL); err != nil {
@@ -150,7 +150,7 @@ func setDataSourceScore(t *testing.T, idx *index.BleveIndexer, doc index.Documen
 	if err != nil {
 		t.Fatalf("reload %s: %v", doc.Slug, err)
 	}
-	if err := idx.StoreGoodReadsDetails(updated, updated.DataSourceLink, biblioreads.BookResponse{
+	if err := idx.StoreGoodReadsDetails(updated, mustGoodReadsData(t, updated).URL, biblioreads.BookResponse{
 		Rating: score, RatingCount: count,
 	}); err != nil {
 		t.Fatalf("set review score for %s: %v", doc.Slug, err)

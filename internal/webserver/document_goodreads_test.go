@@ -41,6 +41,23 @@ type fakeBookSource struct {
 	reviewCalls []reviewCall
 }
 
+func mustGoodReadsData(t *testing.T, document index.Document) biblioreads.DocumentData {
+	t.Helper()
+	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+func withGoodReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
+	t.Helper()
+	if err := index.SetDataSourceData(&document, biblioreads.Source, data); err != nil {
+		t.Fatal(err)
+	}
+	return document
+}
+
 func TestDocumentReviewsCanSelectSupportedLanguage(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{
 		Rating: "4", ResourceID: "work-id", LegacyBookID: 1,
@@ -326,26 +343,21 @@ func newDataSourceProvidersTestApp(t *testing.T, source *fakeBookSource, provide
 	goodReadsLinks := reviews.NewBiblioReads(nil, idx)
 	t.Cleanup(func() { _ = idx.Close() })
 
-	for _, doc := range []index.Document{
-		{
-			ID: "linked.epub", Slug: "linked",
-			Metadata:             metadata.Metadata{Title: "La Reina Dragon", Format: "EPUB"},
-			DataSourceLink:       "/book/show/12207444-la-reina-dragon",
-			DataSourceScoreValue: 3.82,
-			GoodReadsEnriched:    true,
-		},
-		{
-			ID: "unlinked.epub", Slug: "unlinked",
-			Metadata:     metadata.Metadata{Title: "Unlinked", Authors: []string{"Jane Doe", "John Doe"}, Format: "EPUB"},
-			AuthorsSlugs: []string{"jane-doe", "john-doe"},
-		},
-		{
-			ID: "unmatched.epub", Slug: "unmatched",
-			Metadata:          metadata.Metadata{Title: "Unmatched", Format: "EPUB"},
-			GoodReadsEnriched: true,
-		},
+	for _, doc := range []index.Document{withGoodReadsData(t, index.Document{
+		ID: "linked.epub", Slug: "linked",
+		Metadata: metadata.Metadata{Title: "La Reina Dragon", Format: "EPUB"},
+
+		DataSourceScoreValue: 3.82,
+	}, biblioreads.DocumentData{URL: "/book/show/12207444-la-reina-dragon", Enriched: true}), {
+		ID: "unlinked.epub", Slug: "unlinked",
+		Metadata:     metadata.Metadata{Title: "Unlinked", Authors: []string{"Jane Doe", "John Doe"}, Format: "EPUB"},
+		AuthorsSlugs: []string{"jane-doe", "john-doe"},
+	}, withGoodReadsData(t, index.Document{
+		ID: "unmatched.epub", Slug: "unmatched",
+		Metadata: metadata.Metadata{Title: "Unmatched", Format: "EPUB"},
+	}, biblioreads.DocumentData{Enriched: true}),
 	} {
-		if err := documents.Index(doc.ID, doc); err != nil {
+		if err := index.IndexDocument(documents, doc.ID, doc); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -428,7 +440,7 @@ func TestDocumentDetailGoodReadsRating(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.GoodReadsResourceID != source.book.ResourceID || stored.GoodReadsLegacyBookID != source.book.LegacyBookID {
+	if mustGoodReadsData(t, stored).ResourceID != source.book.ResourceID || mustGoodReadsData(t, stored).LegacyBookID != source.book.LegacyBookID {
 		t.Fatalf("expected book identifiers to be stored, got %+v", stored)
 	}
 }
@@ -524,10 +536,9 @@ func TestDocumentUpdateGoodReads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.DataSourceLink != "/book/show/1368314.El_Cercano_Oriente" ||
-		stored.DataSourceScoreValue != 0 ||
-		stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 ||
-		!stored.GoodReadsEnriched {
+	if mustGoodReadsData(t, stored).URL != "/book/show/1368314.El_Cercano_Oriente" ||
+		stored.DataSourceScoreValue != 0 || mustGoodReadsData(t, stored).ResourceID != "" || mustGoodReadsData(t, stored).LegacyBookID != 0 ||
+		!mustGoodReadsData(t, stored).Enriched {
 		t.Fatalf("expected correction persisted without stale rating/review identifiers: %+v", stored)
 	}
 	source.book = biblioreads.BookResponse{Rating: "4.2", ResourceID: "new-work", LegacyBookID: 1368314}
@@ -568,7 +579,7 @@ func TestDocumentUpdateGoodReadsValidation(t *testing.T) {
 			t.Fatalf("invalid input should be retained for correction, got %q", got)
 		}
 		stored, err := idx.Document("linked")
-		if err != nil || stored.DataSourceLink != "/book/show/12207444-la-reina-dragon" || stored.DataSourceScoreValue != 3.82 {
+		if err != nil || mustGoodReadsData(t, stored).URL != "/book/show/12207444-la-reina-dragon" || stored.DataSourceScoreValue != 3.82 {
 			t.Fatalf("invalid input must not change the stored match: %+v, %v", stored, err)
 		}
 	}
@@ -664,14 +675,14 @@ func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.DataSourceLink != "/book/show/1-unlinked" || !stored.GoodReadsEnriched {
+	if mustGoodReadsData(t, stored).URL != "/book/show/1-unlinked" || !mustGoodReadsData(t, stored).Enriched {
 		t.Errorf("expected the found link to be stored, got %+v", stored)
 	}
 	author, err := idx.Author("jane-doe", "")
 	if err != nil || author.DataSourceLinks["goodreads"] != "/author/show/1.Jane_Doe" || author.DocumentCount != 1 {
 		t.Fatalf("expected missing author entry created with URL and document count, got %+v, %v", author, err)
 	}
-	if stored.GoodReadsResourceID != "" || stored.GoodReadsLegacyBookID != 0 {
+	if mustGoodReadsData(t, stored).ResourceID != "" || mustGoodReadsData(t, stored).LegacyBookID != 0 {
 		t.Fatalf("search-only lookup must not populate scraper identifiers, got %+v", stored)
 	}
 
@@ -743,7 +754,7 @@ func TestDocumentDetailGoodReadsIdentifiersWithoutRating(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.GoodReadsResourceID != "work-id" || stored.GoodReadsLegacyBookID != 12207444 {
+	if mustGoodReadsData(t, stored).ResourceID != "work-id" || mustGoodReadsData(t, stored).LegacyBookID != 12207444 {
 		t.Fatalf("expected identifiers even without a rating, got %+v", stored)
 	}
 
@@ -758,7 +769,7 @@ func TestDocumentDetailGoodReadsIdentifiersWithoutRating(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if stored.GoodReadsResourceID != "work-id" || stored.GoodReadsLegacyBookID != 12207444 {
+		if mustGoodReadsData(t, stored).ResourceID != "work-id" || mustGoodReadsData(t, stored).LegacyBookID != 12207444 {
 			t.Fatalf("incomplete response overwrote stored identifiers: %+v", stored)
 		}
 	}
@@ -830,7 +841,7 @@ func TestDocumentDetailGoodReadsSearchDoesNotScrape(t *testing.T) {
 				t.Errorf("expected %d searches and no book-scraper calls, got queries %q and ids %q", tt.queries, source.queries, source.ids)
 			}
 			stored, err := idx.Document("unlinked")
-			if err != nil || stored.GoodReadsEnriched != tt.enriched {
+			if err != nil || mustGoodReadsData(t, stored).Enriched != tt.enriched {
 				t.Fatalf("unexpected stored lookup status: %+v, %v", stored, err)
 			}
 		})
@@ -1016,7 +1027,7 @@ func TestDocumentDetailGoodReadsReviews(t *testing.T) {
 		t.Fatal("expected review dates in ISO format for client-side localization")
 	}
 	stored, err := idx.Document("linked")
-	if err != nil || stored.GoodReadsResourceID != "work-id" || stored.GoodReadsLegacyBookID != 12207444 {
+	if err != nil || mustGoodReadsData(t, stored).ResourceID != "work-id" || mustGoodReadsData(t, stored).LegacyBookID != 12207444 {
 		t.Fatalf("expected review identifiers to be stored: %+v, %v", stored, err)
 	}
 }

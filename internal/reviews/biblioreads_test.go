@@ -10,6 +10,14 @@ import (
 	"github.com/svera/coreander/v5/internal/reviews"
 )
 
+func withGoodReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
+	t.Helper()
+	if err := index.SetDataSourceData(&document, biblioreads.Source, data); err != nil {
+		t.Fatal(err)
+	}
+	return document
+}
+
 func TestBiblioReadsDataSourceLinks(t *testing.T) {
 	provider := reviews.NewBiblioReads(nil, nil)
 	author := provider.AuthorLink(index.Author{
@@ -20,9 +28,7 @@ func TestBiblioReadsDataSourceLinks(t *testing.T) {
 		t.Fatalf("unexpected Goodreads author link: %+v", author)
 	}
 
-	document := provider.DocumentLink(index.Document{
-		DataSourceLink: "/book/show/456.A_Book",
-	})
+	document := provider.DocumentLink(withGoodReadsData(t, index.Document{}, biblioreads.DocumentData{URL: "/book/show/456.A_Book"}))
 	if document.URL != "https://www.goodreads.com/book/show/456.A_Book" ||
 		document.Source != "Goodreads" || document.Icon != "/images/goodreads.svg" || !document.IconInvertible {
 		t.Fatalf("unexpected Goodreads document link: %+v", document)

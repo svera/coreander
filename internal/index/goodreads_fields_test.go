@@ -8,9 +8,27 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/mapping"
 	"github.com/blevesearch/bleve/v2/search/query"
+	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 )
+
+func mustGoodReadsData(t *testing.T, document index.Document) biblioreads.DocumentData {
+	t.Helper()
+	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+func withGoodReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
+	t.Helper()
+	if err := index.SetDataSourceData(&document, biblioreads.Source, data); err != nil {
+		t.Fatal(err)
+	}
+	return document
+}
 
 func TestReviewScoreSorting(t *testing.T) {
 	docs := []index.Document{
@@ -104,7 +122,7 @@ func TestReviewFieldsAndProviderMetadataAreStoredButNotSearchable(t *testing.T) 
 		legacyBookID = 12207444
 	)
 	for _, lang := range []string{"es", ""} {
-		doc := index.Document{
+		doc := withGoodReadsData(t, index.Document{
 			ID:   "doc-" + lang,
 			Slug: "doc-" + lang,
 			Metadata: metadata.Metadata{
@@ -113,14 +131,12 @@ func TestReviewFieldsAndProviderMetadataAreStoredButNotSearchable(t *testing.T) 
 				Language: lang,
 				Format:   "EPUB",
 			},
-			AuthorsSlugs:          []string{"alice-borchardt"},
-			DataSourceLink:        bookURL,
-			DataSourceScoreValue:  4.25,
-			DataSourceScoreCount:  "2285",
-			GoodReadsResourceID:   resourceID,
-			GoodReadsLegacyBookID: legacyBookID,
-		}
-		if err := documentsIndexMem.Index(doc.ID, doc); err != nil {
+			AuthorsSlugs: []string{"alice-borchardt"},
+
+			DataSourceScoreValue: 4.25,
+		}, biblioreads.DocumentData{URL: bookURL, RatingCount: "2285", ResourceID: resourceID, LegacyBookID: legacyBookID})
+
+		if err := index.IndexDocument(documentsIndexMem, doc.ID, doc); err != nil {
 			t.Fatal(err)
 		}
 
@@ -128,20 +144,20 @@ func TestReviewFieldsAndProviderMetadataAreStoredButNotSearchable(t *testing.T) 
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got.DataSourceLink != bookURL {
-			t.Errorf("language %q: expected stored book URL, got %q", lang, got.DataSourceLink)
+		if mustGoodReadsData(t, got).URL != bookURL {
+			t.Errorf("language %q: expected stored book URL, got %q", lang, mustGoodReadsData(t, got).URL)
 		}
 		if got.DataSourceScoreValue != 4.25 {
 			t.Errorf("language %q: expected stored rating, got %v", lang, got.DataSourceScoreValue)
 		}
-		if got.DataSourceScoreCount != "2285" {
-			t.Errorf("language %q: expected stored rating count, got %q", lang, got.DataSourceScoreCount)
+		if mustGoodReadsData(t, got).RatingCount != "2285" {
+			t.Errorf("language %q: expected stored rating count, got %q", lang, mustGoodReadsData(t, got).RatingCount)
 		}
-		if got.GoodReadsResourceID != resourceID || got.GoodReadsLegacyBookID != legacyBookID {
-			t.Errorf("language %q: expected stored identifiers, got %q and %d", lang, got.GoodReadsResourceID, got.GoodReadsLegacyBookID)
+		if mustGoodReadsData(t, got).ResourceID != resourceID || mustGoodReadsData(t, got).LegacyBookID != legacyBookID {
+			t.Errorf("language %q: expected stored identifiers, got %q and %d", lang, mustGoodReadsData(t, got).ResourceID, mustGoodReadsData(t, got).LegacyBookID)
 		}
 	}
-	if err := documentsIndexMem.Index("unscored", index.Document{
+	if err := index.IndexDocument(documentsIndexMem, "unscored", index.Document{
 		ID:   "unscored",
 		Slug: "unscored",
 		Metadata: metadata.Metadata{
@@ -175,13 +191,14 @@ func TestReviewFieldsAndProviderMetadataAreStoredButNotSearchable(t *testing.T) 
 	}
 
 	queries := map[string]bleve.SearchRequest{
-		"book URL field term":     *bleve.NewSearchRequest(fieldTermQuery("DataSourceLink", bookURL)),
-		"author URL field term":   *bleve.NewSearchRequest(fieldTermQuery("GoodReadsAuthorURL", authorURL)),
-		"resource ID field term":  *bleve.NewSearchRequest(fieldTermQuery("GoodReadsResourceID", resourceID)),
-		"legacy ID numeric field": *bleve.NewSearchRequest(legacyBookIDQuery(legacyBookID)),
-		"_all match":              *bleve.NewSearchRequest(bleve.NewMatchQuery("zyxwvbook")),
-		"_all term":               *bleve.NewSearchRequest(bleve.NewTermQuery(bookURL)),
-		"query string field":      *bleve.NewSearchRequest(bleve.NewQueryStringQuery(`DataSourceLink:"` + bookURL + `"`)),
+		"provider data field term": *bleve.NewSearchRequest(fieldTermQuery("DataSources", bookURL)),
+		"provider URL field term":  *bleve.NewSearchRequest(fieldTermQuery("DataSources.goodreads.url", bookURL)),
+		"author URL field term":    *bleve.NewSearchRequest(fieldTermQuery("GoodReadsAuthorURL", authorURL)),
+		"resource ID field term":   *bleve.NewSearchRequest(fieldTermQuery("DataSources.goodreads.resourceId", resourceID)),
+		"legacy ID numeric field":  *bleve.NewSearchRequest(legacyBookIDQuery(legacyBookID)),
+		"_all match":               *bleve.NewSearchRequest(bleve.NewMatchQuery("zyxwvbook")),
+		"_all term":                *bleve.NewSearchRequest(bleve.NewTermQuery(bookURL)),
+		"query string field":       *bleve.NewSearchRequest(bleve.NewQueryStringQuery(`DataSources:"` + bookURL + `"`)),
 	}
 	for name, req := range queries {
 		res, err := documentsIndexMem.Search(&req)
@@ -249,7 +266,7 @@ func TestReviewScoreSortingMissingFieldsAndTies(t *testing.T) {
 func legacyBookIDQuery(id int) *query.NumericRangeQuery {
 	value := float64(id)
 	q := bleve.NewNumericRangeQuery(&value, &value)
-	q.SetField("GoodReadsLegacyBookID")
+	q.SetField("DataSources.goodreads.legacyBookId")
 	return q
 }
 

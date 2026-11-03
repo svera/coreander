@@ -30,7 +30,7 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v16"
+const DocumentVersion = "v17"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
@@ -401,10 +401,8 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	storedOnlyFieldMapping.IncludeInAll = false
 	storedOnlyFieldMapping.DocValues = false
 
-	storedOnlyNumericFieldMapping := bleve.NewNumericFieldMapping()
-	storedOnlyNumericFieldMapping.Index = false
-	storedOnlyNumericFieldMapping.IncludeInAll = false
-	storedOnlyNumericFieldMapping.DocValues = false
+	enrichedSourcesFieldMapping := bleve.NewKeywordFieldMapping()
+	enrichedSourcesFieldMapping.IncludeInAll = false
 
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
@@ -464,12 +462,9 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrations", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("DataSourceLink", storedOnlyFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("DataSources", storedOnlyFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("EnrichedDataSources", enrichedSourcesFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("DataSourceScoreValue", numericFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("DataSourceScoreCount", storedOnlyFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsResourceID", storedOnlyFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsLegacyBookID", storedOnlyNumericFieldMapping)
-		indexMapping.TypeMapping[lang].AddFieldMappingsAt("GoodReadsEnriched", booleanFieldMapping)
 	}
 
 	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
@@ -494,12 +489,9 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Illustrations", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceLink", storedOnlyFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSources", storedOnlyFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("EnrichedDataSources", enrichedSourcesFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceScoreValue", numericFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceScoreCount", storedOnlyFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsResourceID", storedOnlyFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsLegacyBookID", storedOnlyNumericFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsEnriched", booleanFieldMapping)
 
 	return indexMapping
 }

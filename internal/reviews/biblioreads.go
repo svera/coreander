@@ -54,7 +54,12 @@ func (b *BiblioReads) AuthorLink(author index.Author, _ string) datasourcemodel.
 
 // DocumentLink returns the indexed book link without making a network request.
 func (b *BiblioReads) DocumentLink(document index.Document) datasourcemodel.DataSourceLink {
-	return goodReadsDataSourceLink(document.DataSourceLink, "/book/show/")
+	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+	if err != nil {
+		log.Println(err)
+		return datasourcemodel.DataSourceLink{}
+	}
+	return goodReadsDataSourceLink(data.URL, "/book/show/")
 }
 
 func goodReadsDataSourceLink(path, prefix string) datasourcemodel.DataSourceLink {
@@ -63,6 +68,18 @@ func goodReadsDataSourceLink(path, prefix string) datasourcemodel.DataSourceLink
 		link.URL = goodReadsBaseURL + path
 	}
 	return link
+}
+
+// StoredScore builds a score from indexed data without making a network request.
+func (b *BiblioReads) StoredScore(document index.Document) (Score, error) {
+	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+	if err != nil {
+		return Score{}, err
+	}
+	return Score{
+		Source: b.Name(), Value: fmt.Sprintf("%.2f", document.DataSourceScoreValue),
+		Count: data.RatingCount, URL: goodReadsDataSourceLink(data.URL, goodReadsBookPrefix).URL,
+	}, nil
 }
 
 // CanEditDocumentLink reports that Goodreads book links can be corrected.
@@ -105,7 +122,11 @@ func bookID(bookURL string) (string, error) {
 }
 
 func (b *BiblioReads) book(ctx context.Context, document index.Document) (biblioreads.BookResponse, error) {
-	id, err := bookID(document.DataSourceLink)
+	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+	if err != nil {
+		return biblioreads.BookResponse{}, err
+	}
+	id, err := bookID(data.URL)
 	if err != nil {
 		return biblioreads.BookResponse{}, err
 	}
@@ -118,7 +139,7 @@ func (b *BiblioReads) book(ctx context.Context, document index.Document) (biblio
 		book.Rating = fmt.Sprintf("%.2f", document.DataSourceScoreValue)
 		details.Rating = ""
 	}
-	if err := b.index.StoreGoodReadsDetails(document, document.DataSourceLink, details); err != nil {
+	if err := b.index.StoreGoodReadsDetails(document, data.URL, details); err != nil {
 		log.Printf("Error saving Goodreads details for %s: %s", document.ID, err)
 	}
 	return book, nil
@@ -131,7 +152,11 @@ func isZeroRating(rating string) bool {
 
 func (b *BiblioReads) Score(ctx context.Context, document index.Document) (Score, error) {
 	score := Score{Source: "Goodreads"}
-	if document.DataSourceLink == "" {
+	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+	if err != nil {
+		return score, err
+	}
+	if data.URL == "" {
 		result, err := b.index.GoodReadsBook(ctx, document)
 		if err != nil {
 			return score, err
@@ -142,7 +167,10 @@ func (b *BiblioReads) Score(ctx context.Context, document index.Document) (Score
 		if _, err := bookID(result.BookURL); err != nil {
 			return score, err
 		}
-		document.DataSourceLink = result.BookURL
+		data.URL = result.BookURL
+		if err := index.SetDataSourceData(&document, biblioreads.Source, data); err != nil {
+			return score, err
+		}
 		score.Value, score.Count, score.URL = result.Rating, result.RatingCount, b.DocumentLink(document).URL
 		return score, nil
 	}
@@ -155,7 +183,11 @@ func (b *BiblioReads) Score(ctx context.Context, document index.Document) (Score
 }
 
 func (b *BiblioReads) Reviews(ctx context.Context, document index.Document, language string) (Page, error) {
-	if document.DataSourceLink == "" {
+	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+	if err != nil {
+		return Page{}, err
+	}
+	if data.URL == "" {
 		return Page{}, nil
 	}
 	book, err := b.book(ctx, document)
@@ -165,7 +197,7 @@ func (b *BiblioReads) Reviews(ctx context.Context, document index.Document, lang
 	if book.Rating == "" {
 		return Page{}, nil
 	}
-	resourceID, legacyBookID := document.GoodReadsResourceID, document.GoodReadsLegacyBookID
+	resourceID, legacyBookID := data.ResourceID, data.LegacyBookID
 	if book.ResourceID != "" && book.LegacyBookID > 0 {
 		resourceID, legacyBookID = book.ResourceID, book.LegacyBookID
 	}

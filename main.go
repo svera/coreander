@@ -257,11 +257,13 @@ func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, max
 	needsReindex := false
 
 	// Open or create documents index
-	documentsIndex, err := bleve.Open(homeDir + documentsIndexPath)
+	documentsIndex, err := index.OpenDocumentsIndex(homeDir+documentsIndexPath, input.BatchSize)
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No documents index found, creating a new one.")
 		documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)
 		needsReindex = true
+	} else if err != nil {
+		log.Fatal(err)
 	}
 
 	// Open or create authors index
@@ -280,15 +282,7 @@ func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, max
 		log.Fatal(err)
 	}
 	if string(version) == "" || string(version) != index.DocumentVersion {
-		log.Println("Old version documents index found, recreating with new mapping.")
-		if err = documentsIndex.Close(); err != nil {
-			log.Fatal(err)
-		}
-		if err = fs.RemoveAll(homeDir + documentsIndexPath); err != nil {
-			log.Fatal(err)
-		}
-		documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)
-		needsReindex = true
+		log.Fatalf("Unsupported documents index version %q; preserving the index instead of recreating it.", version)
 	}
 
 	// Rebuild index if TextRank or illustration configuration changed (stored in index metadata).

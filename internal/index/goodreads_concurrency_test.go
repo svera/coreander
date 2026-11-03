@@ -37,7 +37,7 @@ func TestGoodReadsEnrichmentUsesBoundedConcurrency(t *testing.T) {
 			ID:       fmt.Sprintf("book-%d.pdf", i),
 			Metadata: metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}},
 		}
-		if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
+		if err := IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
 			t.Fatal(err)
 		}
 		documents = append(documents, doc)

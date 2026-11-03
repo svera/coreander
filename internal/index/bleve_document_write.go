@@ -147,9 +147,11 @@ func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
 			document.TextRankEnriched = !b.supportsTextRank(file)
 			documents := []Document{document}
 			b.documentsMu.Lock()
-			b.preserveGoodReadsLocked(documents)
-			document = documents[0]
-			err = b.documentsIdx.Index(id, document)
+			err = b.preserveDataSourcesLocked(documents)
+			if err == nil {
+				document = documents[0]
+				err = IndexDocument(b.documentsIdx, id, document)
+			}
 			b.documentsMu.Unlock()
 			if err != nil {
 				return "", fmt.Errorf("error updating indexed file %s: %w", file, err)
@@ -167,7 +169,7 @@ func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
 	document.TextRankEnriched = !b.supportsTextRank(file)
 
 	b.documentsMu.Lock()
-	err = b.documentsIdx.Index(document.ID, document)
+	err = IndexDocument(b.documentsIdx, document.ID, document)
 	b.documentsMu.Unlock()
 	if err != nil {
 		return "", fmt.Errorf("error indexing file %s: %s", file, err)
@@ -332,7 +334,7 @@ func (b *BleveIndexer) AddLibrary(batchSize int, forceIndexing bool, metadataWor
 			// consider them.
 			document.TextRankEnriched = !b.supportsTextRank(job.path)
 
-			if err = batch.Index(document.ID, document); err != nil {
+			if err = IndexDocument(batch, document.ID, document); err != nil {
 				log.Printf("Error indexing file %s: %s\n", job.path, err)
 				continue
 			}
