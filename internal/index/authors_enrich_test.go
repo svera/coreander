@@ -2,6 +2,8 @@ package index_test
 
 import (
 	"errors"
+	"maps"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -76,9 +78,9 @@ func (m *mockAuthorDataSource) RetrieveAuthors(candidates map[string][]string, _
 }
 
 type stubAuthor struct {
-	sourceID  string
-	website   string
-	wikipedia map[string]string
+	sourceID   string
+	links      map[string]string
+	linkPrefix string
 }
 
 func (a stubAuthor) BirthName() string                        { return "" }
@@ -88,11 +90,13 @@ func (a stubAuthor) Gender() float64                          { return 0 }
 func (a stubAuthor) DateOfBirth() precisiondate.PrecisionDate { return precisiondate.PrecisionDate{} }
 func (a stubAuthor) DateOfDeath() precisiondate.PrecisionDate { return precisiondate.PrecisionDate{} }
 func (a stubAuthor) Image() string                            { return "" }
-func (a stubAuthor) Website() string                          { return a.website }
-func (a stubAuthor) WikipediaLink(lang string) string         { return a.wikipedia[lang] }
-func (a stubAuthor) SourceID() string                         { return a.sourceID }
-func (a stubAuthor) RetrievedOn() time.Time                   { return time.Now().UTC() }
-func (a stubAuthor) Pseudonyms() []string                     { return nil }
+func (a stubAuthor) Links() map[string]string                 { return maps.Clone(a.links) }
+func (a stubAuthor) OwnsLink(key string) bool {
+	return a.linkPrefix != "" && strings.HasPrefix(key, a.linkPrefix)
+}
+func (a stubAuthor) SourceID() string       { return a.sourceID }
+func (a stubAuthor) RetrievedOn() time.Time { return time.Now().UTC() }
+func (a stubAuthor) Pseudonyms() []string   { return nil }
 
 func TestAuthorMetadataRefreshUpdatesLinks(t *testing.T) {
 	authors, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
@@ -104,21 +108,31 @@ func TestAuthorMetadataRefreshUpdatesLinks(t *testing.T) {
 	author := index.Author{
 		Slug: "writer", Name: "Writer",
 		DataSourceLinks: map[string]string{
-			"website":      "https://old.example",
-			"wikipedia:en": "https://en.wikipedia.org/wiki/Old",
-			"wikipedia:es": "https://es.wikipedia.org/wiki/Old",
-			"goodreads":    "/author/show/1.Writer",
-			"catalog":      "https://catalog.example/writer",
+			"example:website": "https://old.example",
+			"example:en":      "https://en.example/Old",
+			"example:es":      "https://es.example/Old",
+			"goodreads":       "/author/show/1.Writer",
+			"catalog":         "https://catalog.example/writer",
 		},
 	}
 	if err := idx.IndexAuthor(author); err != nil {
 		t.Fatal(err)
 	}
 	for _, source := range []stubAuthor{
-		{sourceID: "Q1", website: "https://new.example", wikipedia: map[string]string{"en": "https://en.wikipedia.org/wiki/New"}},
-		{sourceID: "Q1"},
+		{sourceID: "Q1", linkPrefix: "example:", links: map[string]string{
+			"example:website": "https://new.example", "example:en": "https://en.example/New",
+		}},
+		{sourceID: "Q1", linkPrefix: "example:"},
 	} {
 		index.CombineWithDataSource(&author, source, []string{"en", "es"})
+		current, err := idx.Author("writer", "en")
+		if err != nil {
+			t.Fatal(err)
+		}
+		current.DataSourceLinks["another-provider"] = "https://another.example/writer"
+		if err := idx.IndexAuthor(current); err != nil {
+			t.Fatal(err)
+		}
 		if err := idx.IndexAuthor(author); err != nil {
 			t.Fatal(err)
 		}
@@ -126,14 +140,21 @@ func TestAuthorMetadataRefreshUpdatesLinks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got.DataSourceLinks["website"] != source.website ||
-			got.DataSourceLinks["wikipedia:en"] != source.wikipedia["en"] ||
-			got.DataSourceLinks["wikipedia:es"] != "" {
+		if got.DataSourceLinks["example:website"] != source.links["example:website"] ||
+			got.DataSourceLinks["example:en"] != source.links["example:en"] ||
+			got.DataSourceLinks["example:es"] != "" {
 			t.Fatalf("metadata links were not refreshed: %+v", got.DataSourceLinks)
 		}
 		if got.DataSourceLinks["goodreads"] != "/author/show/1.Writer" ||
-			got.DataSourceLinks["catalog"] != "https://catalog.example/writer" {
+			got.DataSourceLinks["catalog"] != "https://catalog.example/writer" ||
+			got.DataSourceLinks["another-provider"] != "https://another.example/writer" {
 			t.Fatalf("metadata refresh lost independent provider links: %+v", got.DataSourceLinks)
+		}
+		if source.links != nil {
+			author.DataSourceLinks["example:website"] = "https://caller.example"
+			if source.links["example:website"] != "https://new.example" {
+				t.Fatal("combining metadata retained a mutable datasource map")
+			}
 		}
 	}
 }

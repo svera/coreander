@@ -24,6 +24,8 @@ type Author struct {
 	Gender          float64
 	Pseudonyms      []string
 	DocumentCount   uint64
+	// ownsRefreshedLink is set only while applying an external metadata refresh.
+	ownsRefreshedLink func(string) bool
 }
 
 func (a Author) YearOfBirthAbs() int {

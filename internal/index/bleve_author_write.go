@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"maps"
-	"strings"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
@@ -180,7 +179,7 @@ func (b *BleveIndexer) IndexAuthor(author Author) error {
 			links = make(map[string]string)
 		}
 		for source, link := range current.DataSourceLinks {
-			if source != "website" && !strings.HasPrefix(source, "wikipedia:") {
+			if author.ownsRefreshedLink == nil || !author.ownsRefreshedLink(source) {
 				links[source] = link
 			}
 		}
@@ -233,11 +232,12 @@ func CombineWithDataSource(author *Author, authorDataSource datasourcemodel.Auth
 	author.BirthName = authorDataSource.BirthName()
 	author.RetrievedOn = authorDataSource.RetrievedOn()
 	author.DataSourceLinks = maps.Clone(author.DataSourceLinks)
+	author.ownsRefreshedLink = authorDataSource.OwnsLink
 	if author.DataSourceLinks == nil {
 		author.DataSourceLinks = make(map[string]string)
 	}
 	for source := range author.DataSourceLinks {
-		if source == "website" || strings.HasPrefix(source, "wikipedia:") {
+		if authorDataSource.OwnsLink(source) {
 			delete(author.DataSourceLinks, source)
 		}
 	}
@@ -245,8 +245,10 @@ func CombineWithDataSource(author *Author, authorDataSource datasourcemodel.Auth
 	author.Description = make(map[string]string)
 	author.DateOfBirth = authorDataSource.DateOfBirth()
 	author.DateOfDeath = authorDataSource.DateOfDeath()
-	if website := authorDataSource.Website(); website != "" {
-		author.DataSourceLinks["website"] = website
+	for key, link := range authorDataSource.Links() {
+		if link != "" {
+			author.DataSourceLinks[key] = link
+		}
 	}
 	author.DataSourceImage = authorDataSource.Image()
 	author.Gender = authorDataSource.Gender()
@@ -259,9 +261,6 @@ func CombineWithDataSource(author *Author, authorDataSource datasourcemodel.Auth
 	}
 
 	for _, lang := range supportedLanguages {
-		if link := authorDataSource.WikipediaLink(lang); link != "" {
-			author.DataSourceLinks["wikipedia:"+lang] = link
-		}
 		author.Description[lang] = authorDataSource.Description(lang)
 	}
 }
