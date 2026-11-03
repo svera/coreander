@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 )
 
 var previousDocumentVersions = []string{"v13", "v14", "v15", "v16"}
@@ -77,20 +76,6 @@ func copyDocuments(source, destination bleve.Index, batchSize int) error {
 			document.DataSources, err = decodeDataSources(hit.Fields, hit.ID)
 			if err != nil {
 				return err
-			}
-			link, _ := hit.Fields["DataSourceLink"].(string)
-			count, _ := hit.Fields["DataSourceScoreCount"].(string)
-			resource, _ := hit.Fields["GoodReadsResourceID"].(string)
-			legacyID, _ := hit.Fields["GoodReadsLegacyBookID"].(float64)
-			enriched, _ := hit.Fields["GoodReadsEnriched"].(bool)
-			if link != "" || count != "" || resource != "" || legacyID != 0 || enriched {
-				if _, exists := document.DataSources[biblioreads.Source]; !exists {
-					if err := SetDataSourceData(&document, biblioreads.Source, biblioreads.DocumentData{
-						URL: link, RatingCount: count, ResourceID: resource, LegacyBookID: int(legacyID), Enriched: enriched,
-					}); err != nil {
-						return err
-					}
-				}
 			}
 			if err := IndexDocument(batch, hit.ID, document); err != nil {
 				return err
