@@ -128,7 +128,6 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		return controllers.Search.SearchDocuments(c)
 	})
 	docsGroup.Get("/:slug/score", controllers.Documents.Score)
-	docsGroup.Get("/:slug/goodreads", controllers.Documents.Score)
 	docsGroup.Get("/:slug/reviews", controllers.Documents.Reviews)
 	docsGroup.Get("/:slug/read", controllers.Documents.Reader)
 	docsGroup.Get("/:slug/annotations", alwaysRequireAuthentication, controllers.Annotations.List)

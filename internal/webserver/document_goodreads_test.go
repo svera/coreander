@@ -193,7 +193,7 @@ func TestDocumentAlternativeReviewProvider(t *testing.T) {
 	if goodReadsPlaceholders(t, detail).Length() != 1 || len(provider.scoreSlugs) != 0 || len(provider.reviewSlugs) != 0 {
 		t.Fatal("detail must defer lookups to the selected provider")
 	}
-	for _, path := range []string{"/documents/unmatched/score", "/documents/unmatched/goodreads"} {
+	for _, path := range []string{"/documents/unmatched/score"} {
 		body := getBody(t, app, path)
 		page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
 		if err != nil {
@@ -215,7 +215,7 @@ func TestDocumentAlternativeReviewProvider(t *testing.T) {
 		page.Find("i.bi-star-fill").Length() != 5 || page.Find("script").Length() != 0 {
 		t.Fatalf("reviews must render normalized provider data safely: %s", body)
 	}
-	if len(provider.scoreSlugs) != 2 || len(provider.reviewSlugs) != 1 || provider.reviewSlugs[0] != "unmatched" {
+	if len(provider.scoreSlugs) != 1 || len(provider.reviewSlugs) != 1 || provider.reviewSlugs[0] != "unmatched" {
 		t.Fatal("expected calls through the provider interface")
 	}
 	if len(provider.reviewLanguages) != 1 || provider.reviewLanguages[0] != "en" {
@@ -404,7 +404,7 @@ func TestDocumentDetailGoodReadsRating(t *testing.T) {
 		t.Error("expected the placeholder inside the document metadata list")
 	}
 
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/goodreads")))
+	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/score")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -588,7 +588,7 @@ func TestDocumentDetailUpdatesStoredGoodReadsRating(t *testing.T) {
 	}}
 	app, idx := newGoodReadsTestApp(t, source)
 
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/goodreads")))
+	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/score")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -615,7 +615,7 @@ func TestDocumentDetailKeepsStoredGoodReadsRatingWhenScraperReturnsZero(t *testi
 	}}
 	app, idx := newGoodReadsTestApp(t, source)
 
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/goodreads")))
+	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/score")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -643,7 +643,7 @@ func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
 		t.Fatalf("expected a placeholder for a document not looked up yet, got %d", got)
 	}
 
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/unlinked/goodreads")))
+	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/unlinked/score")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -678,7 +678,7 @@ func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
 	if err := idx.EnrichGoodReads(10); err != nil {
 		t.Fatal(err)
 	}
-	page, err = goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/unlinked/goodreads")))
+	page, err = goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/unlinked/score")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -699,7 +699,7 @@ func TestDocumentDetailGoodReadsSkipsUnmatchedDocuments(t *testing.T) {
 	if got := goodReadsPlaceholders(t, getBody(t, app, "/documents/unmatched")).Length(); got != 1 {
 		t.Errorf("expected an async score placeholder, got %d", got)
 	}
-	for _, path := range []string{"/documents/unmatched/score", "/documents/unmatched/goodreads"} {
+	for _, path := range []string{"/documents/unmatched/score"} {
 		page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, path)))
 		if err != nil {
 			t.Fatal(err)
@@ -722,7 +722,7 @@ func TestDocumentDetailGoodReadsRatingRendersNothingWhenUnavailable(t *testing.T
 	} {
 		t.Run(name, func(t *testing.T) {
 			app, _ := newGoodReadsTestApp(t, source)
-			if body := strings.TrimSpace(getBody(t, app, "/documents/linked/goodreads")); body != "" {
+			if body := strings.TrimSpace(getBody(t, app, "/documents/linked/score")); body != "" {
 				t.Errorf("expected empty response, got %q", body)
 			}
 		})
@@ -732,7 +732,7 @@ func TestDocumentDetailGoodReadsRatingRendersNothingWhenUnavailable(t *testing.T
 func TestDocumentDetailGoodReadsIdentifiersWithoutRating(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{ResourceID: "work-id", LegacyBookID: 12207444}}
 	app, idx := newGoodReadsTestApp(t, source)
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/goodreads")))
+	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/score")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -753,7 +753,7 @@ func TestDocumentDetailGoodReadsIdentifiersWithoutRating(t *testing.T) {
 		{LegacyBookID: 2},
 	} {
 		source.book = book
-		getBody(t, app, "/documents/linked/goodreads")
+		getBody(t, app, "/documents/linked/score")
 		stored, err = idx.Document("linked")
 		if err != nil {
 			t.Fatal(err)
@@ -770,7 +770,7 @@ func TestDocumentDetailGoodReadsDisabled(t *testing.T) {
 		if got := goodReadsPlaceholders(t, getBody(t, app, "/documents/"+slug)).Length(); got != 0 {
 			t.Errorf("%s: expected no placeholder when GoodReads is disabled, got %d", slug, got)
 		}
-		if body := strings.TrimSpace(getBody(t, app, "/documents/"+slug+"/goodreads")); body != "" {
+		if body := strings.TrimSpace(getBody(t, app, "/documents/"+slug+"/score")); body != "" {
 			t.Errorf("%s: expected empty response, got %q", slug, body)
 		}
 		if body := getBody(t, app, "/documents/"+slug); strings.Contains(body, "bi-star-fill") {
@@ -805,7 +805,7 @@ func TestDocumentDetailGoodReadsSearchDoesNotScrape(t *testing.T) {
 				book: biblioreads.BookResponse{Rating: "5.00"},
 			}
 			app, idx := newGoodReadsTestApp(t, source)
-			body := strings.TrimSpace(getBody(t, app, "/documents/unlinked/goodreads"))
+			body := strings.TrimSpace(getBody(t, app, "/documents/unlinked/score"))
 			if tt.noScore {
 				page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
 				if err != nil {
@@ -850,7 +850,7 @@ func TestDocumentDetailGoodReadsNoScoreTranslations(t *testing.T) {
 		{"fr", "Non noté"},
 		{"ru", "Не оценено"},
 	} {
-		for _, path := range []string{"/documents/unmatched/score", "/documents/unmatched/goodreads"} {
+		for _, path := range []string{"/documents/unmatched/score"} {
 			t.Run(locale.lang+path, func(t *testing.T) {
 				req := mustGetRequest(t, path)
 				req.Header.Set("Accept-Language", locale.lang)
@@ -898,7 +898,7 @@ func TestDocumentDetailGoodReadsReviewsLazyPlaceholder(t *testing.T) {
 	if !target.Is(".document-detail-content > :last-child") {
 		t.Fatal("reviews must appear at the bottom of the document content")
 	}
-	page, err = goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/goodreads")))
+	page, err = goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/score")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1168,7 +1168,7 @@ func TestDocumentDetailGoodReadsReviewsAfterSearch(t *testing.T) {
 		book:    biblioreads.BookResponse{Rating: "4", ResourceID: "work-id", LegacyBookID: 1},
 	}
 	app, _ := newGoodReadsTestApp(t, source)
-	getBody(t, app, "/documents/unlinked/goodreads")
+	getBody(t, app, "/documents/unlinked/score")
 	if len(source.ids) != 0 || len(source.reviewCalls) != 0 {
 		t.Fatal("search rating must not scrape the book or load reviews")
 	}

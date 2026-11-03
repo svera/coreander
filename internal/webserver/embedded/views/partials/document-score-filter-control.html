@@ -1,0 +1,16 @@
+{{$id := .Name}}
+{{if .IdPrefix}}
+    {{$id = printf "%s-%s" .IdPrefix .Name}}
+{{end}}
+<div class="form-floating">
+    <select class="form-select{{if .RoundedEnd}} rounded-end{{end}}" name="{{.Name}}" id="{{$id}}">
+        <option value=""></option>
+        <option value="none" {{if .NoScoreSelected}}selected{{end}}>{{t .Lang "No score"}}</option>
+        <option value="1" {{if eq .Score 1.0}}selected{{end}}>1 &#9733;</option>
+        <option value="2" {{if eq .Score 2.0}}selected{{end}}>2 &#9733;&#9733;</option>
+        <option value="3" {{if eq .Score 3.0}}selected{{end}}>3 &#9733;&#9733;&#9733;</option>
+        <option value="4" {{if eq .Score 4.0}}selected{{end}}>4 &#9733;&#9733;&#9733;&#9733;</option>
+        <option value="5" {{if eq .Score 5.0}}selected{{end}}>5 &#9733;&#9733;&#9733;&#9733;&#9733;</option>
+    </select>
+    <label class="form-label" for="{{$id}}">{{t .Lang .Label}}</label>
+</div>

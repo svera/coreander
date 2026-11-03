@@ -101,6 +101,41 @@ func bootstrapAppWithIndexer(db *gorm.DB, sender webserver.Sender, appFs afero.F
 	return webserver.New(webserverConfig, controllers, sender, idx, usersRepository), idx
 }
 
+func newSearchResultsTestApp(t *testing.T, documents []index.Document) (*fiber.App, *index.BleveIndexer) {
+	t.Helper()
+	db := infrastructure.Connect(":memory:", 250)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	documentIndex, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorsIndex, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	appFS := afero.NewMemMapFs()
+	cfg := defaultTestConfig()
+	idx := index.NewBleve(documentIndex, authorsIndex, appFS, testLibraryDir, nil, index.Config{})
+	t.Cleanup(func() { _ = idx.Close() })
+	for _, doc := range documents {
+		if err := documentIndex.Index(doc.ID, doc); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	sender := &infrastructure.NoEmail{}
+	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
+	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, dataSource, nil, dataSource)
+	app := webserver.New(cfg, controllers, sender, idx, &model.UserRepository{DB: db})
+	t.Cleanup(func() { _ = app.Shutdown() })
+	return app, idx
+}
+
 // setReviewScore seeds a document's review score through the current provider-backed index storage.
 func setDataSourceScore(t *testing.T, idx *index.BleveIndexer, doc index.Document, score, count string) {
 	t.Helper()

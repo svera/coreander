@@ -28,34 +28,13 @@
                 {{if .SearchFields}}
                     {{$reviewScoreFrom = .SearchFields.DataSourceScoreFrom}}
                 {{end}}
-                <div class="form-floating">
-                    <select class="form-select" name="review-score-from" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}review-score-from">
-                        <option value=""></option>
-                        <option value="none" {{if and .SearchFields .SearchFields.DataSourceScoreNone}}selected{{end}}>{{t .Lang "No score"}}</option>
-                        <option value="1" {{if eq $reviewScoreFrom 1.0}}selected{{end}}>1 &#9733;</option>
-                        <option value="2" {{if eq $reviewScoreFrom 2.0}}selected{{end}}>2 &#9733;&#9733;</option>
-                        <option value="3" {{if eq $reviewScoreFrom 3.0}}selected{{end}}>3 &#9733;&#9733;&#9733;</option>
-                        <option value="4" {{if eq $reviewScoreFrom 4.0}}selected{{end}}>4 &#9733;&#9733;&#9733;&#9733;</option>
-                        <option value="5" {{if eq $reviewScoreFrom 5.0}}selected{{end}}>5 &#9733;&#9733;&#9733;&#9733;&#9733;</option>
-                    </select>
-                    <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}review-score-from">{{t .Lang "From"}}</label>
-                </div>
                 {{$reviewScoreTo := 0.0}}
                 {{if .SearchFields}}
                     {{$reviewScoreTo = .SearchFields.DataSourceScoreTo}}
                 {{end}}
-                <div class="form-floating">
-                    <select class="form-select rounded-end" name="review-score-to" id="{{if $idPrefix}}{{$idPrefix}}-{{end}}review-score-to">
-                        <option value=""></option>
-                        <option value="none" {{if and .SearchFields .SearchFields.DataSourceScoreNone}}selected{{end}}>{{t .Lang "No score"}}</option>
-                        <option value="1" {{if eq $reviewScoreTo 1.0}}selected{{end}}>1 &#9733;</option>
-                        <option value="2" {{if eq $reviewScoreTo 2.0}}selected{{end}}>2 &#9733;&#9733;</option>
-                        <option value="3" {{if eq $reviewScoreTo 3.0}}selected{{end}}>3 &#9733;&#9733;&#9733;</option>
-                        <option value="4" {{if eq $reviewScoreTo 4.0}}selected{{end}}>4 &#9733;&#9733;&#9733;&#9733;</option>
-                        <option value="5" {{if eq $reviewScoreTo 5.0}}selected{{end}}>5 &#9733;&#9733;&#9733;&#9733;&#9733;</option>
-                    </select>
-                    <label class="form-label" for="{{if $idPrefix}}{{$idPrefix}}-{{end}}review-score-to">{{t .Lang "To"}}</label>
-                </div>
+                {{$noScoreSelected := and .SearchFields .SearchFields.DataSourceScoreNone}}
+                {{template "partials/document-score-filter-control" dict "Lang" .Lang "IdPrefix" $idPrefix "Name" "review-score-from" "Label" "From" "Score" $reviewScoreFrom "NoScoreSelected" $noScoreSelected}}
+                {{template "partials/document-score-filter-control" dict "Lang" .Lang "IdPrefix" $idPrefix "Name" "review-score-to" "Label" "To" "Score" $reviewScoreTo "NoScoreSelected" $noScoreSelected "RoundedEnd" true}}
                 <button type="button" class="input-group-text clear-range-control text-muted border-0 bg-transparent" aria-label='{{if .DataSourceName}}{{t .Lang "Clear %s score" .DataSourceName}}{{else}}{{t .Lang "Clear review score"}}{{end}}' title='{{if .DataSourceName}}{{t .Lang "Clear %s score" .DataSourceName}}{{else}}{{t .Lang "Clear review score"}}{{end}}'><i class="bi bi-x-lg"></i></button>
             </div>
         </div>

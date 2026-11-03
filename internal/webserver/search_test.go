@@ -9,8 +9,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
@@ -148,7 +148,7 @@ func TestUnifiedSearch(t *testing.T) {
 	}
 }
 
-func TestGoodReadsScoreSortOptions(t *testing.T) {
+func TestDataSourceScoreSortOptions(t *testing.T) {
 	app := bootstrapApp(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{},
 		loadDirInMemoryFs("testdata/library"), webserver.Config{})
 	for _, path := range []string{
@@ -219,7 +219,7 @@ func TestReviewScoreFilter(t *testing.T) {
 	} {
 		selects := doc.Find(`select[name="` + field.name + `"]`)
 		if selects.Length() == 0 {
-			t.Errorf("Expected Goodreads score filter %q", field.name)
+			t.Errorf("Expected data-source score filter %q", field.name)
 			continue
 		}
 		selects.Each(func(_ int, selectBox *goquery.Selection) {
@@ -272,53 +272,54 @@ func TestReviewScoreFilter(t *testing.T) {
 
 func TestSearchResultsShowStoredDataSourceScore(t *testing.T) {
 	for _, tt := range []struct {
-		rating string
-		want   string
+		score float64
+		want  string
 	}{
-		{rating: "3.82", want: "3.82"},
-		{rating: "4.1", want: "4.10"},
-		{rating: "5", want: "5.00"},
+		{score: 3.82, want: "3.82"},
+		{score: 4.1, want: "4.10"},
+		{score: 5, want: "5.00"},
 	} {
-		t.Run(tt.rating, func(t *testing.T) {
-			app, idx := newGoodReadsTestApp(t, nil)
-			doc, err := idx.Document("linked")
-			if err != nil {
-				t.Fatal(err)
-			}
-			setDataSourceScore(t, idx, doc, tt.rating, "2,285")
+		t.Run(tt.want, func(t *testing.T) {
+			app, _ := newSearchResultsTestApp(t, []index.Document{{
+				ID: "linked.epub", Slug: "linked",
+				Metadata:             metadata.Metadata{Title: "La Reina Dragon", Format: "EPUB"},
+				DataSourceLink:       "/provider/items/linked",
+				DataSourceScoreValue: tt.score,
+				DataSourceScoreCount: "2,285",
+			}})
 			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/search?type=documents&search=La")))
 			if err != nil {
 				t.Fatal(err)
 			}
-			rating := page.Find(`a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`)
-			if rating.Length() != 1 || strings.TrimSpace(rating.Text()) != tt.want {
-				t.Fatalf("expected stored review score in search result, got %q", rating.Text())
-			}
-			if page.Find(`li:has(a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]) i.bi-star-fill`).Length() != 1 {
-				t.Fatal("expected a star icon beside the review score")
-			}
-			if rating.Parent().Find("small").Text() != "(2,285 ratings)" {
-				t.Fatal("expected rating count beside the review score")
+			score := page.Find("#list .list-group-item li").FilterFunction(func(_ int, item *goquery.Selection) bool {
+				text := strings.TrimSpace(item.Text())
+				return strings.Contains(text, tt.want) && strings.Contains(text, "2,285")
+			})
+			if score.Length() != 1 || score.Find("i.bi-star-fill").Length() != 1 {
+				t.Fatalf("expected generic data-source score and count in search result, got %q", score.Text())
 			}
 		})
 	}
 }
 
 func TestSearchResultsSortByDataSourceScore(t *testing.T) {
-	app, idx := newGoodReadsTestApp(t, &fakeBookSource{})
-	scores := map[string]string{
-		"linked":    "3.20",
-		"unlinked":  "4.10",
-		"unmatched": "4.80",
-	}
-	documents, err := idx.Search(index.SearchFields{}, 1, 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, doc := range documents.Hits() {
-		setDataSourceScore(t, idx, doc, scores[doc.Slug], "")
-	}
-
+	app, _ := newSearchResultsTestApp(t, []index.Document{
+		{
+			ID: "linked.epub", Slug: "linked",
+			Metadata:       metadata.Metadata{Title: "Linked", Format: "EPUB"},
+			DataSourceLink: "/provider/items/linked", DataSourceScoreValue: 3.2,
+		},
+		{
+			ID: "unlinked.epub", Slug: "unlinked",
+			Metadata:       metadata.Metadata{Title: "Unlinked", Format: "EPUB"},
+			DataSourceLink: "/provider/items/unlinked", DataSourceScoreValue: 4.1,
+		},
+		{
+			ID: "unmatched.epub", Slug: "unmatched",
+			Metadata:       metadata.Metadata{Title: "Unmatched", Format: "EPUB"},
+			DataSourceLink: "/provider/items/unmatched", DataSourceScoreValue: 4.8,
+		},
+	})
 	for _, tt := range []struct {
 		direction string
 		want      []string
@@ -344,55 +345,22 @@ func TestSearchResultsSortByDataSourceScore(t *testing.T) {
 	}
 }
 
-func TestSearchResultsShowDataSourceScoreFromSearch(t *testing.T) {
-	source := &fakeBookSource{results: []biblioreads.SearchResult{{
-		Title: "Unlinked", Author: "Jane Doe", BookURL: "/book/show/1-unlinked",
-		Rating: "4.20", RatingCount: "1,234",
-	}}}
-	app, idx := newGoodReadsTestApp(t, source)
-	score := getBody(t, app, "/documents/unlinked/score")
-	if !strings.Contains(score, "(1,234 ratings)") {
-		t.Fatal("expected the search-derived rating count in the document score")
-	}
-	stored, err := idx.Document("unlinked")
-	if err != nil || stored.DataSourceScoreCount != "1,234" {
-		t.Fatalf("expected the search-derived count to be persisted, got %+v, %v", stored, err)
-	}
-	for _, path := range []string{
-		"/search?type=documents&search=Unlinked",
-		"/search?type=documents&search=Unlinked&l=es",
-	} {
-		page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, path)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		rating := page.Find(`a[href="https://www.goodreads.com/book/show/1-unlinked"]`)
-		if rating.Text() != "4.20" || !strings.Contains(rating.Parent().Find("small").Text(), "1,234") {
-			t.Fatalf("expected the stored score and rating count in search results for %s", path)
-		}
-	}
-	if len(source.ids) != 0 || len(source.queries) != 1 {
-		t.Fatalf("expected one book search and no detail fetches, got queries %q and ids %q", source.queries, source.ids)
-	}
-}
-
 func TestSearchResultsShowStoredZeroRatingAsNotScored(t *testing.T) {
-	source := &fakeBookSource{results: []biblioreads.SearchResult{{
-		Title: "Unlinked", Author: "Jane Doe", BookURL: "/book/show/1-unlinked", Rating: "0.00",
-	}}}
-	app, _ := newGoodReadsTestApp(t, source)
-	getBody(t, app, "/documents/unlinked/goodreads")
-
-	body := getBody(t, app, "/search?type=documents&search=Unlinked")
+	app, _ := newSearchResultsTestApp(t, []index.Document{{
+		ID: "unscored.epub", Slug: "unscored",
+		Metadata:       metadata.Metadata{Title: "Unscored", Format: "EPUB"},
+		DataSourceLink: "/provider/items/unscored",
+	}})
+	body := getBody(t, app, "/search?type=documents&search=Unscored")
 	page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
-	row := page.Find("li").FilterFunction(func(_ int, item *goquery.Selection) bool {
+	row := page.Find("#list .list-group-item li").FilterFunction(func(_ int, item *goquery.Selection) bool {
 		return strings.TrimSpace(item.Text()) == "Not scored" && item.Find("i.bi-star-fill").Length() == 1
 	})
 	if row.Length() == 0 || row.Find("a").Length() != 0 {
-		t.Fatalf("expected stored zero rating to render as Not scored, got %q in %s", row.Text(), body)
+		t.Fatalf("expected generic zero score to render as Not scored, got %q", row.Text())
 	}
 }
 

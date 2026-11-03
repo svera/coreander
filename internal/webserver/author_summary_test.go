@@ -122,11 +122,22 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 	}
 }
 
-func TestAuthorSummaryGoodReadsLink(t *testing.T) {
-	app, idx := newGoodReadsTestApp(t, nil)
+type translatedDataSourceLinks struct{}
+
+func (translatedDataSourceLinks) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
+	if author.DataSourceID == "" {
+		return datasourcemodel.DataSourceLink{}
+	}
+	return datasourcemodel.DataSourceLink{
+		Source: "Example catalog", URL: "https://example.org/authors/" + author.Slug,
+		IconClass: "bi-bookmark",
+	}
+}
+
+func TestAuthorSummaryDataSourceLinkTranslations(t *testing.T) {
+	app, idx := newDataSourceProvidersTestApp(t, nil, nil, translatedDataSourceLinks{})
 	const (
-		authorPath   = "/author/show/151155.Alice_Borchardt"
-		authorURL    = "https://www.goodreads.com" + authorPath
+		authorURL    = "https://example.org/authors/"
 		wikipediaURL = "https://en.wikipedia.org/wiki/Alice_Borchardt"
 	)
 	locales := []struct {
@@ -134,30 +145,26 @@ func TestAuthorSummaryGoodReadsLink(t *testing.T) {
 		label          string
 		wikipediaLabel string
 	}{
-		{"en", "Go to Goodreads author page", "Go to Wikipedia entry"},
-		{"es", "Ir a la página del autor en Goodreads", "Ir al artículo en Wikipedia"},
-		{"de", "Zur Autorenseite auf Goodreads", "Zur Wikipedia-Seite"},
-		{"fr", "Voir la page de l'auteur sur Goodreads", "Aller à l'entrée Wikipedia"},
-		{"ru", "Перейти на страницу автора в Goodreads", "Перейти к статье в Википедии"},
+		{"en", "Go to Example catalog author page", "Go to Wikipedia entry"},
+		{"es", "Ir a la página del autor en Example catalog", "Ir al artículo en Wikipedia"},
+		{"de", "Zur Autorenseite auf Example catalog", "Zur Wikipedia-Seite"},
+		{"fr", "Voir la page de l'auteur sur Example catalog", "Aller à l'entrée Wikipedia"},
+		{"ru", "Перейти на страницу автора в Example catalog", "Перейти к статье в Википедии"},
 	}
 	for _, tc := range []struct {
-		name      string
-		goodreads bool
-		wikipedia bool
-		sourceID  string
+		name          string
+		dataSourceID  string
+		hasDataSource bool
+		wikipedia     bool
 	}{
-		{"with-wikipedia", true, true, "Q1"},
-		{"without-goodreads", false, true, "Q1"},
-		{"without-wikipedia", true, false, "Q1"},
-		{"without-source-id", true, false, ""},
+		{name: "with-wikipedia", dataSourceID: "Q1", hasDataSource: true, wikipedia: true},
+		{name: "without-wikipedia", dataSourceID: "Q1", hasDataSource: true},
+		{name: "without-data-source-id"},
 	} {
 		author := index.Author{
 			Slug: tc.name, Name: "Alice Borchardt",
-			DataSourceID: tc.sourceID, RetrievedOn: time.Now().UTC(),
+			DataSourceID: tc.dataSourceID, RetrievedOn: time.Now().UTC(),
 			WikipediaLink: make(map[string]string),
-		}
-		if tc.goodreads {
-			author.GoodReadsAuthorURL = authorPath
 		}
 		if tc.wikipedia {
 			for _, locale := range locales {
@@ -198,27 +205,23 @@ func TestAuthorSummaryGoodReadsLink(t *testing.T) {
 					if !tc.wikipedia && page.Find(`a[href$="wikipedia.org/wiki/Alice_Borchardt"]`).Length() != 0 {
 						t.Fatal("expected no Wikipedia link when there is no link for the current language")
 					}
-					link := page.Find(`a[href="` + authorURL + `"]`)
-					if !tc.goodreads {
-						if page.Find(`img[src^="/images/goodreads.svg"]`).Length() != 0 {
-							t.Error("expected no Goodreads icon without an author URL")
-						}
+					link := page.Find(`a[href="` + authorURL + tc.name + `"]`)
+					if !tc.hasDataSource {
 						if link.Length() != 0 {
-							t.Fatal("expected no Goodreads link without an author URL")
+							t.Fatal("expected no data-source link without a provider URL")
 						}
 						return
 					}
 					if link.Length() != 1 || strings.TrimSpace(link.Text()) != locale.label {
-						t.Fatalf("expected one localized Goodreads link %q, got %d links with text %q", locale.label, link.Length(), link.Text())
+						t.Fatalf("expected one localized data-source link %q, got %d links with text %q", locale.label, link.Length(), link.Text())
 					}
-					icon := link.PrevFiltered(`img[src^="/images/goodreads.svg"]`)
-					if icon.Length() != 1 || icon.AttrOr("alt", "missing") != "" || icon.AttrOr("width", "") != "16" || icon.AttrOr("height", "") != "16" {
-						t.Error("expected a decorative Goodreads SVG icon before the author link")
+					if link.PrevFiltered("i.bi-bookmark").Length() != 1 {
+						t.Error("expected the provider's Bootstrap icon before the data-source link")
 					}
 					if tc.wikipedia {
 						wantWikipediaURL := strings.Replace(wikipediaURL, "en.wikipedia.org", locale.lang+".wikipedia.org", 1)
 						if href, _ := link.Parent().Prev().Find("a").Attr("href"); href != wantWikipediaURL {
-							t.Fatalf("expected Goodreads immediately below Wikipedia, previous link is %q", href)
+							t.Fatalf("expected data-source link immediately below Wikipedia, previous link is %q", href)
 						}
 					}
 				})
