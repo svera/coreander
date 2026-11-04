@@ -37,6 +37,7 @@ func RequireAdmin(c fiber.Ctx) error {
 // SetConfigLocals sets config values in c.Locals() for template access
 func SetConfigLocals(cfg Config) func(fiber.Ctx) error {
 	return func(c fiber.Ctx) error {
+		c.Locals("RequireAuth", cfg.RequireAuth)
 		c.Locals("CoverMaxWidth", cfg.CoverMaxWidth)
 		c.Locals("ShareCommentMaxSize", cfg.ShareCommentMaxSize)
 		c.Locals("ShareMaxRecipients", cfg.ShareMaxRecipients)
@@ -95,12 +96,6 @@ func SetProgress(idx IndexInfo) func(fiber.Ctx) error {
 				c.Locals("RemainingIndexingTime", fmtRemainingTime(progress.RemainingTime))
 			}
 		}
-		tasks, err := idx.BackgroundProgress()
-		if err != nil {
-			log.Printf("Error reading background progress: %s", err)
-			c.Locals("BackgroundProgressError", true)
-		}
-		c.Locals("BackgroundProgress", tasks)
 		return c.Next()
 	}
 }

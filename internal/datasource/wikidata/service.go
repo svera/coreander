@@ -43,6 +43,10 @@ type WikidataSource struct {
 	wikidata wikidata
 }
 
+func (WikidataSource) OwnsLink(key string) bool {
+	return (Author{}).OwnsLink(key)
+}
+
 func (WikidataSource) AuthorLink(author index.Author, language string) model.DataSourceLink {
 	url := author.DataSourceLinks["wikipedia:"+language]
 	if url == "" {

@@ -1,6 +1,7 @@
 package index
 
 import (
+	"maps"
 	"strings"
 	"time"
 
@@ -24,8 +25,22 @@ type Author struct {
 	Gender          float64
 	Pseudonyms      []string
 	DocumentCount   uint64
-	// ownsRefreshedLink is set only while applying an external metadata refresh.
+	// ownsRefreshedLink marks links replaced by a metadata refresh or explicit reset.
 	ownsRefreshedLink func(string) bool
+}
+
+func (a Author) ClearMetadata(ownsLink func(string) bool) Author {
+	links := maps.Clone(a.DataSourceLinks)
+	for source := range links {
+		if ownsLink(source) {
+			delete(links, source)
+		}
+	}
+	return Author{
+		Slug: a.Slug, Name: a.Name, DocumentCount: a.DocumentCount,
+		RetrievedOn: time.Now().UTC(), DataSourceLinks: links,
+		ownsRefreshedLink: ownsLink,
+	}
 }
 
 func (a Author) YearOfBirthAbs() int {

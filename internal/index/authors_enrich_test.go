@@ -159,6 +159,63 @@ func TestAuthorMetadataRefreshUpdatesLinks(t *testing.T) {
 	}
 }
 
+func TestAuthorMetadataResetPreservesConcurrentProviderLinks(t *testing.T) {
+	authors, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer authors.Close()
+	idx := index.NewBleve(nil, authors, nil, "", nil, index.Config{})
+	author := index.Author{
+		Slug: "writer", Name: "Writer", DataSourceID: "Q1", DocumentCount: 3,
+		DataSourceLinks: map[string]string{
+			"example:website": "https://old.example", "example:en": "https://en.example/Old",
+			"catalog": "https://catalog.example/writer",
+		},
+	}
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	reset := author.ClearMetadata((stubAuthor{linkPrefix: "example:"}).OwnsLink)
+	if author.DataSourceLinks["example:website"] == "" {
+		t.Fatal("reset must not mutate the caller's links")
+	}
+	current, err := idx.Author("writer", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	current.DataSourceLinks["goodreads"] = "/author/show/1.Writer"
+	if err := idx.IndexAuthor(current); err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.IndexAuthor(reset); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := idx.Author("writer", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.DataSourceLinks["example:website"] != "" || stored.DataSourceLinks["example:en"] != "" ||
+		stored.DataSourceID != "" || stored.RetrievedOn.IsZero() {
+		t.Fatalf("reset must remove metadata association and owned links: %+v", stored)
+	}
+	if stored.DataSourceLinks["catalog"] != "https://catalog.example/writer" ||
+		stored.DataSourceLinks["goodreads"] != "/author/show/1.Writer" || stored.DocumentCount != 3 {
+		t.Fatalf("reset must retain independent and concurrent author data: %+v", stored)
+	}
+	stale := index.Author{Slug: "writer", Name: "Writer"}
+	if err := idx.IndexAuthor(stale); err != nil {
+		t.Fatal(err)
+	}
+	stored, err = idx.Author("writer", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stored.DataSourceLinks) != 2 {
+		t.Fatalf("ordinary stale writes must preserve independent links: %+v", stored.DataSourceLinks)
+	}
+}
+
 func TestAuthorsWithoutInfo(t *testing.T) {
 	authorsIndexMem, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
 	if err != nil {

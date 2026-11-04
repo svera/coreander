@@ -46,7 +46,7 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 			appFS := loadDirInMemoryFs("testdata/library")
 			cfg := defaultTestConfig()
 			cfg.CacheDir = "/cache"
-			app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS, cfg)
+			app, idx := bootstrapAppWithIndexer(db, &infrastructure.NoEmail{}, appFS, cfg)
 
 			cookie, err := login(app, "admin@example.com", "admin", t)
 			if err != nil {
@@ -58,6 +58,20 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 			}
 			response.Body.Close()
 			mustReturnStatus(response, http.StatusOK, t)
+
+			author, err := idx.Author("john-doe", "en")
+			if err != nil {
+				t.Fatal(err)
+			}
+			author.DataSourceLinks = map[string]string{
+				"website": "https://old.example", "wikipedia:en": "https://en.wikipedia.org/wiki/Old",
+				"wikipedia:es": "https://es.wikipedia.org/wiki/Old",
+				"goodreads":    "/author/show/1.Writer", "catalog": "https://catalog.example/writer",
+			}
+			if err := idx.IndexAuthor(author); err != nil {
+				t.Fatal(err)
+			}
+			documentCount := author.DocumentCount
 
 			imagePath := cfg.CacheDir + "/authors/john-doe.webp"
 			if tc.cached {
@@ -83,7 +97,7 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			imageURL, _ := doc.Find("img").Attr("src")
+			imageURL, _ := doc.Find(`img[src^="/authors/"]`).Attr("src")
 			if imageURL != "/authors/john-doe_.webp" {
 				t.Fatalf("expected image URL with cleared ID and no cached version, got %q", imageURL)
 			}
@@ -115,8 +129,22 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if imageURL, _ := doc.Find("img").Attr("src"); imageURL != "/authors/john-doe_.webp" {
+			if imageURL, _ := doc.Find(`img[src^="/authors/"]`).Attr("src"); imageURL != "/authors/john-doe_.webp" {
 				t.Fatalf("expected cleared image URL to persist, got %q", imageURL)
+			}
+			stored, err := idx.Author("john-doe", "en")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stored.DataSourceID != "" || stored.DataSourceImage != "" ||
+				stored.DataSourceLinks["website"] != "" || stored.DataSourceLinks["wikipedia:en"] != "" ||
+				stored.DataSourceLinks["wikipedia:es"] != "" {
+				t.Fatalf("metadata reset restored stale metadata: %+v", stored)
+			}
+			if stored.DataSourceLinks["goodreads"] != "/author/show/1.Writer" ||
+				stored.DataSourceLinks["catalog"] != "https://catalog.example/writer" ||
+				stored.DocumentCount != documentCount {
+				t.Fatalf("metadata reset lost independent author data: %+v", stored)
 			}
 		})
 	}

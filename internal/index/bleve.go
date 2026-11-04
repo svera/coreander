@@ -220,7 +220,12 @@ type BleveIndexer struct {
 	documentEnrichJobs chan string
 	documentEnrichers  []DocumentEnricher
 	// documentEnrichProgress measures each provider's current run rate, by enricher index.
-	documentEnrichProgress []progressTracker
+	documentEnrichProgress        []progressTracker
+	providerProgressMu            sync.Mutex
+	providerProgressUntil         time.Time
+	providerProgress              []providerProgressCount
+	providerProgressVersion       atomic.Uint64
+	cachedProviderProgressVersion uint64
 	// fileLocks holds a *sync.Mutex per document ID, serializing concurrent
 	// indexFile calls for the same file (upload vs. file watcher reacting to
 	// the same write).

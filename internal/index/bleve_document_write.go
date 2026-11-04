@@ -75,37 +75,66 @@ func (b *BleveIndexer) BackgroundProgress() ([]Progress, error) {
 	if len(b.documentEnrichers) == 0 {
 		return progress, nil
 	}
-	b.documentsMu.RLock()
-	defer b.documentsMu.RUnlock()
-	total, err := b.documentsIdx.DocCount()
+	providers, err := b.providerProgressSnapshot()
 	if err != nil {
-		return nil, fmt.Errorf("counting documents for enrichment progress: %w", err)
+		return nil, err
 	}
-	for i, provider := range b.documentEnrichers {
-		query := bleve.NewTermQuery(provider.Source())
-		query.SetField("EnrichedDataSources")
-		result, err := b.documentsIdx.Search(bleve.NewSearchRequestOptions(query, 0, 0, false))
-		if err != nil {
-			return nil, fmt.Errorf("reading %s enrichment progress: %w", provider.Source(), err)
-		}
-		if result.Total < total {
-			// Do not round pending work up to 100%.
+	for i, counts := range providers {
+		if counts.enriched < counts.total {
 			progress = append(progress, Progress{
-				Kind: ProgressDataSources, InProgress: true, Name: provider.Name(),
-				Percentage:    math.Floor(100 * float64(result.Total) / float64(total)),
-				RemainingTime: b.documentEnrichTracker(i).remainingTime(total - result.Total),
+				Kind: ProgressDataSources, InProgress: true, Name: b.documentEnrichers[i].Name(),
+				// Do not round pending work up to 100%.
+				Percentage:    math.Floor(100 * float64(counts.enriched) / float64(counts.total)),
+				RemainingTime: b.documentEnrichTracker(i).remainingTime(counts.total - counts.enriched),
 			})
 		}
 	}
 	return progress, nil
 }
 
+type providerProgressCount struct {
+	total, enriched uint64
+}
+
+// Cache index queries across page renders and polling clients; timing estimates
+// remain live. Provider writes and metadata reindexing invalidate the snapshot.
+func (b *BleveIndexer) providerProgressSnapshot() ([]providerProgressCount, error) {
+	b.providerProgressMu.Lock()
+	defer b.providerProgressMu.Unlock()
+	version := b.providerProgressVersion.Load()
+	if b.cachedProviderProgressVersion == version && time.Now().Before(b.providerProgressUntil) {
+		return slices.Clone(b.providerProgress), nil
+	}
+	b.documentsMu.RLock()
+	defer b.documentsMu.RUnlock()
+	total, err := b.documentsIdx.DocCount()
+	if err != nil {
+		return nil, fmt.Errorf("counting documents for enrichment progress: %w", err)
+	}
+	var counts []providerProgressCount
+	for _, provider := range b.documentEnrichers {
+		query := bleve.NewTermQuery(provider.Source())
+		query.SetField("EnrichedDataSources")
+		result, err := b.documentsIdx.Search(bleve.NewSearchRequestOptions(query, 0, 0, false))
+		if err != nil {
+			return nil, fmt.Errorf("reading %s enrichment progress: %w", provider.Source(), err)
+		}
+		counts = append(counts, providerProgressCount{total: total, enriched: result.Total})
+	}
+	b.providerProgress = slices.Clone(counts)
+	b.cachedProviderProgressVersion = version
+	b.providerProgressUntil = time.Now().Add(5 * time.Second)
+	return counts, nil
+}
+
 // BeginIndexing marks startup indexing active before the HTTP server can accept mutations.
 func (b *BleveIndexer) BeginIndexing() {
+	b.providerProgressVersion.Add(1)
 	b.indexProgress.begin(0)
 }
 
 func (b *BleveIndexer) endIndexing() {
+	b.providerProgressVersion.Add(1)
 	b.indexProgress.end()
 }
 
@@ -161,6 +190,7 @@ type indexedFileState struct {
 }
 
 func (b *BleveIndexer) indexFileLocked(file string) (string, error) {
+	defer b.providerProgressVersion.Add(1)
 	ext := strings.ToLower(filepath.Ext(file))
 	if _, ok := b.reader[ext]; !ok {
 		return "", fmt.Errorf("file extension %s not supported", ext)
@@ -267,6 +297,7 @@ func (b *BleveIndexer) removeFile(file string) error {
 
 // DeleteDocument removes the document identified by slug from the index and deletes its file from the filesystem.
 func (b *BleveIndexer) DeleteDocument(slug string) error {
+	defer b.providerProgressVersion.Add(1)
 	if b.indexProgress.startNanos.Load() != 0 {
 		return ErrLibraryIndexing
 	}
@@ -289,6 +320,7 @@ func (b *BleveIndexer) DeleteDocument(slug string) error {
 }
 
 func (b *BleveIndexer) deleteDocumentFromIndex(document Document) error {
+	defer b.providerProgressVersion.Add(1)
 	b.documentsMu.Lock()
 	err := b.documentsIdx.Delete(document.ID)
 	b.documentsMu.Unlock()

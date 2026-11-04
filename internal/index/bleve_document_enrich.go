@@ -172,5 +172,9 @@ func (b *BleveIndexer) StoreDocumentData(documentID, source string, data any) er
 	if err := SetDataSourceData(&document, source, data); err != nil {
 		return err
 	}
-	return IndexDocument(b.documentsIdx, documentID, document)
+	if err := IndexDocument(b.documentsIdx, documentID, document); err != nil {
+		return err
+	}
+	b.providerProgressVersion.Add(1)
+	return nil
 }

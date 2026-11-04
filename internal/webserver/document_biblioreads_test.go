@@ -246,6 +246,52 @@ func TestDocumentDetailBiblioReadsRating(t *testing.T) {
 	}
 }
 
+func TestBiblioReadsRatingCountEscaping(t *testing.T) {
+	for _, count := range []string{
+		"2,285",
+		`<img src=x onerror=alert(1)><script>alert(1)</script>`,
+		`&lt;img src=x&gt; & "quoted" 'count'`,
+	} {
+		t.Run(count, func(t *testing.T) {
+			source := &fakeBookSource{book: biblioreads.BookResponse{
+				Rating: "3.82", RatingCount: count,
+			}}
+			app, idx := newBiblioReadsTestApp(t, source)
+			for _, language := range []struct {
+				code  string
+				label string
+			}{
+				{code: "en", label: "ratings"},
+				{code: "de", label: "Bewertungen"},
+			} {
+				for _, path := range []string{
+					"/documents/linked/score?l=" + language.code,
+					"/search?type=documents&search=La&l=" + language.code,
+				} {
+					page := getPage(t, app, path)
+					row := page.Find("i.bi-star-fill").Closest("li")
+					if row.Length() != 1 {
+						t.Fatalf("%s: expected one rating row, got %d", path, row.Length())
+					}
+					if row.Find("small").Text() != "("+count+" "+language.label+")" {
+						t.Errorf("%s: rating count must remain literal text, got %q", path, row.Find("small").Text())
+					}
+					if row.Find("img, script, [onerror]").Length() != 0 {
+						t.Errorf("%s: provider rating count must not create HTML elements", path)
+					}
+				}
+			}
+			stored, err := idx.Document("linked")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := mustBiblioReadsData(t, stored).RatingCount; got != count {
+				t.Fatalf("escaping must not change the stored count: got %q", got)
+			}
+		})
+	}
+}
+
 func TestDocumentUpdateBiblioReads(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{
 		Rating: "3.82", ResourceID: "old-work", LegacyBookID: 12207444,

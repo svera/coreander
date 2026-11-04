@@ -1,7 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +16,141 @@ import (
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 )
+
+type migrationReader struct{ metadata.PdfReader }
+
+func (migrationReader) Metadata(string) (metadata.Metadata, error) {
+	return metadata.Metadata{Title: "Rebuilt book", Authors: []string{"Existing Author"}, Format: "PDF"}, nil
+}
+
+func seedDocumentIndex(t *testing.T, version string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(homeDir, ".coreander"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	documents := index.CreateDocumentsIndex(homeDir + documentsIndexPath)
+	for key, value := range map[string]string{
+		"version": version, "illustrated_min_size": "0.25",
+		"min_occurrence_ratio": "0.1", "max_textrank_words": "10000",
+	} {
+		if err := documents.SetInternal([]byte(key), []byte(value)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := index.IndexDocument(documents, "legacy-book", index.Document{
+		ID: "legacy-book", Slug: "legacy-book", Metadata: metadata.Metadata{Title: "Legacy book"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := documents.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetIndexesRebuildsOlderDocuments(t *testing.T) {
+	for number := 1; number <= 13; number++ {
+		for _, force := range []bool{false, true} {
+			version := fmt.Sprintf("v%d", number)
+			t.Run(fmt.Sprintf("%s/force=%t", version, force), func(t *testing.T) {
+				previousHome, previousInput := homeDir, input
+				t.Cleanup(func() { homeDir, input = previousHome, previousInput })
+				homeDir = t.TempDir()
+				input.BatchSize, input.ForceIndexing = 1, force
+				seedDocumentIndex(t, version)
+				authors := index.CreateAuthorsIndex(homeDir + authorsIndexPath)
+				retrieved := time.Now().UTC().Truncate(time.Second)
+				if err := authors.Index("existing-author", index.Author{
+					Slug: "existing-author", Name: "Existing Author", DataSourceID: "Q1", RetrievedOn: retrieved,
+				}); err != nil {
+					t.Fatal(err)
+				}
+				if err := authors.Close(); err != nil {
+					t.Fatal(err)
+				}
+
+				fs := afero.NewOsFs()
+				lib := filepath.Join(homeDir, "library")
+				if err := fs.MkdirAll(lib, 0755); err != nil {
+					t.Fatal(err)
+				}
+				if err := afero.WriteFile(fs, filepath.Join(lib, "book.pdf"), []byte("book"), 0644); err != nil {
+					t.Fatal(err)
+				}
+				documents, authors, needsReindex := getIndexes(fs, 0.25, 0.1, 10000)
+				if !needsReindex {
+					t.Fatal("older index upgrade must request forced library indexing")
+				}
+				if count, err := documents.DocCount(); err != nil || count != 0 {
+					t.Fatalf("older documents must be rebuilt: count=%d, err=%v", count, err)
+				}
+				idx := index.NewBleve(documents, authors, fs, lib,
+					map[string]metadata.Reader{".pdf": migrationReader{}},
+					index.Config{IllustratedMinSize: 0.25, MinOccurrenceRatio: 0.1, MaxTextRankWords: 10000})
+				if err := idx.AddLibrary(1, needsReindex || input.ForceIndexing, 1); err != nil {
+					t.Fatal(err)
+				}
+				book, err := idx.Document("existing-author-rebuilt-book")
+				if err != nil || book.Title != "Rebuilt book" {
+					t.Fatalf("library must be searchable after rebuilding: %+v, %v", book, err)
+				}
+				author, err := idx.Author("existing-author", "")
+				if err != nil || author.DataSourceID != "Q1" || !author.RetrievedOn.Equal(retrieved) {
+					t.Fatalf("rebuilding must preserve author metadata: %+v, %v", author, err)
+				}
+				if err := idx.Close(); err != nil {
+					t.Fatal(err)
+				}
+
+				documents, authors, needsReindex = getIndexes(fs, 0.25, 0.1, 10000)
+				defer documents.Close()
+				defer authors.Close()
+				if needsReindex {
+					t.Fatal("completed upgrade must not rebuild again on restart")
+				}
+				if version, err := documents.GetInternal([]byte("version")); err != nil || string(version) != index.DocumentVersion {
+					t.Fatalf("expected persisted current version, got %q, %v", version, err)
+				}
+				if count, err := documents.DocCount(); err != nil || count != 1 {
+					t.Fatalf("restart must retain rebuilt documents: count=%d, err=%v", count, err)
+				}
+			})
+		}
+	}
+}
+
+func TestGetIndexesRejectsUnsupportedDocuments(t *testing.T) {
+	if childHome := os.Getenv("COREANDER_TEST_UNSUPPORTED_INDEX_HOME"); childHome != "" {
+		homeDir = childHome
+		input.BatchSize, input.ForceIndexing = 1, true
+		getIndexes(afero.NewOsFs(), 0.25, 0.1, 10000)
+		return
+	}
+	for _, version := range []string{"", "v0", "v15", "v99", "v01", "v-1", "13", "unknown"} {
+		t.Run(version, func(t *testing.T) {
+			previousHome := homeDir
+			t.Cleanup(func() { homeDir = previousHome })
+			homeDir = t.TempDir()
+			seedDocumentIndex(t, version)
+			command := exec.Command(os.Args[0], "-test.run=^TestGetIndexesRejectsUnsupportedDocuments$")
+			command.Env = append(os.Environ(), "COREANDER_TEST_UNSUPPORTED_INDEX_HOME="+homeDir)
+			output, err := command.CombinedOutput()
+			if err == nil || !strings.Contains(string(output), "Unsupported documents index version") {
+				t.Fatalf("expected startup refusal, got %v: %s", err, output)
+			}
+			documents, err := bleve.Open(homeDir + documentsIndexPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer documents.Close()
+			if stored, err := documents.GetInternal([]byte("version")); err != nil || string(stored) != version {
+				t.Fatalf("unsupported version must remain untouched: %q, %v", stored, err)
+			}
+			if count, err := documents.DocCount(); err != nil || count != 1 {
+				t.Fatalf("unsupported documents must remain untouched: count=%d, err=%v", count, err)
+			}
+		})
+	}
+}
 
 func withBiblioReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
 	t.Helper()

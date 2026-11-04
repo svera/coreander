@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -283,27 +284,37 @@ func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, max
 	if err != nil {
 		log.Fatal(err)
 	}
-	if string(version) == "" || string(version) != index.DocumentVersion {
+	reindexDocuments := slices.Contains([]string{
+		"v1", "v2", "v3", "v4", "v5", "v6", "v7",
+		"v8", "v9", "v10", "v11", "v12", "v13",
+	}, string(version))
+	if !reindexDocuments && string(version) != index.DocumentVersion {
 		log.Fatalf("Unsupported documents index version %q; preserving the index instead of recreating it.", version)
+	}
+	if reindexDocuments {
+		log.Printf("Documents index version %s found, recreating with %s mapping and reindexing the library.", version, index.DocumentVersion)
 	}
 
 	// Rebuild index if TextRank or illustration configuration changed (stored in index metadata).
-	if !needsReindex {
+	if !needsReindex && !reindexDocuments {
 		reindexForConfig, err := index.NeedsReindex(documentsIndex, illustratedMinSize, minOccurrenceRatio, maxTextRankWords)
 		if err != nil {
 			log.Fatal(err)
 		}
 		if reindexForConfig {
 			log.Println("Illustrated min size, min occurrence ratio, or max TextRank words config changed, recreating documents index.")
-			if err = documentsIndex.Close(); err != nil {
-				log.Fatal(err)
-			}
-			if err = fs.RemoveAll(homeDir + documentsIndexPath); err != nil {
-				log.Fatal(err)
-			}
-			documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)
-			needsReindex = true
+			reindexDocuments = true
 		}
+	}
+	if reindexDocuments {
+		if err = documentsIndex.Close(); err != nil {
+			log.Fatal(err)
+		}
+		if err = fs.RemoveAll(homeDir + documentsIndexPath); err != nil {
+			log.Fatal(err)
+		}
+		documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)
+		needsReindex = true
 	}
 
 	// Check authors index version

@@ -1,9 +1,7 @@
 package index
 
 import (
-	"encoding/json"
 	"fmt"
-	"maps"
 
 	"github.com/blevesearch/bleve/v2"
 )
@@ -49,7 +47,11 @@ func (b *BleveIndexer) UpdateDocument(id string, update func(*DocumentUpdate) (b
 			return err
 		}
 	}
-	return IndexDocument(b.documentsIdx, id, pending.Document)
+	if err := IndexDocument(b.documentsIdx, id, pending.Document); err != nil {
+		return err
+	}
+	b.providerProgressVersion.Add(1)
+	return nil
 }
 
 // storeAuthorLinkLocked requires documentsMu to be held.
@@ -97,7 +99,7 @@ func (b *BleveIndexer) documentByIndexIDLocked(id string) (Document, bool, error
 	return document, true, err
 }
 
-// preserveDataSourcesLocked protects provider updates from stale metadata writers.
+// preserveDataSourcesLocked protects provider updates and removals from stale writers.
 // It requires documentsMu to be held for writing.
 func (b *BleveIndexer) preserveDataSourcesLocked(documents []Document) error {
 	if len(documents) == 0 {
@@ -124,12 +126,7 @@ func (b *BleveIndexer) preserveDataSourcesLocked(documents []Document) error {
 	}
 	for i := range documents {
 		if current, ok := stored[documents[i].ID]; ok {
-			merged := maps.Clone(documents[i].DataSources)
-			if merged == nil && len(current.DataSources) > 0 {
-				merged = make(map[string]json.RawMessage)
-			}
-			maps.Copy(merged, current.DataSources)
-			documents[i].DataSources = merged
+			documents[i].DataSources = current.DataSources
 			documents[i].DataSourceScoreValue = current.DataSourceScoreValue
 		}
 	}

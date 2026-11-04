@@ -60,7 +60,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		return c.Next()
 	})
 
-	app.Use(SetConfigLocals(cfg))
+	app.Use(SetConfigLocals(cfg), SetProgress(idx))
 
 	// Set available languages for the language filter
 	app.Use(SetAvailableLanguages(idx))

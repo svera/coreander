@@ -138,6 +138,13 @@ func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, user
 	}
 	engine.AddFunc("storedDocumentScore", controllers.Documents.StoredScore)
 	engine.AddFunc("remainingTime", fmtRemainingTime)
+	engine.AddFunc("backgroundProgress", func() fiber.Map {
+		tasks, err := idx.BackgroundProgress()
+		if err != nil {
+			log.Printf("Error reading background progress: %s", err)
+		}
+		return fiber.Map{"Tasks": tasks, "Error": err != nil}
+	})
 
 	// UploadDocumentMaxSize <= 0 means "unlimited", but fiber has no such
 	// sentinel for BodyLimit - it coerces any value <= 0 to its own 4MB
@@ -158,7 +165,6 @@ func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, user
 
 	app.Use(
 		SetFQDN(cfg),
-		SetProgress(idx),
 		favicon.New(),
 		cache.New(cache.Config{
 			Next: func(c fiber.Ctx) bool {

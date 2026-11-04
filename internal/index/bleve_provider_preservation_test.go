@@ -2,11 +2,70 @@ package index
 
 import (
 	"context"
+	"reflect"
 	"slices"
 	"testing"
 
 	"github.com/svera/coreander/v5/internal/metadata"
 )
+
+func TestTextRankWritesPreserveProviderRemovals(t *testing.T) {
+	for _, keepIndependent := range []bool{false, true} {
+		name := "all providers reset"
+		if keepIndependent {
+			name = "one provider reset"
+		}
+		t.Run(name, func(t *testing.T) {
+			idx, documents := newTestTextRankIndexer(t, Config{})
+			t.Cleanup(func() { _ = idx.Close() })
+			document := withProviderData(t, Document{
+				ID: "book", Slug: "book", Metadata: metadata.Metadata{Title: "Book"},
+				DataSourceScoreValue: 3.82,
+			}, testProviderData{URL: "/book/show/123", Enriched: true})
+			if err := SetDataSourceData(&document, "other", map[string]any{"enriched": true}); err != nil {
+				t.Fatal(err)
+			}
+			if err := IndexDocument(documents, document.ID, document); err != nil {
+				t.Fatal(err)
+			}
+			stale, err := idx.documentByIndexID("book")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := idx.UpdateDocument("book", func(update *DocumentUpdate) (bool, error) {
+				if keepIndependent {
+					delete(update.DataSources, "dummy")
+				} else {
+					update.DataSources = nil
+				}
+				update.DataSourceScoreValue = 0
+				return true, nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			latest, err := idx.documentByIndexID("book")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			idx.enrichTextRankAndReindex(stale)
+			got, err := idx.documentByIndexID("book")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got.DataSources, latest.DataSources) || got.DataSourceScoreValue != 0 {
+				t.Fatalf("stale TextRank write restored removed provider data: %+v", got)
+			}
+			if !got.TextRankEnriched {
+				t.Fatal("TextRank result must still be persisted")
+			}
+			pending, total, err := idx.documentsNeedingProvider("dummy", 10)
+			if err != nil || total != 1 || len(pending) != 1 || pending[0].ID != "book" {
+				t.Fatalf("reset provider lookup must remain pending: %+v, %d, %v", pending, total, err)
+			}
+		})
+	}
+}
 
 // TestTextRankWritesPreserveProviderFields guards against TextRank
 // enrichment, which writes back documents read before ranking them,
