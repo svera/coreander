@@ -26,13 +26,13 @@ func ParseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.Search
 		PagesFrom:           fiber.Query[float64](c, "pages-from", 0),
 		PagesTo:             fiber.Query[float64](c, "pages-to", 0),
 		DataSourceScoreFrom: fiber.Query[float64](c, "review-score-from", 0),
-		DataSourceScoreTo:   fiber.Query[float64](c, "review-score-to", 0),
-		DataSourceScoreNone: c.Query("review-score-from") == "none" || c.Query("review-score-to") == "none",
+		DataSourceScoreTo:   new(fiber.Query[float64](c, "review-score-to", 5)),
 		IllustratedOnly:     c.Query("illustrated-only") == "on" || c.Query("illustrated-only") == "1",
 	}
-	if searchFields.DataSourceScoreNone {
+	// Preserve existing links using the former no-score query value.
+	if c.Query("review-score-from") == "none" || c.Query("review-score-to") == "none" {
 		searchFields.DataSourceScoreFrom = 0
-		searchFields.DataSourceScoreTo = 0
+		searchFields.DataSourceScoreTo = new(0.0)
 	}
 
 	if c.Query("pub-date-from") != "" {
@@ -63,8 +63,8 @@ func ParseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.Search
 		searchFields.PagesFrom, searchFields.PagesTo = searchFields.PagesTo, searchFields.PagesFrom
 	}
 
-	if !searchFields.DataSourceScoreNone && searchFields.DataSourceScoreTo != 0 && searchFields.DataSourceScoreFrom > searchFields.DataSourceScoreTo {
-		searchFields.DataSourceScoreFrom, searchFields.DataSourceScoreTo = searchFields.DataSourceScoreTo, searchFields.DataSourceScoreFrom
+	if searchFields.DataSourceScoreFrom > *searchFields.DataSourceScoreTo {
+		searchFields.DataSourceScoreFrom, *searchFields.DataSourceScoreTo = *searchFields.DataSourceScoreTo, searchFields.DataSourceScoreFrom
 	}
 
 	return searchFields, nil

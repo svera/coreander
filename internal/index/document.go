@@ -35,10 +35,17 @@ type SearchFields struct {
 	PagesFrom           float64
 	PagesTo             float64
 	DataSourceScoreFrom float64
-	DataSourceScoreTo   float64
-	DataSourceScoreNone bool
+	DataSourceScoreTo   *float64
 	IllustratedOnly     bool
 	SortBy              []string
+}
+
+// DataSourceScoreUpperBound defaults an unspecified upper bound to the maximum score.
+func (s SearchFields) DataSourceScoreUpperBound() float64 {
+	if s.DataSourceScoreTo == nil {
+		return 5
+	}
+	return *s.DataSourceScoreTo
 }
 
 type Document struct {

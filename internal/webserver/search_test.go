@@ -216,7 +216,7 @@ func TestReviewScoreFilter(t *testing.T) {
 		value string
 	}{
 		{name: "review-score-from", value: "4"},
-		{name: "review-score-to", value: "5"},
+		{name: "review-score-to", value: ""},
 	} {
 		selects := doc.Find(`select[name="` + field.name + `"]`)
 		if selects.Length() == 0 {
@@ -231,7 +231,7 @@ func TestReviewScoreFilter(t *testing.T) {
 				value, _ := option.Attr("value")
 				wantLabel := ""
 				switch value {
-				case "none":
+				case "0":
 					if strings.TrimSpace(option.Text()) == "" {
 						t.Errorf("Expected a label for %s no-score option", field.name)
 					}
@@ -244,7 +244,7 @@ func TestReviewScoreFilter(t *testing.T) {
 				}
 				return value
 			})
-			if strings.Join(options, ",") != ",none,1,2,3,4,5" {
+			if strings.Join(options, ",") != ",0,1,2,3,4,5" {
 				t.Errorf("Expected blank, no-score, and scores 1 to 5 for %s, got %v", field.name, options)
 			}
 		})
@@ -254,7 +254,7 @@ func TestReviewScoreFilter(t *testing.T) {
 
 	}
 
-	response, err = app.Test(mustGetRequest(t, "/search?type=documents&review-score-from=none"))
+	response, err = app.Test(mustGetRequest(t, "/search?type=documents&review-score-from=0&review-score-to=0"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,8 +265,12 @@ func TestReviewScoreFilter(t *testing.T) {
 	}
 	for _, name := range []string{"review-score-from", "review-score-to"} {
 		selected, _ := doc.Find(`select[name="` + name + `"] option[selected]`).Attr("value")
-		if selected != "none" {
-			t.Errorf("Expected no-score option selected for %s, got %q", name, selected)
+		want := "0"
+		if name == "review-score-from" {
+			want = ""
+		}
+		if selected != want {
+			t.Errorf("Expected %q selected for %s, got %q", want, name, selected)
 		}
 	}
 }
@@ -338,6 +342,51 @@ func TestSearchResultsSortByDataSourceScore(t *testing.T) {
 			})
 			if !slices.Equal(got, tt.want) {
 				t.Fatalf("score sort %s: got %v, want %v", tt.direction, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSearchResultsFilterByInclusiveScoreRange(t *testing.T) {
+	documents := []index.Document{
+		{ID: "unrated.epub", Slug: "unrated", DataSourceScoreValue: 0},
+		{ID: "fractional.epub", Slug: "fractional", DataSourceScoreValue: 0.5},
+		{ID: "one.epub", Slug: "one", DataSourceScoreValue: 1},
+		{ID: "five.epub", Slug: "five", DataSourceScoreValue: 5},
+	}
+	for i := range documents {
+		documents[i].Metadata = metadata.Metadata{Title: documents[i].Slug, Format: "EPUB"}
+	}
+	app, _ := newSearchResultsTestApp(t, documents)
+	for _, tt := range []struct {
+		name  string
+		query string
+		want  []string
+	}{
+		{name: "default", want: []string{"five", "fractional", "one", "unrated"}},
+		{name: "full range", query: "&review-score-from=0&review-score-to=5", want: []string{"five", "fractional", "one", "unrated"}},
+		{name: "zero lower bound", query: "&review-score-from=0", want: []string{"five", "fractional", "one", "unrated"}},
+		{name: "unrated", query: "&review-score-from=0&review-score-to=0", want: []string{"unrated"}},
+		{name: "zero upper bound", query: "&review-score-to=0", want: []string{"unrated"}},
+		{name: "positive range", query: "&review-score-from=1&review-score-to=5", want: []string{"five", "one"}},
+		{name: "upper bound includes unrated", query: "&review-score-to=1", want: []string{"fractional", "one", "unrated"}},
+		{name: "exact score", query: "&review-score-from=1&review-score-to=1", want: []string{"one"}},
+		{name: "reversed bounds", query: "&review-score-from=5&review-score-to=1", want: []string{"five", "one"}},
+		{name: "legacy unrated", query: "&review-score-from=none", want: []string{"unrated"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/search?type=documents"+tt.query)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			page.Find("#list .list-group-item h2 a").Each(func(_ int, link *goquery.Selection) {
+				href, _ := link.Attr("href")
+				got = append(got, strings.TrimPrefix(href, "/documents/"))
+			})
+			slices.Sort(got)
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("got %v, want %v", got, tt.want)
 			}
 		})
 	}

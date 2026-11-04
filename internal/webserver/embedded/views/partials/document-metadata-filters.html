@@ -28,13 +28,12 @@
                 {{if .SearchFields}}
                     {{$reviewScoreFrom = .SearchFields.DataSourceScoreFrom}}
                 {{end}}
-                {{$reviewScoreTo := 0.0}}
+                {{$reviewScoreTo := 5.0}}
                 {{if .SearchFields}}
-                    {{$reviewScoreTo = .SearchFields.DataSourceScoreTo}}
+                    {{$reviewScoreTo = .SearchFields.DataSourceScoreUpperBound}}
                 {{end}}
-                {{$noScoreSelected := and .SearchFields .SearchFields.DataSourceScoreNone}}
-                {{template "partials/document-score-filter-control" dict "Lang" .Lang "IdPrefix" $idPrefix "Name" "review-score-from" "Label" "From" "Score" $reviewScoreFrom "NoScoreSelected" $noScoreSelected}}
-                {{template "partials/document-score-filter-control" dict "Lang" .Lang "IdPrefix" $idPrefix "Name" "review-score-to" "Label" "To" "Score" $reviewScoreTo "NoScoreSelected" $noScoreSelected "RoundedEnd" true}}
+                {{template "partials/document-score-filter-control" dict "Lang" .Lang "IdPrefix" $idPrefix "Name" "review-score-from" "Label" "From" "Score" $reviewScoreFrom "Default" 0.0}}
+                {{template "partials/document-score-filter-control" dict "Lang" .Lang "IdPrefix" $idPrefix "Name" "review-score-to" "Label" "To" "Score" $reviewScoreTo "Default" 5.0 "RoundedEnd" true}}
                 <button type="button" class="input-group-text clear-range-control text-muted border-0 bg-transparent" aria-label='{{if .DataSourceName}}{{t .Lang "Clear %s score" .DataSourceName}}{{else}}{{t .Lang "Clear review score"}}{{end}}' title='{{if .DataSourceName}}{{t .Lang "Clear %s score" .DataSourceName}}{{else}}{{t .Lang "Clear review score"}}{{end}}'><i class="bi bi-x-lg"></i></button>
             </div>
         </div>

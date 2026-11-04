@@ -8,6 +8,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v5/internal/webserver/model"
@@ -164,7 +165,12 @@ func TestHighlights(t *testing.T) {
 
 func TestHighlightsReviewScoreFilter(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, loadFilesInMemoryFs([]string{"testdata/library/metadata.epub"}), webserver.Config{})
+	app, idx := bootstrapAppWithIndexer(db, &infrastructure.NoEmail{}, loadFilesInMemoryFs([]string{"testdata/library/metadata.epub"}), webserver.Config{})
+	t.Cleanup(func() { _ = idx.Close() })
+	document, err := idx.Document("john-doe-test-epub")
+	if err != nil {
+		t.Fatal(err)
+	}
 	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -182,12 +188,29 @@ func TestHighlightsReviewScoreFilter(t *testing.T) {
 	for _, test := range []struct {
 		name          string
 		query         string
+		score         float64
 		expectedCount int
 	}{
-		{name: "no score", query: "review-score-from=none", expectedCount: 1},
+		{name: "default range", expectedCount: 1},
+		{name: "full range", query: "review-score-from=0&review-score-to=5", expectedCount: 1},
+		{name: "zero lower bound", query: "review-score-from=0", expectedCount: 1},
+		{name: "no score", query: "review-score-from=0&review-score-to=0", expectedCount: 1},
+		{name: "legacy no score", query: "review-score-from=none", expectedCount: 1},
 		{name: "numeric score range", query: "review-score-from=1", expectedCount: 0},
+		{name: "fractional score included", query: "review-score-to=1", score: 0.5, expectedCount: 1},
+		{name: "lower boundary included", query: "review-score-from=1", score: 1, expectedCount: 1},
+		{name: "upper boundary included", query: "review-score-from=1&review-score-to=5", score: 5, expectedCount: 1},
+		{name: "rated excluded from unrated", query: "review-score-to=0", score: 1, expectedCount: 0},
+		{name: "rated below range", query: "review-score-from=1", score: 0.5, expectedCount: 0},
+		{name: "rated above range", query: "review-score-to=1", score: 5, expectedCount: 0},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			if err := idx.UpdateDocument(document.ID, func(update *index.DocumentUpdate) (bool, error) {
+				update.DataSourceScoreValue = test.score
+				return true, nil
+			}); err != nil {
+				t.Fatal(err)
+			}
 			response, err := getRequest(adminCookie, app, "/highlights?"+test.query, t)
 			if err != nil {
 				t.Fatalf("Unexpected error fetching highlights: %v", err)

@@ -2,9 +2,15 @@
 package reviews
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
+)
+
+var (
+	ErrInvalidDocumentLink = errors.New("invalid document link")
+	ErrDocumentNotFound    = errors.New("document not found")
 )
 
 // Score has an empty URL for an unmatched document and an empty Value for an unavailable score.

@@ -30,7 +30,7 @@ type Controllers struct {
 	Series      *series.Controller
 }
 
-func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource, reviewProvider document.ReviewProvider, dataSourceLinkProviders ...author.DataSourceLinkProvider) Controllers {
+func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, authorDataSource author.DataSource, reviewProvider document.ReviewProvider, dataSourceLinkProviders ...author.DataSourceLinkProvider) Controllers {
 	usersRepository := &model.UserRepository{DB: db}
 	invitationsRepository := &model.InvitationRepository{DB: db}
 	highlightsRepository := &model.HighlightRepository{DB: db, Idx: idx, IllustratedMinAmount: cfg.IllustratedMinAmount}
@@ -102,7 +102,7 @@ func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender S
 		LatestDocsLimit: 6,
 	}
 
-	authorsController := author.NewController(highlightsRepository, readingRepository, sender, idx, authorsCfg, dataSource, appFs, imagesFS, dataSourceLinkProviders...)
+	authorsController := author.NewController(highlightsRepository, readingRepository, sender, idx, authorsCfg, authorDataSource, appFs, imagesFS, dataSourceLinkProviders...)
 	go authorsController.MigrateJPEGsToWebP()
 
 	return Controllers{

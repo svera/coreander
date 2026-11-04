@@ -249,22 +249,9 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 		bq.SetBoost(0)
 		filtersQuery.AddQuery(bq)
 	}
-	if searchFields.DataSourceScoreNone {
-		unscored := 0.0
-		ratingQuery := newInclusiveNumericRangeQuery(&unscored, &unscored)
-		ratingQuery.SetField("DataSourceScoreValue")
-		ratingQuery.SetBoost(0)
-		filtersQuery.AddQuery(ratingQuery)
-	} else if searchFields.DataSourceScoreFrom > 0 || searchFields.DataSourceScoreTo > 0 {
-		min := math.SmallestNonzeroFloat64
-		var max *float64
-		if searchFields.DataSourceScoreFrom > 0 {
-			min = searchFields.DataSourceScoreFrom
-		}
-		if searchFields.DataSourceScoreTo > 0 {
-			max = &searchFields.DataSourceScoreTo
-		}
-		ratingQuery := newInclusiveNumericRangeQuery(&min, max)
+	if max := searchFields.DataSourceScoreUpperBound(); searchFields.DataSourceScoreFrom != 0 || max != 5 {
+		min := searchFields.DataSourceScoreFrom
+		ratingQuery := newInclusiveNumericRangeQuery(&min, &max)
 		ratingQuery.SetField("DataSourceScoreValue")
 		ratingQuery.SetBoost(0)
 		filtersQuery.AddQuery(ratingQuery)

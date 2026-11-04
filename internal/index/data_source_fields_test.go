@@ -6,31 +6,36 @@ import (
 	"testing"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/blevesearch/bleve/v2/mapping"
 	"github.com/blevesearch/bleve/v2/search/query"
-	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
-func mustBiblioReadsData(t *testing.T, document index.Document) biblioreads.DocumentData {
+type storedProviderData struct {
+	URL         string `json:"url"`
+	ScoreCount  string `json:"scoreCount"`
+	ReferenceID string `json:"referenceId"`
+	RecordID    int    `json:"recordId"`
+}
+
+func mustStoredProviderData(t *testing.T, document index.Document) storedProviderData {
 	t.Helper()
-	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+	data, err := index.DataSourceData[storedProviderData](document, "dummy")
 	if err != nil {
 		t.Fatal(err)
 	}
 	return data
 }
 
-func withBiblioReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
+func withStoredProviderData(t *testing.T, document index.Document, data storedProviderData) index.Document {
 	t.Helper()
-	if err := index.SetDataSourceData(&document, biblioreads.Source, data); err != nil {
+	if err := index.SetDataSourceData(&document, "dummy", data); err != nil {
 		t.Fatal(err)
 	}
 	return document
 }
 
-func TestReviewScoreSorting(t *testing.T) {
+func TestDataSourceScoreSorting(t *testing.T) {
 	docs := []index.Document{
 		{ID: "high", Slug: "high", DataSourceScoreValue: 4.75},
 		{ID: "unrated", Slug: "unrated"},
@@ -103,7 +108,7 @@ func TestReviewScoreSorting(t *testing.T) {
 	}
 }
 
-func TestReviewFieldsAndProviderMetadataAreStoredButNotSearchable(t *testing.T) {
+func TestDataSourceFieldsAreStoredButNotSearchable(t *testing.T) {
 	documentsIndexMem, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Fatal(err)
@@ -116,25 +121,25 @@ func TestReviewFieldsAndProviderMetadataAreStoredButNotSearchable(t *testing.T) 
 	t.Cleanup(func() { _ = idx.Close() })
 
 	const (
-		bookURL      = "/book/show/12207444-zyxwvbook"
-		authorURL    = "/author/show/151155.Zyxwv_Author"
-		resourceID   = "kca://work/amzn1.gr.work.v1.zyxwvresource"
-		legacyBookID = 12207444
+		bookURL     = "https://example.org/books/12207444-zyxwvbook"
+		authorURL   = "https://example.org/authors/151155.Zyxwv_Author"
+		referenceID = "opaque-zyxwvreference"
+		recordID    = 12207444
 	)
 	for _, lang := range []string{"es", ""} {
-		doc := withBiblioReadsData(t, index.Document{
+		doc := withStoredProviderData(t, index.Document{
 			ID:   "doc-" + lang,
 			Slug: "doc-" + lang,
 			Metadata: metadata.Metadata{
-				Title:    "La Reina Dragon",
-				Authors:  []string{"Alice Borchardt"},
+				Title:    "Example Book",
+				Authors:  []string{"Example Writer"},
 				Language: lang,
 				Format:   "EPUB",
 			},
-			AuthorsSlugs: []string{"alice-borchardt"},
+			AuthorsSlugs: []string{"example-writer"},
 
 			DataSourceScoreValue: 4.25,
-		}, biblioreads.DocumentData{URL: bookURL, RatingCount: "2285", ResourceID: resourceID, LegacyBookID: legacyBookID})
+		}, storedProviderData{URL: bookURL, ScoreCount: "2285", ReferenceID: referenceID, RecordID: recordID})
 
 		if err := index.IndexDocument(documentsIndexMem, doc.ID, doc); err != nil {
 			t.Fatal(err)
@@ -144,17 +149,17 @@ func TestReviewFieldsAndProviderMetadataAreStoredButNotSearchable(t *testing.T) 
 		if err != nil {
 			t.Fatal(err)
 		}
-		if mustBiblioReadsData(t, got).URL != bookURL {
-			t.Errorf("language %q: expected stored book URL, got %q", lang, mustBiblioReadsData(t, got).URL)
+		if mustStoredProviderData(t, got).URL != bookURL {
+			t.Errorf("language %q: expected stored book URL, got %q", lang, mustStoredProviderData(t, got).URL)
 		}
 		if got.DataSourceScoreValue != 4.25 {
 			t.Errorf("language %q: expected stored rating, got %v", lang, got.DataSourceScoreValue)
 		}
-		if mustBiblioReadsData(t, got).RatingCount != "2285" {
-			t.Errorf("language %q: expected stored rating count, got %q", lang, mustBiblioReadsData(t, got).RatingCount)
+		if mustStoredProviderData(t, got).ScoreCount != "2285" {
+			t.Errorf("language %q: expected stored rating count, got %q", lang, mustStoredProviderData(t, got).ScoreCount)
 		}
-		if mustBiblioReadsData(t, got).ResourceID != resourceID || mustBiblioReadsData(t, got).LegacyBookID != legacyBookID {
-			t.Errorf("language %q: expected stored identifiers, got %q and %d", lang, mustBiblioReadsData(t, got).ResourceID, mustBiblioReadsData(t, got).LegacyBookID)
+		if mustStoredProviderData(t, got).ReferenceID != referenceID || mustStoredProviderData(t, got).RecordID != recordID {
+			t.Errorf("language %q: expected stored identifiers, got %q and %d", lang, mustStoredProviderData(t, got).ReferenceID, mustStoredProviderData(t, got).RecordID)
 		}
 	}
 	if err := index.IndexDocument(documentsIndexMem, "unscored", index.Document{
@@ -168,7 +173,7 @@ func TestReviewFieldsAndProviderMetadataAreStoredButNotSearchable(t *testing.T) 
 		t.Fatal(err)
 	}
 
-	for _, keywords := range []string{"zyxwvbook", "Zyxwv_Author", "12207444", "151155", "zyxwvresource", resourceID, "4.25", "2285"} {
+	for _, keywords := range []string{"zyxwvbook", "Zyxwv_Author", "12207444", "151155", "zyxwvreference", referenceID, "4.25", "2285"} {
 		res, err := idx.Search(index.SearchFields{Keywords: keywords}, 1, 10)
 		if err != nil {
 			t.Fatal(err)
@@ -177,25 +182,25 @@ func TestReviewFieldsAndProviderMetadataAreStoredButNotSearchable(t *testing.T) 
 			t.Errorf("expected no results searching keywords %q, got %d", keywords, res.TotalHits())
 		}
 	}
-	filtered, err := idx.Search(index.SearchFields{DataSourceScoreFrom: 4.2, DataSourceScoreTo: 4.3}, 1, 10)
+	filtered, err := idx.Search(index.SearchFields{DataSourceScoreFrom: 4.2, DataSourceScoreTo: new(4.3)}, 1, 10)
 	if err != nil || filtered.TotalHits() != 2 {
-		t.Errorf("expected both documents in the review score range, got %d results and error %v", filtered.TotalHits(), err)
+		t.Errorf("expected both documents in the data-source score range, got %d results and error %v", filtered.TotalHits(), err)
 	}
 	filtered, err = idx.Search(index.SearchFields{DataSourceScoreFrom: 4.3}, 1, 10)
 	if err != nil || filtered.TotalHits() != 0 {
-		t.Errorf("expected no documents above the review score, got %d results and error %v", filtered.TotalHits(), err)
+		t.Errorf("expected no documents above the data-source score, got %d results and error %v", filtered.TotalHits(), err)
 	}
-	filtered, err = idx.Search(index.SearchFields{DataSourceScoreNone: true}, 1, 10)
+	filtered, err = idx.Search(index.SearchFields{DataSourceScoreTo: new(0.0)}, 1, 10)
 	if err != nil || filtered.TotalHits() != 1 || filtered.Hits()[0].DataSourceScoreValue != 0 {
 		t.Errorf("expected only the unscored document, got %d results and error %v", filtered.TotalHits(), err)
 	}
 
 	queries := map[string]bleve.SearchRequest{
 		"provider data field term": *bleve.NewSearchRequest(fieldTermQuery("DataSources", bookURL)),
-		"provider URL field term":  *bleve.NewSearchRequest(fieldTermQuery("DataSources.goodreads.url", bookURL)),
-		"author URL field term":    *bleve.NewSearchRequest(fieldTermQuery("GoodReadsAuthorURL", authorURL)),
-		"resource ID field term":   *bleve.NewSearchRequest(fieldTermQuery("DataSources.goodreads.resourceId", resourceID)),
-		"legacy ID numeric field":  *bleve.NewSearchRequest(legacyBookIDQuery(legacyBookID)),
+		"provider URL field term":  *bleve.NewSearchRequest(fieldTermQuery("DataSources.dummy.url", bookURL)),
+		"author URL field term":    *bleve.NewSearchRequest(fieldTermQuery("DataSourceLinks.dummy", authorURL)),
+		"resource ID field term":   *bleve.NewSearchRequest(fieldTermQuery("DataSources.dummy.referenceId", referenceID)),
+		"legacy ID numeric field":  *bleve.NewSearchRequest(providerRecordIDQuery(recordID)),
 		"_all match":               *bleve.NewSearchRequest(bleve.NewMatchQuery("zyxwvbook")),
 		"_all term":                *bleve.NewSearchRequest(bleve.NewTermQuery(bookURL)),
 		"query string field":       *bleve.NewSearchRequest(bleve.NewQueryStringQuery(`DataSources:"` + bookURL + `"`)),
@@ -211,7 +216,7 @@ func TestReviewFieldsAndProviderMetadataAreStoredButNotSearchable(t *testing.T) 
 	}
 }
 
-func TestReviewScoreSortingMissingFieldsAndTies(t *testing.T) {
+func TestDataSourceScoreSortingMissingFieldsAndTies(t *testing.T) {
 	documents, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Fatal(err)
@@ -263,10 +268,10 @@ func TestReviewScoreSortingMissingFieldsAndTies(t *testing.T) {
 	}
 }
 
-func legacyBookIDQuery(id int) *query.NumericRangeQuery {
+func providerRecordIDQuery(id int) *query.NumericRangeQuery {
 	value := float64(id)
 	q := bleve.NewNumericRangeQuery(&value, &value)
-	q.SetField("DataSources.goodreads.legacyBookId")
+	q.SetField("DataSources.dummy.recordId")
 	return q
 }
 
@@ -277,12 +282,12 @@ func TestAuthorDataSourceLinksAreStoredButNotSearchable(t *testing.T) {
 	}
 	defer authors.Close()
 	idx := index.NewBleve(nil, authors, nil, "", nil, index.Config{})
-	const authorURL = "/author/show/151155.Zyxwv_Author"
+	const authorURL = "https://example.org/authors/151155.Zyxwv_Author"
 	links := map[string]string{
-		"goodreads": authorURL,
-		"other":     "https://example.org/Zyxwv_Author",
+		"dummy": authorURL,
+		"other": "https://example.org/Zyxwv_Author",
 	}
-	if err := idx.IndexAuthor(index.Author{Slug: "alice", Name: "Alice Borchardt", DataSourceLinks: links}); err != nil {
+	if err := idx.IndexAuthor(index.Author{Slug: "alice", Name: "Example Writer", DataSourceLinks: links}); err != nil {
 		t.Fatal(err)
 	}
 	author, err := idx.Author("alice", "")
@@ -294,7 +299,7 @@ func TestAuthorDataSourceLinksAreStoredButNotSearchable(t *testing.T) {
 	}
 	for _, q := range []query.Query{
 		fieldTermQuery("DataSourceLinks", authorURL),
-		fieldTermQuery("DataSourceLinks.goodreads", authorURL),
+		fieldTermQuery("DataSourceLinks.dummy", authorURL),
 		fieldTermQuery("DataSourceLinks.other", links["other"]),
 		bleve.NewTermQuery(authorURL),
 		bleve.NewMatchQuery("Zyxwv_Author"),
@@ -314,16 +319,4 @@ func fieldTermQuery(field, term string) *query.TermQuery {
 	q := bleve.NewTermQuery(term)
 	q.SetField(field)
 	return q
-}
-
-func TestDocumentsMappingHasNoAuthorURL(t *testing.T) {
-	m := index.CreateDocumentsMapping().(*mapping.IndexMappingImpl)
-	for name, documentMapping := range m.TypeMapping {
-		if _, exists := documentMapping.Properties["GoodReadsAuthorURL"]; exists {
-			t.Errorf("mapping %q still contains an author URL field", name)
-		}
-	}
-	if _, exists := m.DefaultMapping.Properties["GoodReadsAuthorURL"]; exists {
-		t.Error("default mapping still contains an author URL field")
-	}
 }
