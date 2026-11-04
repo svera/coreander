@@ -13,7 +13,7 @@ import (
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
-func withGoodReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
+func withBiblioReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
 	t.Helper()
 	if err := index.SetDataSourceData(&document, biblioreads.Source, data); err != nil {
 		t.Fatal(err)
@@ -41,7 +41,7 @@ func TestGetIndexesMigratesAuthorsWithoutReindexingDocuments(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	doc := withGoodReadsData(t, index.Document{
+	doc := withBiblioReadsData(t, index.Document{
 		ID: "book", Slug: "book", AuthorsSlugs: []string{"alice-borchardt"},
 		Metadata: metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}},
 	}, biblioreads.DocumentData{Enriched: true})

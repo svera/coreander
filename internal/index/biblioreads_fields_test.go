@@ -13,7 +13,7 @@ import (
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
-func mustGoodReadsData(t *testing.T, document index.Document) biblioreads.DocumentData {
+func mustBiblioReadsData(t *testing.T, document index.Document) biblioreads.DocumentData {
 	t.Helper()
 	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
 	if err != nil {
@@ -22,7 +22,7 @@ func mustGoodReadsData(t *testing.T, document index.Document) biblioreads.Docume
 	return data
 }
 
-func withGoodReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
+func withBiblioReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
 	t.Helper()
 	if err := index.SetDataSourceData(&document, biblioreads.Source, data); err != nil {
 		t.Fatal(err)
@@ -122,7 +122,7 @@ func TestReviewFieldsAndProviderMetadataAreStoredButNotSearchable(t *testing.T) 
 		legacyBookID = 12207444
 	)
 	for _, lang := range []string{"es", ""} {
-		doc := withGoodReadsData(t, index.Document{
+		doc := withBiblioReadsData(t, index.Document{
 			ID:   "doc-" + lang,
 			Slug: "doc-" + lang,
 			Metadata: metadata.Metadata{
@@ -144,17 +144,17 @@ func TestReviewFieldsAndProviderMetadataAreStoredButNotSearchable(t *testing.T) 
 		if err != nil {
 			t.Fatal(err)
 		}
-		if mustGoodReadsData(t, got).URL != bookURL {
-			t.Errorf("language %q: expected stored book URL, got %q", lang, mustGoodReadsData(t, got).URL)
+		if mustBiblioReadsData(t, got).URL != bookURL {
+			t.Errorf("language %q: expected stored book URL, got %q", lang, mustBiblioReadsData(t, got).URL)
 		}
 		if got.DataSourceScoreValue != 4.25 {
 			t.Errorf("language %q: expected stored rating, got %v", lang, got.DataSourceScoreValue)
 		}
-		if mustGoodReadsData(t, got).RatingCount != "2285" {
-			t.Errorf("language %q: expected stored rating count, got %q", lang, mustGoodReadsData(t, got).RatingCount)
+		if mustBiblioReadsData(t, got).RatingCount != "2285" {
+			t.Errorf("language %q: expected stored rating count, got %q", lang, mustBiblioReadsData(t, got).RatingCount)
 		}
-		if mustGoodReadsData(t, got).ResourceID != resourceID || mustGoodReadsData(t, got).LegacyBookID != legacyBookID {
-			t.Errorf("language %q: expected stored identifiers, got %q and %d", lang, mustGoodReadsData(t, got).ResourceID, mustGoodReadsData(t, got).LegacyBookID)
+		if mustBiblioReadsData(t, got).ResourceID != resourceID || mustBiblioReadsData(t, got).LegacyBookID != legacyBookID {
+			t.Errorf("language %q: expected stored identifiers, got %q and %d", lang, mustBiblioReadsData(t, got).ResourceID, mustBiblioReadsData(t, got).LegacyBookID)
 		}
 	}
 	if err := index.IndexDocument(documentsIndexMem, "unscored", index.Document{

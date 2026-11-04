@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
-	"github.com/svera/coreander/v5/internal/enrichment/goodreads"
+	biblioreadsenrichment "github.com/svera/coreander/v5/internal/enrichment/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/reviews"
@@ -104,14 +104,14 @@ func main() {
 	var needsReindex bool
 	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize, input.MinOccurrenceRatio, maxTextRankWords)
 	var documentEnrichers []index.DocumentEnricher
-	goodReadsAdapter := goodreads.New(nil)
+	biblioReadsAdapter := biblioreadsenrichment.New(nil)
 	if !input.DisableBiblioreads {
 		biblioreadsClient = biblioreads.NewClient(
 			biblioreads.WithInstances(input.BiblioreadsInstances),
 			biblioreads.WithCacheTTL(time.Duration(input.BiblioreadsCacheTTL)*time.Second),
 		)
-		goodReadsAdapter = goodreads.New(biblioreadsClient)
-		documentEnrichers = append(documentEnrichers, goodReadsAdapter)
+		biblioReadsAdapter = biblioreadsenrichment.New(biblioreadsClient)
+		documentEnrichers = append(documentEnrichers, biblioReadsAdapter)
 	}
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
 		IllustratedMinAmount:           input.IllustratedMinAmount,
@@ -127,7 +127,7 @@ func main() {
 		TextRankEnrichWorkers:          resolvedIndexWorkers,
 		DocumentEnrichers:              documentEnrichers,
 	})
-	goodReadsAdapter.SetIndex(idx)
+	biblioReadsAdapter.SetIndex(idx)
 	// If index was newly created or recreated, force reindexing
 	if needsReindex {
 		input.ForceIndexing = true
@@ -209,7 +209,7 @@ func main() {
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
 	var reviewProvider document.ReviewProvider
-	biblioReads := reviews.NewBiblioReads(biblioreadsClient, goodReadsAdapter)
+	biblioReads := reviews.NewBiblioReads(biblioreadsClient, biblioReadsAdapter)
 	if biblioreadsClient != nil {
 		reviewProvider = biblioReads
 	}

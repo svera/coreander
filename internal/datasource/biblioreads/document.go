@@ -1,5 +1,6 @@
 package biblioreads
 
+// Source retains the persisted key for Goodreads data fetched through BiblioReads.
 const Source = "goodreads"
 
 // DocumentData is the persisted Goodreads state used by BiblioReads.

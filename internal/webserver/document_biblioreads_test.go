@@ -18,7 +18,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
-	"github.com/svera/coreander/v5/internal/enrichment/goodreads"
+	biblioreadsenrichment "github.com/svera/coreander/v5/internal/enrichment/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/reviews"
@@ -42,7 +42,7 @@ type fakeBookSource struct {
 	reviewCalls []reviewCall
 }
 
-func mustGoodReadsData(t *testing.T, document index.Document) biblioreads.DocumentData {
+func mustBiblioReadsData(t *testing.T, document index.Document) biblioreads.DocumentData {
 	t.Helper()
 	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
 	if err != nil {
@@ -51,7 +51,7 @@ func mustGoodReadsData(t *testing.T, document index.Document) biblioreads.Docume
 	return data
 }
 
-func withGoodReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
+func withBiblioReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
 	t.Helper()
 	if err := index.SetDataSourceData(&document, biblioreads.Source, data); err != nil {
 		t.Fatal(err)
@@ -63,7 +63,7 @@ func TestDocumentReviewsCanSelectSupportedLanguage(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{
 		Rating: "4", ResourceID: "work-id", LegacyBookID: 1,
 	}}
-	app, _ := newGoodReadsTestApp(t, source)
+	app, _ := newBiblioReadsTestApp(t, source)
 	req := mustGetRequest(t, "/documents/linked/reviews?language=fr")
 	req.Header.Set("Accept-Language", "es")
 	response, err := app.Test(req)
@@ -102,7 +102,7 @@ func TestDocumentReviewsRejectUnsupportedLanguage(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{
 		Rating: "4", ResourceID: "work-id", LegacyBookID: 1,
 	}}
-	app, _ := newGoodReadsTestApp(t, source)
+	app, _ := newBiblioReadsTestApp(t, source)
 	response, err := app.Test(mustGetRequest(t, "/documents/linked/reviews?language=zz"))
 	if err != nil {
 		t.Fatal(err)
@@ -165,7 +165,7 @@ func TestDocumentReviewsUILanguage(t *testing.T) {
 			source := &fakeBookSource{book: biblioreads.BookResponse{
 				Rating: "4", ResourceID: "work-id", LegacyBookID: 1,
 			}}
-			app, _ := newGoodReadsTestApp(t, source)
+			app, _ := newBiblioReadsTestApp(t, source)
 			req := mustGetRequest(t, "/documents/linked/reviews"+tt.query)
 			if tt.header != "" {
 				req.Header.Set("Accept-Language", tt.header)
@@ -208,7 +208,7 @@ func TestDocumentAlternativeReviewProvider(t *testing.T) {
 	}
 	// This document has a cached Goodreads non-match; it must still use the chosen provider.
 	detail := getBody(t, app, "/documents/unmatched")
-	if goodReadsPlaceholders(t, detail).Length() != 1 || len(provider.scoreSlugs) != 0 || len(provider.reviewSlugs) != 0 {
+	if biblioReadsPlaceholders(t, detail).Length() != 1 || len(provider.scoreSlugs) != 0 || len(provider.reviewSlugs) != 0 {
 		t.Fatal("detail must defer lookups to the selected provider")
 	}
 	for _, path := range []string{"/documents/unmatched/score"} {
@@ -305,7 +305,7 @@ func (f *fakeBookSource) Book(_ context.Context, id string) (biblioreads.BookRes
 	return f.book, f.err
 }
 
-func newGoodReadsTestApp(t *testing.T, source *fakeBookSource) (*fiber.App, *index.BleveIndexer) {
+func newBiblioReadsTestApp(t *testing.T, source *fakeBookSource) (*fiber.App, *index.BleveIndexer) {
 	t.Helper()
 	return newReviewProviderTestApp(t, source, nil)
 }
@@ -334,11 +334,11 @@ func newDataSourceProvidersTestApp(t *testing.T, source *fakeBookSource, provide
 	}
 	appFS := afero.NewMemMapFs()
 	idxCfg := index.Config{}
-	var adapter *goodreads.Enricher
+	var adapter *biblioreadsenrichment.Enricher
 	if source != nil {
-		adapter = goodreads.New(source)
+		adapter = biblioreadsenrichment.New(source)
 	} else {
-		adapter = goodreads.New(nil)
+		adapter = biblioreadsenrichment.New(nil)
 	}
 	if source != nil {
 		idxCfg.DocumentEnrichers = []index.DocumentEnricher{adapter}
@@ -348,10 +348,10 @@ func newDataSourceProvidersTestApp(t *testing.T, source *fakeBookSource, provide
 	if source != nil {
 		provider = reviews.NewBiblioReads(source, adapter)
 	}
-	goodReadsLinks := reviews.NewBiblioReads(nil, adapter)
+	biblioReadsLinks := reviews.NewBiblioReads(nil, adapter)
 	t.Cleanup(func() { _ = idx.Close() })
 
-	for _, doc := range []index.Document{withGoodReadsData(t, index.Document{
+	for _, doc := range []index.Document{withBiblioReadsData(t, index.Document{
 		ID: "linked.epub", Slug: "linked",
 		Metadata: metadata.Metadata{Title: "La Reina Dragon", Format: "EPUB"},
 
@@ -360,7 +360,7 @@ func newDataSourceProvidersTestApp(t *testing.T, source *fakeBookSource, provide
 		ID: "unlinked.epub", Slug: "unlinked",
 		Metadata:     metadata.Metadata{Title: "Unlinked", Authors: []string{"Jane Doe", "John Doe"}, Format: "EPUB"},
 		AuthorsSlugs: []string{"jane-doe", "john-doe"},
-	}, withGoodReadsData(t, index.Document{
+	}, withBiblioReadsData(t, index.Document{
 		ID: "unmatched.epub", Slug: "unmatched",
 		Metadata: metadata.Metadata{Title: "Unmatched", Format: "EPUB"},
 	}, biblioreads.DocumentData{Enriched: true}),
@@ -372,7 +372,7 @@ func newDataSourceProvidersTestApp(t *testing.T, source *fakeBookSource, provide
 
 	cfg := defaultTestConfig()
 	sender := &infrastructure.NoEmail{}
-	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, wikidata.NewWikidataSource(wikidata.Gowikidata{}), provider, wikidata.NewWikidataSource(wikidata.Gowikidata{}), goodReadsLinks, dataSourceLinkProvider)
+	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, wikidata.NewWikidataSource(wikidata.Gowikidata{}), provider, wikidata.NewWikidataSource(wikidata.Gowikidata{}), biblioReadsLinks, dataSourceLinkProvider)
 	app := webserver.New(cfg, controllers, sender, idx, &model.UserRepository{DB: db})
 	t.Cleanup(func() { _ = app.Shutdown() })
 	return app, idx
@@ -397,7 +397,7 @@ func getBody(t *testing.T, app *fiber.App, path string) string {
 	return string(body)
 }
 
-func goodReadsPlaceholders(t *testing.T, html string) *goquery.Selection {
+func biblioReadsPlaceholders(t *testing.T, html string) *goquery.Selection {
 	t.Helper()
 	page, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
@@ -406,16 +406,16 @@ func goodReadsPlaceholders(t *testing.T, html string) *goquery.Selection {
 	return page.Find(`li[hx-get$="/score"]`)
 }
 
-func TestDocumentDetailGoodReadsRating(t *testing.T) {
+func TestDocumentDetailBiblioReadsRating(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{
 		Rating: "3.82", RatingCount: "2,285",
 		ResourceID: "work-id", LegacyBookID: 12207444,
 	}}
-	app, idx := newGoodReadsTestApp(t, source)
+	app, idx := newBiblioReadsTestApp(t, source)
 
-	placeholder := goodReadsPlaceholders(t, getBody(t, app, "/documents/linked"))
+	placeholder := biblioReadsPlaceholders(t, getBody(t, app, "/documents/linked"))
 	if placeholder.Length() != 1 {
-		t.Fatalf("expected one GoodReads placeholder, got %d", placeholder.Length())
+		t.Fatalf("expected one BiblioReads placeholder, got %d", placeholder.Length())
 	}
 	if url, _ := placeholder.Attr("hx-get"); url != "/documents/linked/score" {
 		t.Errorf("unexpected placeholder URL %q", url)
@@ -448,14 +448,14 @@ func TestDocumentDetailGoodReadsRating(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mustGoodReadsData(t, stored).ResourceID != source.book.ResourceID || mustGoodReadsData(t, stored).LegacyBookID != source.book.LegacyBookID {
+	if mustBiblioReadsData(t, stored).ResourceID != source.book.ResourceID || mustBiblioReadsData(t, stored).LegacyBookID != source.book.LegacyBookID {
 		t.Fatalf("expected book identifiers to be stored, got %+v", stored)
 	}
 }
 
-func TestDocumentGoodReadsEditor(t *testing.T) {
+func TestDocumentBiblioReadsEditor(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{Rating: "3.82"}}
-	app, _ := newGoodReadsTestApp(t, source)
+	app, _ := newBiblioReadsTestApp(t, source)
 	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
 		t.Fatal(err)
@@ -519,11 +519,11 @@ func TestDocumentGoodReadsEditor(t *testing.T) {
 	}
 }
 
-func TestDocumentUpdateGoodReads(t *testing.T) {
+func TestDocumentUpdateBiblioReads(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{
 		Rating: "3.82", ResourceID: "old-work", LegacyBookID: 12207444,
 	}}
-	app, idx := newGoodReadsTestApp(t, source)
+	app, idx := newBiblioReadsTestApp(t, source)
 	getBody(t, app, "/documents/linked/score")
 	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
@@ -544,9 +544,9 @@ func TestDocumentUpdateGoodReads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mustGoodReadsData(t, stored).URL != "/book/show/1368314.El_Cercano_Oriente" ||
-		stored.DataSourceScoreValue != 0 || mustGoodReadsData(t, stored).ResourceID != "" || mustGoodReadsData(t, stored).LegacyBookID != 0 ||
-		!mustGoodReadsData(t, stored).Enriched {
+	if mustBiblioReadsData(t, stored).URL != "/book/show/1368314.El_Cercano_Oriente" ||
+		stored.DataSourceScoreValue != 0 || mustBiblioReadsData(t, stored).ResourceID != "" || mustBiblioReadsData(t, stored).LegacyBookID != 0 ||
+		!mustBiblioReadsData(t, stored).Enriched {
 		t.Fatalf("expected correction persisted without stale rating/review identifiers: %+v", stored)
 	}
 	source.book = biblioreads.BookResponse{Rating: "4.2", ResourceID: "new-work", LegacyBookID: 1368314}
@@ -562,8 +562,8 @@ func TestDocumentUpdateGoodReads(t *testing.T) {
 	}
 }
 
-func TestDocumentUpdateGoodReadsValidation(t *testing.T) {
-	app, idx := newGoodReadsTestApp(t, &fakeBookSource{})
+func TestDocumentUpdateBiblioReadsValidation(t *testing.T) {
+	app, idx := newBiblioReadsTestApp(t, &fakeBookSource{})
 	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
 		t.Fatal(err)
@@ -587,7 +587,7 @@ func TestDocumentUpdateGoodReadsValidation(t *testing.T) {
 			t.Fatalf("invalid input should be retained for correction, got %q", got)
 		}
 		stored, err := idx.Document("linked")
-		if err != nil || mustGoodReadsData(t, stored).URL != "/book/show/12207444-la-reina-dragon" || stored.DataSourceScoreValue != 3.82 {
+		if err != nil || mustBiblioReadsData(t, stored).URL != "/book/show/12207444-la-reina-dragon" || stored.DataSourceScoreValue != 3.82 {
 			t.Fatalf("invalid input must not change the stored match: %+v, %v", stored, err)
 		}
 	}
@@ -601,11 +601,11 @@ func TestDocumentUpdateGoodReadsValidation(t *testing.T) {
 	mustReturnStatus(response, http.StatusNotFound, t)
 }
 
-func TestDocumentDetailUpdatesStoredGoodReadsRating(t *testing.T) {
+func TestDocumentDetailUpdatesStoredBiblioReadsRating(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{
 		Rating: "4.12", ResourceID: "work-id", LegacyBookID: 12207444,
 	}}
-	app, idx := newGoodReadsTestApp(t, source)
+	app, idx := newBiblioReadsTestApp(t, source)
 
 	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/score")))
 	if err != nil {
@@ -628,11 +628,11 @@ func TestDocumentDetailUpdatesStoredGoodReadsRating(t *testing.T) {
 	}
 }
 
-func TestDocumentDetailKeepsStoredGoodReadsRatingWhenScraperReturnsZero(t *testing.T) {
+func TestDocumentDetailKeepsStoredBiblioReadsRatingWhenScraperReturnsZero(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{
 		Rating: "0.00", RatingCount: "650", ResourceID: "work-id", LegacyBookID: 12207444,
 	}}
-	app, idx := newGoodReadsTestApp(t, source)
+	app, idx := newBiblioReadsTestApp(t, source)
 
 	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/score")))
 	if err != nil {
@@ -651,14 +651,14 @@ func TestDocumentDetailKeepsStoredGoodReadsRatingWhenScraperReturnsZero(t *testi
 	}
 }
 
-func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
+func TestDocumentDetailBiblioReadsSearchesUnlinkedDocuments(t *testing.T) {
 	source := &fakeBookSource{
 		book:    biblioreads.BookResponse{Rating: "4.20", RatingCount: "10", ResourceID: "work-id", LegacyBookID: 1},
 		results: []biblioreads.SearchResult{{Title: "Unlinked", Author: "Jane Doe", BookURL: "/book/show/1-unlinked", AuthorURL: "/author/show/1.Jane_Doe", Rating: "4.10"}, {BookURL: "/book/show/2-other", Rating: "5.00"}},
 	}
-	app, idx := newGoodReadsTestApp(t, source)
+	app, idx := newBiblioReadsTestApp(t, source)
 
-	if got := goodReadsPlaceholders(t, getBody(t, app, "/documents/unlinked")).Length(); got != 1 {
+	if got := biblioReadsPlaceholders(t, getBody(t, app, "/documents/unlinked")).Length(); got != 1 {
 		t.Fatalf("expected a placeholder for a document not looked up yet, got %d", got)
 	}
 
@@ -683,14 +683,14 @@ func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mustGoodReadsData(t, stored).URL != "/book/show/1-unlinked" || !mustGoodReadsData(t, stored).Enriched {
+	if mustBiblioReadsData(t, stored).URL != "/book/show/1-unlinked" || !mustBiblioReadsData(t, stored).Enriched {
 		t.Errorf("expected the found link to be stored, got %+v", stored)
 	}
 	author, err := idx.Author("jane-doe", "")
 	if err != nil || author.DataSourceLinks["goodreads"] != "/author/show/1.Jane_Doe" || author.DocumentCount != 1 {
 		t.Fatalf("expected missing author entry created with URL and document count, got %+v, %v", author, err)
 	}
-	if mustGoodReadsData(t, stored).ResourceID != "" || mustGoodReadsData(t, stored).LegacyBookID != 0 {
+	if mustBiblioReadsData(t, stored).ResourceID != "" || mustBiblioReadsData(t, stored).LegacyBookID != 0 {
 		t.Fatalf("search-only lookup must not populate scraper identifiers, got %+v", stored)
 	}
 
@@ -712,10 +712,10 @@ func TestDocumentDetailGoodReadsSearchesUnlinkedDocuments(t *testing.T) {
 	}
 }
 
-func TestDocumentDetailGoodReadsSkipsUnmatchedDocuments(t *testing.T) {
+func TestDocumentDetailBiblioReadsSkipsUnmatchedDocuments(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{Rating: "3.82"}}
-	app, _ := newGoodReadsTestApp(t, source)
-	if got := goodReadsPlaceholders(t, getBody(t, app, "/documents/unmatched")).Length(); got != 1 {
+	app, _ := newBiblioReadsTestApp(t, source)
+	if got := biblioReadsPlaceholders(t, getBody(t, app, "/documents/unmatched")).Length(); got != 1 {
 		t.Errorf("expected an async score placeholder, got %d", got)
 	}
 	for _, path := range []string{"/documents/unmatched/score"} {
@@ -735,12 +735,12 @@ func TestDocumentDetailGoodReadsSkipsUnmatchedDocuments(t *testing.T) {
 	}
 }
 
-func TestDocumentDetailGoodReadsRatingRendersNothingWhenUnavailable(t *testing.T) {
+func TestDocumentDetailBiblioReadsRatingRendersNothingWhenUnavailable(t *testing.T) {
 	for name, source := range map[string]*fakeBookSource{
 		"error": {err: errors.New("unavailable")},
 	} {
 		t.Run(name, func(t *testing.T) {
-			app, _ := newGoodReadsTestApp(t, source)
+			app, _ := newBiblioReadsTestApp(t, source)
 			if body := strings.TrimSpace(getBody(t, app, "/documents/linked/score")); body != "" {
 				t.Errorf("expected empty response, got %q", body)
 			}
@@ -748,9 +748,9 @@ func TestDocumentDetailGoodReadsRatingRendersNothingWhenUnavailable(t *testing.T
 	}
 }
 
-func TestDocumentDetailGoodReadsIdentifiersWithoutRating(t *testing.T) {
+func TestDocumentDetailBiblioReadsIdentifiersWithoutRating(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{ResourceID: "work-id", LegacyBookID: 12207444}}
-	app, idx := newGoodReadsTestApp(t, source)
+	app, idx := newBiblioReadsTestApp(t, source)
 	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/score")))
 	if err != nil {
 		t.Fatal(err)
@@ -762,7 +762,7 @@ func TestDocumentDetailGoodReadsIdentifiersWithoutRating(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mustGoodReadsData(t, stored).ResourceID != "work-id" || mustGoodReadsData(t, stored).LegacyBookID != 12207444 {
+	if mustBiblioReadsData(t, stored).ResourceID != "work-id" || mustBiblioReadsData(t, stored).LegacyBookID != 12207444 {
 		t.Fatalf("expected identifiers even without a rating, got %+v", stored)
 	}
 
@@ -777,17 +777,17 @@ func TestDocumentDetailGoodReadsIdentifiersWithoutRating(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if mustGoodReadsData(t, stored).ResourceID != "work-id" || mustGoodReadsData(t, stored).LegacyBookID != 12207444 {
+		if mustBiblioReadsData(t, stored).ResourceID != "work-id" || mustBiblioReadsData(t, stored).LegacyBookID != 12207444 {
 			t.Fatalf("incomplete response overwrote stored identifiers: %+v", stored)
 		}
 	}
 }
 
-func TestDocumentDetailGoodReadsDisabled(t *testing.T) {
-	app, _ := newGoodReadsTestApp(t, nil)
+func TestDocumentDetailBiblioReadsDisabled(t *testing.T) {
+	app, _ := newBiblioReadsTestApp(t, nil)
 	for _, slug := range []string{"linked", "unlinked", "unmatched"} {
-		if got := goodReadsPlaceholders(t, getBody(t, app, "/documents/"+slug)).Length(); got != 0 {
-			t.Errorf("%s: expected no placeholder when GoodReads is disabled, got %d", slug, got)
+		if got := biblioReadsPlaceholders(t, getBody(t, app, "/documents/"+slug)).Length(); got != 0 {
+			t.Errorf("%s: expected no placeholder when BiblioReads is disabled, got %d", slug, got)
 		}
 		if body := strings.TrimSpace(getBody(t, app, "/documents/"+slug+"/score")); body != "" {
 			t.Errorf("%s: expected empty response, got %q", slug, body)
@@ -801,7 +801,7 @@ func TestDocumentDetailGoodReadsDisabled(t *testing.T) {
 	}
 }
 
-func TestDocumentDetailGoodReadsSearchDoesNotScrape(t *testing.T) {
+func TestDocumentDetailBiblioReadsSearchDoesNotScrape(t *testing.T) {
 	for _, tt := range []struct {
 		name     string
 		results  []biblioreads.SearchResult
@@ -823,7 +823,7 @@ func TestDocumentDetailGoodReadsSearchDoesNotScrape(t *testing.T) {
 				results: tt.results, searchErr: tt.err,
 				book: biblioreads.BookResponse{Rating: "5.00"},
 			}
-			app, idx := newGoodReadsTestApp(t, source)
+			app, idx := newBiblioReadsTestApp(t, source)
 			body := strings.TrimSpace(getBody(t, app, "/documents/unlinked/score"))
 			if tt.noScore {
 				page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
@@ -849,16 +849,16 @@ func TestDocumentDetailGoodReadsSearchDoesNotScrape(t *testing.T) {
 				t.Errorf("expected %d searches and no book-scraper calls, got queries %q and ids %q", tt.queries, source.queries, source.ids)
 			}
 			stored, err := idx.Document("unlinked")
-			if err != nil || mustGoodReadsData(t, stored).Enriched != tt.enriched {
+			if err != nil || mustBiblioReadsData(t, stored).Enriched != tt.enriched {
 				t.Fatalf("unexpected stored lookup status: %+v, %v", stored, err)
 			}
 		})
 	}
 }
 
-func TestDocumentDetailGoodReadsNoScoreTranslations(t *testing.T) {
+func TestDocumentDetailBiblioReadsNoScoreTranslations(t *testing.T) {
 	source := &fakeBookSource{}
-	app, _ := newGoodReadsTestApp(t, source)
+	app, _ := newBiblioReadsTestApp(t, source)
 	for _, locale := range []struct {
 		lang string
 		text string
@@ -898,11 +898,11 @@ func TestDocumentDetailGoodReadsNoScoreTranslations(t *testing.T) {
 	}
 }
 
-func TestDocumentDetailGoodReadsReviewsLazyPlaceholder(t *testing.T) {
+func TestDocumentDetailBiblioReadsReviewsLazyPlaceholder(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{
 		Rating: "3.82", ResourceID: "work-id", LegacyBookID: 12207444,
 	}}
-	app, _ := newGoodReadsTestApp(t, source)
+	app, _ := newBiblioReadsTestApp(t, source)
 	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked")))
 	if err != nil {
 		t.Fatal(err)
@@ -945,7 +945,7 @@ func TestDocumentDetailGoodReadsReviewsLazyPlaceholder(t *testing.T) {
 	}
 }
 
-func TestDocumentDetailGoodReadsReviewsHeader(t *testing.T) {
+func TestDocumentDetailBiblioReadsReviewsHeader(t *testing.T) {
 	for _, tt := range []struct {
 		name   string
 		source *fakeBookSource
@@ -960,7 +960,7 @@ func TestDocumentDetailGoodReadsReviewsHeader(t *testing.T) {
 		{name: "not looked up", source: &fakeBookSource{}, slug: "unlinked"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			app, _ := newGoodReadsTestApp(t, tt.source)
+			app, _ := newBiblioReadsTestApp(t, tt.source)
 			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/"+tt.slug)))
 			if err != nil {
 				t.Fatal(err)
@@ -982,7 +982,7 @@ func TestDocumentDetailGoodReadsReviewsHeader(t *testing.T) {
 	}
 }
 
-func TestDocumentDetailGoodReadsReviews(t *testing.T) {
+func TestDocumentDetailBiblioReadsReviews(t *testing.T) {
 	source := &fakeBookSource{
 		book: biblioreads.BookResponse{Rating: "4.20", ResourceID: "work-id", LegacyBookID: 12207444},
 		reviews: biblioreads.ReviewsResponse{Reviews: []biblioreads.Review{
@@ -992,7 +992,7 @@ func TestDocumentDetailGoodReadsReviews(t *testing.T) {
 			{Reviewer: biblioreads.Reviewer{Name: "Spoiler reviewer"}, Text: "The ending", Spoiler: true},
 		}},
 	}
-	app, idx := newGoodReadsTestApp(t, source)
+	app, idx := newBiblioReadsTestApp(t, source)
 	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/reviews")))
 	if err != nil {
 		t.Fatal(err)
@@ -1035,7 +1035,7 @@ func TestDocumentDetailGoodReadsReviews(t *testing.T) {
 		t.Fatal("expected review dates in ISO format for client-side localization")
 	}
 	stored, err := idx.Document("linked")
-	if err != nil || mustGoodReadsData(t, stored).ResourceID != "work-id" || mustGoodReadsData(t, stored).LegacyBookID != 12207444 {
+	if err != nil || mustBiblioReadsData(t, stored).ResourceID != "work-id" || mustBiblioReadsData(t, stored).LegacyBookID != 12207444 {
 		t.Fatalf("expected review identifiers to be stored: %+v, %v", stored, err)
 	}
 }
@@ -1062,7 +1062,7 @@ func TestDocumentReviewFractionalStars(t *testing.T) {
 					{Reviewer: biblioreads.Reviewer{Name: "Reader"}, Rating: tt.rating},
 				}},
 			}
-			app, _ := newGoodReadsTestApp(t, source)
+			app, _ := newBiblioReadsTestApp(t, source)
 			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/reviews")))
 			if err != nil {
 				t.Fatal(err)
@@ -1108,7 +1108,7 @@ func TestDocumentReviewNotScoredTranslations(t *testing.T) {
 			{Reviewer: biblioreads.Reviewer{Name: "Reader"}, Text: "A review without a rating"},
 		}},
 	}
-	app, _ := newGoodReadsTestApp(t, source)
+	app, _ := newBiblioReadsTestApp(t, source)
 	for _, tt := range []struct {
 		lang string
 		text string
@@ -1131,7 +1131,7 @@ func TestDocumentReviewNotScoredTranslations(t *testing.T) {
 	}
 }
 
-func TestDocumentDetailGoodReadsReviewsAvailability(t *testing.T) {
+func TestDocumentDetailBiblioReadsReviewsAvailability(t *testing.T) {
 	for _, tt := range []struct {
 		name     string
 		source   *fakeBookSource
@@ -1151,7 +1151,7 @@ func TestDocumentDetailGoodReadsReviewsAvailability(t *testing.T) {
 		{name: "empty Spanish reviews", source: &fakeBookSource{book: biblioreads.BookResponse{Rating: "4", ResourceID: "work", LegacyBookID: 1}}, slug: "linked", status: http.StatusOK, calls: 1, language: "es", text: "No hay reseñas de usuarios disponibles en el idioma actual"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			app, _ := newGoodReadsTestApp(t, tt.source)
+			app, _ := newBiblioReadsTestApp(t, tt.source)
 			req := mustGetRequest(t, "/documents/"+tt.slug+"/reviews")
 			req.Header.Set("Accept-Language", "en")
 			if tt.language != "" {
@@ -1181,12 +1181,12 @@ func TestDocumentDetailGoodReadsReviewsAvailability(t *testing.T) {
 	}
 }
 
-func TestDocumentDetailGoodReadsReviewsAfterSearch(t *testing.T) {
+func TestDocumentDetailBiblioReadsReviewsAfterSearch(t *testing.T) {
 	source := &fakeBookSource{
 		results: []biblioreads.SearchResult{{Title: "Unlinked", Author: "Jane Doe", BookURL: "/book/show/1-unlinked", Rating: "4"}},
 		book:    biblioreads.BookResponse{Rating: "4", ResourceID: "work-id", LegacyBookID: 1},
 	}
-	app, _ := newGoodReadsTestApp(t, source)
+	app, _ := newBiblioReadsTestApp(t, source)
 	getBody(t, app, "/documents/unlinked/score")
 	if len(source.ids) != 0 || len(source.reviewCalls) != 0 {
 		t.Fatal("search rating must not scrape the book or load reviews")

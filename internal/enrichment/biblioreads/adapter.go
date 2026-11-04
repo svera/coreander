@@ -1,5 +1,5 @@
-// Package goodreads adapts Goodreads matching and review storage to the generic index.
-package goodreads
+// Package biblioreads adapts BiblioReads matching and review storage to the generic index.
+package biblioreads
 
 import (
 	"context"
@@ -14,22 +14,22 @@ import (
 )
 
 const (
-	goodReadsEnrichWorkers  = 4
-	goodReadsRequestTimeout = 2 * time.Minute
+	biblioReadsEnrichWorkers  = 4
+	biblioReadsRequestTimeout = 2 * time.Minute
 )
 
-type GoodReadsSource interface {
+type BiblioReadsSource interface {
 	SearchBooks(context.Context, string) (biblioreads.SearchBooksResponse, error)
 }
 
 type Enricher struct {
-	source GoodReadsSource
+	source BiblioReadsSource
 	idx    *index.BleveIndexer
 	slots  chan struct{}
 }
 
-func New(source GoodReadsSource) *Enricher {
-	return &Enricher{source: source, slots: make(chan struct{}, goodReadsEnrichWorkers)}
+func New(source BiblioReadsSource) *Enricher {
+	return &Enricher{source: source, slots: make(chan struct{}, biblioReadsEnrichWorkers)}
 }
 
 // SetIndex binds the adapter before starting background or on-demand enrichment.
@@ -49,8 +49,8 @@ func (p *Enricher) Enrich(ctx context.Context, idx *index.BleveIndexer, document
 	return err
 }
 
-// GoodReadsBook returns a stored match or performs an on-demand lookup.
-func (p *Enricher) GoodReadsBook(ctx context.Context, document index.Document) (biblioreads.SearchResult, error) {
+// BiblioReadsBook returns a stored match or performs an on-demand lookup.
+func (p *Enricher) BiblioReadsBook(ctx context.Context, document index.Document) (biblioreads.SearchResult, error) {
 	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
 	if err != nil {
 		return biblioreads.SearchResult{}, err
@@ -67,10 +67,10 @@ func storedResult(document index.Document, data biblioreads.DocumentData) biblio
 	}
 }
 
-// UpdateDataSourceLink clears cached Goodreads data when an administrator corrects a match.
+// UpdateDataSourceLink clears cached BiblioReads data when an administrator corrects a match.
 func (p *Enricher) UpdateDataSourceLink(documentID, reviewLink string) error {
 	if p.idx == nil {
-		return fmt.Errorf("Goodreads adapter has no index")
+		return fmt.Errorf("BiblioReads adapter has no index")
 	}
 	return p.idx.UpdateDocument(documentID, func(current *index.DocumentUpdate) (bool, error) {
 		data, err := index.DataSourceData[biblioreads.DocumentData](current.Document, biblioreads.Source)
@@ -83,13 +83,13 @@ func (p *Enricher) UpdateDataSourceLink(documentID, reviewLink string) error {
 	})
 }
 
-// StoreGoodReadsDetails rejects responses for a match or metadata changed during the fetch.
-func (p *Enricher) StoreGoodReadsDetails(document index.Document, bookURL string, book biblioreads.BookResponse) error {
+// StoreBiblioReadsDetails rejects responses for a match or metadata changed during the fetch.
+func (p *Enricher) StoreBiblioReadsDetails(document index.Document, bookURL string, book biblioreads.BookResponse) error {
 	if p.idx == nil {
-		return fmt.Errorf("Goodreads adapter has no index")
+		return fmt.Errorf("BiblioReads adapter has no index")
 	}
 	if bookURL == "" {
-		return fmt.Errorf("invalid GoodReads book URL for document %s", document.ID)
+		return fmt.Errorf("invalid Goodreads book URL for document %s", document.ID)
 	}
 	hasIDs := book.ResourceID != "" && book.LegacyBookID > 0
 	if book.Rating == "" && book.RatingCount == "" && !hasIDs {
@@ -100,8 +100,8 @@ func (p *Enricher) StoreGoodReadsDetails(document index.Document, bookURL string
 		if err != nil {
 			return false, err
 		}
-		if goodReadsQuery(current.Document) != goodReadsQuery(document) || data.URL != bookURL {
-			return false, fmt.Errorf("GoodReads match changed for document %s", document.ID)
+		if biblioReadsQuery(current.Document) != biblioReadsQuery(document) || data.URL != bookURL {
+			return false, fmt.Errorf("BiblioReads match changed for document %s", document.ID)
 		}
 		changed := false
 		if book.RatingCount != "" && data.RatingCount != book.RatingCount {
@@ -109,7 +109,7 @@ func (p *Enricher) StoreGoodReadsDetails(document index.Document, bookURL string
 			changed = true
 		}
 		if book.Rating != "" {
-			value := parseGoodReadsRating(book.Rating, document.ID)
+			value := parseBiblioReadsRating(book.Rating, document.ID)
 			if current.DataSourceScoreValue != value {
 				current.DataSourceScoreValue = value
 				changed = true
@@ -128,7 +128,7 @@ func (p *Enricher) StoreGoodReadsDetails(document index.Document, bookURL string
 
 func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document index.Document) (biblioreads.SearchResult, error) {
 	if idx == nil || p.source == nil {
-		return biblioreads.SearchResult{}, fmt.Errorf("Goodreads enrichment requires a source and index")
+		return biblioreads.SearchResult{}, fmt.Errorf("BiblioReads enrichment requires a source and index")
 	}
 	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
 	if err != nil {
@@ -140,10 +140,10 @@ func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document
 	case <-ctx.Done():
 		return biblioreads.SearchResult{}, ctx.Err()
 	}
-	q := goodReadsQuery(document)
+	q := biblioReadsQuery(document)
 	result := biblioreads.SearchResult{BookURL: data.URL}
 	if result.BookURL == "" && document.Title != "" {
-		ctx, cancel := context.WithTimeout(ctx, goodReadsRequestTimeout)
+		ctx, cancel := context.WithTimeout(ctx, biblioReadsRequestTimeout)
 		defer cancel()
 		queries := []string{q}
 		if title := strings.TrimSpace(document.Title); title != q {
@@ -153,11 +153,11 @@ func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document
 			response, err := p.source.SearchBooks(ctx, query)
 			switch {
 			case errors.Is(err, biblioreads.ErrUnavailable), errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
-				return biblioreads.SearchResult{}, fmt.Errorf("error searching %q on GoodReads: %w", query, err)
+				return biblioreads.SearchResult{}, fmt.Errorf("error searching %q on BiblioReads: %w", query, err)
 			case err != nil:
-				log.Printf("Error searching %q on GoodReads: %s", query, err)
+				log.Printf("Error searching %q on BiblioReads: %s", query, err)
 			default:
-				if match, ok := matchingGoodReadsBook(document, response.Result); ok {
+				if match, ok := matchingBiblioReadsBook(document, response.Result); ok {
 					result = match
 				}
 			}
@@ -167,7 +167,7 @@ func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document
 		}
 	}
 	err = idx.UpdateDocument(document.ID, func(current *index.DocumentUpdate) (bool, error) {
-		if goodReadsQuery(current.Document) != q {
+		if biblioReadsQuery(current.Document) != q {
 			return false, nil
 		}
 		data, err := index.DataSourceData[biblioreads.DocumentData](current.Document, biblioreads.Source)
@@ -185,9 +185,9 @@ func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document
 		if result.Rating == "" && current.DataSourceScoreValue > 0 {
 			result.Rating = fmt.Sprintf("%.2f", current.DataSourceScoreValue)
 		}
-		current.DataSourceScoreValue = parseGoodReadsRating(result.Rating, current.ID)
+		current.DataSourceScoreValue = parseBiblioReadsRating(result.Rating, current.ID)
 		if result.AuthorURL != "" {
-			if slug, name := goodReadsAuthor(current.Document, result.Author); slug != "" {
+			if slug, name := biblioReadsAuthor(current.Document, result.Author); slug != "" {
 				current.AuthorLinks = append(current.AuthorLinks, index.AuthorLink{
 					Slug: slug, Name: name, Source: biblioreads.Source, URL: result.AuthorURL,
 				})

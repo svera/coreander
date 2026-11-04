@@ -10,7 +10,7 @@ import (
 	"github.com/svera/coreander/v5/internal/reviews"
 )
 
-func withGoodReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
+func withBiblioReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
 	t.Helper()
 	if err := index.SetDataSourceData(&document, biblioreads.Source, data); err != nil {
 		t.Fatal(err)
@@ -28,7 +28,7 @@ func TestBiblioReadsDataSourceLinks(t *testing.T) {
 		t.Fatalf("unexpected Goodreads author link: %+v", author)
 	}
 
-	document := provider.DocumentLink(withGoodReadsData(t, index.Document{}, biblioreads.DocumentData{URL: "/book/show/456.A_Book"}))
+	document := provider.DocumentLink(withBiblioReadsData(t, index.Document{}, biblioreads.DocumentData{URL: "/book/show/456.A_Book"}))
 	if document.URL != "https://www.goodreads.com/book/show/456.A_Book" ||
 		document.Source != "Goodreads" || document.Icon != "/images/goodreads.svg" || !document.IconInvertible {
 		t.Fatalf("unexpected Goodreads document link: %+v", document)
@@ -50,11 +50,11 @@ type reviewLinkIndex struct {
 	err  error
 }
 
-func (i *reviewLinkIndex) GoodReadsBook(context.Context, index.Document) (biblioreads.SearchResult, error) {
+func (i *reviewLinkIndex) BiblioReadsBook(context.Context, index.Document) (biblioreads.SearchResult, error) {
 	return biblioreads.SearchResult{}, nil
 }
 
-func (i *reviewLinkIndex) StoreGoodReadsDetails(index.Document, string, biblioreads.BookResponse) error {
+func (i *reviewLinkIndex) StoreBiblioReadsDetails(index.Document, string, biblioreads.BookResponse) error {
 	return nil
 }
 

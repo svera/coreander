@@ -17,29 +17,29 @@ import (
 )
 
 const (
-	goodReadsBaseURL    = "https://www.goodreads.com"
-	goodReadsBookPrefix = "/book/show/"
+	goodreadsBaseURL    = "https://www.goodreads.com"
+	goodreadsBookPrefix = "/book/show/"
 )
 
-var goodReadsBookPath = regexp.MustCompile(`^/book/show/([1-9][0-9]*)(?:[.-][A-Za-z0-9._~-]+)?/?$`)
+var goodreadsBookPath = regexp.MustCompile(`^/book/show/([1-9][0-9]*)(?:[.-][A-Za-z0-9._~-]+)?/?$`)
 
 type BiblioReadsClient interface {
 	Book(ctx context.Context, id string) (biblioreads.BookResponse, error)
 	Reviews(ctx context.Context, resourceID string, legacyBookID int, nextPageToken, languageCode string) (biblioreads.ReviewsResponse, error)
 }
 
-type GoodReadsIndex interface {
-	GoodReadsBook(ctx context.Context, document index.Document) (biblioreads.SearchResult, error)
-	StoreGoodReadsDetails(document index.Document, bookURL string, book biblioreads.BookResponse) error
+type BiblioReadsIndex interface {
+	BiblioReadsBook(ctx context.Context, document index.Document) (biblioreads.SearchResult, error)
+	StoreBiblioReadsDetails(document index.Document, bookURL string, book biblioreads.BookResponse) error
 	UpdateDataSourceLink(documentID, bookURL string) error
 }
 
 type BiblioReads struct {
 	client BiblioReadsClient
-	index  GoodReadsIndex
+	index  BiblioReadsIndex
 }
 
-func NewBiblioReads(client BiblioReadsClient, idx GoodReadsIndex) *BiblioReads {
+func NewBiblioReads(client BiblioReadsClient, idx BiblioReadsIndex) *BiblioReads {
 	return &BiblioReads{client: client, index: idx}
 }
 
@@ -49,7 +49,7 @@ func (b *BiblioReads) Name() string {
 
 // AuthorLink returns the indexed author link without making a network request.
 func (b *BiblioReads) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
-	return goodReadsDataSourceLink(author.DataSourceLinks["goodreads"], "/author/show/")
+	return goodreadsDataSourceLink(author.DataSourceLinks["goodreads"], "/author/show/")
 }
 
 // DocumentLink returns the indexed book link without making a network request.
@@ -59,13 +59,13 @@ func (b *BiblioReads) DocumentLink(document index.Document) datasourcemodel.Data
 		log.Println(err)
 		return datasourcemodel.DataSourceLink{}
 	}
-	return goodReadsDataSourceLink(data.URL, "/book/show/")
+	return goodreadsDataSourceLink(data.URL, "/book/show/")
 }
 
-func goodReadsDataSourceLink(path, prefix string) datasourcemodel.DataSourceLink {
+func goodreadsDataSourceLink(path, prefix string) datasourcemodel.DataSourceLink {
 	link := datasourcemodel.DataSourceLink{Source: "Goodreads", Icon: "/images/goodreads.svg", IconInvertible: true}
 	if id, ok := strings.CutPrefix(path, prefix); ok && id != "" {
-		link.URL = goodReadsBaseURL + path
+		link.URL = goodreadsBaseURL + path
 	}
 	return link
 }
@@ -78,7 +78,7 @@ func (b *BiblioReads) StoredScore(document index.Document) (Score, error) {
 	}
 	return Score{
 		Source: b.Name(), Value: fmt.Sprintf("%.2f", document.DataSourceScoreValue),
-		Count: data.RatingCount, URL: goodReadsDataSourceLink(data.URL, goodReadsBookPrefix).URL,
+		Count: data.RatingCount, URL: goodreadsDataSourceLink(data.URL, goodreadsBookPrefix).URL,
 	}, nil
 }
 
@@ -89,7 +89,7 @@ func (b *BiblioReads) CanEditDocumentLink() bool {
 
 // UpdateDocumentLink saves a corrected Goodreads book link and clears stale score details.
 func (b *BiblioReads) UpdateDocumentLink(document index.Document, link string) error {
-	path, err := normalizeGoodReadsBookURL(link)
+	path, err := normalizeGoodreadsBookURL(link)
 	if err != nil {
 		return fmt.Errorf("%w: invalid Goodreads book URL", ErrInvalidDocumentLink)
 	}
@@ -102,19 +102,19 @@ func (b *BiblioReads) UpdateDocumentLink(document index.Document, link string) e
 	return nil
 }
 
-func normalizeGoodReadsBookURL(rawURL string) (string, error) {
+func normalizeGoodreadsBookURL(rawURL string) (string, error) {
 	bookURL, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil || len(rawURL) > 2048 || bookURL.User != nil ||
 		(bookURL.Scheme != "https" && bookURL.Scheme != "http") ||
 		(bookURL.Host != "www.goodreads.com" && bookURL.Host != "goodreads.com") ||
-		!goodReadsBookPath.MatchString(bookURL.Path) {
+		!goodreadsBookPath.MatchString(bookURL.Path) {
 		return "", fmt.Errorf("invalid Goodreads book URL")
 	}
 	return strings.TrimSuffix(bookURL.Path, "/"), nil
 }
 
 func bookID(bookURL string) (string, error) {
-	id, ok := strings.CutPrefix(bookURL, goodReadsBookPrefix)
+	id, ok := strings.CutPrefix(bookURL, goodreadsBookPrefix)
 	if !ok || id == "" {
 		return "", fmt.Errorf("invalid Goodreads book URL %q", bookURL)
 	}
@@ -139,7 +139,7 @@ func (b *BiblioReads) book(ctx context.Context, document index.Document) (biblio
 		book.Rating = fmt.Sprintf("%.2f", document.DataSourceScoreValue)
 		details.Rating = ""
 	}
-	if err := b.index.StoreGoodReadsDetails(document, data.URL, details); err != nil {
+	if err := b.index.StoreBiblioReadsDetails(document, data.URL, details); err != nil {
 		log.Printf("Error saving Goodreads details for %s: %s", document.ID, err)
 	}
 	return book, nil
@@ -157,7 +157,7 @@ func (b *BiblioReads) Score(ctx context.Context, document index.Document) (Score
 		return score, err
 	}
 	if data.URL == "" {
-		result, err := b.index.GoodReadsBook(ctx, document)
+		result, err := b.index.BiblioReadsBook(ctx, document)
 		if err != nil {
 			return score, err
 		}
@@ -219,7 +219,7 @@ func (b *BiblioReads) Reviews(ctx context.Context, document index.Document, lang
 		}
 		reviewURL := ""
 		if review.ReviewURL != "" {
-			reviewURL = goodReadsBaseURL + review.ReviewURL
+			reviewURL = goodreadsBaseURL + review.ReviewURL
 		}
 		page.Reviews = append(page.Reviews, Review{
 			Reviewer: review.Reviewer.Name, Rating: review.Rating, Text: review.Text,
