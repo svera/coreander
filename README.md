@@ -95,12 +95,12 @@ Coreander looks up documents in the background after indexing and can also look 
 By default, requests are spread across built-in public BiblioReads instances, with automatic failover when an instance is unavailable. To use your own instance or a different set of public instances, pass a comma-separated list:
 
 ```sh
-coreander --biblioreads-instances=https://br.example.org,https://br2.example.org /absolute/path/to/library
+coreander --review-source-instances=https://br.example.org,https://br2.example.org /absolute/path/to/library
 ```
 
-Alternatively, set `BIBLIOREADS_INSTANCES` to the same comma-separated list. The flag may also be repeated, overrides the environment variable, and replaces the built-in instance list. Instance URLs must use HTTP or HTTPS.
+Alternatively, set `REVIEW_SOURCE_INSTANCES` to the same comma-separated list. The flag may also be repeated, overrides the environment variable, and replaces the built-in instance list. Instance URLs must use HTTP or HTTPS and serve the BiblioReads API.
 
-Lookups send document titles and author names to the configured BiblioReads instances. To disable the integration, use `--disable-biblioreads` or set `DISABLE_BIBLIOREADS=true`. If no instance can serve a request, Goodreads information may be unavailable, but the rest of Coreander remains usable.
+Lookups send document titles and author names to the configured BiblioReads instances. To disable the integration, use `--disable-reviews` or set `DISABLE_REVIEWS=true`. If no instance can serve a request, Goodreads information may be unavailable, but the rest of Coreander remains usable.
 
 ### Email
 
@@ -192,9 +192,9 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`--client-dynamic-image-cache-ttl`   |`CLIENT_DYNAMIC_IMAGE_CACHE_TTL`  | Client-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 86400 (24 hours).
 |`--server-static-cache-ttl`          |`SERVER_STATIC_CACHE_TTL`         | Server-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 31536000 (1 year).
 |`--server-dynamic-image-cache-ttl`   |`SERVER_DYNAMIC_IMAGE_CACHE_TTL`  | Server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 86400 (24 hours).
-|`--disable-biblioreads`              |`DISABLE_BIBLIOREADS`             | Disable fetching Goodreads data (book and author links) from BiblioReads. Defaults to false.
-|`--biblioreads-instances`            |`BIBLIOREADS_INSTANCES`           | Comma-separated HTTP or HTTPS BiblioReads instance URLs, replacing the built-in public instances. The flag may be repeated. For example: `--biblioreads-instances=https://br.example.org,https://br2.example.org`. Uses the built-in instances when omitted.
-|`--biblioreads-cache-ttl`            |`BIBLIOREADS_CACHE_TTL`           | Duration in seconds for which BiblioReads responses are cached in memory. Set to 0 to disable caching. Defaults to 86400 (24 hours).
+|`--disable-reviews`                 |`DISABLE_REVIEWS`                | Disable fetching reviews, ratings, and book and author links from the review source. Defaults to false.
+|`--review-source-instances`         |`REVIEW_SOURCE_INSTANCES`        | Comma-separated HTTP or HTTPS review-source URLs serving the BiblioReads API, replacing the built-in public instances. The flag may be repeated. For example: `--review-source-instances=https://br.example.org,https://br2.example.org`. Uses the built-in instances when omitted.
+|`--review-source-cache-ttl`         |`REVIEW_SOURCE_CACHE_TTL`        | Duration in seconds for which review-source responses are cached in memory. Set to 0 to disable caching. Defaults to 86400 (24 hours).
 |`-f` or `--force-indexing`           |`FORCE_INDEXING`          | Whether to force indexing already indexed documents or not. Defaults to false.
 |`-s` or `--jwt-secret`               |`JWT_SECRET`              | String to use to sign JWTs.
 |`-a` or `--require-auth`             |`REQUIRE_AUTH`            | Require authentication to access the application if true. Defaults to false.

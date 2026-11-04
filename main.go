@@ -103,10 +103,10 @@ func main() {
 	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize, input.MinOccurrenceRatio, maxTextRankWords)
 	var documentEnrichers []index.DocumentEnricher
 	biblioReadsAdapter := biblioreads.NewEnricher(nil)
-	if !input.DisableBiblioreads {
+	if !input.DisableReviews {
 		biblioreadsClient = biblioreads.NewClient(
-			biblioreads.WithInstances(input.BiblioreadsInstances),
-			biblioreads.WithCacheTTL(time.Duration(input.BiblioreadsCacheTTL)*time.Second),
+			biblioreads.WithInstances(input.ReviewSourceInstances),
+			biblioreads.WithCacheTTL(time.Duration(input.ReviewSourceCacheTTL)*time.Second),
 		)
 		biblioReadsAdapter = biblioreads.NewEnricher(biblioreadsClient)
 		documentEnrichers = append(documentEnrichers, biblioReadsAdapter)
@@ -167,7 +167,7 @@ func main() {
 		ClientDynamicImageCacheTTL: input.ClientDynamicImageCacheTTL,
 		ServerStaticCacheTTL:       input.ServerStaticCacheTTL,
 		ServerDynamicImageCacheTTL: input.ServerDynamicImageCacheTTL,
-		BiblioreadsCacheTTL:        input.BiblioreadsCacheTTL,
+		ReviewSourceCacheTTL:       input.ReviewSourceCacheTTL,
 		ShareCommentMaxSize:        input.ShareCommentMaxSize,
 		ShareMaxRecipients:         input.ShareMaxRecipients,
 		IllustratedMinAmount:       input.IllustratedMinAmount,
