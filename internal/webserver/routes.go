@@ -99,7 +99,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	app.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
 	docsGroup.Post("/", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)
 	docsGroup.Delete("/:slug", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
-	docsGroup.Put("/:slug/review-link", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UpdateDocumentLink)
+	docsGroup.Put("/:slug/review-link", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UpdateReviewLink)
 
 	// Authentication requirement is configurable for all routes below this middleware
 	app.Use(configurableAuthentication)

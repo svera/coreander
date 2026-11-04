@@ -131,7 +131,7 @@ func newSearchResultsTestApp(t *testing.T, documents []index.Document) (*fiber.A
 
 	sender := &infrastructure.NoEmail{}
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
-	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, dataSource, nil, dataSource)
+	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, dataSource, nil, dataSource, biblioreads.NewReviewProvider(nil, nil))
 	app := webserver.New(cfg, controllers, sender, idx, &model.UserRepository{DB: db})
 	t.Cleanup(func() { _ = app.Shutdown() })
 	return app, idx

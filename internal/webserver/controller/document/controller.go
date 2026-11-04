@@ -130,3 +130,22 @@ func (d *Controller) DataSourceName() string {
 	}
 	return d.reviewProvider.Name()
 }
+
+// StoredScore reads cached scores without making requests to a review service.
+func (d *Controller) StoredScore(document index.Document) (datasourcemodel.Score, error) {
+	type storedScoreProvider interface {
+		StoredScore(index.Document) (datasourcemodel.Score, error)
+	}
+	if d.reviewProvider != nil {
+		if provider, ok := d.reviewProvider.(storedScoreProvider); ok {
+			return provider.StoredScore(document)
+		}
+		return datasourcemodel.Score{}, nil
+	}
+	for _, linkProvider := range d.linkProviders {
+		if provider, ok := linkProvider.(storedScoreProvider); ok {
+			return provider.StoredScore(document)
+		}
+	}
+	return datasourcemodel.Score{}, nil
+}

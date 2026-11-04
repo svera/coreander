@@ -2,7 +2,6 @@ package infrastructure
 
 import (
 	"fmt"
-	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -57,7 +56,6 @@ func TemplateEngine(viewsFS fs.FS, translator i18n.Translator, assetVersion stri
 	})
 
 	engine.AddFunc("notLast", notLast[string])
-	engine.AddFunc("storedDocumentScore", biblioreads.NewReviewProvider(nil, nil).StoredScore)
 
 	engine.AddFunc("basename", func(path string) string {
 		return filepath.Base(path)

@@ -135,6 +135,7 @@ func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, user
 	if err != nil {
 		log.Fatal(err)
 	}
+	engine.AddFunc("storedDocumentScore", controllers.Documents.StoredScore)
 
 	// UploadDocumentMaxSize <= 0 means "unlimited", but fiber has no such
 	// sentinel for BodyLimit - it coerces any value <= 0 to its own 4MB

@@ -8,7 +8,7 @@ import (
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 )
 
-func (d *Controller) UpdateDocumentLink(c fiber.Ctx) error {
+func (d *Controller) UpdateReviewLink(c fiber.Ctx) error {
 	if d.reviewProvider == nil || !d.reviewProvider.CanEditDocumentLink() {
 		return fiber.ErrNotFound
 	}

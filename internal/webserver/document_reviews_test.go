@@ -102,6 +102,10 @@ func (f *fakeReviewProvider) Score(_ context.Context, document index.Document) (
 	return f.score, f.scoreErr
 }
 
+func (f *fakeReviewProvider) StoredScore(index.Document) (datasourcemodel.Score, error) {
+	return f.score, f.scoreErr
+}
+
 func (f *fakeReviewProvider) Reviews(_ context.Context, document index.Document, language string) (datasourcemodel.ReviewPage, error) {
 	f.reviewSlugs = append(f.reviewSlugs, document.Slug)
 	f.reviewLanguages = append(f.reviewLanguages, language)
@@ -166,6 +170,10 @@ func TestDocumentAlternativeReviewProvider(t *testing.T) {
 	if !strings.Contains(searchPage.Find(`fieldset legend`).Text(), "Another service score") ||
 		searchPage.Find(`#sort-by option[value="review-score-asc"]`).Text() != "Another service score (ascending)" {
 		t.Fatal("search filters and sort options must use the active review provider's name")
+	}
+	if searchPage.Find(`#list a[href="https://example.org/books/book-1"]`).Length() != 1 ||
+		searchPage.Find(`#list a[href^="https://www.goodreads.com/book/"]`).Length() != 0 {
+		t.Fatal("cached search-result scores must use the configured provider")
 	}
 	// This document has a cached Goodreads non-match; it must still use the chosen provider.
 	detail := getBody(t, app, "/documents/unmatched")
