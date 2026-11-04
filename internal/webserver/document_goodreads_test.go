@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/enrichment/goodreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/reviews"
@@ -333,14 +334,21 @@ func newDataSourceProvidersTestApp(t *testing.T, source *fakeBookSource, provide
 	}
 	appFS := afero.NewMemMapFs()
 	idxCfg := index.Config{}
+	var adapter *goodreads.Enricher
 	if source != nil {
-		idxCfg.DocumentEnrichers = []index.DocumentEnricher{index.NewGoodReadsEnricher(source)}
+		adapter = goodreads.New(source)
+	} else {
+		adapter = goodreads.New(nil)
+	}
+	if source != nil {
+		idxCfg.DocumentEnrichers = []index.DocumentEnricher{adapter}
 	}
 	idx := index.NewBleve(documents, authors, appFS, testLibraryDir, nil, idxCfg)
+	adapter.SetIndex(idx)
 	if source != nil {
-		provider = reviews.NewBiblioReads(source, idx)
+		provider = reviews.NewBiblioReads(source, adapter)
 	}
-	goodReadsLinks := reviews.NewBiblioReads(nil, idx)
+	goodReadsLinks := reviews.NewBiblioReads(nil, adapter)
 	t.Cleanup(func() { _ = idx.Close() })
 
 	for _, doc := range []index.Document{withGoodReadsData(t, index.Document{

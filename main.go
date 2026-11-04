@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/enrichment/goodreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/reviews"
@@ -103,12 +104,14 @@ func main() {
 	var needsReindex bool
 	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize, input.MinOccurrenceRatio, maxTextRankWords)
 	var documentEnrichers []index.DocumentEnricher
+	goodReadsAdapter := goodreads.New(nil)
 	if !input.DisableBiblioreads {
 		biblioreadsClient = biblioreads.NewClient(
 			biblioreads.WithInstances(input.BiblioreadsInstances),
 			biblioreads.WithCacheTTL(time.Duration(input.BiblioreadsCacheTTL)*time.Second),
 		)
-		documentEnrichers = append(documentEnrichers, index.NewGoodReadsEnricher(biblioreadsClient))
+		goodReadsAdapter = goodreads.New(biblioreadsClient)
+		documentEnrichers = append(documentEnrichers, goodReadsAdapter)
 	}
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
 		IllustratedMinAmount:           input.IllustratedMinAmount,
@@ -124,6 +127,7 @@ func main() {
 		TextRankEnrichWorkers:          resolvedIndexWorkers,
 		DocumentEnrichers:              documentEnrichers,
 	})
+	goodReadsAdapter.SetIndex(idx)
 	// If index was newly created or recreated, force reindexing
 	if needsReindex {
 		input.ForceIndexing = true
@@ -205,7 +209,7 @@ func main() {
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
 	var reviewProvider document.ReviewProvider
-	biblioReads := reviews.NewBiblioReads(biblioreadsClient, idx)
+	biblioReads := reviews.NewBiblioReads(biblioreadsClient, goodReadsAdapter)
 	if biblioreadsClient != nil {
 		reviewProvider = biblioReads
 	}

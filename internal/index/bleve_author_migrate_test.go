@@ -90,7 +90,7 @@ func TestOpenAuthorsIndexMigratesStoredMetadata(t *testing.T) {
 		t.Fatalf("expected original index removed after successful migration, got %v", err)
 	}
 
-	got.DataSourceLinks["goodreads"] = wantGoodReadsAuthorURL
+	got.DataSourceLinks["goodreads"] = "https://example.org/authors/writer"
 	if err := idx.IndexAuthor(got); err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestOpenAuthorsIndexMigratesStoredMetadata(t *testing.T) {
 	if err != nil || len(result.Hits) != 1 {
 		t.Fatalf("reading reopened author: %v", err)
 	}
-	want.DataSourceLinks["goodreads"] = wantGoodReadsAuthorURL
+	want.DataSourceLinks["goodreads"] = "https://example.org/authors/writer"
 	if got := hydrateAuthor(result.Hits[0]); !reflect.DeepEqual(got, want) {
 		t.Fatalf("migrated mapping or URL did not survive reopening: %#v", got)
 	}

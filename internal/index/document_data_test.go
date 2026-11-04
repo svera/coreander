@@ -1,24 +1,23 @@
 package index
 
 import (
-	"context"
 	"encoding/json"
 	"reflect"
 	"testing"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
 func TestDocumentDataSourcesRoundTrip(t *testing.T) {
-	idx := newGoodReadsTestIndexer(t, nil)
+	idx, _ := newTestTextRankIndexer(t, Config{})
+	t.Cleanup(func() { _ = idx.Close() })
 	for _, language := range []string{"es", ""} {
-		document := withGoodReadsData(t, Document{
+		document := withProviderData(t, Document{
 			ID: "book-" + language, Slug: "book-" + language,
 			Metadata:             metadata.Metadata{Title: "A book", Language: language, Format: "EPUB"},
 			DataSourceScoreValue: 4.25,
-		}, biblioreads.DocumentData{URL: "/book/show/123", Enriched: true})
+		}, testProviderData{URL: "/book/show/123", Enriched: true})
 		other := map[string]any{
 			"id": "opaqueprovideridentifier", "nested": map[string]any{"items": []any{"privatecatalogtoken", float64(42)}},
 		}
@@ -36,10 +35,10 @@ func TestDocumentDataSourcesRoundTrip(t *testing.T) {
 		if err != nil || !reflect.DeepEqual(decoded, other) {
 			t.Fatalf("provider payload changed: %+v, %v", decoded, err)
 		}
-		if mustGoodReadsData(t, got) != mustGoodReadsData(t, document) || got.DataSourceScoreValue != 4.25 {
-			t.Fatalf("Goodreads payload or score changed: %+v", got)
+		if mustProviderData(t, got) != mustProviderData(t, document) || got.DataSourceScoreValue != 4.25 {
+			t.Fatalf("provider payload or score changed: %+v", got)
 		}
-		for _, term := range []string{"opaqueprovideridentifier", "privatecatalogtoken", "goodreads", "other"} {
+		for _, term := range []string{"opaqueprovideridentifier", "privatecatalogtoken", "dummy", "other"} {
 			request := bleve.NewSearchRequest(bleve.NewMatchQuery(term))
 			result, err := idx.documentsIdx.Search(request)
 			if err != nil || result.Total != 0 {
@@ -47,7 +46,7 @@ func TestDocumentDataSourcesRoundTrip(t *testing.T) {
 			}
 		}
 	}
-	if _, total, err := idx.documentsNeedingGoodReads(10); err != nil || total != 0 {
+	if _, total, err := idx.documentsNeedingProvider("dummy", 10); err != nil || total != 0 {
 		t.Fatalf("enriched payloads were queued again: %d, %v", total, err)
 	}
 	pending := Document{ID: "other-only", Slug: "other-only", Metadata: metadata.Metadata{Title: "Pending book"}}
@@ -57,13 +56,14 @@ func TestDocumentDataSourcesRoundTrip(t *testing.T) {
 	if err := IndexDocument(idx.documentsIdx, pending.ID, pending); err != nil {
 		t.Fatal(err)
 	}
-	if documents, total, err := idx.documentsNeedingGoodReads(10); err != nil || total != 1 || documents[0].ID != pending.ID {
-		t.Fatalf("another provider marked Goodreads as enriched: %+v, %d, %v", documents, total, err)
+	if documents, total, err := idx.documentsNeedingProvider("dummy", 10); err != nil || total != 1 || documents[0].ID != pending.ID {
+		t.Fatalf("another provider marked provider as enriched: %+v, %d, %v", documents, total, err)
 	}
 }
 
 func TestDocumentDataSourcesRejectInvalidData(t *testing.T) {
-	idx := newGoodReadsTestIndexer(t, nil)
+	idx, _ := newTestTextRankIndexer(t, Config{})
+	t.Cleanup(func() { _ = idx.Close() })
 	document := Document{ID: "book", Slug: "book", Metadata: metadata.Metadata{Title: "Book"}}
 	for _, invalid := range []any{nil, "not an object", []int{1}, make(chan int)} {
 		if err := SetDataSourceData(&document, "invalid", invalid); err == nil {
@@ -74,23 +74,20 @@ func TestDocumentDataSourcesRejectInvalidData(t *testing.T) {
 		}
 	}
 	for _, raw := range []string{`{"url":`, `null`, `[]`} {
-		document.DataSources = map[string]json.RawMessage{biblioreads.Source: json.RawMessage(raw)}
+		document.DataSources = map[string]json.RawMessage{"dummy": json.RawMessage(raw)}
 		if err := IndexDocument(idx.documentsIdx, document.ID, document); err == nil {
 			t.Fatalf("indexed invalid payload: %s", raw)
 		}
 	}
-	document.DataSources = map[string]json.RawMessage{biblioreads.Source: json.RawMessage(`{"url":42}`)}
-	if _, err := idx.GoodReadsBook(context.Background(), document); err == nil {
-		t.Fatal("Goodreads accepted an incorrectly typed URL")
-	}
 }
 
 func TestDocumentDataSourcesSurviveProviderAndStaleWrites(t *testing.T) {
-	idx := newGoodReadsTestIndexer(t, &fakeGoodReadsSource{results: goodReadsTestResults})
-	if err := idx.AddLibrary(10, true, 1); err != nil {
+	idx, _ := newTestTextRankIndexer(t, Config{})
+	t.Cleanup(func() { _ = idx.Close() })
+	if err := IndexDocument(idx.documentsIdx, "book", Document{ID: "book", Slug: "book", Metadata: metadata.Metadata{Title: "Book"}}); err != nil {
 		t.Fatal(err)
 	}
-	stale, err := idx.documentByIndexID(goodReadsTestID)
+	stale, err := idx.documentByIndexID("book")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,15 +102,16 @@ func TestDocumentDataSourcesSurviveProviderAndStaleWrites(t *testing.T) {
 	if err := IndexDocument(idx.documentsIdx, current.ID, current); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := idx.enrichGoodReads(context.Background(), stale); err != nil {
+	if err := idx.StoreDocumentData(stale.ID, "dummy", testProviderData{URL: "/book/show/123", Enriched: true}); err != nil {
 		t.Fatal(err)
 	}
-	if err := idx.StoreGoodReadsDetails(stale, wantDataSourceLink, biblioreads.BookResponse{
-		Rating: "4.5", RatingCount: "100", ResourceID: "work", LegacyBookID: 123,
+	if err := idx.UpdateDocument(stale.ID, func(update *DocumentUpdate) (bool, error) {
+		update.DataSourceScoreValue = 4.5
+		return true, SetDataSourceData(&update.Document, "dummy", testProviderData{URL: "/book/show/123", Enriched: true, RatingCount: "100", ResourceID: "work", LegacyBookID: 123})
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := idx.UpdateDataSourceLink(current.ID, "/book/show/456"); err != nil {
+	if err := idx.StoreDocumentData(stale.ID, "dummy", testProviderData{URL: "/book/show/456", Enriched: true}); err != nil {
 		t.Fatal(err)
 	}
 	stale.TextRankWords = []string{"updated"}
@@ -135,7 +133,32 @@ func TestDocumentDataSourcesSurviveProviderAndStaleWrites(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(decoded, other) {
 		t.Fatalf("another provider's payload was lost: %+v, %v", decoded, err)
 	}
-	if data := mustGoodReadsData(t, got); data != (biblioreads.DocumentData{URL: "/book/show/456", Enriched: true}) {
-		t.Fatalf("stale write restored old Goodreads state: %+v", data)
+	if data := mustProviderData(t, got); data != (testProviderData{URL: "/book/show/456", Enriched: true}) {
+		t.Fatalf("stale write restored old provider state: %+v", data)
 	}
+}
+
+type testProviderData struct {
+	URL          string `json:"url"`
+	Enriched     bool   `json:"enriched"`
+	RatingCount  string `json:"ratingCount,omitempty"`
+	ResourceID   string `json:"resourceId,omitempty"`
+	LegacyBookID int    `json:"legacyBookId,omitempty"`
+}
+
+func mustProviderData(t *testing.T, document Document) testProviderData {
+	t.Helper()
+	data, err := DataSourceData[testProviderData](document, "dummy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+func withProviderData(t *testing.T, document Document, data testProviderData) Document {
+	t.Helper()
+	if err := SetDataSourceData(&document, "dummy", data); err != nil {
+		t.Fatal(err)
+	}
+	return document
 }

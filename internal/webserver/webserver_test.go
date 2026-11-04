@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/enrichment/goodreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/reviews"
@@ -96,7 +97,9 @@ func bootstrapAppWithIndexer(db *gorm.DB, sender webserver.Sender, appFs afero.F
 	if err != nil {
 		log.Fatal(err)
 	}
-	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, nil, dataSource, reviews.NewBiblioReads(nil, idx))
+	adapter := goodreads.New(nil)
+	adapter.SetIndex(idx)
+	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, nil, dataSource, reviews.NewBiblioReads(nil, adapter))
 	usersRepository := &model.UserRepository{DB: db}
 	return webserver.New(webserverConfig, controllers, sender, idx, usersRepository), idx
 }
@@ -139,10 +142,12 @@ func newSearchResultsTestApp(t *testing.T, documents []index.Document) (*fiber.A
 // setReviewScore seeds a document's review score through the current provider-backed index storage.
 func setDataSourceScore(t *testing.T, idx *index.BleveIndexer, doc index.Document, score, count string) {
 	t.Helper()
+	adapter := goodreads.New(nil)
+	adapter.SetIndex(idx)
 	bookURL := mustGoodReadsData(t, doc).URL
 	if bookURL == "" {
 		bookURL = "https://www.goodreads.com/book/show/1-" + doc.Slug
-		if err := idx.UpdateDataSourceLink(doc.ID, bookURL); err != nil {
+		if err := adapter.UpdateDataSourceLink(doc.ID, bookURL); err != nil {
 			t.Fatalf("set review link for %s: %v", doc.Slug, err)
 		}
 	}
@@ -150,7 +155,7 @@ func setDataSourceScore(t *testing.T, idx *index.BleveIndexer, doc index.Documen
 	if err != nil {
 		t.Fatalf("reload %s: %v", doc.Slug, err)
 	}
-	if err := idx.StoreGoodReadsDetails(updated, mustGoodReadsData(t, updated).URL, biblioreads.BookResponse{
+	if err := adapter.StoreGoodReadsDetails(updated, mustGoodReadsData(t, updated).URL, biblioreads.BookResponse{
 		Rating: score, RatingCount: count,
 	}); err != nil {
 		t.Fatalf("set review score for %s: %v", doc.Slug, err)
