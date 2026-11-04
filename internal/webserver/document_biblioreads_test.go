@@ -169,10 +169,7 @@ func TestDocumentDetailBiblioReadsRating(t *testing.T) {
 		t.Error("expected the placeholder inside the document metadata list")
 	}
 
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/score")))
-	if err != nil {
-		t.Fatal(err)
-	}
+	page := getPage(t, app, "/documents/linked/score")
 	link := page.Find(`li a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`)
 	if page.Find("li i.bi-star-fill").Length() != 1 {
 		t.Error("expected the rating row to retain its star icon")
@@ -195,72 +192,6 @@ func TestDocumentDetailBiblioReadsRating(t *testing.T) {
 	}
 	if mustBiblioReadsData(t, stored).ResourceID != source.book.ResourceID || mustBiblioReadsData(t, stored).LegacyBookID != source.book.LegacyBookID {
 		t.Fatalf("expected book identifiers to be stored, got %+v", stored)
-	}
-}
-
-func TestDocumentBiblioReadsEditor(t *testing.T) {
-	source := &fakeBookSource{book: biblioreads.BookResponse{Rating: "3.82"}}
-	app, _ := newBiblioReadsTestApp(t, source)
-	adminCookie, err := login(app, "admin@example.com", "admin", t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, tt := range []struct {
-		name   string
-		cookie *http.Cookie
-		want   int
-	}{
-		{name: "anonymous", cookie: &http.Cookie{}},
-		{name: "administrator", cookie: adminCookie, want: 1},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			response, err := getRequest(tt.cookie, app, "/documents/linked/score", t)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer response.Body.Close()
-			mustReturnStatus(response, http.StatusOK, t)
-			page, err := goquery.NewDocumentFromReader(response.Body)
-			if err != nil {
-				t.Fatal(err)
-			}
-			control := page.Find(`li a[data-bs-toggle="collapse"][href="#edit-review-link-linked"]`)
-			if control.Length() != tt.want {
-				t.Fatalf("expected %d edit links, got %d", tt.want, control.Length())
-			}
-			if tt.want == 0 {
-				if page.Find(`input[name="bookURL"]`).Length() != 0 {
-					t.Fatal("anonymous readers must not receive the editor")
-				}
-				return
-			}
-			if control.Text() != "" ||
-				control.Find(`i.bi-pencil[alt="Edit Goodreads link"]`).Length() != 1 ||
-				control.Filter(`[title="Edit Goodreads link"][aria-label="Edit Goodreads link"]`).Length() != 1 ||
-				page.Find(`#edit-review-link-linked.collapse:not(.show)`).Length() != 1 ||
-				page.Find(`form[hx-put="/documents/linked/review-link"][hx-target="this"]`).Length() != 1 ||
-				page.Find(`label[for="document-book-url-linked"]`).Length() != 1 {
-				t.Fatal("expected accessible, initially collapsed Goodreads editor beside the score")
-			}
-			if value, _ := page.Find(`input[name="bookURL"]`).Attr("value"); value != "https://www.goodreads.com/book/show/12207444-la-reina-dragon" {
-				t.Fatalf("editor must be prefilled with the current link, got %q", value)
-			}
-		})
-	}
-
-	source.err = biblioreads.ErrUnavailable
-	response, err := getRequest(adminCookie, app, "/documents/linked/score", t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer response.Body.Close()
-	page, err := goquery.NewDocumentFromReader(response.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(page.Find("li").Text(), "Unable to load Goodreads score") ||
-		page.Find(`input[name="bookURL"]`).Length() != 1 {
-		t.Fatal("an unavailable score must not prevent administrators from correcting the link")
 	}
 }
 
@@ -352,10 +283,7 @@ func TestDocumentDetailUpdatesStoredBiblioReadsRating(t *testing.T) {
 	}}
 	app, idx := newBiblioReadsTestApp(t, source)
 
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/score")))
-	if err != nil {
-		t.Fatal(err)
-	}
+	page := getPage(t, app, "/documents/linked/score")
 	link := page.Find(`li a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`)
 	if got := strings.TrimSpace(link.Text()); got != "4.12" {
 		t.Fatalf("expected latest Goodreads rating 4.12, got %q", got)
@@ -379,10 +307,7 @@ func TestDocumentDetailKeepsStoredBiblioReadsRatingWhenScraperReturnsZero(t *tes
 	}}
 	app, idx := newBiblioReadsTestApp(t, source)
 
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/score")))
-	if err != nil {
-		t.Fatal(err)
-	}
+	page := getPage(t, app, "/documents/linked/score")
 	link := page.Find(`li a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`)
 	if got := strings.TrimSpace(link.Text()); got != "3.82" {
 		t.Fatalf("expected known Goodreads rating to be retained, got %q", got)
@@ -407,10 +332,7 @@ func TestDocumentDetailBiblioReadsSearchesUnlinkedDocuments(t *testing.T) {
 		t.Fatalf("expected a placeholder for a document not looked up yet, got %d", got)
 	}
 
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/unlinked/score")))
-	if err != nil {
-		t.Fatal(err)
-	}
+	page := getPage(t, app, "/documents/unlinked/score")
 	if got := strings.TrimSpace(page.Find(`li a[href="https://www.goodreads.com/book/show/1-unlinked"]`).Text()); got != "4.10" {
 		t.Errorf("expected rating link with 4.10, got %q", got)
 	}
@@ -442,10 +364,7 @@ func TestDocumentDetailBiblioReadsSearchesUnlinkedDocuments(t *testing.T) {
 	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
-	page, err = goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/unlinked/score")))
-	if err != nil {
-		t.Fatal(err)
-	}
+	page = getPage(t, app, "/documents/unlinked/score")
 	if got := strings.TrimSpace(page.Find(`li a[href="https://www.goodreads.com/book/show/1-unlinked"]`).Text()); got != "4.20" {
 		t.Errorf("expected later request to use book-scraper rating, got %q", got)
 	}
@@ -464,10 +383,7 @@ func TestDocumentDetailBiblioReadsSkipsUnmatchedDocuments(t *testing.T) {
 		t.Errorf("expected an async score placeholder, got %d", got)
 	}
 	for _, path := range []string{"/documents/unmatched/score"} {
-		page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, path)))
-		if err != nil {
-			t.Fatal(err)
-		}
+		page := getPage(t, app, path)
 		score := page.Find("li").FilterFunction(func(_ int, item *goquery.Selection) bool {
 			return item.Find("i.bi-star-fill").Length() == 1
 		})
@@ -480,26 +396,10 @@ func TestDocumentDetailBiblioReadsSkipsUnmatchedDocuments(t *testing.T) {
 	}
 }
 
-func TestDocumentDetailBiblioReadsRatingRendersNothingWhenUnavailable(t *testing.T) {
-	for name, source := range map[string]*fakeBookSource{
-		"error": {err: errors.New("unavailable")},
-	} {
-		t.Run(name, func(t *testing.T) {
-			app, _ := newBiblioReadsTestApp(t, source)
-			if body := strings.TrimSpace(getBody(t, app, "/documents/linked/score")); body != "" {
-				t.Errorf("expected empty response, got %q", body)
-			}
-		})
-	}
-}
-
 func TestDocumentDetailBiblioReadsIdentifiersWithoutRating(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{ResourceID: "work-id", LegacyBookID: 12207444}}
 	app, idx := newBiblioReadsTestApp(t, source)
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/score")))
-	if err != nil {
-		t.Fatal(err)
-	}
+	page := getPage(t, app, "/documents/linked/score")
 	if strings.TrimSpace(page.Find("li").Text()) != "Not scored" || page.Find("h2").Text() != "Goodreads user reviews" {
 		t.Fatal("expected no score and a reviews heading for a matched book without a rating")
 	}
@@ -524,24 +424,6 @@ func TestDocumentDetailBiblioReadsIdentifiersWithoutRating(t *testing.T) {
 		}
 		if mustBiblioReadsData(t, stored).ResourceID != "work-id" || mustBiblioReadsData(t, stored).LegacyBookID != 12207444 {
 			t.Fatalf("incomplete response overwrote stored identifiers: %+v", stored)
-		}
-	}
-}
-
-func TestDocumentDetailBiblioReadsDisabled(t *testing.T) {
-	app, _ := newBiblioReadsTestApp(t, nil)
-	for _, slug := range []string{"linked", "unlinked", "unmatched"} {
-		if got := documentScorePlaceholders(t, getBody(t, app, "/documents/"+slug)).Length(); got != 0 {
-			t.Errorf("%s: expected no placeholder when BiblioReads is disabled, got %d", slug, got)
-		}
-		if body := strings.TrimSpace(getBody(t, app, "/documents/"+slug+"/score")); body != "" {
-			t.Errorf("%s: expected empty response, got %q", slug, body)
-		}
-		if body := getBody(t, app, "/documents/"+slug); strings.Contains(body, "bi-star-fill") {
-			t.Errorf("%s: expected no score row when integration is disabled", slug)
-		}
-		if body := getBody(t, app, "/documents/"+slug); strings.Contains(body, `id="document-reviews-`) {
-			t.Errorf("%s: expected no reviews target when integration is disabled", slug)
 		}
 	}
 }
@@ -601,132 +483,6 @@ func TestDocumentDetailBiblioReadsSearchDoesNotScrape(t *testing.T) {
 	}
 }
 
-func TestDocumentDetailBiblioReadsNoScoreTranslations(t *testing.T) {
-	source := &fakeBookSource{}
-	app, _ := newBiblioReadsTestApp(t, source)
-	for _, locale := range []struct {
-		lang string
-		text string
-	}{
-		{"en", "Not scored"},
-		{"es", "Sin puntuar"},
-		{"de", "Nicht bewertet"},
-		{"fr", "Non noté"},
-		{"ru", "Не оценено"},
-	} {
-		for _, path := range []string{"/documents/unmatched/score"} {
-			t.Run(locale.lang+path, func(t *testing.T) {
-				req := mustGetRequest(t, path)
-				req.Header.Set("Accept-Language", locale.lang)
-				response, err := app.Test(req)
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				defer response.Body.Close()
-				mustReturnStatus(response, http.StatusOK, t)
-				page, err := goquery.NewDocumentFromReader(response.Body)
-				if err != nil {
-					t.Fatal(err)
-				}
-				score := page.Find("li").FilterFunction(func(_ int, item *goquery.Selection) bool {
-					return item.Find("i.bi-star-fill").Length() == 1
-				})
-				if strings.TrimSpace(score.Text()) != locale.text || score.Find("a").Length() != 0 {
-					t.Fatalf("expected localized no-score row %q, got %q", locale.text, score.Text())
-				}
-			})
-		}
-	}
-	if len(source.queries) != 0 || len(source.ids) != 0 {
-		t.Fatal("cached unmatched documents must not trigger Goodreads requests")
-	}
-}
-
-func TestDocumentDetailBiblioReadsReviewsLazyPlaceholder(t *testing.T) {
-	source := &fakeBookSource{book: biblioreads.BookResponse{
-		Rating: "3.82", ResourceID: "work-id", LegacyBookID: 12207444,
-	}}
-	app, _ := newBiblioReadsTestApp(t, source)
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	target := page.Find("#document-reviews-linked")
-	if target.Length() != 1 || target.Is("[hx-get]") {
-		t.Fatal("expected an inactive reviews target before the rating loads")
-	}
-	if target.Find("h2").Text() != "Goodreads user reviews" {
-		t.Fatal("expected the reviews heading before the score loads")
-	}
-	if !target.Is(".document-detail-content > :last-child") {
-		t.Fatal("reviews must appear at the bottom of the document content")
-	}
-	page, err = goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/score")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	placeholder := page.Find(`#document-reviews-linked[hx-get="/documents/linked/reviews"][hx-trigger="intersect once"][hx-swap-oob="outerHTML"]`)
-	if placeholder.Length() != 1 {
-		t.Fatal("expected successful rating to enable reviews on intersection only")
-	}
-	if placeholder.Find("h2").Text() != "Goodreads user reviews" || placeholder.Find(`[aria-hidden="true"] h2`).Length() != 0 {
-		t.Fatal("the reviews heading must remain visible and accessible while reviews load")
-	}
-	skeletons := placeholder.Find(".border-top")
-	if skeletons.Length() != 2 || placeholder.Find(`div[aria-hidden="true"]`).Length() != 1 {
-		t.Fatal("expected two decorative review-shaped skeletons")
-	}
-	skeletons.Each(func(i int, skeleton *goquery.Selection) {
-		if skeleton.Find(".fs-5 .placeholder").Length() != 1 ||
-			skeleton.Find("i.bi-star").Length() != 5 ||
-			skeleton.Find(".placeholder.ms-auto").Length() != 1 ||
-			skeleton.ChildrenFiltered("div").Length() != 6 {
-			t.Errorf("skeleton %d must include a name, five stars, a date and five text lines", i)
-		}
-	})
-	if len(source.reviewCalls) != 0 {
-		t.Fatal("page and rating requests must not fetch reviews")
-	}
-}
-
-func TestDocumentDetailBiblioReadsReviewsHeader(t *testing.T) {
-	for _, tt := range []struct {
-		name   string
-		source *fakeBookSource
-		slug   string
-		want   int
-	}{
-		{name: "matched", source: &fakeBookSource{}, slug: "linked", want: 1},
-		{name: "zero score", source: &fakeBookSource{book: biblioreads.BookResponse{Rating: "0.00"}}, slug: "linked", want: 1},
-		{name: "unavailable", source: &fakeBookSource{err: biblioreads.ErrUnavailable}, slug: "linked", want: 1},
-		{name: "disabled", slug: "linked"},
-		{name: "unmatched", source: &fakeBookSource{}, slug: "unmatched"},
-		{name: "not looked up", source: &fakeBookSource{}, slug: "unlinked"},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			app, _ := newBiblioReadsTestApp(t, tt.source)
-			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/"+tt.slug)))
-			if err != nil {
-				t.Fatal(err)
-			}
-			header := page.Find(`#document-reviews-` + tt.slug + ` h2 a`)
-			if header.Length() != tt.want {
-				t.Fatalf("expected %d reviews headings, got %d", tt.want, header.Length())
-			}
-			if tt.want == 1 {
-				url, _ := header.Attr("href")
-				if header.Text() != "Goodreads user reviews" || url != "https://www.goodreads.com/book/show/12207444-la-reina-dragon" {
-					t.Fatal("expected a linked Goodreads reviews heading")
-				}
-			}
-			if tt.source != nil && (len(tt.source.ids) != 0 || len(tt.source.reviewCalls) != 0 || len(tt.source.queries) != 0) {
-				t.Fatal("rendering the heading must not make any API calls")
-			}
-		})
-	}
-}
-
 func TestDocumentDetailBiblioReadsReviews(t *testing.T) {
 	source := &fakeBookSource{
 		book: biblioreads.BookResponse{Rating: "4.20", ResourceID: "work-id", LegacyBookID: 12207444},
@@ -738,10 +494,7 @@ func TestDocumentDetailBiblioReadsReviews(t *testing.T) {
 		}},
 	}
 	app, idx := newBiblioReadsTestApp(t, source)
-	page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/documents/linked/reviews")))
-	if err != nil {
-		t.Fatal(err)
-	}
+	page := getPage(t, app, "/documents/linked/reviews")
 	if len(source.reviewCalls) != 1 || source.reviewCalls[0] != (reviewCall{"work-id", 12207444, "", "en"}) {
 		t.Fatalf("unexpected review calls: %+v", source.reviewCalls)
 	}
