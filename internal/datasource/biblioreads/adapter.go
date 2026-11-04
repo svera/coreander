@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -154,15 +153,11 @@ func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document
 		}
 		for _, query := range queries {
 			response, err := p.source.SearchBooks(ctx, query)
-			switch {
-			case errors.Is(err, ErrUnavailable), errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
+			if err != nil {
 				return SearchResult{}, fmt.Errorf("error searching %q on BiblioReads: %w", query, err)
-			case err != nil:
-				log.Printf("Error searching %q on BiblioReads: %s", query, err)
-			default:
-				if match, ok := matchingBook(document, response.Result); ok {
-					result = match
-				}
+			}
+			if match, ok := matchingBook(document, response.Result); ok {
+				result = match
 			}
 			if result.BookURL != "" {
 				break

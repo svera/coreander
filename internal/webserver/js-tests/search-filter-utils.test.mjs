@@ -8,7 +8,10 @@ const { initClearRangeControls } = await import(`data:text/javascript;base64,${B
 for (const tag of ['input', 'select']) {
     test(`range clear controls track and reset ${tag} values`, () => {
         const controls = [new EventTarget(), new EventTarget()]
-        controls.forEach(control => { control.value = '' })
+        controls.forEach(control => {
+            control.value = ''
+            control.tagName = tag.toUpperCase()
+        })
         const button = new EventTarget()
         const group = {
             querySelectorAll: selector => selector.split(', ').includes(tag) ? controls : [],
@@ -22,6 +25,15 @@ for (const tag of ['input', 'select']) {
         }
         const reset = initClearRangeControls(filters)
         assert.equal(button.disabled, true)
+
+        controls[1].value = '0'
+        controls[1].dispatchEvent(new Event('change'))
+        assert.equal(button.disabled, tag !== 'select')
+        if (tag === 'select') {
+            button.dispatchEvent(new Event('click', { cancelable: true }))
+            assert.deepEqual(controls.map(control => control.value), ['', ''])
+            assert.equal(button.disabled, true)
+        }
 
         controls[1].value = '5'
         controls[1].dispatchEvent(new Event('change'))

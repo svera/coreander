@@ -99,7 +99,7 @@ export function applyHiddenDatesToVisible(container) {
 }
 
 function hasValue(input) {
-    return input.value.trim() !== '' && input.value !== '0'
+    return input.value.trim() !== '' && (input.tagName === 'SELECT' || input.value !== '0')
 }
 
 function updateDateClearButtonState(dateControl) {

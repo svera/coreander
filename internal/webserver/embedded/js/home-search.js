@@ -51,7 +51,7 @@ function collectPanelParams(panel, composeDateControls, type) {
         if (!el.name || el.disabled) return
         if ((el.type === "checkbox" || el.type === "radio") && !el.checked) return
         const value = String(el.value ?? "").trim()
-        if (value === "" || value === "0") return
+        if (value === "" || (value === "0" && el.tagName !== "SELECT")) return
         params.append(el.name, value)
     })
     return params

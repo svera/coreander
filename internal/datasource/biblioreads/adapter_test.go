@@ -187,10 +187,9 @@ func TestEnrichStoresMatchingResult(t *testing.T) {
 
 func TestEnrichMarksDocumentsWithoutMatch(t *testing.T) {
 	for name, source := range map[string]*fakeSource{
-		"no results":        {},
-		"non-transient err": {err: errors.New("biblioreads: request failed with status code 504")},
-		"wrong title":       {results: []SearchResult{{Title: "Another book", Author: "Alice Borchardt", BookURL: "/book/show/1"}}},
-		"wrong author":      {results: []SearchResult{{Title: "La Reina Dragon", Author: "Another writer", BookURL: "/book/show/1"}}},
+		"no results":   {},
+		"wrong title":  {results: []SearchResult{{Title: "Another book", Author: "Alice Borchardt", BookURL: "/book/show/1"}}},
+		"wrong author": {results: []SearchResult{{Title: "La Reina Dragon", Author: "Another writer", BookURL: "/book/show/1"}}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			idx := newTestIndexer(t, source)
@@ -268,13 +267,55 @@ func TestEnrichStoresSecondAuthorURLAndPreservesItOnEdits(t *testing.T) {
 	}
 }
 
+func TestSearchErrorsLeaveLookupPending(t *testing.T) {
+	const title = "El señor de los anillos"
+	const author = "J. R. R. Tolkien"
+	searchError := errors.New("BiblioReads returned HTTP 404: upstream fetch or JSON failure")
+	for _, failedQuery := range []string{title + " " + author, title} {
+		t.Run(failedQuery, func(t *testing.T) {
+			source := &fakeSource{
+				byQuery:     map[string][]SearchResult{},
+				queryErrors: map[string]error{failedQuery: searchError},
+			}
+			idx := newTestIndexer(t, source)
+			document := index.Document{
+				ID: testID, Metadata: metadata.Metadata{Title: title, Authors: []string{author}},
+			}
+			if err := index.IndexDocument(idx.documentsIdx, document.ID, document); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := idx.Book(context.Background(), document); !errors.Is(err, searchError) {
+				t.Fatalf("expected wrapped search error, got %v", err)
+			}
+			stored, err := idx.DocumentByID(document.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if data := mustData(t, stored); data.Enriched || data.URL != "" {
+				t.Fatalf("failed search must not persist a completed lookup: %+v", data)
+			}
+			source.queryErrors = nil
+			source.byQuery[title] = []SearchResult{
+				{Title: title, Author: author, BookURL: "/book/show/37910810"},
+			}
+			result, err := idx.Book(context.Background(), stored)
+			if err != nil || result.BookURL != "/book/show/37910810" {
+				t.Fatalf("expected successful retry, got %+v, %v", result, err)
+			}
+			stored, err = idx.DocumentByID(document.ID)
+			if err != nil || !mustData(t, stored).Enriched {
+				t.Fatalf("successful retry must persist completion: %+v, %v", stored, err)
+			}
+		})
+	}
+}
+
 func TestEnrichLeavesDocumentsForLaterWhenUnavailable(t *testing.T) {
 	source := &fakeSource{err: ErrUnavailable}
 	idx := newTestIndexer(t, source)
 	if err := idx.AddLibrary(10, true, 1); err != nil {
 		t.Fatal(err)
 	}
-
 	if err := idx.EnrichDocuments(10); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("expected ErrUnavailable, got %v", err)
 	}
