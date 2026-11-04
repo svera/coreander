@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/svera/coreander/v5/internal/reviews"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 )
 
 func (d *Controller) UpdateDocumentLink(c fiber.Ctx) error {
@@ -22,12 +22,12 @@ func (d *Controller) UpdateDocumentLink(c fiber.Ctx) error {
 	}
 	link := c.FormValue("bookURL")
 	if err := d.reviewProvider.UpdateDocumentLink(document, link); err != nil {
-		if errors.Is(err, reviews.ErrInvalidDocumentLink) {
+		if errors.Is(err, datasourcemodel.ErrInvalidDocumentLink) {
 			return c.Status(fiber.StatusUnprocessableEntity).Render("partials/document-review-link-form", fiber.Map{
 				"Slug": document.Slug, "BookURL": link, "InvalidURL": true, "Source": d.reviewProvider.Name(),
 			})
 		}
-		if errors.Is(err, reviews.ErrDocumentNotFound) {
+		if errors.Is(err, datasourcemodel.ErrDocumentNotFound) {
 			return fiber.ErrNotFound
 		}
 		log.Printf("Error correcting document link for %s: %s", document.ID, err)

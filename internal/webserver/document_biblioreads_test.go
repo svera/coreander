@@ -18,7 +18,6 @@ import (
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
-	"github.com/svera/coreander/v5/internal/reviews"
 	"github.com/svera/coreander/v5/internal/webserver"
 	authorcontroller "github.com/svera/coreander/v5/internal/webserver/controller/author"
 	"github.com/svera/coreander/v5/internal/webserver/controller/document"
@@ -120,9 +119,9 @@ func newDataSourceProvidersTestApp(t *testing.T, source *fakeBookSource, provide
 	idx := index.NewBleve(documents, authors, appFS, testLibraryDir, nil, idxCfg)
 	adapter.SetIndex(idx)
 	if source != nil {
-		provider = reviews.NewBiblioReads(source, adapter)
+		provider = biblioreads.NewReviewProvider(source, adapter)
 	}
-	biblioReadsLinks := reviews.NewBiblioReads(nil, adapter)
+	biblioReadsLinks := biblioreads.NewReviewProvider(nil, adapter)
 	t.Cleanup(func() { _ = idx.Close() })
 
 	for _, doc := range []index.Document{withBiblioReadsData(t, index.Document{

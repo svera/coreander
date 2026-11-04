@@ -1,5 +1,4 @@
-// Package reviews provides service-independent review data and service adapters.
-package reviews
+package model
 
 import (
 	"errors"
@@ -45,8 +44,8 @@ type Review struct {
 	URL       string
 }
 
-// Page distinguishes an unavailable review section from an available, empty list.
-type Page struct {
+// ReviewPage distinguishes an unavailable review section from an available, empty list.
+type ReviewPage struct {
 	Source    string
 	URL       string
 	Available bool

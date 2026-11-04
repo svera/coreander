@@ -1,4 +1,4 @@
-package reviews
+package biblioreads
 
 import (
 	"context"
@@ -6,55 +6,49 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
 )
 
-const (
-	goodreadsBaseURL    = "https://www.goodreads.com"
-	goodreadsBookPrefix = "/book/show/"
-)
+const goodreadsBookPrefix = "/book/show/"
 
-var goodreadsBookPath = regexp.MustCompile(`^/book/show/([1-9][0-9]*)(?:[.-][A-Za-z0-9._~-]+)?/?$`)
-
-type BiblioReadsClient interface {
-	Book(ctx context.Context, id string) (biblioreads.BookResponse, error)
-	Reviews(ctx context.Context, resourceID string, legacyBookID int, nextPageToken, languageCode string) (biblioreads.ReviewsResponse, error)
+type ReviewClient interface {
+	Book(ctx context.Context, id string) (BookResponse, error)
+	Reviews(ctx context.Context, resourceID string, legacyBookID int, nextPageToken, languageCode string) (ReviewsResponse, error)
 }
 
-type BiblioReadsIndex interface {
-	Book(ctx context.Context, document index.Document) (biblioreads.SearchResult, error)
-	StoreDetails(document index.Document, bookURL string, book biblioreads.BookResponse) error
+type ReviewIndex interface {
+	Book(ctx context.Context, document index.Document) (SearchResult, error)
+	StoreDetails(document index.Document, bookURL string, book BookResponse) error
 	UpdateDataSourceLink(documentID, bookURL string) error
 }
 
-type BiblioReads struct {
-	client BiblioReadsClient
-	index  BiblioReadsIndex
+type ReviewProvider struct {
+	client ReviewClient
+	index  ReviewIndex
 }
 
-func NewBiblioReads(client BiblioReadsClient, idx BiblioReadsIndex) *BiblioReads {
-	return &BiblioReads{client: client, index: idx}
+// NewReviewProvider exposes BiblioReads data using the shared review models.
+func NewReviewProvider(client ReviewClient, idx ReviewIndex) *ReviewProvider {
+	return &ReviewProvider{client: client, index: idx}
 }
 
-func (b *BiblioReads) Name() string {
+func (b *ReviewProvider) Name() string {
 	return "Goodreads"
 }
 
 // AuthorLink returns the indexed author link without making a network request.
-func (b *BiblioReads) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
+func (b *ReviewProvider) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
 	return goodreadsDataSourceLink(author.DataSourceLinks["goodreads"], "/author/show/")
 }
 
 // DocumentLink returns the indexed book link without making a network request.
-func (b *BiblioReads) DocumentLink(document index.Document) datasourcemodel.DataSourceLink {
-	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+func (b *ReviewProvider) DocumentLink(document index.Document) datasourcemodel.DataSourceLink {
+	data, err := index.DataSourceData[DocumentData](document, Source)
 	if err != nil {
 		log.Println(err)
 		return datasourcemodel.DataSourceLink{}
@@ -71,31 +65,31 @@ func goodreadsDataSourceLink(path, prefix string) datasourcemodel.DataSourceLink
 }
 
 // StoredScore builds a score from indexed data without making a network request.
-func (b *BiblioReads) StoredScore(document index.Document) (Score, error) {
-	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+func (b *ReviewProvider) StoredScore(document index.Document) (datasourcemodel.Score, error) {
+	data, err := index.DataSourceData[DocumentData](document, Source)
 	if err != nil {
-		return Score{}, err
+		return datasourcemodel.Score{}, err
 	}
-	return Score{
+	return datasourcemodel.Score{
 		Source: b.Name(), Value: fmt.Sprintf("%.2f", document.DataSourceScoreValue),
 		Count: data.RatingCount, URL: goodreadsDataSourceLink(data.URL, goodreadsBookPrefix).URL,
 	}, nil
 }
 
 // CanEditDocumentLink reports that Goodreads book links can be corrected.
-func (b *BiblioReads) CanEditDocumentLink() bool {
+func (b *ReviewProvider) CanEditDocumentLink() bool {
 	return true
 }
 
 // UpdateDocumentLink saves a corrected Goodreads book link and clears stale score details.
-func (b *BiblioReads) UpdateDocumentLink(document index.Document, link string) error {
+func (b *ReviewProvider) UpdateDocumentLink(document index.Document, link string) error {
 	path, err := normalizeGoodreadsBookURL(link)
 	if err != nil {
-		return fmt.Errorf("%w: invalid Goodreads book URL", ErrInvalidDocumentLink)
+		return fmt.Errorf("%w: invalid Goodreads book URL", datasourcemodel.ErrInvalidDocumentLink)
 	}
 	if err := b.index.UpdateDataSourceLink(document.ID, path); err != nil {
 		if errors.Is(err, index.ErrDocumentNotFound) {
-			return ErrDocumentNotFound
+			return datasourcemodel.ErrDocumentNotFound
 		}
 		return err
 	}
@@ -121,14 +115,14 @@ func bookID(bookURL string) (string, error) {
 	return id, nil
 }
 
-func (b *BiblioReads) book(ctx context.Context, document index.Document) (biblioreads.BookResponse, error) {
-	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+func (b *ReviewProvider) book(ctx context.Context, document index.Document) (BookResponse, error) {
+	data, err := index.DataSourceData[DocumentData](document, Source)
 	if err != nil {
-		return biblioreads.BookResponse{}, err
+		return BookResponse{}, err
 	}
 	id, err := bookID(data.URL)
 	if err != nil {
-		return biblioreads.BookResponse{}, err
+		return BookResponse{}, err
 	}
 	book, err := b.client.Book(ctx, id)
 	if err != nil {
@@ -150,9 +144,9 @@ func isZeroRating(rating string) bool {
 	return err == nil && value == 0
 }
 
-func (b *BiblioReads) Score(ctx context.Context, document index.Document) (Score, error) {
-	score := Score{Source: "Goodreads"}
-	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+func (b *ReviewProvider) Score(ctx context.Context, document index.Document) (datasourcemodel.Score, error) {
+	score := datasourcemodel.Score{Source: "Goodreads"}
+	data, err := index.DataSourceData[DocumentData](document, Source)
 	if err != nil {
 		return score, err
 	}
@@ -168,7 +162,7 @@ func (b *BiblioReads) Score(ctx context.Context, document index.Document) (Score
 			return score, err
 		}
 		data.URL = result.BookURL
-		if err := index.SetDataSourceData(&document, biblioreads.Source, data); err != nil {
+		if err := index.SetDataSourceData(&document, Source, data); err != nil {
 			return score, err
 		}
 		score.Value, score.Count, score.URL = result.Rating, result.RatingCount, b.DocumentLink(document).URL
@@ -182,33 +176,33 @@ func (b *BiblioReads) Score(ctx context.Context, document index.Document) (Score
 	return score, nil
 }
 
-func (b *BiblioReads) Reviews(ctx context.Context, document index.Document, language string) (Page, error) {
-	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+func (b *ReviewProvider) Reviews(ctx context.Context, document index.Document, language string) (datasourcemodel.ReviewPage, error) {
+	data, err := index.DataSourceData[DocumentData](document, Source)
 	if err != nil {
-		return Page{}, err
+		return datasourcemodel.ReviewPage{}, err
 	}
 	if data.URL == "" {
-		return Page{}, nil
+		return datasourcemodel.ReviewPage{}, nil
 	}
 	book, err := b.book(ctx, document)
 	if err != nil {
-		return Page{}, err
+		return datasourcemodel.ReviewPage{}, err
 	}
 	if book.Rating == "" {
-		return Page{}, nil
+		return datasourcemodel.ReviewPage{}, nil
 	}
 	resourceID, legacyBookID := data.ResourceID, data.LegacyBookID
 	if book.ResourceID != "" && book.LegacyBookID > 0 {
 		resourceID, legacyBookID = book.ResourceID, book.LegacyBookID
 	}
 	if resourceID == "" || legacyBookID <= 0 {
-		return Page{}, fmt.Errorf("missing Goodreads review identifiers for %s", document.ID)
+		return datasourcemodel.ReviewPage{}, fmt.Errorf("missing Goodreads review identifiers for %s", document.ID)
 	}
 	response, err := b.client.Reviews(ctx, resourceID, legacyBookID, "", language)
 	if err != nil {
-		return Page{}, fmt.Errorf("retrieving Goodreads reviews for %s: %w", document.ID, err)
+		return datasourcemodel.ReviewPage{}, fmt.Errorf("retrieving Goodreads reviews for %s: %w", document.ID, err)
 	}
-	page := Page{Source: "Goodreads", URL: b.DocumentLink(document).URL, Available: true}
+	page := datasourcemodel.ReviewPage{Source: "Goodreads", URL: b.DocumentLink(document).URL, Available: true}
 	for _, review := range response.Reviews {
 		var createdAt time.Time
 		if review.CreatedAt != "" {
@@ -221,7 +215,7 @@ func (b *BiblioReads) Reviews(ctx context.Context, document index.Document, lang
 		if review.ReviewURL != "" {
 			reviewURL = goodreadsBaseURL + review.ReviewURL
 		}
-		page.Reviews = append(page.Reviews, Review{
+		page.Reviews = append(page.Reviews, datasourcemodel.Review{
 			Reviewer: review.Reviewer.Name, Rating: review.Rating, Text: review.Text,
 			CreatedAt: createdAt, Spoiler: review.Spoiler, URL: reviewURL,
 		})

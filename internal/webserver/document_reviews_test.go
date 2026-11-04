@@ -11,16 +11,16 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v3"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
-	"github.com/svera/coreander/v5/internal/reviews"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/controller/document"
 )
 
 func TestDocumentReviewsCanSelectSupportedLanguage(t *testing.T) {
 	provider := &fakeReviewProvider{
-		score: reviews.Score{Source: "Another service"},
-		page:  reviews.Page{Source: "Another service", Available: true},
+		score: datasourcemodel.Score{Source: "Another service"},
+		page:  datasourcemodel.ReviewPage{Source: "Another service", Available: true},
 	}
 	app, _ := newReviewProviderTestApp(t, provider)
 	req := mustGetRequest(t, "/documents/linked/reviews?language=fr")
@@ -59,8 +59,8 @@ func TestDocumentReviewsCanSelectSupportedLanguage(t *testing.T) {
 
 func TestDocumentReviewsRejectUnsupportedLanguage(t *testing.T) {
 	provider := &fakeReviewProvider{
-		score: reviews.Score{Source: "Another service"},
-		page:  reviews.Page{Source: "Another service", Available: true},
+		score: datasourcemodel.Score{Source: "Another service"},
+		page:  datasourcemodel.ReviewPage{Source: "Another service", Available: true},
 	}
 	app, _ := newReviewProviderTestApp(t, provider)
 	response, err := app.Test(mustGetRequest(t, "/documents/linked/reviews?language=zz"))
@@ -75,8 +75,8 @@ func TestDocumentReviewsRejectUnsupportedLanguage(t *testing.T) {
 }
 
 type fakeReviewProvider struct {
-	score               reviews.Score
-	page                reviews.Page
+	score               datasourcemodel.Score
+	page                datasourcemodel.ReviewPage
 	scoreErr            error
 	reviewsErr          error
 	canEditDocumentLink bool
@@ -97,12 +97,12 @@ func (f *fakeReviewProvider) UpdateDocumentLink(index.Document, string) error {
 	return nil
 }
 
-func (f *fakeReviewProvider) Score(_ context.Context, document index.Document) (reviews.Score, error) {
+func (f *fakeReviewProvider) Score(_ context.Context, document index.Document) (datasourcemodel.Score, error) {
 	f.scoreSlugs = append(f.scoreSlugs, document.Slug)
 	return f.score, f.scoreErr
 }
 
-func (f *fakeReviewProvider) Reviews(_ context.Context, document index.Document, language string) (reviews.Page, error) {
+func (f *fakeReviewProvider) Reviews(_ context.Context, document index.Document, language string) (datasourcemodel.ReviewPage, error) {
 	f.reviewSlugs = append(f.reviewSlugs, document.Slug)
 	f.reviewLanguages = append(f.reviewLanguages, language)
 	return f.page, f.reviewsErr
@@ -123,8 +123,8 @@ func TestDocumentReviewsUILanguage(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			provider := &fakeReviewProvider{
-				score: reviews.Score{Source: "Another service"},
-				page:  reviews.Page{Source: "Another service", Available: true},
+				score: datasourcemodel.Score{Source: "Another service"},
+				page:  datasourcemodel.ReviewPage{Source: "Another service", Available: true},
 			}
 			app, _ := newReviewProviderTestApp(t, provider)
 			req := mustGetRequest(t, "/documents/linked/reviews"+tt.query)
@@ -149,10 +149,10 @@ func TestDocumentReviewsUILanguage(t *testing.T) {
 
 func TestDocumentAlternativeReviewProvider(t *testing.T) {
 	provider := &fakeReviewProvider{
-		score: reviews.Score{Source: "Another service", Value: "4.5", Count: "123", URL: "https://example.org/books/book-1"},
-		page: reviews.Page{
+		score: datasourcemodel.Score{Source: "Another service", Value: "4.5", Count: "123", URL: "https://example.org/books/book-1"},
+		page: datasourcemodel.ReviewPage{
 			Source: "Another service", URL: "https://example.org/books/book-1", Available: true,
-			Reviews: []reviews.Review{{
+			Reviews: []datasourcemodel.Review{{
 				Reviewer: "Reader", Rating: 5, Text: "<p>Excellent</p><script>unsafe()</script>",
 				CreatedAt: time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC), URL: "https://example.org/reviews/review-1",
 			}},
@@ -214,7 +214,7 @@ func TestDocumentScoreMarksZeroWithoutValuationsAsNotScored(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			provider := &fakeReviewProvider{
-				score: reviews.Score{
+				score: datasourcemodel.Score{
 					Source: "Another service", Value: "0.00", Count: tt.count,
 					URL: "https://example.org/books/book-1",
 				},
@@ -288,8 +288,8 @@ func TestDocumentReviewFractionalStars(t *testing.T) {
 	} {
 		t.Run(fmt.Sprint(tt.rating), func(t *testing.T) {
 			provider := &fakeReviewProvider{
-				score: reviews.Score{Source: "Another service"},
-				page: reviews.Page{Source: "Another service", Available: true, Reviews: []reviews.Review{
+				score: datasourcemodel.Score{Source: "Another service"},
+				page: datasourcemodel.ReviewPage{Source: "Another service", Available: true, Reviews: []datasourcemodel.Review{
 					{Reviewer: "Reader", Rating: tt.rating},
 				}},
 			}
@@ -334,8 +334,8 @@ func TestDocumentReviewFractionalStars(t *testing.T) {
 
 func TestDocumentReviewNotScoredTranslations(t *testing.T) {
 	provider := &fakeReviewProvider{
-		score: reviews.Score{Source: "Another service"},
-		page: reviews.Page{Source: "Another service", Available: true, Reviews: []reviews.Review{
+		score: datasourcemodel.Score{Source: "Another service"},
+		page: datasourcemodel.ReviewPage{Source: "Another service", Available: true, Reviews: []datasourcemodel.Review{
 			{Reviewer: "Reader", Text: "A review without a rating"},
 		}},
 	}

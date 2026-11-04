@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/metadata"
-	"github.com/svera/coreander/v5/internal/reviews"
 	"golang.org/x/exp/slices"
 )
 
 type documentReview struct {
-	reviews.Review
+	datasourcemodel.Review
 	HTML      template.HTML
 	CreatedOn string
 	StarFills [5]int

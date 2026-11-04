@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/spf13/afero"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/i18n"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/result"
-	"github.com/svera/coreander/v5/internal/reviews"
 	authorcontroller "github.com/svera/coreander/v5/internal/webserver/controller/author"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
@@ -18,9 +18,9 @@ const relatedDocuments = 4
 
 type ReviewProvider interface {
 	Name() string
-	Score(ctx context.Context, document index.Document) (reviews.Score, error)
+	Score(ctx context.Context, document index.Document) (datasourcemodel.Score, error)
 	// Reviews returns reviews in the current UI language (a two-letter ISO code).
-	Reviews(ctx context.Context, document index.Document, language string) (reviews.Page, error)
+	Reviews(ctx context.Context, document index.Document, language string) (datasourcemodel.ReviewPage, error)
 	// CanEditDocumentLink reports whether this provider supports correcting its document link.
 	CanEditDocumentLink() bool
 	// UpdateDocumentLink saves an administrator's correction to the provider-specific link.

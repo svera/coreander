@@ -19,7 +19,6 @@ import (
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
-	"github.com/svera/coreander/v5/internal/reviews"
 	"github.com/svera/coreander/v5/internal/versioncheck"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/controller/document"
@@ -208,7 +207,7 @@ func main() {
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
 	var reviewProvider document.ReviewProvider
-	biblioReads := reviews.NewBiblioReads(biblioreadsClient, biblioReadsAdapter)
+	biblioReads := biblioreads.NewReviewProvider(biblioreadsClient, biblioReadsAdapter)
 	if biblioreadsClient != nil {
 		reviewProvider = biblioReads
 	}

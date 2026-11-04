@@ -1,4 +1,4 @@
-package reviews_test
+package biblioreads_test
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
-	"github.com/svera/coreander/v5/internal/reviews"
 )
 
 func withBiblioReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
@@ -19,7 +19,7 @@ func withBiblioReadsData(t *testing.T, document index.Document, data biblioreads
 }
 
 func TestBiblioReadsDataSourceLinks(t *testing.T) {
-	provider := reviews.NewBiblioReads(nil, nil)
+	provider := biblioreads.NewReviewProvider(nil, nil)
 	author := provider.AuthorLink(index.Author{
 		DataSourceLinks: map[string]string{"goodreads": "/author/show/123.Jane_Doe"},
 	}, "en")
@@ -90,10 +90,10 @@ func TestBiblioReadsUpdateDocumentLink(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			idx := &reviewLinkIndex{}
-			provider := reviews.NewBiblioReads(nil, idx)
+			provider := biblioreads.NewReviewProvider(nil, idx)
 			err := provider.UpdateDocumentLink(index.Document{ID: "doc-id"}, tt.url)
 			if tt.want == "" {
-				if !errors.Is(err, reviews.ErrInvalidDocumentLink) {
+				if !errors.Is(err, datasourcemodel.ErrInvalidDocumentLink) {
 					t.Fatalf("expected invalid-link error, got %v", err)
 				}
 				if idx.link != "" {
@@ -113,9 +113,9 @@ func TestBiblioReadsUpdateDocumentLink(t *testing.T) {
 
 func TestBiblioReadsUpdateDocumentLinkMissingDocument(t *testing.T) {
 	idx := &reviewLinkIndex{err: index.ErrDocumentNotFound}
-	provider := reviews.NewBiblioReads(nil, idx)
+	provider := biblioreads.NewReviewProvider(nil, idx)
 	err := provider.UpdateDocumentLink(index.Document{ID: "missing"}, "https://www.goodreads.com/book/show/1368314")
-	if !errors.Is(err, reviews.ErrDocumentNotFound) {
+	if !errors.Is(err, datasourcemodel.ErrDocumentNotFound) {
 		t.Fatalf("expected missing-document error, got %v", err)
 	}
 }
