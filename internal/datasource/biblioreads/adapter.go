@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	enrichWorkers  = 4
-	requestTimeout = 2 * time.Minute
+	// maxConcurrentLookups bounds lookups across every enrichment caller, so they do not pile up
+	// waiting on the client. Client request spacing and cooldowns protect each instance.
+	maxConcurrentLookups = 4
+	requestTimeout       = 2 * time.Minute
 )
 
 type SearchSource interface {
@@ -21,14 +23,14 @@ type SearchSource interface {
 }
 
 type Enricher struct {
-	source SearchSource
-	idx    *index.BleveIndexer
-	slots  chan struct{}
+	source      SearchSource
+	idx         *index.BleveIndexer
+	lookupSlots chan struct{}
 }
 
 // NewEnricher adapts a  source to the document-enrichment pipeline.
 func NewEnricher(source SearchSource) *Enricher {
-	return &Enricher{source: source, slots: make(chan struct{}, enrichWorkers)}
+	return &Enricher{source: source, lookupSlots: make(chan struct{}, maxConcurrentLookups)}
 }
 
 // SetIndex binds the adapter before starting background or on-demand enrichment.
@@ -136,8 +138,8 @@ func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document
 		return SearchResult{}, err
 	}
 	select {
-	case p.slots <- struct{}{}:
-		defer func() { <-p.slots }()
+	case p.lookupSlots <- struct{}{}:
+		defer func() { <-p.lookupSlots }()
 	case <-ctx.Done():
 		return SearchResult{}, ctx.Err()
 	}

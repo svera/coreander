@@ -10,6 +10,8 @@ import (
 	"github.com/blevesearch/bleve/v2"
 )
 
+// documentEnrichWorkers sets lookup parallelism for each pool. Enrichers must enforce
+// their own source request limits because batch and upload pools run concurrently.
 const documentEnrichWorkers = 4
 
 // DocumentEnricher owns a provider's lookup policy and persisted payload.
@@ -19,7 +21,8 @@ type DocumentEnricher interface {
 	Name() string
 	NeedsEnrichment(Document) (bool, error)
 	// Enrich persists an enriched=true payload for completed lookups, including no matches.
-	// Transient failures must leave the document pending.
+	// Transient failures must leave the document pending. Enrich may be called concurrently
+	// by multiple pools, so implementations must limit their own requests to the source.
 	Enrich(context.Context, *BleveIndexer, Document) error
 }
 

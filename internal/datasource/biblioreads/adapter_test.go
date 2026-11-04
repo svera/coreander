@@ -1153,3 +1153,47 @@ func TestBookRejectsInvalidProviderData(t *testing.T) {
 		t.Fatal("Goodreads accepted an incorrectly typed URL")
 	}
 }
+
+type blockingSource struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (s *blockingSource) SearchBooks(ctx context.Context, _ string) (SearchBooksResponse, error) {
+	s.started <- struct{}{}
+	select {
+	case <-s.release:
+		return SearchBooksResponse{}, nil
+	case <-ctx.Done():
+		return SearchBooksResponse{}, ctx.Err()
+	}
+}
+
+func TestEnrichLimitsConcurrentLookupsAcrossCallers(t *testing.T) {
+	const callers = 2 * maxConcurrentLookups
+	source := &blockingSource{started: make(chan struct{}, callers), release: make(chan struct{})}
+	idx := newTestIndexer(t, source)
+	var callersDone sync.WaitGroup
+	defer func() {
+		close(source.release)
+		callersDone.Wait()
+	}()
+	// Separate callers model the batch and upload pools sharing one adapter.
+	for range callers {
+		callersDone.Go(func() {
+			_, _ = idx.enrich(context.Background(), idx.BleveIndexer, index.Document{Metadata: metadata.Metadata{Title: "Title"}})
+		})
+	}
+	for range maxConcurrentLookups {
+		select {
+		case <-source.started:
+		case <-time.After(time.Second):
+			t.Fatal("expected concurrent lookups")
+		}
+	}
+	select {
+	case <-source.started:
+		t.Fatal("lookups exceeded the adapter concurrency limit")
+	case <-time.After(30 * time.Millisecond):
+	}
+}
