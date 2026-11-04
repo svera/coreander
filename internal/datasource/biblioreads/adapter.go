@@ -12,23 +12,23 @@ import (
 )
 
 const (
-	biblioReadsEnrichWorkers  = 4
-	biblioReadsRequestTimeout = 2 * time.Minute
+	enrichWorkers  = 4
+	requestTimeout = 2 * time.Minute
 )
 
-type BiblioReadsSource interface {
+type SearchSource interface {
 	SearchBooks(context.Context, string) (SearchBooksResponse, error)
 }
 
 type Enricher struct {
-	source BiblioReadsSource
+	source SearchSource
 	idx    *index.BleveIndexer
 	slots  chan struct{}
 }
 
-// NewEnricher adapts a BiblioReads source to the document-enrichment pipeline.
-func NewEnricher(source BiblioReadsSource) *Enricher {
-	return &Enricher{source: source, slots: make(chan struct{}, biblioReadsEnrichWorkers)}
+// NewEnricher adapts a  source to the document-enrichment pipeline.
+func NewEnricher(source SearchSource) *Enricher {
+	return &Enricher{source: source, slots: make(chan struct{}, enrichWorkers)}
 }
 
 // SetIndex binds the adapter before starting background or on-demand enrichment.
@@ -48,8 +48,8 @@ func (p *Enricher) Enrich(ctx context.Context, idx *index.BleveIndexer, document
 	return err
 }
 
-// BiblioReadsBook returns a stored match or performs an on-demand lookup.
-func (p *Enricher) BiblioReadsBook(ctx context.Context, document index.Document) (SearchResult, error) {
+// Book returns a stored match or performs an on-demand lookup.
+func (p *Enricher) Book(ctx context.Context, document index.Document) (SearchResult, error) {
 	data, err := index.DataSourceData[DocumentData](document, Source)
 	if err != nil {
 		return SearchResult{}, err
@@ -66,7 +66,7 @@ func storedResult(document index.Document, data DocumentData) SearchResult {
 	}
 }
 
-// UpdateDataSourceLink clears cached BiblioReads data when an administrator corrects a match.
+// UpdateDataSourceLink clears cached  data when an administrator corrects a match.
 func (p *Enricher) UpdateDataSourceLink(documentID, reviewLink string) error {
 	if p.idx == nil {
 		return fmt.Errorf("BiblioReads adapter has no index")
@@ -82,8 +82,8 @@ func (p *Enricher) UpdateDataSourceLink(documentID, reviewLink string) error {
 	})
 }
 
-// StoreBiblioReadsDetails rejects responses for a match or metadata changed during the fetch.
-func (p *Enricher) StoreBiblioReadsDetails(document index.Document, bookURL string, book BookResponse) error {
+// StoreDetails rejects responses for a match or metadata changed during the fetch.
+func (p *Enricher) StoreDetails(document index.Document, bookURL string, book BookResponse) error {
 	if p.idx == nil {
 		return fmt.Errorf("BiblioReads adapter has no index")
 	}
@@ -99,7 +99,7 @@ func (p *Enricher) StoreBiblioReadsDetails(document index.Document, bookURL stri
 		if err != nil {
 			return false, err
 		}
-		if biblioReadsQuery(current.Document) != biblioReadsQuery(document) || data.URL != bookURL {
+		if searchQuery(current.Document) != searchQuery(document) || data.URL != bookURL {
 			return false, fmt.Errorf("BiblioReads match changed for document %s", document.ID)
 		}
 		changed := false
@@ -108,7 +108,7 @@ func (p *Enricher) StoreBiblioReadsDetails(document index.Document, bookURL stri
 			changed = true
 		}
 		if book.Rating != "" {
-			value := parseBiblioReadsRating(book.Rating, document.ID)
+			value := parseRating(book.Rating, document.ID)
 			if current.DataSourceScoreValue != value {
 				current.DataSourceScoreValue = value
 				changed = true
@@ -139,10 +139,10 @@ func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document
 	case <-ctx.Done():
 		return SearchResult{}, ctx.Err()
 	}
-	q := biblioReadsQuery(document)
+	q := searchQuery(document)
 	result := SearchResult{BookURL: data.URL}
 	if result.BookURL == "" && document.Title != "" {
-		ctx, cancel := context.WithTimeout(ctx, biblioReadsRequestTimeout)
+		ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 		defer cancel()
 		queries := []string{q}
 		if title := strings.TrimSpace(document.Title); title != q {
@@ -156,7 +156,7 @@ func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document
 			case err != nil:
 				log.Printf("Error searching %q on BiblioReads: %s", query, err)
 			default:
-				if match, ok := matchingBiblioReadsBook(document, response.Result); ok {
+				if match, ok := matchingBook(document, response.Result); ok {
 					result = match
 				}
 			}
@@ -166,7 +166,7 @@ func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document
 		}
 	}
 	err = idx.UpdateDocument(document.ID, func(current *index.DocumentUpdate) (bool, error) {
-		if biblioReadsQuery(current.Document) != q {
+		if searchQuery(current.Document) != q {
 			return false, nil
 		}
 		data, err := index.DataSourceData[DocumentData](current.Document, Source)
@@ -184,9 +184,9 @@ func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document
 		if result.Rating == "" && current.DataSourceScoreValue > 0 {
 			result.Rating = fmt.Sprintf("%.2f", current.DataSourceScoreValue)
 		}
-		current.DataSourceScoreValue = parseBiblioReadsRating(result.Rating, current.ID)
+		current.DataSourceScoreValue = parseRating(result.Rating, current.ID)
 		if result.AuthorURL != "" {
-			if slug, name := biblioReadsAuthor(current.Document, result.Author); slug != "" {
+			if slug, name := matchedAuthor(current.Document, result.Author); slug != "" {
 				current.AuthorLinks = append(current.AuthorLinks, index.AuthorLink{
 					Slug: slug, Name: name, Source: Source, URL: result.AuthorURL,
 				})

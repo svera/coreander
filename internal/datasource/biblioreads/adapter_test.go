@@ -18,7 +18,7 @@ import (
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
-func mustBiblioReadsData(t *testing.T, document index.Document) DocumentData {
+func mustData(t *testing.T, document index.Document) DocumentData {
 	t.Helper()
 	data, err := index.DataSourceData[DocumentData](document, Source)
 	if err != nil {
@@ -27,7 +27,7 @@ func mustBiblioReadsData(t *testing.T, document index.Document) DocumentData {
 	return data
 }
 
-func withBiblioReadsData(t *testing.T, document index.Document, data DocumentData) index.Document {
+func withData(t *testing.T, document index.Document, data DocumentData) index.Document {
 	t.Helper()
 	if err := index.SetDataSourceData(&document, Source, data); err != nil {
 		t.Fatal(err)
@@ -35,11 +35,11 @@ func withBiblioReadsData(t *testing.T, document index.Document, data DocumentDat
 	return document
 }
 
-func updateBiblioReadsData(t *testing.T, document *index.Document, update func(*DocumentData)) {
+func updateData(t *testing.T, document *index.Document, update func(*DocumentData)) {
 	t.Helper()
-	data := mustBiblioReadsData(t, *document)
+	data := mustData(t, *document)
 	update(&data)
-	*document = withBiblioReadsData(t, *document, data)
+	*document = withData(t, *document, data)
 }
 
 func assertNoDocumentAuthorURL(t *testing.T, documents bleve.Index) {
@@ -57,7 +57,7 @@ func assertNoDocumentAuthorURL(t *testing.T, documents bleve.Index) {
 	}
 }
 
-type fakeBiblioReadsSource struct {
+type fakeSource struct {
 	mu          sync.Mutex
 	queries     []string
 	results     []SearchResult
@@ -66,7 +66,7 @@ type fakeBiblioReadsSource struct {
 	err         error
 }
 
-func (f *fakeBiblioReadsSource) SearchBooks(_ context.Context, query string) (SearchBooksResponse, error) {
+func (f *fakeSource) SearchBooks(_ context.Context, query string) (SearchBooksResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.queries = append(f.queries, query)
@@ -76,42 +76,42 @@ func (f *fakeBiblioReadsSource) SearchBooks(_ context.Context, query string) (Se
 	return SearchBooksResponse{Result: f.results}, f.err
 }
 
-func (f *fakeBiblioReadsSource) Queries() []string {
+func (f *fakeSource) Queries() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return slices.Clone(f.queries)
 }
 
-type biblioReadsTestReader struct{}
+type testReader struct{}
 
-func (biblioReadsTestReader) Metadata(string) (metadata.Metadata, error) {
+func (testReader) Metadata(string) (metadata.Metadata, error) {
 	return metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt", "Second Author"}, Format: "PDF"}, nil
 }
 
-func (biblioReadsTestReader) Cover(string, int) (image.Image, error) {
+func (testReader) Cover(string, int) (image.Image, error) {
 	return nil, nil
 }
 
-var biblioReadsTestResults = []SearchResult{
+var testResults = []SearchResult{
 	{Title: "La Reina Dragon", Author: "Alice Borchardt", BookURL: "/book/show/12207444-la-reina-dragon", AuthorURL: "/author/show/151155.Alice_Borchardt", Rating: "3.82", RatingCount: "2,285"},
 	{BookURL: "/book/show/2-other", AuthorURL: "/author/show/2.Other"},
 }
 
 const (
-	wantDataSourceLink       = "/book/show/12207444-la-reina-dragon"
-	wantBiblioReadsAuthorURL = "/author/show/151155.Alice_Borchardt"
-	biblioReadsTestID        = "book.pdf"
+	wantDataSourceLink = "/book/show/12207444-la-reina-dragon"
+	wantAuthorURL      = "/author/show/151155.Alice_Borchardt"
+	testID             = "book.pdf"
 )
 
-type biblioReadsTestIndexer struct {
+type testIndexer struct {
 	*index.BleveIndexer
 	*Enricher
-	documentsIdx *biblioReadsWriteCountingIndex
+	documentsIdx *writeCountingIndex
 	authorsIdx   bleve.Index
 	fs           afero.Fs
 }
 
-func newBiblioReadsTestIndexer(t *testing.T, source BiblioReadsSource) *biblioReadsTestIndexer {
+func newTestIndexer(t *testing.T, source SearchSource) *testIndexer {
 	t.Helper()
 	documents, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
@@ -121,7 +121,7 @@ func newBiblioReadsTestIndexer(t *testing.T, source BiblioReadsSource) *biblioRe
 	if err != nil {
 		t.Fatal(err)
 	}
-	writes := &biblioReadsWriteCountingIndex{countedBiblioReadsIndex: documents}
+	writes := &writeCountingIndex{countedIndex: documents}
 	adapter := NewEnricher(source)
 	var providers []index.DocumentEnricher
 	if source != nil {
@@ -131,15 +131,15 @@ func newBiblioReadsTestIndexer(t *testing.T, source BiblioReadsSource) *biblioRe
 	if err := afero.WriteFile(appFS, "lib/book.pdf", []byte(""), 0644); err != nil {
 		t.Fatal(err)
 	}
-	idx := index.NewBleve(writes, authors, appFS, "lib", map[string]metadata.Reader{".pdf": biblioReadsTestReader{}}, index.Config{DocumentEnrichers: providers})
+	idx := index.NewBleve(writes, authors, appFS, "lib", map[string]metadata.Reader{".pdf": testReader{}}, index.Config{DocumentEnrichers: providers})
 	adapter.SetIndex(idx)
 	t.Cleanup(func() { _ = idx.Close() })
-	return &biblioReadsTestIndexer{BleveIndexer: idx, Enricher: adapter, documentsIdx: writes, authorsIdx: authors, fs: appFS}
+	return &testIndexer{BleveIndexer: idx, Enricher: adapter, documentsIdx: writes, authorsIdx: authors, fs: appFS}
 }
 
-func TestEnrichBiblioReadsStoresMatchingResult(t *testing.T) {
-	source := &fakeBiblioReadsSource{results: biblioReadsTestResults}
-	idx := newBiblioReadsTestIndexer(t, source)
+func TestEnrichStoresMatchingResult(t *testing.T) {
+	source := &fakeSource{results: testResults}
+	idx := newTestIndexer(t, source)
 	if err := idx.AddLibrary(10, true, 1); err != nil {
 		t.Fatal(err)
 	}
@@ -148,25 +148,25 @@ func TestEnrichBiblioReadsStoresMatchingResult(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	doc, err := idx.DocumentByID(biblioReadsTestID)
+	doc, err := idx.DocumentByID(testID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mustBiblioReadsData(t, doc).URL != wantDataSourceLink {
-		t.Errorf("unexpected book URL %q", mustBiblioReadsData(t, doc).URL)
+	if mustData(t, doc).URL != wantDataSourceLink {
+		t.Errorf("unexpected book URL %q", mustData(t, doc).URL)
 	}
 	if doc.DataSourceScoreValue != 3.82 {
 		t.Errorf("unexpected Goodreads rating %v", doc.DataSourceScoreValue)
 	}
-	if mustBiblioReadsData(t, doc).RatingCount != "2,285" {
-		t.Errorf("unexpected Goodreads rating count %q", mustBiblioReadsData(t, doc).RatingCount)
+	if mustData(t, doc).RatingCount != "2,285" {
+		t.Errorf("unexpected Goodreads rating count %q", mustData(t, doc).RatingCount)
 	}
 	assertNoDocumentAuthorURL(t, idx.documentsIdx)
-	if !mustBiblioReadsData(t, doc).Enriched {
+	if !mustData(t, doc).Enriched {
 		t.Error("expected document to be marked as BiblioReads-enriched")
 	}
 	author, err := idx.Author("alice-borchardt", "")
-	if err != nil || author.DataSourceLinks["goodreads"] != wantBiblioReadsAuthorURL {
+	if err != nil || author.DataSourceLinks["goodreads"] != wantAuthorURL {
 		t.Fatalf("expected matching author URL stored, got %+v, %v", author, err)
 	}
 	other, err := idx.Author("second-author", "")
@@ -185,15 +185,15 @@ func TestEnrichBiblioReadsStoresMatchingResult(t *testing.T) {
 	}
 }
 
-func TestEnrichBiblioReadsMarksDocumentsWithoutMatch(t *testing.T) {
-	for name, source := range map[string]*fakeBiblioReadsSource{
+func TestEnrichMarksDocumentsWithoutMatch(t *testing.T) {
+	for name, source := range map[string]*fakeSource{
 		"no results":        {},
 		"non-transient err": {err: errors.New("biblioreads: request failed with status code 504")},
 		"wrong title":       {results: []SearchResult{{Title: "Another book", Author: "Alice Borchardt", BookURL: "/book/show/1"}}},
 		"wrong author":      {results: []SearchResult{{Title: "La Reina Dragon", Author: "Another writer", BookURL: "/book/show/1"}}},
 	} {
 		t.Run(name, func(t *testing.T) {
-			idx := newBiblioReadsTestIndexer(t, source)
+			idx := newTestIndexer(t, source)
 			if err := idx.AddLibrary(10, true, 1); err != nil {
 				t.Fatal(err)
 			}
@@ -201,11 +201,11 @@ func TestEnrichBiblioReadsMarksDocumentsWithoutMatch(t *testing.T) {
 			if err := idx.EnrichDocuments(10); err != nil {
 				t.Fatal(err)
 			}
-			doc, err := idx.DocumentByID(biblioReadsTestID)
+			doc, err := idx.DocumentByID(testID)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !mustBiblioReadsData(t, doc).Enriched || mustBiblioReadsData(t, doc).URL != "" {
+			if !mustData(t, doc).Enriched || mustData(t, doc).URL != "" {
 				t.Errorf("expected document enriched with no URLs, got %+v", doc)
 			}
 			if want := []string{"La Reina Dragon Alice Borchardt", "La Reina Dragon"}; !slices.Equal(source.Queries(), want) {
@@ -215,12 +215,12 @@ func TestEnrichBiblioReadsMarksDocumentsWithoutMatch(t *testing.T) {
 	}
 }
 
-func TestEnrichBiblioReadsStoresSecondAuthorURLAndPreservesItOnEdits(t *testing.T) {
+func TestEnrichStoresSecondAuthorURLAndPreservesItOnEdits(t *testing.T) {
 	const authorURL = "/author/show/2"
-	source := &fakeBiblioReadsSource{results: []SearchResult{
+	source := &fakeSource{results: []SearchResult{
 		{Title: "La Reina Dragon", Author: "Second Author", BookURL: wantDataSourceLink, AuthorURL: authorURL},
 	}}
-	idx := newBiblioReadsTestIndexer(t, source)
+	idx := newTestIndexer(t, source)
 	if err := idx.AddLibrary(10, true, 1); err != nil {
 		t.Fatal(err)
 	}
@@ -268,9 +268,9 @@ func TestEnrichBiblioReadsStoresSecondAuthorURLAndPreservesItOnEdits(t *testing.
 	}
 }
 
-func TestEnrichBiblioReadsLeavesDocumentsForLaterWhenUnavailable(t *testing.T) {
-	source := &fakeBiblioReadsSource{err: ErrUnavailable}
-	idx := newBiblioReadsTestIndexer(t, source)
+func TestEnrichLeavesDocumentsForLaterWhenUnavailable(t *testing.T) {
+	source := &fakeSource{err: ErrUnavailable}
+	idx := newTestIndexer(t, source)
 	if err := idx.AddLibrary(10, true, 1); err != nil {
 		t.Fatal(err)
 	}
@@ -278,29 +278,29 @@ func TestEnrichBiblioReadsLeavesDocumentsForLaterWhenUnavailable(t *testing.T) {
 	if err := idx.EnrichDocuments(10); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("expected ErrUnavailable, got %v", err)
 	}
-	doc, err := idx.DocumentByID(biblioReadsTestID)
+	doc, err := idx.DocumentByID(testID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mustBiblioReadsData(t, doc).Enriched {
+	if mustData(t, doc).Enriched {
 		t.Error("expected document not to be marked as BiblioReads-enriched")
 	}
 
 	source.mu.Lock()
 	source.err = nil
-	source.results = biblioReadsTestResults
+	source.results = testResults
 	source.mu.Unlock()
 	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
-	if doc, _ = idx.DocumentByID(biblioReadsTestID); mustBiblioReadsData(t, doc).URL != wantDataSourceLink {
-		t.Errorf("expected document to be enriched on retry, got %q", mustBiblioReadsData(t, doc).URL)
+	if doc, _ = idx.DocumentByID(testID); mustData(t, doc).URL != wantDataSourceLink {
+		t.Errorf("expected document to be enriched on retry, got %q", mustData(t, doc).URL)
 	}
 }
 
-func TestNewFileSchedulesBiblioReadsEnrichment(t *testing.T) {
-	source := &fakeBiblioReadsSource{results: biblioReadsTestResults}
-	idx := newBiblioReadsTestIndexer(t, source)
+func TestNewFileSchedulesEnrichment(t *testing.T) {
+	source := &fakeSource{results: testResults}
+	idx := newTestIndexer(t, source)
 
 	if _, err := idx.NewFile("new.pdf", []byte("")); err != nil {
 		t.Fatal(err)
@@ -312,9 +312,9 @@ func TestNewFileSchedulesBiblioReadsEnrichment(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if mustBiblioReadsData(t, doc).Enriched {
-			if mustBiblioReadsData(t, doc).URL != wantDataSourceLink {
-				t.Errorf("unexpected book URL %q", mustBiblioReadsData(t, doc).URL)
+		if mustData(t, doc).Enriched {
+			if mustData(t, doc).URL != wantDataSourceLink {
+				t.Errorf("unexpected book URL %q", mustData(t, doc).URL)
 			}
 			assertNoDocumentAuthorURL(t, idx.documentsIdx)
 			return
@@ -326,8 +326,8 @@ func TestNewFileSchedulesBiblioReadsEnrichment(t *testing.T) {
 	}
 }
 
-func TestEnrichBiblioReadsWithoutSourceIsNoop(t *testing.T) {
-	idx := newBiblioReadsTestIndexer(t, nil)
+func TestEnrichWithoutSourceIsNoop(t *testing.T) {
+	idx := newTestIndexer(t, nil)
 	if err := idx.AddLibrary(10, true, 1); err != nil {
 		t.Fatal(err)
 	}
@@ -337,26 +337,26 @@ func TestEnrichBiblioReadsWithoutSourceIsNoop(t *testing.T) {
 	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
-	doc, err := idx.DocumentByID(biblioReadsTestID)
+	doc, err := idx.DocumentByID(testID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mustBiblioReadsData(t, doc).Enriched {
+	if mustData(t, doc).Enriched {
 		t.Error("expected document not to be BiblioReads-enriched when the source is disabled")
 	}
 }
 
-func TestEnrichBiblioReadsSkipsSearchWhenDocumentHasLink(t *testing.T) {
-	source := &fakeBiblioReadsSource{results: biblioReadsTestResults}
-	idx := newBiblioReadsTestIndexer(t, source)
+func TestEnrichSkipsSearchWhenDocumentHasLink(t *testing.T) {
+	source := &fakeSource{results: testResults}
+	idx := newTestIndexer(t, source)
 	if err := idx.AddLibrary(10, true, 1); err != nil {
 		t.Fatal(err)
 	}
-	doc, err := idx.DocumentByID(biblioReadsTestID)
+	doc, err := idx.DocumentByID(testID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	updateBiblioReadsData(t, &doc, func(data *DocumentData) {
+	updateData(t, &doc, func(data *DocumentData) {
 		data.URL = "/book/show/1-existing"
 	})
 	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
@@ -370,42 +370,42 @@ func TestEnrichBiblioReadsSkipsSearchWhenDocumentHasLink(t *testing.T) {
 	if len(source.Queries()) != 0 {
 		t.Errorf("expected no search for a document with a link, got %q", source.Queries())
 	}
-	doc, err = idx.DocumentByID(biblioReadsTestID)
+	doc, err = idx.DocumentByID(testID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !mustBiblioReadsData(t, doc).Enriched || mustBiblioReadsData(t, doc).URL != "/book/show/1-existing" {
+	if !mustData(t, doc).Enriched || mustData(t, doc).URL != "/book/show/1-existing" {
 		t.Errorf("expected existing link kept and document marked enriched, got %+v", doc)
 	}
 }
 
-func TestBiblioReadsBook(t *testing.T) {
-	source := &fakeBiblioReadsSource{results: biblioReadsTestResults}
-	idx := newBiblioReadsTestIndexer(t, source)
+func TestBook(t *testing.T) {
+	source := &fakeSource{results: testResults}
+	idx := newTestIndexer(t, source)
 	if err := idx.AddLibrary(10, true, 1); err != nil {
 		t.Fatal(err)
 	}
-	doc, err := idx.DocumentByID(biblioReadsTestID)
+	doc, err := idx.DocumentByID(testID)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := idx.BiblioReadsBook(context.Background(), doc)
+	got, err := idx.Book(context.Background(), doc)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got.BookURL != wantDataSourceLink || got.Rating != "3.82" {
 		t.Errorf("expected fresh book URL and search rating, got %+v", got)
 	}
-	stored, err := idx.DocumentByID(biblioReadsTestID)
+	stored, err := idx.DocumentByID(testID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !mustBiblioReadsData(t, stored).Enriched || mustBiblioReadsData(t, stored).URL != wantDataSourceLink {
+	if !mustData(t, stored).Enriched || mustData(t, stored).URL != wantDataSourceLink {
 		t.Errorf("expected the link to be persisted, got %+v", stored)
 	}
 
-	if got, _ := idx.BiblioReadsBook(context.Background(), stored); got.BookURL != wantDataSourceLink || got.Rating != "3.82" {
+	if got, _ := idx.Book(context.Background(), stored); got.BookURL != wantDataSourceLink || got.Rating != "3.82" {
 		t.Errorf("expected stored URL and rating, got %+v", got)
 	}
 	req := bleve.NewSearchRequest(bleve.NewDocIDQuery([]string{stored.ID}))
@@ -427,7 +427,7 @@ func TestBiblioReadsBook(t *testing.T) {
 	}
 }
 
-func TestParseBiblioReadsRating(t *testing.T) {
+func TestParseRating(t *testing.T) {
 	for _, tt := range []struct {
 		rating string
 		want   float64
@@ -438,29 +438,29 @@ func TestParseBiblioReadsRating(t *testing.T) {
 		{rating: "unavailable", want: 0},
 	} {
 		t.Run(tt.rating, func(t *testing.T) {
-			if got := parseBiblioReadsRating(tt.rating, biblioReadsTestID); got != tt.want {
+			if got := parseRating(tt.rating, testID); got != tt.want {
 				t.Errorf("parseBiblioReadsRating(%q) = %v, want %v", tt.rating, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestBiblioReadsBookReturnsErrorWhenUnavailable(t *testing.T) {
-	source := &fakeBiblioReadsSource{err: ErrUnavailable}
-	idx := newBiblioReadsTestIndexer(t, source)
+func TestBookReturnsErrorWhenUnavailable(t *testing.T) {
+	source := &fakeSource{err: ErrUnavailable}
+	idx := newTestIndexer(t, source)
 	if err := idx.AddLibrary(10, true, 1); err != nil {
 		t.Fatal(err)
 	}
-	doc, _ := idx.DocumentByID(biblioReadsTestID)
-	if _, err := idx.BiblioReadsBook(context.Background(), doc); !errors.Is(err, ErrUnavailable) {
+	doc, _ := idx.DocumentByID(testID)
+	if _, err := idx.Book(context.Background(), doc); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("expected ErrUnavailable, got %v", err)
 	}
-	if doc, _ = idx.DocumentByID(biblioReadsTestID); mustBiblioReadsData(t, doc).Enriched {
+	if doc, _ = idx.DocumentByID(testID); mustData(t, doc).Enriched {
 		t.Error("expected document to stay unenriched for a later retry")
 	}
 }
 
-func TestBiblioReadsTitleMatchScore(t *testing.T) {
+func TestTitleMatchScore(t *testing.T) {
 	for _, tt := range []struct {
 		name      string
 		title     string
@@ -479,7 +479,7 @@ func TestBiblioReadsTitleMatchScore(t *testing.T) {
 		{name: "empty candidate", title: "La promesa"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got := biblioReadsTitleMatchScore(tt.candidate, biblioReadsTitle(tt.title), biblioReadsMainTitle(tt.title))
+			got := titleMatchScore(tt.candidate, normalizedTitle(tt.title), mainTitle(tt.title))
 			if got != tt.want {
 				t.Fatalf("title match score = %d, want %d", got, tt.want)
 			}
@@ -487,7 +487,7 @@ func TestBiblioReadsTitleMatchScore(t *testing.T) {
 	}
 }
 
-func TestPreferBiblioReadsBook(t *testing.T) {
+func TestPreferBook(t *testing.T) {
 	for _, tt := range []struct {
 		name             string
 		candidate, best  SearchResult
@@ -509,14 +509,14 @@ func TestPreferBiblioReadsBook(t *testing.T) {
 		{name: "complete tie retains first match", candidate: SearchResult{ID: 1, Rating: "4"}, best: SearchResult{ID: 1, Rating: "3"}, score: 3, bestScore: 3},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := preferBiblioReadsBook(tt.candidate, tt.best, tt.score, tt.bestScore); got != tt.want {
+			if got := preferBook(tt.candidate, tt.best, tt.score, tt.bestScore); got != tt.want {
 				t.Fatalf("candidate preference = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestBiblioReadsAuthorNameMatches(t *testing.T) {
+func TestAuthorNameMatches(t *testing.T) {
 	tests := []struct {
 		name, candidate string
 		want            bool
@@ -539,51 +539,51 @@ func TestBiblioReadsAuthorNameMatches(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name+"/"+tt.candidate, func(t *testing.T) {
-			if got := biblioReadsAuthorNameMatches(tt.name, tt.candidate); got != tt.want {
+			if got := authorNameMatches(tt.name, tt.candidate); got != tt.want {
 				t.Errorf("match = %v, want %v", got, tt.want)
 			}
-			if got := biblioReadsAuthorNameMatches(tt.candidate, tt.name); got != tt.want {
+			if got := authorNameMatches(tt.candidate, tt.name); got != tt.want {
 				t.Errorf("reverse match = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestBiblioReadsAuthorPrefersExactAndRejectsAmbiguousPartialMatches(t *testing.T) {
+func TestAuthorPrefersExactAndRejectsAmbiguousPartialMatches(t *testing.T) {
 	doc := index.Document{
 		Metadata:     metadata.Metadata{Authors: []string{"Paul Kennedy", "Paul M. Kennedy"}},
 		AuthorsSlugs: []string{"paul-kennedy", "paul-m-kennedy"},
 	}
-	if slug, name := biblioReadsAuthor(doc, "Paul M. Kennedy"); slug != "paul-m-kennedy" || name != "Paul M. Kennedy" {
+	if slug, name := matchedAuthor(doc, "Paul M. Kennedy"); slug != "paul-m-kennedy" || name != "Paul M. Kennedy" {
 		t.Fatalf("expected exact author, got %q, %q", slug, name)
 	}
 	doc.Authors = []string{"Paul M. Kennedy", "Paul A. Kennedy"}
-	if slug, name := biblioReadsAuthor(doc, "Paul Kennedy"); slug != "" || name != "" {
+	if slug, name := matchedAuthor(doc, "Paul Kennedy"); slug != "" || name != "" {
 		t.Fatalf("ambiguous partial match must not select an author, got %q, %q", slug, name)
 	}
 }
 
-func TestBiblioReadsBookMatchesKennedyMiddleName(t *testing.T) {
+func TestBookMatchesKennedyMiddleName(t *testing.T) {
 	const title = "Auge y caída de las grandes potencias"
 	const bookURL = "/book/show/27214"
 	const authorURL = "/author/show/8390124.Paul_M_Kennedy"
-	source := &fakeBiblioReadsSource{results: []SearchResult{{
+	source := &fakeSource{results: []SearchResult{{
 		Title: title, Author: "Paul M. Kennedy", BookURL: bookURL, AuthorURL: authorURL, Rating: "4.14",
 	}}}
-	idx := newBiblioReadsTestIndexer(t, source)
+	idx := newTestIndexer(t, source)
 	doc := index.Document{
-		ID: biblioReadsTestID, AuthorsSlugs: []string{"paul-kennedy", "another-writer"},
+		ID: testID, AuthorsSlugs: []string{"paul-kennedy", "another-writer"},
 		Metadata: metadata.Metadata{Title: title, Authors: []string{"Paul Kennedy", "Another Writer"}},
 	}
 	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
 		t.Fatal(err)
 	}
-	got, err := idx.BiblioReadsBook(context.Background(), doc)
+	got, err := idx.Book(context.Background(), doc)
 	if err != nil || got.BookURL != bookURL || got.Rating != "4.14" {
 		t.Fatalf("expected Kennedy's book and rating, got %+v, %v", got, err)
 	}
 	stored, err := idx.DocumentByID(doc.ID)
-	if err != nil || !mustBiblioReadsData(t, stored).Enriched || mustBiblioReadsData(t, stored).URL != bookURL || stored.DataSourceScoreValue != 4.14 {
+	if err != nil || !mustData(t, stored).Enriched || mustData(t, stored).URL != bookURL || stored.DataSourceScoreValue != 4.14 {
 		t.Fatalf("expected persisted book match and rating, got %+v, %v", stored, err)
 	}
 	author, err := idx.Author("paul-kennedy", "")
@@ -599,7 +599,7 @@ func TestBiblioReadsBookMatchesKennedyMiddleName(t *testing.T) {
 	}
 }
 
-func TestMatchingBiblioReadsBook(t *testing.T) {
+func TestMatchingBook(t *testing.T) {
 	correct := SearchResult{
 		Title: "El señor de los anillos", Author: "J.R.R. Tolkien",
 		BookURL: "/book/show/37910810", AuthorURL: "/author/show/656983.J_R_R_Tolkien",
@@ -662,7 +662,7 @@ func TestMatchingBiblioReadsBook(t *testing.T) {
 			if authors == nil {
 				authors = []string{"J. R. R. Tolkien"}
 			}
-			match, ok := matchingBiblioReadsBook(index.Document{Metadata: metadata.Metadata{Title: title, Authors: authors}}, tt.results)
+			match, ok := matchingBook(index.Document{Metadata: metadata.Metadata{Title: title, Authors: authors}}, tt.results)
 			if match.BookURL != tt.want || ok != (tt.want != "") {
 				t.Fatalf("got %q, %v; want %q", match.BookURL, ok, tt.want)
 			}
@@ -670,7 +670,7 @@ func TestMatchingBiblioReadsBook(t *testing.T) {
 	}
 }
 
-func TestMatchingBiblioReadsBookPrefersMoreRatingsWithSeriesSuffix(t *testing.T) {
+func TestMatchingBookPrefersMoreRatingsWithSeriesSuffix(t *testing.T) {
 	document := index.Document{Metadata: metadata.Metadata{
 		Title: "Los asesinatos de Manhattan", Authors: []string{"Douglas Preston", "Lincoln Child"},
 	}}
@@ -683,13 +683,13 @@ func TestMatchingBiblioReadsBookPrefersMoreRatingsWithSeriesSuffix(t *testing.T)
 		BookURL: "/book/show/152308668-los-asesinatos-de-manhattan", Rating: "3.67", RatingCount: "3",
 	}
 	for _, results := range [][]SearchResult{{popular, obscure}, {obscure, popular}} {
-		match, ok := matchingBiblioReadsBook(document, results)
+		match, ok := matchingBook(document, results)
 		if !ok || match.BookURL != popular.BookURL {
 			t.Fatalf("expected popular series entry, got %+v, %v", match, ok)
 		}
 	}
 	popular.Author = "Another author"
-	match, ok := matchingBiblioReadsBook(document, []SearchResult{popular, obscure})
+	match, ok := matchingBook(document, []SearchResult{popular, obscure})
 	if !ok || match.BookURL != obscure.BookURL {
 		t.Fatalf("rating count must not bypass author matching, got %+v, %v", match, ok)
 	}
@@ -704,14 +704,14 @@ func TestDataSourceScoreCount(t *testing.T) {
 		{"unknown", 0}, {"-1", 0}, {"3.5", 0}, {"18446744073709551616", 0},
 	} {
 		t.Run(tt.value, func(t *testing.T) {
-			if got := biblioReadsRatingCount(tt.value); got != tt.want {
+			if got := ratingCount(tt.value); got != tt.want {
 				t.Fatalf("rating count = %d, want %d", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestMatchingBiblioReadsBookPrefersLowerIDForEqualTitle(t *testing.T) {
+func TestMatchingBookPrefersLowerIDForEqualTitle(t *testing.T) {
 	const olderBookURL = "/book/show/1368314.El_Cercano_Oriente"
 	const newerBookURL = "/book/show/243175949-el-cercano-oriente"
 	document := index.Document{Metadata: metadata.Metadata{
@@ -727,14 +727,14 @@ func TestMatchingBiblioReadsBookPrefersLowerIDForEqualTitle(t *testing.T) {
 	}
 
 	for _, results := range [][]SearchResult{{newer, older}, {older, newer}} {
-		match, ok := matchingBiblioReadsBook(document, results)
+		match, ok := matchingBook(document, results)
 		if !ok || match.BookURL != olderBookURL {
 			t.Fatalf("expected lower Goodreads ID %q, got %+v, %v", olderBookURL, match, ok)
 		}
 	}
 }
 
-func TestMatchingBiblioReadsBookPrefersRatedParentheticalTitle(t *testing.T) {
+func TestMatchingBookPrefersRatedParentheticalTitle(t *testing.T) {
 	doc := index.Document{Metadata: metadata.Metadata{Title: "La promesa", Authors: []string{"Pearl S. Buck"}}}
 	rated := SearchResult{
 		Title: "La promesa (The Promise)", Author: "Pearl S. Buck",
@@ -745,40 +745,40 @@ func TestMatchingBiblioReadsBookPrefersRatedParentheticalTitle(t *testing.T) {
 		BookURL: "/book/show/210898619-la-promesa", Rating: "0.00",
 	}
 	for _, results := range [][]SearchResult{{rated, unrated}, {unrated, rated}} {
-		match, ok := matchingBiblioReadsBook(doc, results)
+		match, ok := matchingBook(doc, results)
 		if !ok || match.BookURL != rated.BookURL || match.Rating != rated.Rating {
 			t.Fatalf("expected rated translated-title entry, got %+v, %v", match, ok)
 		}
 	}
 	rated.Author = "Another author"
-	match, ok := matchingBiblioReadsBook(doc, []SearchResult{rated, unrated})
+	match, ok := matchingBook(doc, []SearchResult{rated, unrated})
 	if !ok || match.BookURL != unrated.BookURL {
 		t.Fatalf("rated entry by another author must not win, got %+v, %v", match, ok)
 	}
 }
 
-func TestBiblioReadsBookMatchesDolnickSubtitle(t *testing.T) {
+func TestBookMatchesDolnickSubtitle(t *testing.T) {
 	const title = "La escritura de los dioses"
 	const author = "Edward Dolnick"
 	const bookURL = "/book/show/208277727-la-escritura-de-los-dioses-descifrando-la-piedra-de-rosetta"
-	source := &fakeBiblioReadsSource{results: []SearchResult{{
+	source := &fakeSource{results: []SearchResult{{
 		Title: title + ". Descifrando la piedra de Rosetta", Author: author,
 		BookURL: bookURL, Rating: "4.19",
 	}}}
-	idx := newBiblioReadsTestIndexer(t, source)
+	idx := newTestIndexer(t, source)
 	doc := index.Document{
-		ID: biblioReadsTestID, AuthorsSlugs: []string{"edward-dolnick"},
+		ID: testID, AuthorsSlugs: []string{"edward-dolnick"},
 		Metadata: metadata.Metadata{Title: title, Authors: []string{author}},
 	}
 	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
 		t.Fatal(err)
 	}
-	got, err := idx.BiblioReadsBook(context.Background(), doc)
+	got, err := idx.Book(context.Background(), doc)
 	if err != nil || got.BookURL != bookURL || got.Rating != "4.19" {
 		t.Fatalf("expected Dolnick's book and score, got %+v, %v", got, err)
 	}
 	stored, err := idx.DocumentByID(doc.ID)
-	if err != nil || !mustBiblioReadsData(t, stored).Enriched || mustBiblioReadsData(t, stored).URL != bookURL {
+	if err != nil || !mustData(t, stored).Enriched || mustData(t, stored).URL != bookURL {
 		t.Fatalf("expected subtitle match persisted, got %+v, %v", stored, err)
 	}
 	if want := []string{title + " " + author}; !slices.Equal(source.Queries(), want) {
@@ -786,7 +786,7 @@ func TestBiblioReadsBookMatchesDolnickSubtitle(t *testing.T) {
 	}
 }
 
-func TestBiblioReadsTitleFallback(t *testing.T) {
+func TestTitleFallback(t *testing.T) {
 	const title = "El señor de los anillos"
 	correct := SearchResult{Title: title, Author: "J.R.R. Tolkien", BookURL: "/book/show/37910810"}
 	parody := SearchResult{Title: "El sopor de los anillos", Author: "The Harvard Lampoon", BookURL: "/book/show/7297403"}
@@ -796,29 +796,29 @@ func TestBiblioReadsTitleFallback(t *testing.T) {
 			name = "unavailable"
 		}
 		t.Run(name, func(t *testing.T) {
-			source := &fakeBiblioReadsSource{byQuery: map[string][]SearchResult{
+			source := &fakeSource{byQuery: map[string][]SearchResult{
 				title + " J. R. R. Tolkien": {parody},
 				title:                       {parody, correct},
 			}}
-			idx := newBiblioReadsTestIndexer(t, source)
-			doc := index.Document{ID: biblioReadsTestID, AuthorsSlugs: []string{"j-r-r-tolkien"}, Metadata: metadata.Metadata{Title: title, Authors: []string{"J. R. R. Tolkien"}}}
+			idx := newTestIndexer(t, source)
+			doc := index.Document{ID: testID, AuthorsSlugs: []string{"j-r-r-tolkien"}, Metadata: metadata.Metadata{Title: title, Authors: []string{"J. R. R. Tolkien"}}}
 			if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
 				t.Fatal(err)
 			}
 			if fallbackUnavailable {
 				source.queryErrors = map[string]error{title: ErrUnavailable}
 			}
-			got, err := idx.BiblioReadsBook(context.Background(), doc)
+			got, err := idx.Book(context.Background(), doc)
 			if fallbackUnavailable {
 				if !errors.Is(err, ErrUnavailable) || got.BookURL != "" {
 					t.Fatalf("expected unavailable error, got %+v, %v", got, err)
 				}
 				stored, readErr := idx.DocumentByID(doc.ID)
-				if readErr != nil || mustBiblioReadsData(t, stored).Enriched {
+				if readErr != nil || mustData(t, stored).Enriched {
 					t.Fatalf("expected document left for retry, got %+v, %v", stored, readErr)
 				}
 				source.queryErrors = nil
-				got, err = idx.BiblioReadsBook(context.Background(), stored)
+				got, err = idx.Book(context.Background(), stored)
 			}
 			if err != nil || got.BookURL != correct.BookURL {
 				t.Fatalf("got %+v, %v; want %q", got, err, correct.BookURL)
@@ -834,10 +834,10 @@ func TestBiblioReadsTitleFallback(t *testing.T) {
 	}
 }
 
-func TestBiblioReadsMatchesTolkienOmnibusSearchResults(t *testing.T) {
+func TestMatchesTolkienOmnibusSearchResults(t *testing.T) {
 	const title = "El señor de los anillos"
 	const wantURL = "/book/show/37910810-el-se-or-de-los-anillos"
-	// Titles and ordering from BiblioReads' actual title-only search response.
+	// Titles and ordering from ' actual title-only search response.
 	results := []SearchResult{
 		{Title: "La comunidad del anillo (El señor de los anillos, #1)", Author: "J.R.R. Tolkien", BookURL: "/book/show/222947.La_comunidad_del_anillo"},
 		{Title: "Las dos torres (El señor de los anillos, #2)", Author: "J.R.R. Tolkien", BookURL: "/book/show/15280.Las_dos_torres"},
@@ -845,13 +845,13 @@ func TestBiblioReadsMatchesTolkienOmnibusSearchResults(t *testing.T) {
 		{Title: "El señor de los anillos (#1-#3)", Author: "J.R.R. Tolkien", BookURL: wantURL, AuthorURL: "/author/show/656983.J_R_R_Tolkien"},
 		{Title: "Apéndices (El Señor de los Anillos, #4)", Author: "J.R.R. Tolkien", BookURL: "/book/show/54694.Ap_ndices"},
 	}
-	source := &fakeBiblioReadsSource{byQuery: map[string][]SearchResult{title: results}}
-	idx := newBiblioReadsTestIndexer(t, source)
-	doc := index.Document{ID: biblioReadsTestID, AuthorsSlugs: []string{"j-r-r-tolkien"}, Metadata: metadata.Metadata{Title: title, Authors: []string{"J. R. R. Tolkien"}}}
+	source := &fakeSource{byQuery: map[string][]SearchResult{title: results}}
+	idx := newTestIndexer(t, source)
+	doc := index.Document{ID: testID, AuthorsSlugs: []string{"j-r-r-tolkien"}, Metadata: metadata.Metadata{Title: title, Authors: []string{"J. R. R. Tolkien"}}}
 	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
 		t.Fatal(err)
 	}
-	got, err := idx.BiblioReadsBook(context.Background(), doc)
+	got, err := idx.Book(context.Background(), doc)
 	if err != nil || got.BookURL != wantURL {
 		t.Fatalf("got %+v, %v; want %q", got, err, wantURL)
 	}
@@ -859,7 +859,7 @@ func TestBiblioReadsMatchesTolkienOmnibusSearchResults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !mustBiblioReadsData(t, stored).Enriched || mustBiblioReadsData(t, stored).URL != wantURL {
+	if !mustData(t, stored).Enriched || mustData(t, stored).URL != wantURL {
 		t.Fatalf("expected persisted omnibus match, got %+v", stored)
 	}
 	author, err := idx.Author("j-r-r-tolkien", "")
@@ -871,17 +871,17 @@ func TestBiblioReadsMatchesTolkienOmnibusSearchResults(t *testing.T) {
 	}
 }
 
-func TestForceIndexingRefreshesBiblioReadsMatch(t *testing.T) {
-	source := &fakeBiblioReadsSource{results: biblioReadsTestResults}
-	idx := newBiblioReadsTestIndexer(t, source)
+func TestForceIndexingRefreshesMatch(t *testing.T) {
+	source := &fakeSource{results: testResults}
+	idx := newTestIndexer(t, source)
 	if err := idx.AddLibrary(10, true, 1); err != nil {
 		t.Fatal(err)
 	}
-	doc, err := idx.DocumentByID(biblioReadsTestID)
+	doc, err := idx.DocumentByID(testID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	updateBiblioReadsData(t, &doc, func(data *DocumentData) {
+	updateData(t, &doc, func(data *DocumentData) {
 		data.URL = "/book/show/1-wrong"
 		data.ResourceID = "wrong-work"
 		data.LegacyBookID = 1
@@ -896,24 +896,24 @@ func TestForceIndexingRefreshesBiblioReadsMatch(t *testing.T) {
 	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
-	doc, err = idx.DocumentByID(biblioReadsTestID)
+	doc, err = idx.DocumentByID(testID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mustBiblioReadsData(t, doc).URL != wantDataSourceLink {
-		t.Fatalf("expected refreshed book link, got %q", mustBiblioReadsData(t, doc).URL)
+	if mustData(t, doc).URL != wantDataSourceLink {
+		t.Fatalf("expected refreshed book link, got %q", mustData(t, doc).URL)
 	}
-	if mustBiblioReadsData(t, doc).ResourceID != "" || mustBiblioReadsData(t, doc).LegacyBookID != 0 {
-		t.Fatalf("expected old identifiers to be cleared, got %q and %d", mustBiblioReadsData(t, doc).ResourceID, mustBiblioReadsData(t, doc).LegacyBookID)
+	if mustData(t, doc).ResourceID != "" || mustData(t, doc).LegacyBookID != 0 {
+		t.Fatalf("expected old identifiers to be cleared, got %q and %d", mustData(t, doc).ResourceID, mustData(t, doc).LegacyBookID)
 	}
 }
 
-func TestStoreBiblioReadsDetails(t *testing.T) {
+func TestStoreDetails(t *testing.T) {
 	for _, scenario := range []string{"linked", "newly linked", "changed metadata", "changed match", "deleted", "partial identifiers"} {
 		t.Run(scenario, func(t *testing.T) {
-			idx := newBiblioReadsTestIndexer(t, nil)
-			doc := withBiblioReadsData(t, index.Document{
-				ID:       biblioReadsTestID,
+			idx := newTestIndexer(t, nil)
+			doc := withData(t, index.Document{
+				ID:       testID,
 				Metadata: metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}},
 
 				TextRankWords: []string{"dragon"},
@@ -923,14 +923,14 @@ func TestStoreBiblioReadsDetails(t *testing.T) {
 			resourceID := "work-id"
 			switch scenario {
 			case "newly linked":
-				updateBiblioReadsData(t, &stale, func(data *DocumentData) {
+				updateData(t, &stale, func(data *DocumentData) {
 					data.URL = ""
 					data.Enriched = false
 				})
 			case "changed metadata":
 				doc.Title = "Another title"
 			case "changed match":
-				updateBiblioReadsData(t, &doc, func(data *DocumentData) {
+				updateData(t, &doc, func(data *DocumentData) {
 					data.URL = "/book/show/2-other"
 				})
 			case "partial identifiers":
@@ -945,10 +945,10 @@ func TestStoreBiblioReadsDetails(t *testing.T) {
 			book := BookResponse{Rating: "4.12", ResourceID: resourceID, LegacyBookID: 12207444}
 			writes := idx.documentsIdx
 			writes.count.Store(0)
-			err := idx.StoreBiblioReadsDetails(stale, wantDataSourceLink, book)
+			err := idx.StoreDetails(stale, wantDataSourceLink, book)
 			wantError := scenario != "linked" && scenario != "newly linked" && scenario != "partial identifiers"
 			if (err != nil) != wantError {
-				t.Fatalf("StoreBiblioReadsDetails error = %v, want error %v", err, wantError)
+				t.Fatalf("StoreDetails error = %v, want error %v", err, wantError)
 			}
 			if scenario == "deleted" {
 				if !errors.Is(err, index.ErrDocumentNotFound) {
@@ -964,7 +964,7 @@ func TestStoreBiblioReadsDetails(t *testing.T) {
 				if writes.count.Load() != 0 {
 					t.Fatal("stale details must not cause any index writes")
 				}
-				if mustBiblioReadsData(t, stored).ResourceID != "" || mustBiblioReadsData(t, stored).LegacyBookID != 0 || stored.DataSourceScoreValue != 0 {
+				if mustData(t, stored).ResourceID != "" || mustData(t, stored).LegacyBookID != 0 || stored.DataSourceScoreValue != 0 {
 					t.Fatalf("unexpected details persisted: %+v", stored)
 				}
 				return
@@ -973,17 +973,17 @@ func TestStoreBiblioReadsDetails(t *testing.T) {
 			if scenario == "partial identifiers" {
 				wantLegacyBookID = 0
 			}
-			if mustBiblioReadsData(t, stored).ResourceID != resourceID || mustBiblioReadsData(t, stored).LegacyBookID != wantLegacyBookID {
+			if mustData(t, stored).ResourceID != resourceID || mustData(t, stored).LegacyBookID != wantLegacyBookID {
 				t.Fatalf("identifiers not persisted: %+v", stored)
 			}
 			if stored.DataSourceScoreValue != 4.12 {
 				t.Fatalf("rating not persisted with identifiers: %+v", stored)
 			}
-			if !mustBiblioReadsData(t, stored).Enriched || !slices.Equal(stored.TextRankWords, doc.TextRankWords) {
+			if !mustData(t, stored).Enriched || !slices.Equal(stored.TextRankWords, doc.TextRankWords) {
 				t.Fatalf("existing enrichment was lost: %+v", stored)
 			}
 			book.Rating = "4.120"
-			if err := idx.StoreBiblioReadsDetails(stale, wantDataSourceLink, book); err != nil {
+			if err := idx.StoreDetails(stale, wantDataSourceLink, book); err != nil {
 				t.Fatalf("repeated store failed: %v", err)
 			}
 			if writes.count.Load() != 1 {
@@ -993,21 +993,21 @@ func TestStoreBiblioReadsDetails(t *testing.T) {
 	}
 }
 
-type countedBiblioReadsIndex interface {
+type countedIndex interface {
 	bleve.Index
 }
 
-type biblioReadsWriteCountingIndex struct {
-	countedBiblioReadsIndex
+type writeCountingIndex struct {
+	countedIndex
 	count atomic.Int64
 }
 
-func (i *biblioReadsWriteCountingIndex) Index(id string, data any) error {
+func (i *writeCountingIndex) Index(id string, data any) error {
 	i.count.Add(1)
-	return i.countedBiblioReadsIndex.Index(id, data)
+	return i.countedIndex.Index(id, data)
 }
 
-func TestStoreBiblioReadsDetailsPreservesMissingFields(t *testing.T) {
+func TestStoreDetailsPreservesMissingFields(t *testing.T) {
 	for _, tt := range []struct {
 		name       string
 		book       BookResponse
@@ -1025,40 +1025,40 @@ func TestStoreBiblioReadsDetailsPreservesMissingFields(t *testing.T) {
 		{name: "zero count", book: BookResponse{RatingCount: "0"}, wantRating: "3.82", wantCount: "0", wantWork: "old-work", wantID: 1},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			idx := newBiblioReadsTestIndexer(t, nil)
-			doc := withBiblioReadsData(t, index.Document{
-				ID:                   biblioReadsTestID,
+			idx := newTestIndexer(t, nil)
+			doc := withData(t, index.Document{
+				ID:                   testID,
 				DataSourceScoreValue: 3.82,
 			}, DocumentData{URL: wantDataSourceLink, RatingCount: "2,285", ResourceID: "old-work", LegacyBookID: 1})
 
 			if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
 				t.Fatal(err)
 			}
-			if err := idx.StoreBiblioReadsDetails(doc, mustBiblioReadsData(t, doc).URL, tt.book); err != nil {
+			if err := idx.StoreDetails(doc, mustData(t, doc).URL, tt.book); err != nil {
 				t.Fatal(err)
 			}
 			stored, err := idx.DocumentByID(doc.ID)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if stored.DataSourceScoreValue != parseBiblioReadsRating(tt.wantRating, doc.ID) || mustBiblioReadsData(t, stored).ResourceID != tt.wantWork || mustBiblioReadsData(t, stored).LegacyBookID != tt.wantID {
+			if stored.DataSourceScoreValue != parseRating(tt.wantRating, doc.ID) || mustData(t, stored).ResourceID != tt.wantWork || mustData(t, stored).LegacyBookID != tt.wantID {
 				t.Fatalf("partial details changed fields that were not supplied: %+v", stored)
 			}
 			wantCount := tt.wantCount
 			if wantCount == "" {
-				wantCount = mustBiblioReadsData(t, doc).RatingCount
+				wantCount = mustData(t, doc).RatingCount
 			}
-			if mustBiblioReadsData(t, stored).RatingCount != wantCount {
-				t.Fatalf("expected rating count %q, got %q", wantCount, mustBiblioReadsData(t, stored).RatingCount)
+			if mustData(t, stored).RatingCount != wantCount {
+				t.Fatalf("expected rating count %q, got %q", wantCount, mustData(t, stored).RatingCount)
 			}
 		})
 	}
 }
 
 func TestUpdateDataSourceLink(t *testing.T) {
-	idx := newBiblioReadsTestIndexer(t, nil)
-	doc := withBiblioReadsData(t, index.Document{
-		ID: biblioReadsTestID, Slug: "la-reina-dragon",
+	idx := newTestIndexer(t, nil)
+	doc := withData(t, index.Document{
+		ID: testID, Slug: "la-reina-dragon",
 		Metadata:      metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}},
 		TextRankWords: []string{"dragon"},
 
@@ -1076,31 +1076,31 @@ func TestUpdateDataSourceLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if mustBiblioReadsData(t, stored).URL != newLink || !mustBiblioReadsData(t, stored).Enriched ||
-		stored.DataSourceScoreValue != 0 || mustBiblioReadsData(t, stored).RatingCount != "" || mustBiblioReadsData(t, stored).ResourceID != "" || mustBiblioReadsData(t, stored).LegacyBookID != 0 {
+	if mustData(t, stored).URL != newLink || !mustData(t, stored).Enriched ||
+		stored.DataSourceScoreValue != 0 || mustData(t, stored).RatingCount != "" || mustData(t, stored).ResourceID != "" || mustData(t, stored).LegacyBookID != 0 {
 		t.Fatalf("updating review link must clear cached score and provider lookup data: %+v", stored)
 	}
 	if stored.Title != doc.Title || stored.Slug != doc.Slug || !slices.Equal(stored.TextRankWords, doc.TextRankWords) {
 		t.Fatalf("review-link update changed unrelated document data: %+v", stored)
 	}
-	if err := idx.StoreBiblioReadsDetails(doc, mustBiblioReadsData(t, doc).URL, BookResponse{Rating: "4.5"}); err == nil {
+	if err := idx.StoreDetails(doc, mustData(t, doc).URL, BookResponse{Rating: "4.5"}); err == nil {
 		t.Fatal("stale score write must not overwrite the updated link")
 	}
 }
 
 func TestUpdateDataSourceLinkMissingDocument(t *testing.T) {
-	idx := newBiblioReadsTestIndexer(t, nil)
+	idx := newTestIndexer(t, nil)
 	if err := idx.UpdateDataSourceLink("missing", "provider-specific-document-reference"); !errors.Is(err, index.ErrDocumentNotFound) {
 		t.Fatalf("expected missing-document error, got %v", err)
 	}
 }
 
-func TestBiblioReadsDataSourcesSurviveProviderAndStaleWrites(t *testing.T) {
-	idx := newBiblioReadsTestIndexer(t, &fakeBiblioReadsSource{results: biblioReadsTestResults})
+func TestDataSourcesSurviveProviderAndStaleWrites(t *testing.T) {
+	idx := newTestIndexer(t, &fakeSource{results: testResults})
 	if err := idx.AddLibrary(10, true, 1); err != nil {
 		t.Fatal(err)
 	}
-	stale, err := idx.DocumentByID(biblioReadsTestID)
+	stale, err := idx.DocumentByID(testID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1118,7 +1118,7 @@ func TestBiblioReadsDataSourcesSurviveProviderAndStaleWrites(t *testing.T) {
 	if err := idx.Enricher.Enrich(context.Background(), idx.BleveIndexer, stale); err != nil {
 		t.Fatal(err)
 	}
-	if err := idx.StoreBiblioReadsDetails(stale, wantDataSourceLink, BookResponse{
+	if err := idx.StoreDetails(stale, wantDataSourceLink, BookResponse{
 		Rating: "4.5", RatingCount: "100", ResourceID: "work", LegacyBookID: 123,
 	}); err != nil {
 		t.Fatal(err)
@@ -1141,15 +1141,15 @@ func TestBiblioReadsDataSourcesSurviveProviderAndStaleWrites(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(decoded, other) {
 		t.Fatalf("another provider's payload was lost: %+v, %v", decoded, err)
 	}
-	if data := mustBiblioReadsData(t, got); data != (DocumentData{URL: "/book/show/456", Enriched: true}) {
+	if data := mustData(t, got); data != (DocumentData{URL: "/book/show/456", Enriched: true}) {
 		t.Fatalf("stale write restored old Goodreads state: %+v", data)
 	}
 }
 
-func TestBiblioReadsBookRejectsInvalidProviderData(t *testing.T) {
-	idx := newBiblioReadsTestIndexer(t, nil)
+func TestBookRejectsInvalidProviderData(t *testing.T) {
+	idx := newTestIndexer(t, nil)
 	document := index.Document{DataSources: map[string]json.RawMessage{Source: json.RawMessage(`{"url":42}`)}}
-	if _, err := idx.BiblioReadsBook(context.Background(), document); err == nil {
+	if _, err := idx.Book(context.Background(), document); err == nil {
 		t.Fatal("Goodreads accepted an incorrectly typed URL")
 	}
 }

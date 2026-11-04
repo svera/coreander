@@ -13,15 +13,15 @@ import (
 )
 
 // Strip named series annotations and omnibus ranges, not standalone volume numbers.
-var biblioReadsSeriesSuffix = regexp.MustCompile(`\s*\((?:[^()]+,\s*#[0-9]+(?:\.[0-9]+)?|#[0-9]+\s*[-–]\s*#?[0-9]+)\)\s*$`)
+var seriesSuffix = regexp.MustCompile(`\s*\((?:[^()]+,\s*#[0-9]+(?:\.[0-9]+)?|#[0-9]+\s*[-–]\s*#?[0-9]+)\)\s*$`)
 
-var biblioReadsSubtitleSeparator = regexp.MustCompile(`:\s*|\.\s+|\s+[-–—]\s+`)
+var subtitleSeparator = regexp.MustCompile(`:\s*|\.\s+|\s+[-–—]\s+`)
 
-var biblioReadsParentheticalTitle = regexp.MustCompile(`\s+\([\p{L}][^()]*\)\s*$`)
+var parentheticalTitle = regexp.MustCompile(`\s+\([\p{L}][^()]*\)\s*$`)
 
 var goodreadsBookPath = regexp.MustCompile(`^/book/show/([1-9][0-9]*)(?:[.-][A-Za-z0-9._~-]+)?/?$`)
 
-func normalizeBiblioReadsName(value string) string {
+func normalizeName(value string) string {
 	var result strings.Builder
 	for _, r := range norm.NFD.String(strings.ToLower(value)) {
 		switch {
@@ -36,9 +36,9 @@ func normalizeBiblioReadsName(value string) string {
 	return strings.Join(strings.Fields(result.String()), " ")
 }
 
-func biblioReadsAuthorNameMatches(name, candidate string) bool {
-	name = normalizeBiblioReadsName(name)
-	candidate = normalizeBiblioReadsName(candidate)
+func authorNameMatches(name, candidate string) bool {
+	name = normalizeName(name)
+	candidate = normalizeName(candidate)
 	if name == "" || candidate == "" {
 		return false
 	}
@@ -62,19 +62,19 @@ func biblioReadsAuthorNameMatches(name, candidate string) bool {
 	return next == len(short)-1
 }
 
-func biblioReadsAuthor(document index.Document, matchedName string) (string, string) {
-	nameKey := strings.ReplaceAll(normalizeBiblioReadsName(matchedName), " ", "")
+func matchedAuthor(document index.Document, matchedName string) (string, string) {
+	nameKey := strings.ReplaceAll(normalizeName(matchedName), " ", "")
 	if nameKey == "" {
 		return "", ""
 	}
 	for i, name := range document.Authors {
-		if i < len(document.AuthorsSlugs) && strings.ReplaceAll(normalizeBiblioReadsName(name), " ", "") == nameKey {
+		if i < len(document.AuthorsSlugs) && strings.ReplaceAll(normalizeName(name), " ", "") == nameKey {
 			return document.AuthorsSlugs[i], name
 		}
 	}
 	var slug, authorName string
 	for i, name := range document.Authors {
-		if i < len(document.AuthorsSlugs) && biblioReadsAuthorNameMatches(name, matchedName) {
+		if i < len(document.AuthorsSlugs) && authorNameMatches(name, matchedName) {
 			if slug != "" {
 				return "", ""
 			}
@@ -84,39 +84,39 @@ func biblioReadsAuthor(document index.Document, matchedName string) (string, str
 	return slug, authorName
 }
 
-func biblioReadsTitle(value string) string {
-	return normalizeBiblioReadsName(biblioReadsSeriesSuffix.ReplaceAllString(value, ""))
+func normalizedTitle(value string) string {
+	return normalizeName(seriesSuffix.ReplaceAllString(value, ""))
 }
 
-func biblioReadsMainTitle(value string) string {
-	value = biblioReadsSeriesSuffix.ReplaceAllString(value, "")
-	if separator := biblioReadsSubtitleSeparator.FindStringIndex(value); separator != nil {
+func mainTitle(value string) string {
+	value = seriesSuffix.ReplaceAllString(value, "")
+	if separator := subtitleSeparator.FindStringIndex(value); separator != nil {
 		value = value[:separator[0]]
 	}
-	return normalizeBiblioReadsName(value)
+	return normalizeName(value)
 }
 
-func biblioReadsTitleMatchScore(candidate, title, mainTitle string) int {
-	candidateTitle := biblioReadsTitle(candidate)
+func titleMatchScore(candidate, title, documentMainTitle string) int {
+	candidateTitle := normalizedTitle(candidate)
 	if candidateTitle == "" {
 		return 0
 	}
 	if candidateTitle == title {
 		return 3
 	}
-	if biblioReadsMainTitle(candidate) == title || mainTitle == candidateTitle ||
-		biblioReadsTitle(biblioReadsParentheticalTitle.ReplaceAllString(candidate, "")) == title {
+	if mainTitle(candidate) == title || documentMainTitle == candidateTitle ||
+		normalizedTitle(parentheticalTitle.ReplaceAllString(candidate, "")) == title {
 		return 1
 	}
 	return 0
 }
 
-func preferBiblioReadsBook(candidate, best SearchResult, score, bestScore int) bool {
+func preferBook(candidate, best SearchResult, score, bestScore int) bool {
 	if bestScore == 0 {
 		return true
 	}
 	if score == bestScore {
-		count, bestCount := biblioReadsRatingCount(candidate.RatingCount), biblioReadsRatingCount(best.RatingCount)
+		count, bestCount := ratingCount(candidate.RatingCount), ratingCount(best.RatingCount)
 		if count != bestCount {
 			return count > bestCount
 		}
@@ -125,14 +125,14 @@ func preferBiblioReadsBook(candidate, best SearchResult, score, bestScore int) b
 			return id < bestID
 		}
 	}
-	hasRating, bestHasRating := hasBiblioReadsRating(candidate.Rating), hasBiblioReadsRating(best.Rating)
+	hasRating, bestHasRating := hasRating(candidate.Rating), hasRating(best.Rating)
 	if hasRating != bestHasRating {
 		return hasRating
 	}
 	return score > bestScore
 }
 
-func biblioReadsRatingCount(value string) uint64 {
+func ratingCount(value string) uint64 {
 	if strings.TrimSpace(value) == "" {
 		return 0
 	}
@@ -157,25 +157,25 @@ func goodreadsBookID(bookURL string) uint64 {
 	return id
 }
 
-func matchingBiblioReadsBook(document index.Document, results []SearchResult) (SearchResult, bool) {
-	title := biblioReadsTitle(document.Title)
+func matchingBook(document index.Document, results []SearchResult) (SearchResult, bool) {
+	title := normalizedTitle(document.Title)
 	if title == "" {
 		return SearchResult{}, false
 	}
-	mainTitle := biblioReadsMainTitle(document.Title)
+	mainTitle := mainTitle(document.Title)
 	var best SearchResult
 	bestScore := 0
 	for _, result := range results {
 		if result.BookURL == "" {
 			continue
 		}
-		score := biblioReadsTitleMatchScore(result.Title, title, mainTitle)
+		score := titleMatchScore(result.Title, title, mainTitle)
 		if score == 0 {
 			continue
 		}
 		for _, author := range document.Authors {
-			if biblioReadsAuthorNameMatches(author, result.Author) {
-				if preferBiblioReadsBook(result, best, score, bestScore) {
+			if authorNameMatches(author, result.Author) {
+				if preferBook(result, best, score, bestScore) {
 					best, bestScore = result, score
 				}
 				break
@@ -185,14 +185,14 @@ func matchingBiblioReadsBook(document index.Document, results []SearchResult) (S
 	return best, bestScore > 0
 }
 
-func hasBiblioReadsRating(rating string) bool {
+func hasRating(rating string) bool {
 	value, err := strconv.ParseFloat(rating, 64)
 	return err == nil && value > 0 && value <= 5 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
-// biblioReadsQuery returns the BiblioReads search string for document: its title
+// searchQuery returns the  search string for document: its title
 // followed by its first author, if any.
-func biblioReadsQuery(document index.Document) string {
+func searchQuery(document index.Document) string {
 	q := strings.TrimSpace(document.Title)
 	if len(document.Authors) > 0 {
 		q = strings.TrimSpace(q + " " + document.Authors[0])
@@ -200,7 +200,7 @@ func biblioReadsQuery(document index.Document) string {
 	return q
 }
 
-func parseBiblioReadsRating(rating, documentID string) float64 {
+func parseRating(rating, documentID string) float64 {
 	if rating == "" {
 		return 0
 	}

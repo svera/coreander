@@ -154,7 +154,7 @@ func setDataSourceScore(t *testing.T, idx *index.BleveIndexer, doc index.Documen
 	if err != nil {
 		t.Fatalf("reload %s: %v", doc.Slug, err)
 	}
-	if err := adapter.StoreBiblioReadsDetails(updated, mustBiblioReadsData(t, updated).URL, biblioreads.BookResponse{
+	if err := adapter.StoreDetails(updated, mustBiblioReadsData(t, updated).URL, biblioreads.BookResponse{
 		Rating: score, RatingCount: count,
 	}); err != nil {
 		t.Fatalf("set review score for %s: %v", doc.Slug, err)

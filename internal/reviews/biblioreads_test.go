@@ -50,11 +50,11 @@ type reviewLinkIndex struct {
 	err  error
 }
 
-func (i *reviewLinkIndex) BiblioReadsBook(context.Context, index.Document) (biblioreads.SearchResult, error) {
+func (i *reviewLinkIndex) Book(context.Context, index.Document) (biblioreads.SearchResult, error) {
 	return biblioreads.SearchResult{}, nil
 }
 
-func (i *reviewLinkIndex) StoreBiblioReadsDetails(index.Document, string, biblioreads.BookResponse) error {
+func (i *reviewLinkIndex) StoreDetails(index.Document, string, biblioreads.BookResponse) error {
 	return nil
 }
 

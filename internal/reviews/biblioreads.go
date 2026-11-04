@@ -29,8 +29,8 @@ type BiblioReadsClient interface {
 }
 
 type BiblioReadsIndex interface {
-	BiblioReadsBook(ctx context.Context, document index.Document) (biblioreads.SearchResult, error)
-	StoreBiblioReadsDetails(document index.Document, bookURL string, book biblioreads.BookResponse) error
+	Book(ctx context.Context, document index.Document) (biblioreads.SearchResult, error)
+	StoreDetails(document index.Document, bookURL string, book biblioreads.BookResponse) error
 	UpdateDataSourceLink(documentID, bookURL string) error
 }
 
@@ -139,7 +139,7 @@ func (b *BiblioReads) book(ctx context.Context, document index.Document) (biblio
 		book.Rating = fmt.Sprintf("%.2f", document.DataSourceScoreValue)
 		details.Rating = ""
 	}
-	if err := b.index.StoreBiblioReadsDetails(document, data.URL, details); err != nil {
+	if err := b.index.StoreDetails(document, data.URL, details); err != nil {
 		log.Printf("Error saving Goodreads details for %s: %s", document.ID, err)
 	}
 	return book, nil
@@ -157,7 +157,7 @@ func (b *BiblioReads) Score(ctx context.Context, document index.Document) (Score
 		return score, err
 	}
 	if data.URL == "" {
-		result, err := b.index.BiblioReadsBook(ctx, document)
+		result, err := b.index.Book(ctx, document)
 		if err != nil {
 			return score, err
 		}
