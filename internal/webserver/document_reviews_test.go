@@ -498,6 +498,9 @@ func TestDocumentReviewsHeader(t *testing.T) {
 
 func TestDocumentReviewsDisabled(t *testing.T) {
 	app, _ := newReviewProviderTestApp(t, nil)
+	if getPage(t, app, "/background-progress").Find(".alert").Length() != 0 {
+		t.Fatal("disabled providers must not show incomplete review progress")
+	}
 	for _, slug := range []string{"linked", "unlinked", "unmatched"} {
 		body := getBody(t, app, "/documents/"+slug)
 		if got := documentScorePlaceholders(t, body).Length(); got != 0 {

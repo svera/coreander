@@ -3,6 +3,7 @@ package index
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -22,6 +23,8 @@ type blockingDocumentEnricher struct {
 }
 
 func (*blockingDocumentEnricher) Source() string { return "blocking" }
+
+func (*blockingDocumentEnricher) Name() string { return "Blocking" }
 
 func (*blockingDocumentEnricher) NeedsEnrichment(Document) (bool, error) {
 	return true, nil
@@ -46,7 +49,7 @@ func TestDocumentEnrichmentUsesBoundedConcurrency(t *testing.T) {
 	idx, _ := newTestTextRankIndexer(t, Config{})
 	documents := make([]Document, documentCount)
 	done := make(chan error, 1)
-	go func() { done <- idx.enrichProviderBatch(provider, documents) }()
+	go func() { done <- idx.enrichProviderBatch(provider, &progressTracker{}, documents) }()
 	defer func() {
 		close(provider.release)
 		if err := <-done; err != nil {
@@ -67,7 +70,113 @@ func TestDocumentEnrichmentUsesBoundedConcurrency(t *testing.T) {
 	}
 }
 
+func TestBackgroundProgressTracksPersistedProviderLookups(t *testing.T) {
+	first := &testDocumentEnricher{source: "first", failure: errors.New("unavailable")}
+	second := &testDocumentEnricher{source: "second"}
+	idx, _ := newTestTextRankIndexer(t, Config{DocumentEnrichers: []DocumentEnricher{first, second}})
+	t.Cleanup(func() { _ = idx.Close() })
+	for _, id := range []string{"matched", "unmatched", "pending"} {
+		if err := IndexDocument(idx.documentsIdx, id, Document{ID: id}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A completed lookup without a score is still processed.
+	for _, id := range []string{"matched", "unmatched"} {
+		if err := idx.StoreDocumentData(id, "first", map[string]any{"enriched": true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	idx.indexProgress.begin(3)
+	idx.indexProgress.record()
+	idx.textRankEnrichProgress.begin(3)
+	idx.textRankEnrichProgress.record()
+	idx.authorEnrichProgress.begin(3)
+	idx.authorEnrichProgress.record()
+	idx.pruneProgress.begin(3)
+	idx.pruneProgress.record()
+	progress, err := idx.BackgroundProgress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(progress) != 6 || progress[0].Kind != ProgressDocuments || progress[1].Kind != ProgressAuthors ||
+		progress[2].Kind != ProgressTextRank || progress[3].Kind != ProgressPruning ||
+		progress[4].Source != "first" || progress[4].Processed != 2 || progress[4].Total != 3 || progress[4].Percentage != 66 ||
+		progress[5].Source != "second" || progress[5].Processed != 0 {
+		t.Fatalf("incorrect simultaneous progress: %+v", progress)
+	}
+	if progress[4].RemainingTime != 0 {
+		t.Fatalf("estimated time without an active lookup run: %v", progress[4].RemainingTime)
+	}
+	// One lookup in this run took a minute, so the remaining one should take about a minute.
+	run := &idx.documentEnrichProgress[0]
+	run.begin(1)
+	run.startNanos.Store(time.Now().Add(-time.Minute).UnixNano())
+	run.record()
+	progress, err = idx.BackgroundProgress()
+	if err != nil || progress[4].RemainingTime < time.Minute || progress[4].RemainingTime > time.Minute+time.Second {
+		t.Fatalf("incorrect review lookup estimate: %+v, %v", progress, err)
+	}
+	run.end()
+	idx.indexProgress.end()
+	idx.textRankEnrichProgress.end()
+	idx.authorEnrichProgress.end()
+	idx.pruneProgress.end()
+	if err := idx.EnrichDocuments(1); err == nil {
+		t.Fatal("expected unavailable provider to fail")
+	}
+	progress, err = idx.BackgroundProgress()
+	if err != nil || len(progress) != 1 || progress[0].Source != "first" || progress[0].Processed != 2 {
+		t.Fatalf("failed lookups must remain visible; successful providers must disappear: %+v, %v", progress, err)
+	}
+	// Progress is reconstructed from stored data, not a running worker counter.
+	resumed := &BleveIndexer{documentsIdx: idx.documentsIdx, documentEnrichers: []DocumentEnricher{first}}
+	progress, err = resumed.BackgroundProgress()
+	if err != nil || len(progress) != 1 || progress[0].Processed != 2 {
+		t.Fatalf("persisted progress lost on restart: %+v, %v", progress, err)
+	}
+	if err := idx.StoreDocumentData("pending", "first", map[string]any{"enriched": true}); err != nil {
+		t.Fatal(err)
+	}
+	progress, err = idx.BackgroundProgress()
+	if err != nil || len(progress) != 0 {
+		t.Fatalf("completed lookups still reported as pending: %+v, %v", progress, err)
+	}
+}
+
+func TestBackgroundProgressNeverRoundsPendingLookupsToComplete(t *testing.T) {
+	idx, _ := newTestTextRankIndexer(t, Config{DocumentEnrichers: []DocumentEnricher{&testDocumentEnricher{source: "test"}}})
+	t.Cleanup(func() { _ = idx.Close() })
+	for i := range 201 {
+		document := Document{ID: fmt.Sprintf("book-%d", i)}
+		if i < 200 {
+			if err := SetDataSourceData(&document, "test", map[string]any{"enriched": true}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := IndexDocument(idx.documentsIdx, document.ID, document); err != nil {
+			t.Fatal(err)
+		}
+	}
+	progress, err := idx.BackgroundProgress()
+	if err != nil || len(progress) != 1 || progress[0].Percentage != 99 || progress[0].Processed != 200 {
+		t.Fatalf("unfinished lookups must not display 100%%: %+v, %v", progress, err)
+	}
+}
+
+func TestBackgroundProgressWithoutPendingProviders(t *testing.T) {
+	for _, config := range []Config{{}, {DocumentEnrichers: []DocumentEnricher{&testDocumentEnricher{source: "test"}}}} {
+		idx, _ := newTestTextRankIndexer(t, config)
+		t.Cleanup(func() { _ = idx.Close() })
+		progress, err := idx.BackgroundProgress()
+		if err != nil || len(progress) != 0 {
+			t.Fatalf("empty or disabled provider should have no progress: %+v, %v", progress, err)
+		}
+	}
+}
+
 func (p *testDocumentEnricher) Source() string { return p.source }
+
+func (p *testDocumentEnricher) Name() string { return p.source }
 
 func (p *testDocumentEnricher) NeedsEnrichment(document Document) (bool, error) {
 	data, err := DataSourceData[struct{ Enriched bool }](document, p.source)

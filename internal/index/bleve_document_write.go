@@ -42,7 +42,7 @@ func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 }
 
 func (b *BleveIndexer) progressFrom(kind ProgressKind, startNanos int64, processed, total uint64) Progress {
-	progress := Progress{Kind: kind, InProgress: true}
+	progress := Progress{Kind: kind, InProgress: true, Processed: processed, Total: total}
 	if total > 0 {
 		progress.Percentage = math.Round(100 * float64(processed) / float64(total))
 		if progress.Percentage > 100 {

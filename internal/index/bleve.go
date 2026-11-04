@@ -219,6 +219,8 @@ type BleveIndexer struct {
 	textRankEnrichJobs chan Document
 	documentEnrichJobs chan string
 	documentEnrichers  []DocumentEnricher
+	// documentEnrichProgress measures each provider's current run rate, by enricher index.
+	documentEnrichProgress []progressTracker
 	// fileLocks holds a *sync.Mutex per document ID, serializing concurrent
 	// indexFile calls for the same file (upload vs. file watcher reacting to
 	// the same write).
@@ -263,6 +265,16 @@ func (p *progressTracker) record() {
 // process a batch at a time rather than calling record once per item.
 func (p *progressTracker) recordN(n int) {
 	p.processed.Add(uint64(n))
+}
+
+// remainingTime estimates how long the given remaining entries take at the current run's rate.
+func (p *progressTracker) remainingTime(remaining uint64) time.Duration {
+	start, processed := p.startNanos.Load(), p.processed.Load()
+	if start == 0 || processed == 0 || remaining == 0 {
+		return 0
+	}
+	elapsed := float64(time.Now().UnixNano() - start)
+	return time.Duration(elapsed * float64(remaining) / float64(processed))
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
@@ -324,6 +336,7 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		pruneChangeTriggerRatio:        pruneChangeTriggerRatio,
 		textRankEnrichJobs:             make(chan Document, textRankEnrichWorkers),
 		documentEnrichers:              slices.Clone(cfg.DocumentEnrichers),
+		documentEnrichProgress:         make([]progressTracker, len(cfg.DocumentEnrichers)),
 	}
 
 	for range textRankEnrichWorkers {

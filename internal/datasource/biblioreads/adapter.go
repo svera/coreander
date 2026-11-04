@@ -38,6 +38,8 @@ func (p *Enricher) SetIndex(idx *index.BleveIndexer) {
 
 func (*Enricher) Source() string { return Source }
 
+func (*Enricher) Name() string { return Name }
+
 func (*Enricher) NeedsEnrichment(document index.Document) (bool, error) {
 	data, err := index.DataSourceData[DocumentData](document, Source)
 	return !data.Enriched, err

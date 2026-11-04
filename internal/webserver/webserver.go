@@ -75,6 +75,7 @@ type Sender interface {
 
 type IndexInfo interface {
 	IndexingProgress() (index.Progress, error)
+	BackgroundProgress() ([]index.Progress, error)
 	Languages() ([]string, error)
 	Formats() ([]string, error)
 }
@@ -136,6 +137,7 @@ func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, user
 		log.Fatal(err)
 	}
 	engine.AddFunc("storedDocumentScore", controllers.Documents.StoredScore)
+	engine.AddFunc("remainingTime", fmtRemainingTime)
 
 	// UploadDocumentMaxSize <= 0 means "unlimited", but fiber has no such
 	// sentinel for BodyLimit - it coerces any value <= 0 to its own 4MB
@@ -159,6 +161,9 @@ func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, user
 		SetProgress(idx),
 		favicon.New(),
 		cache.New(cache.Config{
+			Next: func(c fiber.Ctx) bool {
+				return c.Path() == "/background-progress"
+			},
 			ExpirationGenerator: func(c fiber.Ctx, cfg *cache.Config) time.Duration {
 				newCacheTime, _ := strconv.Atoi(c.GetRespHeader("Cache-Time", "0"))
 				return time.Second * time.Duration(newCacheTime)

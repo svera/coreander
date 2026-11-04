@@ -14,7 +14,9 @@ const documentEnrichWorkers = 4
 
 // DocumentEnricher owns a provider's lookup policy and persisted payload.
 type DocumentEnricher interface {
+	// Source is the persisted storage key; Name is shown to users.
 	Source() string
+	Name() string
 	NeedsEnrichment(Document) (bool, error)
 	// Enrich persists an enriched=true payload for completed lookups, including no matches.
 	// Transient failures must leave the document pending.
@@ -49,19 +51,28 @@ func (b *BleveIndexer) EnrichDocuments(batchSize int) error {
 		return fmt.Errorf("document enrichment batch size must be positive")
 	}
 	var failures []error
-	for _, provider := range b.documentEnrichers {
-		if err := b.enrichProvider(provider, batchSize); err != nil {
+	for i, provider := range b.documentEnrichers {
+		if err := b.enrichProvider(provider, b.documentEnrichTracker(i), batchSize); err != nil {
 			failures = append(failures, fmt.Errorf("enriching documents with %s: %w", provider.Source(), err))
 		}
 	}
 	return errors.Join(failures...)
 }
 
-func (b *BleveIndexer) enrichProvider(provider DocumentEnricher, batchSize int) error {
+func (b *BleveIndexer) documentEnrichTracker(i int) *progressTracker {
+	if i < len(b.documentEnrichProgress) {
+		return &b.documentEnrichProgress[i]
+	}
+	return &progressTracker{}
+}
+
+func (b *BleveIndexer) enrichProvider(provider DocumentEnricher, tracker *progressTracker, batchSize int) error {
 	_, total, err := b.documentsNeedingProvider(provider.Source(), 0)
 	if err != nil || total == 0 {
 		return err
 	}
+	tracker.begin(int(total))
+	defer tracker.end()
 	log.Printf("Enriching %d documents with %s data", total, provider.Source())
 	for iteration := 0; iteration < int(total)+10; iteration++ {
 		documents, _, err := b.documentsNeedingProvider(provider.Source(), batchSize)
@@ -71,14 +82,14 @@ func (b *BleveIndexer) enrichProvider(provider DocumentEnricher, batchSize int) 
 		if len(documents) == 0 {
 			return nil
 		}
-		if err := b.enrichProviderBatch(provider, documents); err != nil {
+		if err := b.enrichProviderBatch(provider, tracker, documents); err != nil {
 			return err
 		}
 	}
 	return fmt.Errorf("document enrichment did not finish; some documents remain pending")
 }
 
-func (b *BleveIndexer) enrichProviderBatch(provider DocumentEnricher, documents []Document) error {
+func (b *BleveIndexer) enrichProviderBatch(provider DocumentEnricher, tracker *progressTracker, documents []Document) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	jobs := make(chan Document, len(documents))
@@ -103,6 +114,7 @@ func (b *BleveIndexer) enrichProviderBatch(provider DocumentEnricher, documents 
 					}
 					return
 				}
+				tracker.record()
 			}
 		})
 	}

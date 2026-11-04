@@ -38,7 +38,7 @@ func NewReviewProvider(client ReviewClient, idx ReviewIndex) *ReviewProvider {
 }
 
 func (b *ReviewProvider) Name() string {
-	return "Goodreads"
+	return Name
 }
 
 // AuthorLink returns the indexed author link without making a network request.
@@ -57,7 +57,7 @@ func (b *ReviewProvider) DocumentLink(document index.Document) datasourcemodel.D
 }
 
 func goodreadsDataSourceLink(path, prefix string) datasourcemodel.DataSourceLink {
-	link := datasourcemodel.DataSourceLink{Source: "Goodreads", Icon: "/images/goodreads.svg", IconInvertible: true}
+	link := datasourcemodel.DataSourceLink{Source: Name, Icon: "/images/goodreads.svg", IconInvertible: true}
 	if id, ok := strings.CutPrefix(path, prefix); ok && id != "" {
 		link.URL = goodreadsBaseURL + path
 	}
@@ -145,7 +145,7 @@ func isZeroRating(rating string) bool {
 }
 
 func (b *ReviewProvider) Score(ctx context.Context, document index.Document) (datasourcemodel.Score, error) {
-	score := datasourcemodel.Score{Source: "Goodreads"}
+	score := datasourcemodel.Score{Source: Name}
 	data, err := index.DataSourceData[DocumentData](document, Source)
 	if err != nil {
 		return score, err
@@ -202,7 +202,7 @@ func (b *ReviewProvider) Reviews(ctx context.Context, document index.Document, l
 	if err != nil {
 		return datasourcemodel.ReviewPage{}, fmt.Errorf("retrieving Goodreads reviews for %s: %w", document.ID, err)
 	}
-	page := datasourcemodel.ReviewPage{Source: "Goodreads", URL: b.DocumentLink(document).URL, Available: true}
+	page := datasourcemodel.ReviewPage{Source: Name, URL: b.DocumentLink(document).URL, Available: true}
 	for _, review := range response.Reviews {
 		var createdAt time.Time
 		if review.CreatedAt != "" {

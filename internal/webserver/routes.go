@@ -71,6 +71,11 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	// Set email sending configuration (must be early so it's available in all routes)
 	app.Use(SetEmailSendingConfigured(sender))
 
+	app.Get("/background-progress", configurableAuthentication, func(c fiber.Ctx) error {
+		c.Set("Cache-Control", "no-store")
+		return c.Render("partials/background-progress", fiber.Map{})
+	})
+
 	app.Get("/sessions/new", allowIfNotLoggedIn, controllers.Auth.Login)
 	app.Post("/sessions", allowIfNotLoggedIn, controllers.Auth.SignIn)
 	app.Get("/recover", allowIfNotLoggedIn, controllers.Auth.Recover)

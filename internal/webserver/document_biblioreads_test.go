@@ -88,6 +88,57 @@ func newBiblioReadsTestApp(t *testing.T, source *fakeBookSource) (*fiber.App, *i
 	return newDataSourceProvidersTestApp(t, source, nil, nil)
 }
 
+func TestReviewEnrichmentProgressBanner(t *testing.T) {
+	source := &fakeBookSource{searchErr: biblioreads.ErrUnavailable}
+	app, idx := newBiblioReadsTestApp(t, source)
+	idx.BeginIndexing()
+	page := getPage(t, app, "/documents/linked")
+	banner := page.Find("#background-progress")
+	if banner.Find(`[data-progress-kind="documents"]`).Length() != 1 ||
+		banner.Find(`[data-progress-kind="data-sources"]`).Length() != 1 {
+		t.Fatal("indexing and review progress must share a banner")
+	}
+	if banner.AttrOr("hx-trigger", "") != "every 5s" ||
+		!strings.Contains(banner.Text(), "Score filters may omit documents") {
+		t.Fatal("expected live polling and score-filter warning")
+	}
+	checkPending := func() {
+		t.Helper()
+		page := getPage(t, app, "/background-progress?l=en")
+		reviews := page.Find(`[data-progress-kind="data-sources"]`)
+		if !strings.Contains(reviews.Text(), "(Goodreads)") ||
+			reviews.Find(`[role="progressbar"]`).AttrOr("aria-valuenow", "") != "66" {
+			t.Fatalf("incorrect persisted lookup progress: %s", reviews.Text())
+		}
+	}
+	checkPending()
+	spanish := getPage(t, app, "/background-progress?l=es")
+	if !strings.Contains(spanish.Find("#background-progress").Text(), "La información de valoraciones está incompleta") {
+		t.Fatal("live progress must retain the selected language")
+	}
+	if err := idx.EnrichDocuments(1); err == nil {
+		t.Fatal("expected unavailable source to fail")
+	}
+	checkPending()
+	source.searchErr = nil
+	if err := idx.EnrichDocuments(1); err != nil {
+		t.Fatal(err)
+	}
+	page = getPage(t, app, "/background-progress?l=en")
+	if page.Find(`[data-progress-kind="data-sources"]`).Length() != 0 ||
+		page.Find(`[data-progress-kind="documents"]`).Length() != 1 {
+		t.Fatal("completion must remove only the review bar, including no-match lookups")
+	}
+	response, err := app.Test(mustGetRequest(t, "/background-progress"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.Header.Get("Cache-Control") != "no-store" {
+		t.Fatal("live progress responses must not be cached")
+	}
+}
+
 func newDataSourceProvidersTestApp(t *testing.T, source *fakeBookSource, provider document.ReviewProvider, dataSourceLinkProvider authorcontroller.DataSourceLinkProvider) (*fiber.App, *index.BleveIndexer) {
 	t.Helper()
 	db := infrastructure.Connect(":memory:", 250)

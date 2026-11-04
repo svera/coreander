@@ -81,9 +81,9 @@ func fmtRemainingTime(d time.Duration) string {
 
 // SetProgress retrieves indexing progress information from the index and sets it
 // as a local variable of the request
-func SetProgress(progress IndexInfo) func(fiber.Ctx) error {
+func SetProgress(idx IndexInfo) func(fiber.Ctx) error {
 	return func(c fiber.Ctx) error {
-		progress, err := progress.IndexingProgress()
+		progress, err := idx.IndexingProgress()
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -95,6 +95,12 @@ func SetProgress(progress IndexInfo) func(fiber.Ctx) error {
 				c.Locals("RemainingIndexingTime", fmtRemainingTime(progress.RemainingTime))
 			}
 		}
+		tasks, err := idx.BackgroundProgress()
+		if err != nil {
+			log.Printf("Error reading background progress: %s", err)
+			c.Locals("BackgroundProgressError", true)
+		}
+		c.Locals("BackgroundProgress", tasks)
 		return c.Next()
 	}
 }
