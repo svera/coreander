@@ -42,7 +42,7 @@ func (b *BleveIndexer) IndexingProgress() (Progress, error) {
 }
 
 func (b *BleveIndexer) progressFrom(kind ProgressKind, startNanos int64, processed, total uint64) Progress {
-	progress := Progress{Kind: kind, InProgress: true, Processed: processed, Total: total}
+	progress := Progress{Kind: kind, InProgress: true}
 	if total > 0 {
 		progress.Percentage = math.Round(100 * float64(processed) / float64(total))
 		if progress.Percentage > 100 {
@@ -91,8 +91,7 @@ func (b *BleveIndexer) BackgroundProgress() ([]Progress, error) {
 		if result.Total < total {
 			// Do not round pending work up to 100%.
 			progress = append(progress, Progress{
-				Kind: ProgressDataSources, InProgress: true, Source: provider.Source(), Name: provider.Name(),
-				Processed: result.Total, Total: total,
+				Kind: ProgressDataSources, InProgress: true, Name: provider.Name(),
 				Percentage:    math.Floor(100 * float64(result.Total) / float64(total)),
 				RemainingTime: b.documentEnrichTracker(i).remainingTime(total - result.Total),
 			})

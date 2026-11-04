@@ -17,8 +17,5 @@ type Progress struct {
 	InProgress    bool
 	RemainingTime time.Duration
 	Percentage    float64
-	Processed     uint64
-	Total         uint64
-	Source        string
 	Name          string
 }

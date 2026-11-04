@@ -100,8 +100,8 @@ func TestBackgroundProgressTracksPersistedProviderLookups(t *testing.T) {
 	}
 	if len(progress) != 6 || progress[0].Kind != ProgressDocuments || progress[1].Kind != ProgressAuthors ||
 		progress[2].Kind != ProgressTextRank || progress[3].Kind != ProgressPruning ||
-		progress[4].Source != "first" || progress[4].Processed != 2 || progress[4].Total != 3 || progress[4].Percentage != 66 ||
-		progress[5].Source != "second" || progress[5].Processed != 0 {
+		progress[4].Name != "first" || progress[4].Percentage != 66 ||
+		progress[5].Name != "second" || progress[5].Percentage != 0 {
 		t.Fatalf("incorrect simultaneous progress: %+v", progress)
 	}
 	if progress[4].RemainingTime != 0 {
@@ -125,13 +125,13 @@ func TestBackgroundProgressTracksPersistedProviderLookups(t *testing.T) {
 		t.Fatal("expected unavailable provider to fail")
 	}
 	progress, err = idx.BackgroundProgress()
-	if err != nil || len(progress) != 1 || progress[0].Source != "first" || progress[0].Processed != 2 {
+	if err != nil || len(progress) != 1 || progress[0].Name != "first" || progress[0].Percentage != 66 {
 		t.Fatalf("failed lookups must remain visible; successful providers must disappear: %+v, %v", progress, err)
 	}
 	// Progress is reconstructed from stored data, not a running worker counter.
 	resumed := &BleveIndexer{documentsIdx: idx.documentsIdx, documentEnrichers: []DocumentEnricher{first}}
 	progress, err = resumed.BackgroundProgress()
-	if err != nil || len(progress) != 1 || progress[0].Processed != 2 {
+	if err != nil || len(progress) != 1 || progress[0].Percentage != 66 {
 		t.Fatalf("persisted progress lost on restart: %+v, %v", progress, err)
 	}
 	if err := idx.StoreDocumentData("pending", "first", map[string]any{"enriched": true}); err != nil {
@@ -158,7 +158,7 @@ func TestBackgroundProgressNeverRoundsPendingLookupsToComplete(t *testing.T) {
 		}
 	}
 	progress, err := idx.BackgroundProgress()
-	if err != nil || len(progress) != 1 || progress[0].Percentage != 99 || progress[0].Processed != 200 {
+	if err != nil || len(progress) != 1 || progress[0].Percentage != 99 {
 		t.Fatalf("unfinished lookups must not display 100%%: %+v, %v", progress, err)
 	}
 }

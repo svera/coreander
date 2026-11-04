@@ -11,7 +11,7 @@
             {{else if eq .Kind "pruning"}}{{$label = "Keyword clean-up progress"}}
             {{else if eq .Kind "data-sources"}}{{$label = "Review information progress"}}
             {{end}}
-            <div class="mb-3" data-progress-kind="{{.Kind}}"{{if .Source}} data-progress-source="{{.Source}}"{{end}}>
+            <div class="mb-3" data-progress-kind="{{.Kind}}">
                 <p class="mb-1">{{t $.Lang $label}}{{if .Name}} ({{.Name}}){{end}}</p>
                 {{$remaining := ""}}{{if gt .RemainingTime 0}}{{$remaining = t $.Lang "%s left" (remainingTime .RemainingTime)}}{{end}}
                 <div class="progress" role="progressbar" aria-label="{{t $.Lang $label}}" aria-valuenow="{{.Percentage}}" aria-valuemin="0" aria-valuemax="100"{{if $remaining}} aria-valuetext="{{.Percentage}}% ({{$remaining}})"{{end}}>
