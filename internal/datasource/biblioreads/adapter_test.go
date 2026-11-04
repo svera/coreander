@@ -14,29 +14,28 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/spf13/afero"
-	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
-func mustBiblioReadsData(t *testing.T, document index.Document) biblioreads.DocumentData {
+func mustBiblioReadsData(t *testing.T, document index.Document) DocumentData {
 	t.Helper()
-	data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+	data, err := index.DataSourceData[DocumentData](document, Source)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return data
 }
 
-func withBiblioReadsData(t *testing.T, document index.Document, data biblioreads.DocumentData) index.Document {
+func withBiblioReadsData(t *testing.T, document index.Document, data DocumentData) index.Document {
 	t.Helper()
-	if err := index.SetDataSourceData(&document, biblioreads.Source, data); err != nil {
+	if err := index.SetDataSourceData(&document, Source, data); err != nil {
 		t.Fatal(err)
 	}
 	return document
 }
 
-func updateBiblioReadsData(t *testing.T, document *index.Document, update func(*biblioreads.DocumentData)) {
+func updateBiblioReadsData(t *testing.T, document *index.Document, update func(*DocumentData)) {
 	t.Helper()
 	data := mustBiblioReadsData(t, *document)
 	update(&data)
@@ -61,20 +60,20 @@ func assertNoDocumentAuthorURL(t *testing.T, documents bleve.Index) {
 type fakeBiblioReadsSource struct {
 	mu          sync.Mutex
 	queries     []string
-	results     []biblioreads.SearchResult
-	byQuery     map[string][]biblioreads.SearchResult
+	results     []SearchResult
+	byQuery     map[string][]SearchResult
 	queryErrors map[string]error
 	err         error
 }
 
-func (f *fakeBiblioReadsSource) SearchBooks(_ context.Context, query string) (biblioreads.SearchBooksResponse, error) {
+func (f *fakeBiblioReadsSource) SearchBooks(_ context.Context, query string) (SearchBooksResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.queries = append(f.queries, query)
 	if f.byQuery != nil {
-		return biblioreads.SearchBooksResponse{Result: f.byQuery[query]}, f.queryErrors[query]
+		return SearchBooksResponse{Result: f.byQuery[query]}, f.queryErrors[query]
 	}
-	return biblioreads.SearchBooksResponse{Result: f.results}, f.err
+	return SearchBooksResponse{Result: f.results}, f.err
 }
 
 func (f *fakeBiblioReadsSource) Queries() []string {
@@ -93,7 +92,7 @@ func (biblioReadsTestReader) Cover(string, int) (image.Image, error) {
 	return nil, nil
 }
 
-var biblioReadsTestResults = []biblioreads.SearchResult{
+var biblioReadsTestResults = []SearchResult{
 	{Title: "La Reina Dragon", Author: "Alice Borchardt", BookURL: "/book/show/12207444-la-reina-dragon", AuthorURL: "/author/show/151155.Alice_Borchardt", Rating: "3.82", RatingCount: "2,285"},
 	{BookURL: "/book/show/2-other", AuthorURL: "/author/show/2.Other"},
 }
@@ -123,7 +122,7 @@ func newBiblioReadsTestIndexer(t *testing.T, source BiblioReadsSource) *biblioRe
 		t.Fatal(err)
 	}
 	writes := &biblioReadsWriteCountingIndex{countedBiblioReadsIndex: documents}
-	adapter := New(source)
+	adapter := NewEnricher(source)
 	var providers []index.DocumentEnricher
 	if source != nil {
 		providers = append(providers, adapter)
@@ -190,8 +189,8 @@ func TestEnrichBiblioReadsMarksDocumentsWithoutMatch(t *testing.T) {
 	for name, source := range map[string]*fakeBiblioReadsSource{
 		"no results":        {},
 		"non-transient err": {err: errors.New("biblioreads: request failed with status code 504")},
-		"wrong title":       {results: []biblioreads.SearchResult{{Title: "Another book", Author: "Alice Borchardt", BookURL: "/book/show/1"}}},
-		"wrong author":      {results: []biblioreads.SearchResult{{Title: "La Reina Dragon", Author: "Another writer", BookURL: "/book/show/1"}}},
+		"wrong title":       {results: []SearchResult{{Title: "Another book", Author: "Alice Borchardt", BookURL: "/book/show/1"}}},
+		"wrong author":      {results: []SearchResult{{Title: "La Reina Dragon", Author: "Another writer", BookURL: "/book/show/1"}}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			idx := newBiblioReadsTestIndexer(t, source)
@@ -218,7 +217,7 @@ func TestEnrichBiblioReadsMarksDocumentsWithoutMatch(t *testing.T) {
 
 func TestEnrichBiblioReadsStoresSecondAuthorURLAndPreservesItOnEdits(t *testing.T) {
 	const authorURL = "/author/show/2"
-	source := &fakeBiblioReadsSource{results: []biblioreads.SearchResult{
+	source := &fakeBiblioReadsSource{results: []SearchResult{
 		{Title: "La Reina Dragon", Author: "Second Author", BookURL: wantDataSourceLink, AuthorURL: authorURL},
 	}}
 	idx := newBiblioReadsTestIndexer(t, source)
@@ -270,13 +269,13 @@ func TestEnrichBiblioReadsStoresSecondAuthorURLAndPreservesItOnEdits(t *testing.
 }
 
 func TestEnrichBiblioReadsLeavesDocumentsForLaterWhenUnavailable(t *testing.T) {
-	source := &fakeBiblioReadsSource{err: biblioreads.ErrUnavailable}
+	source := &fakeBiblioReadsSource{err: ErrUnavailable}
 	idx := newBiblioReadsTestIndexer(t, source)
 	if err := idx.AddLibrary(10, true, 1); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := idx.EnrichDocuments(10); !errors.Is(err, biblioreads.ErrUnavailable) {
+	if err := idx.EnrichDocuments(10); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("expected ErrUnavailable, got %v", err)
 	}
 	doc, err := idx.DocumentByID(biblioReadsTestID)
@@ -357,7 +356,7 @@ func TestEnrichBiblioReadsSkipsSearchWhenDocumentHasLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	updateBiblioReadsData(t, &doc, func(data *biblioreads.DocumentData) {
+	updateBiblioReadsData(t, &doc, func(data *DocumentData) {
 		data.URL = "/book/show/1-existing"
 	})
 	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
@@ -447,13 +446,13 @@ func TestParseBiblioReadsRating(t *testing.T) {
 }
 
 func TestBiblioReadsBookReturnsErrorWhenUnavailable(t *testing.T) {
-	source := &fakeBiblioReadsSource{err: biblioreads.ErrUnavailable}
+	source := &fakeBiblioReadsSource{err: ErrUnavailable}
 	idx := newBiblioReadsTestIndexer(t, source)
 	if err := idx.AddLibrary(10, true, 1); err != nil {
 		t.Fatal(err)
 	}
 	doc, _ := idx.DocumentByID(biblioReadsTestID)
-	if _, err := idx.BiblioReadsBook(context.Background(), doc); !errors.Is(err, biblioreads.ErrUnavailable) {
+	if _, err := idx.BiblioReadsBook(context.Background(), doc); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("expected ErrUnavailable, got %v", err)
 	}
 	if doc, _ = idx.DocumentByID(biblioReadsTestID); mustBiblioReadsData(t, doc).Enriched {
@@ -491,23 +490,23 @@ func TestBiblioReadsTitleMatchScore(t *testing.T) {
 func TestPreferBiblioReadsBook(t *testing.T) {
 	for _, tt := range []struct {
 		name             string
-		candidate, best  biblioreads.SearchResult
+		candidate, best  SearchResult
 		score, bestScore int
 		want             bool
 	}{
 		{name: "first match", score: 1, want: true},
-		{name: "lower ID before rating for equal strength", candidate: biblioreads.SearchResult{BookURL: "/book/show/1"}, best: biblioreads.SearchResult{BookURL: "/book/show/2", Rating: "4"}, score: 3, bestScore: 3, want: true},
-		{name: "higher ID loses despite rating", candidate: biblioreads.SearchResult{BookURL: "/book/show/2", Rating: "4"}, best: biblioreads.SearchResult{BookURL: "/book/show/1"}, score: 3, bestScore: 3},
-		{name: "more ratings before ID", candidate: biblioreads.SearchResult{BookURL: "/book/show/2", RatingCount: "100"}, best: biblioreads.SearchResult{BookURL: "/book/show/1", RatingCount: "3"}, score: 3, bestScore: 3, want: true},
-		{name: "fewer ratings loses", candidate: biblioreads.SearchResult{RatingCount: "3"}, best: biblioreads.SearchResult{RatingCount: "100"}, score: 3, bestScore: 3},
-		{name: "result rank is not book ID", candidate: biblioreads.SearchResult{ID: 2, BookURL: "/book/show/1"}, best: biblioreads.SearchResult{ID: 1, BookURL: "/book/show/2"}, score: 3, bestScore: 3, want: true},
-		{name: "rating before strength for different strength", candidate: biblioreads.SearchResult{ID: 2, Rating: "4"}, best: biblioreads.SearchResult{ID: 1}, score: 1, bestScore: 3, want: true},
-		{name: "stronger unrated loses to rated", best: biblioreads.SearchResult{Rating: "4"}, score: 3, bestScore: 1},
+		{name: "lower ID before rating for equal strength", candidate: SearchResult{BookURL: "/book/show/1"}, best: SearchResult{BookURL: "/book/show/2", Rating: "4"}, score: 3, bestScore: 3, want: true},
+		{name: "higher ID loses despite rating", candidate: SearchResult{BookURL: "/book/show/2", Rating: "4"}, best: SearchResult{BookURL: "/book/show/1"}, score: 3, bestScore: 3},
+		{name: "more ratings before ID", candidate: SearchResult{BookURL: "/book/show/2", RatingCount: "100"}, best: SearchResult{BookURL: "/book/show/1", RatingCount: "3"}, score: 3, bestScore: 3, want: true},
+		{name: "fewer ratings loses", candidate: SearchResult{RatingCount: "3"}, best: SearchResult{RatingCount: "100"}, score: 3, bestScore: 3},
+		{name: "result rank is not book ID", candidate: SearchResult{ID: 2, BookURL: "/book/show/1"}, best: SearchResult{ID: 1, BookURL: "/book/show/2"}, score: 3, bestScore: 3, want: true},
+		{name: "rating before strength for different strength", candidate: SearchResult{ID: 2, Rating: "4"}, best: SearchResult{ID: 1}, score: 1, bestScore: 3, want: true},
+		{name: "stronger unrated loses to rated", best: SearchResult{Rating: "4"}, score: 3, bestScore: 1},
 		{name: "strength with same rating status", score: 3, bestScore: 1, want: true},
 		{name: "weaker match loses with same rating status", score: 1, bestScore: 3},
-		{name: "unknown ID falls back to rating", candidate: biblioreads.SearchResult{Rating: "4"}, best: biblioreads.SearchResult{ID: 1}, score: 3, bestScore: 3, want: true},
-		{name: "same ID falls back to rating", candidate: biblioreads.SearchResult{ID: 1, Rating: "4"}, best: biblioreads.SearchResult{ID: 1}, score: 3, bestScore: 3, want: true},
-		{name: "complete tie retains first match", candidate: biblioreads.SearchResult{ID: 1, Rating: "4"}, best: biblioreads.SearchResult{ID: 1, Rating: "3"}, score: 3, bestScore: 3},
+		{name: "unknown ID falls back to rating", candidate: SearchResult{Rating: "4"}, best: SearchResult{ID: 1}, score: 3, bestScore: 3, want: true},
+		{name: "same ID falls back to rating", candidate: SearchResult{ID: 1, Rating: "4"}, best: SearchResult{ID: 1}, score: 3, bestScore: 3, want: true},
+		{name: "complete tie retains first match", candidate: SearchResult{ID: 1, Rating: "4"}, best: SearchResult{ID: 1, Rating: "3"}, score: 3, bestScore: 3},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := preferBiblioReadsBook(tt.candidate, tt.best, tt.score, tt.bestScore); got != tt.want {
@@ -568,7 +567,7 @@ func TestBiblioReadsBookMatchesKennedyMiddleName(t *testing.T) {
 	const title = "Auge y caída de las grandes potencias"
 	const bookURL = "/book/show/27214"
 	const authorURL = "/author/show/8390124.Paul_M_Kennedy"
-	source := &fakeBiblioReadsSource{results: []biblioreads.SearchResult{{
+	source := &fakeBiblioReadsSource{results: []SearchResult{{
 		Title: title, Author: "Paul M. Kennedy", BookURL: bookURL, AuthorURL: authorURL, Rating: "4.14",
 	}}}
 	idx := newBiblioReadsTestIndexer(t, source)
@@ -601,11 +600,11 @@ func TestBiblioReadsBookMatchesKennedyMiddleName(t *testing.T) {
 }
 
 func TestMatchingBiblioReadsBook(t *testing.T) {
-	correct := biblioreads.SearchResult{
+	correct := SearchResult{
 		Title: "El señor de los anillos", Author: "J.R.R. Tolkien",
 		BookURL: "/book/show/37910810", AuthorURL: "/author/show/656983.J_R_R_Tolkien",
 	}
-	parody := biblioreads.SearchResult{
+	parody := SearchResult{
 		Title: "El sopor de los anillos", Author: "The Harvard Lampoon",
 		BookURL: "/book/show/7297403-el-sopor-de-los-anillos",
 	}
@@ -613,45 +612,45 @@ func TestMatchingBiblioReadsBook(t *testing.T) {
 		name    string
 		title   string
 		authors []string
-		results []biblioreads.SearchResult
+		results []SearchResult
 		want    string
 	}{
-		{name: "correct result after parody", results: []biblioreads.SearchResult{parody, correct}, want: correct.BookURL},
-		{name: "parody rejected", results: []biblioreads.SearchResult{parody}},
-		{name: "similar title with correct author rejected", results: []biblioreads.SearchResult{{Title: parody.Title, Author: correct.Author, BookURL: parody.BookURL}}},
-		{name: "wrong author rejected", results: []biblioreads.SearchResult{{Title: correct.Title, Author: parody.Author, BookURL: parody.BookURL}}},
-		{name: "normalization", title: "  EL SEN\u0303OR DE LOS ANILLOS! ", results: []biblioreads.SearchResult{correct}, want: correct.BookURL},
-		{name: "series suffix", results: []biblioreads.SearchResult{{Title: correct.Title + " (El señor de los anillos, #1)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
-		{name: "document series suffix", title: correct.Title + " (Middle Earth, #1)", results: []biblioreads.SearchResult{correct}, want: correct.BookURL},
-		{name: "omnibus range", results: []biblioreads.SearchResult{{Title: correct.Title + " (#1-#3)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
-		{name: "omnibus range with dash", results: []biblioreads.SearchResult{{Title: correct.Title + " (#1–3)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
-		{name: "document omnibus range", title: correct.Title + " (#1-#3)", results: []biblioreads.SearchResult{correct}, want: correct.BookURL},
-		{name: "standalone volume retained", results: []biblioreads.SearchResult{{Title: correct.Title + " (#1)", Author: correct.Author, BookURL: correct.BookURL}}},
-		{name: "series suffix ranks equally", results: []biblioreads.SearchResult{{Title: correct.Title + " (Middle Earth, #1)", Author: correct.Author, BookURL: "/book/show/2"}, correct}, want: "/book/show/2"},
-		{name: "lower Goodreads ID preferred over rating for equal titles", results: []biblioreads.SearchResult{
+		{name: "correct result after parody", results: []SearchResult{parody, correct}, want: correct.BookURL},
+		{name: "parody rejected", results: []SearchResult{parody}},
+		{name: "similar title with correct author rejected", results: []SearchResult{{Title: parody.Title, Author: correct.Author, BookURL: parody.BookURL}}},
+		{name: "wrong author rejected", results: []SearchResult{{Title: correct.Title, Author: parody.Author, BookURL: parody.BookURL}}},
+		{name: "normalization", title: "  EL SEN\u0303OR DE LOS ANILLOS! ", results: []SearchResult{correct}, want: correct.BookURL},
+		{name: "series suffix", results: []SearchResult{{Title: correct.Title + " (El señor de los anillos, #1)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
+		{name: "document series suffix", title: correct.Title + " (Middle Earth, #1)", results: []SearchResult{correct}, want: correct.BookURL},
+		{name: "omnibus range", results: []SearchResult{{Title: correct.Title + " (#1-#3)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
+		{name: "omnibus range with dash", results: []SearchResult{{Title: correct.Title + " (#1–3)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
+		{name: "document omnibus range", title: correct.Title + " (#1-#3)", results: []SearchResult{correct}, want: correct.BookURL},
+		{name: "standalone volume retained", results: []SearchResult{{Title: correct.Title + " (#1)", Author: correct.Author, BookURL: correct.BookURL}}},
+		{name: "series suffix ranks equally", results: []SearchResult{{Title: correct.Title + " (Middle Earth, #1)", Author: correct.Author, BookURL: "/book/show/2"}, correct}, want: "/book/show/2"},
+		{name: "lower Goodreads ID preferred over rating for equal titles", results: []SearchResult{
 			{ID: 1, Title: correct.Title, Author: correct.Author, BookURL: "/book/show/1-unrated", Rating: "0.00"},
 			{ID: 2, Title: correct.Title, Author: correct.Author, BookURL: "/book/show/2-rated", Rating: "4.05"},
 		}, want: "/book/show/1-unrated"},
-		{name: "unrated exact match retained when no rated match exists", results: []biblioreads.SearchResult{
+		{name: "unrated exact match retained when no rated match exists", results: []SearchResult{
 			{Title: correct.Title, Author: correct.Author, BookURL: "/book/show/1-unrated", Rating: "0.00"},
 			{Title: correct.Title, Author: correct.Author, BookURL: "/book/show/2"},
 		}, want: "/book/show/1-unrated"},
-		{name: "colon subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + ": Una historia", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
-		{name: "period subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + ". Una historia", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
-		{name: "dash subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + " — Una historia", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
-		{name: "document subtitle", title: correct.Title + ": Una historia", results: []biblioreads.SearchResult{correct}, want: correct.BookURL},
-		{name: "different subtitles rejected", title: correct.Title + ": Primera historia", results: []biblioreads.SearchResult{{Title: correct.Title + ": Otra historia", Author: correct.Author, BookURL: correct.BookURL}}},
-		{name: "subtitle wrong author rejected", results: []biblioreads.SearchResult{{Title: correct.Title + ": Una historia", Author: parody.Author, BookURL: correct.BookURL}}},
-		{name: "exact preferred over subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + ": Una historia", Author: correct.Author, BookURL: "/book/show/2"}, correct}, want: correct.BookURL},
-		{name: "series preferred over subtitle", results: []biblioreads.SearchResult{{Title: correct.Title + ": Una historia", Author: correct.Author, BookURL: "/book/show/2"}, {Title: correct.Title + " (#1-#3)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
-		{name: "arbitrary prefix rejected", results: []biblioreads.SearchResult{{Title: correct.Title + " y otras historias", Author: correct.Author, BookURL: correct.BookURL}}},
-		{name: "volume retained", results: []biblioreads.SearchResult{{Title: correct.Title + " 2", Author: correct.Author, BookURL: correct.BookURL}}},
-		{name: "trailing parenthetical accepted as weaker match", results: []biblioreads.SearchResult{{Title: correct.Title + " (An edition)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
-		{name: "missing result author", results: []biblioreads.SearchResult{{Title: correct.Title, BookURL: correct.BookURL}}},
-		{name: "missing result title", results: []biblioreads.SearchResult{{Author: correct.Author, BookURL: correct.BookURL}}},
-		{name: "missing URL", results: []biblioreads.SearchResult{{Title: correct.Title, Author: correct.Author}}},
-		{name: "any document author", authors: []string{"Another Writer", "J. R. R. Tolkien"}, results: []biblioreads.SearchResult{correct}, want: correct.BookURL},
-		{name: "no author", authors: []string{}, results: []biblioreads.SearchResult{correct}},
+		{name: "colon subtitle", results: []SearchResult{{Title: correct.Title + ": Una historia", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
+		{name: "period subtitle", results: []SearchResult{{Title: correct.Title + ". Una historia", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
+		{name: "dash subtitle", results: []SearchResult{{Title: correct.Title + " — Una historia", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
+		{name: "document subtitle", title: correct.Title + ": Una historia", results: []SearchResult{correct}, want: correct.BookURL},
+		{name: "different subtitles rejected", title: correct.Title + ": Primera historia", results: []SearchResult{{Title: correct.Title + ": Otra historia", Author: correct.Author, BookURL: correct.BookURL}}},
+		{name: "subtitle wrong author rejected", results: []SearchResult{{Title: correct.Title + ": Una historia", Author: parody.Author, BookURL: correct.BookURL}}},
+		{name: "exact preferred over subtitle", results: []SearchResult{{Title: correct.Title + ": Una historia", Author: correct.Author, BookURL: "/book/show/2"}, correct}, want: correct.BookURL},
+		{name: "series preferred over subtitle", results: []SearchResult{{Title: correct.Title + ": Una historia", Author: correct.Author, BookURL: "/book/show/2"}, {Title: correct.Title + " (#1-#3)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
+		{name: "arbitrary prefix rejected", results: []SearchResult{{Title: correct.Title + " y otras historias", Author: correct.Author, BookURL: correct.BookURL}}},
+		{name: "volume retained", results: []SearchResult{{Title: correct.Title + " 2", Author: correct.Author, BookURL: correct.BookURL}}},
+		{name: "trailing parenthetical accepted as weaker match", results: []SearchResult{{Title: correct.Title + " (An edition)", Author: correct.Author, BookURL: correct.BookURL}}, want: correct.BookURL},
+		{name: "missing result author", results: []SearchResult{{Title: correct.Title, BookURL: correct.BookURL}}},
+		{name: "missing result title", results: []SearchResult{{Author: correct.Author, BookURL: correct.BookURL}}},
+		{name: "missing URL", results: []SearchResult{{Title: correct.Title, Author: correct.Author}}},
+		{name: "any document author", authors: []string{"Another Writer", "J. R. R. Tolkien"}, results: []SearchResult{correct}, want: correct.BookURL},
+		{name: "no author", authors: []string{}, results: []SearchResult{correct}},
 		{name: "no results"},
 	}
 	for _, tt := range tests {
@@ -675,22 +674,22 @@ func TestMatchingBiblioReadsBookPrefersMoreRatingsWithSeriesSuffix(t *testing.T)
 	document := index.Document{Metadata: metadata.Metadata{
 		Title: "Los asesinatos de Manhattan", Authors: []string{"Douglas Preston", "Lincoln Child"},
 	}}
-	popular := biblioreads.SearchResult{
+	popular := SearchResult{
 		ID: 1, Title: "Los asesinatos de Manhattan (Pendergast, #3)", Author: "Douglas Preston",
 		BookURL: "/book/show/67005.Los_asesinatos_de_Manhattan", Rating: "4.26", RatingCount: "57,469",
 	}
-	obscure := biblioreads.SearchResult{
+	obscure := SearchResult{
 		ID: 3, Title: document.Title, Author: "Douglas Preston",
 		BookURL: "/book/show/152308668-los-asesinatos-de-manhattan", Rating: "3.67", RatingCount: "3",
 	}
-	for _, results := range [][]biblioreads.SearchResult{{popular, obscure}, {obscure, popular}} {
+	for _, results := range [][]SearchResult{{popular, obscure}, {obscure, popular}} {
 		match, ok := matchingBiblioReadsBook(document, results)
 		if !ok || match.BookURL != popular.BookURL {
 			t.Fatalf("expected popular series entry, got %+v, %v", match, ok)
 		}
 	}
 	popular.Author = "Another author"
-	match, ok := matchingBiblioReadsBook(document, []biblioreads.SearchResult{popular, obscure})
+	match, ok := matchingBiblioReadsBook(document, []SearchResult{popular, obscure})
 	if !ok || match.BookURL != obscure.BookURL {
 		t.Fatalf("rating count must not bypass author matching, got %+v, %v", match, ok)
 	}
@@ -718,16 +717,16 @@ func TestMatchingBiblioReadsBookPrefersLowerIDForEqualTitle(t *testing.T) {
 	document := index.Document{Metadata: metadata.Metadata{
 		Title: "El cercano Oriente", Authors: []string{"Isaac Asimov"},
 	}}
-	older := biblioreads.SearchResult{
+	older := SearchResult{
 		ID: 2, Title: "El Cercano Oriente", Author: "Isaac Asimov",
 		BookURL: olderBookURL, Rating: "4.10",
 	}
-	newer := biblioreads.SearchResult{
+	newer := SearchResult{
 		ID: 1, Title: "El Cercano Oriente", Author: "Isaac Asimov",
 		BookURL: newerBookURL, Rating: "4.26",
 	}
 
-	for _, results := range [][]biblioreads.SearchResult{{newer, older}, {older, newer}} {
+	for _, results := range [][]SearchResult{{newer, older}, {older, newer}} {
 		match, ok := matchingBiblioReadsBook(document, results)
 		if !ok || match.BookURL != olderBookURL {
 			t.Fatalf("expected lower Goodreads ID %q, got %+v, %v", olderBookURL, match, ok)
@@ -737,22 +736,22 @@ func TestMatchingBiblioReadsBookPrefersLowerIDForEqualTitle(t *testing.T) {
 
 func TestMatchingBiblioReadsBookPrefersRatedParentheticalTitle(t *testing.T) {
 	doc := index.Document{Metadata: metadata.Metadata{Title: "La promesa", Authors: []string{"Pearl S. Buck"}}}
-	rated := biblioreads.SearchResult{
+	rated := SearchResult{
 		Title: "La promesa (The Promise)", Author: "Pearl S. Buck",
 		BookURL: "/book/show/7377104-la-promesa", Rating: "4.04",
 	}
-	unrated := biblioreads.SearchResult{
+	unrated := SearchResult{
 		Title: "La promesa", Author: "Pearl S. Buck",
 		BookURL: "/book/show/210898619-la-promesa", Rating: "0.00",
 	}
-	for _, results := range [][]biblioreads.SearchResult{{rated, unrated}, {unrated, rated}} {
+	for _, results := range [][]SearchResult{{rated, unrated}, {unrated, rated}} {
 		match, ok := matchingBiblioReadsBook(doc, results)
 		if !ok || match.BookURL != rated.BookURL || match.Rating != rated.Rating {
 			t.Fatalf("expected rated translated-title entry, got %+v, %v", match, ok)
 		}
 	}
 	rated.Author = "Another author"
-	match, ok := matchingBiblioReadsBook(doc, []biblioreads.SearchResult{rated, unrated})
+	match, ok := matchingBiblioReadsBook(doc, []SearchResult{rated, unrated})
 	if !ok || match.BookURL != unrated.BookURL {
 		t.Fatalf("rated entry by another author must not win, got %+v, %v", match, ok)
 	}
@@ -762,7 +761,7 @@ func TestBiblioReadsBookMatchesDolnickSubtitle(t *testing.T) {
 	const title = "La escritura de los dioses"
 	const author = "Edward Dolnick"
 	const bookURL = "/book/show/208277727-la-escritura-de-los-dioses-descifrando-la-piedra-de-rosetta"
-	source := &fakeBiblioReadsSource{results: []biblioreads.SearchResult{{
+	source := &fakeBiblioReadsSource{results: []SearchResult{{
 		Title: title + ". Descifrando la piedra de Rosetta", Author: author,
 		BookURL: bookURL, Rating: "4.19",
 	}}}
@@ -789,15 +788,15 @@ func TestBiblioReadsBookMatchesDolnickSubtitle(t *testing.T) {
 
 func TestBiblioReadsTitleFallback(t *testing.T) {
 	const title = "El señor de los anillos"
-	correct := biblioreads.SearchResult{Title: title, Author: "J.R.R. Tolkien", BookURL: "/book/show/37910810"}
-	parody := biblioreads.SearchResult{Title: "El sopor de los anillos", Author: "The Harvard Lampoon", BookURL: "/book/show/7297403"}
+	correct := SearchResult{Title: title, Author: "J.R.R. Tolkien", BookURL: "/book/show/37910810"}
+	parody := SearchResult{Title: "El sopor de los anillos", Author: "The Harvard Lampoon", BookURL: "/book/show/7297403"}
 	for _, fallbackUnavailable := range []bool{false, true} {
 		name := "matched"
 		if fallbackUnavailable {
 			name = "unavailable"
 		}
 		t.Run(name, func(t *testing.T) {
-			source := &fakeBiblioReadsSource{byQuery: map[string][]biblioreads.SearchResult{
+			source := &fakeBiblioReadsSource{byQuery: map[string][]SearchResult{
 				title + " J. R. R. Tolkien": {parody},
 				title:                       {parody, correct},
 			}}
@@ -807,11 +806,11 @@ func TestBiblioReadsTitleFallback(t *testing.T) {
 				t.Fatal(err)
 			}
 			if fallbackUnavailable {
-				source.queryErrors = map[string]error{title: biblioreads.ErrUnavailable}
+				source.queryErrors = map[string]error{title: ErrUnavailable}
 			}
 			got, err := idx.BiblioReadsBook(context.Background(), doc)
 			if fallbackUnavailable {
-				if !errors.Is(err, biblioreads.ErrUnavailable) || got.BookURL != "" {
+				if !errors.Is(err, ErrUnavailable) || got.BookURL != "" {
 					t.Fatalf("expected unavailable error, got %+v, %v", got, err)
 				}
 				stored, readErr := idx.DocumentByID(doc.ID)
@@ -839,14 +838,14 @@ func TestBiblioReadsMatchesTolkienOmnibusSearchResults(t *testing.T) {
 	const title = "El señor de los anillos"
 	const wantURL = "/book/show/37910810-el-se-or-de-los-anillos"
 	// Titles and ordering from BiblioReads' actual title-only search response.
-	results := []biblioreads.SearchResult{
+	results := []SearchResult{
 		{Title: "La comunidad del anillo (El señor de los anillos, #1)", Author: "J.R.R. Tolkien", BookURL: "/book/show/222947.La_comunidad_del_anillo"},
 		{Title: "Las dos torres (El señor de los anillos, #2)", Author: "J.R.R. Tolkien", BookURL: "/book/show/15280.Las_dos_torres"},
 		{Title: "El retorno del rey (El señor de los anillos, #3)", Author: "J.R.R. Tolkien", BookURL: "/book/show/63358.El_retorno_del_rey"},
 		{Title: "El señor de los anillos (#1-#3)", Author: "J.R.R. Tolkien", BookURL: wantURL, AuthorURL: "/author/show/656983.J_R_R_Tolkien"},
 		{Title: "Apéndices (El Señor de los Anillos, #4)", Author: "J.R.R. Tolkien", BookURL: "/book/show/54694.Ap_ndices"},
 	}
-	source := &fakeBiblioReadsSource{byQuery: map[string][]biblioreads.SearchResult{title: results}}
+	source := &fakeBiblioReadsSource{byQuery: map[string][]SearchResult{title: results}}
 	idx := newBiblioReadsTestIndexer(t, source)
 	doc := index.Document{ID: biblioReadsTestID, AuthorsSlugs: []string{"j-r-r-tolkien"}, Metadata: metadata.Metadata{Title: title, Authors: []string{"J. R. R. Tolkien"}}}
 	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
@@ -882,7 +881,7 @@ func TestForceIndexingRefreshesBiblioReadsMatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	updateBiblioReadsData(t, &doc, func(data *biblioreads.DocumentData) {
+	updateBiblioReadsData(t, &doc, func(data *DocumentData) {
 		data.URL = "/book/show/1-wrong"
 		data.ResourceID = "wrong-work"
 		data.LegacyBookID = 1
@@ -918,20 +917,20 @@ func TestStoreBiblioReadsDetails(t *testing.T) {
 				Metadata: metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}},
 
 				TextRankWords: []string{"dragon"},
-			}, biblioreads.DocumentData{URL: wantDataSourceLink, Enriched: true})
+			}, DocumentData{URL: wantDataSourceLink, Enriched: true})
 
 			stale := doc
 			resourceID := "work-id"
 			switch scenario {
 			case "newly linked":
-				updateBiblioReadsData(t, &stale, func(data *biblioreads.DocumentData) {
+				updateBiblioReadsData(t, &stale, func(data *DocumentData) {
 					data.URL = ""
 					data.Enriched = false
 				})
 			case "changed metadata":
 				doc.Title = "Another title"
 			case "changed match":
-				updateBiblioReadsData(t, &doc, func(data *biblioreads.DocumentData) {
+				updateBiblioReadsData(t, &doc, func(data *DocumentData) {
 					data.URL = "/book/show/2-other"
 				})
 			case "partial identifiers":
@@ -943,7 +942,7 @@ func TestStoreBiblioReadsDetails(t *testing.T) {
 				}
 			}
 
-			book := biblioreads.BookResponse{Rating: "4.12", ResourceID: resourceID, LegacyBookID: 12207444}
+			book := BookResponse{Rating: "4.12", ResourceID: resourceID, LegacyBookID: 12207444}
 			writes := idx.documentsIdx
 			writes.count.Store(0)
 			err := idx.StoreBiblioReadsDetails(stale, wantDataSourceLink, book)
@@ -1011,26 +1010,26 @@ func (i *biblioReadsWriteCountingIndex) Index(id string, data any) error {
 func TestStoreBiblioReadsDetailsPreservesMissingFields(t *testing.T) {
 	for _, tt := range []struct {
 		name       string
-		book       biblioreads.BookResponse
+		book       BookResponse
 		wantRating string
 		wantCount  string
 		wantWork   string
 		wantID     int
 	}{
-		{name: "rating only", book: biblioreads.BookResponse{Rating: "4.12"}, wantRating: "4.12", wantWork: "old-work", wantID: 1},
-		{name: "identifiers only", book: biblioreads.BookResponse{ResourceID: "new-work", LegacyBookID: 2}, wantRating: "3.82", wantWork: "new-work", wantID: 2},
-		{name: "missing work", book: biblioreads.BookResponse{Rating: "4.12", LegacyBookID: 2}, wantRating: "4.12", wantWork: "old-work", wantID: 1},
-		{name: "missing edition", book: biblioreads.BookResponse{Rating: "4.12", ResourceID: "new-work"}, wantRating: "4.12", wantWork: "old-work", wantID: 1},
+		{name: "rating only", book: BookResponse{Rating: "4.12"}, wantRating: "4.12", wantWork: "old-work", wantID: 1},
+		{name: "identifiers only", book: BookResponse{ResourceID: "new-work", LegacyBookID: 2}, wantRating: "3.82", wantWork: "new-work", wantID: 2},
+		{name: "missing work", book: BookResponse{Rating: "4.12", LegacyBookID: 2}, wantRating: "4.12", wantWork: "old-work", wantID: 1},
+		{name: "missing edition", book: BookResponse{Rating: "4.12", ResourceID: "new-work"}, wantRating: "4.12", wantWork: "old-work", wantID: 1},
 		{name: "empty response", wantRating: "3.82", wantWork: "old-work", wantID: 1},
-		{name: "count only", book: biblioreads.BookResponse{RatingCount: "650"}, wantRating: "3.82", wantCount: "650", wantWork: "old-work", wantID: 1},
-		{name: "zero count", book: biblioreads.BookResponse{RatingCount: "0"}, wantRating: "3.82", wantCount: "0", wantWork: "old-work", wantID: 1},
+		{name: "count only", book: BookResponse{RatingCount: "650"}, wantRating: "3.82", wantCount: "650", wantWork: "old-work", wantID: 1},
+		{name: "zero count", book: BookResponse{RatingCount: "0"}, wantRating: "3.82", wantCount: "0", wantWork: "old-work", wantID: 1},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			idx := newBiblioReadsTestIndexer(t, nil)
 			doc := withBiblioReadsData(t, index.Document{
 				ID:                   biblioReadsTestID,
 				DataSourceScoreValue: 3.82,
-			}, biblioreads.DocumentData{URL: wantDataSourceLink, RatingCount: "2,285", ResourceID: "old-work", LegacyBookID: 1})
+			}, DocumentData{URL: wantDataSourceLink, RatingCount: "2,285", ResourceID: "old-work", LegacyBookID: 1})
 
 			if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
 				t.Fatal(err)
@@ -1064,7 +1063,7 @@ func TestUpdateDataSourceLink(t *testing.T) {
 		TextRankWords: []string{"dragon"},
 
 		DataSourceScoreValue: 3.82,
-	}, biblioreads.DocumentData{URL: wantDataSourceLink, RatingCount: "2,285", ResourceID: "old-work", LegacyBookID: 12207444, Enriched: true})
+	}, DocumentData{URL: wantDataSourceLink, RatingCount: "2,285", ResourceID: "old-work", LegacyBookID: 12207444, Enriched: true})
 
 	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
 		t.Fatal(err)
@@ -1084,7 +1083,7 @@ func TestUpdateDataSourceLink(t *testing.T) {
 	if stored.Title != doc.Title || stored.Slug != doc.Slug || !slices.Equal(stored.TextRankWords, doc.TextRankWords) {
 		t.Fatalf("review-link update changed unrelated document data: %+v", stored)
 	}
-	if err := idx.StoreBiblioReadsDetails(doc, mustBiblioReadsData(t, doc).URL, biblioreads.BookResponse{Rating: "4.5"}); err == nil {
+	if err := idx.StoreBiblioReadsDetails(doc, mustBiblioReadsData(t, doc).URL, BookResponse{Rating: "4.5"}); err == nil {
 		t.Fatal("stale score write must not overwrite the updated link")
 	}
 }
@@ -1119,7 +1118,7 @@ func TestBiblioReadsDataSourcesSurviveProviderAndStaleWrites(t *testing.T) {
 	if err := idx.Enricher.Enrich(context.Background(), idx.BleveIndexer, stale); err != nil {
 		t.Fatal(err)
 	}
-	if err := idx.StoreBiblioReadsDetails(stale, wantDataSourceLink, biblioreads.BookResponse{
+	if err := idx.StoreBiblioReadsDetails(stale, wantDataSourceLink, BookResponse{
 		Rating: "4.5", RatingCount: "100", ResourceID: "work", LegacyBookID: 123,
 	}); err != nil {
 		t.Fatal(err)
@@ -1142,14 +1141,14 @@ func TestBiblioReadsDataSourcesSurviveProviderAndStaleWrites(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(decoded, other) {
 		t.Fatalf("another provider's payload was lost: %+v, %v", decoded, err)
 	}
-	if data := mustBiblioReadsData(t, got); data != (biblioreads.DocumentData{URL: "/book/show/456", Enriched: true}) {
+	if data := mustBiblioReadsData(t, got); data != (DocumentData{URL: "/book/show/456", Enriched: true}) {
 		t.Fatalf("stale write restored old Goodreads state: %+v", data)
 	}
 }
 
 func TestBiblioReadsBookRejectsInvalidProviderData(t *testing.T) {
 	idx := newBiblioReadsTestIndexer(t, nil)
-	document := index.Document{DataSources: map[string]json.RawMessage{biblioreads.Source: json.RawMessage(`{"url":42}`)}}
+	document := index.Document{DataSources: map[string]json.RawMessage{Source: json.RawMessage(`{"url":42}`)}}
 	if _, err := idx.BiblioReadsBook(context.Background(), document); err == nil {
 		t.Fatal("Goodreads accepted an incorrectly typed URL")
 	}

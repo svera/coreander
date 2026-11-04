@@ -1,4 +1,4 @@
-// Package biblioreads implements a client for the BiblioReads API
+// Package biblioreads implements a client and index enrichment adapter for the BiblioReads API
 // (https://github.com/nesaku/biblioreads), an alternative Goodreads front-end.
 package biblioreads
 

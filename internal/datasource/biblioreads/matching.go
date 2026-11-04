@@ -8,7 +8,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"golang.org/x/text/unicode/norm"
 )
@@ -112,7 +111,7 @@ func biblioReadsTitleMatchScore(candidate, title, mainTitle string) int {
 	return 0
 }
 
-func preferBiblioReadsBook(candidate, best biblioreads.SearchResult, score, bestScore int) bool {
+func preferBiblioReadsBook(candidate, best SearchResult, score, bestScore int) bool {
 	if bestScore == 0 {
 		return true
 	}
@@ -158,13 +157,13 @@ func goodreadsBookID(bookURL string) uint64 {
 	return id
 }
 
-func matchingBiblioReadsBook(document index.Document, results []biblioreads.SearchResult) (biblioreads.SearchResult, bool) {
+func matchingBiblioReadsBook(document index.Document, results []SearchResult) (SearchResult, bool) {
 	title := biblioReadsTitle(document.Title)
 	if title == "" {
-		return biblioreads.SearchResult{}, false
+		return SearchResult{}, false
 	}
 	mainTitle := biblioReadsMainTitle(document.Title)
-	var best biblioreads.SearchResult
+	var best SearchResult
 	bestScore := 0
 	for _, result := range results {
 		if result.BookURL == "" {

@@ -17,7 +17,6 @@ import (
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
-	biblioreadsenrichment "github.com/svera/coreander/v5/internal/enrichment/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/reviews"
@@ -104,13 +103,13 @@ func main() {
 	var needsReindex bool
 	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize, input.MinOccurrenceRatio, maxTextRankWords)
 	var documentEnrichers []index.DocumentEnricher
-	biblioReadsAdapter := biblioreadsenrichment.New(nil)
+	biblioReadsAdapter := biblioreads.NewEnricher(nil)
 	if !input.DisableBiblioreads {
 		biblioreadsClient = biblioreads.NewClient(
 			biblioreads.WithInstances(input.BiblioreadsInstances),
 			biblioreads.WithCacheTTL(time.Duration(input.BiblioreadsCacheTTL)*time.Second),
 		)
-		biblioReadsAdapter = biblioreadsenrichment.New(biblioreadsClient)
+		biblioReadsAdapter = biblioreads.NewEnricher(biblioreadsClient)
 		documentEnrichers = append(documentEnrichers, biblioReadsAdapter)
 	}
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
