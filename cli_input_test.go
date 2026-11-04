@@ -53,23 +53,20 @@ func TestReviewSourceInstancesRejectInvalidURLs(t *testing.T) {
 
 func TestReviewSourceSettings(t *testing.T) {
 	for _, tt := range []struct {
-		name     string
-		args     []string
-		disabled string
-		ttl      string
-		wantOff  bool
-		wantTTL  int
+		name    string
+		args    []string
+		ttl     string
+		wantTTL int
 	}{
 		{name: "defaults", wantTTL: 86400},
-		{name: "flags", args: []string{"--disable-reviews", "--review-source-cache-ttl=120"}, wantOff: true, wantTTL: 120},
-		{name: "environment", disabled: "true", ttl: "300", wantOff: true, wantTTL: 300},
-		{name: "flags override environment", disabled: "true", ttl: "300", args: []string{"--disable-reviews=false", "--review-source-cache-ttl=0"}},
+		{name: "flags", args: []string{"--review-source-cache-ttl=120"}, wantTTL: 120},
+		{name: "environment", ttl: "300", wantTTL: 300},
+		{name: "flags override environment", ttl: "300", args: []string{"--review-source-cache-ttl=0"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("DISABLE_REVIEWS", tt.disabled)
 			t.Setenv("REVIEW_SOURCE_CACHE_TTL", tt.ttl)
 			for key, value := range map[string]string{
-				"DISABLE_REVIEWS": tt.disabled, "REVIEW_SOURCE_CACHE_TTL": tt.ttl,
+				"REVIEW_SOURCE_CACHE_TTL": tt.ttl,
 			} {
 				if value == "" {
 					if err := os.Unsetenv(key); err != nil {
@@ -82,10 +79,19 @@ func TestReviewSourceSettings(t *testing.T) {
 			if _, err := parser.Parse(append(tt.args, t.TempDir())); err != nil {
 				t.Fatal(err)
 			}
-			if input.DisableReviews != tt.wantOff || input.ReviewSourceCacheTTL != tt.wantTTL {
-				t.Fatalf("disabled/TTL = %v/%d, want %v/%d", input.DisableReviews, input.ReviewSourceCacheTTL, tt.wantOff, tt.wantTTL)
+			if input.ReviewSourceCacheTTL != tt.wantTTL {
+				t.Fatalf("TTL = %d, want %d", input.ReviewSourceCacheTTL, tt.wantTTL)
 			}
 		})
+	}
+}
+
+func TestDisableReviewsFlagRemoved(t *testing.T) {
+	var input CLIInput
+	parser := newCLIParser(t, &input)
+	if _, err := parser.Parse([]string{"--disable-reviews", t.TempDir()}); err == nil ||
+		!strings.Contains(err.Error(), "unknown flag") {
+		t.Fatalf("expected removed flag to be rejected, got %v", err)
 	}
 }
 

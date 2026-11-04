@@ -104,13 +104,15 @@ func main() {
 	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize, input.MinOccurrenceRatio, maxTextRankWords)
 	var documentEnrichers []index.DocumentEnricher
 	biblioReadsAdapter := biblioreads.NewEnricher(nil)
-	if !input.DisableReviews {
+	if len(input.ReviewSourceInstances) > 0 {
 		biblioreadsClient = biblioreads.NewClient(
 			biblioreads.WithInstances(input.ReviewSourceInstances),
 			biblioreads.WithCacheTTL(time.Duration(input.ReviewSourceCacheTTL)*time.Second),
 		)
 		biblioReadsAdapter = biblioreads.NewEnricher(biblioreadsClient)
 		documentEnrichers = append(documentEnrichers, biblioReadsAdapter)
+	} else {
+		log.Println("Review lookups disabled: configure review-source-instances with self-hosted endpoints or endpoints whose operators permit automation.")
 	}
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
 		IllustratedMinAmount:           input.IllustratedMinAmount,

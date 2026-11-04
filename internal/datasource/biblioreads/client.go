@@ -28,17 +28,6 @@ const (
 	reviewsScraperPath = "/api/reviews-scraper"
 )
 
-// DefaultInstances lists public BiblioReads instances.
-var DefaultInstances = []string{
-	"https://biblioreads.eu.org",
-	"https://biblioreads.mooo.com",
-	"https://biblioreads.lunar.icu",
-	"https://biblioreads.ducks.party",
-	"https://biblioreads.privacyredirect.com",
-	"https://br.bloat.cat",
-	"https://biblioreads.utilibre.org",
-}
-
 // ErrUnavailable is returned when no instance could serve a request (network errors, rate limits,
 // non-JSON responses), as opposed to an instance answering with an error of its own.
 var ErrUnavailable = errors.New("biblioreads: all instances failed")
@@ -71,12 +60,11 @@ func WithRequestInterval(interval time.Duration) Option {
 	}
 }
 
-// WithInstances sets the BiblioReads instances to use. An empty list keeps DefaultInstances.
+// WithInstances sets endpoints the caller hosts or has permission to automate.
+// An empty list disables requests; there is no public-instance fallback.
 func WithInstances(instances []string) Option {
 	return func(o *options) {
-		if len(instances) > 0 {
-			o.instances = instances
-		}
+		o.instances = instances
 	}
 }
 
@@ -102,10 +90,10 @@ func WithCacheTTL(ttl time.Duration) Option {
 // instance are spaced at least one second apart by default, including failover
 // attempts. Unavailable instances are skipped until their Retry-After time, or
 // httpjson.DefaultRetryAfter, has passed. Successful responses are cached in memory for
-// DefaultCacheTTL unless changed with WithCacheTTL.
+// DefaultCacheTTL unless changed with WithCacheTTL. No endpoints are configured
+// by default; callers must supply them with WithInstances.
 func NewClient(opts ...Option) *Client {
 	o := options{
-		instances:       DefaultInstances,
 		httpClient:      &http.Client{Timeout: 15 * time.Second},
 		cacheTTL:        DefaultCacheTTL,
 		requestInterval: time.Second,
@@ -206,6 +194,9 @@ func (e *unavailableError) Unwrap() error {
 }
 
 func (c *Client) post(ctx context.Context, path string, payload, dest any) error {
+	if len(c.instances) == 0 {
+		return fmt.Errorf("%w: no BiblioReads endpoints configured", ErrUnavailable)
+	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return err

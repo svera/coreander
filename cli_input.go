@@ -82,10 +82,8 @@ type CLIInput struct {
 	// ServerStaticCacheTTL defines the server-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 1 year.
 	ServerStaticCacheTTL int `env:"SERVER_STATIC_CACHE_TTL" default:"31536000" name:"server-static-cache-ttl" help:"Server-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 1 year (31536000 seconds)."`
 	// ServerDynamicImageCacheTTL defines the server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours.
-	ServerDynamicImageCacheTTL int `env:"SERVER_DYNAMIC_IMAGE_CACHE_TTL" default:"86400" name:"server-dynamic-image-cache-ttl" help:"Server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours (86400 seconds)."`
-	// DisableReviews turns off review-source lookups, including ratings and book and author links.
-	DisableReviews        bool     `env:"DISABLE_REVIEWS" default:"false" name:"disable-reviews" help:"Disable fetching reviews, ratings, and book and author links from the review source."`
-	ReviewSourceInstances []string `env:"REVIEW_SOURCE_INSTANCES" name:"review-source-instances" sep:"," help:"Comma-separated HTTP or HTTPS instance URLs compatible with the review source. Replaces the built-in public instances. May be repeated."`
+	ServerDynamicImageCacheTTL int      `env:"SERVER_DYNAMIC_IMAGE_CACHE_TTL" default:"86400" name:"server-dynamic-image-cache-ttl" help:"Server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 24 hours (86400 seconds)."`
+	ReviewSourceInstances      []string `env:"REVIEW_SOURCE_INSTANCES" name:"review-source-instances" sep:"," help:"Comma-separated HTTP or HTTPS BiblioReads endpoints you host or whose operators permit automation. Required to enable review lookups; omit to disable. May be repeated; no public fallback."`
 	// ReviewSourceCacheTTL defines how long review-source responses are cached in memory, in seconds. Defaults to 24 hours.
 	ReviewSourceCacheTTL int `env:"REVIEW_SOURCE_CACHE_TTL" default:"86400" name:"review-source-cache-ttl" help:"Duration in seconds for which review-source responses are cached in memory. Set to 0 to disable caching. Defaults to 24 hours (86400 seconds)."`
 	// ShareCommentMaxSize defines the maximum length for share comments in characters. Defaults to 280.
