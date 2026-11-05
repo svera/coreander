@@ -69,8 +69,8 @@ func seedDocumentIndex(t *testing.T, version string) {
 		}
 	}
 	if err := documents.Index("legacy-book", legacyV13Document{
-		ID: "legacy-book", Slug: "legacy-book",
-		Metadata: metadata.Metadata{Title: "Legacy book"},
+		ID: "legacy-book", Slug: "legacy-book", AuthorsSlugs: []string{"existing-author"},
+		Metadata: metadata.Metadata{Title: "Legacy book", Authors: []string{"Existing Author"}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -205,6 +205,27 @@ func TestGetIndexesRejectsUnsupportedDocuments(t *testing.T) {
 				t.Fatalf("unsupported documents must remain untouched: count=%d, err=%v", count, err)
 			}
 		})
+	}
+}
+
+func TestGetIndexesMigratesV13WithoutReindexWhenAuthorsIndexIsMissing(t *testing.T) {
+	previousHome, previousInput := homeDir, input
+	t.Cleanup(func() { homeDir, input = previousHome, previousInput })
+	homeDir = t.TempDir()
+	input.BatchSize, input.ForceIndexing = 1, false
+	seedDocumentIndex(t, "v13")
+
+	documents, authors, needsReindex := getIndexes(afero.NewOsFs(), 0.25, 0.1, 10000)
+	defer documents.Close()
+	defer authors.Close()
+	if needsReindex {
+		t.Fatal("creating the missing authors index must not force document reindexing")
+	}
+	if count, err := documents.DocCount(); err != nil || count != 1 {
+		t.Fatalf("v13 migration must preserve documents: count=%d, err=%v", count, err)
+	}
+	if count, err := authors.DocCount(); err != nil || count != 1 {
+		t.Fatalf("authors index must be rebuilt from migrated documents: count=%d, err=%v", count, err)
 	}
 }
 

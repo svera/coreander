@@ -260,6 +260,7 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWor
 
 func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, maxTextRankWords int) (bleve.Index, bleve.Index, bool) {
 	needsReindex := false
+	authorsIndexCreated := false
 
 	// Open or create documents index
 	documentsPath := homeDir + documentsIndexPath
@@ -280,7 +281,7 @@ func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, max
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No authors index found, creating a new one.")
 		authorsIndex = index.CreateAuthorsIndex(homeDir + authorsIndexPath)
-		needsReindex = true
+		authorsIndexCreated = true
 	} else if err != nil {
 		log.Fatal(err)
 	}
@@ -351,6 +352,13 @@ func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, max
 			if err = tmpIdx.RebuildAuthorsFromDocuments(input.BatchSize); err != nil {
 				log.Fatal(err)
 			}
+		}
+	} else if authorsIndexCreated && !needsReindex {
+		// A missing authors index can be rebuilt from the existing documents index,
+		// without forcing a scan of the library files.
+		tmpIdx := index.NewBleve(documentsIndex, authorsIndex, nil, "", nil, index.Config{})
+		if err = tmpIdx.RebuildAuthorsFromDocuments(input.BatchSize); err != nil {
+			log.Fatal(err)
 		}
 	}
 

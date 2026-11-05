@@ -90,8 +90,6 @@ When using a reverse proxy, include its client-facing port in `FQDN`, for exampl
 
 Coreander can use [BiblioReads](https://github.com/nesaku/biblioreads), an alternative Goodreads front-end, to find Goodreads book and author links and display book ratings on document detail pages. Lookups are disabled by default and require explicitly configured endpoints. BiblioReads asks API and automation users to host their own instance; configure an instance you host, or one whose operator explicitly permits automated library-wide requests. No API key or Goodreads account is required. **You can find a list of public endpoints at https://github.com/nesaku/BiblioReads#instances**.
 
-Coreander looks up documents in the background after indexing and can also look up a document when its detail page is opened. Ratings load asynchronously, without blocking the rest of the page. Previously saved lookup outcomes, including books with no match, are reused; to re-evaluate them with the current matching rules, restart Coreander with `--force-indexing` (or `FORCE_INDEXING=true`). This reindexes the whole library and repeats Goodreads lookups. Existing v13 document indexes are copied into the current mapping without rescanning the library; BiblioReads network lookups still require configured endpoints.
-
 To enable lookups, pass your permitted endpoints as a comma-separated list. Requests are spread across only these endpoints, with automatic failover when one is unavailable. There are no built-in public endpoints or public-instance fallback:
 
 ```sh
@@ -192,7 +190,7 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`--client-dynamic-image-cache-ttl`   |`CLIENT_DYNAMIC_IMAGE_CACHE_TTL`  | Client-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 86400 (24 hours).
 |`--server-static-cache-ttl`          |`SERVER_STATIC_CACHE_TTL`         | Server-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 31536000 (1 year).
 |`--server-dynamic-image-cache-ttl`   |`SERVER_DYNAMIC_IMAGE_CACHE_TTL`  | Server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 86400 (24 hours).
-|`--review-source-instances`         |`REVIEW_SOURCE_INSTANCES`        | Comma-separated HTTP or HTTPS BiblioReads endpoints you host or whose operators permit automation. Required to enable lookups; defaults to none, with no public fallback. Omit and unset the environment variable to disable lookups. The flag may be repeated. For example: `--review-source-instances=http://localhost:8080`.
+|`--review-source-instances`         |`REVIEW_SOURCE_INSTANCES`        | Comma-separated HTTP or HTTPS BiblioReads endpoints you host or whose operators permit automation. Required to enable lookups; defaults to none. Omit and unset the environment variable to disable lookups. The flag may be repeated. For example: `--review-source-instances=http://localhost:8080`.
 |`--review-source-cache-ttl`         |`REVIEW_SOURCE_CACHE_TTL`        | Duration in seconds for which review-source responses are cached in memory. Set to 0 to disable caching. Defaults to 86400 (24 hours).
 |`-f` or `--force-indexing`           |`FORCE_INDEXING`          | Whether to force indexing already indexed documents or not. Defaults to false.
 |`-s` or `--jwt-secret`               |`JWT_SECRET`              | String to use to sign JWTs.
