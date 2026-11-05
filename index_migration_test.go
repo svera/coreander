@@ -23,12 +23,43 @@ func (migrationReader) Metadata(string) (metadata.Metadata, error) {
 	return metadata.Metadata{Title: "Rebuilt book", Authors: []string{"Existing Author"}, Format: "PDF"}, nil
 }
 
+type legacyV13Document struct {
+	metadata.Metadata
+	ID                string
+	Slug              string
+	AuthorsSlugs      []string
+	IllustratorsSlugs []string
+	SeriesSlug        string
+	SubjectsSlugs     []string
+	AddedOn           time.Time
+	TextRankPhrases   []string
+	TextRankWords     []string
+	TextRankEnriched  bool
+}
+
 func seedDocumentIndex(t *testing.T, version string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Join(homeDir, ".coreander"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	documents := index.CreateDocumentsIndex(homeDir + documentsIndexPath)
+	documentsMapping := index.CreateDocumentsMapping().(*mapping.IndexMappingImpl)
+	delete(documentsMapping.DefaultMapping.Properties, "DataSources")
+	delete(documentsMapping.DefaultMapping.Properties, "EnrichedDataSources")
+	delete(documentsMapping.DefaultMapping.Properties, "DataSourceScoreValue")
+	for _, documentMapping := range documentsMapping.TypeMapping {
+		delete(documentMapping.Properties, "DataSources")
+		delete(documentMapping.Properties, "EnrichedDataSources")
+		delete(documentMapping.Properties, "DataSourceScoreValue")
+	}
+	legacyURLMapping := bleve.NewKeywordFieldMapping()
+	legacyURLMapping.Index = false
+	documentsMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsBookURL", legacyURLMapping)
+	documentsMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsAuthorURL", legacyURLMapping)
+	documentsMapping.DefaultMapping.AddFieldMappingsAt("GoodReadsEnriched", bleve.NewBooleanFieldMapping())
+	documents, err := bleve.New(homeDir+documentsIndexPath, documentsMapping)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for key, value := range map[string]string{
 		"version": version, "illustrated_min_size": "0.25",
 		"min_occurrence_ratio": "0.1", "max_textrank_words": "10000",
@@ -37,8 +68,9 @@ func seedDocumentIndex(t *testing.T, version string) {
 			t.Fatal(err)
 		}
 	}
-	if err := index.IndexDocument(documents, "legacy-book", index.Document{
-		ID: "legacy-book", Slug: "legacy-book", Metadata: metadata.Metadata{Title: "Legacy book"},
+	if err := documents.Index("legacy-book", legacyV13Document{
+		ID: "legacy-book", Slug: "legacy-book",
+		Metadata: metadata.Metadata{Title: "Legacy book"},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -77,6 +109,30 @@ func TestGetIndexesRebuildsOlderDocuments(t *testing.T) {
 					t.Fatal(err)
 				}
 				documents, authors, needsReindex := getIndexes(fs, 0.25, 0.1, 10000)
+				if version == "v13" && !force {
+					if needsReindex {
+						t.Fatal("v13 migration must not request library reindexing")
+					}
+					if count, err := documents.DocCount(); err != nil || count != 1 {
+						t.Fatalf("v13 migration must preserve documents: count=%d, err=%v", count, err)
+					}
+					if migratedVersion, err := documents.GetInternal([]byte("version")); err != nil || string(migratedVersion) != index.DocumentVersion {
+						t.Fatalf("expected migrated index version %q, got %q, %v", index.DocumentVersion, migratedVersion, err)
+					}
+					idx := index.NewBleve(documents, authors, fs, lib, nil, index.Config{})
+					document, err := idx.Document("legacy-book")
+					if err != nil || document.Title != "Legacy book" {
+						t.Fatalf("v13 migration must preserve indexed document: %+v, %v", document, err)
+					}
+					data, err := index.DataSourceData[biblioreads.DocumentData](document, biblioreads.Source)
+					if err != nil || data.URL != "" || data.Enriched {
+						t.Fatalf("v13 migration must not introduce Goodreads data: %+v, %v", data, err)
+					}
+					if err := idx.Close(); err != nil {
+						t.Fatal(err)
+					}
+					return
+				}
 				if !needsReindex {
 					t.Fatal("older index upgrade must request forced library indexing")
 				}

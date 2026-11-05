@@ -262,7 +262,11 @@ func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, max
 	needsReindex := false
 
 	// Open or create documents index
-	documentsIndex, err := bleve.Open(homeDir + documentsIndexPath)
+	documentsPath := homeDir + documentsIndexPath
+	if err := index.RecoverDocumentsIndex(documentsPath); err != nil {
+		log.Fatal(err)
+	}
+	documentsIndex, err := bleve.Open(documentsPath)
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No documents index found, creating a new one.")
 		documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)
@@ -285,6 +289,14 @@ func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, max
 	version, err := documentsIndex.GetInternal([]byte("version"))
 	if err != nil {
 		log.Fatal(err)
+	}
+	if string(version) == "v13" && !input.ForceIndexing {
+		log.Printf("Migrating documents index from v13 to %s.", index.DocumentVersion)
+		documentsIndex, err = index.MigrateDocumentsIndexV13(documentsIndex, documentsPath, input.BatchSize)
+		if err != nil {
+			log.Fatal(err)
+		}
+		version = []byte(index.DocumentVersion)
 	}
 	reindexDocuments := slices.Contains([]string{
 		"v1", "v2", "v3", "v4", "v5", "v6", "v7",
