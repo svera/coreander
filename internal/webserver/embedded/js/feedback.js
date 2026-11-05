@@ -115,6 +115,28 @@ htmx.on('htmx:afterRequest', (evt) => {
     }
 });
 
+function showBackgroundProgressError(evt) {
+    const progress = evt.detail?.elt
+    if (!(progress instanceof HTMLElement) || progress.id !== 'background-progress') {
+        return
+    }
+
+    const message = progress.dataset.errorMessage
+    if (!message) {
+        return
+    }
+
+    const alert = document.createElement('div')
+    alert.className = 'alert alert-warning'
+    alert.setAttribute('role', 'alert')
+    alert.textContent = message
+    progress.replaceChildren(alert)
+}
+
+htmx.on('htmx:sendError', showBackgroundProgressError)
+htmx.on('htmx:responseError', showBackgroundProgressError)
+htmx.on('htmx:timeout', showBackgroundProgressError)
+
 const setUpWarningsListener = () => {
     document.querySelectorAll('[data-warning-once]').forEach((el) => {
         el.addEventListener('click', () => {

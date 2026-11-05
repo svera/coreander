@@ -199,7 +199,7 @@ func TestBackgroundProgressPollingAccess(t *testing.T) {
 	}
 }
 
-func TestBackgroundProgressErrorHandlerIsLoaded(t *testing.T) {
+func TestBackgroundProgressErrorHandlerUsesFeedbackScript(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
 	response, err := app.Test(mustGetRequest(t, "/"))
@@ -211,7 +211,10 @@ func TestBackgroundProgressErrorHandlerIsLoaded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if page.Find(`script[src^="/js/background-progress.js"]`).Length() != 1 {
-		t.Fatal("expected background progress error handler to be loaded")
+	if page.Find(`script[src^="/js/feedback.js"]`).Length() != 1 {
+		t.Fatal("expected feedback script to be loaded")
+	}
+	if page.Find(`script[src^="/js/background-progress.js"]`).Length() != 0 {
+		t.Fatal("expected no standalone background progress script")
 	}
 }
