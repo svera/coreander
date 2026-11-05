@@ -22,7 +22,7 @@
                 {{if eq .Kind "data-sources"}}
                 <p class="small mt-1 mb-0">{{t $.Lang "Review information is incomplete. Score filters may omit documents whose ratings have not been retrieved."}}</p>
                 {{else if eq .Kind "authors"}}
-                <p class="small mt-1 mb-0">{{t $.Lang "Retrieving author information, author pages may not be complete yet."}}</p>
+                <p class="small mt-1 mb-0">{{t $.Lang "Retrieving author information. Author pages may be incomplete, and author filters may not work yet."}}</p>
                 {{else if eq .Kind "textrank"}}
                 <p class="small mt-1 mb-0">{{t $.Lang "Analyzing documents, search results and recommendations may not be accurate yet."}}</p>
                 {{else if eq .Kind "pruning"}}
