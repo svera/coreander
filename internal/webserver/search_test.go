@@ -150,90 +150,82 @@ func TestUnifiedSearch(t *testing.T) {
 }
 
 func TestDataSourceScoreSortOptions(t *testing.T) {
-	cfg := defaultTestConfig()
-	cfg.ReviewSourceConfigured = true
-	app := bootstrapApp(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{},
-		loadDirInMemoryFs("testdata/library"), cfg)
-	for _, path := range []string{
-		"/search?type=documents&",
-		"/authors/john-doe?",
-		"/series/the-lord-of-the-rings?",
-	} {
-		for _, direction := range []string{"asc", "desc"} {
-			for _, fragment := range []bool{false, true} {
-				mode := "/full"
-				if fragment {
-					mode = "/fragment"
-				}
-				t.Run(path+direction+mode, func(t *testing.T) {
-					selected := "review-score-" + direction
-					req := mustGetRequest(t, path+"sort-by="+selected)
-					if fragment {
-						req.Header.Set("HX-Request", "true")
-					}
-					response, err := app.Test(req)
-					if err != nil {
-						t.Fatal(err)
-					}
-					defer response.Body.Close()
-					if response.StatusCode != http.StatusOK {
-						t.Fatalf("unexpected status %d", response.StatusCode)
-					}
-					doc, err := goquery.NewDocumentFromReader(response.Body)
-					if err != nil {
-						t.Fatal(err)
-					}
-					for _, value := range []string{"review-score-asc", "review-score-desc"} {
-						if doc.Find(`#sort-by option[value="`+value+`"]`).Length() != 1 {
-							t.Errorf("missing sort option %q", value)
-						}
-					}
-					if doc.Find(`#sort-by option[value="`+selected+`"][selected]`).Length() != 1 {
-						t.Errorf("expected selected option %q", selected)
-					}
-				})
-			}
-		}
+	paths := []struct {
+		name string
+		url  string
+	}{
+		{name: "document search", url: "/search?type=documents&"},
+		{name: "author documents", url: "/authors/john-doe?"},
+		{name: "series documents", url: "/series/the-lord-of-the-rings?"},
 	}
-}
+	modes := []struct {
+		name string
+		htmx bool
+	}{
+		{name: "full page"},
+		{name: "fragment", htmx: true},
+	}
 
-func TestDataSourceScoreSortOptionsHiddenWithoutReviewSources(t *testing.T) {
-	app := bootstrapApp(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{},
-		loadDirInMemoryFs("testdata/library"), defaultTestConfig())
-	for _, path := range []string{
-		"/search?type=documents&",
-		"/authors/john-doe?",
-		"/series/the-lord-of-the-rings?",
-	} {
-		for _, fragment := range []bool{false, true} {
-			mode := "/full"
-			if fragment {
-				mode = "/fragment"
-			}
-			t.Run(path+mode, func(t *testing.T) {
-				req := mustGetRequest(t, path)
-				if fragment {
-					req.Header.Set("HX-Request", "true")
-				}
-				response, err := app.Test(req)
-				if err != nil {
-					t.Fatal(err)
-				}
-				defer response.Body.Close()
-				if response.StatusCode != http.StatusOK {
-					t.Fatalf("unexpected status %d", response.StatusCode)
-				}
-				doc, err := goquery.NewDocumentFromReader(response.Body)
-				if err != nil {
-					t.Fatal(err)
-				}
-				for _, value := range []string{"review-score-asc", "review-score-desc"} {
-					if doc.Find(`#sort-by option[value="`+value+`"]`).Length() != 0 {
-						t.Errorf("unexpected score sort option %q", value)
+	for _, configured := range []bool{false, true} {
+		name := "without review sources"
+		directions := []string{""}
+		if configured {
+			name = "with review sources"
+			directions = []string{"asc", "desc"}
+		}
+		t.Run(name, func(t *testing.T) {
+			cfg := defaultTestConfig()
+			cfg.ReviewSourceConfigured = configured
+			app := bootstrapApp(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{},
+				loadDirInMemoryFs("testdata/library"), cfg)
+
+			for _, path := range paths {
+				for _, mode := range modes {
+					for _, direction := range directions {
+						name := path.name + "/" + mode.name
+						selected := ""
+						if direction != "" {
+							selected = "review-score-" + direction
+							name += "/" + direction
+						}
+						t.Run(name, func(t *testing.T) {
+							url := path.url
+							if selected != "" {
+								url += "sort-by=" + selected
+							}
+							req := mustGetRequest(t, url)
+							if mode.htmx {
+								req.Header.Set("HX-Request", "true")
+							}
+							response, err := app.Test(req)
+							if err != nil {
+								t.Fatal(err)
+							}
+							defer response.Body.Close()
+							if response.StatusCode != http.StatusOK {
+								t.Fatalf("unexpected status %d", response.StatusCode)
+							}
+							doc, err := goquery.NewDocumentFromReader(response.Body)
+							if err != nil {
+								t.Fatal(err)
+							}
+							wantCount := 0
+							if configured {
+								wantCount = 1
+							}
+							for _, value := range []string{"review-score-asc", "review-score-desc"} {
+								if got := doc.Find(`#sort-by option[value="` + value + `"]`).Length(); got != wantCount {
+									t.Errorf("score sort option %q count = %d, want %d", value, got, wantCount)
+								}
+							}
+							if selected != "" && doc.Find(`#sort-by option[value="`+selected+`"][selected]`).Length() != 1 {
+								t.Errorf("expected selected option %q", selected)
+							}
+						})
 					}
 				}
-			})
-		}
+			}
+		})
 	}
 }
 
