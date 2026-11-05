@@ -96,9 +96,7 @@ To enable lookups, pass your permitted endpoints as a comma-separated list. Requ
 coreander --review-source-instances=https://br.example.org,https://br2.example.org /absolute/path/to/library
 ```
 
-Alternatively, set `REVIEW_SOURCE_INSTANCES` to the same comma-separated list. The flag may also be repeated and overrides the environment variable. Instance URLs must use HTTP or HTTPS and serve the BiblioReads API. Existing installations must configure permitted endpoints to resume automated lookups after upgrading.
-
-Lookups send document titles and author names to the configured BiblioReads instances. To disable lookups, omit `--review-source-instances` and unset `REVIEW_SOURCE_INSTANCES`. The former `--disable-reviews` flag and `DISABLE_REVIEWS` environment variable have been removed; endpoint configuration alone controls whether lookups are enabled. Previously stored ratings and links remain available without enabling network lookups. If no configured instance can serve a request, Goodreads information may be unavailable, but the rest of Coreander remains usable.
+Alternatively, set `REVIEW_SOURCE_INSTANCES` to the same comma-separated list. The flag may also be repeated and overrides the environment variable. Instance URLs must use HTTP or HTTPS and serve the BiblioReads API.
 
 ### Email
 
