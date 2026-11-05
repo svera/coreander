@@ -151,17 +151,18 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 
 func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string, similarToDocument index.Document) fiber.Map {
 	return fiber.Map{
-		"SearchType":           searchType,
-		"SearchPage":           true,
-		"EmailFrom":            s.sender.From(),
-		"URL":                  view.URL(c),
-		"SortURL":              view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":               c.Query("sort-by"),
-		"AuthorSearchFields":   index.AuthorSearchFields{},
-		"DocumentSearchFields": index.SearchFields{},
-		"SimilarToDocument":    similarToDocument,
-		"SimilarToActive":      similarToDocument.Slug != "",
-		"DocumentsOnly":        similarToDocument.Slug != "",
+		"SearchType":             searchType,
+		"SearchPage":             true,
+		"ReviewSourceConfigured": s.config.ReviewSourceConfigured,
+		"EmailFrom":              s.sender.From(),
+		"URL":                    view.URL(c),
+		"SortURL":                view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":                 c.Query("sort-by"),
+		"AuthorSearchFields":     index.AuthorSearchFields{},
+		"DocumentSearchFields":   index.SearchFields{},
+		"SimilarToDocument":      similarToDocument,
+		"SimilarToActive":        similarToDocument.Slug != "",
+		"DocumentsOnly":          similarToDocument.Slug != "",
 	}
 }
 

@@ -195,6 +195,7 @@ func newDataSourceProvidersTestApp(t *testing.T, source *fakeBookSource, provide
 	}
 
 	cfg := defaultTestConfig()
+	cfg.ReviewSourceConfigured = provider != nil
 	sender := &infrastructure.NoEmail{}
 	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, wikidata.NewWikidataSource(wikidata.Gowikidata{}), provider, wikidata.NewWikidataSource(wikidata.Gowikidata{}), biblioReadsLinks, dataSourceLinkProvider)
 	app := webserver.New(cfg, controllers, sender, idx, &model.UserRepository{DB: db})

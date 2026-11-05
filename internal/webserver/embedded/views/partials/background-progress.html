@@ -1,6 +1,6 @@
 {{if or (not .RequireAuth) (and .Session .Session.Uuid)}}
 {{$progress := backgroundProgress}}
-<div id="background-progress" hx-get="/background-progress?l={{.Lang}}" hx-trigger="every 5s" hx-swap="outerHTML">
+<div id="background-progress" data-error-message='{{t .Lang "Unable to retrieve background progress."}}' hx-get="/background-progress?l={{.Lang}}" hx-trigger="every 5s" hx-swap="outerHTML">
     {{if $progress.Error}}
     <div class="alert alert-warning" role="alert">{{t .Lang "Unable to retrieve background progress."}}</div>
     {{end}}

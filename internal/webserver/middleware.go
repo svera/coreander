@@ -42,6 +42,7 @@ func SetConfigLocals(cfg Config) func(fiber.Ctx) error {
 		c.Locals("ShareCommentMaxSize", cfg.ShareCommentMaxSize)
 		c.Locals("ShareMaxRecipients", cfg.ShareMaxRecipients)
 		c.Locals("IllustratedMinAmount", cfg.IllustratedMinAmount)
+		c.Locals("ReviewSourceConfigured", cfg.ReviewSourceConfigured)
 		return c.Next()
 	}
 }

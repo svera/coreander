@@ -185,6 +185,19 @@ func TestHighlightsReviewScoreFilter(t *testing.T) {
 		t.Fatalf("Expected status %d, received %d", fiber.StatusOK, response.StatusCode)
 	}
 
+	response, err = getRequest(adminCookie, app, "/highlights", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	response.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Find(`select[name="review-score-from"], select[name="review-score-to"]`).Length() != 0 {
+		t.Fatal("review score filter must be hidden on highlights when no review source is configured")
+	}
+
 	for _, test := range []struct {
 		name          string
 		query         string

@@ -19,6 +19,7 @@
     </div>
 </fieldset>
 {{end}}
+{{if .ReviewSourceConfigured}}
 <fieldset class="mt-4">
     <legend class="fs-5"><i class="bi bi-star me-3"></i>{{if .DataSourceName}}{{t .Lang "%s score" .DataSourceName}}{{else}}{{t .Lang "Review score"}}{{end}}</legend>
     <div class="row">
@@ -39,6 +40,7 @@
         </div>
     </div>
 </fieldset>
+{{end}}
 <fieldset class="mt-4">
     <legend class="fs-5"><i class="bi bi-tags me-3"></i>{{t .Lang "Subjects"}}</legend>
     <div class="row">

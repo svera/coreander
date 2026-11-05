@@ -164,12 +164,14 @@ func TestBackgroundProgressPollingAccess(t *testing.T) {
 				}
 				if banner.AttrOr("hx-trigger", "") != "every 5s" ||
 					banner.AttrOr("hx-get", "") != "/background-progress?l=en" ||
-					banner.AttrOr("hx-swap", "") != "outerHTML" {
+					banner.AttrOr("hx-swap", "") != "outerHTML" ||
+					banner.AttrOr("data-error-message", "") == "" {
 					t.Errorf("%s: expected live progress polling", path)
 				}
 				if banner.Find(`[data-progress-kind="documents"]`).Length() != 1 {
 					t.Errorf("%s: expected indexing progress", path)
 				}
+
 			}
 
 			anonymous := &http.Cookie{}
@@ -194,5 +196,22 @@ func TestBackgroundProgressPollingAccess(t *testing.T) {
 			check("/", cookie, http.StatusOK, true)
 			check("/background-progress", cookie, http.StatusOK, true)
 		})
+	}
+}
+
+func TestBackgroundProgressErrorHandlerIsLoaded(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, afero.NewMemMapFs(), webserver.Config{})
+	response, err := app.Test(mustGetRequest(t, "/"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	page, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Find(`script[src^="/js/background-progress.js"]`).Length() != 1 {
+		t.Fatal("expected background progress error handler to be loaded")
 	}
 }

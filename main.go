@@ -170,6 +170,7 @@ func main() {
 		ClientDynamicImageCacheTTL: input.ClientDynamicImageCacheTTL,
 		ServerStaticCacheTTL:       input.ServerStaticCacheTTL,
 		ServerDynamicImageCacheTTL: input.ServerDynamicImageCacheTTL,
+		ReviewSourceConfigured:     len(input.ReviewSourceInstances) > 0,
 		ReviewSourceCacheTTL:       input.ReviewSourceCacheTTL,
 		ShareCommentMaxSize:        input.ShareCommentMaxSize,
 		ShareMaxRecipients:         input.ShareMaxRecipients,

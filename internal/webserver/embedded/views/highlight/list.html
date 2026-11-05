@@ -28,7 +28,7 @@
                             </div>
                         </div>
                     </fieldset>
-                    {{template "partials/document-metadata-filters" dict "Lang" .Lang "DataSourceName" .DataSourceName "FilterIdPrefix" "highlight" "SearchFields" .SearchFields "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs}}
+                    {{template "partials/document-metadata-filters" dict "Lang" .Lang "DataSourceName" .DataSourceName "ReviewSourceConfigured" .ReviewSourceConfigured "FilterIdPrefix" "highlight" "SearchFields" .SearchFields "AvailableLanguages" .AvailableLanguages "HasReflowableDocs" .HasReflowableDocs "HasFixedDocs" .HasFixedDocs}}
                     {{template "partials/search-filters-actions" dict "Lang" .Lang "ShowSearchButton" false}}
                 </div>
                 </form>

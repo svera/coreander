@@ -93,7 +93,8 @@ func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender S
 	}
 
 	searchCfg := search.Config{
-		WordsPerMinute: cfg.WordsPerMinute,
+		WordsPerMinute:         cfg.WordsPerMinute,
+		ReviewSourceConfigured: cfg.ReviewSourceConfigured,
 	}
 
 	homeCfg := home.Config{
@@ -110,7 +111,7 @@ func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender S
 		Auth:        auth.NewController(usersRepository, sender, authCfg, translator),
 		Users:       user.NewController(usersRepository, invitationsRepository, usersCfg, sender, translator),
 		Completed:   completed.NewController(readingRepository, idx),
-		Highlights:  highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
+		Highlights:  highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, cfg.ReviewSourceConfigured, idx),
 		Documents:   document.NewController(highlightsRepository, usersRepository, readingRepository, annotationsRepository, sender, idx, appFs, documentsCfg, translator, reviewProvider, dataSourceLinkProviders...),
 		Home:        home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),
 		Authors:     authorsController,

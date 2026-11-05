@@ -37,21 +37,23 @@ type Sender interface {
 }
 
 type Controller struct {
-	hlRepository      highlightsRepository
-	readingRepository readingRepository
-	usrRepository     usersRepository
-	idx               IdxReaderWriter
-	sender            Sender
-	wordsPerMinute    float64
+	hlRepository           highlightsRepository
+	readingRepository      readingRepository
+	usrRepository          usersRepository
+	idx                    IdxReaderWriter
+	sender                 Sender
+	wordsPerMinute         float64
+	reviewSourceConfigured bool
 }
 
-func NewController(hlRepository highlightsRepository, readingRepository readingRepository, usrRepository usersRepository, sender Sender, wordsPerMinute float64, idx IdxReaderWriter) *Controller {
+func NewController(hlRepository highlightsRepository, readingRepository readingRepository, usrRepository usersRepository, sender Sender, wordsPerMinute float64, reviewSourceConfigured bool, idx IdxReaderWriter) *Controller {
 	return &Controller{
-		hlRepository:      hlRepository,
-		readingRepository: readingRepository,
-		usrRepository:     usrRepository,
-		idx:               idx,
-		sender:            sender,
-		wordsPerMinute:    wordsPerMinute,
+		hlRepository:           hlRepository,
+		readingRepository:      readingRepository,
+		usrRepository:          usrRepository,
+		idx:                    idx,
+		sender:                 sender,
+		wordsPerMinute:         wordsPerMinute,
+		reviewSourceConfigured: reviewSourceConfigured,
 	}
 }

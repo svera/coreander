@@ -57,6 +57,7 @@ type Config struct {
 	ClientDynamicImageCacheTTL int
 	ServerStaticCacheTTL       int
 	ServerDynamicImageCacheTTL int
+	ReviewSourceConfigured     bool
 	ReviewSourceCacheTTL       int
 	ShareCommentMaxSize        int
 	ShareMaxRecipients         int

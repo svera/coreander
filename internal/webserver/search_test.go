@@ -197,7 +197,22 @@ func TestDataSourceScoreSortOptions(t *testing.T) {
 
 func TestReviewScoreFilter(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
-	app := bootstrapApp(db, &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), webserver.Config{})
+	cfg := defaultTestConfig()
+	cfg.ReviewSourceConfigured = true
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), cfg)
+
+	homeResponse, err := app.Test(mustGetRequest(t, "/"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer homeResponse.Body.Close()
+	homeDoc, err := goquery.NewDocumentFromReader(homeResponse.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if homeDoc.Find(`select[name="review-score-from"]`).Length() == 0 {
+		t.Fatal("review score filter must be visible on home search when a review source is configured")
+	}
 
 	response, err := app.Test(mustGetRequest(t, "/search?type=documents&review-score-from=4&review-score-to=5"))
 	if err != nil {
@@ -271,6 +286,29 @@ func TestReviewScoreFilter(t *testing.T) {
 		}
 		if selected != want {
 			t.Errorf("Expected %q selected for %s, got %q", want, name, selected)
+		}
+	}
+}
+
+func TestReviewScoreFilterHiddenWithoutConfiguredInstances(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), webserver.Config{})
+
+	for _, path := range []string{"/", "/search?type=documents"} {
+		response, err := app.Test(mustGetRequest(t, path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("Expected status %d for %s, received %d", http.StatusOK, path, response.StatusCode)
+		}
+		doc, err := goquery.NewDocumentFromReader(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if doc.Find(`select[name="review-score-from"], select[name="review-score-to"]`).Length() != 0 {
+			t.Fatalf("review score filter must be hidden for %s when no review source is configured", path)
 		}
 	}
 }
