@@ -26,12 +26,19 @@ type DocumentEnricher interface {
 	Enrich(context.Context, *BleveIndexer, Document) error
 }
 
-func (b *BleveIndexer) documentsNeedingProvider(source string, size int) ([]Document, uint64, error) {
+func (b *BleveIndexer) documentsNeedingProvider(source string, size int, excluded map[string]struct{}) ([]Document, uint64, error) {
 	enriched := bleve.NewTermQuery(source)
 	enriched.SetField("EnrichedDataSources")
 	q := bleve.NewBooleanQuery()
 	q.AddMust(bleve.NewMatchAllQuery())
 	q.AddMustNot(enriched)
+	if len(excluded) > 0 {
+		ids := make([]string, 0, len(excluded))
+		for id := range excluded {
+			ids = append(ids, id)
+		}
+		q.AddMustNot(bleve.NewDocIDQuery(ids))
+	}
 	req := bleve.NewSearchRequestOptions(q, size, 0, false)
 	req.Fields = []string{"*"}
 	b.documentsMu.RLock()
@@ -70,64 +77,62 @@ func (b *BleveIndexer) documentEnrichTracker(i int) *progressTracker {
 }
 
 func (b *BleveIndexer) enrichProvider(provider DocumentEnricher, tracker *progressTracker, batchSize int) error {
-	_, total, err := b.documentsNeedingProvider(provider.Source(), 0)
+	_, total, err := b.documentsNeedingProvider(provider.Source(), 0, nil)
 	if err != nil || total == 0 {
 		return err
 	}
 	tracker.begin(int(total))
 	defer tracker.end()
 	log.Printf("Enriching %d documents with %s data", total, provider.Source())
+	var failures []error
+	failedDocuments := make(map[string]struct{})
 	for iteration := 0; iteration < int(total)+10; iteration++ {
-		documents, _, err := b.documentsNeedingProvider(provider.Source(), batchSize)
+		documents, _, err := b.documentsNeedingProvider(provider.Source(), batchSize, failedDocuments)
 		if err != nil {
-			return err
+			failures = append(failures, err)
+			break
 		}
 		if len(documents) == 0 {
-			return nil
+			return errors.Join(failures...)
 		}
-		if err := b.enrichProviderBatch(provider, tracker, documents); err != nil {
-			return err
+		for id, err := range b.enrichProviderBatch(provider, tracker, documents) {
+			failedDocuments[id] = struct{}{}
+			failures = append(failures, err)
 		}
+	}
+	if len(failures) > 0 {
+		return errors.Join(failures...)
 	}
 	return fmt.Errorf("document enrichment did not finish; some documents remain pending")
 }
 
-func (b *BleveIndexer) enrichProviderBatch(provider DocumentEnricher, tracker *progressTracker, documents []Document) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func (b *BleveIndexer) enrichProviderBatch(provider DocumentEnricher, tracker *progressTracker, documents []Document) map[string]error {
 	jobs := make(chan Document, len(documents))
 	for _, document := range documents {
 		jobs <- document
 	}
 	close(jobs)
 	var workers sync.WaitGroup
-	failures := make(chan error, 1)
+	var failureMu sync.Mutex
+	failures := make(map[string]error)
 	for range min(documentEnrichWorkers, len(documents)) {
 		workers.Go(func() {
 			for document := range jobs {
 				needed, err := provider.NeedsEnrichment(document)
 				if err == nil && needed {
-					err = provider.Enrich(ctx, b, document)
+					err = provider.Enrich(context.Background(), b, document)
 				}
 				if err != nil {
-					select {
-					case failures <- err:
-						cancel()
-					default:
-					}
-					return
+					failureMu.Lock()
+					failures[document.ID] = fmt.Errorf("enriching document %s: %w", document.ID, err)
+					failureMu.Unlock()
 				}
 				tracker.record()
 			}
 		})
 	}
 	workers.Wait()
-	select {
-	case err := <-failures:
-		return err
-	default:
-		return nil
-	}
+	return failures
 }
 
 func (b *BleveIndexer) runDocumentEnrichWorker() {

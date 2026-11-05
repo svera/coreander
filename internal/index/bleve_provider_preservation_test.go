@@ -59,7 +59,7 @@ func TestTextRankWritesPreserveProviderRemovals(t *testing.T) {
 			if !got.TextRankEnriched {
 				t.Fatal("TextRank result must still be persisted")
 			}
-			pending, total, err := idx.documentsNeedingProvider("dummy", 10)
+			pending, total, err := idx.documentsNeedingProvider("dummy", 10, nil)
 			if err != nil || total != 1 || len(pending) != 1 || pending[0].ID != "book" {
 				t.Fatalf("reset provider lookup must remain pending: %+v, %d, %v", pending, total, err)
 			}

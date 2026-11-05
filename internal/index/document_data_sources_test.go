@@ -47,7 +47,7 @@ func TestDocumentDataSourcesRoundTrip(t *testing.T) {
 			}
 		}
 	}
-	if _, total, err := idx.documentsNeedingProvider("dummy", 10); err != nil || total != 0 {
+	if _, total, err := idx.documentsNeedingProvider("dummy", 10, nil); err != nil || total != 0 {
 		t.Fatalf("enriched payloads were queued again: %d, %v", total, err)
 	}
 	pending := Document{ID: "other-only", Slug: "other-only", Metadata: metadata.Metadata{Title: "Pending book"}}
@@ -57,7 +57,7 @@ func TestDocumentDataSourcesRoundTrip(t *testing.T) {
 	if err := IndexDocument(idx.documentsIdx, pending.ID, pending); err != nil {
 		t.Fatal(err)
 	}
-	if documents, total, err := idx.documentsNeedingProvider("dummy", 10); err != nil || total != 1 || documents[0].ID != pending.ID {
+	if documents, total, err := idx.documentsNeedingProvider("dummy", 10, nil); err != nil || total != 1 || documents[0].ID != pending.ID {
 		t.Fatalf("another provider marked provider as enriched: %+v, %d, %v", documents, total, err)
 	}
 }

@@ -12,9 +12,10 @@ import (
 )
 
 type testDocumentEnricher struct {
-	source  string
-	calls   atomic.Int32
-	failure error
+	source    string
+	calls     atomic.Int32
+	failure   error
+	failureID string
 }
 
 type blockingDocumentEnricher struct {
@@ -48,12 +49,12 @@ func TestDocumentEnrichmentUsesBoundedConcurrency(t *testing.T) {
 	}
 	idx, _ := newTestTextRankIndexer(t, Config{})
 	documents := make([]Document, documentCount)
-	done := make(chan error, 1)
+	done := make(chan map[string]error, 1)
 	go func() { done <- idx.enrichProviderBatch(provider, &progressTracker{}, documents) }()
 	defer func() {
 		close(provider.release)
-		if err := <-done; err != nil {
-			t.Errorf("enrichment failed: %v", err)
+		if failures := <-done; len(failures) != 0 {
+			t.Errorf("enrichment failed: %v", failures)
 		}
 	}()
 	for range documentEnrichWorkers {
@@ -185,12 +186,48 @@ func (p *testDocumentEnricher) NeedsEnrichment(document Document) (bool, error) 
 
 func (p *testDocumentEnricher) Enrich(_ context.Context, idx *BleveIndexer, document Document) error {
 	p.calls.Add(1)
-	if p.failure != nil {
+	if p.failure != nil && (p.failureID == "" || p.failureID == document.ID) {
 		return p.failure
 	}
 	return idx.StoreDocumentData(document.ID, p.source, map[string]any{
 		"enriched": true, "reference": p.source + "-reference",
 	})
+}
+
+func TestDocumentEnrichmentContinuesAfterDocumentFailure(t *testing.T) {
+	unavailable := errors.New("document unavailable")
+	provider := &testDocumentEnricher{source: "first", failure: unavailable, failureID: "book-2"}
+	idx, _ := newTestTextRankIndexer(t, Config{DocumentEnrichers: []DocumentEnricher{provider}})
+	t.Cleanup(func() { _ = idx.Close() })
+	for _, id := range []string{"book-1", "book-2", "book-3"} {
+		if err := IndexDocument(idx.documentsIdx, id, Document{ID: id}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := idx.EnrichDocuments(1); !errors.Is(err, unavailable) {
+		t.Fatalf("expected the individual lookup error, got %v", err)
+	}
+	if provider.calls.Load() != 3 {
+		t.Fatalf("expected all three documents to be attempted, got %d", provider.calls.Load())
+	}
+	for _, id := range []string{"book-1", "book-3"} {
+		document, err := idx.documentByIndexID(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := DataSourceData[map[string]any](document, "first")
+		if err != nil || data["enriched"] != true {
+			t.Errorf("%s was not enriched despite another document failing: %+v, %v", id, data, err)
+		}
+	}
+	pending, _, err := idx.documentsNeedingProvider("first", 10, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pending) != 1 || pending[0].ID != "book-2" {
+		t.Fatalf("failed document should remain pending for a later retry: %+v", pending)
+	}
 }
 
 func TestDocumentEnrichmentSupportsIndependentProviders(t *testing.T) {
