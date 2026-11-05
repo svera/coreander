@@ -36,12 +36,13 @@ type readingRepository interface {
 }
 
 type Config struct {
-	WordsPerMinute      float64
-	CacheDir            string
-	CacheMaxSize        int
-	AuthorImageMaxWidth int
-	ClientImageCacheTTL int
-	ServerImageCacheTTL int
+	WordsPerMinute         float64
+	CacheDir               string
+	CacheMaxSize           int
+	AuthorImageMaxWidth    int
+	ClientImageCacheTTL    int
+	ServerImageCacheTTL    int
+	ReviewSourceConfigured bool
 }
 
 type Controller struct {

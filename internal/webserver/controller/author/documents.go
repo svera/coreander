@@ -65,30 +65,20 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Author":               author,
-		"DataSourceLinks":      a.authorDataSourceLinks(author, lang),
-		"ImageVersion":         a.getImageVersion(author.Slug),
-		"DocumentSearchFields": searchFields,
-		"DocumentsOnly":        true,
-		"Results":              searchResults,
-		"Paginator":            view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":                author.Name,
-		"EmailFrom":            a.sender.From(),
-		"WordsPerMinute":       a.config.WordsPerMinute,
-		"URL":                  view.URL(c),
-		"SortURL":              view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":               c.Query("sort-by"),
-		"AdditionalSortOptions": []struct {
-			Key   string
-			Value string
-		}{
-			{"pub-date-older-first", "older"},
-			{"pub-date-newer-first", "newer"},
-			{"est-read-time-shorter-first", "shorter"},
-			{"est-read-time-longer-first", "longer"},
-			{"review-score-asc", "review-score-asc"},
-			{"review-score-desc", "review-score-desc"},
-		},
+		"Author":                author,
+		"DataSourceLinks":       a.authorDataSourceLinks(author, lang),
+		"ImageVersion":          a.getImageVersion(author.Slug),
+		"DocumentSearchFields":  searchFields,
+		"DocumentsOnly":         true,
+		"Results":               searchResults,
+		"Paginator":             view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":                 author.Name,
+		"EmailFrom":             a.sender.From(),
+		"WordsPerMinute":        a.config.WordsPerMinute,
+		"URL":                   view.URL(c),
+		"SortURL":               view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":                c.Query("sort-by"),
+		"AdditionalSortOptions": authorDocumentSortOptions(a.config.ReviewSourceConfigured),
 	}
 
 	if c.Get("hx-request") == "true" {
@@ -104,4 +94,29 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	return nil
+}
+
+func authorDocumentSortOptions(reviewSourceConfigured bool) []struct {
+	Key   string
+	Value string
+} {
+	options := []struct {
+		Key   string
+		Value string
+	}{
+		{"pub-date-older-first", "older"},
+		{"pub-date-newer-first", "newer"},
+		{"est-read-time-shorter-first", "shorter"},
+		{"est-read-time-longer-first", "longer"},
+	}
+	if reviewSourceConfigured {
+		options = append(options, []struct {
+			Key   string
+			Value string
+		}{
+			{"review-score-asc", "review-score-asc"},
+			{"review-score-desc", "review-score-desc"},
+		}...)
+	}
+	return options
 }

@@ -150,8 +150,10 @@ func TestUnifiedSearch(t *testing.T) {
 }
 
 func TestDataSourceScoreSortOptions(t *testing.T) {
+	cfg := defaultTestConfig()
+	cfg.ReviewSourceConfigured = true
 	app := bootstrapApp(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{},
-		loadDirInMemoryFs("testdata/library"), webserver.Config{})
+		loadDirInMemoryFs("testdata/library"), cfg)
 	for _, path := range []string{
 		"/search?type=documents&",
 		"/authors/john-doe?",
@@ -191,6 +193,46 @@ func TestDataSourceScoreSortOptions(t *testing.T) {
 					}
 				})
 			}
+		}
+	}
+}
+
+func TestDataSourceScoreSortOptionsHiddenWithoutReviewSources(t *testing.T) {
+	app := bootstrapApp(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{},
+		loadDirInMemoryFs("testdata/library"), defaultTestConfig())
+	for _, path := range []string{
+		"/search?type=documents&",
+		"/authors/john-doe?",
+		"/series/the-lord-of-the-rings?",
+	} {
+		for _, fragment := range []bool{false, true} {
+			mode := "/full"
+			if fragment {
+				mode = "/fragment"
+			}
+			t.Run(path+mode, func(t *testing.T) {
+				req := mustGetRequest(t, path)
+				if fragment {
+					req.Header.Set("HX-Request", "true")
+				}
+				response, err := app.Test(req)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer response.Body.Close()
+				if response.StatusCode != http.StatusOK {
+					t.Fatalf("unexpected status %d", response.StatusCode)
+				}
+				doc, err := goquery.NewDocumentFromReader(response.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, value := range []string{"review-score-asc", "review-score-desc"} {
+					if doc.Find(`#sort-by option[value="`+value+`"]`).Length() != 0 {
+						t.Errorf("unexpected score sort option %q", value)
+					}
+				}
+			})
 		}
 	}
 }

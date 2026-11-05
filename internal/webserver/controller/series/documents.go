@@ -72,30 +72,18 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"SeriesTitle":          title,
-		"DocumentSearchFields": searchFields,
-		"DocumentsOnly":        true,
-		"Results":              searchResults,
-		"Paginator":            view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":                title,
-		"EmailFrom":            a.sender.From(),
-		"WordsPerMinute":       a.config.WordsPerMinute,
-		"URL":                  view.URL(c),
-		"SortURL":              view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":               c.Query("sort-by"),
-		"AdditionalSortOptions": []struct {
-			Key   string
-			Value string
-		}{
-			{"number", "series number"},
-			{"number-desc", "series number (descending)"},
-			{"pub-date-older-first", "older"},
-			{"pub-date-newer-first", "newer"},
-			{"est-read-time-shorter-first", "shorter"},
-			{"est-read-time-longer-first", "longer"},
-			{"review-score-asc", "review-score-asc"},
-			{"review-score-desc", "review-score-desc"},
-		},
+		"SeriesTitle":           title,
+		"DocumentSearchFields":  searchFields,
+		"DocumentsOnly":         true,
+		"Results":               searchResults,
+		"Paginator":             view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":                 title,
+		"EmailFrom":             a.sender.From(),
+		"WordsPerMinute":        a.config.WordsPerMinute,
+		"URL":                   view.URL(c),
+		"SortURL":               view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":                c.Query("sort-by"),
+		"AdditionalSortOptions": seriesDocumentSortOptions(a.config.ReviewSourceConfigured),
 	}
 
 	if c.Get("hx-request") == "true" {
@@ -111,6 +99,33 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	return nil
+}
+
+func seriesDocumentSortOptions(reviewSourceConfigured bool) []struct {
+	Key   string
+	Value string
+} {
+	options := []struct {
+		Key   string
+		Value string
+	}{
+		{"number", "series number"},
+		{"number-desc", "series number (descending)"},
+		{"pub-date-older-first", "older"},
+		{"pub-date-newer-first", "newer"},
+		{"est-read-time-shorter-first", "shorter"},
+		{"est-read-time-longer-first", "longer"},
+	}
+	if reviewSourceConfigured {
+		options = append(options, []struct {
+			Key   string
+			Value string
+		}{
+			{"review-score-asc", "review-score-asc"},
+			{"review-score-desc", "review-score-desc"},
+		}...)
+	}
+	return options
 }
 
 func (d *Controller) parseSortBy(c fiber.Ctx) []string {

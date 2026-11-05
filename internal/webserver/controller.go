@@ -80,16 +80,18 @@ func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender S
 	}
 
 	authorsCfg := author.Config{
-		WordsPerMinute:      cfg.WordsPerMinute,
-		CacheDir:            cfg.CacheDir,
-		CacheMaxSize:        cfg.CacheMaxSize,
-		AuthorImageMaxWidth: cfg.AuthorImageMaxWidth,
-		ClientImageCacheTTL: cfg.ClientDynamicImageCacheTTL,
-		ServerImageCacheTTL: cfg.ServerDynamicImageCacheTTL,
+		WordsPerMinute:         cfg.WordsPerMinute,
+		CacheDir:               cfg.CacheDir,
+		CacheMaxSize:           cfg.CacheMaxSize,
+		AuthorImageMaxWidth:    cfg.AuthorImageMaxWidth,
+		ClientImageCacheTTL:    cfg.ClientDynamicImageCacheTTL,
+		ServerImageCacheTTL:    cfg.ServerDynamicImageCacheTTL,
+		ReviewSourceConfigured: cfg.ReviewSourceConfigured,
 	}
 
 	seriesCfg := series.Config{
-		WordsPerMinute: cfg.WordsPerMinute,
+		WordsPerMinute:         cfg.WordsPerMinute,
+		ReviewSourceConfigured: cfg.ReviewSourceConfigured,
 	}
 
 	searchCfg := search.Config{
