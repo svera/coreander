@@ -393,6 +393,67 @@ func TestErrorStatus(t *testing.T) {
 	}
 }
 
+func TestInvalidSearchQuery(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		status      int
+		body        string
+		unavailable bool
+	}{
+		{"invalid query", http.StatusNotFound, `{"status":"Error - Invalid Query","version":"BiblioReads v4.4.0"}`, true},
+		{"other not found", http.StatusNotFound, `{"status":"Error - Book not found"}`, false},
+		{"other client error", http.StatusBadRequest, `{"status":"Error - Invalid Query"}`, false},
+		{"server error", http.StatusServiceUnavailable, `{"status":"Error - Invalid Query"}`, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var hits atomic.Int32
+			server := newCountingServer(t, tt.status, tt.body, &hits)
+			client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
+			_, err := client.SearchBooks(context.Background(), "El economista camuflado Tim Harford")
+			if err == nil || errors.Is(err, biblioreads.ErrUnavailable) != tt.unavailable {
+				t.Fatalf("unexpected search error classification: %v", err)
+			}
+			if errors.Is(err, biblioreads.ErrNotFound) != (tt.status == http.StatusNotFound) {
+				t.Fatalf("HTTP 404 classification must survive failover wrapping: %v", err)
+			}
+		})
+	}
+}
+
+func TestNonJSONNotFoundClassification(t *testing.T) {
+	var hits atomic.Int32
+	server := newCountingServer(t, http.StatusNotFound, "<html>Not found</html>", &hits)
+	client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
+	_, err := client.SearchBooks(context.Background(), "book")
+	if !errors.Is(err, biblioreads.ErrNotFound) || !errors.Is(err, biblioreads.ErrUnavailable) {
+		t.Fatalf("non-JSON 404 must retain its HTTP status classification: %v", err)
+	}
+}
+
+func TestSearchInvalidQueryFailsOverWithoutChangingQuery(t *testing.T) {
+	var hits atomic.Int32
+	fixture := readFixture(t, "search-books.json")
+	client := newFailoverClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var captured capturedRequest
+		if !captureRequest(t, w, r, &captured) {
+			return
+		}
+		assertRequest(t, captured, "/api/search/books", map[string]any{
+			"queryURL": "https://www.goodreads.com/search?q=El%20economista%20camuflado%20Tim%20Harford",
+		})
+		if hits.Add(1) == 1 {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"status":"Error - Invalid Query","version":"BiblioReads v4.4.0"}`))
+			return
+		}
+		_, _ = w.Write(fixture)
+	}))
+	response, err := client.SearchBooks(context.Background(), "El economista camuflado Tim Harford")
+	if err != nil || len(response.Result) == 0 || hits.Load() != 2 {
+		t.Fatalf("expected same-query recovery on another instance, got %+v, %v, requests=%d", response, err, hits.Load())
+	}
+}
+
 func newCountingServer(t *testing.T, status int, body string, hits *atomic.Int32) *httptest.Server {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

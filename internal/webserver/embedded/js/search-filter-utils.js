@@ -197,14 +197,19 @@ export function initDateControls(searchFilters, searchFiltersForm) {
 }
 
 export function initClearRangeControls(searchFilters) {
+    function updateClearButtons() {
+        searchFilters.querySelectorAll('.clear-range-control').forEach(clearLink => {
+            const group = clearLink.closest('.input-group')
+            if (group) updateRangeClearButtonState(group)
+        })
+    }
+
+    searchFilters.addEventListener('input', updateClearButtons)
+    searchFilters.addEventListener('change', updateClearButtons)
+
     searchFilters.querySelectorAll('.clear-range-control').forEach(clearLink => {
         const group = clearLink.closest('.input-group')
         if (!group) return
-
-        group.querySelectorAll('input, select').forEach(input => {
-            input.addEventListener('input', () => updateRangeClearButtonState(group))
-            input.addEventListener('change', () => updateRangeClearButtonState(group))
-        })
 
         clearLink.addEventListener('click', (e) => {
             e.preventDefault()

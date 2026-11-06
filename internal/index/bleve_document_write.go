@@ -81,11 +81,19 @@ func (b *BleveIndexer) BackgroundProgress() ([]Progress, error) {
 	}
 	for i, counts := range providers {
 		if counts.enriched < counts.total {
+			tracker := b.documentEnrichTracker(i)
+			pending := counts.total - counts.enriched - counts.unresolved
+			failed := tracker.failed.Load() && pending > 0
+			var remaining time.Duration
+			if !failed {
+				remaining = tracker.remainingTime(pending)
+			}
 			progress = append(progress, Progress{
-				Kind: ProgressDataSources, InProgress: true, Name: b.documentEnrichers[i].Name(),
+				Kind: ProgressDataSources, InProgress: pending > 0 && !failed, Failed: failed,
+				Unresolved: counts.unresolved, Name: b.documentEnrichers[i].Name(),
 				// Do not round pending work up to 100%.
 				Percentage:    math.Floor(100 * float64(counts.enriched) / float64(counts.total)),
-				RemainingTime: b.documentEnrichTracker(i).remainingTime(counts.total - counts.enriched),
+				RemainingTime: remaining,
 			})
 		}
 	}
@@ -93,7 +101,7 @@ func (b *BleveIndexer) BackgroundProgress() ([]Progress, error) {
 }
 
 type providerProgressCount struct {
-	total, enriched uint64
+	total, enriched, unresolved uint64
 }
 
 // Cache index queries across page renders and polling clients; timing estimates
@@ -112,14 +120,30 @@ func (b *BleveIndexer) providerProgressSnapshot() ([]providerProgressCount, erro
 		return nil, fmt.Errorf("counting documents for enrichment progress: %w", err)
 	}
 	var counts []providerProgressCount
-	for _, provider := range b.documentEnrichers {
+	for i, provider := range b.documentEnrichers {
 		query := bleve.NewTermQuery(provider.Source())
 		query.SetField("EnrichedDataSources")
 		result, err := b.documentsIdx.Search(bleve.NewSearchRequestOptions(query, 0, 0, false))
 		if err != nil {
 			return nil, fmt.Errorf("reading %s enrichment progress: %w", provider.Source(), err)
 		}
-		counts = append(counts, providerProgressCount{total: total, enriched: result.Total})
+		count := providerProgressCount{total: total, enriched: result.Total}
+		unresolved := b.documentEnrichTracker(i).unresolvedDocuments()
+		if len(unresolved) > 0 {
+			ids := make([]string, 0, len(unresolved))
+			for id := range unresolved {
+				ids = append(ids, id)
+			}
+			pending := bleve.NewBooleanQuery()
+			pending.AddMust(bleve.NewDocIDQuery(ids))
+			pending.AddMustNot(query)
+			result, err := b.documentsIdx.Search(bleve.NewSearchRequestOptions(pending, 0, 0, false))
+			if err != nil {
+				return nil, fmt.Errorf("reading %s unresolved lookups: %w", provider.Source(), err)
+			}
+			count.unresolved = result.Total
+		}
+		counts = append(counts, count)
 	}
 	b.providerProgress = slices.Clone(counts)
 	b.cachedProviderProgressVersion = version

@@ -32,6 +32,9 @@ const (
 // non-JSON responses), as opposed to an instance answering with an error of its own.
 var ErrUnavailable = errors.New("biblioreads: all instances failed")
 
+// ErrNotFound identifies HTTP 404 responses, which may be legitimate or an upstream failure.
+var ErrNotFound = errors.New("biblioreads: not found")
+
 type Client struct {
 	instances  []string
 	httpClient *http.Client
@@ -383,15 +386,34 @@ func (c *Client) postToInstance(ctx context.Context, endpoint string, body []byt
 	// BiblioReads always answers with JSON, even on errors (e.g. a 504 for a book that
 	// doesn't exist), so anything else comes from a broken instance or a proxy in front of it.
 	if !json.Valid(resp.Body) {
+		reason := fmt.Errorf("status code %d with non-JSON response", resp.StatusCode)
+		if resp.StatusCode == http.StatusNotFound {
+			reason = fmt.Errorf("%w: %w", ErrNotFound, reason)
+		}
 		return nil, &unavailableError{
 			endpoint:   endpoint,
 			retryAfter: httpjson.DefaultRetryAfter,
-			reason:     fmt.Errorf("status code %d with non-JSON response", resp.StatusCode),
+			reason:     reason,
 		}
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("biblioreads: request to %s failed with status code %d: %s", endpoint, resp.StatusCode, resp.Body)
+		responseErr := fmt.Errorf("biblioreads: request to %s failed with status code %d: %s", endpoint, resp.StatusCode, resp.Body)
+		if resp.StatusCode == http.StatusNotFound {
+			responseErr = fmt.Errorf("%w: %w", ErrNotFound, responseErr)
+		}
+		if resp.StatusCode == http.StatusNotFound && strings.HasSuffix(endpoint, searchBooksPath) {
+			var response struct {
+				Status string `json:"status"`
+			}
+			if err := json.Unmarshal(resp.Body, &response); err == nil && response.Status == "Error - Invalid Query" {
+				return nil, &unavailableError{
+					endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter,
+					reason: responseErr,
+				}
+			}
+		}
+		return nil, responseErr
 	}
 	return resp.Body, nil
 }

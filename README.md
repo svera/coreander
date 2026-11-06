@@ -98,6 +98,8 @@ coreander --review-source-instances=https://br.example.org,https://br2.example.o
 
 Alternatively, set `REVIEW_SOURCE_INSTANCES` to the same comma-separated list. The flag may also be repeated and overrides the environment variable. Instance URLs must use HTTP or HTTPS and serve the BiblioReads API.
 
+BiblioReads can return an "Invalid Query" search error for a temporary upstream failure. Coreander tries the same query on another configured instance, if available; it does not broaden the search in response to an error. Failed lookups do not stop other documents or get marked as completed. Pending lookups are retried automatically after one minute, with exponential backoff up to 15 minutes between failed runs, while respecting instance cooldowns. HTTP 404 responses may also be legitimate: after three lookup attempts returning 404s for a document during the current process, automatic retries for that document stop. A lookup attempt may try multiple configured instances. These documents are reported as unresolved, not as successfully enriched; restart Coreander to retry them. Requests skipped because every instance is in cooldown do not count toward the limit. Other transient failures continue to retry. The progress banner distinguishes pending retries from unresolved lookups and removes the progress bar when only unresolved documents remain. Completed lookups are not repeated; pending lookups from later uploads are also checked every minute after successful runs.
+
 ### Email
 
 Some features rely on having an SMTP email service set up, and won't be available otherwise:

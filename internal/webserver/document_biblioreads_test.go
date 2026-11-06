@@ -110,8 +110,26 @@ func TestReviewEnrichmentProgressBanner(t *testing.T) {
 			reviews.Find(`[role="progressbar"]`).AttrOr("aria-valuenow", "") != "66" {
 			t.Fatalf("incorrect persisted lookup progress: %s", reviews.Text())
 		}
+		bar := reviews.Find(".progress-bar")
+		if !bar.HasClass("bg-info-subtle") || !bar.HasClass("text-body-emphasis") || bar.HasClass("bg-info") {
+			t.Fatal("review progress must use a theme-aware background with contrasting text")
+		}
 	}
 	checkPending()
+	for lang, label := range map[string]string{
+		"en": "Retrieving ratings",
+		"es": "Recuperando valoraciones",
+		"de": "Bewertungen werden abgerufen",
+		"fr": "Récupération des évaluations",
+		"ru": "Получение оценок",
+	} {
+		localized := getPage(t, app, "/background-progress?l="+lang)
+		reviews := localized.Find(`[data-progress-kind="data-sources"]`)
+		if reviews.Find(`[role="progressbar"]`).AttrOr("aria-label", "") != label ||
+			!strings.Contains(reviews.Find("p").First().Text(), label) {
+			t.Errorf("%s: review progress must use the localized retrieval label %q", lang, label)
+		}
+	}
 	spanish := getPage(t, app, "/background-progress?l=es")
 	if !strings.Contains(spanish.Find("#background-progress").Text(), "La información de valoraciones está incompleta") {
 		t.Fatal("live progress must retain the selected language")
@@ -120,6 +138,26 @@ func TestReviewEnrichmentProgressBanner(t *testing.T) {
 		t.Fatal("expected unavailable source to fail")
 	}
 	checkPending()
+	for lang, label := range map[string]string{
+		"en": "Waiting to retry ratings",
+		"es": "Esperando para reintentar la recuperación de valoraciones",
+		"de": "Warten auf erneuten Abruf der Bewertungen",
+		"fr": "En attente d'une nouvelle tentative de récupération des évaluations",
+		"ru": "Ожидание повторного получения оценок",
+	} {
+		localized := getPage(t, app, "/background-progress?l="+lang)
+		reviews := localized.Find(`[data-progress-kind="data-sources"]`)
+		if reviews.Find(`[role="progressbar"]`).AttrOr("aria-label", "") != label ||
+			!strings.Contains(reviews.Find("p").First().Text(), label) {
+			t.Errorf("%s: failed lookups must show pending retries", lang)
+		}
+		if lang == "en" && !strings.Contains(reviews.Text(), "Pending lookups will be retried automatically.") {
+			t.Fatal("failed progress must explain how to retry")
+		}
+		if reviews.Find(`[role="progressbar"]`).AttrOr("aria-valuetext", "") != "" {
+			t.Fatal("stopped retrieval must not display a remaining time estimate")
+		}
+	}
 	source.searchErr = nil
 	if err := idx.EnrichDocuments(1); err != nil {
 		t.Fatal(err)
@@ -136,6 +174,41 @@ func TestReviewEnrichmentProgressBanner(t *testing.T) {
 	response.Body.Close()
 	if response.Header.Get("Cache-Control") != "no-store" {
 		t.Fatal("live progress responses must not be cached")
+	}
+}
+
+func TestReviewEnrichmentUnresolvedBanner(t *testing.T) {
+	source := &fakeBookSource{searchErr: biblioreads.ErrNotFound}
+	app, idx := newBiblioReadsTestApp(t, source)
+	for range 3 {
+		if err := idx.EnrichDocuments(1); !errors.Is(err, biblioreads.ErrNotFound) {
+			t.Fatalf("expected not-found lookup, got %v", err)
+		}
+	}
+	for lang, label := range map[string]string{
+		"en": "Some ratings remain unresolved",
+		"es": "Algunas valoraciones siguen sin resolverse",
+		"de": "Einige Bewertungen bleiben ungeklärt",
+		"fr": "Certaines évaluations restent non résolues",
+		"ru": "Некоторые оценки остаются неполученными",
+	} {
+		page := getPage(t, app, "/background-progress?l="+lang)
+		reviews := page.Find(`[data-progress-kind="data-sources"]`)
+		if !strings.Contains(reviews.Find("p").First().Text(), label) {
+			t.Errorf("%s: expected localized unresolved warning: %s", lang, reviews.Text())
+		}
+		if reviews.Find(`[role="progressbar"]`).Length() != 0 {
+			t.Errorf("%s: unresolved lookups must not leave a stuck progress bar", lang)
+		}
+		if strings.Contains(reviews.Text(), "retried automatically") {
+			t.Errorf("%s: exhausted lookups must not promise further automatic retries", lang)
+		}
+		if lang == "en" && !strings.Contains(reviews.Text(), "Rating lookups unresolved after three not-found responses: 1.") {
+			t.Fatal("unresolved warning must include its count and explain the retry limit")
+		}
+	}
+	if err := idx.EnrichDocuments(1); err != nil {
+		t.Fatalf("exhausted lookup should not block later runs: %v", err)
 	}
 }
 

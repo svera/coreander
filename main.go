@@ -241,11 +241,9 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWor
 	log.Printf("Indexing finished, took %d seconds", int(dur.Seconds()))
 
 	// Network-bound, so it runs alongside the CPU-bound TextRank enrichment.
-	go func() {
-		if err := idx.EnrichDocuments(batchSize); err != nil {
-			log.Printf("Error enriching documents with provider data: %s", err)
-		}
-	}()
+	if err := idx.StartDocumentEnrichment(batchSize); err != nil {
+		log.Printf("Error starting document enrichment: %s", err)
+	}
 
 	if err := idx.EnrichTextRankKeywords(batchSize, indexWorkers); err != nil {
 		log.Printf("Error enriching documents with TextRank keywords: %s", err)

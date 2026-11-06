@@ -48,6 +48,9 @@ func (*Enricher) NeedsEnrichment(document index.Document) (bool, error) {
 
 func (p *Enricher) Enrich(ctx context.Context, idx *index.BleveIndexer, document index.Document) error {
 	_, err := p.enrich(ctx, idx, document)
+	if errors.Is(err, ErrNotFound) {
+		return fmt.Errorf("%w: %w", index.ErrEnrichmentNotFound, err)
+	}
 	return err
 }
 
