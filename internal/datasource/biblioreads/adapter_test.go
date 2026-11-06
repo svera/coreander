@@ -875,6 +875,36 @@ func TestTitleFallback(t *testing.T) {
 	}
 }
 
+func TestUnavailableSearchDoesNotBroadenQuery(t *testing.T) {
+	const title = "El economista camuflado"
+	const author = "Tim Harford"
+	source := &fakeSource{
+		byQuery: map[string][]SearchResult{
+			title: {{Title: title, Author: author, BookURL: "/book/show/123", Rating: "4.00"}},
+		},
+		queryErrors: map[string]error{title + " " + author: ErrUnavailable},
+	}
+	idx := newTestIndexer(t, source)
+	doc := index.Document{ID: testID, Metadata: metadata.Metadata{Title: title, Authors: []string{author}}}
+	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
+		t.Fatal(err)
+	}
+	got, err := idx.Book(context.Background(), doc)
+	if !errors.Is(err, ErrUnavailable) || got.BookURL != "" {
+		t.Fatalf("expected unavailable search without a match, got %+v, %v", got, err)
+	}
+	stored, err := idx.DocumentByID(doc.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mustData(t, stored).Enriched {
+		t.Fatal("failed search must remain pending")
+	}
+	if !slices.Equal(source.Queries(), []string{title + " " + author}) {
+		t.Fatalf("failed search must not trigger a title-only query, got %q", source.Queries())
+	}
+}
+
 func TestMatchesTolkienOmnibusSearchResults(t *testing.T) {
 	const title = "El señor de los anillos"
 	const wantURL = "/book/show/37910810-el-se-or-de-los-anillos"

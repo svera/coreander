@@ -424,6 +424,6 @@
 "No score": "Aucune note"
 "Not scored": "Non noté"
 "%s ratings": "%s notes"
-"Review information progress": "Progression des informations d'évaluation"
+"Retrieving ratings": "Récupération des évaluations"
 "Review information is incomplete. Score filters may omit documents whose ratings have not been retrieved.": "Les informations d'évaluation sont incomplètes. Les filtres de note peuvent omettre les documents dont les évaluations n'ont pas encore été récupérées."
 "Unable to retrieve background progress.": "Impossible de récupérer la progression des tâches en arrière-plan."

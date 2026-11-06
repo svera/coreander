@@ -14,7 +14,7 @@ const (
 	// maxConcurrentLookups bounds lookups across every enrichment caller, so they do not pile up
 	// waiting on the client. Client request spacing and cooldowns protect each instance.
 	maxConcurrentLookups = 4
-	requestTimeout       = 2 * time.Minute
+	requestTimeout       = 3 * time.Minute
 )
 
 type SearchSource interface {

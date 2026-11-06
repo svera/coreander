@@ -110,8 +110,26 @@ func TestReviewEnrichmentProgressBanner(t *testing.T) {
 			reviews.Find(`[role="progressbar"]`).AttrOr("aria-valuenow", "") != "66" {
 			t.Fatalf("incorrect persisted lookup progress: %s", reviews.Text())
 		}
+		bar := reviews.Find(".progress-bar")
+		if !bar.HasClass("bg-info-subtle") || !bar.HasClass("text-body-emphasis") || bar.HasClass("bg-info") {
+			t.Fatal("review progress must use a theme-aware background with contrasting text")
+		}
 	}
 	checkPending()
+	for lang, label := range map[string]string{
+		"en": "Retrieving ratings",
+		"es": "Recuperando valoraciones",
+		"de": "Bewertungen werden abgerufen",
+		"fr": "Récupération des évaluations",
+		"ru": "Получение оценок",
+	} {
+		localized := getPage(t, app, "/background-progress?l="+lang)
+		reviews := localized.Find(`[data-progress-kind="data-sources"]`)
+		if reviews.Find(`[role="progressbar"]`).AttrOr("aria-label", "") != label ||
+			!strings.Contains(reviews.Find("p").First().Text(), label) {
+			t.Errorf("%s: review progress must use the localized retrieval label %q", lang, label)
+		}
+	}
 	spanish := getPage(t, app, "/background-progress?l=es")
 	if !strings.Contains(spanish.Find("#background-progress").Text(), "La información de valoraciones está incompleta") {
 		t.Fatal("live progress must retain the selected language")
@@ -119,7 +137,15 @@ func TestReviewEnrichmentProgressBanner(t *testing.T) {
 	if err := idx.EnrichDocuments(1); err == nil {
 		t.Fatal("expected unavailable source to fail")
 	}
-	checkPending()
+	for _, lang := range []string{"en", "es", "de", "fr", "ru"} {
+		localized := getPage(t, app, "/background-progress?l="+lang)
+		if localized.Find(`[data-progress-kind="data-sources"]`).Length() != 0 {
+			t.Errorf("%s: failed ratings retrieval must not display a message or progress bar", lang)
+		}
+		if localized.Find(`[data-progress-kind="documents"]`).Length() != 1 {
+			t.Errorf("%s: hiding failed ratings must preserve active indexing progress", lang)
+		}
+	}
 	source.searchErr = nil
 	if err := idx.EnrichDocuments(1); err != nil {
 		t.Fatal(err)
@@ -136,6 +162,21 @@ func TestReviewEnrichmentProgressBanner(t *testing.T) {
 	response.Body.Close()
 	if response.Header.Get("Cache-Control") != "no-store" {
 		t.Fatal("live progress responses must not be cached")
+	}
+}
+
+func TestFailedReviewEnrichmentLeavesNoAlert(t *testing.T) {
+	app, idx := newBiblioReadsTestApp(t, &fakeBookSource{searchErr: biblioreads.ErrUnavailable})
+	if err := idx.EnrichDocuments(1); err == nil {
+		t.Fatal("expected unavailable source to fail")
+	}
+	page := getPage(t, app, "/background-progress?l=en")
+	banner := page.Find("#background-progress")
+	if banner.Find(".alert").Length() != 0 || strings.TrimSpace(banner.Text()) != "" {
+		t.Fatal("failed ratings retrieval must not leave an empty alert or end-user message")
+	}
+	if banner.AttrOr("hx-trigger", "") != "every 5s" {
+		t.Fatal("progress polling must remain available for future tasks")
 	}
 }
 

@@ -81,11 +81,15 @@ func (b *BleveIndexer) BackgroundProgress() ([]Progress, error) {
 	}
 	for i, counts := range providers {
 		if counts.enriched < counts.total {
+			tracker := b.documentEnrichTracker(i)
+			if tracker.failed.Load() {
+				continue
+			}
 			progress = append(progress, Progress{
 				Kind: ProgressDataSources, InProgress: true, Name: b.documentEnrichers[i].Name(),
 				// Do not round pending work up to 100%.
 				Percentage:    math.Floor(100 * float64(counts.enriched) / float64(counts.total)),
-				RemainingTime: b.documentEnrichTracker(i).remainingTime(counts.total - counts.enriched),
+				RemainingTime: tracker.remainingTime(counts.total - counts.enriched),
 			})
 		}
 	}

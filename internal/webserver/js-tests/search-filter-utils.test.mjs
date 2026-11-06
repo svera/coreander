@@ -20,9 +20,13 @@ for (const tag of ['input', 'select']) {
                 : selector.split(', ').includes(tag) ? controls[0] : null,
         }
         button.closest = () => group
-        const filters = {
-            querySelectorAll: selector => selector === '.clear-range-control' ? [button] : [],
-        }
+        const filters = new EventTarget()
+        filters.querySelectorAll = selector => selector === '.clear-range-control' ? [button] : []
+        controls.forEach(control => {
+            for (const type of ['input', 'change']) {
+                control.addEventListener(type, () => filters.dispatchEvent(new Event(type)))
+            }
+        })
         const reset = initClearRangeControls(filters)
         assert.equal(button.disabled, true)
 
@@ -54,3 +58,26 @@ for (const tag of ['input', 'select']) {
         assert.equal(button.disabled, true)
     })
 }
+
+test('score range clear button refreshes after form values are synchronized', () => {
+    const controls = [
+        { value: '', tagName: 'SELECT' },
+        { value: '', tagName: 'SELECT' },
+    ]
+    const button = new EventTarget()
+    const group = {
+        querySelectorAll: () => controls,
+        querySelector: () => button,
+    }
+    button.closest = () => group
+    const filters = new EventTarget()
+    filters.querySelectorAll = () => [button]
+    initClearRangeControls(filters)
+    assert.equal(button.disabled, true)
+
+    for (const value of ['0', '3', '5', '']) {
+        controls[1].value = value
+        filters.dispatchEvent(new Event('input'))
+        assert.equal(button.disabled, value === '')
+    }
+})

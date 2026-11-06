@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
@@ -390,6 +393,121 @@ func TestErrorStatus(t *testing.T) {
 
 	if _, err := client.Book(context.Background(), "0"); err == nil {
 		t.Error("expected error on non-200 response, got nil")
+	}
+}
+
+type searchTransport func(*http.Request) (*http.Response, error)
+
+func (transport searchTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	return transport(request)
+}
+
+func TestSearchRetries(t *testing.T) {
+	fixture := string(readFixture(t, "search-books.json"))
+	for _, tt := range []struct {
+		name        string
+		status      int
+		body        string
+		unavailable bool
+		attempts    int
+		recover     bool
+	}{
+		{"invalid query", http.StatusNotFound, `{"status":"Error - Invalid Query"}`, true, 3, false},
+		{"legitimate not found", http.StatusNotFound, `{"status":"Error - Book not found"}`, true, 3, false},
+		{"non-JSON not found", http.StatusNotFound, "<html>Not found</html>", true, 3, false},
+		{"other client error", http.StatusBadRequest, `{"status":"Error - Invalid Query"}`, false, 1, false},
+		{"server error", http.StatusServiceUnavailable, `{"status":"Error - Invalid Query"}`, true, 3, false},
+		{"rate limit", http.StatusTooManyRequests, `{}`, true, 3, false},
+		{"recovery", http.StatusNotFound, `{"status":"Error - Invalid Query"}`, false, 3, true},
+		{"empty success", http.StatusOK, `{"status":"Received","result":[]}`, false, 1, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				attempts := 0
+				client := newTestClient(biblioreads.WithInstances([]string{"https://example.test"}),
+					biblioreads.WithHTTPClient(&http.Client{Transport: searchTransport(func(r *http.Request) (*http.Response, error) {
+						var captured capturedRequest
+						if !captureRequest(t, httptest.NewRecorder(), r, &captured) {
+							t.Fatal("invalid search request")
+						}
+						assertRequest(t, captured, "/api/search/books", map[string]any{
+							"queryURL": "https://www.goodreads.com/search?q=El%20economista%20camuflado%20Tim%20Harford",
+						})
+						attempts++
+						status, body := tt.status, tt.body
+						if tt.recover && attempts == 3 {
+							status, body = http.StatusOK, fixture
+						}
+						header := make(http.Header)
+						if status == http.StatusTooManyRequests {
+							header.Set("Retry-After", "1")
+						}
+						return &http.Response{StatusCode: status, Header: header, Body: io.NopCloser(strings.NewReader(body))}, nil
+					})}))
+				start := time.Now()
+				response, err := client.SearchBooks(context.Background(), "El economista camuflado Tim Harford")
+				wantError := !tt.recover && tt.status != http.StatusOK
+				if (err != nil) != wantError || errors.Is(err, biblioreads.ErrUnavailable) != tt.unavailable {
+					t.Fatalf("unexpected search error classification: %v", err)
+				}
+				if attempts != tt.attempts {
+					t.Fatalf("expected %d attempts, got %d", tt.attempts, attempts)
+				}
+				cooldown := time.Minute
+				if tt.status == http.StatusTooManyRequests {
+					cooldown = time.Second
+				}
+				if attempts == 3 && time.Since(start) != 2*cooldown {
+					t.Fatalf("retries must respect the instance cooldown: %s", time.Since(start))
+				}
+				if tt.recover && len(response.Result) == 0 {
+					t.Fatal("successful retry must return its results")
+				}
+			})
+		})
+	}
+}
+
+func TestSearchRetryWaitHonorsCancellation(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		attempts := 0
+		client := newTestClient(biblioreads.WithInstances([]string{"https://example.test"}),
+			biblioreads.WithHTTPClient(&http.Client{Transport: searchTransport(func(*http.Request) (*http.Response, error) {
+				attempts++
+				return &http.Response{StatusCode: http.StatusNotFound, Header: make(http.Header),
+					Body: io.NopCloser(strings.NewReader(`{"status":"Error - Invalid Query"}`))}, nil
+			})}))
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		start := time.Now()
+		_, err := client.SearchBooks(ctx, "book")
+		if !errors.Is(err, context.DeadlineExceeded) || attempts != 1 || time.Since(start) != 10*time.Second {
+			t.Fatalf("cancellation must interrupt cooldown: attempts=%d, elapsed=%s, err=%v", attempts, time.Since(start), err)
+		}
+	})
+}
+
+func TestSearchInvalidQueryFailsOverWithoutChangingQuery(t *testing.T) {
+	var hits atomic.Int32
+	fixture := readFixture(t, "search-books.json")
+	client := newFailoverClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var captured capturedRequest
+		if !captureRequest(t, w, r, &captured) {
+			return
+		}
+		assertRequest(t, captured, "/api/search/books", map[string]any{
+			"queryURL": "https://www.goodreads.com/search?q=El%20economista%20camuflado%20Tim%20Harford",
+		})
+		if hits.Add(1) == 1 {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"status":"Error - Invalid Query","version":"BiblioReads v4.4.0"}`))
+			return
+		}
+		_, _ = w.Write(fixture)
+	}))
+	response, err := client.SearchBooks(context.Background(), "El economista camuflado Tim Harford")
+	if err != nil || len(response.Result) == 0 || hits.Load() != 2 {
+		t.Fatalf("expected same-query recovery on another instance, got %+v, %v, requests=%d", response, err, hits.Load())
 	}
 }
 

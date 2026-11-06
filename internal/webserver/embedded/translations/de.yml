@@ -426,6 +426,6 @@
 "No score": "Keine Bewertung"
 "Not scored": "Nicht bewertet"
 "%s ratings": "%s Bewertungen"
-"Review information progress": "Fortschritt der Bewertungsinformationen"
+"Retrieving ratings": "Bewertungen werden abgerufen"
 "Review information is incomplete. Score filters may omit documents whose ratings have not been retrieved.": "Bewertungsinformationen sind unvollständig. Bewertungsfilter können Dokumente auslassen, deren Bewertungen noch nicht abgerufen wurden."
 "Unable to retrieve background progress.": "Der Fortschritt der Hintergrundaufgaben konnte nicht abgerufen werden."

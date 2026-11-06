@@ -244,11 +244,13 @@ type progressTracker struct {
 	startNanos atomic.Int64
 	processed  atomic.Uint64
 	total      atomic.Uint64
+	failed     atomic.Bool
 }
 
 // begin marks the phase as started, resetting processed to 0 and total to
 // the given count.
 func (p *progressTracker) begin(total int) {
+	p.failed.Store(false)
 	p.startNanos.Store(time.Now().UnixNano())
 	p.processed.Store(0)
 	p.total.Store(uint64(total))

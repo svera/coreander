@@ -76,13 +76,16 @@ func (b *BleveIndexer) documentEnrichTracker(i int) *progressTracker {
 	return &progressTracker{}
 }
 
-func (b *BleveIndexer) enrichProvider(provider DocumentEnricher, tracker *progressTracker, batchSize int) error {
+func (b *BleveIndexer) enrichProvider(provider DocumentEnricher, tracker *progressTracker, batchSize int) (resultErr error) {
+	defer func() {
+		tracker.failed.Store(resultErr != nil)
+		tracker.end()
+	}()
 	_, total, err := b.documentsNeedingProvider(provider.Source(), 0, nil)
 	if err != nil || total == 0 {
 		return err
 	}
 	tracker.begin(int(total))
-	defer tracker.end()
 	log.Printf("Enriching %d documents with %s data", total, provider.Source())
 	var failures []error
 	failedDocuments := make(map[string]struct{})

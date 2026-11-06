@@ -49,6 +49,9 @@ func TestDocumentEnrichmentUsesBoundedConcurrency(t *testing.T) {
 	}
 	idx, _ := newTestTextRankIndexer(t, Config{})
 	documents := make([]Document, documentCount)
+	for i := range documents {
+		documents[i] = Document{ID: fmt.Sprintf("book-%d", i)}
+	}
 	done := make(chan map[string]error, 1)
 	go func() { done <- idx.enrichProviderBatch(provider, &progressTracker{}, documents) }()
 	defer func() {
@@ -126,8 +129,8 @@ func TestBackgroundProgressTracksPersistedProviderLookups(t *testing.T) {
 		t.Fatal("expected unavailable provider to fail")
 	}
 	progress, err = idx.BackgroundProgress()
-	if err != nil || len(progress) != 1 || progress[0].Name != "first" || progress[0].Percentage != 66 {
-		t.Fatalf("failed lookups must remain visible; successful providers must disappear: %+v, %v", progress, err)
+	if err != nil || len(progress) != 0 {
+		t.Fatalf("finished providers must disappear, including failed lookups: %+v, %v", progress, err)
 	}
 	// Progress is reconstructed from stored data, not a running worker counter.
 	resumed := &BleveIndexer{documentsIdx: idx.documentsIdx, documentEnrichers: []DocumentEnricher{first}}
@@ -227,6 +230,18 @@ func TestDocumentEnrichmentContinuesAfterDocumentFailure(t *testing.T) {
 	}
 	if len(pending) != 1 || pending[0].ID != "book-2" {
 		t.Fatalf("failed document should remain pending for a later retry: %+v", pending)
+	}
+	progress, err := idx.BackgroundProgress()
+	if err != nil || len(progress) != 0 {
+		t.Fatalf("failed run must not report active progress: %+v, %v", progress, err)
+	}
+	provider.failure = nil
+	if err := idx.EnrichDocuments(1); err != nil {
+		t.Fatal(err)
+	}
+	progress, err = idx.BackgroundProgress()
+	if err != nil || len(progress) != 0 || idx.documentEnrichProgress[0].failed.Load() {
+		t.Fatalf("successful retry must clear the failed state: %+v, %v", progress, err)
 	}
 }
 
