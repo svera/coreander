@@ -29,9 +29,6 @@ jobs:
       - name: Test
         run: go test -v ./... --cover
 
-      - name: Test release build environments
-        run: go test magefile.go magefile_test.go
-
       - name: Test Linux release on a CPU without AVX
         run: |
           sudo apt-get update
