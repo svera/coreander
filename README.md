@@ -37,6 +37,8 @@ There are two possibilities for building Coreander from source:
 * If you have [Mage](https://magefile.org) installed in your system, just type `mage install` from the source code folder.
 * Otherwise, a simple `go build` or `go install` will do, although no version information will be added to the executable.
 
+Release builds (`mage build <platform>` or `mage release`) disable cgo and explicitly target the baseline `GOAMD64=v1` on x86-64, so they do not depend on the build machine's native C compiler CPU settings. For an equivalent portable Linux x86-64 build from source, use `CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOAMD64=v1 go build`.
+
 Reader interaction regression tests can be run with Node.js using its built-in test runner: `node --test internal/webserver/js-tests/*.test.mjs`.
 
 ## How to use
