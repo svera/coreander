@@ -129,9 +129,8 @@ func TestBackgroundProgressTracksPersistedProviderLookups(t *testing.T) {
 		t.Fatal("expected unavailable provider to fail")
 	}
 	progress, err = idx.BackgroundProgress()
-	if err != nil || len(progress) != 1 || progress[0].Name != "first" || progress[0].Percentage != 66 ||
-		!progress[0].Failed || progress[0].InProgress || progress[0].RemainingTime != 0 {
-		t.Fatalf("failed lookups must remain visible; successful providers must disappear: %+v, %v", progress, err)
+	if err != nil || len(progress) != 0 {
+		t.Fatalf("finished providers must disappear, including failed lookups: %+v, %v", progress, err)
 	}
 	// Progress is reconstructed from stored data, not a running worker counter.
 	resumed := &BleveIndexer{documentsIdx: idx.documentsIdx, documentEnrichers: []DocumentEnricher{first}}
@@ -233,8 +232,8 @@ func TestDocumentEnrichmentContinuesAfterDocumentFailure(t *testing.T) {
 		t.Fatalf("failed document should remain pending for a later retry: %+v", pending)
 	}
 	progress, err := idx.BackgroundProgress()
-	if err != nil || len(progress) != 1 || !progress[0].Failed || progress[0].InProgress || progress[0].RemainingTime != 0 {
-		t.Fatalf("failed run must report stopped progress without an estimate: %+v, %v", progress, err)
+	if err != nil || len(progress) != 0 {
+		t.Fatalf("failed run must not report active progress: %+v, %v", progress, err)
 	}
 	provider.failure = nil
 	if err := idx.EnrichDocuments(1); err != nil {

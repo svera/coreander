@@ -144,13 +144,7 @@ func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, user
 		if err != nil {
 			log.Printf("Error reading background progress: %s", err)
 		}
-		var visibleTasks []index.Progress
-		for _, task := range tasks {
-			if !task.Failed {
-				visibleTasks = append(visibleTasks, task)
-			}
-		}
-		return fiber.Map{"Tasks": visibleTasks, "Error": err != nil}
+		return fiber.Map{"Tasks": tasks, "Error": err != nil}
 	})
 
 	// UploadDocumentMaxSize <= 0 means "unlimited", but fiber has no such

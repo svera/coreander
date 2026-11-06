@@ -15,7 +15,6 @@ const (
 type Progress struct {
 	Kind          ProgressKind
 	InProgress    bool
-	Failed        bool
 	RemainingTime time.Duration
 	Percentage    float64
 	Name          string
