@@ -13,23 +13,19 @@
             {{else if eq .Kind "pruning"}}{{$label = "Keyword clean-up progress"}}
             {{else if eq .Kind "data-sources"}}
                 {{$label = "Retrieving ratings"}}
-                {{if .Failed}}{{$label = "Waiting to retry ratings"}}{{end}}
-                {{if and (gt .Unresolved 0) (not .InProgress) (not .Failed)}}{{$label = "Some ratings remain unresolved"}}{{end}}
+                {{if .Failed}}{{$label = "Some ratings remain unresolved"}}{{end}}
             {{end}}
             <div class="mb-3" data-progress-kind="{{.Kind}}">
                 <p class="mb-1">{{t $.Lang $label}}{{if .Name}} ({{.Name}}){{end}}</p>
                 {{$remaining := ""}}{{if gt .RemainingTime 0}}{{$remaining = t $.Lang "%s left" (remainingTime .RemainingTime)}}{{end}}
-                {{if or .InProgress .Failed}}
+                {{if .InProgress}}
                 <div class="progress" role="progressbar" aria-label="{{t $.Lang $label}}" aria-valuenow="{{.Percentage}}" aria-valuemin="0" aria-valuemax="100"{{if $remaining}} aria-valuetext="{{.Percentage}}% ({{$remaining}})"{{end}}>
                     <div class="progress-bar overflow-visible text-nowrap px-1{{if eq .Kind "data-sources"}} bg-info-subtle text-body-emphasis{{else if lt .Percentage 25.0}} text-body-emphasis{{end}}" style="width: {{.Percentage}}%">{{.Percentage}}%{{if $remaining}} ({{$remaining}}){{end}}</div>
                 </div>
                 {{end}}
                 {{if eq .Kind "data-sources"}}
-                {{if gt .Unresolved 0}}
-                <p class="small mt-1 mb-0">{{t $.Lang "Rating lookups unresolved after three not-found responses: %d. Restart Coreander to retry them." .Unresolved}}</p>
-                {{end}}
                 {{if .Failed}}
-                <p class="small mt-1 mb-0">{{t $.Lang "Some ratings could not be retrieved. Pending lookups will be retried automatically."}}</p>
+                <p class="small mt-1 mb-0">{{t $.Lang "Some ratings could not be retrieved. Restart Coreander to retry pending lookups."}}</p>
                 {{end}}
                 <p class="small mt-1 mb-0">{{t $.Lang "Review information is incomplete. Score filters may omit documents whose ratings have not been retrieved."}}</p>
                 {{else if eq .Kind "authors"}}

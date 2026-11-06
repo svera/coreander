@@ -16,7 +16,6 @@ type Progress struct {
 	Kind          ProgressKind
 	InProgress    bool
 	Failed        bool
-	Unresolved    uint64
 	RemainingTime time.Duration
 	Percentage    float64
 	Name          string

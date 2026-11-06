@@ -1,7 +1,6 @@
 package index
 
 import (
-	"context"
 	"errors"
 	"log"
 	"path/filepath"
@@ -222,10 +221,6 @@ type BleveIndexer struct {
 	documentEnrichers  []DocumentEnricher
 	// documentEnrichProgress measures each provider's current run rate, by enricher index.
 	documentEnrichProgress        []progressTracker
-	documentEnrichContext         context.Context
-	documentEnrichCancel          context.CancelFunc
-	documentEnrichStart           sync.Once
-	documentEnrichWG              sync.WaitGroup
 	providerProgressMu            sync.Mutex
 	providerProgressUntil         time.Time
 	providerProgress              []providerProgressCount
@@ -250,7 +245,6 @@ type progressTracker struct {
 	processed  atomic.Uint64
 	total      atomic.Uint64
 	failed     atomic.Bool
-	lookups    sync.Map // Document ID -> *documentLookupState for provider retry limits.
 }
 
 // begin marks the phase as started, resetting processed to 0 and total to
@@ -331,7 +325,6 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		textRankEnrichWorkers = 1
 	}
 
-	enrichContext, enrichCancel := context.WithCancel(context.Background())
 	b := &BleveIndexer{
 		fs:                             fs,
 		documentsIdx:                   documentsIndex,
@@ -351,8 +344,6 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		textRankEnrichJobs:             make(chan Document, textRankEnrichWorkers),
 		documentEnrichers:              slices.Clone(cfg.DocumentEnrichers),
 		documentEnrichProgress:         make([]progressTracker, len(cfg.DocumentEnrichers)),
-		documentEnrichContext:          enrichContext,
-		documentEnrichCancel:           enrichCancel,
 	}
 
 	for range textRankEnrichWorkers {
@@ -573,10 +564,6 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 
 // Close closes both indexes
 func (b *BleveIndexer) Close() error {
-	if b.documentEnrichCancel != nil {
-		b.documentEnrichCancel()
-	}
-	b.documentEnrichWG.Wait()
 	b.documentsMu.Lock()
 	defer b.documentsMu.Unlock()
 	b.authorsMu.Lock()

@@ -32,9 +32,6 @@ const (
 // non-JSON responses), as opposed to an instance answering with an error of its own.
 var ErrUnavailable = errors.New("biblioreads: all instances failed")
 
-// ErrNotFound identifies HTTP 404 responses, which may be legitimate or an upstream failure.
-var ErrNotFound = errors.New("biblioreads: not found")
-
 type Client struct {
 	instances  []string
 	httpClient *http.Client
@@ -92,7 +89,8 @@ func WithCacheTTL(ttl time.Duration) Option {
 // instances ready to accept a request and randomizing ties. Requests to each
 // instance are spaced at least one second apart by default, including failover
 // attempts. Unavailable instances are skipped until their Retry-After time, or
-// httpjson.DefaultRetryAfter, has passed. Successful responses are cached in memory for
+// httpjson.DefaultRetryAfter, has passed. Book searches wait if all instances are cooling down.
+// Successful responses are cached in memory for
 // DefaultCacheTTL unless changed with WithCacheTTL. No endpoints are configured
 // by default; callers must supply them with WithInstances.
 func NewClient(opts ...Option) *Client {
@@ -134,7 +132,7 @@ type reviewsPayload struct {
 	LanguageCode  string `json:"languageCode,omitempty"`
 }
 
-// SearchBooks searches Goodreads books matching query.
+// SearchBooks searches Goodreads books matching query, with at most three attempts on retryable errors.
 func (c *Client) SearchBooks(ctx context.Context, query string) (SearchBooksResponse, error) {
 	var res SearchBooksResponse
 	payload := queryURLPayload{
@@ -215,8 +213,15 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 	var errs []error
 	var incompleteResponse []byte
 	tried := make(map[string]bool)
-	for len(tried) < len(c.instances) {
-		instance, err := c.acquireInstance(ctx, tried)
+	attempts := len(c.instances)
+	if path == searchBooksPath {
+		attempts = 3
+	}
+	for range attempts {
+		if len(tried) == len(c.instances) {
+			clear(tried)
+		}
+		instance, err := c.acquireInstance(ctx, tried, path == searchBooksPath)
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
@@ -313,7 +318,7 @@ func supportsReviewLanguage(version string) bool {
 
 // acquireInstance rechecks availability after waiting, so cancellation does not
 // reserve a future slot and concurrent requests cannot take the same slot.
-func (c *Client) acquireInstance(ctx context.Context, tried map[string]bool) (string, error) {
+func (c *Client) acquireInstance(ctx context.Context, tried map[string]bool, waitForCooldown bool) (string, error) {
 	for {
 		if err := ctx.Err(); err != nil {
 			return "", err
@@ -321,19 +326,27 @@ func (c *Client) acquireInstance(ctx context.Context, tried map[string]bool) (st
 		c.mu.Lock()
 		start := rand.IntN(len(c.instances))
 		instance := ""
+		var readyAt time.Time
 		now := time.Now()
 		for i := range c.instances {
 			candidate := c.instances[(start+i)%len(c.instances)]
-			if !tried[candidate] && !now.Before(c.cooldownUntil[candidate]) &&
-				(instance == "" || c.nextRequest[candidate].Before(c.nextRequest[instance])) {
+			if tried[candidate] || (!waitForCooldown && now.Before(c.cooldownUntil[candidate])) {
+				continue
+			}
+			ready := c.nextRequest[candidate]
+			if c.cooldownUntil[candidate].After(ready) {
+				ready = c.cooldownUntil[candidate]
+			}
+			if instance == "" || ready.Before(readyAt) {
 				instance = candidate
+				readyAt = ready
 			}
 		}
 		if instance == "" {
 			c.mu.Unlock()
 			return "", fmt.Errorf("%w: no untried instance is outside its cooldown", ErrUnavailable)
 		}
-		wait := time.Until(c.nextRequest[instance])
+		wait := time.Until(readyAt)
 		if wait <= 0 {
 			c.nextRequest[instance] = time.Now().Add(c.requestInterval)
 			c.mu.Unlock()
@@ -386,31 +399,19 @@ func (c *Client) postToInstance(ctx context.Context, endpoint string, body []byt
 	// BiblioReads always answers with JSON, even on errors (e.g. a 504 for a book that
 	// doesn't exist), so anything else comes from a broken instance or a proxy in front of it.
 	if !json.Valid(resp.Body) {
-		reason := fmt.Errorf("status code %d with non-JSON response", resp.StatusCode)
-		if resp.StatusCode == http.StatusNotFound {
-			reason = fmt.Errorf("%w: %w", ErrNotFound, reason)
-		}
 		return nil, &unavailableError{
 			endpoint:   endpoint,
 			retryAfter: httpjson.DefaultRetryAfter,
-			reason:     reason,
+			reason:     fmt.Errorf("status code %d with non-JSON response", resp.StatusCode),
 		}
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		responseErr := fmt.Errorf("biblioreads: request to %s failed with status code %d: %s", endpoint, resp.StatusCode, resp.Body)
-		if resp.StatusCode == http.StatusNotFound {
-			responseErr = fmt.Errorf("%w: %w", ErrNotFound, responseErr)
-		}
 		if resp.StatusCode == http.StatusNotFound && strings.HasSuffix(endpoint, searchBooksPath) {
-			var response struct {
-				Status string `json:"status"`
-			}
-			if err := json.Unmarshal(resp.Body, &response); err == nil && response.Status == "Error - Invalid Query" {
-				return nil, &unavailableError{
-					endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter,
-					reason: responseErr,
-				}
+			return nil, &unavailableError{
+				endpoint: endpoint, retryAfter: httpjson.ParseRetryAfter(resp.Header.Get("Retry-After")),
+				reason: responseErr,
 			}
 		}
 		return nil, responseErr

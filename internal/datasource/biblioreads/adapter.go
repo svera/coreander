@@ -14,7 +14,7 @@ const (
 	// maxConcurrentLookups bounds lookups across every enrichment caller, so they do not pile up
 	// waiting on the client. Client request spacing and cooldowns protect each instance.
 	maxConcurrentLookups = 4
-	requestTimeout       = 2 * time.Minute
+	requestTimeout       = 3 * time.Minute
 )
 
 type SearchSource interface {
@@ -48,9 +48,6 @@ func (*Enricher) NeedsEnrichment(document index.Document) (bool, error) {
 
 func (p *Enricher) Enrich(ctx context.Context, idx *index.BleveIndexer, document index.Document) error {
 	_, err := p.enrich(ctx, idx, document)
-	if errors.Is(err, ErrNotFound) {
-		return fmt.Errorf("%w: %w", index.ErrEnrichmentNotFound, err)
-	}
 	return err
 }
 

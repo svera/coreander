@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"image"
 	"reflect"
 	"slices"
@@ -337,35 +336,6 @@ func TestEnrichLeavesDocumentsForLaterWhenUnavailable(t *testing.T) {
 	}
 	if doc, _ = idx.DocumentByID(testID); mustData(t, doc).URL != wantDataSourceLink {
 		t.Errorf("expected document to be enriched on retry, got %q", mustData(t, doc).URL)
-	}
-}
-
-func TestEnrichBoundsNotFoundLookups(t *testing.T) {
-	source := &fakeSource{err: fmt.Errorf("%w: %w", ErrUnavailable, ErrNotFound)}
-	idx := newTestIndexer(t, source)
-	doc := index.Document{ID: testID, Metadata: metadata.Metadata{Title: "El economista camuflado", Authors: []string{"Tim Harford"}}}
-	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
-		t.Fatal(err)
-	}
-	for attempt := range 5 {
-		err := idx.EnrichDocuments(1)
-		if attempt < 3 && (!errors.Is(err, ErrNotFound) || !errors.Is(err, index.ErrEnrichmentNotFound)) {
-			t.Fatalf("not-found classification must reach the retry scheduler: %v", err)
-		}
-		if attempt >= 3 && err != nil {
-			t.Fatalf("exhausted lookup must not be retried automatically: %v", err)
-		}
-	}
-	if queries := source.Queries(); !slices.Equal(queries, []string{
-		"El economista camuflado Tim Harford",
-		"El economista camuflado Tim Harford",
-		"El economista camuflado Tim Harford",
-	}) {
-		t.Fatalf("expected exactly three attempts of the original query: %q", queries)
-	}
-	stored, err := idx.DocumentByID(doc.ID)
-	if err != nil || mustData(t, stored).Enriched {
-		t.Fatalf("exhausted lookups must remain unresolved: %+v, %v", stored, err)
 	}
 }
 
