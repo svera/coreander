@@ -419,7 +419,5 @@
 "Not scored": "Не оценено"
 "%s ratings": "Оценок: %s"
 "Retrieving ratings": "Получение оценок"
-"Some ratings remain unresolved": "Некоторые оценки остаются неполученными"
-"Some ratings could not be retrieved. Restart Coreander to retry pending lookups.": "Не удалось получить некоторые оценки. Перезапустите Coreander, чтобы повторить оставшиеся запросы."
 "Review information is incomplete. Score filters may omit documents whose ratings have not been retrieved.": "Информация об оценках неполная. Фильтры по оценкам могут пропускать документы, оценки которых ещё не получены."
 "Unable to retrieve background progress.": "Не удалось получить состояние фоновых задач."

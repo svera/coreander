@@ -427,7 +427,5 @@
 "Not scored": "Nicht bewertet"
 "%s ratings": "%s Bewertungen"
 "Retrieving ratings": "Bewertungen werden abgerufen"
-"Some ratings remain unresolved": "Einige Bewertungen bleiben ungeklärt"
-"Some ratings could not be retrieved. Restart Coreander to retry pending lookups.": "Einige Bewertungen konnten nicht abgerufen werden. Starte Coreander neu, um ausstehende Abfragen zu wiederholen."
 "Review information is incomplete. Score filters may omit documents whose ratings have not been retrieved.": "Bewertungsinformationen sind unvollständig. Bewertungsfilter können Dokumente auslassen, deren Bewertungen noch nicht abgerufen wurden."
 "Unable to retrieve background progress.": "Der Fortschritt der Hintergrundaufgaben konnte nicht abgerufen werden."

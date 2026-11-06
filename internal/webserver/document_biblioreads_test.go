@@ -137,23 +137,13 @@ func TestReviewEnrichmentProgressBanner(t *testing.T) {
 	if err := idx.EnrichDocuments(1); err == nil {
 		t.Fatal("expected unavailable source to fail")
 	}
-	for lang, label := range map[string]string{
-		"en": "Some ratings remain unresolved",
-		"es": "Algunas valoraciones siguen sin resolverse",
-		"de": "Einige Bewertungen bleiben ungeklärt",
-		"fr": "Certaines évaluations restent non résolues",
-		"ru": "Некоторые оценки остаются неполученными",
-	} {
+	for _, lang := range []string{"en", "es", "de", "fr", "ru"} {
 		localized := getPage(t, app, "/background-progress?l="+lang)
-		reviews := localized.Find(`[data-progress-kind="data-sources"]`)
-		if !strings.Contains(reviews.Find("p").First().Text(), label) {
-			t.Errorf("%s: failed lookups must show incomplete results", lang)
+		if localized.Find(`[data-progress-kind="data-sources"]`).Length() != 0 {
+			t.Errorf("%s: failed ratings retrieval must not display a message or progress bar", lang)
 		}
-		if lang == "en" && !strings.Contains(reviews.Text(), "Restart Coreander to retry pending lookups.") {
-			t.Fatal("failed progress must explain how to retry")
-		}
-		if reviews.Find(`[role="progressbar"]`).Length() != 0 {
-			t.Fatal("finished retrieval must not leave a stuck progress bar")
+		if localized.Find(`[data-progress-kind="documents"]`).Length() != 1 {
+			t.Errorf("%s: hiding failed ratings must preserve active indexing progress", lang)
 		}
 	}
 	source.searchErr = nil
@@ -172,6 +162,21 @@ func TestReviewEnrichmentProgressBanner(t *testing.T) {
 	response.Body.Close()
 	if response.Header.Get("Cache-Control") != "no-store" {
 		t.Fatal("live progress responses must not be cached")
+	}
+}
+
+func TestFailedReviewEnrichmentLeavesNoAlert(t *testing.T) {
+	app, idx := newBiblioReadsTestApp(t, &fakeBookSource{searchErr: biblioreads.ErrUnavailable})
+	if err := idx.EnrichDocuments(1); err == nil {
+		t.Fatal("expected unavailable source to fail")
+	}
+	page := getPage(t, app, "/background-progress?l=en")
+	banner := page.Find("#background-progress")
+	if banner.Find(".alert").Length() != 0 || strings.TrimSpace(banner.Text()) != "" {
+		t.Fatal("failed ratings retrieval must not leave an empty alert or end-user message")
+	}
+	if banner.AttrOr("hx-trigger", "") != "every 5s" {
+		t.Fatal("progress polling must remain available for future tasks")
 	}
 }
 

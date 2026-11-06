@@ -13,7 +13,6 @@
             {{else if eq .Kind "pruning"}}{{$label = "Keyword clean-up progress"}}
             {{else if eq .Kind "data-sources"}}
                 {{$label = "Retrieving ratings"}}
-                {{if .Failed}}{{$label = "Some ratings remain unresolved"}}{{end}}
             {{end}}
             <div class="mb-3" data-progress-kind="{{.Kind}}">
                 <p class="mb-1">{{t $.Lang $label}}{{if .Name}} ({{.Name}}){{end}}</p>
@@ -24,9 +23,6 @@
                 </div>
                 {{end}}
                 {{if eq .Kind "data-sources"}}
-                {{if .Failed}}
-                <p class="small mt-1 mb-0">{{t $.Lang "Some ratings could not be retrieved. Restart Coreander to retry pending lookups."}}</p>
-                {{end}}
                 <p class="small mt-1 mb-0">{{t $.Lang "Review information is incomplete. Score filters may omit documents whose ratings have not been retrieved."}}</p>
                 {{else if eq .Kind "authors"}}
                 <p class="small mt-1 mb-0">{{t $.Lang "Retrieving author information. Author pages may be incomplete, and author filters may not work yet."}}</p>

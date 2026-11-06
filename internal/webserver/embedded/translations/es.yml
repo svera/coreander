@@ -423,7 +423,5 @@
 "Not scored": "Sin puntuar"
 "%s ratings": "%s valoraciones"
 "Retrieving ratings": "Recuperando valoraciones"
-"Some ratings remain unresolved": "Algunas valoraciones siguen sin resolverse"
-"Some ratings could not be retrieved. Restart Coreander to retry pending lookups.": "No se pudieron recuperar algunas valoraciones. Reinicia Coreander para reintentar las búsquedas pendientes."
 "Review information is incomplete. Score filters may omit documents whose ratings have not been retrieved.": "La información de valoraciones está incompleta. Los filtros de puntuación pueden omitir documentos cuyas valoraciones aún no se han obtenido."
 "Unable to retrieve background progress.": "No se pudo obtener el progreso de las tareas en segundo plano."
