@@ -6,7 +6,9 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gosimple/slug"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
+	authorcontroller "github.com/svera/coreander/v5/internal/webserver/controller/author"
 	"github.com/svera/coreander/v5/internal/webserver/controller/fsutil"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
@@ -15,8 +17,9 @@ import (
 // render eagerly (i.e. without the async /summary htmx round-trip), so it can
 // only fall back to that round-trip when the author hasn't been enriched yet.
 type authorSummary struct {
-	Author       index.Author
-	ImageVersion string
+	Author          index.Author
+	ImageVersion    string
+	DataSourceLinks []datasourcemodel.DataSourceLink
 }
 
 func (d *Controller) Detail(c fiber.Ctx) error {
@@ -71,7 +74,18 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"AuthorSummaries":      authorSummaries,
 		"IllustratorSummaries": illustratorSummaries,
 		"Debug":                c.RequestCtx().QueryArgs().Has("debug"),
+		"ReviewsEnabled":       d.reviewProvider != nil,
+		"DocumentLink":         d.dataSourceDocumentLink(document),
 	}, "layout")
+}
+
+func (d *Controller) dataSourceDocumentLink(document index.Document) datasourcemodel.DataSourceLink {
+	if provider, ok := d.reviewProvider.(interface {
+		DocumentLink(index.Document) datasourcemodel.DataSourceLink
+	}); ok {
+		return provider.DocumentLink(document)
+	}
+	return datasourcemodel.DataSourceLink{}
 }
 
 // authorAndIllustratorSummaries resolves the (up to 2) authors and (up to 2)
@@ -117,7 +131,8 @@ func (d *Controller) authorSummaryFor(authorSlug, lang string) authorSummary {
 		log.Println(err)
 	}
 
-	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug)}
+	links := authorcontroller.DataSourceLinks(author, lang, d.linkProviders...)
+	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug), DataSourceLinks: links}
 }
 
 func (d *Controller) sameSeries(slug string, sessionID int) ([]model.AugmentedDocument, int, error) {

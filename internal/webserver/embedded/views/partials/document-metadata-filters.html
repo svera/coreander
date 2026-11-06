@@ -19,6 +19,28 @@
     </div>
 </fieldset>
 {{end}}
+{{if .ReviewSourceConfigured}}
+<fieldset class="mt-4">
+    <legend class="fs-5"><i class="bi bi-star me-3"></i>{{if .DataSourceName}}{{t .Lang "%s score" .DataSourceName}}{{else}}{{t .Lang "Review score"}}{{end}}</legend>
+    <div class="row">
+        <div class="col-12 px-0">
+            <div class="input-group input-group-sm">
+                {{$reviewScoreFrom := 0.0}}
+                {{if .SearchFields}}
+                    {{$reviewScoreFrom = .SearchFields.DataSourceScoreFrom}}
+                {{end}}
+                {{$reviewScoreTo := 5.0}}
+                {{if .SearchFields}}
+                    {{$reviewScoreTo = .SearchFields.DataSourceScoreUpperBound}}
+                {{end}}
+                {{template "partials/document-score-filter-control" dict "Lang" .Lang "IdPrefix" $idPrefix "Name" "review-score-from" "Label" "From" "Score" $reviewScoreFrom "Default" 0.0}}
+                {{template "partials/document-score-filter-control" dict "Lang" .Lang "IdPrefix" $idPrefix "Name" "review-score-to" "Label" "To" "Score" $reviewScoreTo "Default" 5.0 "RoundedEnd" true}}
+                <button type="button" class="input-group-text clear-range-control text-muted border-0 bg-transparent" aria-label='{{if .DataSourceName}}{{t .Lang "Clear %s score" .DataSourceName}}{{else}}{{t .Lang "Clear review score"}}{{end}}' title='{{if .DataSourceName}}{{t .Lang "Clear %s score" .DataSourceName}}{{else}}{{t .Lang "Clear review score"}}{{end}}'><i class="bi bi-x-lg"></i></button>
+            </div>
+        </div>
+    </div>
+</fieldset>
+{{end}}
 <fieldset class="mt-4">
     <legend class="fs-5"><i class="bi bi-tags me-3"></i>{{t .Lang "Subjects"}}</legend>
     <div class="row">

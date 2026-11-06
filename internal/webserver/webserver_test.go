@@ -16,6 +16,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
@@ -56,6 +57,11 @@ func TestGET(t *testing.T) {
 }
 
 func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig webserver.Config, metadataReaders ...map[string]metadata.Reader) *fiber.App {
+	app, _ := bootstrapAppWithIndexer(db, sender, appFs, webserverConfig, metadataReaders...)
+	return app
+}
+
+func bootstrapAppWithIndexer(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig webserver.Config, metadataReaders ...map[string]metadata.Reader) (*fiber.App, *index.BleveIndexer) {
 	readers := testMetadataReaders()
 	if len(metadataReaders) > 0 {
 		readers = metadataReaders[0]
@@ -89,9 +95,69 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 	if err != nil {
 		log.Fatal(err)
 	}
-	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource)
+	adapter := biblioreads.NewEnricher(nil)
+	adapter.SetIndex(idx)
+	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, nil, dataSource, biblioreads.NewReviewProvider(nil, adapter))
 	usersRepository := &model.UserRepository{DB: db}
-	return webserver.New(webserverConfig, controllers, sender, idx, usersRepository)
+	return webserver.New(webserverConfig, controllers, sender, idx, usersRepository), idx
+}
+
+func newSearchResultsTestApp(t *testing.T, documents []index.Document) (*fiber.App, *index.BleveIndexer) {
+	t.Helper()
+	db := infrastructure.Connect(":memory:", 250)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	documentIndex, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorsIndex, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	appFS := afero.NewMemMapFs()
+	cfg := defaultTestConfig()
+	idx := index.NewBleve(documentIndex, authorsIndex, appFS, testLibraryDir, nil, index.Config{})
+	t.Cleanup(func() { _ = idx.Close() })
+	for _, doc := range documents {
+		if err := index.IndexDocument(documentIndex, doc.ID, doc); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	sender := &infrastructure.NoEmail{}
+	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
+	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, dataSource, nil, dataSource, biblioreads.NewReviewProvider(nil, nil))
+	app := webserver.New(cfg, controllers, sender, idx, &model.UserRepository{DB: db})
+	t.Cleanup(func() { _ = app.Shutdown() })
+	return app, idx
+}
+
+// setReviewScore seeds a document's review score through the current provider-backed index storage.
+func setDataSourceScore(t *testing.T, idx *index.BleveIndexer, doc index.Document, score, count string) {
+	t.Helper()
+	adapter := biblioreads.NewEnricher(nil)
+	adapter.SetIndex(idx)
+	bookURL := mustBiblioReadsData(t, doc).URL
+	if bookURL == "" {
+		bookURL = "https://www.goodreads.com/book/show/1-" + doc.Slug
+		if err := adapter.UpdateDataSourceLink(doc.ID, bookURL); err != nil {
+			t.Fatalf("set review link for %s: %v", doc.Slug, err)
+		}
+	}
+	updated, err := idx.Document(doc.Slug)
+	if err != nil {
+		t.Fatalf("reload %s: %v", doc.Slug, err)
+	}
+	if err := adapter.StoreDetails(updated, mustBiblioReadsData(t, updated).URL, biblioreads.BookResponse{
+		Rating: score, RatingCount: count,
+	}); err != nil {
+		t.Fatalf("set review score for %s: %v", doc.Slug, err)
+	}
 }
 
 func loadFilesInMemoryFs(files []string) afero.Fs {

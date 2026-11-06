@@ -26,7 +26,8 @@ type readingRepository interface {
 }
 
 type Config struct {
-	WordsPerMinute float64
+	WordsPerMinute         float64
+	ReviewSourceConfigured bool
 }
 
 type Controller struct {

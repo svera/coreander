@@ -34,7 +34,8 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		page = 1
 	}
 
-	author, err := a.idx.Author(authorSlug, c.Locals("Lang").(string))
+	lang := c.Locals("Lang").(string)
+	author, err := a.idx.Author(authorSlug, lang)
 	if err != nil {
 		log.Println(err)
 	}
@@ -64,27 +65,20 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Author":               author,
-		"ImageVersion":         a.getImageVersion(author.Slug),
-		"DocumentSearchFields": searchFields,
-		"DocumentsOnly":        true,
-		"Results":              searchResults,
-		"Paginator":            view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
-		"Title":                author.Name,
-		"EmailFrom":            a.sender.From(),
-		"WordsPerMinute":       a.config.WordsPerMinute,
-		"URL":                  view.URL(c),
-		"SortURL":              view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":               c.Query("sort-by"),
-		"AdditionalSortOptions": []struct {
-			Key   string
-			Value string
-		}{
-			{"pub-date-older-first", "older"},
-			{"pub-date-newer-first", "newer"},
-			{"est-read-time-shorter-first", "shorter"},
-			{"est-read-time-longer-first", "longer"},
-		},
+		"Author":                author,
+		"DataSourceLinks":       a.authorDataSourceLinks(author, lang),
+		"ImageVersion":          a.getImageVersion(author.Slug),
+		"DocumentSearchFields":  searchFields,
+		"DocumentsOnly":         true,
+		"Results":               searchResults,
+		"Paginator":             view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries()),
+		"Title":                 author.Name,
+		"EmailFrom":             a.sender.From(),
+		"WordsPerMinute":        a.config.WordsPerMinute,
+		"URL":                   view.URL(c),
+		"SortURL":               view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":                c.Query("sort-by"),
+		"AdditionalSortOptions": authorDocumentSortOptions(a.config.ReviewSourceConfigured),
 	}
 
 	if c.Get("hx-request") == "true" {
@@ -100,4 +94,29 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	return nil
+}
+
+func authorDocumentSortOptions(reviewSourceConfigured bool) []struct {
+	Key   string
+	Value string
+} {
+	options := []struct {
+		Key   string
+		Value string
+	}{
+		{"pub-date-older-first", "older"},
+		{"pub-date-newer-first", "newer"},
+		{"est-read-time-shorter-first", "shorter"},
+		{"est-read-time-longer-first", "longer"},
+	}
+	if reviewSourceConfigured {
+		options = append(options, []struct {
+			Key   string
+			Value string
+		}{
+			{"review-score-asc", "review-score-asc"},
+			{"review-score-desc", "review-score-desc"},
+		}...)
+	}
+	return options
 }

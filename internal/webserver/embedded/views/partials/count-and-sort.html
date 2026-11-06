@@ -8,6 +8,6 @@
 </div>
 {{if gt .Results.TotalHits 0}}
 <div class="col-7 col-xl-auto ms-xl-auto text-end pe-0">
-    {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "AdditionalSortOptions" .AdditionalSortOptions}}
+    {{template "partials/sort" dict "SortURL" .SortURL "SortBy" .SortBy "Lang" .Lang "DataSourceName" .DataSourceName "AdditionalSortOptions" .AdditionalSortOptions}}
 </div>
 {{end}}

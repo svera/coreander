@@ -14,8 +14,10 @@ type Author interface {
 	DateOfBirth() precisiondate.PrecisionDate
 	DateOfDeath() precisiondate.PrecisionDate
 	Image() string
-	Website() string
-	WikipediaLink(language string) string
+	// Links returns the current links owned by this datasource, including language-specific keys.
+	Links() map[string]string
+	// OwnsLink identifies entries replaced by a metadata refresh, even if absent from Links.
+	OwnsLink(key string) bool
 	SourceID() string
 	RetrievedOn() time.Time
 	Pseudonyms() []string

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/precisiondate"
 	"github.com/svera/coreander/v5/internal/webserver"
@@ -70,9 +71,21 @@ func TestSeriesFilters(t *testing.T) {
 	third.Words = 0
 	catalog[testLibraryDir+"/metadata.pdf"] = third
 	reader := catalogReader{byPath: catalog}
-	app := bootstrapApp(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{},
+	app, idx := bootstrapAppWithIndexer(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{},
 		loadDirInMemoryFs(testLibraryDir), webserver.Config{},
 		map[string]metadata.Reader{".epub": reader, ".pdf": reader})
+	seriesDocuments, err := idx.SearchBySeries(index.SearchFields{Keywords: "the-lord-of-the-rings"}, 1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scores := map[string]string{
+		"First volume":  "3.20",
+		"Second volume": "4.50",
+		"Third volume":  "4.50",
+	}
+	for _, doc := range seriesDocuments.Hits() {
+		setDataSourceScore(t, idx, doc, scores[doc.Title], "")
+	}
 
 	cases := []struct {
 		name   string
@@ -81,6 +94,8 @@ func TestSeriesFilters(t *testing.T) {
 	}{
 		{"default series order", "", []string{"First volume", "Second volume", "Third volume"}},
 		{"descending series order", "?sort-by=number-desc", []string{"Third volume", "Second volume", "First volume"}},
+		{"review score ascending", "?sort-by=review-score-asc", []string{"First volume", "Second volume", "Third volume"}},
+		{"review score descending with series-order tie-break", "?sort-by=review-score-desc", []string{"Second volume", "Third volume", "First volume"}},
 		{"language", "?language=es", []string{"Second volume"}},
 		{"subjects", "?subjects=fiction", []string{"First volume", "Third volume"}},
 		{"publishing date", "?pub-date-from=2021-01-01", []string{"Second volume"}},

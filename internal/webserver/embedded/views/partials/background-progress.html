@@ -1,0 +1,38 @@
+{{if or (not .RequireAuth) (and .Session .Session.Uuid)}}
+{{$progress := backgroundProgress}}
+<div id="background-progress" data-error-message='{{t .Lang "Unable to retrieve background progress."}}' hx-get="/background-progress?l={{.Lang}}" hx-trigger="every 5s" hx-swap="outerHTML">
+    {{if $progress.Error}}
+    <div class="alert alert-warning" role="alert">{{t .Lang "Unable to retrieve background progress."}}</div>
+    {{end}}
+    {{if $progress.Tasks}}
+    <div class="alert alert-warning" role="status">
+        {{range $progress.Tasks}}
+            {{$label := "Indexing progress"}}
+            {{if eq .Kind "authors"}}{{$label = "Author information progress"}}
+            {{else if eq .Kind "textrank"}}{{$label = "Related content analysis progress"}}
+            {{else if eq .Kind "pruning"}}{{$label = "Keyword clean-up progress"}}
+            {{else if eq .Kind "data-sources"}}{{$label = "Review information progress"}}
+            {{end}}
+            <div class="mb-3" data-progress-kind="{{.Kind}}">
+                <p class="mb-1">{{t $.Lang $label}}{{if .Name}} ({{.Name}}){{end}}</p>
+                {{$remaining := ""}}{{if gt .RemainingTime 0}}{{$remaining = t $.Lang "%s left" (remainingTime .RemainingTime)}}{{end}}
+                <div class="progress" role="progressbar" aria-label="{{t $.Lang $label}}" aria-valuenow="{{.Percentage}}" aria-valuemin="0" aria-valuemax="100"{{if $remaining}} aria-valuetext="{{.Percentage}}% ({{$remaining}})"{{end}}>
+                    <div class="progress-bar overflow-visible text-nowrap px-1{{if lt .Percentage 25.0}} text-body-emphasis{{end}}{{if eq .Kind "data-sources"}} bg-info{{end}}" style="width: {{.Percentage}}%">{{.Percentage}}%{{if $remaining}} ({{$remaining}}){{end}}</div>
+                </div>
+                {{if eq .Kind "data-sources"}}
+                <p class="small mt-1 mb-0">{{t $.Lang "Review information is incomplete. Score filters may omit documents whose ratings have not been retrieved."}}</p>
+                {{else if eq .Kind "authors"}}
+                <p class="small mt-1 mb-0">{{t $.Lang "Retrieving author information. Author pages may be incomplete, and author filters may not work yet."}}</p>
+                {{else if eq .Kind "textrank"}}
+                <p class="small mt-1 mb-0">{{t $.Lang "Analyzing documents, search results and recommendations may not be accurate yet."}}</p>
+                {{else if eq .Kind "pruning"}}
+                <p class="small mt-1 mb-0">{{t $.Lang "Cleaning up overly common keywords, search results and recommendations may not be accurate yet."}}</p>
+                {{else}}
+                <p class="small mt-1 mb-0">{{t $.Lang "Indexing in progress, search results may not be accurate."}}</p>
+                {{end}}
+            </div>
+        {{end}}
+    </div>
+    {{end}}
+</div>
+{{end}}

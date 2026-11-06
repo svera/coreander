@@ -14,6 +14,7 @@ import (
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
 	"github.com/svera/coreander/v5/internal/datasource/model"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
@@ -40,6 +41,23 @@ type GetEntitiesRequest interface {
 
 type WikidataSource struct {
 	wikidata wikidata
+}
+
+func (WikidataSource) OwnsLink(key string) bool {
+	return (Author{}).OwnsLink(key)
+}
+
+func (WikidataSource) AuthorLink(author index.Author, language string) model.DataSourceLink {
+	url := author.DataSourceLinks["wikipedia:"+language]
+	if url == "" {
+		return model.DataSourceLink{}
+	}
+	return model.DataSourceLink{
+		Source:    "Wikipedia",
+		URL:       url,
+		IconClass: "bi-wikipedia",
+		Label:     "Go to Wikipedia entry",
+	}
 }
 
 func NewWikidataSource(w wikidata) WikidataSource {

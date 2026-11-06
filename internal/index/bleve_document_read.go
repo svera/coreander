@@ -3,10 +3,12 @@ package index
 import (
 	"cmp"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
 	"image"
+	"log"
 	"math"
 	"net/url"
 	"os"
@@ -39,6 +41,27 @@ const titleBoost = 3.0
 // appears in the same relative order in search-similar results and in the
 // document detail page's "related documents" widget.
 var DefaultDocumentSortBy = []string{"-_score", "Series", "SeriesIndex"}
+
+// reviewScoreSort treats a stored zero as missing without changing the index.
+type reviewScoreSort struct {
+	search.SortField
+}
+
+func (s *reviewScoreSort) Value(hit *search.DocumentMatch) string {
+	value := s.SortField.Value(hit)
+	if s.SortField.DecodeValue(value) == "0" {
+		if s.Desc {
+			return search.LowTerm
+		}
+		return search.HighTerm
+	}
+	return value
+}
+
+func (s *reviewScoreSort) Copy() search.SearchSort {
+	copied := *s
+	return &copied
+}
 
 // Search look for documents which match the passed keywords and filters.
 // Returns a maximum <resultsPerPage> documents, offset by <page>
@@ -226,6 +249,13 @@ func (b *BleveIndexer) addFilters(searchFields SearchFields, filtersQuery *query
 		bq.SetBoost(0)
 		filtersQuery.AddQuery(bq)
 	}
+	if max := searchFields.DataSourceScoreUpperBound(); searchFields.DataSourceScoreFrom != 0 || max != 5 {
+		min := searchFields.DataSourceScoreFrom
+		ratingQuery := newInclusiveNumericRangeQuery(&min, &max)
+		ratingQuery.SetField("DataSourceScoreValue")
+		ratingQuery.SetBoost(0)
+		filtersQuery.AddQuery(ratingQuery)
+	}
 	if searchFields.IllustratedOnly && b.illustratedMinAmount > 0 {
 		minIllustrations := float64(b.illustratedMinAmount)
 		q := bleve.NewNumericRangeQuery(&minIllustrations, nil)
@@ -388,6 +418,16 @@ func (b *BleveIndexer) searchAndHydrate(query query.Query, size, offset int, sor
 	// with an empty sort order, which falls back to arbitrary (index) order instead of relevance.
 	if len(sortBy) > 0 {
 		searchOptions.SortBy(sortBy)
+		for i, key := range sortBy {
+			if strings.TrimPrefix(key, "-") == "DataSourceScoreValue" {
+				searchOptions.Sort[i] = &reviewScoreSort{SortField: search.SortField{
+					Field:   "DataSourceScoreValue",
+					Desc:    strings.HasPrefix(key, "-"),
+					Type:    search.SortFieldAsNumber,
+					Missing: search.SortFieldMissingLast,
+				}}
+			}
+		}
 	}
 	searchOptions.Fields = []string{"*"}
 	b.documentsMu.RLock()
@@ -577,6 +617,14 @@ func compareDocumentsBySortKey(a, b Document, key string) int {
 		c = cmp.Compare(a.Publication.Date, b.Publication.Date)
 	case "Words":
 		c = cmp.Compare(a.Words, b.Words)
+	case "DataSourceScoreValue":
+		if (a.DataSourceScoreValue == 0) != (b.DataSourceScoreValue == 0) {
+			if a.DataSourceScoreValue == 0 {
+				return 1
+			}
+			return -1
+		}
+		c = cmp.Compare(a.DataSourceScoreValue, b.DataSourceScoreValue)
 	case "Series":
 		c = cmp.Compare(a.Series, b.Series)
 	case "SeriesIndex":
@@ -1023,6 +1071,8 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 		textRankEnriched = match.Fields["TextRankEnriched"].(bool)
 	}
 
+	reviewScoreValue, _ := match.Fields["DataSourceScoreValue"].(float64)
+
 	doc := Document{
 		ID: match.ID,
 		Metadata: metadata.Metadata{
@@ -1040,18 +1090,38 @@ func hydrateDocument(match *search.DocumentMatch) Document {
 			Illustrations: illustrations,
 			Format:        match.Fields["Format"].(string),
 		},
-		Slug:              match.Fields["Slug"].(string),
-		AuthorsSlugs:      slicer(match.Fields["AuthorsSlugs"]),
-		IllustratorsSlugs: illustratorsSlugs,
-		SeriesSlug:        match.Fields["SeriesSlug"].(string),
-		SubjectsSlugs:     slicer(match.Fields["SubjectsSlugs"]),
-		AddedOn:           addedOn,
-		TextRankPhrases:   textRankPhrases,
-		TextRankWords:     textRankWords,
-		TextRankEnriched:  textRankEnriched,
+		Slug:                 match.Fields["Slug"].(string),
+		AuthorsSlugs:         slicer(match.Fields["AuthorsSlugs"]),
+		IllustratorsSlugs:    illustratorsSlugs,
+		SeriesSlug:           match.Fields["SeriesSlug"].(string),
+		SubjectsSlugs:        slicer(match.Fields["SubjectsSlugs"]),
+		AddedOn:              addedOn,
+		TextRankPhrases:      textRankPhrases,
+		TextRankWords:        textRankWords,
+		TextRankEnriched:     textRankEnriched,
+		DataSources:          hydrateDataSources(match.Fields, match.ID),
+		DataSourceScoreValue: reviewScoreValue,
 	}
 
 	return doc
+}
+
+func hydrateDataSources(fields map[string]any, documentID string) map[string]json.RawMessage {
+	sources, err := decodeDataSources(fields, documentID)
+	if err != nil {
+		log.Println(err)
+	}
+	return sources
+}
+
+func decodeDataSources(fields map[string]any, documentID string) (map[string]json.RawMessage, error) {
+	var sources map[string]json.RawMessage
+	if raw, ok := fields["DataSources"].(string); ok {
+		if err := json.Unmarshal([]byte(raw), &sources); err != nil {
+			return nil, fmt.Errorf("reading data sources for document %s: %w", documentID, err)
+		}
+	}
+	return sources, nil
 }
 
 func slicer(val any) []string {

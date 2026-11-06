@@ -1,0 +1,60 @@
+{
+    "status": "Received",
+    "statusCode": 200,
+    "source": "https://github.com/nesaku/biblioreads",
+    "scrapeURL": "https://www.goodreads.com/book/show/12207444-la-reina-dragon",
+    "legacyBookID": 12207444,
+    "bookID": "kca://book/amzn1.gr.book.v1.4FDu7eHal9NDfA3jGNhOXw",
+    "resourceID": "kca://work/amzn1.gr.work.v1.dbcQjzlbvXR8RBZBdd8J6g",
+    "cover": "https://m.media-amazon.com/images/S/compressed.photo.goodreads.com/books/1332599049i/12207444.jpg",
+    "series": "Tales of Guinevere",
+    "seriesURL": "/series/50072-tales-of-guinevere",
+    "seriesPosition": "1",
+    "workURL": "https://www.goodreads.com/book/show/12207444-la-reina-dragon",
+    "title": "La Reina Dragon",
+    "author": [
+        {
+            "id": 1,
+            "name": "Alice Borchardt",
+            "role": "Author",
+            "url": "/author/show/151155.Alice_Borchardt"
+        }
+    ],
+    "rating": "3.82",
+    "ratingCount": "2,285",
+    "reviewsCount": "115",
+    "desc": "Arturo se dio la vuelta y vino resueltamente hacia nosotros. Estaba espléndido, y nunca olvidaré que en ese momento comencé a amarlo. Y ya nunca dejé de hacerlo. Nunca nadie me ha provocado tanta pena, dolor y alegría como él. Ni siquiera por mis hijos he sentido el amor que le profeso todavía ahora. Y creo que aunque hubiera sabido lo que nos deparaba el futuro (preocupaciones, tormentos, batallas y penas), aun así levaría entregado mi corazón tal como hice entonces.\r\n\r\nAlice Brondchardt entra en el reino de la leyenda artúrica y lo hace suyo. La reina Dragón es el primer volumen de la trilogía que recrea el mundo de Camelot con la reina Guinevere convertida en una guerrea sagaz y obstinada.\r\n\r\nNacida en un entorno en el que los enfrentamientos son constantes y las armas están siempre presentes en la vida de hombres y mujeres, Guinevere, hija de una poderosa reina pagana, es una amenaza para su gente y una preciada presa para el temible mago Merlín.\r\n\r\nEnviada a u lugar secreto, crece bajo la protección de un hombre-lobo y de un druida de agrio carácter. Pero ni siquiera en las remotas costas de Escocia, donde los dragones velan por ella, está a salvo del todopoderoso mago. Merlín conoce el destino de la bella joven y no se detendrá ante nada para evitar el cumplimiento de la profecía, puesto que si Guinevere y Arturo llegan a reinar, llevarán un paz al país que convertirá a Merlín, hambriento de poder, en un personaje secundario.",
+    "genres": [
+        "Fantasy",
+        "Arthurian",
+        "Fiction",
+        "Historical Fiction",
+        "Dragons",
+        "Historical",
+        "Mythology",
+        "Magic",
+        "Science Fiction Fantasy",
+        "Retellings"
+    ],
+    "bookEdition": "452 pages, Hardcover",
+    "publishDate": "Wed Jan 01 2003",
+    "publisher": "Timun Mas",
+    "language": "Spanish; Castilian",
+    "asin": "8448033183",
+    "isbn": "8448033183",
+    "isbn13": "9788448033187",
+    "related": [],
+    "reviews": [],
+    "reviewBreakdown": {
+        "rating1": "72",
+        "rating2": "170",
+        "rating3": "586",
+        "rating4": "731",
+        "rating5": "726"
+    },
+    "quotes": "4",
+    "quotesURL": "/work/quotes/2440721",
+    "questions": "1",
+    "questionsURL": "/book/258666/questions",
+    "lastScraped": "2026-10-28T18:34:27.525Z"
+}

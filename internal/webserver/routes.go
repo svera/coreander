@@ -52,6 +52,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		c.Locals("Version", c.App().Config().AppName)
 		c.Locals("SupportedLanguages", supportedLanguages)
 		c.Locals("Lang", chooseBestLanguage(c))
+		c.Locals("DataSourceName", controllers.Documents.DataSourceName())
 		q := c.Queries()
 		delete(q, "l")
 		c.Locals("URLPath", c.Path())
@@ -59,7 +60,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		return c.Next()
 	})
 
-	app.Use(SetConfigLocals(cfg))
+	app.Use(SetConfigLocals(cfg), SetProgress(idx))
 
 	// Set available languages for the language filter
 	app.Use(SetAvailableLanguages(idx))
@@ -69,6 +70,11 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 
 	// Set email sending configuration (must be early so it's available in all routes)
 	app.Use(SetEmailSendingConfigured(sender))
+
+	app.Get("/background-progress", configurableAuthentication, func(c fiber.Ctx) error {
+		c.Set("Cache-Control", "no-store")
+		return c.Render("partials/background-progress", fiber.Map{})
+	})
 
 	app.Get("/sessions/new", allowIfNotLoggedIn, controllers.Auth.Login)
 	app.Post("/sessions", allowIfNotLoggedIn, controllers.Auth.SignIn)
@@ -98,6 +104,7 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 	app.Get("/upload", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UploadForm)
 	docsGroup.Post("/", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Upload)
 	docsGroup.Delete("/:slug", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.Delete)
+	docsGroup.Put("/:slug/review-link", alwaysRequireAuthentication, RequireAdmin, controllers.Documents.UpdateReviewLink)
 
 	// Authentication requirement is configurable for all routes below this middleware
 	app.Use(configurableAuthentication)
@@ -125,6 +132,8 @@ func routes(app *fiber.App, controllers Controllers, jwtSecret []byte, sender Se
 		c.Locals("SimilarToSlug", c.Params("slug"))
 		return controllers.Search.SearchDocuments(c)
 	})
+	docsGroup.Get("/:slug/score", controllers.Documents.Score)
+	docsGroup.Get("/:slug/reviews", controllers.Documents.Reviews)
 	docsGroup.Get("/:slug/read", controllers.Documents.Reader)
 	docsGroup.Get("/:slug/annotations", alwaysRequireAuthentication, controllers.Annotations.List)
 	docsGroup.Post("/:slug/annotations", alwaysRequireAuthentication, controllers.Annotations.Save)

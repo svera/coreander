@@ -30,7 +30,7 @@ type Controllers struct {
 	Series      *series.Controller
 }
 
-func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, dataSource author.DataSource) Controllers {
+func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender Sender, appFs afero.Fs, authorDataSource author.DataSource, reviewProvider document.ReviewProvider, dataSourceLinkProviders ...author.DataSourceLinkProvider) Controllers {
 	usersRepository := &model.UserRepository{DB: db}
 	invitationsRepository := &model.InvitationRepository{DB: db}
 	highlightsRepository := &model.HighlightRepository{DB: db, Idx: idx, IllustratedMinAmount: cfg.IllustratedMinAmount}
@@ -80,20 +80,23 @@ func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender S
 	}
 
 	authorsCfg := author.Config{
-		WordsPerMinute:      cfg.WordsPerMinute,
-		CacheDir:            cfg.CacheDir,
-		CacheMaxSize:        cfg.CacheMaxSize,
-		AuthorImageMaxWidth: cfg.AuthorImageMaxWidth,
-		ClientImageCacheTTL: cfg.ClientDynamicImageCacheTTL,
-		ServerImageCacheTTL: cfg.ServerDynamicImageCacheTTL,
+		WordsPerMinute:         cfg.WordsPerMinute,
+		CacheDir:               cfg.CacheDir,
+		CacheMaxSize:           cfg.CacheMaxSize,
+		AuthorImageMaxWidth:    cfg.AuthorImageMaxWidth,
+		ClientImageCacheTTL:    cfg.ClientDynamicImageCacheTTL,
+		ServerImageCacheTTL:    cfg.ServerDynamicImageCacheTTL,
+		ReviewSourceConfigured: cfg.ReviewSourceConfigured,
 	}
 
 	seriesCfg := series.Config{
-		WordsPerMinute: cfg.WordsPerMinute,
+		WordsPerMinute:         cfg.WordsPerMinute,
+		ReviewSourceConfigured: cfg.ReviewSourceConfigured,
 	}
 
 	searchCfg := search.Config{
-		WordsPerMinute: cfg.WordsPerMinute,
+		WordsPerMinute:         cfg.WordsPerMinute,
+		ReviewSourceConfigured: cfg.ReviewSourceConfigured,
 	}
 
 	homeCfg := home.Config{
@@ -102,7 +105,7 @@ func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender S
 		LatestDocsLimit: 6,
 	}
 
-	authorsController := author.NewController(highlightsRepository, readingRepository, sender, idx, authorsCfg, dataSource, appFs, imagesFS)
+	authorsController := author.NewController(highlightsRepository, readingRepository, sender, idx, authorsCfg, authorDataSource, appFs, imagesFS, dataSourceLinkProviders...)
 	go authorsController.MigrateJPEGsToWebP()
 
 	return Controllers{
@@ -110,8 +113,8 @@ func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender S
 		Auth:        auth.NewController(usersRepository, sender, authCfg, translator),
 		Users:       user.NewController(usersRepository, invitationsRepository, usersCfg, sender, translator),
 		Completed:   completed.NewController(readingRepository, idx),
-		Highlights:  highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, idx),
-		Documents:   document.NewController(highlightsRepository, usersRepository, readingRepository, annotationsRepository, sender, idx, appFs, documentsCfg, translator),
+		Highlights:  highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, cfg.ReviewSourceConfigured, idx),
+		Documents:   document.NewController(highlightsRepository, usersRepository, readingRepository, annotationsRepository, sender, idx, appFs, documentsCfg, translator, reviewProvider, dataSourceLinkProviders...),
 		Home:        home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),
 		Authors:     authorsController,
 		Search:      search.NewController(highlightsRepository, readingRepository, sender, idx, searchCfg),

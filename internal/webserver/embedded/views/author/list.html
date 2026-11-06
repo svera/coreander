@@ -1,6 +1,6 @@
 {{if ne .Author.Name ""}}
     {{if not .Author.RetrievedOn.IsZero}}
-        {{template "partials/author-summary" dict "Lang" .Lang "Author" .Author "Session" .Session "ImageVersion" .ImageVersion}}
+        {{template "partials/author-summary" dict "Lang" .Lang "Author" .Author "Session" .Session "ImageVersion" .ImageVersion "DataSourceLinks" .DataSourceLinks}}
     {{else}}
     <div hx-get="/authors/{{.Author.Slug}}/summary" hx-trigger="load" hx-target="this">
         <div class="card mb-3 bg-body-secondary placeholder-glow">
@@ -22,7 +22,7 @@
 {{end}}
 
 <div id="author-list-header" class="row mt-5 mb-2 pb-2 border-bottom d-flex mx-0">
-    {{template "partials/count-and-sort" dict "Results" .Results "Lang" .Lang "SortURL" .SortURL "SortBy" .SortBy "AdditionalSortOptions" .AdditionalSortOptions "FilterIdPrefix" "author"}}
+    {{template "partials/count-and-sort" dict "Results" .Results "Lang" .Lang "DataSourceName" .DataSourceName "SortURL" .SortURL "SortBy" .SortBy "AdditionalSortOptions" .AdditionalSortOptions "FilterIdPrefix" "author"}}
 </div>
 
 <div class="row">

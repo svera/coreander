@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v5/internal/index"
@@ -37,7 +36,7 @@ func (a *Controller) Update(c fiber.Ctx) error {
 	}
 
 	if sourceID == "" {
-		author = clear(author)
+		author = author.ClearMetadata(a.dataSource.OwnsLink)
 	} else {
 		authorDataSource, err := a.dataSource.RetrieveAuthor([]string{sourceID}, supportedLanguages)
 		if err != nil {
@@ -59,13 +58,15 @@ func (a *Controller) Update(c fiber.Ctx) error {
 
 	if err := a.idx.IndexAuthor(author); err != nil {
 		log.Println(err)
+		return fiber.ErrInternalServerError
 	}
 
 	templateVars := fiber.Map{
-		"Author":       author,
-		"ImageVersion": a.getImageVersion(author.Slug),
-		"Lang":         lang,
-		"Session":      session,
+		"Author":          author,
+		"DataSourceLinks": a.authorDataSourceLinks(author, lang),
+		"ImageVersion":    a.getImageVersion(author.Slug),
+		"Lang":            lang,
+		"Session":         session,
 	}
 
 	if err = c.Render(template, templateVars); err != nil {
@@ -73,12 +74,4 @@ func (a *Controller) Update(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	return nil
-}
-
-func clear(author index.Author) index.Author {
-	cleanAuthor := index.Author{}
-	cleanAuthor.Slug = author.Slug
-	cleanAuthor.Name = author.Name
-	cleanAuthor.RetrievedOn = time.Now().UTC()
-	return cleanAuthor
 }

@@ -183,7 +183,7 @@ func TestRelatedDocumentHeadersShowFullTotals(t *testing.T) {
 		Metadata:        metadata.Metadata{Title: "Source", Series: "Collection", Format: "EPUB"},
 		TextRankPhrases: []string{"atomic bomb", "los alamos"},
 	}
-	if err := documents.Index(source.ID, source); err != nil {
+	if err := index.IndexDocument(documents, source.ID, source); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 6; i++ {
@@ -198,7 +198,7 @@ func TestRelatedDocumentHeadersShowFullTotals(t *testing.T) {
 			} else {
 				doc.TextRankPhrases = source.TextRankPhrases
 			}
-			if err := documents.Index(doc.ID, doc); err != nil {
+			if err := index.IndexDocument(documents, doc.ID, doc); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -206,7 +206,7 @@ func TestRelatedDocumentHeadersShowFullTotals(t *testing.T) {
 
 	cfg := defaultTestConfig()
 	sender := &infrastructure.NoEmail{}
-	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, nil)
+	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, nil, nil, nil)
 	app := webserver.New(cfg, controllers, sender, idx, &model.UserRepository{DB: db})
 	t.Cleanup(func() { _ = app.Shutdown() })
 

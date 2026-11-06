@@ -258,7 +258,7 @@ func TestSearchAuthors(t *testing.T) {
 			},
 		}
 		for _, doc := range docs {
-			if err := documentsIndexMem.Index(doc.ID, doc); err != nil {
+			if err := index.IndexDocument(documentsIndexMem, doc.ID, doc); err != nil {
 				t.Fatal(err)
 			}
 		}

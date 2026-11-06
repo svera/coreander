@@ -6,12 +6,17 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
@@ -41,7 +46,7 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 			appFS := loadDirInMemoryFs("testdata/library")
 			cfg := defaultTestConfig()
 			cfg.CacheDir = "/cache"
-			app := bootstrapApp(db, &infrastructure.NoEmail{}, appFS, cfg)
+			app, idx := bootstrapAppWithIndexer(db, &infrastructure.NoEmail{}, appFS, cfg)
 
 			cookie, err := login(app, "admin@example.com", "admin", t)
 			if err != nil {
@@ -53,6 +58,20 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 			}
 			response.Body.Close()
 			mustReturnStatus(response, http.StatusOK, t)
+
+			author, err := idx.Author("john-doe", "en")
+			if err != nil {
+				t.Fatal(err)
+			}
+			author.DataSourceLinks = map[string]string{
+				"website": "https://old.example", "wikipedia:en": "https://en.wikipedia.org/wiki/Old",
+				"wikipedia:es": "https://es.wikipedia.org/wiki/Old",
+				"goodreads":    "/author/show/1.Writer", "catalog": "https://catalog.example/writer",
+			}
+			if err := idx.IndexAuthor(author); err != nil {
+				t.Fatal(err)
+			}
+			documentCount := author.DocumentCount
 
 			imagePath := cfg.CacheDir + "/authors/john-doe.webp"
 			if tc.cached {
@@ -78,7 +97,7 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			imageURL, _ := doc.Find("img").Attr("src")
+			imageURL, _ := doc.Find(`img[src^="/authors/"]`).Attr("src")
 			if imageURL != "/authors/john-doe_.webp" {
 				t.Fatalf("expected image URL with cleared ID and no cached version, got %q", imageURL)
 			}
@@ -110,10 +129,192 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if imageURL, _ := doc.Find("img").Attr("src"); imageURL != "/authors/john-doe_.webp" {
+			if imageURL, _ := doc.Find(`img[src^="/authors/"]`).Attr("src"); imageURL != "/authors/john-doe_.webp" {
 				t.Fatalf("expected cleared image URL to persist, got %q", imageURL)
 			}
+			stored, err := idx.Author("john-doe", "en")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stored.DataSourceID != "" || stored.DataSourceImage != "" ||
+				stored.DataSourceLinks["website"] != "" || stored.DataSourceLinks["wikipedia:en"] != "" ||
+				stored.DataSourceLinks["wikipedia:es"] != "" {
+				t.Fatalf("metadata reset restored stale metadata: %+v", stored)
+			}
+			if stored.DataSourceLinks["goodreads"] != "/author/show/1.Writer" ||
+				stored.DataSourceLinks["catalog"] != "https://catalog.example/writer" ||
+				stored.DocumentCount != documentCount {
+				t.Fatalf("metadata reset lost independent author data: %+v", stored)
+			}
 		})
+	}
+}
+
+type translatedDataSourceLinks struct{}
+
+func (translatedDataSourceLinks) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
+	if author.DataSourceID == "" {
+		return datasourcemodel.DataSourceLink{}
+	}
+	return datasourcemodel.DataSourceLink{
+		Source: "Example catalog", URL: "https://example.org/authors/" + author.Slug,
+		IconClass: "bi-bookmark",
+	}
+}
+
+func TestAuthorSummaryDataSourceLinkTranslations(t *testing.T) {
+	app, idx := newDataSourceProvidersTestApp(t, nil, nil, translatedDataSourceLinks{})
+	const (
+		authorURL    = "https://example.org/authors/"
+		wikipediaURL = "https://en.wikipedia.org/wiki/Alice_Borchardt"
+	)
+	locales := []struct {
+		lang           string
+		label          string
+		wikipediaLabel string
+	}{
+		{"en", "Go to Example catalog author page", "Go to Wikipedia entry"},
+		{"es", "Ir a la página del autor en Example catalog", "Ir al artículo en Wikipedia"},
+		{"de", "Zur Autorenseite auf Example catalog", "Zur Wikipedia-Seite"},
+		{"fr", "Voir la page de l'auteur sur Example catalog", "Aller à l'entrée Wikipedia"},
+		{"ru", "Перейти на страницу автора в Example catalog", "Перейти к статье в Википедии"},
+	}
+	for _, tc := range []struct {
+		name          string
+		dataSourceID  string
+		hasDataSource bool
+		wikipedia     bool
+	}{
+		{name: "with-wikipedia", dataSourceID: "Q1", hasDataSource: true, wikipedia: true},
+		{name: "without-wikipedia", dataSourceID: "Q1", hasDataSource: true},
+		{name: "without-data-source-id"},
+	} {
+		author := index.Author{
+			Slug: tc.name, Name: "Alice Borchardt",
+			DataSourceID: tc.dataSourceID, RetrievedOn: time.Now().UTC(),
+			DataSourceLinks: map[string]string{"website": "https://author.example/" + tc.name},
+		}
+		if tc.wikipedia {
+			for _, locale := range locales {
+				author.DataSourceLinks["wikipedia:"+locale.lang] = strings.Replace(wikipediaURL, "en.wikipedia.org", locale.lang+".wikipedia.org", 1)
+			}
+		}
+		if err := idx.IndexAuthor(author); err != nil {
+			t.Fatal(err)
+		}
+		for _, style := range []struct {
+			name  string
+			query string
+		}{
+			{"summary", ""},
+			{"document-detail", "?style=clear"},
+		} {
+			for _, locale := range locales {
+				t.Run(tc.name+"/"+style.name+"/"+locale.lang, func(t *testing.T) {
+					req := mustGetRequest(t, "/authors/"+tc.name+"/summary"+style.query)
+					req.Header.Set("Accept-Language", locale.lang)
+					response, err := app.Test(req)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer response.Body.Close()
+					mustReturnStatus(response, http.StatusOK, t)
+					page, err := goquery.NewDocumentFromReader(response.Body)
+					if err != nil {
+						t.Fatal(err)
+					}
+					wikipediaLink := page.Find(`a[href="https://` + locale.lang + `.wikipedia.org/wiki/Alice_Borchardt"]`)
+					websiteLink := page.Find(`a[href="https://author.example/` + tc.name + `"]`)
+					if websiteLink.Length() != 1 || websiteLink.PrevFiltered("i.bi-globe-europe-africa").Length() != 1 {
+						t.Fatal("expected the stored website link and globe icon")
+					}
+					if tc.wikipedia && (wikipediaLink.Length() != 1 || strings.TrimSpace(wikipediaLink.Text()) != locale.wikipediaLabel) {
+						t.Fatalf("expected localized Wikipedia data-source link %q, got %d links with text %q", locale.wikipediaLabel, wikipediaLink.Length(), wikipediaLink.Text())
+					}
+					if tc.wikipedia && wikipediaLink.PrevFiltered("i.bi-wikipedia").Length() != 1 {
+						t.Fatal("expected the Wikipedia provider's Bootstrap icon")
+					}
+					if !tc.wikipedia && page.Find(`a[href$="wikipedia.org/wiki/Alice_Borchardt"]`).Length() != 0 {
+						t.Fatal("expected no Wikipedia link when there is no link for the current language")
+					}
+					link := page.Find(`a[href="` + authorURL + tc.name + `"]`)
+					if !tc.hasDataSource {
+						if link.Length() != 0 {
+							t.Fatal("expected no data-source link without a provider URL")
+						}
+						return
+					}
+					if link.Length() != 1 || strings.TrimSpace(link.Text()) != locale.label {
+						t.Fatalf("expected one localized data-source link %q, got %d links with text %q", locale.label, link.Length(), link.Text())
+					}
+					if link.PrevFiltered("i.bi-bookmark").Length() != 1 {
+						t.Error("expected the provider's Bootstrap icon before the data-source link")
+					}
+					if tc.wikipedia {
+						wantWikipediaURL := strings.Replace(wikipediaURL, "en.wikipedia.org", locale.lang+".wikipedia.org", 1)
+						if href, _ := link.Parent().Prev().Find("a").Attr("href"); href != wantWikipediaURL {
+							t.Fatalf("expected data-source link immediately below Wikipedia, previous link is %q", href)
+						}
+					}
+				})
+			}
+		}
+	}
+}
+
+type alternativeDataSourceLinks struct{}
+
+func (alternativeDataSourceLinks) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
+	return datasourcemodel.DataSourceLink{Source: "Another source", URL: "https://example.org/authors/" + author.Slug}
+}
+
+func TestAlternativeDataSourceLinks(t *testing.T) {
+	source := &fakeBookSource{book: biblioreads.BookResponse{
+		Rating: "4", ResourceID: "work", LegacyBookID: 1,
+	}}
+	app, idx := newDataSourceProvidersTestApp(t, source, nil, alternativeDataSourceLinks{})
+	for _, slug := range []string{"jane-doe", "john-doe"} {
+		if err := idx.IndexAuthor(index.Author{
+			Slug: slug, Name: slug, RetrievedOn: time.Now().UTC(),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, path := range []string{
+		"/authors/jane-doe", "/authors/jane-doe/summary",
+		"/authors/jane-doe/summary?style=clear", "/documents/unlinked",
+	} {
+		page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		link := page.Find(`a[href="https://example.org/authors/jane-doe"]`)
+		if link.Length() != 1 || link.Text() != "Go to Another source author page" {
+			t.Fatalf("%s: expected injected author data-source link, got %q", path, link.Text())
+		}
+		if page.Find(`img[src^="/images/goodreads.svg"]`).Length() != 0 {
+			t.Fatalf("%s: unexpected Goodreads branding", path)
+		}
+	}
+	for path, wantLinks := range map[string]int{"/documents/linked/score": 2, "/documents/linked/reviews": 1} {
+		page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if page.Find(`a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`).Length() != wantLinks {
+			t.Fatalf("%s: BiblioReads must retain its Goodreads document URL regardless of the author link provider", path)
+		}
+	}
+}
+
+func TestDataSourceLinksWithoutReviewProvider(t *testing.T) {
+	app, idx := newDataSourceProvidersTestApp(t, nil, nil, alternativeDataSourceLinks{})
+	if err := idx.IndexAuthor(index.Author{Slug: "jane-doe", Name: "Jane Doe", RetrievedOn: time.Now().UTC()}); err != nil {
+		t.Fatal(err)
+	}
+	body := getBody(t, app, "/authors/jane-doe/summary")
+	if !strings.Contains(body, "https://example.org/authors/jane-doe") {
+		t.Fatal("links must not require a review provider")
 	}
 }
 

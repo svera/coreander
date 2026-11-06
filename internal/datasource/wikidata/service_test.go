@@ -6,8 +6,64 @@ import (
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
 	"github.com/svera/coreander/v5/internal/datasource/model"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/precisiondate"
 )
+
+func TestAuthorLinks(t *testing.T) {
+	author := Author{
+		website: "https://author.example",
+		wikipediaLink: map[string]string{
+			"en": "https://en.wikipedia.org/wiki/Example",
+			"es": "https://es.wikipedia.org/wiki/Ejemplo",
+			"fr": "",
+		},
+	}
+	want := map[string]string{
+		"website":      "https://author.example",
+		"wikipedia:en": "https://en.wikipedia.org/wiki/Example",
+		"wikipedia:es": "https://es.wikipedia.org/wiki/Ejemplo",
+	}
+	if got := author.Links(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected author links: %+v", got)
+	}
+	links := author.Links()
+	links["website"] = "https://changed.example"
+	links["wikipedia:en"] = "https://changed.example/en"
+	if got := author.Links(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("caller mutated author links: %+v", got)
+	}
+	for _, key := range []string{"website", "wikipedia:en", "wikipedia:de"} {
+		if !author.OwnsLink(key) {
+			t.Errorf("Wikidata should own %q, including missing language links", key)
+		}
+	}
+	for _, key := range []string{"goodreads", "catalog", "wikipedia", "website:other"} {
+		if author.OwnsLink(key) {
+			t.Errorf("Wikidata should not own %q", key)
+		}
+	}
+	if links := (Author{}).Links(); len(links) != 0 {
+		t.Fatalf("expected no links for an empty author: %+v", links)
+	}
+}
+
+func TestWikipediaDataSourceLink(t *testing.T) {
+	source := NewWikidataSource(Gowikidata{})
+	link := source.AuthorLink(index.Author{
+		DataSourceLinks: map[string]string{
+			"wikipedia:en": "https://en.wikipedia.org/wiki/Example",
+			"wikipedia:es": "https://es.wikipedia.org/wiki/Ejemplo",
+		},
+	}, "es")
+	if link.Source != "Wikipedia" || link.URL != "https://es.wikipedia.org/wiki/Ejemplo" ||
+		link.IconClass != "bi-wikipedia" || link.Label != "Go to Wikipedia entry" {
+		t.Fatalf("unexpected Wikipedia data-source link: %+v", link)
+	}
+	if missing := source.AuthorLink(index.Author{}, "en"); missing.URL != "" {
+		t.Fatalf("expected no link for missing Wikipedia URL, got %+v", missing)
+	}
+}
 
 func TestAuthor(t *testing.T) {
 	mockServer := NewMockServer(t, "fixtures")

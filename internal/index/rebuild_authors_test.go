@@ -35,7 +35,7 @@ func TestRebuildAuthorsFromDocuments(t *testing.T) {
 		},
 	}
 	for _, doc := range docs {
-		if err := documentsIndexMem.Index(doc.ID, doc); err != nil {
+		if err := index.IndexDocument(documentsIndexMem, doc.ID, doc); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -62,6 +62,21 @@ func TestRebuildAuthorsFromDocuments(t *testing.T) {
 	}
 	if author.DocumentCount != 1 {
 		t.Fatalf("expected DocumentCount=1 for George Orwell, got %d", author.DocumentCount)
+	}
+	author.DataSourceLinks = map[string]string{
+		"goodreads": "/author/show/3706.George_Orwell",
+		"other":     "https://example.org/authors/orwell",
+	}
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.RebuildAuthorsFromDocuments(10); err != nil {
+		t.Fatal(err)
+	}
+	author, err = idx.Author("george-orwell", "en")
+	if err != nil || author.DataSourceLinks["goodreads"] != "/author/show/3706.George_Orwell" ||
+		author.DataSourceLinks["other"] != "https://example.org/authors/orwell" {
+		t.Fatalf("expected existing author URL preserved during rebuild, got %+v, %v", author, err)
 	}
 
 	illustrator, err := idx.Author("jane-austen", "en")

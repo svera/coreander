@@ -85,8 +85,12 @@ func (b *BleveIndexer) scheduleTextRankEnrichment(document Document) {
 // waiting on TextRank.
 func (b *BleveIndexer) enrichTextRankAndReindex(document Document) {
 	enriched := b.rankDocument(document)
+	documents := []Document{enriched}
 	b.documentsMu.Lock()
-	err := b.documentsIdx.Index(enriched.ID, enriched)
+	err := b.preserveDataSourcesLocked(documents)
+	if err == nil {
+		err = IndexDocument(b.documentsIdx, enriched.ID, documents[0])
+	}
 	b.documentsMu.Unlock()
 	if err != nil {
 		log.Printf("Error indexing TextRank-enriched document %s: %s\n", enriched.ID, err)
@@ -263,13 +267,18 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 
 			enriched := b.rankDocuments(chunk, workers)
 
+			b.documentsMu.Lock()
+			if err := b.preserveDataSourcesLocked(enriched); err != nil {
+				b.documentsMu.Unlock()
+				b.endTextRankEnrichment()
+				return err
+			}
 			batch := b.documentsIdx.NewBatch()
 			for _, document := range enriched {
-				if err := batch.Index(document.ID, document); err != nil {
+				if err := IndexDocument(batch, document.ID, document); err != nil {
 					log.Printf("Error indexing enriched document %s: %s\n", document.ID, err)
 				}
 			}
-			b.documentsMu.Lock()
 			err = b.documentsIdx.Batch(batch)
 			b.documentsMu.Unlock()
 			if err != nil {
@@ -529,7 +538,7 @@ func (b *BleveIndexer) rewriteCommonTextRankEntries(docCount uint64, batchSize i
 			return pruned, err
 		}
 
-		batch := b.documentsIdx.NewBatch()
+		var documents []Document
 		for _, hit := range docSearchResult.Hits {
 			document := hydrateDocument(hit)
 			p, ok := toPrune[document.ID]
@@ -538,20 +547,28 @@ func (b *BleveIndexer) rewriteCommonTextRankEntries(docCount uint64, batchSize i
 			}
 			document.TextRankPhrases = p.phrases
 			document.TextRankWords = p.words
-			if err := batch.Index(document.ID, document); err != nil {
+			documents = append(documents, document)
+		}
+
+		b.documentsMu.Lock()
+		if err := b.preserveDataSourcesLocked(documents); err != nil {
+			b.documentsMu.Unlock()
+			return pruned, err
+		}
+		batch := b.documentsIdx.NewBatch()
+		for _, document := range documents {
+			if err := IndexDocument(batch, document.ID, document); err != nil {
 				log.Printf("Error indexing document %s while pruning common TextRank entries: %s\n", document.ID, err)
 				continue
 			}
 			pruned++
 		}
-
 		if batch.Size() > 0 {
-			b.documentsMu.Lock()
 			err = b.documentsIdx.Batch(batch)
-			b.documentsMu.Unlock()
-			if err != nil {
-				return pruned, err
-			}
+		}
+		b.documentsMu.Unlock()
+		if err != nil {
+			return pruned, err
 		}
 		b.recordPruningProgress(len(result.Hits))
 	}

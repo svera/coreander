@@ -2,6 +2,8 @@ package index_test
 
 import (
 	"errors"
+	"maps"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -76,7 +78,9 @@ func (m *mockAuthorDataSource) RetrieveAuthors(candidates map[string][]string, _
 }
 
 type stubAuthor struct {
-	sourceID string
+	sourceID   string
+	links      map[string]string
+	linkPrefix string
 }
 
 func (a stubAuthor) BirthName() string                        { return "" }
@@ -86,11 +90,131 @@ func (a stubAuthor) Gender() float64                          { return 0 }
 func (a stubAuthor) DateOfBirth() precisiondate.PrecisionDate { return precisiondate.PrecisionDate{} }
 func (a stubAuthor) DateOfDeath() precisiondate.PrecisionDate { return precisiondate.PrecisionDate{} }
 func (a stubAuthor) Image() string                            { return "" }
-func (a stubAuthor) Website() string                          { return "" }
-func (a stubAuthor) WikipediaLink(string) string              { return "" }
-func (a stubAuthor) SourceID() string                         { return a.sourceID }
-func (a stubAuthor) RetrievedOn() time.Time                   { return time.Now().UTC() }
-func (a stubAuthor) Pseudonyms() []string                     { return nil }
+func (a stubAuthor) Links() map[string]string                 { return maps.Clone(a.links) }
+func (a stubAuthor) OwnsLink(key string) bool {
+	return a.linkPrefix != "" && strings.HasPrefix(key, a.linkPrefix)
+}
+func (a stubAuthor) SourceID() string       { return a.sourceID }
+func (a stubAuthor) RetrievedOn() time.Time { return time.Now().UTC() }
+func (a stubAuthor) Pseudonyms() []string   { return nil }
+
+func TestAuthorMetadataRefreshUpdatesLinks(t *testing.T) {
+	authors, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer authors.Close()
+	idx := index.NewBleve(nil, authors, nil, "", nil, index.Config{})
+	author := index.Author{
+		Slug: "writer", Name: "Writer",
+		DataSourceLinks: map[string]string{
+			"example:website": "https://old.example",
+			"example:en":      "https://en.example/Old",
+			"example:es":      "https://es.example/Old",
+			"goodreads":       "/author/show/1.Writer",
+			"catalog":         "https://catalog.example/writer",
+		},
+	}
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range []stubAuthor{
+		{sourceID: "Q1", linkPrefix: "example:", links: map[string]string{
+			"example:website": "https://new.example", "example:en": "https://en.example/New",
+		}},
+		{sourceID: "Q1", linkPrefix: "example:"},
+	} {
+		index.CombineWithDataSource(&author, source, []string{"en", "es"})
+		current, err := idx.Author("writer", "en")
+		if err != nil {
+			t.Fatal(err)
+		}
+		current.DataSourceLinks["another-provider"] = "https://another.example/writer"
+		if err := idx.IndexAuthor(current); err != nil {
+			t.Fatal(err)
+		}
+		if err := idx.IndexAuthor(author); err != nil {
+			t.Fatal(err)
+		}
+		got, err := idx.Author("writer", "en")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.DataSourceLinks["example:website"] != source.links["example:website"] ||
+			got.DataSourceLinks["example:en"] != source.links["example:en"] ||
+			got.DataSourceLinks["example:es"] != "" {
+			t.Fatalf("metadata links were not refreshed: %+v", got.DataSourceLinks)
+		}
+		if got.DataSourceLinks["goodreads"] != "/author/show/1.Writer" ||
+			got.DataSourceLinks["catalog"] != "https://catalog.example/writer" ||
+			got.DataSourceLinks["another-provider"] != "https://another.example/writer" {
+			t.Fatalf("metadata refresh lost independent provider links: %+v", got.DataSourceLinks)
+		}
+		if source.links != nil {
+			author.DataSourceLinks["example:website"] = "https://caller.example"
+			if source.links["example:website"] != "https://new.example" {
+				t.Fatal("combining metadata retained a mutable datasource map")
+			}
+		}
+	}
+}
+
+func TestAuthorMetadataResetPreservesConcurrentProviderLinks(t *testing.T) {
+	authors, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer authors.Close()
+	idx := index.NewBleve(nil, authors, nil, "", nil, index.Config{})
+	author := index.Author{
+		Slug: "writer", Name: "Writer", DataSourceID: "Q1", DocumentCount: 3,
+		DataSourceLinks: map[string]string{
+			"example:website": "https://old.example", "example:en": "https://en.example/Old",
+			"catalog": "https://catalog.example/writer",
+		},
+	}
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	reset := author.ClearMetadata((stubAuthor{linkPrefix: "example:"}).OwnsLink)
+	if author.DataSourceLinks["example:website"] == "" {
+		t.Fatal("reset must not mutate the caller's links")
+	}
+	current, err := idx.Author("writer", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	current.DataSourceLinks["goodreads"] = "/author/show/1.Writer"
+	if err := idx.IndexAuthor(current); err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.IndexAuthor(reset); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := idx.Author("writer", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.DataSourceLinks["example:website"] != "" || stored.DataSourceLinks["example:en"] != "" ||
+		stored.DataSourceID != "" || stored.RetrievedOn.IsZero() {
+		t.Fatalf("reset must remove metadata association and owned links: %+v", stored)
+	}
+	if stored.DataSourceLinks["catalog"] != "https://catalog.example/writer" ||
+		stored.DataSourceLinks["goodreads"] != "/author/show/1.Writer" || stored.DocumentCount != 3 {
+		t.Fatalf("reset must retain independent and concurrent author data: %+v", stored)
+	}
+	stale := index.Author{Slug: "writer", Name: "Writer"}
+	if err := idx.IndexAuthor(stale); err != nil {
+		t.Fatal(err)
+	}
+	stored, err = idx.Author("writer", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stored.DataSourceLinks) != 2 {
+		t.Fatalf("ordinary stale writes must preserve independent links: %+v", stored.DataSourceLinks)
+	}
+}
 
 func TestAuthorsWithoutInfo(t *testing.T) {
 	authorsIndexMem, err := bleve.NewMemOnly(index.CreateAuthorsMapping())

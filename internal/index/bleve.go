@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,11 +31,11 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v13"
+const DocumentVersion = "v14"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const AuthorVersion = "2"
+const AuthorVersion = "3"
 
 // Metadata fields
 var (
@@ -182,6 +183,7 @@ type Config struct {
 	// to already be resolved (e.g. via ResolveMetadataWorkers); <= 0 falls
 	// back to 1.
 	TextRankEnrichWorkers int
+	DocumentEnrichers     []DocumentEnricher
 }
 
 type BleveIndexer struct {
@@ -215,6 +217,15 @@ type BleveIndexer struct {
 	// textRankEnrichJobs feeds documents queued by indexFile to a fixed-size
 	// pool of long-lived worker goroutines; see runTextRankEnrichWorker.
 	textRankEnrichJobs chan Document
+	documentEnrichJobs chan string
+	documentEnrichers  []DocumentEnricher
+	// documentEnrichProgress measures each provider's current run rate, by enricher index.
+	documentEnrichProgress        []progressTracker
+	providerProgressMu            sync.Mutex
+	providerProgressUntil         time.Time
+	providerProgress              []providerProgressCount
+	providerProgressVersion       atomic.Uint64
+	cachedProviderProgressVersion uint64
 	// fileLocks holds a *sync.Mutex per document ID, serializing concurrent
 	// indexFile calls for the same file (upload vs. file watcher reacting to
 	// the same write).
@@ -259,6 +270,16 @@ func (p *progressTracker) record() {
 // process a batch at a time rather than calling record once per item.
 func (p *progressTracker) recordN(n int) {
 	p.processed.Add(uint64(n))
+}
+
+// remainingTime estimates how long the given remaining entries take at the current run's rate.
+func (p *progressTracker) remainingTime(remaining uint64) time.Duration {
+	start, processed := p.startNanos.Load(), p.processed.Load()
+	if start == 0 || processed == 0 || remaining == 0 {
+		return 0
+	}
+	elapsed := float64(time.Now().UnixNano() - start)
+	return time.Duration(elapsed * float64(remaining) / float64(processed))
 }
 
 // NewBleve creates a new BleveIndexer instance using the passed parameters
@@ -319,10 +340,19 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		minCommonTextRankAbsoluteCount: minCommonTextRankAbsoluteCount,
 		pruneChangeTriggerRatio:        pruneChangeTriggerRatio,
 		textRankEnrichJobs:             make(chan Document, textRankEnrichWorkers),
+		documentEnrichers:              slices.Clone(cfg.DocumentEnrichers),
+		documentEnrichProgress:         make([]progressTracker, len(cfg.DocumentEnrichers)),
 	}
 
 	for range textRankEnrichWorkers {
 		go b.runTextRankEnrichWorker()
+	}
+
+	if len(b.documentEnrichers) > 0 {
+		b.documentEnrichJobs = make(chan string, documentEnrichWorkers)
+		for range documentEnrichWorkers {
+			go b.runDocumentEnrichWorker()
+		}
 	}
 
 	return b
@@ -375,6 +405,17 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	}
 
 	keywordFieldMapping := bleve.NewKeywordFieldMapping()
+
+	// Stored only, so the field can be read back but never matches a search.
+	// IncludeInAll=false is redundant with Index=false today, but keeps the
+	// field out of the composite _all field explicitly.
+	storedOnlyFieldMapping := bleve.NewKeywordFieldMapping()
+	storedOnlyFieldMapping.Index = false
+	storedOnlyFieldMapping.IncludeInAll = false
+	storedOnlyFieldMapping.DocValues = false
+
+	enrichedSourcesFieldMapping := bleve.NewKeywordFieldMapping()
+	enrichedSourcesFieldMapping.IncludeInAll = false
 
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
@@ -434,6 +475,9 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrations", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("DataSources", storedOnlyFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("EnrichedDataSources", enrichedSourcesFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("DataSourceScoreValue", numericFieldMapping)
 	}
 
 	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
@@ -458,6 +502,9 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Illustrations", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSources", storedOnlyFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("EnrichedDataSources", enrichedSourcesFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceScoreValue", numericFieldMapping)
 
 	return indexMapping
 }
@@ -483,6 +530,10 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	keywordFieldMapping := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable.Index = false
+	storedOnlyFieldMapping := bleve.NewKeywordFieldMapping()
+	storedOnlyFieldMapping.Index = false
+	storedOnlyFieldMapping.IncludeInAll = false
+	storedOnlyFieldMapping.DocValues = false
 
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
@@ -497,7 +548,7 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("RetrievedOn", dateTimeFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceID", keywordFieldMappingNotIndexable)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceImage", keywordFieldMappingNotIndexable)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("Website", keywordFieldMappingNotIndexable)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceLinks", storedOnlyFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfBirth.Date", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfDeath.Date", numericFieldMapping)

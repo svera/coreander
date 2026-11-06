@@ -1,0 +1,7 @@
+{{$lang := .Lang}}
+{{range .DataSourceLinks}}
+<li>
+    {{if .IconClass}}<i class="{{.IconClass}} me-2" aria-hidden="true"></i>{{else if .Icon}}<img src="{{.Icon}}{{versionParam}}" class="me-2{{if .IconInvertible}} color-invertible{{end}}" width="16" height="16" alt="" />{{end}}
+    <a href="{{.URL}}">{{if .Label}}{{t $lang .Label}}{{else}}{{t $lang "Go to %s author page" .Source}}{{end}}</a>
+</li>
+{{end}}

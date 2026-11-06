@@ -1,17 +1,13 @@
 package wikidata
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
-)
 
-const defaultRetryAfter = 60 * time.Second
+	"github.com/svera/coreander/v5/internal/datasource/httpjson"
+)
 
 var apiHTTPClient = newRateLimitedHTTPClient()
 
@@ -35,33 +31,18 @@ func (c *rateLimitedHTTPClient) getJSON(url string, dest any) error {
 		if err != nil {
 			return err
 		}
-		for key, value := range wikidataAPIHeaders() {
-			req.Header.Set(key, value)
-		}
 
-		resp, err := c.client.Do(req)
+		resp, err := httpjson.Do(c.client, req)
 		if err != nil {
 			return err
 		}
 
 		if resp.StatusCode == http.StatusTooManyRequests {
-			_ = resp.Body.Close()
 			c.waitUntil(resp.Header.Get("Retry-After"))
 			continue
 		}
 
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			_ = resp.Body.Close()
-			return fmt.Errorf("request failed with status code %d: %s", resp.StatusCode, body)
-		}
-
-		body, err := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		if err != nil {
-			return err
-		}
-		return json.Unmarshal(body, dest)
+		return resp.Decode(dest)
 	}
 }
 
@@ -71,7 +52,7 @@ func (c *rateLimitedHTTPClient) waitUntil(retryAfterHeader string) {
 	c.mu.Lock()
 	var rateLimitWait time.Duration
 	if retryAfterHeader != "" {
-		rateLimitWait = parseRetryAfter(retryAfterHeader)
+		rateLimitWait = httpjson.ParseRetryAfter(retryAfterHeader)
 		resumeAt := time.Now().Add(rateLimitWait)
 		if resumeAt.After(c.resumeAt) {
 			c.resumeAt = resumeAt
@@ -84,31 +65,5 @@ func (c *rateLimitedHTTPClient) waitUntil(retryAfterHeader string) {
 	}
 	if wait > 0 {
 		time.Sleep(wait)
-	}
-}
-
-func parseRetryAfter(header string) time.Duration {
-	if header == "" {
-		return defaultRetryAfter
-	}
-	if seconds, err := strconv.Atoi(header); err == nil {
-		if seconds <= 0 {
-			return defaultRetryAfter
-		}
-		return time.Duration(seconds) * time.Second
-	}
-	if retryTime, err := http.ParseTime(header); err == nil {
-		wait := time.Until(retryTime)
-		if wait <= 0 {
-			return defaultRetryAfter
-		}
-		return wait
-	}
-	return defaultRetryAfter
-}
-
-func wikidataAPIHeaders() map[string]string {
-	return map[string]string{
-		"User-Agent": "Mozilla/5.0 (compatible; coreander/1.0; +https://github.com/svera/coreander)",
 	}
 }

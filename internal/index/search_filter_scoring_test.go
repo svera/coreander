@@ -68,7 +68,7 @@ func TestAddFiltersDoesNotAffectScoring(t *testing.T) {
 	}
 	idx := NewBleve(documentsIndexMem, authorsIndexMem, nil, "", nil, Config{})
 	for _, doc := range docs {
-		if err := documentsIndexMem.Index(doc.ID, doc); err != nil {
+		if err := IndexDocument(documentsIndexMem, doc.ID, doc); err != nil {
 			t.Fatal(err)
 		}
 	}

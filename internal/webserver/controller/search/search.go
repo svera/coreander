@@ -87,7 +87,7 @@ func (s *Controller) renderDocumentSearch(c fiber.Ctx, session model.Session, pa
 	templateVars["Paginator"] = view.Pagination(model.MaxPagesNavigator, searchResults, c.Queries())
 	templateVars["Title"] = "Search results"
 	templateVars["WordsPerMinute"] = wordsPerMinute
-	templateVars["AdditionalSortOptions"] = documentSortOptions()
+	templateVars["AdditionalSortOptions"] = documentSortOptions(s.config.ReviewSourceConfigured)
 	templateVars["DocumentsTotalHits"] = docCount
 	templateVars["AuthorsTotalHits"] = authorCount
 	templateVars["SimilarCandidatesCapped"] = documentResults.Candidates.Capped()
@@ -151,17 +151,18 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 
 func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string, similarToDocument index.Document) fiber.Map {
 	return fiber.Map{
-		"SearchType":           searchType,
-		"SearchPage":           true,
-		"EmailFrom":            s.sender.From(),
-		"URL":                  view.URL(c),
-		"SortURL":              view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":               c.Query("sort-by"),
-		"AuthorSearchFields":   index.AuthorSearchFields{},
-		"DocumentSearchFields": index.SearchFields{},
-		"SimilarToDocument":    similarToDocument,
-		"SimilarToActive":      similarToDocument.Slug != "",
-		"DocumentsOnly":        similarToDocument.Slug != "",
+		"SearchType":             searchType,
+		"SearchPage":             true,
+		"ReviewSourceConfigured": s.config.ReviewSourceConfigured,
+		"EmailFrom":              s.sender.From(),
+		"URL":                    view.URL(c),
+		"SortURL":                view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":                 c.Query("sort-by"),
+		"AuthorSearchFields":     index.AuthorSearchFields{},
+		"DocumentSearchFields":   index.SearchFields{},
+		"SimilarToDocument":      similarToDocument,
+		"SimilarToActive":        similarToDocument.Slug != "",
+		"DocumentsOnly":          similarToDocument.Slug != "",
 	}
 }
 
@@ -209,11 +210,11 @@ func (s *Controller) tabCounts(docFields index.SearchFields, authorFields index.
 	return docResults, authorCount, nil
 }
 
-func documentSortOptions() []struct {
+func documentSortOptions(reviewSourceConfigured bool) []struct {
 	Key   string
 	Value string
 } {
-	return []struct {
+	options := []struct {
 		Key   string
 		Value string
 	}{
@@ -223,6 +224,16 @@ func documentSortOptions() []struct {
 		{"est-read-time-shorter-first", "shorter"},
 		{"est-read-time-longer-first", "longer"},
 	}
+	if reviewSourceConfigured {
+		options = append(options, []struct {
+			Key   string
+			Value string
+		}{
+			{"review-score-asc", "review-score-asc"},
+			{"review-score-desc", "review-score-desc"},
+		}...)
+	}
+	return options
 }
 
 func authorSortOptions() []struct {

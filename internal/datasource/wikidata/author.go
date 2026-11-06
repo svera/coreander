@@ -1,6 +1,7 @@
 package wikidata
 
 import (
+	"strings"
 	"time"
 
 	"github.com/svera/coreander/v5/internal/precisiondate"
@@ -90,8 +91,21 @@ func (a Author) DateOfDeath() precisiondate.PrecisionDate {
 	return a.dateOfDeath
 }
 
-func (a Author) Website() string {
-	return a.website
+func (a Author) Links() map[string]string {
+	links := make(map[string]string, len(a.wikipediaLink)+1)
+	if a.website != "" {
+		links["website"] = a.website
+	}
+	for language, url := range a.wikipediaLink {
+		if url != "" {
+			links["wikipedia:"+language] = url
+		}
+	}
+	return links
+}
+
+func (a Author) OwnsLink(key string) bool {
+	return key == "website" || strings.HasPrefix(key, "wikipedia:")
 }
 
 func (a Author) Image() string {
@@ -100,10 +114,6 @@ func (a Author) Image() string {
 
 func (a Author) InstanceOf() float64 {
 	return a.instanceOf
-}
-
-func (a Author) WikipediaLink(language string) string {
-	return a.wikipediaLink[language]
 }
 
 func (a Author) Gender() float64 {

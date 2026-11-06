@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -15,11 +16,13 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/versioncheck"
 	"github.com/svera/coreander/v5/internal/webserver"
+	"github.com/svera/coreander/v5/internal/webserver/controller/document"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
@@ -34,6 +37,7 @@ var (
 	input                CLIInput
 	appFs                afero.Fs
 	idx                  *index.BleveIndexer
+	biblioreadsClient    *biblioreads.Client
 	db                   *gorm.DB
 	homeDir              string
 	err                  error
@@ -42,7 +46,7 @@ var (
 	resolvedIndexWorkers int
 )
 
-func init() {
+func main() {
 	ctx := kong.Parse(&input, kong.Description(`
 		Coreander is a document management system which indexes metadata from documents in a library and allows users to search and read them through a web interface.
 	`),
@@ -98,6 +102,18 @@ func init() {
 	var documentsIndex, authorsIndex bleve.Index
 	var needsReindex bool
 	documentsIndex, authorsIndex, needsReindex = getIndexes(appFs, input.IllustratedMinSize, input.MinOccurrenceRatio, maxTextRankWords)
+	var documentEnrichers []index.DocumentEnricher
+	biblioReadsAdapter := biblioreads.NewEnricher(nil)
+	if len(input.ReviewSourceInstances) > 0 {
+		biblioreadsClient = biblioreads.NewClient(
+			biblioreads.WithInstances(input.ReviewSourceInstances),
+			biblioreads.WithCacheTTL(time.Duration(input.ReviewSourceCacheTTL)*time.Second),
+		)
+		biblioReadsAdapter = biblioreads.NewEnricher(biblioreadsClient)
+		documentEnrichers = append(documentEnrichers, biblioReadsAdapter)
+	} else {
+		log.Println("Review lookups disabled: configure review-source-instances with self-hosted endpoints or endpoints whose operators permit automation.")
+	}
 	idx = index.NewBleve(documentsIndex, authorsIndex, appFs, input.LibPath, metadataReaders, index.Config{
 		IllustratedMinAmount:           input.IllustratedMinAmount,
 		IllustratedMinSize:             input.IllustratedMinSize,
@@ -110,17 +126,15 @@ func init() {
 		MinCommonTextRankAbsoluteCount: input.MinCommonTextRankAbsoluteCount,
 		PruneChangeTriggerRatio:        input.PruneChangeTriggerRatio,
 		TextRankEnrichWorkers:          resolvedIndexWorkers,
+		DocumentEnrichers:              documentEnrichers,
 	})
-
+	biblioReadsAdapter.SetIndex(idx)
 	// If index was newly created or recreated, force reindexing
 	if needsReindex {
 		input.ForceIndexing = true
 	}
 
 	db = infrastructure.Connect(homeDir+databasePath, input.WordsPerMinute)
-}
-
-func main() {
 	defer idx.Close()
 
 	idx.BeginIndexing()
@@ -156,6 +170,8 @@ func main() {
 		ClientDynamicImageCacheTTL: input.ClientDynamicImageCacheTTL,
 		ServerStaticCacheTTL:       input.ServerStaticCacheTTL,
 		ServerDynamicImageCacheTTL: input.ServerDynamicImageCacheTTL,
+		ReviewSourceConfigured:     len(input.ReviewSourceInstances) > 0,
+		ReviewSourceCacheTTL:       input.ReviewSourceCacheTTL,
 		ShareCommentMaxSize:        input.ShareCommentMaxSize,
 		ShareMaxRecipients:         input.ShareMaxRecipients,
 		IllustratedMinAmount:       input.IllustratedMinAmount,
@@ -194,7 +210,12 @@ func main() {
 
 	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
-	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource)
+	var reviewProvider document.ReviewProvider
+	biblioReads := biblioreads.NewReviewProvider(biblioreadsClient, biblioReadsAdapter)
+	if biblioreadsClient != nil {
+		reviewProvider = biblioReads
+	}
+	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, reviewProvider, dataSource, biblioReads)
 	usersRepository := &model.UserRepository{DB: db}
 	app := webserver.New(webserverConfig, controllers, sender, idx, usersRepository)
 	if strings.ToLower(input.FQDN) == "localhost" {
@@ -219,6 +240,13 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWor
 	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", end-start))
 	log.Printf("Indexing finished, took %d seconds", int(dur.Seconds()))
 
+	// Network-bound, so it runs alongside the CPU-bound TextRank enrichment.
+	go func() {
+		if err := idx.EnrichDocuments(batchSize); err != nil {
+			log.Printf("Error enriching documents with provider data: %s", err)
+		}
+	}()
+
 	if err := idx.EnrichTextRankKeywords(batchSize, indexWorkers); err != nil {
 		log.Printf("Error enriching documents with TextRank keywords: %s", err)
 	}
@@ -233,21 +261,30 @@ func startIndex(idx *index.BleveIndexer, batchSize int, libPath string, indexWor
 
 func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, maxTextRankWords int) (bleve.Index, bleve.Index, bool) {
 	needsReindex := false
+	authorsIndexCreated := false
 
 	// Open or create documents index
-	documentsIndex, err := bleve.Open(homeDir + documentsIndexPath)
+	documentsPath := homeDir + documentsIndexPath
+	if err := index.RecoverDocumentsIndex(documentsPath); err != nil {
+		log.Fatal(err)
+	}
+	documentsIndex, err := bleve.Open(documentsPath)
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No documents index found, creating a new one.")
 		documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)
 		needsReindex = true
+	} else if err != nil {
+		log.Fatal(err)
 	}
 
 	// Open or create authors index
-	authorsIndex, err := bleve.Open(homeDir + authorsIndexPath)
+	authorsIndex, err := index.OpenAuthorsIndex(homeDir+authorsIndexPath, input.BatchSize)
 	if err == bleve.ErrorIndexPathDoesNotExist {
 		log.Println("No authors index found, creating a new one.")
 		authorsIndex = index.CreateAuthorsIndex(homeDir + authorsIndexPath)
-		needsReindex = true
+		authorsIndexCreated = true
+	} else if err != nil {
+		log.Fatal(err)
 	}
 
 	// Check documents index version
@@ -255,8 +292,37 @@ func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, max
 	if err != nil {
 		log.Fatal(err)
 	}
-	if string(version) == "" || string(version) != index.DocumentVersion {
-		log.Println("Old version documents index found, recreating with new mapping.")
+	if string(version) == "v13" && !input.ForceIndexing {
+		log.Printf("Migrating documents index from v13 to %s.", index.DocumentVersion)
+		documentsIndex, err = index.MigrateDocumentsIndexV13(documentsIndex, documentsPath, input.BatchSize)
+		if err != nil {
+			log.Fatal(err)
+		}
+		version = []byte(index.DocumentVersion)
+	}
+	reindexDocuments := slices.Contains([]string{
+		"v1", "v2", "v3", "v4", "v5", "v6", "v7",
+		"v8", "v9", "v10", "v11", "v12", "v13",
+	}, string(version))
+	if !reindexDocuments && string(version) != index.DocumentVersion {
+		log.Fatalf("Unsupported documents index version %q; preserving the index instead of recreating it.", version)
+	}
+	if reindexDocuments {
+		log.Printf("Documents index version %s found, recreating with %s mapping and reindexing the library.", version, index.DocumentVersion)
+	}
+
+	// Rebuild index if TextRank or illustration configuration changed (stored in index metadata).
+	if !needsReindex && !reindexDocuments {
+		reindexForConfig, err := index.NeedsReindex(documentsIndex, illustratedMinSize, minOccurrenceRatio, maxTextRankWords)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if reindexForConfig {
+			log.Println("Illustrated min size, min occurrence ratio, or max TextRank words config changed, recreating documents index.")
+			reindexDocuments = true
+		}
+	}
+	if reindexDocuments {
 		if err = documentsIndex.Close(); err != nil {
 			log.Fatal(err)
 		}
@@ -265,25 +331,6 @@ func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, max
 		}
 		documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)
 		needsReindex = true
-	}
-
-	// Rebuild index if TextRank or illustration configuration changed (stored in index metadata).
-	if !needsReindex {
-		reindexForConfig, err := index.NeedsReindex(documentsIndex, illustratedMinSize, minOccurrenceRatio, maxTextRankWords)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if reindexForConfig {
-			log.Println("Illustrated min size, min occurrence ratio, or max TextRank words config changed, recreating documents index.")
-			if err = documentsIndex.Close(); err != nil {
-				log.Fatal(err)
-			}
-			if err = fs.RemoveAll(homeDir + documentsIndexPath); err != nil {
-				log.Fatal(err)
-			}
-			documentsIndex = index.CreateDocumentsIndex(homeDir + documentsIndexPath)
-			needsReindex = true
-		}
 	}
 
 	// Check authors index version
@@ -306,6 +353,13 @@ func getIndexes(fs afero.Fs, illustratedMinSize, minOccurrenceRatio float64, max
 			if err = tmpIdx.RebuildAuthorsFromDocuments(input.BatchSize); err != nil {
 				log.Fatal(err)
 			}
+		}
+	} else if authorsIndexCreated && !needsReindex {
+		// A missing authors index can be rebuilt from the existing documents index,
+		// without forcing a scan of the library files.
+		tmpIdx := index.NewBleve(documentsIndex, authorsIndex, nil, "", nil, index.Config{})
+		if err = tmpIdx.RebuildAuthorsFromDocuments(input.BatchSize); err != nil {
+			log.Fatal(err)
 		}
 	}
 

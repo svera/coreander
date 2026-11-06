@@ -2,12 +2,16 @@ package webserver_test
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
+	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
@@ -142,6 +146,340 @@ func TestUnifiedSearch(t *testing.T) {
 
 	if authorResults := doc.Find("#list .list-group-item").Length(); authorResults == 0 {
 		t.Error("Expected author search results for john")
+	}
+}
+
+func TestDataSourceScoreSortOptions(t *testing.T) {
+	paths := []struct {
+		name string
+		url  string
+	}{
+		{name: "document search", url: "/search?type=documents&"},
+		{name: "author documents", url: "/authors/john-doe?"},
+		{name: "series documents", url: "/series/the-lord-of-the-rings?"},
+	}
+	modes := []struct {
+		name string
+		htmx bool
+	}{
+		{name: "full page"},
+		{name: "fragment", htmx: true},
+	}
+
+	for _, configured := range []bool{false, true} {
+		name := "without review sources"
+		directions := []string{""}
+		if configured {
+			name = "with review sources"
+			directions = []string{"asc", "desc"}
+		}
+		t.Run(name, func(t *testing.T) {
+			cfg := defaultTestConfig()
+			cfg.ReviewSourceConfigured = configured
+			app := bootstrapApp(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{},
+				loadDirInMemoryFs("testdata/library"), cfg)
+
+			for _, path := range paths {
+				for _, mode := range modes {
+					for _, direction := range directions {
+						name := path.name + "/" + mode.name
+						selected := ""
+						if direction != "" {
+							selected = "review-score-" + direction
+							name += "/" + direction
+						}
+						t.Run(name, func(t *testing.T) {
+							url := path.url
+							if selected != "" {
+								url += "sort-by=" + selected
+							}
+							req := mustGetRequest(t, url)
+							if mode.htmx {
+								req.Header.Set("HX-Request", "true")
+							}
+							response, err := app.Test(req)
+							if err != nil {
+								t.Fatal(err)
+							}
+							defer response.Body.Close()
+							if response.StatusCode != http.StatusOK {
+								t.Fatalf("unexpected status %d", response.StatusCode)
+							}
+							doc, err := goquery.NewDocumentFromReader(response.Body)
+							if err != nil {
+								t.Fatal(err)
+							}
+							wantCount := 0
+							if configured {
+								wantCount = 1
+							}
+							for _, value := range []string{"review-score-asc", "review-score-desc"} {
+								if got := doc.Find(`#sort-by option[value="` + value + `"]`).Length(); got != wantCount {
+									t.Errorf("score sort option %q count = %d, want %d", value, got, wantCount)
+								}
+							}
+							if selected != "" && doc.Find(`#sort-by option[value="`+selected+`"][selected]`).Length() != 1 {
+								t.Errorf("expected selected option %q", selected)
+							}
+						})
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestReviewScoreFilter(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	cfg := defaultTestConfig()
+	cfg.ReviewSourceConfigured = true
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), cfg)
+
+	homeResponse, err := app.Test(mustGetRequest(t, "/"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer homeResponse.Body.Close()
+	homeDoc, err := goquery.NewDocumentFromReader(homeResponse.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if homeDoc.Find(`select[name="review-score-from"]`).Length() == 0 {
+		t.Fatal("review score filter must be visible on home search when a review source is configured")
+	}
+
+	response, err := app.Test(mustGetRequest(t, "/search?type=documents&review-score-from=4&review-score-to=5"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, received %d", http.StatusOK, response.StatusCode)
+	}
+	doc, err := goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []struct {
+		name  string
+		value string
+	}{
+		{name: "review-score-from", value: "4"},
+		{name: "review-score-to", value: ""},
+	} {
+		selects := doc.Find(`select[name="` + field.name + `"]`)
+		if selects.Length() == 0 {
+			t.Errorf("Expected data-source score filter %q", field.name)
+			continue
+		}
+		selects.Each(func(_ int, selectBox *goquery.Selection) {
+			if got, _ := selectBox.Find("option[selected]").Attr("value"); got != field.value {
+				t.Errorf("Expected %s value %q, got %q", field.name, field.value, got)
+			}
+			options := selectBox.Find("option").Map(func(i int, option *goquery.Selection) string {
+				value, _ := option.Attr("value")
+				wantLabel := ""
+				switch value {
+				case "0":
+					if strings.TrimSpace(option.Text()) == "" {
+						t.Errorf("Expected a label for %s no-score option", field.name)
+					}
+					wantLabel = option.Text()
+				case "1", "2", "3", "4", "5":
+					wantLabel = value + " " + strings.Repeat("\u2605", i-1)
+				}
+				if option.Text() != wantLabel {
+					t.Errorf("Expected %s option %q label %q, got %q", field.name, value, wantLabel, option.Text())
+				}
+				return value
+			})
+			if strings.Join(options, ",") != ",0,1,2,3,4,5" {
+				t.Errorf("Expected blank, no-score, and scores 1 to 5 for %s, got %v", field.name, options)
+			}
+		})
+		if doc.Find(`input[name="`+field.name+`"]`).Length() != 0 {
+			t.Errorf("Expected no numeric input for %s", field.name)
+		}
+
+	}
+
+	response, err = app.Test(mustGetRequest(t, "/search?type=documents&review-score-from=0&review-score-to=0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	doc, err = goquery.NewDocumentFromReader(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"review-score-from", "review-score-to"} {
+		selected, _ := doc.Find(`select[name="` + name + `"] option[selected]`).Attr("value")
+		want := "0"
+		if name == "review-score-from" {
+			want = ""
+		}
+		if selected != want {
+			t.Errorf("Expected %q selected for %s, got %q", want, name, selected)
+		}
+	}
+}
+
+func TestReviewScoreFilterHiddenWithoutConfiguredInstances(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	app := bootstrapApp(db, &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), webserver.Config{})
+
+	for _, path := range []string{"/", "/search?type=documents"} {
+		response, err := app.Test(mustGetRequest(t, path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("Expected status %d for %s, received %d", http.StatusOK, path, response.StatusCode)
+		}
+		doc, err := goquery.NewDocumentFromReader(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if doc.Find(`select[name="review-score-from"], select[name="review-score-to"]`).Length() != 0 {
+			t.Fatalf("review score filter must be hidden for %s when no review source is configured", path)
+		}
+	}
+}
+
+func TestSearchResultsShowStoredDataSourceScore(t *testing.T) {
+	for _, tt := range []struct {
+		score float64
+		want  string
+	}{
+		{score: 3.82, want: "3.82"},
+		{score: 4.1, want: "4.10"},
+		{score: 5, want: "5.00"},
+	} {
+		t.Run(tt.want, func(t *testing.T) {
+			app, _ := newSearchResultsTestApp(t, []index.Document{withBiblioReadsData(t, index.Document{
+				ID: "linked.epub", Slug: "linked",
+				Metadata: metadata.Metadata{Title: "La Reina Dragon", Format: "EPUB"},
+
+				DataSourceScoreValue: tt.score,
+			}, biblioreads.DocumentData{URL: "/book/show/linked", RatingCount: "2,285"}),
+			})
+			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/search?type=documents&search=La")))
+			if err != nil {
+				t.Fatal(err)
+			}
+			score := page.Find("#list .list-group-item li").FilterFunction(func(_ int, item *goquery.Selection) bool {
+				text := strings.TrimSpace(item.Text())
+				return strings.Contains(text, tt.want) && strings.Contains(text, "2,285")
+			})
+			if score.Length() != 1 || score.Find("i.bi-star-fill").Length() != 1 {
+				t.Fatalf("expected generic data-source score and count in search result, got %q", score.Text())
+			}
+		})
+	}
+}
+
+func TestSearchResultsSortByDataSourceScore(t *testing.T) {
+	app, _ := newSearchResultsTestApp(t, []index.Document{withBiblioReadsData(t, index.Document{
+		ID: "linked.epub", Slug: "linked",
+		Metadata:             metadata.Metadata{Title: "Linked", Format: "EPUB"},
+		DataSourceScoreValue: 3.2,
+	}, biblioreads.DocumentData{URL: "/book/show/linked"}), withBiblioReadsData(t, index.Document{
+		ID: "unlinked.epub", Slug: "unlinked",
+		Metadata:             metadata.Metadata{Title: "Unlinked", Format: "EPUB"},
+		DataSourceScoreValue: 4.1,
+	}, biblioreads.DocumentData{URL: "/book/show/unlinked"}), withBiblioReadsData(t, index.Document{
+		ID: "unmatched.epub", Slug: "unmatched",
+		Metadata:             metadata.Metadata{Title: "Unmatched", Format: "EPUB"},
+		DataSourceScoreValue: 4.8,
+	}, biblioreads.DocumentData{URL: "/book/show/unmatched"}),
+	})
+	for _, tt := range []struct {
+		direction string
+		want      []string
+	}{
+		{direction: "asc", want: []string{"linked", "unlinked", "unmatched"}},
+		{direction: "desc", want: []string{"unmatched", "unlinked", "linked"}},
+	} {
+		t.Run(tt.direction, func(t *testing.T) {
+			body := getBody(t, app, "/search?type=documents&sort-by=review-score-"+tt.direction)
+			page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			page.Find("#list .list-group-item h2 a").Each(func(_ int, link *goquery.Selection) {
+				href, _ := link.Attr("href")
+				got = append(got, strings.TrimPrefix(href, "/documents/"))
+			})
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("score sort %s: got %v, want %v", tt.direction, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSearchResultsFilterByInclusiveScoreRange(t *testing.T) {
+	documents := []index.Document{
+		{ID: "unrated.epub", Slug: "unrated", DataSourceScoreValue: 0},
+		{ID: "fractional.epub", Slug: "fractional", DataSourceScoreValue: 0.5},
+		{ID: "one.epub", Slug: "one", DataSourceScoreValue: 1},
+		{ID: "five.epub", Slug: "five", DataSourceScoreValue: 5},
+	}
+	for i := range documents {
+		documents[i].Metadata = metadata.Metadata{Title: documents[i].Slug, Format: "EPUB"}
+	}
+	app, _ := newSearchResultsTestApp(t, documents)
+	for _, tt := range []struct {
+		name  string
+		query string
+		want  []string
+	}{
+		{name: "default", want: []string{"five", "fractional", "one", "unrated"}},
+		{name: "full range", query: "&review-score-from=0&review-score-to=5", want: []string{"five", "fractional", "one", "unrated"}},
+		{name: "zero lower bound", query: "&review-score-from=0", want: []string{"five", "fractional", "one", "unrated"}},
+		{name: "unrated", query: "&review-score-from=0&review-score-to=0", want: []string{"unrated"}},
+		{name: "zero upper bound", query: "&review-score-to=0", want: []string{"unrated"}},
+		{name: "positive range", query: "&review-score-from=1&review-score-to=5", want: []string{"five", "one"}},
+		{name: "upper bound includes unrated", query: "&review-score-to=1", want: []string{"fractional", "one", "unrated"}},
+		{name: "exact score", query: "&review-score-from=1&review-score-to=1", want: []string{"one"}},
+		{name: "reversed bounds", query: "&review-score-from=5&review-score-to=1", want: []string{"five", "one"}},
+		{name: "legacy unrated", query: "&review-score-from=none", want: []string{"unrated"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, "/search?type=documents"+tt.query)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			page.Find("#list .list-group-item h2 a").Each(func(_ int, link *goquery.Selection) {
+				href, _ := link.Attr("href")
+				got = append(got, strings.TrimPrefix(href, "/documents/"))
+			})
+			slices.Sort(got)
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("got %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSearchResultsShowStoredZeroRatingAsNotScored(t *testing.T) {
+	app, _ := newSearchResultsTestApp(t, []index.Document{withBiblioReadsData(t, index.Document{
+		ID: "unscored.epub", Slug: "unscored",
+		Metadata: metadata.Metadata{Title: "Unscored", Format: "EPUB"},
+	}, biblioreads.DocumentData{URL: "/book/show/unscored"}),
+	})
+	body := getBody(t, app, "/search?type=documents&search=Unscored")
+	page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := page.Find("#list .list-group-item li").FilterFunction(func(_ int, item *goquery.Selection) bool {
+		return strings.TrimSpace(item.Text()) == "Not scored" && item.Find("i.bi-star-fill").Length() == 1
+	})
+	if row.Length() == 0 || row.Find("a").Length() != 0 {
+		t.Fatalf("expected generic zero score to render as Not scored, got %q", row.Text())
 	}
 }
 
