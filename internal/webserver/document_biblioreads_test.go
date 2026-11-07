@@ -175,8 +175,8 @@ func TestFailedReviewEnrichmentLeavesNoAlert(t *testing.T) {
 	if banner.Find(".alert").Length() != 0 || strings.TrimSpace(banner.Text()) != "" {
 		t.Fatal("failed ratings retrieval must not leave an empty alert or end-user message")
 	}
-	if banner.AttrOr("hx-trigger", "") != "every 5s" {
-		t.Fatal("progress polling must remain available for future tasks")
+	if banner.AttrOr("hx-trigger", "") != "every 60s" {
+		t.Fatal("idle progress polling must remain available for future tasks")
 	}
 }
 

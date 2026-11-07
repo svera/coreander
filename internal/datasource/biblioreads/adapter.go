@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -150,6 +151,17 @@ func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document
 		queries := []string{q}
 		if title := strings.TrimSpace(document.Title); title != q {
 			queries = append(queries, title)
+		}
+		if title := strings.TrimSpace(withoutParenthetical(document.Title)); title != "" && title != strings.TrimSpace(document.Title) {
+			if len(document.Authors) > 0 {
+				query := strings.TrimSpace(title + " " + document.Authors[0])
+				if !slices.Contains(queries, query) {
+					queries = append(queries, query)
+				}
+			}
+			if !slices.Contains(queries, title) {
+				queries = append(queries, title)
+			}
 		}
 		for _, query := range queries {
 			response, err := p.source.SearchBooks(ctx, query)
