@@ -45,11 +45,7 @@ func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 		t.Error("expected pruning to be needed when no prune has ever run")
 	}
 
-	docCount, err := documentsIndexMem.DocCount()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := documentsIndexMem.SetInternal(internalDocCountAtLastPrune, []byte(strconv.FormatUint(docCount, 10))); err != nil {
+	if err := idx.pruneCommonTextRankEntries(10); err != nil {
 		t.Fatal(err)
 	}
 

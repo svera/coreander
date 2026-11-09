@@ -73,7 +73,14 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 		if err != nil {
 			return result.CappedPaginatedResult[[]Document]{}, err
 		}
-		similarToQuery := b.similarToQuery(doc)
+		stats, err := b.similarityStatistics()
+		if err != nil {
+			return result.CappedPaginatedResult[[]Document]{}, err
+		}
+		similarToQuery, err := b.similarToQuery(doc, stats)
+		if err != nil {
+			return result.CappedPaginatedResult[[]Document]{}, err
+		}
 		filtersQuery.AddQuery(similarToQuery)
 		conjunctsBeforeFilters := len(filtersQuery.Conjuncts)
 		b.addFilters(searchFields, filtersQuery)
@@ -1150,47 +1157,27 @@ func slicer(val any) []string {
 }
 
 // similarToQuery builds Search's SearchFields.SimilarTo candidate query:
-// documents sharing a TextRank word pair with doc, excluding doc itself,
-// documents in the same series, and documents by the same authors. Subjects
-// are deliberately not considered here: a shared subject slug alone (e.g. a
-// broad genre like "Novela") is too weak/generic a signal to stand in for
-// actual content similarity, and on a library with generic subjects it was
-// pulling in large numbers of only superficially related documents.
-func (b *BleveIndexer) similarToQuery(doc Document) *query.BooleanQuery {
+// documents sharing at least two uncommon TextRank word pairs with doc, excluding doc itself,
+// documents in the same series, and documents by the same authors. When both
+// documents have useful subjects they must share one, in addition to phrases.
+// Missing or common-only subjects do not restrict phrase-qualified matches.
+func (b *BleveIndexer) similarToQuery(doc Document, stats *similarityPhraseStatistics) (*query.BooleanQuery, error) {
 	bq := bleve.NewBooleanQuery()
 
-	// A document qualifies as "related" by sharing a TextRank word pair
-	// extracted at indexing time (EPUB only) - one MatchPhraseQuery per
-	// entry, since each is stored as its own array entry (see the
-	// Document.TextRankPhrases doc comment), so a pair only ever matches an
-	// actual adjacent pair in the candidate document, never two words from
-	// unrelated pairs. Documents that match on more shared entries score
-	// higher naturally, since DisjunctionQuery sums the scores of matching
-	// clauses. Single words (Document.TextRankWords) are deliberately never
-	// used here: unlike a two-word pair, a single word has no way to be
-	// distinctive on its own - common nouns (e.g. "casa", "vida") can rank
-	// highly within a document's own TextRank weights while still appearing
-	// in a large fraction of the whole library, which pulled in tens of
-	// thousands of unrelated documents as "candidates" for a single
-	// reference book. A word pair sharing both words with another document
-	// is far less likely to be a coincidence.
-	//
-	// TextRankPhrases has no upper bound, and a long or repetitive document
-	// can end up with hundreds of entries (a real one observed while
-	// diagnosing slow similarity queries had 782) - ORing all of them together
-	// is expensive for Bleve to evaluate regardless of how common any single
-	// keyword is, since it has to poll every one of those clauses for every
-	// candidate document. Capped at Config.MaxSimilarityPhrases to bound that
-	// cost; since TextRankPhrases is stored ordered by descending TextRank
-	// weight (see textRankKeywords), taking a prefix keeps the phrases most
-	// representative of the document, not an arbitrary subset. A cap of 0
-	// means uncapped, matching Config.MinOccurrenceRatio's "0 disables this"
-	// convention elsewhere in this same Config struct.
-	phrases := doc.TextRankPhrases
-	if b.maxSimilarityPhrases > 0 && len(phrases) > b.maxSimilarityPhrases {
-		phrases = phrases[:b.maxSimilarityPhrases]
+	// Array positions preserve phrase adjacency. A minimum number of distinct,
+	// uncommon clauses must match before relative score pruning is considered.
+	// Limit clauses only after filtering so generic phrases cannot crowd out
+	// distinctive ones. Single TextRank words never qualify as evidence.
+	phrases, err := b.distinctiveSimilarityPhrases(doc, stats)
+	if err != nil {
+		return nil, err
+	}
+	if len(phrases) < similarityMinSharedPhrases {
+		bq.AddMust(bleve.NewMatchNoneQuery())
+		return bq, nil
 	}
 	phrasesCompoundQuery := bleve.NewDisjunctionQuery()
+	phrasesCompoundQuery.SetMin(similarityMinSharedPhrases)
 	for _, phrase := range phrases {
 		kq := bleve.NewMatchPhraseQuery(phrase)
 		kq.SetField("TextRankPhrases")
@@ -1199,9 +1186,10 @@ func (b *BleveIndexer) similarToQuery(doc Document) *query.BooleanQuery {
 	}
 	bq.AddMust(phrasesCompoundQuery)
 
+	addSimilaritySubjectFilter(doc, bq, stats)
 	b.excludeSelfSeriesAndAuthors(doc, bq)
 
-	return bq
+	return bq, nil
 }
 
 // excludeSelfSeriesAndAuthors adds the MustNot clauses used by

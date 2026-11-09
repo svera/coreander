@@ -204,6 +204,9 @@ type BleveIndexer struct {
 	authorEnrichProgress           progressTracker
 	textRankEnrichProgress         progressTracker
 	pruneProgress                  progressTracker
+	similarityStatsMu              sync.Mutex
+	similarityStats                *similarityPhraseStatistics
+	similarityStatsLoaded          bool
 	illustratedMinAmount           int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
 	illustratedMinSize             float64 // minimum size in megapixels for an image to count as an illustration
 	minOccurrenceRatio             float64 // minimum occurrence ratio for a TextRank phrase/word to be kept; see Config.MinOccurrenceRatio

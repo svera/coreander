@@ -1,6 +1,7 @@
 package index
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -305,7 +306,8 @@ func (b *BleveIndexer) EnrichTextRankKeywords(batchSize, workers int) error {
 }
 
 // commonTextRankEntriesNeedPrune reports whether pruneCommonTextRankEntries
-// hasn't run yet or the document count has changed by at least
+// hasn't collected similarity statistics yet, pruning settings changed, or
+// the document count has changed by at least
 // PruneChangeTriggerRatio since it last did (same threshold
 // maybePruneForLibraryChange uses). Errors are treated as "needs pruning".
 func (b *BleveIndexer) commonTextRankEntriesNeedPrune() bool {
@@ -316,8 +318,17 @@ func (b *BleveIndexer) commonTextRankEntriesNeedPrune() bool {
 		return true
 	}
 	stored, err := b.documentsIdx.GetInternal(internalDocCountAtLastPrune)
+	statsRaw, statsErr := b.documentsIdx.GetInternal(internalSimilarityPhraseStatistics)
 	b.documentsMu.RUnlock()
-	if err != nil || len(stored) == 0 {
+	if err != nil || len(stored) == 0 || statsErr != nil || len(statsRaw) == 0 {
+		return true
+	}
+	var stats similarityPhraseStatistics
+	if err := json.Unmarshal(statsRaw, &stats); err != nil {
+		log.Printf("Invalid similarity phrase statistics, rebuilding during keyword clean-up: %s", err)
+		return true
+	}
+	if stats.SubjectCounts == nil || stats.PruneRatio != b.commonTextRankEntryRatio || stats.PruneMinimum != b.minCommonTextRankAbsoluteCount {
 		return true
 	}
 
@@ -423,10 +434,18 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 
 	phraseDocCount := make(map[string]int)
 	wordDocCount := make(map[string]int)
+	similarityCounts := make(map[string]int)
+	subjectCounts := make(map[string]int)
+	b.documentsMu.RLock()
+	phraseAnalyzer := b.documentsIdx.Mapping().AnalyzerNamed(defaultAnalyzer)
+	b.documentsMu.RUnlock()
+	if phraseAnalyzer == nil {
+		return fmt.Errorf("missing similarity phrase analyzer %q", defaultAnalyzer)
+	}
 
 	textRankFieldsSearch := func(from int) (*bleve.SearchResult, error) {
 		req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), batchSize, from, false)
-		req.Fields = []string{"TextRankPhrases", "TextRankWords"}
+		req.Fields = []string{"TextRankPhrases", "TextRankWords", "SubjectsSlugs"}
 		b.documentsMu.RLock()
 		defer b.documentsMu.RUnlock()
 		return b.documentsIdx.Search(req)
@@ -442,12 +461,23 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 		}
 
 		for _, hit := range result.Hits {
+			for _, subject := range uniqueTextRankEntries(slicer(hit.Fields["SubjectsSlugs"])) {
+				if subject != "" {
+					subjectCounts[subject]++
+				}
+			}
+			seenSimilarityPhrases := make(map[string]bool)
 			// hydrateDocument assumes a full Fields "*" fetch (it
 			// type-asserts every Metadata field unconditionally); this pass
 			// only requests TextRankPhrases/TextRankWords, so read those two
 			// directly via slicer instead.
 			for _, phrase := range uniqueTextRankEntries(slicer(hit.Fields["TextRankPhrases"])) {
 				phraseDocCount[phrase]++
+				key := similarityPhraseKey(phrase, phraseAnalyzer)
+				if key != "" && !seenSimilarityPhrases[key] {
+					similarityCounts[key]++
+					seenSimilarityPhrases[key] = true
+				}
 			}
 			for _, word := range uniqueTextRankEntries(slicer(hit.Fields["TextRankWords"])) {
 				wordDocCount[word]++
@@ -475,13 +505,32 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 
 	log.Printf("Pruning common TextRank entries finished, %d documents updated", pruned)
 
+	stats := &similarityPhraseStatistics{
+		DocumentCount: docCount,
+		PhraseCounts:  eligibleSimilarityPhraseCounts(similarityCounts, docCount),
+		SubjectCounts: subjectCounts,
+		PruneRatio:    b.commonTextRankEntryRatio,
+		PruneMinimum:  b.minCommonTextRankAbsoluteCount,
+	}
+	stats.prepareSubjectFrequencies()
+	statsRaw, err := json.Marshal(stats)
+	if err != nil {
+		return fmt.Errorf("encode similarity phrase statistics: %w", err)
+	}
 	// Record the doc count this pass ran against so maybePruneForLibraryChange
 	// can later tell how much the library has changed since.
 	internalBatch := b.documentsIdx.NewBatch()
 	internalBatch.SetInternal(internalDocCountAtLastPrune, []byte(strconv.FormatUint(docCount, 10)))
+	internalBatch.SetInternal(internalSimilarityPhraseStatistics, statsRaw)
+	b.similarityStatsMu.Lock()
+	defer b.similarityStatsMu.Unlock()
 	b.documentsMu.Lock()
 	err = b.documentsIdx.Batch(internalBatch)
 	b.documentsMu.Unlock()
+	if err == nil {
+		b.similarityStats = stats
+		b.similarityStatsLoaded = true
+	}
 	return err
 }
 

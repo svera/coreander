@@ -35,9 +35,13 @@ func newTextRankTestIndexWithConfig(t *testing.T, docs []index.Document, cfg ind
 	idx := index.NewBleve(documentsIndexMem, authorsIndexMem, nil, "", nil, cfg)
 
 	for _, doc := range docs {
+		doc.TextRankEnriched = true
 		if err := index.IndexDocument(documentsIndexMem, doc.ID, doc); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if err := idx.EnrichTextRankKeywords(100, 1); err != nil {
+		t.Fatal(err)
 	}
 
 	return idx
@@ -186,7 +190,7 @@ func TestSearchSimilarToIgnoresSingleWords(t *testing.T) {
 		Metadata:        metadata.Metadata{Title: "Doc A", Authors: []string{"Author One"}, Format: "EPUB"},
 		AuthorsSlugs:    []string{"author-one"},
 		TextRankWords:   []string{"house"},
-		TextRankPhrases: []string{"oppenheimer manhattan"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "atomic bomb"},
 	}
 	docSharesOnlySingleWord := index.Document{
 		ID:            "single-word.epub",
@@ -200,7 +204,7 @@ func TestSearchSimilarToIgnoresSingleWords(t *testing.T) {
 		Slug:            "shared-pair",
 		Metadata:        metadata.Metadata{Title: "Shared Pair", Authors: []string{"Author Three"}, Format: "EPUB"},
 		AuthorsSlugs:    []string{"author-three"},
-		TextRankPhrases: []string{"oppenheimer manhattan", "cooking recipes"},
+		TextRankPhrases: []string{"oppenheimer manhattan", "atomic bomb", "cooking recipes"},
 	}
 
 	idx := newTextRankTestIndex(t, []index.Document{docA, docSharesOnlySingleWord, docSharesPair})
