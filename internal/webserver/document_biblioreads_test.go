@@ -251,15 +251,23 @@ func TestDocumentDetailBiblioReadsRating(t *testing.T) {
 	}}
 	app, idx := newBiblioReadsTestApp(t, source)
 
-	placeholder := documentScorePlaceholders(t, getBody(t, app, "/documents/linked"))
-	if placeholder.Length() != 1 {
-		t.Fatalf("expected one BiblioReads placeholder, got %d", placeholder.Length())
+	detail := getPage(t, app, "/documents/linked")
+	scoreRow := detail.Find(`li[hx-get="/documents/linked/score"]`)
+	if scoreRow.Length() != 1 || strings.TrimSpace(scoreRow.Find("a").Text()) != "3.82" {
+		t.Fatalf("expected one cached BiblioReads score row, got %q", scoreRow.Text())
 	}
-	if url, _ := placeholder.Attr("hx-get"); url != "/documents/linked/score" {
-		t.Errorf("unexpected placeholder URL %q", url)
+	if scoreRow.Find(".placeholder").Length() != 0 || scoreRow.HasClass("placeholder-glow") {
+		t.Error("a cached score must not show a loading skeleton")
 	}
-	if placeholder.ParentsFiltered(`[id="document-metadata-linked"]`).Length() != 1 {
-		t.Error("expected the placeholder inside the document metadata list")
+	if scoreRow.AttrOr("hx-trigger", "") != "load" || scoreRow.AttrOr("hx-target", "") != "this" ||
+		scoreRow.AttrOr("hx-swap", "") != "outerHTML" {
+		t.Error("expected the cached score to refresh asynchronously in place")
+	}
+	if scoreRow.ParentsFiltered(`[id="document-metadata-linked"]`).Length() != 1 {
+		t.Error("expected the score inside the document metadata list")
+	}
+	if len(source.ids) != 0 || len(source.queries) != 0 {
+		t.Error("rendering the cached score must not call the review service")
 	}
 
 	page := getPage(t, app, "/documents/linked/score")
@@ -288,11 +296,50 @@ func TestDocumentDetailBiblioReadsRating(t *testing.T) {
 	}
 }
 
+func TestBiblioReadsRatingCountFormatting(t *testing.T) {
+	for _, tt := range []struct {
+		count, lang, want string
+	}{
+		{count: "999", lang: "en", want: "999"},
+		{count: "2285", lang: "en", want: "2,285"},
+		{count: "2,285", lang: "en", want: "2,285"},
+		{count: "90366", lang: "es", want: "90.366"},
+		{count: "123456", lang: "en", want: "123,456"},
+		{count: "123,456", lang: "es", want: "123.456"},
+		{count: "1234567", lang: "de", want: "1.234.567"},
+		{count: "0", lang: "en", want: "0"},
+	} {
+		t.Run(tt.count+"/"+tt.lang, func(t *testing.T) {
+			source := &fakeBookSource{book: biblioreads.BookResponse{Rating: "3.82", RatingCount: tt.count}}
+			app, idx := newBiblioReadsTestApp(t, source)
+			labels := map[string]string{"en": "ratings", "es": "valoraciones", "de": "Bewertungen"}
+			want := "(" + tt.want + " " + labels[tt.lang] + ")"
+			for _, path := range []string{
+				"/documents/linked/score?l=" + tt.lang,
+				"/search?type=documents&search=La&l=" + tt.lang,
+			} {
+				page := getPage(t, app, path)
+				row := page.Find("i.bi-star-fill").Closest("li")
+				if got := row.Find("small").Text(); row.Length() != 1 || got != want {
+					t.Errorf("%s: expected %q, got %q", path, want, got)
+				}
+			}
+			stored, err := idx.Document("linked")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := mustBiblioReadsData(t, stored).RatingCount; got != tt.count {
+				t.Fatalf("formatting must not change stored count: got %q", got)
+			}
+		})
+	}
+}
+
 func TestBiblioReadsRatingCountEscaping(t *testing.T) {
 	for _, count := range []string{
-		"2,285",
 		`<img src=x onerror=alert(1)><script>alert(1)</script>`,
 		`&lt;img src=x&gt; & "quoted" 'count'`,
+		"12,34",
 	} {
 		t.Run(count, func(t *testing.T) {
 			source := &fakeBookSource{book: biblioreads.BookResponse{
@@ -422,6 +469,12 @@ func TestDocumentDetailUpdatesStoredBiblioReadsRating(t *testing.T) {
 	}}
 	app, idx := newBiblioReadsTestApp(t, source)
 
+	detail := getPage(t, app, "/documents/linked")
+	cached := detail.Find(`li[hx-get="/documents/linked/score"]`)
+	if got := strings.TrimSpace(cached.Find("a").Text()); got != "3.82" {
+		t.Fatalf("expected cached rating before refreshing, got %q", got)
+	}
+
 	page := getPage(t, app, "/documents/linked/score")
 	link := page.Find(`li a[href="https://www.goodreads.com/book/show/12207444-la-reina-dragon"]`)
 	if got := strings.TrimSpace(link.Text()); got != "4.12" {
@@ -433,6 +486,10 @@ func TestDocumentDetailUpdatesStoredBiblioReadsRating(t *testing.T) {
 	}
 	if stored.DataSourceScoreValue != 4.12 {
 		t.Fatalf("expected latest rating and searchable value to be stored, got %+v", stored)
+	}
+	reloaded := getPage(t, app, "/documents/linked")
+	if got := strings.TrimSpace(reloaded.Find(`li[hx-get="/documents/linked/score"] a`).Text()); got != "4.12" {
+		t.Fatalf("expected refreshed rating on subsequent detail loads, got %q", got)
 	}
 	results, err := idx.Search(index.SearchFields{DataSourceScoreFrom: 4.1, DataSourceScoreTo: new(4.2)}, 1, 10)
 	if err != nil || results.TotalHits() != 1 {

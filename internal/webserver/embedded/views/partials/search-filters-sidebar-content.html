@@ -1,5 +1,5 @@
 {{$searchType := or .SearchType "documents"}}
-<form id="search-filters-form" action="{{.URLPath}}" method="get" role="search"{{if not .DocumentsOnly}} data-sync-navbar="true"{{end}}>
+<form id="search-filters-form" action="{{or .SearchPath .URLPath}}" method="get" role="search"{{if not .DocumentsOnly}} data-sync-navbar="true"{{end}}>
     <input type="hidden" name="type" id="search-type" value="{{$searchType}}">
     {{if not .DocumentsOnly}}
     <div class="border border-bottom-0 rounded-top-4 p-3">

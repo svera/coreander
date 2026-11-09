@@ -150,9 +150,15 @@ func (s *Controller) renderAuthorSearch(c fiber.Ctx, session model.Session, page
 }
 
 func (s *Controller) baseTemplateVars(c fiber.Ctx, searchType string, similarToDocument index.Document) fiber.Map {
+	searchPath := "/search"
+	if similarToDocument.Slug != "" {
+		searchPath = c.Path()
+	}
+
 	return fiber.Map{
 		"SearchType":             searchType,
 		"SearchPage":             true,
+		"SearchPath":             searchPath,
 		"ReviewSourceConfigured": s.config.ReviewSourceConfigured,
 		"EmailFrom":              s.sender.From(),
 		"URL":                    view.URL(c),
