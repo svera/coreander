@@ -496,6 +496,51 @@ func TestDocumentReviewsHeader(t *testing.T) {
 	}
 }
 
+func TestDocumentDetailCachedScore(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		score datasourcemodel.Score
+		err   error
+		want  string
+	}{
+		{name: "rated", score: datasourcemodel.Score{Value: "4.20", Count: "2285"}, want: "4.20"},
+		{name: "zero with ratings", score: datasourcemodel.Score{Value: "0.00", Count: "12"}, want: "0.00"},
+		{name: "unrated", score: datasourcemodel.Score{Value: "0.00"}},
+		{name: "unavailable"},
+		{name: "stored score error", err: errors.New("stored score unavailable")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.score.Source = "Another service"
+			tc.score.URL = "https://example.org/books/book-1"
+			provider := &fakeReviewProvider{score: tc.score, scoreErr: tc.err, documentURL: tc.score.URL}
+			app, _ := newReviewProviderTestApp(t, provider)
+			page := getPage(t, app, "/documents/linked")
+			row := page.Find(`li[hx-get="/documents/linked/score"]`)
+			if row.Length() != 1 || row.AttrOr("hx-trigger", "") != "load" ||
+				row.AttrOr("hx-target", "") != "this" || row.AttrOr("hx-swap", "") != "outerHTML" {
+				t.Fatal("expected one asynchronously refreshed score row")
+			}
+			if tc.want == "" {
+				if row.Find(".placeholder").Length() != 1 {
+					t.Fatal("expected a skeleton when no cached score is available")
+				}
+			} else {
+				if row.Find(".placeholder").Length() != 0 || row.HasClass("placeholder-glow") ||
+					strings.TrimSpace(row.Find("a").Text()) != tc.want {
+					t.Fatalf("expected cached score %q without a skeleton, got %q", tc.want, row.Text())
+				}
+				if row.Find("small").Length() != 1 {
+					t.Fatal("expected the cached rating count")
+				}
+			}
+			if page.Find("#document-reviews-linked").Length() != 1 || len(provider.scoreSlugs) != 0 ||
+				len(provider.reviewSlugs) != 0 {
+				t.Fatal("cached rendering must preserve the reviews target without API calls")
+			}
+		})
+	}
+}
+
 func TestDocumentReviewsDisabled(t *testing.T) {
 	app, _ := newReviewProviderTestApp(t, nil)
 	if getPage(t, app, "/background-progress").Find(".alert").Length() != 0 {

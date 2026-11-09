@@ -13,7 +13,12 @@
         <li class="fw-bold"><i class="bi bi-book me-2" alt="{{t .Lang "Pages"}}" title="{{t .Lang "Pages"}}"></i>{{.Document.Pages}}</li>
     {{ end }}
     {{ if .ReviewsEnabled }}
+        {{$score := .StoredScore}}
+        {{if and $score.URL $score.HasScore}}
+        {{template "partials/document-score" dict "Lang" .Lang "Source" $score.Source "Rating" $score.Value "RatingCount" $score.Count "Scored" true "URL" $score.URL "RefreshScoreSlug" .Document.Slug}}
+        {{else}}
         <li class="placeholder-glow" hx-get="/documents/{{.Document.Slug}}/score" hx-trigger="load" hx-target="this" hx-swap="outerHTML"><span class="placeholder col-4"></span></li>
+        {{end}}
     {{ end }}
     {{if .ShowScore}}
         {{$score := storedDocumentScore .Document.Document}}

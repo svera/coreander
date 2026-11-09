@@ -44,6 +44,15 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 
 	title, _ := documentPageTitle(document)
 
+	var storedScore datasourcemodel.Score
+	if d.reviewProvider != nil {
+		storedScore, err = d.StoredScore(document)
+		if err != nil {
+			log.Printf("Error reading stored score for %s: %s", document.ID, err)
+			storedScore = datasourcemodel.Score{}
+		}
+	}
+
 	lang, _ := c.Locals("Lang").(string)
 	authorSummaries, illustratorSummaries := d.authorAndIllustratorSummaries(document, lang)
 
@@ -75,6 +84,7 @@ func (d *Controller) Detail(c fiber.Ctx) error {
 		"IllustratorSummaries": illustratorSummaries,
 		"Debug":                c.RequestCtx().QueryArgs().Has("debug"),
 		"ReviewsEnabled":       d.reviewProvider != nil,
+		"StoredScore":          storedScore,
 		"DocumentLink":         d.dataSourceDocumentLink(document),
 	}, "layout")
 }

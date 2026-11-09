@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"image"
 	"reflect"
 	"slices"
@@ -514,15 +515,53 @@ func TestTitleMatchScore(t *testing.T) {
 		{name: "subtitle", title: "La promesa", candidate: "La promesa: Una historia", want: 1},
 		{name: "document subtitle", title: "La promesa: Una historia", candidate: "La promesa", want: 1},
 		{name: "parenthetical", title: "La promesa", candidate: "La promesa (The Promise)", want: 1},
+		{name: "document parenthetical", title: "La promesa (The Promise)", candidate: "La promesa", want: 1},
+		{name: "document volume parenthetical retained", title: "La promesa (Volume 2)", candidate: "La promesa"},
+		{name: "candidate volume parenthetical retained", title: "La promesa", candidate: "La promesa (Volume 2)"},
+		{name: "document edition", title: "Crímenes Célebres (2ª ed.)", candidate: "Crímenes célebres", want: 1},
+		{name: "candidate edition", title: "Crímenes Célebres", candidate: "Crímenes célebres (2ª ed.)", want: 1},
+		{name: "different editions", title: "La promesa (2ª ed.)", candidate: "La promesa (3ª ed.)"},
+		{name: "different parentheticals", title: "La promesa (First)", candidate: "La promesa (Second)"},
 		{name: "different subtitles", title: "La promesa: Una historia", candidate: "La promesa: Otra historia"},
 		{name: "standalone volume", title: "La promesa", candidate: "La promesa (#1)"},
+		{name: "document standalone volume", title: "La promesa (#1)", candidate: "La promesa"},
 		{name: "unrelated", title: "La promesa", candidate: "Otro libro"},
 		{name: "empty candidate", title: "La promesa"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got := titleMatchScore(tt.candidate, normalizedTitle(tt.title), mainTitle(tt.title))
+			withoutSuffix := normalizedTitle(withoutParenthetical(tt.title))
+			got := titleMatchScore(tt.candidate, normalizedTitle(tt.title), mainTitle(tt.title), withoutSuffix)
 			if got != tt.want {
 				t.Fatalf("title match score = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestWithoutParenthetical(t *testing.T) {
+	for _, tt := range []struct {
+		title, want string
+	}{
+		{"Crímenes Célebres (2ª ed.)", "Crímenes Célebres"},
+		{"Book (2nd edition)", "Book"},
+		{"Libro (2.ª edición)", "Libro"},
+		{"Book (Revised edition)", "Book"},
+		{"Book (Illustrated)", "Book"},
+		{"Book (2024 revised)", "Book"},
+		{"Book (#2)", "Book (#2)"},
+		{"Book (2)", "Book (2)"},
+		{"Book (II)", "Book (II)"},
+		{"Book (Volume 2)", "Book (Volume 2)"},
+		{"Book (Vol. II)", "Book (Vol. II)"},
+		{"Book (Tomo 2)", "Book (Tomo 2)"},
+		{"Book (2nd part)", "Book (2nd part)"},
+		{"Book (Series, #2)", "Book (Series, #2)"},
+		{"Book (nested (annotation))", "Book (nested (annotation))"},
+		{"Book ()", "Book ()"},
+	} {
+		t.Run(tt.title, func(t *testing.T) {
+			if got := withoutParenthetical(tt.title); got != tt.want {
+				t.Fatalf("got %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -872,6 +911,124 @@ func TestTitleFallback(t *testing.T) {
 				t.Fatalf("queries = %q, want %q", source.Queries(), want)
 			}
 		})
+	}
+}
+
+func TestParentheticalFallback(t *testing.T) {
+	const title = "Crímenes Célebres"
+	const author = "Alexandre Dumas"
+	const bookURL = "/book/show/20371277-cr-menes-c-lebres"
+	for _, suffix := range []string{"(2ª ed.)", "(Revised edition)", "(Illustrated)"} {
+		for _, withAuthor := range []bool{true, false} {
+			t.Run(fmt.Sprint(suffix, " with author ", withAuthor), func(t *testing.T) {
+				editionTitle := title + " " + suffix
+				result := SearchResult{Title: title, Author: author, BookURL: bookURL, Rating: "4.00"}
+				query := title
+				if withAuthor {
+					query += " " + author
+				}
+				source := &fakeSource{byQuery: map[string][]SearchResult{
+					editionTitle + " " + author: {{Title: "Otro libro", Author: author, BookURL: "/book/show/10"}},
+					query:                       {result},
+				}}
+				idx := newTestIndexer(t, source)
+				doc := index.Document{ID: testID, Metadata: metadata.Metadata{Title: editionTitle, Authors: []string{author}}}
+				if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
+					t.Fatal(err)
+				}
+				got, err := idx.Book(context.Background(), doc)
+				if err != nil || got.BookURL != bookURL {
+					t.Fatalf("got %+v, %v; want %q", got, err, bookURL)
+				}
+				stored, err := idx.DocumentByID(doc.ID)
+				if err != nil || !mustData(t, stored).Enriched || mustData(t, stored).URL != bookURL {
+					t.Fatalf("expected persisted match, got %+v, %v", stored, err)
+				}
+				want := []string{editionTitle + " " + author, editionTitle, title + " " + author}
+				if !withAuthor {
+					want = append(want, title)
+				}
+				if !slices.Equal(source.Queries(), want) {
+					t.Fatalf("queries = %q, want %q", source.Queries(), want)
+				}
+			})
+		}
+	}
+}
+
+func TestParentheticalFallbackRejectsWrongAuthor(t *testing.T) {
+	const title = "Crímenes Célebres"
+	const author = "Alexandre Dumas"
+	source := &fakeSource{byQuery: map[string][]SearchResult{
+		title + " " + author: {{Title: title, Author: "Another Writer", BookURL: "/book/show/1"}},
+		title:                {{Title: title, Author: "Another Writer", BookURL: "/book/show/1"}},
+	}}
+	idx := newTestIndexer(t, source)
+	doc := index.Document{ID: testID, Metadata: metadata.Metadata{Title: title + " (Revised edition)", Authors: []string{author}}}
+	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
+		t.Fatal(err)
+	}
+	got, err := idx.Book(context.Background(), doc)
+	if err != nil || got.BookURL != "" {
+		t.Fatalf("wrong author must not match, got %+v, %v", got, err)
+	}
+}
+
+func TestVolumeDoesNotBroadenSearch(t *testing.T) {
+	const title = "A book (Volume 2)"
+	const author = "A Writer"
+	source := &fakeSource{}
+	idx := newTestIndexer(t, source)
+	doc := index.Document{ID: testID, Metadata: metadata.Metadata{Title: title, Authors: []string{author}}}
+	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := idx.Book(context.Background(), doc); err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{title + " " + author, title}; !slices.Equal(source.Queries(), want) {
+		t.Fatalf("queries = %q, want %q", source.Queries(), want)
+	}
+}
+
+func TestParentheticalFallbackDoesNotDuplicateQueries(t *testing.T) {
+	source := &fakeSource{}
+	idx := newTestIndexer(t, source)
+	doc := index.Document{ID: testID, Metadata: metadata.Metadata{Title: "Crímenes Célebres (2ª ed.)", Authors: []string{""}}}
+	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := idx.Book(context.Background(), doc); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"Crímenes Célebres (2ª ed.)", "Crímenes Célebres"}
+	if !slices.Equal(source.Queries(), want) {
+		t.Fatalf("queries = %q, want %q", source.Queries(), want)
+	}
+}
+
+func TestParentheticalFallbackErrorLeavesDocumentPending(t *testing.T) {
+	const title = "Crímenes Célebres"
+	const author = "Alexandre Dumas"
+	source := &fakeSource{
+		byQuery:     map[string][]SearchResult{},
+		queryErrors: map[string]error{title + " " + author: ErrUnavailable},
+	}
+	idx := newTestIndexer(t, source)
+	doc := index.Document{ID: testID, Metadata: metadata.Metadata{Title: title + " (2ª ed.)", Authors: []string{author}}}
+	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := idx.Book(context.Background(), doc); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("expected unavailable error, got %v", err)
+	}
+	stored, err := idx.DocumentByID(doc.ID)
+	if err != nil || mustData(t, stored).Enriched {
+		t.Fatalf("expected document left pending, got %+v, %v", stored, err)
+	}
+	want := []string{doc.Title + " " + author, doc.Title, title + " " + author}
+	if !slices.Equal(source.Queries(), want) {
+		t.Fatalf("queries = %q, want %q", source.Queries(), want)
 	}
 }
 

@@ -1,6 +1,7 @@
 package webserver_test
 
 import (
+	"errors"
 	"net/http"
 	"sync/atomic"
 	"testing"
@@ -20,6 +21,16 @@ import (
 type progressCountingInfo struct {
 	webserver.IndexInfo
 	calls atomic.Int64
+}
+
+type progressStateInfo struct {
+	webserver.IndexInfo
+	tasks []index.Progress
+	err   error
+}
+
+func (i *progressStateInfo) BackgroundProgress() ([]index.Progress, error) {
+	return i.tasks, i.err
 }
 
 func (i *progressCountingInfo) BackgroundProgress() ([]index.Progress, error) {
@@ -195,6 +206,58 @@ func TestBackgroundProgressPollingAccess(t *testing.T) {
 			}
 			check("/", cookie, http.StatusOK, true)
 			check("/background-progress", cookie, http.StatusOK, true)
+		})
+	}
+}
+
+func TestBackgroundProgressPollingIntervalTransitions(t *testing.T) {
+	db := infrastructure.Connect(":memory:", 250)
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	cfg := defaultTestConfig()
+	sender := &infrastructure.NoEmail{}
+	appFS := afero.NewMemMapFs()
+	unusedApp, idx := bootstrapAppWithIndexer(db, sender, appFS, cfg)
+	t.Cleanup(func() { _ = unusedApp.Shutdown() })
+	t.Cleanup(func() { _ = idx.Close() })
+	source := wikidata.NewWikidataSource(wikidata.Gowikidata{})
+	provider := biblioreads.NewReviewProvider(nil, nil)
+	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, source, nil, source, provider)
+	state := &progressStateInfo{IndexInfo: idx}
+	app := webserver.New(cfg, controllers, sender, state, &model.UserRepository{DB: db})
+	t.Cleanup(func() { _ = app.Shutdown() })
+
+	for _, step := range []struct {
+		name    string
+		tasks   []index.Progress
+		err     error
+		trigger string
+	}{
+		{name: "initially idle", trigger: "every 60s"},
+		{name: "work starts", tasks: []index.Progress{{Kind: index.ProgressDocuments, InProgress: true}}, trigger: "every 5s"},
+		{name: "work completes", trigger: "every 60s"},
+		{name: "progress read fails", err: errors.New("progress unavailable"), trigger: "every 5s"},
+		{name: "progress read recovers", trigger: "every 60s"},
+	} {
+		t.Run(step.name, func(t *testing.T) {
+			state.tasks, state.err = step.tasks, step.err
+			for _, path := range []string{"/?l=en", "/background-progress?l=en"} {
+				page := getPage(t, app, path)
+				banner := page.Find("#background-progress")
+				if got := banner.AttrOr("hx-trigger", ""); got != step.trigger {
+					t.Errorf("%s: trigger = %q, want %q", path, got, step.trigger)
+				}
+				if banner.AttrOr("hx-get", "") != "/background-progress?l=en" ||
+					banner.AttrOr("hx-swap", "") != "outerHTML" {
+					t.Errorf("%s: polling endpoint or swap changed", path)
+				}
+				if (banner.Find(`[role="alert"]`).Length() != 0) != (step.err != nil) {
+					t.Errorf("%s: incorrect error alert", path)
+				}
+			}
 		})
 	}
 }

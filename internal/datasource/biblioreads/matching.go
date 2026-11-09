@@ -17,7 +17,8 @@ var seriesSuffix = regexp.MustCompile(`\s*\((?:[^()]+,\s*#[0-9]+(?:\.[0-9]+)?|#[
 
 var subtitleSeparator = regexp.MustCompile(`:\s*|\.\s+|\s+[-–—]\s+`)
 
-var parentheticalTitle = regexp.MustCompile(`\s+\([\p{L}][^()]*\)\s*$`)
+var parentheticalTitle = regexp.MustCompile(`\s+\(([^()]*)\)\s*$`)
+var standaloneVolume = regexp.MustCompile(`(?i)^(?:[0-9]+|[ivxlcdm]+)$`)
 
 var goodreadsBookPath = regexp.MustCompile(`^/book/show/([1-9][0-9]*)(?:[.-][A-Za-z0-9._~-]+)?/?$`)
 
@@ -88,6 +89,25 @@ func normalizedTitle(value string) string {
 	return normalizeName(seriesSuffix.ReplaceAllString(value, ""))
 }
 
+func withoutParenthetical(value string) string {
+	match := parentheticalTitle.FindStringSubmatchIndex(value)
+	if match == nil {
+		return value
+	}
+	annotation := value[match[2]:match[3]]
+	normalized := normalizeName(annotation)
+	if normalized == "" || strings.Contains(annotation, "#") || standaloneVolume.MatchString(normalized) {
+		return value
+	}
+	for _, word := range strings.Fields(normalized) {
+		switch word {
+		case "vol", "volume", "volumen", "tomo", "tome", "part", "parte", "book", "libro", "livre":
+			return value
+		}
+	}
+	return strings.TrimSpace(value[:match[0]])
+}
+
 func mainTitle(value string) string {
 	value = seriesSuffix.ReplaceAllString(value, "")
 	if separator := subtitleSeparator.FindStringIndex(value); separator != nil {
@@ -96,7 +116,7 @@ func mainTitle(value string) string {
 	return normalizeName(value)
 }
 
-func titleMatchScore(candidate, title, documentMainTitle string) int {
+func titleMatchScore(candidate, title, documentMainTitle, documentWithoutParenthetical string) int {
 	candidateTitle := normalizedTitle(candidate)
 	if candidateTitle == "" {
 		return 0
@@ -105,7 +125,8 @@ func titleMatchScore(candidate, title, documentMainTitle string) int {
 		return 3
 	}
 	if mainTitle(candidate) == title || documentMainTitle == candidateTitle ||
-		normalizedTitle(parentheticalTitle.ReplaceAllString(candidate, "")) == title {
+		normalizedTitle(withoutParenthetical(candidate)) == title ||
+		(documentWithoutParenthetical != "" && documentWithoutParenthetical == candidateTitle) {
 		return 1
 	}
 	return 0
@@ -163,13 +184,14 @@ func matchingBook(document index.Document, results []SearchResult) (SearchResult
 		return SearchResult{}, false
 	}
 	mainTitle := mainTitle(document.Title)
+	documentWithoutParenthetical := normalizedTitle(withoutParenthetical(document.Title))
 	var best SearchResult
 	bestScore := 0
 	for _, result := range results {
 		if result.BookURL == "" {
 			continue
 		}
-		score := titleMatchScore(result.Title, title, mainTitle)
+		score := titleMatchScore(result.Title, title, mainTitle, documentWithoutParenthetical)
 		if score == 0 {
 			continue
 		}

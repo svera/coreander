@@ -149,6 +149,68 @@ func TestUnifiedSearch(t *testing.T) {
 	}
 }
 
+func TestSearchTabEndpoints(t *testing.T) {
+	app := bootstrapApp(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{},
+		loadDirInMemoryFs("testdata/library"), webserver.Config{})
+
+	for _, path := range []string{
+		"/documents?type=documents&subjects=ensayo&sort-by=relevance",
+		"/authors?search=john",
+		"/search?type=documents&search=john",
+	} {
+		t.Run(path, func(t *testing.T) {
+			response, err := app.Test(mustGetRequest(t, path))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			if response.StatusCode != http.StatusOK {
+				t.Fatalf("unexpected status %d", response.StatusCode)
+			}
+			doc, err := goquery.NewDocumentFromReader(response.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			endpoint := doc.Find("#list").AttrOr("hx-get", "")
+			if endpoint != "/search" {
+				t.Fatalf("expected type-aware results endpoint /search, got %q", endpoint)
+			}
+			if action := doc.Find("#search-filters-form").AttrOr("action", ""); action != endpoint {
+				t.Fatalf("expected filter action %q, got %q", endpoint, action)
+			}
+
+			for _, searchType := range []string{"authors", "documents"} {
+				req := mustGetRequest(t, endpoint+"?type="+searchType+"&search=john&subjects=ensayo&sort-by=relevance")
+				req.Header.Set("HX-Request", "true")
+				response, err := app.Test(req)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer response.Body.Close()
+				if response.StatusCode != http.StatusOK {
+					t.Fatalf("unexpected status %d switching to %s", response.StatusCode, searchType)
+				}
+				fragment, err := goquery.NewDocumentFromReader(response.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if fragment.Find(`#search-results-tabs [data-search-type-tab="`+searchType+`"].active`).Length() != 1 {
+					t.Errorf("expected active %s results tab", searchType)
+				}
+				if searchType == "authors" {
+					if fragment.Find(`#list-fragment-body h2 a[href="/authors/john-doe"]`).Length() != 1 {
+						t.Error("expected John Doe author result after switching from a subject search")
+					}
+					if fragment.Find(`#list-fragment-body h2 a[href^="/documents/"]`).Length() != 0 {
+						t.Error("expected no document results on the authors tab")
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestDataSourceScoreSortOptions(t *testing.T) {
 	paths := []struct {
 		name string
@@ -526,6 +588,9 @@ func TestSimilarDocumentsFullPage(t *testing.T) {
 	sidebarAction, _ := doc.Find(`#search-filters-form`).Attr("action")
 	if sidebarAction != "/documents/john-doe-test-epub/similar" {
 		t.Errorf("Expected sidebar filter form action to stay on the /similar route so filter changes keep \"similar to\" mode, got %q", sidebarAction)
+	}
+	if endpoint := doc.Find("#list").AttrOr("hx-get", ""); endpoint != sidebarAction {
+		t.Errorf("Expected similar results endpoint %q, got %q", sidebarAction, endpoint)
 	}
 
 	if doc.Find(`[data-search-type-tab="authors"]`).Length() != 0 {
