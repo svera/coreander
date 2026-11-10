@@ -2,6 +2,7 @@ package index
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"testing"
 
@@ -90,6 +91,29 @@ func TestSimilaritySubjectFilter(t *testing.T) {
 				if hit.Slug != full[i] {
 					t.Fatal("preview and paginated search disagree")
 				}
+			}
+			restarted := NewBleve(documents, idx.authorsIdx, nil, "", nil, Config{CommonTextRankEntryRatio: 1})
+			if restarted.commonTextRankEntriesNeedPrune() {
+				t.Fatal("restart should reuse statistics for the unchanged library")
+			}
+			restored, err := restarted.similarityStatistics()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if restored == nil || !maps.Equal(restored.SubjectCounts, stats.SubjectCounts) ||
+				!slices.Equal(restored.uncommonSubjects, stats.uncommonSubjects) {
+				t.Fatalf("restart must restore subject counts and classification, got %v", restored)
+			}
+			results, err := restarted.Search(SearchFields{SimilarTo: source.Slug, SortBy: DefaultDocumentSortBy}, 1, 100)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var reloaded []string
+			for _, hit := range results.Hits() {
+				reloaded = append(reloaded, hit.Slug)
+			}
+			if results.Candidates.Total() != len(want) || !slices.Equal(reloaded, full) {
+				t.Fatalf("restart changed recommendations: got %v, want %v", reloaded, full)
 			}
 			slices.Sort(full)
 			slices.Sort(want)
@@ -182,36 +206,6 @@ func TestSimilaritySubjectsDoNotBoostScores(t *testing.T) {
 		if score != before[id] {
 			t.Fatalf("subject filter changed %s score from %f to %f", id, before[id], score)
 		}
-	}
-}
-
-func TestSimilaritySubjectStatisticsRestart(t *testing.T) {
-	idx, documents := newTestTextRankIndexer(t, Config{CommonTextRankEntryRatio: 1})
-	t.Cleanup(func() { _ = idx.Close() })
-	for i := range 30 {
-		doc := evidenceDocument(fmt.Sprint(i), "atomic bomb", "los alamos")
-		doc.SubjectsSlugs = []string{"arbitrary-common-label", "arbitrary-common-label"}
-		if err := IndexDocument(documents, doc.ID, doc); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := idx.EnrichTextRankKeywords(10, 1); err != nil {
-		t.Fatal(err)
-	}
-	if idx.commonTextRankEntriesNeedPrune() {
-		t.Fatal("cleanup should persist statistics for the unchanged library")
-	}
-	if idx.similarityStats.SubjectCounts["arbitrary-common-label"] != 30 {
-		t.Fatalf("incorrect subject count: %v", idx.similarityStats.SubjectCounts)
-	}
-	// Clear the process cache to exercise the same disk-loading path as restart.
-	idx.similarityStats, idx.similarityStatsLoaded = nil, false
-	stats, err := idx.similarityStatistics()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(stats.uncommonSubjects) != 0 || stats.SubjectCounts["arbitrary-common-label"] != 30 {
-		t.Fatalf("restart must restore frequency classification, got %v", stats)
 	}
 }
 

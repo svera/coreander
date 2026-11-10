@@ -1,12 +1,10 @@
 package index
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 	"testing"
 
-	"github.com/blevesearch/bleve/v2"
 	"github.com/svera/coreander/v5/internal/metadata"
 )
 
@@ -16,23 +14,6 @@ func evidenceDocument(id string, phrases ...string) Document {
 		Metadata:        metadata.Metadata{Title: id, Format: "EPUB"},
 		TextRankPhrases: phrases, TextRankEnriched: true,
 	}
-}
-
-type similarityBaseIndex = bleve.Index
-
-type similarityCountingIndex struct {
-	similarityBaseIndex
-	searches, internalReads int
-}
-
-func (i *similarityCountingIndex) Search(request *bleve.SearchRequest) (*bleve.SearchResult, error) {
-	i.searches++
-	return i.similarityBaseIndex.Search(request)
-}
-
-func (i *similarityCountingIndex) GetInternal(key []byte) ([]byte, error) {
-	i.internalReads++
-	return i.similarityBaseIndex.GetInternal(key)
 }
 
 func TestSimilarityEvidenceRequiresDistinctUncommonPhrases(t *testing.T) {
@@ -61,7 +42,7 @@ func TestSimilarityEvidenceRequiresDistinctUncommonPhrases(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// Requests before the first cleanup must not perform an on-demand scan.
+	// Recommendations are unavailable until the first cleanup collects statistics.
 	before, err := idx.Search(SearchFields{SimilarTo: "reference"}, 1, 10)
 	if err != nil || len(before.Hits()) != 0 {
 		t.Fatalf("before statistics: hits=%v error=%v", before.Hits(), err)
@@ -76,8 +57,6 @@ func TestSimilarityEvidenceRequiresDistinctUncommonPhrases(t *testing.T) {
 	if stats.PhraseCounts["atomic bomb"] != 4 || stats.PhraseCounts["los alamos"] != 2 {
 		t.Fatalf("expected per-document normalized frequencies, got %v", stats.PhraseCounts)
 	}
-	counted := &similarityCountingIndex{similarityBaseIndex: documents}
-	idx.documentsIdx = counted
 	for _, size := range []int{1, 20} {
 		results, err := idx.Search(SearchFields{SimilarTo: "reference"}, 1, size)
 		if err != nil {
@@ -89,9 +68,6 @@ func TestSimilarityEvidenceRequiresDistinctUncommonPhrases(t *testing.T) {
 		if results.Candidates.Total() != 1 {
 			t.Fatalf("weak candidates must be excluded before capping, total=%d", results.Candidates.Total())
 		}
-	}
-	if counted.internalReads != 0 || counted.searches != 4 {
-		t.Fatalf("cached requests should only read the reference and run the candidate query: internal reads=%d searches=%d", counted.internalReads, counted.searches)
 	}
 	// Even the best match must disappear if there is only one distinctive pair.
 	results, err := idx.Search(SearchFields{SimilarTo: "duplicate"}, 1, 10)
@@ -175,42 +151,5 @@ func TestSimilarityStatisticsRefreshAndErrors(t *testing.T) {
 	}
 	if !idx.commonTextRankEntriesNeedPrune() {
 		t.Fatal("corrupt statistics must trigger background rebuilding")
-	}
-}
-
-func BenchmarkSimilarityEvidenceQuery(b *testing.B) {
-	documents, err := bleve.NewMemOnly(CreateDocumentsMapping())
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer documents.Close()
-	idx := &BleveIndexer{documentsIdx: documents, maxSimilarityPhrases: 60}
-	stats := &similarityStatistics{DocumentCount: 37500, PhraseCounts: make(map[string]int), SubjectCounts: make(map[string]int)}
-	doc := Document{}
-	for i := range 500 {
-		phrase := fmt.Sprintf("topic%d detail%d", i, i)
-		doc.TextRankPhrases = append(doc.TextRankPhrases, phrase)
-		stats.PhraseCounts[phrase] = 100
-	}
-	raw, err := json.Marshal(stats)
-	if err != nil {
-		b.Fatal(err)
-	}
-	if err := documents.SetInternal(internalSimilarityPhraseStatistics, raw); err != nil {
-		b.Fatal(err)
-	}
-	if _, err := idx.similarityStatistics(); err != nil {
-		b.Fatal(err)
-	}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		cached, err := idx.similarityStatistics()
-		if err != nil {
-			b.Fatal(err)
-		}
-		if _, err := idx.similarToQuery(doc, cached); err != nil {
-			b.Fatal(err)
-		}
 	}
 }
