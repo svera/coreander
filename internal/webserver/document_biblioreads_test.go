@@ -532,8 +532,8 @@ func TestDocumentDetailBiblioReadsSearchesUnlinkedDocuments(t *testing.T) {
 	if got := strings.TrimSpace(page.Find(`li a[href="https://www.goodreads.com/book/show/1-unlinked"]`).Text()); got != "4.10" {
 		t.Errorf("expected rating link with 4.10, got %q", got)
 	}
-	if len(source.queries) != 1 || source.queries[0] != "Unlinked Jane Doe" {
-		t.Errorf("expected a single search with title and first author, got %q", source.queries)
+	if len(source.queries) != 2 || source.queries[0] != "Unlinked Jane Doe" || source.queries[1] != "Unlinked" {
+		t.Errorf("expected title/author and title-only searches, got %q", source.queries)
 	}
 	if len(source.ids) != 0 {
 		t.Errorf("expected search rating without a book-scraper call, got %q", source.ids)
@@ -564,7 +564,7 @@ func TestDocumentDetailBiblioReadsSearchesUnlinkedDocuments(t *testing.T) {
 	if got := strings.TrimSpace(page.Find(`li a[href="https://www.goodreads.com/book/show/1-unlinked"]`).Text()); got != "4.20" {
 		t.Errorf("expected later request to use book-scraper rating, got %q", got)
 	}
-	if len(source.queries) != 1 {
+	if len(source.queries) != 2 {
 		t.Errorf("expected the stored link to be reused without searching again, got %q", source.queries)
 	}
 	if len(source.ids) != 1 || source.ids[0] != "1-unlinked" {
@@ -636,7 +636,7 @@ func TestDocumentDetailBiblioReadsSearchDoesNotScrape(t *testing.T) {
 		{
 			name:    "matching book without rating",
 			results: []biblioreads.SearchResult{{Title: "Unlinked", Author: "Jane Doe", BookURL: "/book/show/1-unlinked"}},
-			queries: 1, enriched: true,
+			queries: 2, enriched: true,
 		},
 		{name: "no match", queries: 2, enriched: true, noScore: true},
 		{name: "unavailable search", err: biblioreads.ErrUnavailable, queries: 1},

@@ -174,14 +174,14 @@ func TestEnrichStoresMatchingResult(t *testing.T) {
 	if err != nil || other.DataSourceLinks["goodreads"] != "" {
 		t.Fatalf("unmatched coauthor must not receive the URL, got %+v, %v", other, err)
 	}
-	if want := []string{"La Reina Dragon Alice Borchardt"}; !slices.Equal(source.Queries(), want) {
+	if want := []string{"La Reina Dragon Alice Borchardt", "La Reina Dragon"}; !slices.Equal(source.Queries(), want) {
 		t.Errorf("expected queries %q, got %q", want, source.Queries())
 	}
 
 	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
-	if len(source.Queries()) != 1 {
+	if len(source.Queries()) != 2 {
 		t.Errorf("expected enriched documents not to be searched again, got queries %q", source.Queries())
 	}
 }
@@ -464,8 +464,8 @@ func TestBook(t *testing.T) {
 	if err := idx.EnrichDocuments(10); err != nil {
 		t.Fatal(err)
 	}
-	if len(source.Queries()) != 1 {
-		t.Errorf("expected a single search, got %q", source.Queries())
+	if len(source.Queries()) != 2 {
+		t.Errorf("expected title/author and title-only searches, got %q", source.Queries())
 	}
 }
 
@@ -674,8 +674,8 @@ func TestBookMatchesKennedyMiddleName(t *testing.T) {
 	if err != nil || other.DataSourceLinks["goodreads"] != "" {
 		t.Fatalf("unmatched coauthor must not receive the URL, got %+v, %v", other, err)
 	}
-	if want := []string{title + " Paul Kennedy"}; !slices.Equal(source.Queries(), want) {
-		t.Fatalf("expected combined search to match without fallback, got %q", source.Queries())
+	if want := []string{title + " Paul Kennedy", title}; !slices.Equal(source.Queries(), want) {
+		t.Fatalf("expected combined and title-only searches, got %q", source.Queries())
 	}
 }
 
@@ -861,8 +861,115 @@ func TestBookMatchesDolnickSubtitle(t *testing.T) {
 	if err != nil || !mustData(t, stored).Enriched || mustData(t, stored).URL != bookURL {
 		t.Fatalf("expected subtitle match persisted, got %+v, %v", stored, err)
 	}
-	if want := []string{title + " " + author}; !slices.Equal(source.Queries(), want) {
-		t.Fatalf("expected combined title/author search to match, got %q", source.Queries())
+	if want := []string{title + " " + author, title}; !slices.Equal(source.Queries(), want) {
+		t.Fatalf("expected combined and title-only searches, got %q", source.Queries())
+	}
+}
+
+func TestBookComparesMatchesAcrossSearches(t *testing.T) {
+	const title = "Charlie y la fábrica de chocolate"
+	const author = "Roald Dahl"
+	obscure := SearchResult{Title: title, Author: author, BookURL: "/book/show/136217103-charlie-y-la-fabrica-de-chocolate", Rating: "4.67", RatingCount: "3"}
+	popular := SearchResult{Title: title, Author: author, BookURL: "/book/show/6314.Charlie_y_la_f_brica_de_chocolate", Rating: "4.15", RatingCount: "100,000"}
+	for _, betterFirst := range []bool{false, true} {
+		t.Run(fmt.Sprint(betterFirst), func(t *testing.T) {
+			first, second := obscure, popular
+			if betterFirst {
+				first, second = second, first
+			}
+			source := &fakeSource{byQuery: map[string][]SearchResult{
+				title + " " + author: {first},
+				title:                {second, first, {Title: title, Author: "Another Writer", BookURL: popular.BookURL, RatingCount: "999,999"}},
+			}}
+			idx := newTestIndexer(t, source)
+			doc := index.Document{ID: testID, Metadata: metadata.Metadata{Title: title, Authors: []string{author}}}
+			if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
+				t.Fatal(err)
+			}
+			got, err := idx.Book(context.Background(), doc)
+			if err != nil || got.BookURL != popular.BookURL {
+				t.Fatalf("expected best match across searches, got %+v, %v", got, err)
+			}
+			stored, err := idx.DocumentByID(doc.ID)
+			if err != nil || mustData(t, stored).URL != popular.BookURL {
+				t.Fatalf("expected best match persisted, got %+v, %v", stored, err)
+			}
+		})
+	}
+}
+
+func TestAdditionalSearchFailureLeavesMatchPending(t *testing.T) {
+	source := &fakeSource{
+		byQuery: map[string][]SearchResult{
+			"La Reina Dragon Alice Borchardt": testResults,
+		},
+		queryErrors: map[string]error{"La Reina Dragon": ErrUnavailable},
+	}
+	idx := newTestIndexer(t, source)
+	doc := index.Document{ID: testID, Metadata: metadata.Metadata{Title: "La Reina Dragon", Authors: []string{"Alice Borchardt"}}}
+	if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := idx.Book(context.Background(), doc); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("expected failed comparison to remain retryable, got %v", err)
+	}
+	stored, err := idx.DocumentByID(doc.ID)
+	if err != nil || mustData(t, stored).Enriched || mustData(t, stored).URL != "" {
+		t.Fatalf("incomplete search must not persist the first match: %+v, %v", stored, err)
+	}
+}
+
+func TestBookMatchesSeriesPosition(t *testing.T) {
+	for _, tc := range []struct {
+		name, series, author, candidate string
+		position                        float64
+		want                            bool
+	}{
+		{"first volume", "Parque Jurásico", "Michael Crichton", "Jurassic Park (Parque Jurásico, #1)", 1, true},
+		{"normalized series", "PARQUE JURASICO", "Michael Crichton", "Jurassic Park (Parque Jurásico, #1)", 1, true},
+		{"sequel", "Parque Jurásico", "Michael Crichton", "El mundo perdido (Parque Jurásico, #2)", 1, false},
+		{"wrong author", "Parque Jurásico", "Another Writer", "Jurassic Park (Parque Jurásico, #1)", 1, false},
+		{"wrong series", "Another Series", "Michael Crichton", "Jurassic Park (Parque Jurásico, #1)", 1, false},
+		{"missing series", "", "Michael Crichton", "Jurassic Park (Parque Jurásico, #1)", 1, false},
+		{"missing position", "Parque Jurásico", "Michael Crichton", "Jurassic Park (Parque Jurásico, #1)", 0, false},
+		{"fractional position", "Parque Jurásico", "Michael Crichton", "Another Title (Parque Jurásico, #1.5)", 1.5, true},
+		{"different fractional position", "Parque Jurásico", "Michael Crichton", "Another Title (Parque Jurásico, #1.5)", 1, false},
+		{"omnibus", "Parque Jurásico", "Michael Crichton", "Jurassic Park (#1-#2)", 1, false},
+		{"named omnibus", "Parque Jurásico", "Michael Crichton", "Jurassic Park (Parque Jurásico, #1-#2)", 1, false},
+		{"ordinary title without series", "", "Michael Crichton", "Parque Jurásico", 0, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const bookURL = "/book/show/452196.Jurassic_Park"
+			source := &fakeSource{results: []SearchResult{{
+				Title: tc.candidate, Author: tc.author, BookURL: bookURL, Rating: "4.14",
+			}}}
+			idx := newTestIndexer(t, source)
+			doc := index.Document{ID: testID, Metadata: metadata.Metadata{
+				Title: "Parque Jurásico", Authors: []string{"Michael Crichton"},
+				Series: tc.series, SeriesIndex: tc.position,
+			}}
+			if err := index.IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
+				t.Fatal(err)
+			}
+			got, err := idx.Book(context.Background(), doc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := ""
+			if tc.want {
+				want = bookURL
+			}
+			if got.BookURL != want {
+				t.Fatalf("matched %q, want %q", got.BookURL, want)
+			}
+			stored, err := idx.DocumentByID(doc.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if data := mustData(t, stored); !data.Enriched || data.URL != want {
+				t.Fatalf("unexpected stored match: %+v", data)
+			}
+		})
 	}
 }
 
@@ -944,10 +1051,7 @@ func TestParentheticalFallback(t *testing.T) {
 				if err != nil || !mustData(t, stored).Enriched || mustData(t, stored).URL != bookURL {
 					t.Fatalf("expected persisted match, got %+v, %v", stored, err)
 				}
-				want := []string{editionTitle + " " + author, editionTitle, title + " " + author}
-				if !withAuthor {
-					want = append(want, title)
-				}
+				want := []string{editionTitle + " " + author, editionTitle, title + " " + author, title}
 				if !slices.Equal(source.Queries(), want) {
 					t.Fatalf("queries = %q, want %q", source.Queries(), want)
 				}

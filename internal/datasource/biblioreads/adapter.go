@@ -103,7 +103,7 @@ func (p *Enricher) StoreDetails(document index.Document, bookURL string, book Bo
 		if err != nil {
 			return false, err
 		}
-		if searchQuery(current.Document) != searchQuery(document) || data.URL != bookURL {
+		if searchQuery(current.Document) != searchQuery(document) || current.Series != document.Series || current.SeriesIndex != document.SeriesIndex || data.URL != bookURL {
 			return false, fmt.Errorf("BiblioReads match changed for document %s", document.ID)
 		}
 		changed := false
@@ -163,21 +163,20 @@ func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document
 				queries = append(queries, title)
 			}
 		}
+		var candidates []SearchResult
 		for _, query := range queries {
 			response, err := p.source.SearchBooks(ctx, query)
 			if err != nil {
 				return SearchResult{}, fmt.Errorf("error searching %q on BiblioReads: %w", query, err)
 			}
-			if match, ok := matchingBook(document, response.Result); ok {
-				result = match
-			}
-			if result.BookURL != "" {
-				break
-			}
+			candidates = append(candidates, response.Result...)
+		}
+		if match, ok := matchingBook(document, candidates); ok {
+			result = match
 		}
 	}
 	err = idx.UpdateDocument(document.ID, func(current *index.DocumentUpdate) (bool, error) {
-		if searchQuery(current.Document) != q {
+		if searchQuery(current.Document) != q || current.Series != document.Series || current.SeriesIndex != document.SeriesIndex {
 			return false, nil
 		}
 		data, err := index.DataSourceData[DocumentData](current.Document, Source)

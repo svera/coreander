@@ -4,6 +4,7 @@ import (
 	"log"
 	"math"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -13,7 +14,7 @@ import (
 )
 
 // Strip named series annotations and omnibus ranges, not standalone volume numbers.
-var seriesSuffix = regexp.MustCompile(`\s*\((?:[^()]+,\s*#[0-9]+(?:\.[0-9]+)?|#[0-9]+\s*[-–]\s*#?[0-9]+)\)\s*$`)
+var seriesSuffix = regexp.MustCompile(`\s*\((?:([^()]+),\s*#([0-9]+(?:\.[0-9]+)?)|#[0-9]+\s*[-–]\s*#?[0-9]+)\)\s*$`)
 
 var subtitleSeparator = regexp.MustCompile(`:\s*|\.\s+|\s+[-–—]\s+`)
 
@@ -185,23 +186,55 @@ func matchingBook(document index.Document, results []SearchResult) (SearchResult
 	}
 	mainTitle := mainTitle(document.Title)
 	documentWithoutParenthetical := normalizedTitle(withoutParenthetical(document.Title))
+	matchScore := func(candidate string) int {
+		score := titleMatchScore(candidate, title, mainTitle, documentWithoutParenthetical)
+		if score != 0 || document.SeriesIndex <= 0 || math.IsNaN(document.SeriesIndex) || math.IsInf(document.SeriesIndex, 0) {
+			return score
+		}
+		series := normalizeName(document.Series)
+		annotation := seriesSuffix.FindStringSubmatch(candidate)
+		if series == "" || annotation == nil || normalizeName(annotation[1]) != series {
+			return 0
+		}
+		position, err := strconv.ParseFloat(annotation[2], 64)
+		if err != nil {
+			log.Printf("Invalid BiblioReads series position in title: %q", candidate)
+			return 0
+		}
+		if position == document.SeriesIndex {
+			return 1
+		}
+		return 0
+	}
 	var best SearchResult
 	bestScore := 0
+	candidates := make([]SearchResult, 0, len(results))
+	byURL := make(map[string]int)
 	for _, result := range results {
-		if result.BookURL == "" {
+		if result.BookURL == "" || matchScore(result.Title) == 0 {
 			continue
 		}
-		score := titleMatchScore(result.Title, title, mainTitle, documentWithoutParenthetical)
-		if score == 0 {
+		if !slices.ContainsFunc(document.Authors, func(author string) bool {
+			return authorNameMatches(author, result.Author)
+		}) {
 			continue
 		}
-		for _, author := range document.Authors {
-			if authorNameMatches(author, result.Author) {
-				if preferBook(result, best, score, bestScore) {
-					best, bestScore = result, score
-				}
-				break
+		if previous, ok := byURL[result.BookURL]; ok {
+			existing := candidates[previous]
+			score := matchScore(result.Title)
+			existingScore := matchScore(existing.Title)
+			if preferBook(result, existing, score, existingScore) {
+				candidates[previous] = result
 			}
+			continue
+		}
+		byURL[result.BookURL] = len(candidates)
+		candidates = append(candidates, result)
+	}
+	for _, result := range candidates {
+		score := matchScore(result.Title)
+		if preferBook(result, best, score, bestScore) {
+			best, bestScore = result, score
 		}
 	}
 	return best, bestScore > 0
