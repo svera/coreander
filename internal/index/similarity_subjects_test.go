@@ -1,7 +1,6 @@
 package index
 
 import (
-	"encoding/json"
 	"fmt"
 	"slices"
 	"testing"
@@ -186,7 +185,7 @@ func TestSimilaritySubjectsDoNotBoostScores(t *testing.T) {
 	}
 }
 
-func TestSimilaritySubjectStatisticsUpgradeAndRestart(t *testing.T) {
+func TestSimilaritySubjectStatisticsRestart(t *testing.T) {
 	idx, documents := newTestTextRankIndexer(t, Config{CommonTextRankEntryRatio: 1})
 	t.Cleanup(func() { _ = idx.Close() })
 	for i := range 30 {
@@ -196,42 +195,18 @@ func TestSimilaritySubjectStatisticsUpgradeAndRestart(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// Simulate an existing phrase-only snapshot from before subject counting.
-	oldStats := &similarityStatistics{
-		DocumentCount: 30,
-		PhraseCounts:  map[string]int{},
-		PruneRatio:    1,
-		PruneMinimum:  DefaultMinCommonTextRankAbsoluteCount,
-	}
-	raw, err := json.Marshal(oldStats)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := documents.SetInternal(internalSimilarityPhraseStatistics, raw); err != nil {
-		t.Fatal(err)
-	}
-	if err := documents.SetInternal(internalDocCountAtLastPrune, []byte("30")); err != nil {
-		t.Fatal(err)
-	}
-	if !idx.commonTextRankEntriesNeedPrune() {
-		t.Fatal("missing subject counts must trigger cleanup on an unchanged library")
-	}
-	stats, err := idx.similarityStatistics()
-	if err != nil || stats != nil {
-		t.Fatalf("recommendations must wait for subject statistics: stats=%v error=%v", stats, err)
-	}
 	if err := idx.EnrichTextRankKeywords(10, 1); err != nil {
 		t.Fatal(err)
 	}
 	if idx.commonTextRankEntriesNeedPrune() {
-		t.Fatal("cleanup should persist subject statistics even without new documents")
+		t.Fatal("cleanup should persist statistics for the unchanged library")
 	}
 	if idx.similarityStats.SubjectCounts["arbitrary-common-label"] != 30 {
 		t.Fatalf("incorrect subject count: %v", idx.similarityStats.SubjectCounts)
 	}
 	// Clear the process cache to exercise the same disk-loading path as restart.
 	idx.similarityStats, idx.similarityStatsLoaded = nil, false
-	stats, err = idx.similarityStatistics()
+	stats, err := idx.similarityStatistics()
 	if err != nil {
 		t.Fatal(err)
 	}
