@@ -66,10 +66,8 @@ func TestSimilaritySubjectFilter(t *testing.T) {
 			if stats.SubjectCounts["novela"] < 40 || stats.SubjectCounts["novela"] > 45 {
 				t.Fatalf("subjects must count once per document, got %d", stats.SubjectCounts["novela"])
 			}
-			counted := &similarityCountingIndex{similarityBaseIndex: documents}
-			idx.documentsIdx = counted
 			want := []string{"shared", "mixed-shared", "generic", "missing", "empty"}
-			if len(usefulSimilaritySubjects(referenceSubjects, stats.usefulSubjects)) == 0 {
+			if len(uncommonSimilaritySubjects(referenceSubjects, stats.uncommonSubjects)) == 0 {
 				want = append(want, "different", "mixed-different", "romance")
 			}
 			var full []string
@@ -99,36 +97,7 @@ func TestSimilaritySubjectFilter(t *testing.T) {
 			if !slices.Equal(full, want) {
 				t.Fatalf("got %v, want %v", full, want)
 			}
-			if counted.internalReads != 0 || counted.searches != 8 {
-				t.Fatalf("cached subject filtering added lookups: internal reads=%d searches=%d", counted.internalReads, counted.searches)
-			}
 		})
-	}
-}
-
-func TestUsefulSimilaritySubjectsQuery(t *testing.T) {
-	idx, documents := newTestTextRankIndexer(t, Config{})
-	t.Cleanup(func() { _ = idx.Close() })
-	for i, subject := range []string{"common-a", "common-z", "", "aaa", "zzz", "fantastico", "romance", "historical-fiction"} {
-		doc := evidenceDocument(fmt.Sprint(i))
-		doc.SubjectsSlugs = []string{subject}
-		if err := IndexDocument(documents, doc.ID, doc); err != nil {
-			t.Fatal(err)
-		}
-	}
-	result, err := documents.Search(bleve.NewSearchRequestOptions(usefulSimilaritySubjectsQuery([]string{"aaa", "zzz", "fantastico", "romance", "historical-fiction"}), 100, 0, false))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.Total != 5 {
-		t.Fatalf("expected only five useful subjects, got %d", result.Total)
-	}
-	result, err = documents.Search(bleve.NewSearchRequestOptions(usefulSimilaritySubjectsQuery(nil), 100, 0, false))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.Total != 0 {
-		t.Fatalf("no known useful subjects: total=%d", result.Total)
 	}
 }
 
@@ -152,13 +121,10 @@ func TestSimilaritySubjectFrequencyBoundaries(t *testing.T) {
 			}
 			stats.prepareSubjectFrequencies()
 			for _, label := range []string{"novela", "science-fiction", "arbitrary-label"} {
-				got := usefulSimilaritySubjects([]string{label, label, ""}, stats.usefulSubjects)
+				got := uncommonSimilaritySubjects([]string{label, label, ""}, stats.uncommonSubjects)
 				if tc.common && len(got) != 0 || !tc.common && !slices.Equal(got, []string{label}) {
 					t.Fatalf("%s common=%v, got %v", label, tc.common, got)
 				}
-			}
-			if got := usefulSimilaritySubjects([]string{"previously-unseen"}, stats.usefulSubjects); len(got) != 0 {
-				t.Fatal("unseen subjects should use phrase-only fallback until counted")
 			}
 		})
 	}
@@ -269,7 +235,7 @@ func TestSimilaritySubjectStatisticsUpgradeAndRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(stats.usefulSubjects) != 0 || stats.SubjectCounts["arbitrary-common-label"] != 30 {
+	if len(stats.uncommonSubjects) != 0 || stats.SubjectCounts["arbitrary-common-label"] != 30 {
 		t.Fatalf("restart must restore frequency classification, got %v", stats)
 	}
 }

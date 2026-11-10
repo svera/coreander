@@ -42,7 +42,7 @@ func (b *BleveIndexer) searchSimilar(searchFields SearchFields, page, resultsPer
 // similarToQuery builds Search's SearchFields.SimilarTo candidate query:
 // documents sharing at least two uncommon TextRank word pairs with doc, excluding doc itself,
 // documents in the same series, and documents by the same authors. When both
-// documents have useful subjects they must share one, in addition to phrases.
+// documents have uncommon subjects they must share one, in addition to phrases.
 // Missing or common-only subjects do not restrict phrase-qualified matches.
 func (b *BleveIndexer) similarToQuery(doc Document, stats *similarityStatistics) (*query.BooleanQuery, error) {
 	bq := bleve.NewBooleanQuery()
@@ -124,37 +124,37 @@ func (b *BleveIndexer) distinctiveSimilarityPhrases(doc Document, stats *similar
 	return phrases, nil
 }
 
-func usefulSimilaritySubjects(subjects, knownUsefulSubjects []string) []string {
-	var useful []string
+func uncommonSimilaritySubjects(subjects, knownUncommonSubjects []string) []string {
+	var uncommon []string
 	for _, subject := range subjects {
-		_, knownUseful := slices.BinarySearch(knownUsefulSubjects, subject)
-		if knownUseful && !slices.Contains(useful, subject) {
-			useful = append(useful, subject)
+		_, knownUncommon := slices.BinarySearch(knownUncommonSubjects, subject)
+		if knownUncommon && !slices.Contains(uncommon, subject) {
+			uncommon = append(uncommon, subject)
 		}
 	}
-	return useful
+	return uncommon
 }
 
-func usefulSimilaritySubjectsQuery(subjects []string) query.Query {
-	useful := bleve.NewDisjunctionQuery()
+func uncommonSimilaritySubjectsQuery(subjects []string) query.Query {
+	uncommon := bleve.NewDisjunctionQuery()
 	for _, subject := range subjects {
 		q := bleve.NewTermQuery(subject)
 		q.SetField("SubjectsSlugs")
-		useful.AddQuery(q)
+		uncommon.AddQuery(q)
 	}
-	return useful
+	return uncommon
 }
 
 func addSimilaritySubjectFilter(reference Document, candidates *query.BooleanQuery, stats *similarityStatistics) {
-	subjects := usefulSimilaritySubjects(reference.SubjectsSlugs, stats.usefulSubjects)
+	subjects := uncommonSimilaritySubjects(reference.SubjectsSlugs, stats.uncommonSubjects)
 	if len(subjects) == 0 {
 		return
 	}
-	shared := usefulSimilaritySubjectsQuery(subjects)
-	noUsefulSubjects := bleve.NewBooleanQuery()
-	noUsefulSubjects.AddMust(bleve.NewMatchAllQuery())
-	noUsefulSubjects.AddMustNot(stats.subjectQuery)
-	candidates.AddFilter(bleve.NewDisjunctionQuery(shared, noUsefulSubjects))
+	shared := uncommonSimilaritySubjectsQuery(subjects)
+	noUncommonSubjects := bleve.NewBooleanQuery()
+	noUncommonSubjects.AddMust(bleve.NewMatchAllQuery())
+	noUncommonSubjects.AddMustNot(stats.subjectQuery)
+	candidates.AddFilter(bleve.NewDisjunctionQuery(shared, noUncommonSubjects))
 }
 
 // runSimilarityQuery caps candidates by score, applies the relative cutoff,

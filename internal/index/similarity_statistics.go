@@ -21,13 +21,13 @@ const (
 )
 
 type similarityStatistics struct {
-	DocumentCount  uint64
-	PhraseCounts   map[string]int
-	SubjectCounts  map[string]int
-	PruneRatio     float64
-	PruneMinimum   int
-	usefulSubjects []string
-	subjectQuery   query.Query
+	DocumentCount    uint64
+	PhraseCounts     map[string]int
+	SubjectCounts    map[string]int
+	PruneRatio       float64
+	PruneMinimum     int
+	uncommonSubjects []string
+	subjectQuery     query.Query
 }
 
 func (b *BleveIndexer) loadSimilarityStatistics() (*similarityStatistics, error) {
@@ -94,14 +94,14 @@ func eligibleSimilarityPhraseCounts(counts map[string]int, docCount uint64) map[
 
 func (s *similarityStatistics) prepareSubjectFrequencies() {
 	threshold := math.Max(float64(DefaultMinCommonTextRankAbsoluteCount), float64(s.DocumentCount)*similarityMaxSubjectFrequency)
-	s.usefulSubjects = nil
+	s.uncommonSubjects = nil
 	for subject, count := range s.SubjectCounts {
 		if subject != "" && count > 0 && float64(count) <= threshold {
-			s.usefulSubjects = append(s.usefulSubjects, subject)
+			s.uncommonSubjects = append(s.uncommonSubjects, subject)
 		}
 	}
-	slices.Sort(s.usefulSubjects)
-	s.subjectQuery = usefulSimilaritySubjectsQuery(s.usefulSubjects)
+	slices.Sort(s.uncommonSubjects)
+	s.subjectQuery = uncommonSimilaritySubjectsQuery(s.uncommonSubjects)
 }
 
 func (b *BleveIndexer) publishSimilarityStatistics(stats *similarityStatistics) error {

@@ -23,7 +23,7 @@ type SearchFields struct {
 	// SimilarTo, when set to a document slug, ignores Keywords/Subjects and
 	// instead returns documents sharing at least two uncommon TextRank keyword
 	// phrases (via similarToQuery, excluding the document itself, its own
-	// author and its own series). When both books have useful subjects,
+	// author and its own series). When both books have uncommon subjects,
 	// they must share one. Results are ranked by score and pruned to those scoring close
 	// enough to the best match (see runSimilarityQuery).
 	SimilarTo           string
