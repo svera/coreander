@@ -326,7 +326,7 @@ func (b *BleveIndexer) commonTextRankEntriesNeedPrune() bool {
 		log.Printf("Rebuilding similarity statistics during keyword clean-up: %s", err)
 		return true
 	}
-	if stats == nil || stats.SubjectCounts == nil || stats.PruneRatio != b.commonTextRankEntryRatio || stats.PruneMinimum != b.minCommonTextRankAbsoluteCount {
+	if stats == nil || stats.SubjectCounts == nil || stats.MaxPhraseFrequency != b.maxSimilarityPhraseFrequency || stats.PruneRatio != b.commonTextRankEntryRatio || stats.PruneMinimum != b.minCommonTextRankAbsoluteCount {
 		return true
 	}
 
@@ -430,11 +430,12 @@ func (b *BleveIndexer) maintainTextRankEntries(batchSize int) error {
 		return err
 	}
 	return b.publishSimilarityStatistics(&similarityStatistics{
-		DocumentCount: docCount,
-		PhraseCounts:  eligibleSimilarityPhraseCounts(counts.similarityPhrases, docCount),
-		SubjectCounts: counts.subjects,
-		PruneRatio:    b.commonTextRankEntryRatio,
-		PruneMinimum:  b.minCommonTextRankAbsoluteCount,
+		DocumentCount:      docCount,
+		PhraseCounts:       eligibleSimilarityPhraseCounts(counts.similarityPhrases, docCount, b.maxSimilarityPhraseFrequency),
+		MaxPhraseFrequency: b.maxSimilarityPhraseFrequency,
+		SubjectCounts:      counts.subjects,
+		PruneRatio:         b.commonTextRankEntryRatio,
+		PruneMinimum:       b.minCommonTextRankAbsoluteCount,
 	})
 }
 

@@ -39,7 +39,10 @@ type CLIInput struct {
 	// MinSimilarityScoreRatio is the minimum fraction of the best match's score a document must reach to be considered similar enough to show in a "similar document" query. Higher: stricter, fewer but more relevant results (a "similar" list can end up empty). Lower: more results shown, at the risk of weak, coincidental matches. Must be between 0 and 1, both included; see CLIInput.Validate. Default is interpolated from index.DefaultMinSimilarityScoreRatio via kong.Vars.
 	MinSimilarityScoreRatio float64 `env:"MIN_SIMILARITY_SCORE_RATIO" default:"${defaultMinSimilarityScoreRatio}" name:"min-similarity-score-ratio" help:"Minimum fraction of the best match's score a document must reach to be considered similar enough to show in a \"similar document\" query. Higher values give fewer but more relevant results (can end up empty); lower values show more results but risk weak, coincidental matches. Must be between 0 and 1."`
 	// MaxSimilarityPhrases caps how many of a document's TextRank phrases are used, at most, to find "similar" documents. Set to 0 to disable the cap. Higher: more accurate similarity matching for documents with many phrases, at the cost of slower queries (Bleve evaluates one OR clause per phrase for every candidate document); a document with hundreds of phrases and no cap can make "similar document" queries slow enough to noticeably affect the whole app, and has been observed to trigger a rare bleve/zapx crash under concurrent indexing. Lower: faster, safer queries, but a document with more phrases than the cap only gets matched on its top ones (see Document.TextRankPhrases for how they're ordered). Default is interpolated from index.DefaultMaxSimilarityPhrases via kong.Vars.
-	MaxSimilarityPhrases int `env:"MAX_SIMILARITY_PHRASES" default:"${defaultMaxSimilarityPhrases}" name:"max-similarity-phrases" help:"Maximum number of a document's TextRank phrases used to find \"similar\" documents. Set to 0 to disable the cap. Higher values improve matching accuracy for documents with many phrases but slow queries down; lower values are faster but only match on a document's top phrases."`
+	MaxSimilarityPhrases          int     `env:"MAX_SIMILARITY_PHRASES" default:"${defaultMaxSimilarityPhrases}" name:"max-similarity-phrases" help:"Maximum number of a document's TextRank phrases used to find \"similar\" documents. Set to 0 to disable the cap. Higher values improve matching accuracy for documents with many phrases but slow queries down; lower values are faster but only match on a document's top phrases."`
+	MaxSimilarityPhraseFrequency  float64 `env:"MAX_SIMILARITY_PHRASE_FREQUENCY" default:"${defaultMaxSimilarityPhraseFrequency}" name:"max-similarity-phrase-frequency" help:"Maximum library fraction for a phrase to support recommendations, with a floor of 20 documents. Must be greater than 0 and at most 1. Changes trigger keyword cleanup, not reindexing."`
+	MinSimilaritySharedPhrases    int     `env:"MIN_SIMILARITY_SHARED_PHRASES" default:"${defaultMinSimilaritySharedPhrases}" name:"min-similarity-shared-phrases" help:"Minimum number of distinct uncommon phrases two documents must share. Must be at least 1."`
+	MaxSimilaritySubjectFrequency float64 `env:"MAX_SIMILARITY_SUBJECT_FREQUENCY" default:"${defaultMaxSimilaritySubjectFrequency}" name:"max-similarity-subject-frequency" help:"Maximum library fraction for a subject to restrict recommendations, with a floor of 20 documents. Must be greater than 0 and at most 1."`
 	// MaxTextRankWords caps how many words of a document's extracted text TextRank analysis considers: only the first MaxTextRankWords words are analyzed for a document whose text exceeds this (its Words count still reflects the whole document, just its TextRank keywords are based on the opening portion only). TextRank's underlying graph grows with every word occurrence, not just distinct words, so a very long or repetitive document can use several hundred MB of RAM for a single document, single-threaded - enough to trigger the OOM killer on a small VM/container regardless of worker count. Defaults to -1 (automatic: computed from total system RAM and the resolved index-workers count, see index.DefaultMaxTextRankWords), which can be overridden with an explicit value; set to 0 to disable the cap entirely. Must be -1, 0, or positive; see CLIInput.Validate.
 	MaxTextRankWords int `env:"MAX_TEXTRANK_WORDS" default:"-1" name:"max-textrank-words" help:"Maximum number of words of a document's text that TextRank analysis considers. If a document's text is longer, only its first max-textrank-words words are analyzed (its word count still reflects the whole document, just its TextRank keywords come from the opening portion only). Protects against excessive RAM usage on very long or repetitive documents. Defaults to -1, which computes a safe value automatically from total system RAM and the number of index workers. Set to 0 to disable the cap entirely, or a positive number for an explicit cap."`
 	// CommonTextRankEntryRatio is the fraction of the library a TextRank phrase or word may appear in before it's treated as too generic (e.g. a genre-wide word, or a series' recurring character name) and stripped from every document that has it. Phrases are also stripped if either word is common. Must be between 0 and 1, both included; see CLIInput.Validate. Default is interpolated from index.DefaultCommonTextRankEntryRatio via kong.Vars.
@@ -117,6 +120,20 @@ func (c CLIInput) Validate() error {
 	// collector setup.
 	if c.MaxSimilarityCandidates < 0 {
 		return fmt.Errorf("max-similarity-candidates must not be negative, got %v", c.MaxSimilarityCandidates)
+	}
+	for _, setting := range []struct {
+		name  string
+		value float64
+	}{
+		{"max-similarity-phrase-frequency", c.MaxSimilarityPhraseFrequency},
+		{"max-similarity-subject-frequency", c.MaxSimilaritySubjectFrequency},
+	} {
+		if !(setting.value > 0 && setting.value <= 1) {
+			return fmt.Errorf("%s must be greater than 0 and at most 1, got %v", setting.name, setting.value)
+		}
+	}
+	if c.MinSimilaritySharedPhrases < 1 {
+		return fmt.Errorf("min-similarity-shared-phrases must be at least 1, got %v", c.MinSimilaritySharedPhrases)
 	}
 	// ShareCommentMaxSize must not be negative: a negative value is used
 	// directly as a slice upper bound when truncating share comments, which

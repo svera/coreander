@@ -40,7 +40,7 @@ func (b *BleveIndexer) searchSimilar(searchFields SearchFields, page, resultsPer
 }
 
 // similarToQuery builds Search's SearchFields.SimilarTo candidate query:
-// documents sharing at least two uncommon TextRank word pairs with doc, excluding doc itself,
+// documents sharing the configured minimum of uncommon TextRank word pairs with doc, excluding doc itself,
 // documents in the same series, and documents by the same authors. When both
 // documents have uncommon subjects they must share one, in addition to phrases.
 // Missing or common-only subjects do not restrict phrase-qualified matches.
@@ -55,12 +55,12 @@ func (b *BleveIndexer) similarToQuery(doc Document, stats *similarityStatistics)
 	if err != nil {
 		return nil, err
 	}
-	if len(phrases) < similarityMinSharedPhrases {
+	if len(phrases) < b.minSimilaritySharedPhrases {
 		bq.AddMust(bleve.NewMatchNoneQuery())
 		return bq, nil
 	}
 	phrasesCompoundQuery := bleve.NewDisjunctionQuery()
-	phrasesCompoundQuery.SetMin(similarityMinSharedPhrases)
+	phrasesCompoundQuery.SetMin(float64(b.minSimilaritySharedPhrases))
 	for _, phrase := range phrases {
 		kq := bleve.NewMatchPhraseQuery(phrase)
 		kq.SetField("TextRankPhrases")
@@ -106,13 +106,13 @@ func (b *BleveIndexer) distinctiveSimilarityPhrases(doc Document, stats *similar
 	if analyzer == nil {
 		return nil, fmt.Errorf("missing similarity phrase analyzer %q", defaultAnalyzer)
 	}
-	threshold := similarityPhraseThreshold(stats.DocumentCount)
+	threshold := similarityPhraseThreshold(stats.DocumentCount, b.maxSimilarityPhraseFrequency)
 	phrases := make([]string, 0, len(doc.TextRankPhrases))
 	seen := make(map[string]bool)
 	for _, phrase := range doc.TextRankPhrases {
 		key := similarityPhraseKey(phrase, analyzer)
 		count, known := stats.PhraseCounts[key]
-		if key == "" || seen[key] || !known || count < similarityMinSharedPhrases || float64(count) > threshold {
+		if key == "" || seen[key] || !known || count < similarityMinPhraseDocumentFrequency || float64(count) > threshold {
 			continue
 		}
 		seen[key] = true

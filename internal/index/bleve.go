@@ -89,7 +89,10 @@ const (
 	// it's never substituted by NewBleve for a zero Config value - 0 is
 	// itself a legitimate, documented choice there (disable the cap) - so
 	// this only exists to back the CLI flag's own default via kong.Vars.
-	DefaultMaxSimilarityPhrases = 60
+	DefaultMaxSimilarityPhrases          = 60
+	DefaultMaxSimilarityPhraseFrequency  = 0.01
+	DefaultMinSimilaritySharedPhrases    = 2
+	DefaultMaxSimilaritySubjectFrequency = 0.20
 	// DefaultCommonTextRankEntryRatio is the fraction of the library a TextRank
 	// phrase or word may appear in before pruneCommonTextRankEntries treats it
 	// as too generic to be useful for keyword search or "similar document"
@@ -141,6 +144,12 @@ type Config struct {
 	// every one of those clauses for every candidate document. A value of 0
 	// disables the cap.
 	MaxSimilarityPhrases int
+	// Frequency limits are fractions in (0, 1]; zero uses the defaults.
+	MaxSimilarityPhraseFrequency  float64
+	MaxSimilaritySubjectFrequency float64
+	// MinSimilaritySharedPhrases is the required number of distinct shared
+	// phrases, independent of their document frequency. Zero uses the default.
+	MinSimilaritySharedPhrases int
 	// MaxTextRankWords caps how many words of a document's extracted text
 	// TextRank analysis considers: only the first MaxTextRankWords words are
 	// analyzed for a document whose text exceeds this, so its TextRankPhrases
@@ -213,6 +222,9 @@ type BleveIndexer struct {
 	maxSimilarityCandidates        int     // cap on top-scoring matches considered by a "similar document" query; see Config.MaxSimilarityCandidates
 	minSimilarityScoreRatio        float64 // minimum fraction of the best match's score to be considered similar; see Config.MinSimilarityScoreRatio
 	maxSimilarityPhrases           int     // cap on how many TextRankPhrases are used to find "similar" documents; see Config.MaxSimilarityPhrases
+	maxSimilarityPhraseFrequency   float64
+	maxSimilaritySubjectFrequency  float64
+	minSimilaritySharedPhrases     int
 	maxTextRankWords               int     // word count above which TextRank analysis only considers a document's first maxTextRankWords words; see Config.MaxTextRankWords
 	commonTextRankEntryRatio       float64 // fraction of the library a TextRank phrase/word may appear in before being pruned as too generic; see Config.CommonTextRankEntryRatio
 	minCommonTextRankAbsoluteCount int     // floor for the document-count threshold computed from commonTextRankEntryRatio; see Config.MinCommonTextRankAbsoluteCount
@@ -307,6 +319,18 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 	// default, not a substitution here; only callers that construct a bare Config{}
 	// directly (e.g. tests) get 0 (uncapped) rather than defaultMaxSimilarityPhrases.
 	maxSimilarityPhrases := cfg.MaxSimilarityPhrases
+	maxSimilarityPhraseFrequency := cfg.MaxSimilarityPhraseFrequency
+	if maxSimilarityPhraseFrequency <= 0 {
+		maxSimilarityPhraseFrequency = DefaultMaxSimilarityPhraseFrequency
+	}
+	maxSimilaritySubjectFrequency := cfg.MaxSimilaritySubjectFrequency
+	if maxSimilaritySubjectFrequency <= 0 {
+		maxSimilaritySubjectFrequency = DefaultMaxSimilaritySubjectFrequency
+	}
+	minSimilaritySharedPhrases := cfg.MinSimilaritySharedPhrases
+	if minSimilaritySharedPhrases <= 0 {
+		minSimilaritySharedPhrases = DefaultMinSimilaritySharedPhrases
+	}
 
 	commonTextRankEntryRatio := cfg.CommonTextRankEntryRatio
 	if commonTextRankEntryRatio <= 0 {
@@ -340,6 +364,9 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		maxSimilarityCandidates:        maxSimilarityCandidates,
 		minSimilarityScoreRatio:        minSimilarityScoreRatio,
 		maxSimilarityPhrases:           maxSimilarityPhrases,
+		maxSimilarityPhraseFrequency:   maxSimilarityPhraseFrequency,
+		maxSimilaritySubjectFrequency:  maxSimilaritySubjectFrequency,
+		minSimilaritySharedPhrases:     minSimilaritySharedPhrases,
 		maxTextRankWords:               cfg.MaxTextRankWords,
 		commonTextRankEntryRatio:       commonTextRankEntryRatio,
 		minCommonTextRankAbsoluteCount: minCommonTextRankAbsoluteCount,

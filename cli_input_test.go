@@ -110,6 +110,9 @@ func newCLIParser(t *testing.T, input *CLIInput) *kong.Kong {
 		"defaultMaxSimilarityCandidates":        "0",
 		"defaultMinSimilarityScoreRatio":        "0",
 		"defaultMaxSimilarityPhrases":           "0",
+		"defaultMaxSimilarityPhraseFrequency":   "0.01",
+		"defaultMinSimilaritySharedPhrases":     "2",
+		"defaultMaxSimilaritySubjectFrequency":  "0.2",
 		"defaultCommonTextRankEntryRatio":       "0",
 		"defaultMinCommonTextRankAbsoluteCount": "0",
 		"defaultPruneChangeTriggerRatio":        "0",
@@ -117,5 +120,57 @@ func newCLIParser(t *testing.T, input *CLIInput) *kong.Kong {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return parser
+}
+
+func TestSimilarityEvidenceSettings(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		args            []string
+		env             []string
+		phrase, subject float64
+		minimum         int
+	}{
+		{name: "defaults", phrase: 0.01, subject: 0.2, minimum: 2},
+		{name: "flags", args: []string{"--max-similarity-phrase-frequency=0.05", "--max-similarity-subject-frequency=0.4", "--min-similarity-shared-phrases=3"}, phrase: 0.05, subject: 0.4, minimum: 3},
+		{name: "environment", env: []string{"0.1", "0.5", "1"}, phrase: 0.1, subject: 0.5, minimum: 1},
+		{name: "flags override environment", env: []string{"0.1", "0.5", "1"}, args: []string{"--max-similarity-phrase-frequency=1", "--max-similarity-subject-frequency=1", "--min-similarity-shared-phrases=4"}, phrase: 1, subject: 1, minimum: 4},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for i, key := range []string{"MAX_SIMILARITY_PHRASE_FREQUENCY", "MAX_SIMILARITY_SUBJECT_FREQUENCY", "MIN_SIMILARITY_SHARED_PHRASES"} {
+				t.Setenv(key, "")
+				if len(tc.env) > 0 {
+					t.Setenv(key, tc.env[i])
+				} else if err := os.Unsetenv(key); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var input CLIInput
+			if _, err := newCLIParser(t, &input).Parse(append(tc.args, t.TempDir())); err != nil {
+				t.Fatal(err)
+			}
+			if input.MaxSimilarityPhraseFrequency != tc.phrase || input.MaxSimilaritySubjectFrequency != tc.subject || input.MinSimilaritySharedPhrases != tc.minimum {
+				t.Fatalf("unexpected similarity settings: %g, %g, %d", input.MaxSimilarityPhraseFrequency, input.MaxSimilaritySubjectFrequency, input.MinSimilaritySharedPhrases)
+			}
+		})
+	}
+}
+
+func TestSimilarityEvidenceSettingsRejectInvalidValues(t *testing.T) {
+	for _, flag := range []string{"max-similarity-phrase-frequency", "max-similarity-subject-frequency", "min-similarity-shared-phrases"} {
+		values := []string{"0", "-1"}
+		if flag != "min-similarity-shared-phrases" {
+			values = append(values, "1.01", "NaN", "Inf")
+		}
+		for _, value := range values {
+			t.Run(flag+"/"+value, func(t *testing.T) {
+				var input CLIInput
+				_, err := newCLIParser(t, &input).Parse([]string{"--" + flag + "=" + value, t.TempDir()})
+				if err == nil || !strings.Contains(err.Error(), flag) {
+					t.Fatalf("expected %s validation error, got %v", flag, err)
+				}
+			})
+		}
+	}
 }

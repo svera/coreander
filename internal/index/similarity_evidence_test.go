@@ -106,9 +106,68 @@ func TestSimilarityPhraseFrequencyBoundaries(t *testing.T) {
 		{3000, 1, false},
 	} {
 		t.Run(fmt.Sprintf("%d-%d", tc.documents, tc.count), func(t *testing.T) {
-			counts := eligibleSimilarityPhraseCounts(map[string]int{"atomic bomb": tc.count}, tc.documents)
+			counts := eligibleSimilarityPhraseCounts(map[string]int{"atomic bomb": tc.count}, tc.documents, DefaultMaxSimilarityPhraseFrequency)
 			if _, got := counts["atomic bomb"]; got != tc.eligible {
 				t.Fatalf("eligible=%v, want %v", got, tc.eligible)
+			}
+		})
+	}
+}
+
+func TestSimilarityConfigurablePhraseEvidence(t *testing.T) {
+	idx, documents := newTestTextRankIndexer(t, Config{CommonTextRankEntryRatio: 1})
+	t.Cleanup(func() { _ = idx.Close() })
+	for i := range 25 {
+		doc := evidenceDocument(fmt.Sprint(i))
+		if i < 21 {
+			doc.TextRankPhrases = []string{"atomic bomb", "los alamos", "nuclear physics"}
+		}
+		if err := IndexDocument(documents, doc.ID, doc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := idx.maintainTextRankEntries(10); err != nil {
+		t.Fatal(err)
+	}
+	storedFrequency := DefaultMaxSimilarityPhraseFrequency
+	for _, tc := range []struct {
+		frequency float64
+		minimum   int
+		want      int
+	}{
+		{DefaultMaxSimilarityPhraseFrequency, 2, 0},
+		{1, 3, 20},
+		{1, 4, 0},
+		{1, 1, 20},
+		{DefaultMaxSimilarityPhraseFrequency, 2, 0},
+	} {
+		t.Run(fmt.Sprintf("%g/%d", tc.frequency, tc.minimum), func(t *testing.T) {
+			configured := NewBleve(documents, idx.authorsIdx, nil, "", nil, Config{
+				CommonTextRankEntryRatio:     1,
+				MaxSimilarityPhraseFrequency: tc.frequency,
+				MinSimilaritySharedPhrases:   tc.minimum,
+			})
+			needsCleanup := configured.commonTextRankEntriesNeedPrune()
+			if needsCleanup != (tc.frequency != storedFrequency) {
+				t.Fatal("only phrase-frequency changes should require rebuilding phrase counts")
+			}
+			if needsCleanup {
+				before, err := configured.Search(SearchFields{SimilarTo: "0"}, 1, 100)
+				if err != nil || len(before.Hits()) != 0 {
+					t.Fatalf("changed frequency must wait for cleanup: %v, %v", before.Hits(), err)
+				}
+
+				if err := configured.maintainTextRankEntries(10); err != nil {
+					t.Fatal(err)
+				}
+				storedFrequency = tc.frequency
+			}
+			if configured.commonTextRankEntriesNeedPrune() {
+				t.Fatal("cleanup must persist the configured phrase frequency")
+			}
+			results, err := configured.Search(SearchFields{SimilarTo: "0"}, 1, 100)
+			if err != nil || len(results.Hits()) != tc.want {
+				t.Fatalf("got %d hits, want %d: %v", len(results.Hits()), tc.want, err)
 			}
 		})
 	}
@@ -151,5 +210,23 @@ func TestSimilarityStatisticsRefreshAndErrors(t *testing.T) {
 	}
 	if !idx.commonTextRankEntriesNeedPrune() {
 		t.Fatal("corrupt statistics must trigger background rebuilding")
+	}
+}
+
+func TestSimilaritySharedMinimumDoesNotChangeDocumentFrequency(t *testing.T) {
+	idx, documents := newTestTextRankIndexer(t, Config{MinSimilaritySharedPhrases: 3})
+	t.Cleanup(func() { _ = idx.Close() })
+	for _, id := range []string{"reference", "match"} {
+		doc := evidenceDocument(id, "atomic bomb", "los alamos", "nuclear physics")
+		if err := IndexDocument(documents, doc.ID, doc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := idx.maintainTextRankEntries(10); err != nil {
+		t.Fatal(err)
+	}
+	results, err := idx.Search(SearchFields{SimilarTo: "reference"}, 1, 10)
+	if err != nil || len(results.Hits()) != 1 {
+		t.Fatalf("three shared phrases occurring in two documents must qualify: %v, %v", results.Hits(), err)
 	}
 }

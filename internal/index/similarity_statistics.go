@@ -14,20 +14,17 @@ import (
 
 var internalSimilarityPhraseStatistics = []byte("similarity_phrase_statistics")
 
-const (
-	similarityMaxPhraseFrequency  = 0.01
-	similarityMinSharedPhrases    = 2
-	similarityMaxSubjectFrequency = 0.20
-)
+const similarityMinPhraseDocumentFrequency = 2
 
 type similarityStatistics struct {
-	DocumentCount    uint64
-	PhraseCounts     map[string]int
-	SubjectCounts    map[string]int
-	PruneRatio       float64
-	PruneMinimum     int
-	uncommonSubjects []string
-	subjectQuery     query.Query
+	DocumentCount      uint64
+	PhraseCounts       map[string]int
+	SubjectCounts      map[string]int
+	PruneRatio         float64
+	PruneMinimum       int
+	MaxPhraseFrequency float64
+	uncommonSubjects   []string
+	subjectQuery       query.Query
 }
 
 func (b *BleveIndexer) loadSimilarityStatistics() (*similarityStatistics, error) {
@@ -44,7 +41,7 @@ func (b *BleveIndexer) loadSimilarityStatistics() (*similarityStatistics, error)
 	if err := json.Unmarshal(raw, &stats); err != nil {
 		return nil, fmt.Errorf("decode similarity statistics: %w", err)
 	}
-	stats.prepareSubjectFrequencies()
+	stats.prepareSubjectFrequencies(b.maxSimilaritySubjectFrequency)
 	return &stats, nil
 }
 
@@ -60,8 +57,8 @@ func (b *BleveIndexer) similarityStatistics() (*similarityStatistics, error) {
 	if err != nil {
 		return nil, err
 	}
-	if stats == nil || stats.SubjectCounts == nil {
-		log.Printf("Similar documents unavailable until keyword clean-up collects phrase and subject statistics")
+	if stats == nil || stats.SubjectCounts == nil || stats.MaxPhraseFrequency != b.maxSimilarityPhraseFrequency {
+		log.Printf("Similar documents unavailable until keyword clean-up collects phrase and subject statistics for the current settings")
 		b.similarityStatsLoaded = true
 		return nil, nil
 	}
@@ -78,22 +75,22 @@ func similarityPhraseKey(phrase string, analyzer analysis.Analyzer) string {
 	return string(tokens[0].Term) + " " + string(tokens[1].Term)
 }
 
-func similarityPhraseThreshold(docCount uint64) float64 {
-	return math.Max(float64(DefaultMinCommonTextRankAbsoluteCount), float64(docCount)*similarityMaxPhraseFrequency)
+func similarityPhraseThreshold(docCount uint64, frequency float64) float64 {
+	return math.Max(float64(DefaultMinCommonTextRankAbsoluteCount), float64(docCount)*frequency)
 }
 
-func eligibleSimilarityPhraseCounts(counts map[string]int, docCount uint64) map[string]int {
-	threshold := similarityPhraseThreshold(docCount)
+func eligibleSimilarityPhraseCounts(counts map[string]int, docCount uint64, frequency float64) map[string]int {
+	threshold := similarityPhraseThreshold(docCount, frequency)
 	for phrase, count := range counts {
-		if phrase == "" || count < similarityMinSharedPhrases || float64(count) > threshold {
+		if phrase == "" || count < similarityMinPhraseDocumentFrequency || float64(count) > threshold {
 			delete(counts, phrase)
 		}
 	}
 	return counts
 }
 
-func (s *similarityStatistics) prepareSubjectFrequencies() {
-	threshold := math.Max(float64(DefaultMinCommonTextRankAbsoluteCount), float64(s.DocumentCount)*similarityMaxSubjectFrequency)
+func (s *similarityStatistics) prepareSubjectFrequencies(frequency float64) {
+	threshold := math.Max(float64(DefaultMinCommonTextRankAbsoluteCount), float64(s.DocumentCount)*frequency)
 	s.uncommonSubjects = nil
 	for subject, count := range s.SubjectCounts {
 		if subject != "" && count > 0 && float64(count) <= threshold {
@@ -105,7 +102,7 @@ func (s *similarityStatistics) prepareSubjectFrequencies() {
 }
 
 func (b *BleveIndexer) publishSimilarityStatistics(stats *similarityStatistics) error {
-	stats.prepareSubjectFrequencies()
+	stats.prepareSubjectFrequencies(b.maxSimilaritySubjectFrequency)
 	statsRaw, err := json.Marshal(stats)
 	if err != nil {
 		return fmt.Errorf("encode similarity statistics: %w", err)

@@ -142,7 +142,8 @@ func TestSimilaritySubjectFrequencyBoundaries(t *testing.T) {
 				DocumentCount: tc.documents,
 				SubjectCounts: map[string]int{"novela": tc.count, "science-fiction": tc.count, "arbitrary-label": tc.count, "": tc.count},
 			}
-			stats.prepareSubjectFrequencies()
+
+			stats.prepareSubjectFrequencies(DefaultMaxSimilaritySubjectFrequency)
 			for _, label := range []string{"novela", "science-fiction", "arbitrary-label"} {
 				got := uncommonSimilaritySubjects([]string{label, label, ""}, stats.uncommonSubjects)
 				if tc.common && len(got) != 0 || !tc.common && !slices.Equal(got, []string{label}) {
@@ -153,6 +154,43 @@ func TestSimilaritySubjectFrequencyBoundaries(t *testing.T) {
 	}
 }
 
+func TestSimilarityConfiguredSubjectFrequency(t *testing.T) {
+	idx, documents := newTestTextRankIndexer(t, Config{CommonTextRankEntryRatio: 1, MaxSimilarityPhraseFrequency: 1})
+	t.Cleanup(func() { _ = idx.Close() })
+	for i := range 25 {
+		doc := evidenceDocument(fmt.Sprint(i), "atomic bomb", "los alamos")
+		doc.SubjectsSlugs = []string{"common-topic"}
+		if i >= 21 {
+			doc.SubjectsSlugs = []string{"other-topic"}
+		}
+		if err := IndexDocument(documents, doc.ID, doc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := idx.maintainTextRankEntries(10); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		frequency float64
+		want      int
+	}{
+		{DefaultMaxSimilaritySubjectFrequency, 24},
+		{1, 20},
+	} {
+		restarted := NewBleve(documents, idx.authorsIdx, nil, "", nil, Config{
+			CommonTextRankEntryRatio:      1,
+			MaxSimilarityPhraseFrequency:  1,
+			MaxSimilaritySubjectFrequency: tc.frequency,
+		})
+		if restarted.commonTextRankEntriesNeedPrune() {
+			t.Fatal("subject frequency must reuse persisted counts")
+		}
+		results, err := restarted.Search(SearchFields{SimilarTo: "0"}, 1, 100)
+		if err != nil || len(results.Hits()) != tc.want {
+			t.Fatalf("subject frequency %g: got %d hits, want %d: %v", tc.frequency, len(results.Hits()), tc.want, err)
+		}
+	}
+}
 func TestSimilaritySubjectsDoNotBoostScores(t *testing.T) {
 	idx, documents := newTestTextRankIndexer(t, Config{CommonTextRankEntryRatio: 1})
 	t.Cleanup(func() { _ = idx.Close() })
