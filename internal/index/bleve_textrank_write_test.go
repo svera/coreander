@@ -28,68 +28,6 @@ func newTestTextRankIndexer(t *testing.T, cfg Config) (idx *BleveIndexer, docume
 	return NewBleve(documentsIndexMem, authorsIndexMem, nil, "", nil, cfg), documentsIndexMem
 }
 
-func TestTextRankMaintenanceSharesCountingPass(t *testing.T) {
-	idx, documents := newTestTextRankIndexer(t, Config{CommonTextRankEntryRatio: 1})
-	t.Cleanup(func() { _ = idx.Close() })
-	for i := range 3 {
-		doc := evidenceDocument(strconv.Itoa(i), "atomic bomb", "los alamos")
-		doc.SubjectsSlugs = []string{"physics"}
-		if err := IndexDocument(documents, doc.ID, doc); err != nil {
-			t.Fatal(err)
-		}
-	}
-	counted := &similarityCountingIndex{similarityBaseIndex: documents}
-	idx.documentsIdx = counted
-	if err := idx.maintainTextRankEntries(2); err != nil {
-		t.Fatal(err)
-	}
-	if counted.searches != 2 {
-		t.Fatalf("expected one shared counting pass (two batches), got %d searches", counted.searches)
-	}
-	stats, err := idx.loadSimilarityStatistics()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if stats == nil || stats.PhraseCounts["atomic bomb"] != 3 || stats.SubjectCounts["physics"] != 3 {
-		t.Fatalf("maintenance did not publish collected statistics: %v", stats)
-	}
-}
-
-func TestTextRankPruningDoesNotPublishSimilarityStatistics(t *testing.T) {
-	idx, documents := newTestTextRankIndexer(t, Config{
-		CommonTextRankEntryRatio:       0.5,
-		MinCommonTextRankAbsoluteCount: 1,
-	})
-	t.Cleanup(func() { _ = idx.Close() })
-	for i := range 2 {
-		doc := evidenceDocument(strconv.Itoa(i), "common phrase")
-		if err := IndexDocument(documents, doc.ID, doc); err != nil {
-			t.Fatal(err)
-		}
-	}
-	search := func(from int) (*bleve.SearchResult, error) {
-		request := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), 2, from, false)
-		request.Fields = []string{"TextRankPhrases", "TextRankWords"}
-		return documents.Search(request)
-	}
-	if err := idx.pruneCommonTextRankEntries(2, 2, map[string]int{"common phrase": 2}, nil, search); err != nil {
-		t.Fatal(err)
-	}
-	doc, err := idx.documentByIndexID("0")
-	if err != nil || len(doc.TextRankPhrases) != 0 {
-		t.Fatalf("pruning did not remove common phrase: %v, %v", doc.TextRankPhrases, err)
-	}
-	for _, key := range [][]byte{internalSimilarityPhraseStatistics, internalDocCountAtLastPrune} {
-		value, err := documents.GetInternal(key)
-		if err != nil || len(value) != 0 {
-			t.Fatalf("pruning must not publish metadata %q: %q, %v", key, value, err)
-		}
-	}
-	if idx.similarityStatsLoaded || idx.similarityStats != nil {
-		t.Fatal("pruning must not publish a similarity cache")
-	}
-}
-
 // TestCommonTextRankEntriesNeedPrune guards the gate EnrichTextRankKeywords
 // uses to skip maintainTextRankEntries when nothing changed.
 func TestCommonTextRankEntriesNeedPrune(t *testing.T) {

@@ -35,7 +35,7 @@ func (i *similarityCountingIndex) GetInternal(key []byte) ([]byte, error) {
 	return i.similarityBaseIndex.GetInternal(key)
 }
 
-func TestSimilarityEvidenceRejectsCommonAndSinglePhraseMatches(t *testing.T) {
+func TestSimilarityEvidenceRequiresDistinctUncommonPhrases(t *testing.T) {
 	idx, documents := newTestTextRankIndexer(t, Config{
 		CommonTextRankEntryRatio: 1,
 		MaxSimilarityPhrases:     2,
@@ -51,9 +51,10 @@ func TestSimilarityEvidenceRejectsCommonAndSinglePhraseMatches(t *testing.T) {
 		}
 	}
 	for _, doc := range []Document{
-		evidenceDocument("reference", "opened door", "closed eyes", "atomic bomb", "los alamos", "atomic bomb"),
-		evidenceDocument("strong", "atomic bomb", "los alamos"),
+		evidenceDocument("reference", "opened door", "closed eyes", "Átomic bomb", "atomic BOMB", "atomic-bomb", "los alamos"),
+		evidenceDocument("strong", "atomic bomb", "LOS ALAMOS"),
 		evidenceDocument("single", "atomic bomb", "opened door", "closed eyes"),
+		evidenceDocument("duplicate", "atomic bomb", "ATOMIC BOMB"),
 		evidenceDocument("generic", "opened door", "closed eyes", "shook head"),
 	} {
 		if err := IndexDocument(documents, doc.ID, doc); err != nil {
@@ -67,6 +68,13 @@ func TestSimilarityEvidenceRejectsCommonAndSinglePhraseMatches(t *testing.T) {
 	}
 	if err := idx.EnrichTextRankKeywords(25, 1); err != nil {
 		t.Fatal(err)
+	}
+	stats, err := idx.similarityStatistics()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.PhraseCounts["atomic bomb"] != 4 || stats.PhraseCounts["los alamos"] != 2 {
+		t.Fatalf("expected per-document normalized frequencies, got %v", stats.PhraseCounts)
 	}
 	counted := &similarityCountingIndex{similarityBaseIndex: documents}
 	idx.documentsIdx = counted
@@ -85,6 +93,11 @@ func TestSimilarityEvidenceRejectsCommonAndSinglePhraseMatches(t *testing.T) {
 	if counted.internalReads != 0 || counted.searches != 4 {
 		t.Fatalf("cached requests should only read the reference and run the candidate query: internal reads=%d searches=%d", counted.internalReads, counted.searches)
 	}
+	// Even the best match must disappear if there is only one distinctive pair.
+	results, err := idx.Search(SearchFields{SimilarTo: "duplicate"}, 1, 10)
+	if err != nil || len(results.Hits()) != 0 {
+		t.Fatalf("single-phrase reference: hits=%v error=%v", results.Hits(), err)
+	}
 	// The recommendation filter must not strip keywords from ordinary search.
 	generic, err := idx.Document("generic")
 	if err != nil || !slices.Contains(generic.TextRankPhrases, "opened door") {
@@ -97,42 +110,9 @@ func TestSimilarityEvidenceRejectsCommonAndSinglePhraseMatches(t *testing.T) {
 
 	// A new indexer loads the persisted snapshot without keyword extraction.
 	restarted := NewBleve(documents, idx.authorsIdx, nil, "", nil, Config{MaxSimilarityPhrases: 2})
-	results, err := restarted.Search(SearchFields{SimilarTo: "reference"}, 1, 10)
+	results, err = restarted.Search(SearchFields{SimilarTo: "reference"}, 1, 10)
 	if err != nil || len(results.Hits()) != 1 || results.Hits()[0].Slug != "strong" {
 		t.Fatalf("persisted statistics: hits=%v error=%v", results.Hits(), err)
-	}
-}
-
-func TestSimilarityEvidenceNormalizesAndDeduplicatesPhrases(t *testing.T) {
-	idx, documents := newTestTextRankIndexer(t, Config{CommonTextRankEntryRatio: 1})
-	t.Cleanup(func() { _ = idx.Close() })
-	for _, doc := range []Document{
-		evidenceDocument("reference", "Átomic bomb", "atomic BOMB", "atomic-bomb", "los alamos"),
-		evidenceDocument("duplicate", "atomic bomb", "ATOMIC BOMB"),
-		evidenceDocument("strong", "atomic bomb", "LOS ALAMOS"),
-	} {
-		if err := IndexDocument(documents, doc.ID, doc); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := idx.maintainTextRankEntries(2); err != nil {
-		t.Fatal(err)
-	}
-	stats, err := idx.similarityStatistics()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if stats.PhraseCounts["atomic bomb"] != 3 || stats.PhraseCounts["los alamos"] != 2 {
-		t.Fatalf("expected per-document normalized frequencies, got %v", stats.PhraseCounts)
-	}
-	results, err := idx.Search(SearchFields{SimilarTo: "reference"}, 1, 10)
-	if err != nil || len(results.Hits()) != 1 || results.Hits()[0].Slug != "strong" {
-		t.Fatalf("duplicates must not satisfy two-phrase minimum: hits=%v error=%v", results.Hits(), err)
-	}
-	// Even the best match must disappear if there is only one distinctive pair.
-	results, err = idx.Search(SearchFields{SimilarTo: "duplicate"}, 1, 10)
-	if err != nil || len(results.Hits()) != 0 {
-		t.Fatalf("single-phrase reference: hits=%v error=%v", results.Hits(), err)
 	}
 }
 
