@@ -42,7 +42,8 @@ func (b *BleveIndexer) searchSimilar(searchFields SearchFields, page, resultsPer
 // similarToQuery builds Search's SearchFields.SimilarTo candidate query:
 // documents sharing the configured minimum of uncommon TextRank word pairs with doc, excluding doc itself,
 // documents in the same series, and documents by the same authors. When both
-// documents have uncommon subjects they must share one, in addition to phrases.
+// books have subjects known to be uncommon in the library, they must share
+// at least one of those subjects, in addition to phrases.
 // Missing or common-only subjects do not restrict phrase-qualified matches.
 func (b *BleveIndexer) similarToQuery(doc Document, stats *similarityStatistics) (*query.BooleanQuery, error) {
 	bq := bleve.NewBooleanQuery()
