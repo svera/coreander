@@ -115,7 +115,7 @@ func TestSimilarityEvidenceNormalizesAndDeduplicatesPhrases(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := idx.pruneCommonTextRankEntries(2); err != nil {
+	if err := idx.maintainTextRankEntries(2); err != nil {
 		t.Fatal(err)
 	}
 	stats, err := idx.similarityStatistics()
@@ -166,7 +166,7 @@ func TestSimilarityStatisticsRefreshAndErrors(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := idx.pruneCommonTextRankEntries(10); err != nil {
+	if err := idx.maintainTextRankEntries(10); err != nil {
 		t.Fatal(err)
 	}
 	if idx.commonTextRankEntriesNeedPrune() {
@@ -176,7 +176,7 @@ func TestSimilarityStatisticsRefreshAndErrors(t *testing.T) {
 	if !idx.commonTextRankEntriesNeedPrune() {
 		t.Fatal("changed pruning ratio must refresh statistics")
 	}
-	if err := idx.pruneCommonTextRankEntries(10); err != nil {
+	if err := idx.maintainTextRankEntries(10); err != nil {
 		t.Fatal(err)
 	}
 	if idx.commonTextRankEntriesNeedPrune() {

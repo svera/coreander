@@ -105,7 +105,7 @@ const (
 	DefaultMinCommonTextRankAbsoluteCount = 20
 	// DefaultPruneChangeTriggerRatio is the fraction of documents added or
 	// removed (relative to the doc count recorded after the last
-	// pruneCommonTextRankEntries pass) that triggers an out-of-band prune pass
+	// maintainTextRankEntries pass) that triggers an out-of-band maintenance pass
 	// via maybePruneForLibraryChange.
 	DefaultPruneChangeTriggerRatio = 0.01
 )

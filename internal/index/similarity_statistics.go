@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"slices"
+	"strconv"
 
 	"github.com/blevesearch/bleve/v2/analysis"
 	"github.com/blevesearch/bleve/v2/search/query"
@@ -101,4 +102,26 @@ func (s *similarityStatistics) prepareSubjectFrequencies() {
 	}
 	slices.Sort(s.usefulSubjects)
 	s.subjectQuery = usefulSimilaritySubjectsQuery(s.usefulSubjects)
+}
+
+func (b *BleveIndexer) publishSimilarityStatistics(stats *similarityStatistics) error {
+	stats.prepareSubjectFrequencies()
+	statsRaw, err := json.Marshal(stats)
+	if err != nil {
+		return fmt.Errorf("encode similarity statistics: %w", err)
+	}
+	// Publish the snapshot and maintenance marker atomically.
+	internalBatch := b.documentsIdx.NewBatch()
+	internalBatch.SetInternal(internalDocCountAtLastPrune, []byte(strconv.FormatUint(stats.DocumentCount, 10)))
+	internalBatch.SetInternal(internalSimilarityPhraseStatistics, statsRaw)
+	b.similarityStatsMu.Lock()
+	defer b.similarityStatsMu.Unlock()
+	b.documentsMu.Lock()
+	err = b.documentsIdx.Batch(internalBatch)
+	b.documentsMu.Unlock()
+	if err == nil {
+		b.similarityStats = stats
+		b.similarityStatsLoaded = true
+	}
+	return err
 }

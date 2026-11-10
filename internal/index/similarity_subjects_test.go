@@ -56,7 +56,7 @@ func TestSimilaritySubjectFilter(t *testing.T) {
 			if err := IndexDocument(documents, weak.ID, weak); err != nil {
 				t.Fatal(err)
 			}
-			if err := idx.pruneCommonTextRankEntries(100); err != nil {
+			if err := idx.maintainTextRankEntries(100); err != nil {
 				t.Fatal(err)
 			}
 			stats, err := idx.similarityStatistics()
@@ -185,7 +185,7 @@ func TestSimilaritySubjectsDoNotBoostScores(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := idx.pruneCommonTextRankEntries(100); err != nil {
+	if err := idx.maintainTextRankEntries(100); err != nil {
 		t.Fatal(err)
 	}
 	stats, err := idx.similarityStatistics()
@@ -288,7 +288,7 @@ func TestSimilarityUnseenSubjectsUsePhraseFallback(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := idx.pruneCommonTextRankEntries(100); err != nil {
+	if err := idx.maintainTextRankEntries(100); err != nil {
 		t.Fatal(err)
 	}
 	changed := evidenceDocument("different", "atomic bomb", "los alamos")
@@ -304,7 +304,7 @@ func TestSimilarityUnseenSubjectsUsePhraseFallback(t *testing.T) {
 	if err != nil || len(results.Hits()) != 3 {
 		t.Fatalf("reference with unseen subject should fall back to phrases: hits=%v error=%v", results.Hits(), err)
 	}
-	if err := idx.pruneCommonTextRankEntries(100); err != nil {
+	if err := idx.maintainTextRankEntries(100); err != nil {
 		t.Fatal(err)
 	}
 	results, err = idx.Search(SearchFields{SimilarTo: "reference"}, 1, 10)

@@ -72,7 +72,7 @@ func TestAddFiltersDoesNotAffectScoring(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := idx.pruneCommonTextRankEntries(100); err != nil {
+	if err := idx.maintainTextRankEntries(100); err != nil {
 		t.Fatal(err)
 	}
 	stats, err := idx.similarityStatistics()
