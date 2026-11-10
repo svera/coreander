@@ -318,17 +318,16 @@ func (b *BleveIndexer) commonTextRankEntriesNeedPrune() bool {
 		return true
 	}
 	stored, err := b.documentsIdx.GetInternal(internalDocCountAtLastPrune)
-	statsRaw, statsErr := b.documentsIdx.GetInternal(internalSimilarityPhraseStatistics)
 	b.documentsMu.RUnlock()
-	if err != nil || len(stored) == 0 || statsErr != nil || len(statsRaw) == 0 {
+	if err != nil || len(stored) == 0 {
 		return true
 	}
-	var stats similarityPhraseStatistics
-	if err := json.Unmarshal(statsRaw, &stats); err != nil {
-		log.Printf("Invalid similarity phrase statistics, rebuilding during keyword clean-up: %s", err)
+	stats, err := b.loadSimilarityStatistics()
+	if err != nil {
+		log.Printf("Rebuilding similarity statistics during keyword clean-up: %s", err)
 		return true
 	}
-	if stats.SubjectCounts == nil || stats.PruneRatio != b.commonTextRankEntryRatio || stats.PruneMinimum != b.minCommonTextRankAbsoluteCount {
+	if stats == nil || stats.SubjectCounts == nil || stats.PruneRatio != b.commonTextRankEntryRatio || stats.PruneMinimum != b.minCommonTextRankAbsoluteCount {
 		return true
 	}
 
@@ -505,7 +504,7 @@ func (b *BleveIndexer) pruneCommonTextRankEntries(batchSize int) error {
 
 	log.Printf("Pruning common TextRank entries finished, %d documents updated", pruned)
 
-	stats := &similarityPhraseStatistics{
+	stats := &similarityStatistics{
 		DocumentCount: docCount,
 		PhraseCounts:  eligibleSimilarityPhraseCounts(similarityCounts, docCount),
 		SubjectCounts: subjectCounts,

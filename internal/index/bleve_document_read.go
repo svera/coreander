@@ -1,7 +1,6 @@
 package index
 
 import (
-	"cmp"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -9,12 +8,10 @@ import (
 	"html/template"
 	"image"
 	"log"
-	"math"
 	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -69,31 +66,7 @@ func (b *BleveIndexer) Search(searchFields SearchFields, page, resultsPerPage in
 	filtersQuery := bleve.NewConjunctionQuery()
 
 	if searchFields.SimilarTo != "" {
-		doc, err := b.Document(searchFields.SimilarTo)
-		if err != nil {
-			return result.CappedPaginatedResult[[]Document]{}, err
-		}
-		stats, err := b.similarityStatistics()
-		if err != nil {
-			return result.CappedPaginatedResult[[]Document]{}, err
-		}
-		similarToQuery, err := b.similarToQuery(doc, stats)
-		if err != nil {
-			return result.CappedPaginatedResult[[]Document]{}, err
-		}
-		filtersQuery.AddQuery(similarToQuery)
-		conjunctsBeforeFilters := len(filtersQuery.Conjuncts)
-		b.addFilters(searchFields, filtersQuery)
-
-		// Only score similarToQuery on its own when addFilters actually added
-		// something to filtersQuery: otherwise the two queries are equivalent, and
-		// scoring similarToQuery separately would just make Bleve evaluate the same
-		// matches twice for no benefit - see runSimilarityQuery.
-		var scoringQuery query.Query
-		if len(filtersQuery.Conjuncts) > conjunctsBeforeFilters {
-			scoringQuery = similarToQuery
-		}
-		return b.runSimilarityQuery(scoringQuery, filtersQuery, page, resultsPerPage, searchFields.SortBy, float64(doc.Publication.Date))
+		return b.searchSimilar(searchFields, page, resultsPerPage)
 	}
 
 	if searchFields.Keywords != "" {
@@ -472,175 +445,6 @@ func (b *BleveIndexer) runPaginatedQuery(query query.Query, page, resultsPerPage
 		int(searchResult.Total),
 		docs,
 	), nil
-}
-
-// runSimilarityQuery is like runPaginatedQuery, but for score-based "similar document"
-// queries (see SearchFields.SimilarTo): relying on Bleve's own offset/limit pagination
-// isn't enough here, since a document weakly matching on only one shared term would
-// otherwise take up a page slot next to strongly related ones. Instead this fetches up
-// to b.maxSimilarityCandidates top-scoring matches from candidateQuery, drops any
-// scoring below b.minSimilarityScoreRatio of the best match, and paginates over what's
-// left.
-//
-// The best match's score is normally just candidateQuery's own top hit. But when
-// scoringQuery is non-nil (candidateQuery is similarToQuery plus extra filters -
-// language, publication date range, etc. - that scoringQuery, similarToQuery alone,
-// doesn't have) the best score is taken from scoringQuery instead, at the cost of
-// evaluating that query too: those filters can shrink the candidate pool without the
-// reference document actually having fewer or weaker true matches, and if the
-// threshold were based on candidateQuery's own best score, filtering to a language
-// with only a weak match would lower the bar and let other weak, effectively
-// unrelated matches in that language through. The ratio should stay anchored to how
-// well the best actually-similar document (in any language) matches, not shift
-// depending on which of those matches survive the filters.
-//
-// Pruning always needs the underlying Bleve query sorted by score, to find the best
-// match's score - so sortBy (the user's chosen display order, e.g. by publication date)
-// can't be handed to Bleve the way runPaginatedQuery does. Instead it's applied
-// afterwards, in Go, over the already-pruned documents; see sortSimilarityResults.
-// referenceDate, if non-zero, is the publication date of the document these results are
-// similar to, used as a tiebreaker (closest first) between equally-ranked documents.
-func (b *BleveIndexer) runSimilarityQuery(scoringQuery, candidateQuery query.Query, page, resultsPerPage int, sortBy []string, referenceDate float64) (result.CappedPaginatedResult[[]Document], error) {
-	// sortBy is deliberately not passed to searchAndHydrate: pruning below needs the
-	// underlying Bleve query sorted by score.
-	searchResult, hydratedDocs, err := b.searchAndHydrate(candidateQuery, b.maxSimilarityCandidates, 0, nil)
-	if err != nil {
-		return result.CappedPaginatedResult[[]Document]{}, err
-	}
-
-	if searchResult.Total == 0 || len(searchResult.Hits) == 0 {
-		return result.CappedPaginatedResult[[]Document]{}, nil
-	}
-
-	bestScore := searchResult.Hits[0].Score
-	if scoringQuery != nil {
-		bestScore, err = b.bestScore(scoringQuery)
-		if err != nil {
-			return result.CappedPaginatedResult[[]Document]{}, err
-		}
-		if bestScore == 0 {
-			return result.CappedPaginatedResult[[]Document]{}, nil
-		}
-	}
-
-	threshold := bestScore * b.minSimilarityScoreRatio
-
-	hits := make([]similarityHit, 0, len(hydratedDocs))
-	for i, hit := range searchResult.Hits {
-		if hit.Score < threshold {
-			continue
-		}
-		hits = append(hits, similarityHit{doc: hydratedDocs[i], score: hit.Score})
-	}
-
-	sortSimilarityResults(hits, sortBy, referenceDate)
-
-	docs := make([]Document, len(hits))
-	for i, h := range hits {
-		docs[i] = h.doc
-	}
-
-	paginated := result.Paginate(resultsPerPage, page, len(docs), docs)
-	return result.CappedPaginatedResult[[]Document]{
-		Paginated:  paginated,
-		Candidates: result.NewCandidatePool(int(searchResult.Total), len(hits), b.maxSimilarityCandidates),
-	}, nil
-}
-
-// bestScore returns the top score query would produce, or 0 if it has no matches.
-func (b *BleveIndexer) bestScore(query query.Query) (float64, error) {
-	searchOptions := bleve.NewSearchRequestOptions(query, 1, 0, false)
-	b.documentsMu.RLock()
-	searchResult, err := b.documentsIdx.Search(searchOptions)
-	b.documentsMu.RUnlock()
-	if err != nil {
-		return 0, err
-	}
-	if len(searchResult.Hits) == 0 {
-		return 0, nil
-	}
-	return searchResult.Hits[0].Score, nil
-}
-
-// similarityHit pairs a hydrated Document with the raw Bleve score of the match it
-// came from, so sortSimilarityResults can use the score as a sort key without
-// re-querying Bleve.
-type similarityHit struct {
-	doc   Document
-	score float64
-}
-
-// sortSimilarityResults re-sorts hits (already pruned and, going in, ordered by
-// -_score) according to sortBy - the same field-name syntax parseDocumentSortBy
-// produces for Bleve's own SortBy, since these are the only fields it ever
-// generates (see documentSortOptions). "_score"/"-_score" compares the raw Bleve
-// score carried in each hit, since that isn't a Document field
-// compareDocumentsBySortKey can read.
-//
-// If sortBy doesn't fully order two hits (e.g. it's empty, or made up of fields
-// like Series/SeriesIndex that are blank for most documents), the tie is broken by
-// distance between each document's publication date and referenceDate, closest
-// first, so documents from around the same time as the reference document rank
-// above equally-ranked ones from further away. If referenceDate is zero (the
-// reference document has no publication date), that tiebreak is skipped.
-func sortSimilarityResults(hits []similarityHit, sortBy []string, referenceDate float64) {
-	if len(sortBy) == 0 && referenceDate == 0 {
-		return
-	}
-	sort.SliceStable(hits, func(i, j int) bool {
-		for _, key := range sortBy {
-			if strings.TrimPrefix(key, "-") == "_score" {
-				if hits[i].score == hits[j].score {
-					continue
-				}
-				if strings.HasPrefix(key, "-") {
-					return hits[i].score > hits[j].score
-				}
-				return hits[i].score < hits[j].score
-			}
-			if c := compareDocumentsBySortKey(hits[i].doc, hits[j].doc, key); c != 0 {
-				return c < 0
-			}
-		}
-		if referenceDate == 0 {
-			return false
-		}
-		di := math.Abs(float64(hits[i].doc.Publication.Date) - referenceDate)
-		dj := math.Abs(float64(hits[j].doc.Publication.Date) - referenceDate)
-		return di < dj
-	})
-}
-
-// compareDocumentsBySortKey compares a and b by key, one of the field names (an
-// optional "-" prefix reverses the comparison) parseDocumentSortBy produces.
-// Returns <0, 0 or >0, like strings.Compare/cmp.Compare.
-func compareDocumentsBySortKey(a, b Document, key string) int {
-	desc := strings.HasPrefix(key, "-")
-	field := strings.TrimPrefix(key, "-")
-
-	var c int
-	switch field {
-	case "Publication.Date":
-		c = cmp.Compare(a.Publication.Date, b.Publication.Date)
-	case "Words":
-		c = cmp.Compare(a.Words, b.Words)
-	case "DataSourceScoreValue":
-		if (a.DataSourceScoreValue == 0) != (b.DataSourceScoreValue == 0) {
-			if a.DataSourceScoreValue == 0 {
-				return 1
-			}
-			return -1
-		}
-		c = cmp.Compare(a.DataSourceScoreValue, b.DataSourceScoreValue)
-	case "Series":
-		c = cmp.Compare(a.Series, b.Series)
-	case "SeriesIndex":
-		c = cmp.Compare(a.SeriesIndex, b.SeriesIndex)
-	}
-	if desc {
-		c = -c
-	}
-	return c
 }
 
 // CountDocuments returns the total number of documents matching the given search fields, without fetching any hits.
@@ -1154,63 +958,6 @@ func slicer(val any) []string {
 	}
 
 	return termsStrings
-}
-
-// similarToQuery builds Search's SearchFields.SimilarTo candidate query:
-// documents sharing at least two uncommon TextRank word pairs with doc, excluding doc itself,
-// documents in the same series, and documents by the same authors. When both
-// documents have useful subjects they must share one, in addition to phrases.
-// Missing or common-only subjects do not restrict phrase-qualified matches.
-func (b *BleveIndexer) similarToQuery(doc Document, stats *similarityPhraseStatistics) (*query.BooleanQuery, error) {
-	bq := bleve.NewBooleanQuery()
-
-	// Array positions preserve phrase adjacency. A minimum number of distinct,
-	// uncommon clauses must match before relative score pruning is considered.
-	// Limit clauses only after filtering so generic phrases cannot crowd out
-	// distinctive ones. Single TextRank words never qualify as evidence.
-	phrases, err := b.distinctiveSimilarityPhrases(doc, stats)
-	if err != nil {
-		return nil, err
-	}
-	if len(phrases) < similarityMinSharedPhrases {
-		bq.AddMust(bleve.NewMatchNoneQuery())
-		return bq, nil
-	}
-	phrasesCompoundQuery := bleve.NewDisjunctionQuery()
-	phrasesCompoundQuery.SetMin(similarityMinSharedPhrases)
-	for _, phrase := range phrases {
-		kq := bleve.NewMatchPhraseQuery(phrase)
-		kq.SetField("TextRankPhrases")
-		kq.Analyzer = defaultAnalyzer
-		phrasesCompoundQuery.AddQuery(kq)
-	}
-	bq.AddMust(phrasesCompoundQuery)
-
-	addSimilaritySubjectFilter(doc, bq, stats)
-	b.excludeSelfSeriesAndAuthors(doc, bq)
-
-	return bq, nil
-}
-
-// excludeSelfSeriesAndAuthors adds the MustNot clauses used by
-// similarToQuery: doc itself, any document in the same series, and any
-// document by the same authors.
-func (b *BleveIndexer) excludeSelfSeriesAndAuthors(doc Document, bq *query.BooleanQuery) {
-	if doc.SeriesSlug != "" {
-		sq := bleve.NewTermQuery(doc.SeriesSlug)
-		sq.SetField("SeriesSlug")
-		bq.AddMustNot(sq)
-	}
-
-	bq.AddMustNot(bleve.NewDocIDQuery([]string{doc.ID}))
-
-	authorsCompoundQuery := bleve.NewDisjunctionQuery()
-	for _, slug := range doc.AuthorsSlugs {
-		qa := bleve.NewTermQuery(slug)
-		qa.SetField("AuthorsSlugs")
-		authorsCompoundQuery.AddQuery(qa)
-	}
-	bq.AddMustNot(authorsCompoundQuery)
 }
 
 // SameAuthors returns an array of metadata of documents by the same authors which

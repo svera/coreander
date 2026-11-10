@@ -69,7 +69,7 @@ func TestSimilaritySubjectFilter(t *testing.T) {
 			counted := &similarityCountingIndex{similarityBaseIndex: documents}
 			idx.documentsIdx = counted
 			want := []string{"shared", "mixed-shared", "generic", "missing", "empty"}
-			if len(usefulSimilaritySubjects(referenceSubjects, stats.commonSubjects)) == 0 {
+			if len(usefulSimilaritySubjects(referenceSubjects, stats.usefulSubjects)) == 0 {
 				want = append(want, "different", "mixed-different", "romance")
 			}
 			var full []string
@@ -116,7 +116,7 @@ func TestUsefulSimilaritySubjectsQuery(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	result, err := documents.Search(bleve.NewSearchRequestOptions(usefulSimilaritySubjectsQuery([]string{"common-a", "common-z"}), 100, 0, false))
+	result, err := documents.Search(bleve.NewSearchRequestOptions(usefulSimilaritySubjectsQuery([]string{"aaa", "zzz", "fantastico", "romance", "historical-fiction"}), 100, 0, false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,8 +127,8 @@ func TestUsefulSimilaritySubjectsQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Total != 7 {
-		t.Fatalf("no common subjects: total=%d", result.Total)
+	if result.Total != 0 {
+		t.Fatalf("no known useful subjects: total=%d", result.Total)
 	}
 }
 
@@ -146,19 +146,19 @@ func TestSimilaritySubjectFrequencyBoundaries(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("%d-%d", tc.documents, tc.count), func(t *testing.T) {
 			// Classification depends only on frequency, not label or language.
-			stats := &similarityPhraseStatistics{
+			stats := &similarityStatistics{
 				DocumentCount: tc.documents,
 				SubjectCounts: map[string]int{"novela": tc.count, "science-fiction": tc.count, "arbitrary-label": tc.count, "": tc.count},
 			}
 			stats.prepareSubjectFrequencies()
 			for _, label := range []string{"novela", "science-fiction", "arbitrary-label"} {
-				got := usefulSimilaritySubjects([]string{label, label, ""}, stats.commonSubjects)
+				got := usefulSimilaritySubjects([]string{label, label, ""}, stats.usefulSubjects)
 				if tc.common && len(got) != 0 || !tc.common && !slices.Equal(got, []string{label}) {
 					t.Fatalf("%s common=%v, got %v", label, tc.common, got)
 				}
 			}
-			if got := usefulSimilaritySubjects([]string{"previously-unseen"}, stats.commonSubjects); len(got) != 1 {
-				t.Fatal("unseen subjects should be uncommon until the next cleanup")
+			if got := usefulSimilaritySubjects([]string{"previously-unseen"}, stats.usefulSubjects); len(got) != 0 {
+				t.Fatal("unseen subjects should use phrase-only fallback until counted")
 			}
 		})
 	}
@@ -231,7 +231,7 @@ func TestSimilaritySubjectStatisticsUpgradeAndRestart(t *testing.T) {
 		}
 	}
 	// Simulate an existing phrase-only snapshot from before subject counting.
-	oldStats := &similarityPhraseStatistics{
+	oldStats := &similarityStatistics{
 		DocumentCount: 30,
 		PhraseCounts:  map[string]int{},
 		PruneRatio:    1,
@@ -269,7 +269,46 @@ func TestSimilaritySubjectStatisticsUpgradeAndRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(stats.commonSubjects, []string{"arbitrary-common-label"}) {
-		t.Fatalf("restart must restore frequency classification, got %v", stats.commonSubjects)
+	if len(stats.usefulSubjects) != 0 || stats.SubjectCounts["arbitrary-common-label"] != 30 {
+		t.Fatalf("restart must restore frequency classification, got %v", stats)
+	}
+}
+
+func TestSimilarityUnseenSubjectsUsePhraseFallback(t *testing.T) {
+	idx, documents := newTestTextRankIndexer(t, Config{CommonTextRankEntryRatio: 1})
+	t.Cleanup(func() { _ = idx.Close() })
+	for _, id := range []string{"reference", "shared", "different", "missing"} {
+		doc := evidenceDocument(id, "atomic bomb", "los alamos")
+		if id == "reference" || id == "shared" {
+			doc.SubjectsSlugs = []string{"known-topic"}
+		} else if id == "different" {
+			doc.SubjectsSlugs = []string{"different-topic"}
+		}
+		if err := IndexDocument(documents, doc.ID, doc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := idx.pruneCommonTextRankEntries(100); err != nil {
+		t.Fatal(err)
+	}
+	changed := evidenceDocument("different", "atomic bomb", "los alamos")
+	changed.SubjectsSlugs = []string{"new-topic"}
+	if err := IndexDocument(documents, changed.ID, changed); err != nil {
+		t.Fatal(err)
+	}
+	results, err := idx.Search(SearchFields{SimilarTo: "reference"}, 1, 10)
+	if err != nil || len(results.Hits()) != 3 {
+		t.Fatalf("candidate with unseen subject should fall back to phrases: hits=%v error=%v", results.Hits(), err)
+	}
+	results, err = idx.Search(SearchFields{SimilarTo: "different"}, 1, 10)
+	if err != nil || len(results.Hits()) != 3 {
+		t.Fatalf("reference with unseen subject should fall back to phrases: hits=%v error=%v", results.Hits(), err)
+	}
+	if err := idx.pruneCommonTextRankEntries(100); err != nil {
+		t.Fatal(err)
+	}
+	results, err = idx.Search(SearchFields{SimilarTo: "reference"}, 1, 10)
+	if err != nil || len(results.Hits()) != 2 {
+		t.Fatalf("counted different subject should be filtered: hits=%v error=%v", results.Hits(), err)
 	}
 }

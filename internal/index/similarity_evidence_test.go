@@ -205,7 +205,7 @@ func BenchmarkSimilarityEvidenceQuery(b *testing.B) {
 	}
 	defer documents.Close()
 	idx := &BleveIndexer{documentsIdx: documents, maxSimilarityPhrases: 60}
-	stats := &similarityPhraseStatistics{DocumentCount: 37500, PhraseCounts: make(map[string]int), SubjectCounts: make(map[string]int)}
+	stats := &similarityStatistics{DocumentCount: 37500, PhraseCounts: make(map[string]int), SubjectCounts: make(map[string]int)}
 	doc := Document{}
 	for i := range 500 {
 		phrase := fmt.Sprintf("topic%d detail%d", i, i)
