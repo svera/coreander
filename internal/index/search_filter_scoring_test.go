@@ -40,12 +40,12 @@ func TestAddFiltersDoesNotAffectScoring(t *testing.T) {
 		Slug:         "weak-match",
 		Metadata:     metadata.Metadata{Title: "Weak Match", Format: "EPUB", Language: "es-MX"},
 		AuthorsSlugs: []string{"author-three"},
-		// Shares only one pair with doc-a: a genuinely weaker match than
+		// Shares only two pairs with doc-a: a genuinely weaker match than
 		// strong-match. Its language tag "es-MX" is unique in this small
 		// library (unlike strong-match's "es-ES", shared with 20 filler
 		// documents below), so an unboosted language filter would give it a
 		// disproportionate IDF-based score boost unrelated to its relevance.
-		TextRankPhrases: []string{"physics nuclear", "cooking recipes", "bread baking", "gardening tools"},
+		TextRankPhrases: []string{"physics nuclear", "los alamos", "cooking recipes", "bread baking", "gardening tools"},
 	}
 
 	docs := []Document{docA, docStrongMatch, docWeakMatch}
@@ -72,10 +72,21 @@ func TestAddFiltersDoesNotAffectScoring(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if err := idx.maintainTextRankEntries(100); err != nil {
+		t.Fatal(err)
+	}
+	stats, err := idx.similarityStatistics()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	scoresFor := func(searchFields SearchFields) map[string]float64 {
 		filtersQuery := bleve.NewConjunctionQuery()
-		filtersQuery.AddQuery(idx.similarToQuery(docA))
+		similarityQuery, err := idx.similarToQuery(docA, stats)
+		if err != nil {
+			t.Fatal(err)
+		}
+		filtersQuery.AddQuery(similarityQuery)
 		idx.addFilters(searchFields, filtersQuery)
 
 		req := bleve.NewSearchRequestOptions(filtersQuery, 50, 0, false)

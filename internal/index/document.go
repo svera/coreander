@@ -21,10 +21,11 @@ type SearchFields struct {
 	Language   string
 	Subjects   string
 	// SimilarTo, when set to a document slug, ignores Keywords/Subjects and
-	// instead returns documents matching that document's TextRank keyword
+	// instead returns documents sharing the configured minimum of uncommon TextRank keyword
 	// phrases (via similarToQuery, excluding the document itself, its own
-	// author and its own series - deliberately not its subjects, see
-	// similarToQuery), ranked by score and pruned to those scoring close
+	// author and its own series). When both books have subjects known to be uncommon
+	// in the library, they must share at least one of those subjects.
+	// Results are ranked by score and pruned to those scoring close
 	// enough to the best match (see runSimilarityQuery).
 	SimilarTo           string
 	PubDateFrom         date.Date

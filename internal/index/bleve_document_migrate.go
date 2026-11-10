@@ -106,6 +106,7 @@ func copyDocumentsV13(source, destination bleve.Index, batchSize int) error {
 		internalMinOccurrenceRatio,
 		internalMaxTextRankWords,
 		internalDocCountAtLastPrune,
+		internalSimilarityPhraseStatistics,
 	} {
 		value, err := source.GetInternal(key)
 		if err != nil {

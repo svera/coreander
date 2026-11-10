@@ -180,8 +180,9 @@ func TestRelatedDocumentHeadersShowFullTotals(t *testing.T) {
 
 	source := index.Document{
 		ID: "source.epub", Slug: "source", SeriesSlug: "collection",
-		Metadata:        metadata.Metadata{Title: "Source", Series: "Collection", Format: "EPUB"},
-		TextRankPhrases: []string{"atomic bomb", "los alamos"},
+		Metadata:         metadata.Metadata{Title: "Source", Series: "Collection", Format: "EPUB"},
+		TextRankPhrases:  []string{"atomic bomb", "los alamos"},
+		TextRankEnriched: true,
 	}
 	if err := index.IndexDocument(documents, source.ID, source); err != nil {
 		t.Fatal(err)
@@ -190,7 +191,8 @@ func TestRelatedDocumentHeadersShowFullTotals(t *testing.T) {
 		for _, kind := range []string{"series", "similar"} {
 			doc := index.Document{
 				ID: fmt.Sprintf("%s-%d.epub", kind, i), Slug: fmt.Sprintf("%s-%d", kind, i),
-				Metadata: metadata.Metadata{Title: fmt.Sprintf("%s %d", kind, i), Format: "EPUB"},
+				Metadata:         metadata.Metadata{Title: fmt.Sprintf("%s %d", kind, i), Format: "EPUB"},
+				TextRankEnriched: true,
 			}
 			if kind == "series" {
 				doc.Series = source.Series
@@ -203,12 +205,41 @@ func TestRelatedDocumentHeadersShowFullTotals(t *testing.T) {
 			}
 		}
 	}
+	weak := index.Document{
+		ID: "weak.epub", Slug: "weak",
+		Metadata:        metadata.Metadata{Title: "Weak", Format: "EPUB"},
+		TextRankPhrases: []string{"atomic bomb"}, TextRankEnriched: true,
+	}
+	if err := index.IndexDocument(documents, weak.ID, weak); err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.EnrichTextRankKeywords(100, 1); err != nil {
+		t.Fatal(err)
+	}
 
 	cfg := defaultTestConfig()
 	sender := &infrastructure.NoEmail{}
 	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, nil, nil, nil)
 	app := webserver.New(cfg, controllers, sender, idx, &model.UserRepository{DB: db})
 	t.Cleanup(func() { _ = app.Shutdown() })
+
+	t.Run("weak evidence hides recommendations", func(t *testing.T) {
+		response, err := app.Test(mustGetRequest(t, "/documents/weak/similar?widget=1"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusOK)
+		}
+		page, err := goquery.NewDocumentFromReader(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if page.Find("h2, figure").Length() != 0 {
+			t.Fatal("weak evidence should display neither a heading nor recommendations")
+		}
+	})
 
 	for _, tc := range []struct {
 		name string

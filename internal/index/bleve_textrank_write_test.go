@@ -29,7 +29,7 @@ func newTestTextRankIndexer(t *testing.T, cfg Config) (idx *BleveIndexer, docume
 }
 
 // TestCommonTextRankEntriesNeedPrune guards the gate EnrichTextRankKeywords
-// uses to skip pruneCommonTextRankEntries when nothing changed.
+// uses to skip maintainTextRankEntries when nothing changed.
 func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 	idx, documentsIndexMem := newTestTextRankIndexer(t, Config{
 		PruneChangeTriggerRatio: 0.5,
@@ -45,11 +45,7 @@ func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 		t.Error("expected pruning to be needed when no prune has ever run")
 	}
 
-	docCount, err := documentsIndexMem.DocCount()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := documentsIndexMem.SetInternal(internalDocCountAtLastPrune, []byte(strconv.FormatUint(docCount, 10))); err != nil {
+	if err := idx.maintainTextRankEntries(10); err != nil {
 		t.Fatal(err)
 	}
 
@@ -71,7 +67,7 @@ func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 }
 
 // TestPruningReportsProgress guards IndexingProgress surfacing Kind
-// ProgressPruning while pruneCommonTextRankEntries runs.
+// ProgressPruning while maintainTextRankEntries runs.
 func TestPruningReportsProgress(t *testing.T) {
 	idx, documentsIndexMem := newTestTextRankIndexer(t, Config{})
 
@@ -92,7 +88,7 @@ func TestPruningReportsProgress(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := idx.pruneCommonTextRankEntries(10); err != nil {
+		if err := idx.maintainTextRankEntries(10); err != nil {
 			t.Error(err)
 		}
 	}()
@@ -119,7 +115,7 @@ func TestPruningReportsProgress(t *testing.T) {
 	if p, err := idx.IndexingProgress(); err != nil {
 		t.Fatal(err)
 	} else if p.InProgress {
-		t.Error("expected pruning progress to no longer be in progress once pruneCommonTextRankEntries returns")
+		t.Error("expected pruning progress to no longer be in progress once maintainTextRankEntries returns")
 	}
 }
 
@@ -145,7 +141,7 @@ func TestPruneCommonTextRankEntriesRewritesCommonEntries(t *testing.T) {
 		}
 	}
 
-	if err := idx.pruneCommonTextRankEntries(3); err != nil {
+	if err := idx.maintainTextRankEntries(3); err != nil {
 		t.Fatal(err)
 	}
 
