@@ -58,8 +58,11 @@ func (p *Enricher) Book(ctx context.Context, document index.Document) (SearchRes
 	if err != nil {
 		return SearchResult{}, err
 	}
-	if data.URL != "" || data.Enriched || p.source == nil {
+	if data.URL != "" || data.Enriched {
 		return storedResult(document, data), nil
+	}
+	if p.source == nil {
+		return SearchResult{}, fmt.Errorf("BiblioReads search source unavailable")
 	}
 	return p.enrich(ctx, p.idx, document)
 }

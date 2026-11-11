@@ -408,6 +408,7 @@
 "%s book URL": "URL книги на %s"
 "Enter a valid %s book URL.": "Введите корректный URL книги на %s."
 "Unable to load %s score": "Не удалось загрузить рейтинг %s"
+"Document not found in %s": "Документ не найден на %s"
 "%s rating": "Рейтинг %s"
 "%s user reviews": "Отзывы пользователей %s"
 "Go to %s author page": "Перейти на страницу автора в %s"
