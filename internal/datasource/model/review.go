@@ -18,6 +18,8 @@ type Score struct {
 	Value  string
 	Count  string
 	URL    string
+	// DocumentNotFound distinguishes an unmatched document from an unscored match.
+	DocumentNotFound bool
 }
 
 // HasScore reports whether the value is scored or has valuations despite a zero value.

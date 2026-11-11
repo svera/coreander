@@ -583,8 +583,8 @@ func TestDocumentDetailBiblioReadsSkipsUnmatchedDocuments(t *testing.T) {
 		score := page.Find("li").FilterFunction(func(_ int, item *goquery.Selection) bool {
 			return item.Find("i.bi-star-fill").Length() == 1
 		})
-		if strings.TrimSpace(score.Text()) != "Not scored" || score.Find("a").Length() != 0 {
-			t.Errorf("%s: expected unlinked no-score row, got %q", path, score.Text())
+		if strings.TrimSpace(score.Text()) != "Document not found in Goodreads" || score.Find("a").Length() != 0 {
+			t.Errorf("%s: expected unmatched-document row, got %q", path, score.Text())
 		}
 	}
 	if len(source.queries) != 0 || len(source.ids) != 0 {
@@ -653,8 +653,8 @@ func TestDocumentDetailBiblioReadsSearchDoesNotScrape(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if strings.TrimSpace(page.Find("li").Text()) != "Not scored" || page.Find("a").Length() != 0 {
-					t.Errorf("expected no-score row without a link, got %q", body)
+				if strings.TrimSpace(page.Find("li").Text()) != "Document not found in Goodreads" || page.Find("a").Length() != 0 {
+					t.Errorf("expected unmatched-document row without a link, got %q", body)
 				}
 			} else if tt.enriched && len(tt.results) > 0 {
 				page, err := goquery.NewDocumentFromReader(strings.NewReader(body))
