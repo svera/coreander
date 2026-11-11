@@ -412,6 +412,7 @@
 "%s book URL": "URL del libro de %s"
 "Enter a valid %s book URL.": "Introduce una URL válida de un libro de %s."
 "Unable to load %s score": "No se pudo cargar la puntuación de %s"
+"Document not found in %s": "Documento no encontrado en %s"
 "%s rating": "Puntuación en %s"
 "%s user reviews": "Reseñas de usuarios de %s"
 "Go to %s author page": "Ir a la página del autor en %s"

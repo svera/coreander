@@ -208,10 +208,22 @@ func TestEnrichMarksDocumentsWithoutMatch(t *testing.T) {
 			if !mustData(t, doc).Enriched || mustData(t, doc).URL != "" {
 				t.Errorf("expected document enriched with no URLs, got %+v", doc)
 			}
+			result, err := idx.Enricher.Book(context.Background(), doc)
+			if err != nil || result.BookURL != "" {
+				t.Errorf("completed lookup should report no match, got %+v, %v", result, err)
+			}
 			if want := []string{"La Reina Dragon Alice Borchardt", "La Reina Dragon"}; !slices.Equal(source.Queries(), want) {
 				t.Errorf("expected both searches before giving up, got %q", source.Queries())
 			}
 		})
+	}
+}
+
+func TestBookWithoutConfiguredSourceDoesNotReportNoMatch(t *testing.T) {
+	adapter := NewEnricher(nil)
+	result, err := adapter.Book(context.Background(), index.Document{})
+	if err == nil || result.BookURL != "" {
+		t.Fatalf("lookup without a configured source must not look like a completed no-match, got %+v, %v", result, err)
 	}
 }
 
