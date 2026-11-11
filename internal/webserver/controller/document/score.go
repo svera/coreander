@@ -43,7 +43,6 @@ func (d *Controller) Score(c fiber.Ctx) error {
 		"RatingCount":         score.Count,
 		"Scored":              score.HasScore(),
 		"URL":                 score.URL,
-		"DocumentNotFound":    score.DocumentNotFound,
 		"DocumentSlug":        document.Slug,
 		"CanEditDocumentLink": canEditDocumentLink,
 		"ScoreUnavailable":    err != nil,

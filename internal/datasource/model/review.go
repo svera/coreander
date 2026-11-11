@@ -12,14 +12,13 @@ var (
 	ErrDocumentNotFound    = errors.New("document not found")
 )
 
-// Score has an empty URL for an unmatched document and an empty Value for an unavailable score.
+// Score has an empty URL only when the provider completed its lookup without finding a match.
+// Pending or unavailable lookups must not be represented as an unmatched document.
 type Score struct {
 	Source string
 	Value  string
 	Count  string
 	URL    string
-	// DocumentNotFound distinguishes an unmatched document from an unscored match.
-	DocumentNotFound bool
 }
 
 // HasScore reports whether the value is scored or has valuations despite a zero value.

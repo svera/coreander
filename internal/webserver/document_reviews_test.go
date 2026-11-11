@@ -374,7 +374,9 @@ func TestDocumentReviewNotScoredTranslations(t *testing.T) {
 }
 
 func TestDocumentScoreNoScoreTranslations(t *testing.T) {
-	provider := &fakeReviewProvider{score: datasourcemodel.Score{Source: "Another service"}}
+	provider := &fakeReviewProvider{score: datasourcemodel.Score{
+		Source: "Another service", URL: "https://example.org/books/book-1",
+	}}
 	app, _ := newReviewProviderTestApp(t, provider)
 	for _, locale := range []struct {
 		lang string

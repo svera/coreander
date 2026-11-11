@@ -156,7 +156,6 @@ func (b *ReviewProvider) Score(ctx context.Context, document index.Document) (da
 			return score, err
 		}
 		if result.BookURL == "" {
-			score.DocumentNotFound = true
 			return score, nil
 		}
 		if _, err := bookID(result.BookURL); err != nil {
