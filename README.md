@@ -159,6 +159,8 @@ Subjects help narrow the results too: when both books have subjects that are unc
 
 Recommendations update in the background as your library changes, so new books or edited subjects may not affect them immediately. After an upgrade or a change to `--max-similarity-phrase-frequency`, recommendations may be temporarily unavailable while Coreander updates them. You do not need to force a reindex when changing the three recommendation settings below.
 
+Library-wide keyword clean-up uses temporary disk space to keep memory usage down on large libraries. Ensure the system's temporary directory has free space. If it is RAM-backed or too small, set `TMPDIR` to a directory on a disk with enough space. Temporary counting files are removed when the pass finishes, including when it reports an error; if the process is forcibly killed, its `coreander-textrank-*` temporary directory may remain.
+
 You can fine-tune this behavior with the following flags:
 
 |Flag|Environment variable|Description|

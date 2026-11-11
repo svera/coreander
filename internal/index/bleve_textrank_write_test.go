@@ -128,7 +128,7 @@ func TestPruneCommonTextRankEntriesRewritesCommonEntries(t *testing.T) {
 		MinCommonTextRankAbsoluteCount: 1,
 	})
 
-	const docCount = 10
+	const docCount = 23
 	for i := 0; i < docCount; i++ {
 		id := strconv.Itoa(i)
 		document := Document{

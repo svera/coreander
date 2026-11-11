@@ -3,6 +3,7 @@ package index
 import (
 	"fmt"
 	"log"
+	"math"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -414,12 +415,23 @@ func (b *BleveIndexer) maintainTextRankEntries(batchSize int) error {
 	b.beginPruning(int(docCount) * 2)
 	defer b.endPruning()
 
+	var after []string
 	textRankFieldsSearch := func(from int) (*bleve.SearchResult, error) {
-		req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), batchSize, from, false)
+		if from == 0 {
+			after = nil
+		}
+		req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), batchSize, 0, false)
+		req.SortBy([]string{"_id"})
+		req.SetSearchAfter(after)
+		req.Score = "none"
 		req.Fields = []string{"TextRankPhrases", "TextRankWords", "SubjectsSlugs"}
 		b.documentsMu.RLock()
 		defer b.documentsMu.RUnlock()
-		return b.documentsIdx.Search(req)
+		result, err := b.documentsIdx.Search(req)
+		if err == nil && len(result.Hits) > 0 {
+			after = result.Hits[len(result.Hits)-1].Sort
+		}
+		return result, err
 	}
 
 	counts, err := b.countTextRankEntries(docCount, batchSize, textRankFieldsSearch)
@@ -444,10 +456,11 @@ type textRankEntryCounts struct {
 }
 
 func (b *BleveIndexer) countTextRankEntries(docCount uint64, batchSize int, search func(int) (*bleve.SearchResult, error)) (*textRankEntryCounts, error) {
-	phraseDocCount := make(map[string]int)
-	wordDocCount := make(map[string]int)
-	similarityCounts := make(map[string]int)
-	subjectCounts := make(map[string]int)
+	counts, err := newTextRankCountStore()
+	if err != nil {
+		return nil, err
+	}
+	defer counts.close()
 	b.documentsMu.RLock()
 	phraseAnalyzer := b.documentsIdx.Mapping().AnalyzerNamed(defaultAnalyzer)
 	b.documentsMu.RUnlock()
@@ -465,37 +478,38 @@ func (b *BleveIndexer) countTextRankEntries(docCount uint64, batchSize int, sear
 		}
 
 		for _, hit := range result.Hits {
-			for _, subject := range uniqueTextRankEntries(slicer(hit.Fields["SubjectsSlugs"])) {
+			entries := make(map[textRankCountKey]struct{})
+			for _, subject := range slicer(hit.Fields["SubjectsSlugs"]) {
 				if subject != "" {
-					subjectCounts[subject]++
+					entries[textRankCountKey{"subject", subject}] = struct{}{}
 				}
 			}
-			seenSimilarityPhrases := make(map[string]bool)
 			// hydrateDocument assumes a full Fields "*" fetch (it
 			// type-asserts every Metadata field unconditionally); this pass
 			// requests only keyword and subject fields, so read them
 			// directly via slicer instead.
-			for _, phrase := range uniqueTextRankEntries(slicer(hit.Fields["TextRankPhrases"])) {
-				phraseDocCount[phrase]++
+			for _, phrase := range slicer(hit.Fields["TextRankPhrases"]) {
+				entries[textRankCountKey{"phrase", phrase}] = struct{}{}
 				key := similarityPhraseKey(phrase, phraseAnalyzer)
-				if key != "" && !seenSimilarityPhrases[key] {
-					similarityCounts[key]++
-					seenSimilarityPhrases[key] = true
+				if key != "" {
+					entries[textRankCountKey{"similarity", key}] = struct{}{}
 				}
 			}
-			for _, word := range uniqueTextRankEntries(slicer(hit.Fields["TextRankWords"])) {
-				wordDocCount[word]++
+			for _, word := range slicer(hit.Fields["TextRankWords"]) {
+				entries[textRankCountKey{"word", word}] = struct{}{}
 			}
+			if err := counts.add(entries); err != nil {
+				return nil, err
+			}
+		}
+		if err := counts.flush(); err != nil {
+			return nil, err
 		}
 		b.recordPruningProgress(len(result.Hits))
 	}
 
-	return &textRankEntryCounts{
-		phrases:           phraseDocCount,
-		words:             wordDocCount,
-		similarityPhrases: similarityCounts,
-		subjects:          subjectCounts,
-	}, nil
+	threshold := math.Max(b.commonTextRankEntryRatio*float64(docCount), float64(b.minCommonTextRankAbsoluteCount))
+	return counts.load(threshold, similarityPhraseThreshold(docCount, b.maxSimilarityPhraseFrequency))
 }
 
 // pruneCommonTextRankEntries only removes common keywords using collected counts.
@@ -612,27 +626,6 @@ func (b *BleveIndexer) rewriteCommonTextRankEntries(docCount uint64, batchSize i
 	}
 
 	return pruned, nil
-}
-
-// uniqueTextRankEntries de-duplicates a document's TextRankPhrases/
-// TextRankWords before they're counted towards countTextRankEntries'
-// per-document-frequency maps, so a document listing the same entry twice
-// (which rankDocument's own extraction shouldn't normally produce) can never
-// inflate its corpus-wide count by more than one.
-func uniqueTextRankEntries(entries []string) []string {
-	if len(entries) == 0 {
-		return entries
-	}
-	seen := make(map[string]struct{}, len(entries))
-	out := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if _, ok := seen[entry]; ok {
-			continue
-		}
-		seen[entry] = struct{}{}
-		out = append(out, entry)
-	}
-	return out
 }
 
 // filterOutCommonTextRankEntries returns entries without any item whose
