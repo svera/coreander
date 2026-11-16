@@ -6,16 +6,27 @@
 </small>
 </p>
 <div class="collapse" id="update-author-form-{{.Author.Slug}}">
-    <p class="opacity-75"><small>{{ t .Lang "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here." }}</small></p>
-    <p class="opacity-75"><small>{{ t .Lang "Leave it blank if the author does not have a Wikidata entry yet."}}</small></p>
+    <p class="opacity-75"><small>{{if .BioRefreshAvailable}}{{t .Lang "Update the author's Wikidata or Goodreads profile below. Leave a field blank if the author has no entry on that site."}}{{else}}{{t .Lang "Update the author's Wikidata profile below, or leave it blank if the author has no Wikidata entry."}}{{end}}</small></p>
     <div class="row pb-3">
         <div class="col-12 col-lg-6">
             <form hx-put="/authors/{{.Author.Slug}}{{if ne .Style ""}}?style={{.Style}}{{end}}" hx-target="#author-{{.Author.Slug}}" hx-swap="outerHTML">
                 <div class="input-group input-group-sm">
-                    <input class="form-control" type="text" name="sourceID" value="{{.Author.DataSourceID}}" maxlength="10" pattern="^[Qq]\d+$">
+                    <input class="form-control" type="text" name="sourceID" value="{{with .Author.DataSourceID}}https://www.wikidata.org/wiki/{{.}}{{end}}" placeholder="{{t .Lang "Wikidata profile"}}" aria-label="{{t .Lang "Wikidata profile"}}">
                     <button type="submit" class="btn btn-secondary">{{t .Lang "Update"}}</button>
                 </div>
             </form>
         </div>
     </div>
+    {{if .BioRefreshAvailable}}
+    <div class="row pb-3">
+        <div class="col-12 col-lg-6">
+            <form id="author-bio-refresh" hx-post="/authors/{{.Author.Slug}}/bio/refresh" hx-target="#author-{{.Author.Slug}}" hx-swap="outerHTML" hx-indicator="#author-bio" hx-disabled-elt="find button">
+                <div class="input-group input-group-sm">
+                    <input class="form-control" type="text" name="goodreadsID" value="{{with index .Author.DataSourceLinks "goodreads"}}https://www.goodreads.com/author/show/{{.}}{{end}}" placeholder="{{t .Lang "Goodreads profile"}}" aria-label="{{t .Lang "Goodreads profile"}}">
+                    <button type="submit" class="btn btn-secondary">{{t .Lang "Update"}}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {{end}}
 </div>

@@ -51,6 +51,7 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 			"DataSourceLinks": a.authorDataSourceLinks(author, lang),
 			"ImageVersion":    imageVersion,
 		}
+		a.addBioVars(templateVars, template, author, lang)
 
 		if err = c.Render(template, templateVars); err != nil {
 			log.Println(err)
@@ -80,6 +81,7 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 		"DataSourceLinks": a.authorDataSourceLinks(author, lang),
 		"ImageVersion":    imageVersion,
 	}
+	a.addBioVars(templateVars, template, author, lang)
 
 	if err = c.Render(template, templateVars); err != nil {
 		log.Println(err)

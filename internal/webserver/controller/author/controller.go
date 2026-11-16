@@ -55,6 +55,7 @@ type Controller struct {
 	appFs                   afero.Fs
 	embeddedImagesFS        fs.FS
 	dataSourceLinkProviders []DataSourceLinkProvider
+	bioProvider             BioProvider
 }
 
 func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReader, cfg Config, dataSource DataSource, appFs afero.Fs, embeddedImagesFS fs.FS, dataSourceLinkProviders ...DataSourceLinkProvider) *Controller {

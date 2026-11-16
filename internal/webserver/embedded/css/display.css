@@ -352,15 +352,33 @@ main .form-control:focus {
     line-clamp: 5;
 }
 
-.document-reviews-loading {
+.author-details-sidebar > .ratio {
+    max-width: 18rem;
+    margin-inline: auto;
+}
+
+.author-bio-text.clamp {
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
+    max-height: 5lh;
+}
+
+.author-bio-text p:last-child {
+    margin-bottom: 0;
+}
+
+.document-reviews-loading,
+.author-bio-loading {
     display: none;
 }
 
-.document-reviews.htmx-request .document-reviews-content {
+.document-reviews.htmx-request .document-reviews-content,
+#author-bio.htmx-request .author-bio-content {
     display: none;
 }
 
-.document-reviews.htmx-request .document-reviews-loading {
+.document-reviews.htmx-request .document-reviews-loading,
+#author-bio.htmx-request .author-bio-loading {
     display: block;
 }
 

@@ -11,22 +11,36 @@ import (
 )
 
 type Author struct {
-	Slug            string
-	Name            string
-	BirthName       string
-	DataSourceID    string
-	RetrievedOn     time.Time
-	InstanceOf      float64
-	Description     map[string]string
-	DateOfBirth     precisiondate.PrecisionDate
-	DateOfDeath     precisiondate.PrecisionDate
+	Slug         string
+	Name         string
+	BirthName    string
+	DataSourceID string
+	RetrievedOn  time.Time
+	InstanceOf   float64
+	Description  map[string]string
+	DateOfBirth  precisiondate.PrecisionDate
+	DateOfDeath  precisiondate.PrecisionDate
+	// DataSourceLinks contains provider-owned references; the Goodreads author reference is an ID.
 	DataSourceLinks map[string]string
 	DataSourceImage string
 	Gender          float64
 	Pseudonyms      []string
 	DocumentCount   uint64
+	// Bio is managed by StoreAuthorBio; IndexAuthor keeps the stored value.
+	Bio AuthorBio
 	// ownsRefreshedLink marks links replaced by a metadata refresh or explicit reset.
 	ownsRefreshedLink func(string) bool
+}
+
+// AuthorBio is a biography retrieved from an external source, along with its translations.
+type AuthorBio struct {
+	// Source identifies the Goodreads author profile the biography was retrieved from. A non-empty Source
+	// with no texts means the source has no biography for the author.
+	Source string
+	// Language is the detected language of the original text, stored in Text[Language].
+	Language string
+	// Text maps language codes to the biography in that language.
+	Text map[string]string
 }
 
 func (a Author) ClearMetadata(ownsLink func(string) bool) Author {
@@ -38,7 +52,7 @@ func (a Author) ClearMetadata(ownsLink func(string) bool) Author {
 	}
 	return Author{
 		Slug: a.Slug, Name: a.Name, DocumentCount: a.DocumentCount,
-		RetrievedOn: time.Now().UTC(), DataSourceLinks: links,
+		RetrievedOn: time.Now().UTC(), DataSourceLinks: links, Bio: a.Bio,
 		ownsRefreshedLink: ownsLink,
 	}
 }

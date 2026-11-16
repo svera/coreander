@@ -18,6 +18,7 @@ import (
 	"github.com/svera/coreander/v5/internal/i18n"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/versioncheck"
+	"github.com/svera/coreander/v5/internal/webserver/controller/author"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 	"golang.org/x/exp/slices"
@@ -65,6 +66,8 @@ type Config struct {
 	InviteEmailListMaxLength   int
 	InviteMaxRecipients        int
 	VersionChecker             *versioncheck.Checker
+	// AuthorBioProvider enables author biographies on author pages when set.
+	AuthorBioProvider author.BioProvider
 }
 
 type Sender interface {

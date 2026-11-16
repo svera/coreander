@@ -185,10 +185,80 @@ func (b *BleveIndexer) IndexAuthor(author Author) error {
 		}
 	}
 	author.DataSourceLinks = links
+	if current.Slug != "" {
+		author.Bio = current.Bio
+	}
 	if err := indexAuthor(b.authorsIdx, author.Slug, author); err != nil {
 		return err
 	}
 	return nil
+}
+
+// StoreAuthorBio saves a biography for an indexed author. Texts for the same source and
+// original language are merged with the stored ones, so translations accumulate; any other
+// biography replaces the stored one.
+func (b *BleveIndexer) StoreAuthorBio(slug string, bio AuthorBio) error {
+	return b.storeAuthorBio(slug, bio, true)
+}
+
+// ReplaceAuthorBio stores bio as the biography of the author identified by slug, discarding any texts
+// stored before, even if they come from the same source and are in the same language.
+func (b *BleveIndexer) ReplaceAuthorBio(slug string, bio AuthorBio) error {
+	return b.storeAuthorBio(slug, bio, false)
+}
+
+// StoreCanonicalAuthorBio replaces the bio and its Goodreads link atomically, unless the link changed.
+func (b *BleveIndexer) StoreCanonicalAuthorBio(slug, previousSource string, bio AuthorBio) error {
+	b.authorsMu.Lock()
+	defer b.authorsMu.Unlock()
+	author, err := b.authorBySlugLocked(slug)
+	if err != nil || author.Slug == "" {
+		return err
+	}
+	if author.DataSourceLinks["goodreads"] != previousSource {
+		return fmt.Errorf("Goodreads link changed while resolving primary profile for %s", slug)
+	}
+	if author.DataSourceLinks == nil {
+		author.DataSourceLinks = make(map[string]string)
+	}
+	if bio.Source == "" {
+		delete(author.DataSourceLinks, "goodreads")
+	} else {
+		author.DataSourceLinks["goodreads"] = bio.Source
+	}
+	author.Bio = bio
+	return indexAuthor(b.authorsIdx, slug, author)
+}
+
+func (b *BleveIndexer) storeAuthorBio(slug string, bio AuthorBio, merge bool) error {
+	return b.storeAuthorBioChecked(slug, bio, merge, nil)
+}
+
+// StoreAuthorBioForSource rejects biography results when the Goodreads link has changed.
+func (b *BleveIndexer) StoreAuthorBioForSource(slug, source string, bio AuthorBio, merge bool) error {
+	return b.storeAuthorBioChecked(slug, bio, merge, &source)
+}
+
+func (b *BleveIndexer) storeAuthorBioChecked(slug string, bio AuthorBio, merge bool, expectedSource *string) error {
+	b.authorsMu.Lock()
+	defer b.authorsMu.Unlock()
+	author, err := b.authorBySlugLocked(slug)
+	if err != nil || author.Slug == "" {
+		return err
+	}
+	if expectedSource != nil && author.DataSourceLinks["goodreads"] != *expectedSource {
+		return fmt.Errorf("Goodreads link changed while retrieving biography for %s", slug)
+	}
+	if merge && author.Bio.Source == bio.Source && author.Bio.Language == bio.Language {
+		texts := maps.Clone(author.Bio.Text)
+		if texts == nil {
+			texts = make(map[string]string, len(bio.Text))
+		}
+		maps.Copy(texts, bio.Text)
+		bio.Text = texts
+	}
+	author.Bio = bio
+	return indexAuthor(b.authorsIdx, slug, author)
 }
 
 func (b *BleveIndexer) authorBySlugLocked(slug string) (Author, error) {

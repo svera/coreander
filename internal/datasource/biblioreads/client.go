@@ -26,6 +26,8 @@ const (
 	bookScraperPath    = "/api/book-scraper"
 	authorInfoPath     = "/api/author/info"
 	reviewsScraperPath = "/api/reviews-scraper"
+
+	authorVersionTTL = 24 * time.Hour
 )
 
 // ErrUnavailable is returned when no instance could serve a request (network errors, rate limits,
@@ -40,7 +42,13 @@ type Client struct {
 	mu              sync.Mutex
 	cooldownUntil   map[string]time.Time
 	nextRequest     map[string]time.Time
+	authorVersions  map[string]authorVersion
 	requestInterval time.Duration
+}
+
+type authorVersion struct {
+	version   string
+	expiresAt time.Time
 }
 
 type options struct {
@@ -113,6 +121,7 @@ func NewClient(opts ...Option) *Client {
 		httpClient:      o.httpClient,
 		cooldownUntil:   make(map[string]time.Time),
 		nextRequest:     make(map[string]time.Time),
+		authorVersions:  make(map[string]authorVersion),
 		requestInterval: o.requestInterval,
 	}
 	if o.cacheTTL > 0 {
@@ -156,11 +165,20 @@ func (c *Client) Book(ctx context.Context, id string) (BookResponse, error) {
 // Author returns the details of the Goodreads author identified by id, which can be
 // either a numeric ID ("151155") or an ID with slug ("151155.Alice_Borchardt").
 func (c *Client) Author(ctx context.Context, id string) (AuthorResponse, error) {
+	return c.author(ctx, id, false)
+}
+
+// RefreshAuthor retrieves the author without using a cached response and updates the cache.
+func (c *Client) RefreshAuthor(ctx context.Context, id string) (AuthorResponse, error) {
+	return c.author(ctx, id, true)
+}
+
+func (c *Client) author(ctx context.Context, id string, refresh bool) (AuthorResponse, error) {
 	var res AuthorResponse
 	payload := queryURLPayload{
 		QueryURL: goodreadsBaseURL + "/author/show/" + url.PathEscape(id),
 	}
-	err := c.post(ctx, authorInfoPath, payload, &res)
+	err := c.postWithRefresh(ctx, authorInfoPath, payload, &res, refresh)
 	return res, err
 }
 
@@ -186,6 +204,14 @@ type unavailableError struct {
 	reason     error
 }
 
+type incompatibleAuthorVersionError struct {
+	version string
+}
+
+func (e *incompatibleAuthorVersionError) Error() string {
+	return fmt.Sprintf("author biographies require BiblioReads v4.5.1 or newer, got %q", e.version)
+}
+
 func (e *unavailableError) Error() string {
 	return fmt.Sprintf("%s: %v", e.endpoint, e.reason)
 }
@@ -195,6 +221,10 @@ func (e *unavailableError) Unwrap() error {
 }
 
 func (c *Client) post(ctx context.Context, path string, payload, dest any) error {
+	return c.postWithRefresh(ctx, path, payload, dest, false)
+}
+
+func (c *Client) postWithRefresh(ctx context.Context, path string, payload, dest any, refresh bool) error {
 	if len(c.instances) == 0 {
 		return fmt.Errorf("%w: no BiblioReads endpoints configured", ErrUnavailable)
 	}
@@ -204,10 +234,14 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 	}
 
 	cacheKey := path + "\x00" + string(body)
-	if c.cache != nil {
+	if c.cache != nil && !refresh {
 		if cached, ok := c.cache.get(cacheKey); ok {
 			return json.Unmarshal(cached, dest)
 		}
+	}
+	var requestID uint64
+	if c.cache != nil {
+		requestID = c.cache.requestID.Add(1)
 	}
 
 	var errs []error
@@ -221,7 +255,7 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 		if len(tried) == len(c.instances) {
 			clear(tried)
 		}
-		instance, err := c.acquireInstance(ctx, tried, path == searchBooksPath)
+		instance, err := c.acquireInstance(ctx, tried, path == searchBooksPath, path == authorInfoPath)
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
@@ -236,10 +270,14 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 			var complete bool
 			complete, err = decodeResponse(respBody, payload, dest)
 			if err != nil {
-				if path != bookScraperPath && path != reviewsScraperPath {
+				var incompatible *incompatibleAuthorVersionError
+				if errors.As(err, &incompatible) {
+					err = fmt.Errorf("%s: %w", endpoint, err)
+				} else if path != bookScraperPath && path != reviewsScraperPath {
 					return fmt.Errorf("biblioreads: error decoding response from %s: %w", endpoint, err)
+				} else {
+					err = &unavailableError{endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter, reason: err}
 				}
-				err = &unavailableError{endpoint: endpoint, retryAfter: httpjson.DefaultRetryAfter, reason: err}
 			} else if !complete {
 				// Keep a fallback, preferring book details that include a score.
 				book, isBook := dest.(*BookResponse)
@@ -250,11 +288,20 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 			}
 		}
 		if err == nil {
+			if author, ok := dest.(*AuthorResponse); ok {
+				c.rememberAuthorVersion(instance, author.Version)
+			}
 			reviews, isReviews := dest.(*ReviewsResponse)
 			if c.cache != nil && (!isReviews || len(reviews.Reviews) > 0) {
-				c.cache.set(cacheKey, respBody)
+				c.cache.set(cacheKey, respBody, requestID)
 			}
 			return nil
+		}
+		var incompatible *incompatibleAuthorVersionError
+		if errors.As(err, &incompatible) {
+			c.rememberAuthorVersion(instance, incompatible.version)
+			errs = append(errs, err)
+			continue
 		}
 		var unavailable *unavailableError
 		if !errors.As(err, &unavailable) {
@@ -279,6 +326,15 @@ func (c *Client) post(ctx context.Context, path string, payload, dest any) error
 // decodeResponse reports whether a valid response is complete enough to stop failover.
 func decodeResponse(body []byte, payload, dest any) (bool, error) {
 	switch response := dest.(type) {
+	case *AuthorResponse:
+		*response = AuthorResponse{}
+		if err := json.Unmarshal(body, response); err != nil {
+			return false, err
+		}
+		if !supportsVersion(response.Version, "v4.5.1") {
+			return false, &incompatibleAuthorVersionError{version: response.Version}
+		}
+		return true, nil
 	case *BookResponse:
 		*response = BookResponse{}
 		if err := json.Unmarshal(body, response); err != nil {
@@ -312,13 +368,17 @@ func decodeResponse(body []byte, payload, dest any) (bool, error) {
 }
 
 func supportsReviewLanguage(version string) bool {
+	return supportsVersion(version, "v4.4.0")
+}
+
+func supportsVersion(version, minimum string) bool {
 	version = strings.TrimPrefix(version, "BiblioReads ")
-	return semver.IsValid(version) && semver.Compare(version, "v4.4.0") >= 0
+	return semver.IsValid(version) && semver.Compare(version, minimum) >= 0
 }
 
 // acquireInstance rechecks availability after waiting, so cancellation does not
 // reserve a future slot and concurrent requests cannot take the same slot.
-func (c *Client) acquireInstance(ctx context.Context, tried map[string]bool, waitForCooldown bool) (string, error) {
+func (c *Client) acquireInstance(ctx context.Context, tried map[string]bool, waitForCooldown, authorRequest bool) (string, error) {
 	for {
 		if err := ctx.Err(); err != nil {
 			return "", err
@@ -327,24 +387,39 @@ func (c *Client) acquireInstance(ctx context.Context, tried map[string]bool, wai
 		start := rand.IntN(len(c.instances))
 		instance := ""
 		var readyAt time.Time
+		preferred := false
+		var incompatible []error
 		now := time.Now()
 		for i := range c.instances {
 			candidate := c.instances[(start+i)%len(c.instances)]
 			if tried[candidate] || (!waitForCooldown && now.Before(c.cooldownUntil[candidate])) {
 				continue
 			}
+			knownCompatible := false
+			if authorRequest {
+				if version, ok := c.authorVersions[candidate]; ok && now.Before(version.expiresAt) {
+					if !supportsVersion(version.version, "v4.5.1") {
+						incompatible = append(incompatible, fmt.Errorf("%s: %w", candidate, &incompatibleAuthorVersionError{version: version.version}))
+						continue
+					}
+					knownCompatible = true
+				}
+			}
 			ready := c.nextRequest[candidate]
 			if c.cooldownUntil[candidate].After(ready) {
 				ready = c.cooldownUntil[candidate]
 			}
-			if instance == "" || ready.Before(readyAt) {
+			if instance == "" || (knownCompatible && !preferred && !ready.After(now)) ||
+				(knownCompatible == preferred && ready.Before(readyAt)) ||
+				(preferred && readyAt.After(now) && ready.Before(readyAt)) {
 				instance = candidate
 				readyAt = ready
+				preferred = knownCompatible
 			}
 		}
 		if instance == "" {
 			c.mu.Unlock()
-			return "", fmt.Errorf("%w: no untried instance is outside its cooldown", ErrUnavailable)
+			return "", errors.Join(append([]error{fmt.Errorf("%w: no eligible untried instance", ErrUnavailable)}, incompatible...)...)
 		}
 		wait := time.Until(readyAt)
 		if wait <= 0 {
@@ -361,6 +436,13 @@ func (c *Client) acquireInstance(ctx context.Context, tried map[string]bool, wai
 		case <-timer.C:
 		}
 	}
+}
+
+func (c *Client) rememberAuthorVersion(instance, version string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	// Recheck periodically so upgraded instances become eligible without a restart.
+	c.authorVersions[instance] = authorVersion{version: version, expiresAt: time.Now().Add(authorVersionTTL)}
 }
 
 func (c *Client) setCooldown(instance string, d time.Duration) {
@@ -407,6 +489,15 @@ func (c *Client) postToInstance(ctx context.Context, endpoint string, body []byt
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		if strings.HasSuffix(endpoint, authorInfoPath) {
+			var authorResponse struct {
+				Version string `json:"version"`
+			}
+			if err := json.Unmarshal(resp.Body, &authorResponse); err == nil &&
+				!supportsVersion(authorResponse.Version, "v4.5.1") {
+				return nil, fmt.Errorf("%s: status code %d: %w", endpoint, resp.StatusCode, &incompatibleAuthorVersionError{version: authorResponse.Version})
+			}
+		}
 		responseErr := fmt.Errorf("biblioreads: request to %s failed with status code %d: %s", endpoint, resp.StatusCode, resp.Body)
 		if resp.StatusCode == http.StatusNotFound && strings.HasSuffix(endpoint, searchBooksPath) {
 			return nil, &unavailableError{

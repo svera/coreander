@@ -20,6 +20,7 @@ import (
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
+	"github.com/svera/coreander/v5/internal/translation"
 	"github.com/svera/coreander/v5/internal/versioncheck"
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/controller/document"
@@ -220,6 +221,7 @@ func main() {
 	biblioReads := biblioreads.NewReviewProvider(biblioreadsClient, biblioReadsAdapter)
 	if biblioreadsClient != nil {
 		reviewProvider = biblioReads
+		webserverConfig.AuthorBioProvider = biblioreads.NewBioProvider(biblioreadsClient, translation.NewGoogle(), idx)
 	}
 	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, reviewProvider, dataSource, biblioReads)
 	usersRepository := &model.UserRepository{DB: db}

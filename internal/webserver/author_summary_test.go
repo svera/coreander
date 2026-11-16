@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,6 +23,115 @@ import (
 	"github.com/svera/coreander/v5/internal/webserver"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
+
+func TestUpdateAuthorWikidataInput(t *testing.T) {
+	mock := wikidata.NewMockServer(t, "fixtures/datasource/wikidata")
+	defer mock.Close()
+	var requests atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		mock.Config.Handler.ServeHTTP(w, r)
+	}))
+	defer server.Close()
+	previousDomain := gowikidata.WikidataDomain
+	gowikidata.WikidataDomain = server.URL
+	defer func() { gowikidata.WikidataDomain = previousDomain }()
+
+	appFS := loadDirInMemoryFs("testdata/library")
+	cfg := defaultTestConfig()
+	cfg.CacheDir = "/cache"
+	app, idx := bootstrapAppWithIndexer(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, appFS, cfg)
+	admin, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	author, err := idx.Author("john-doe", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author.DataSourceID = "Q999"
+	author.DataSourceLinks = map[string]string{"goodreads": "1.Writer"}
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	if err := appFS.MkdirAll("/cache/authors", 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := afero.WriteFile(appFS, "/cache/authors/john-doe.webp", []byte("cached image"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	before, err := idx.Author("john-doe", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	initialRequests := requests.Load()
+	for _, input := range []string{
+		"https://evil.example/wiki/Q1234", "https://www.wikidata.org/wiki/Q1234?x=1",
+		"https://www.wikidata.org/wiki/Q1234/extra", "P1234",
+	} {
+		response, err := putRequest(url.Values{"sourceID": {input}}, admin, app, "/authors/john-doe", t)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		if response.StatusCode != http.StatusBadRequest {
+			t.Errorf("%q: expected bad request, got %d", input, response.StatusCode)
+		}
+	}
+	after, err := idx.Author("john-doe", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(before, after) || requests.Load() != initialRequests {
+		t.Fatal("invalid input must not alter metadata or trigger a lookup")
+	}
+	if _, err := appFS.Stat("/cache/authors/john-doe.webp"); err != nil {
+		t.Fatalf("invalid input must not remove the cached image: %v", err)
+	}
+
+	response, err := putRequest(url.Values{"sourceID": {"Q1234"}}, &http.Cookie{Name: "anonymous"}, app, "/authors/john-doe", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode == http.StatusOK || requests.Load() != initialRequests {
+		t.Fatal("anonymous visitors must not update author metadata")
+	}
+
+	for _, tc := range []struct{ input, style string }{
+		{"Q1234", ""},
+		{"q1234", "?style=clear"},
+		{"https://www.wikidata.org/wiki/Q1234", ""},
+		{"http://wikidata.org/entity/q1234/", "?style=clear"},
+	} {
+		t.Run(tc.input+tc.style, func(t *testing.T) {
+			beforeRequests := requests.Load()
+			response, err := putRequest(url.Values{"sourceID": {tc.input}}, admin, app, "/authors/john-doe"+tc.style, t)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			mustReturnStatus(response, http.StatusOK, t)
+			page, err := goquery.NewDocumentFromReader(response.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if page.Find(`input[name="sourceID"]`).Length() != 1 {
+				t.Fatal("updated author summary must include the correction form")
+			}
+			if value := page.Find(`input[name="sourceID"]`).AttrOr("value", ""); value != "https://www.wikidata.org/wiki/Q1234" {
+				t.Fatalf("expected the Wikidata profile URL in the form, got %q", value)
+			}
+			stored, err := idx.Author("john-doe", "en")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stored.DataSourceID != "Q1234" || stored.DataSourceLinks["goodreads"] != "1.Writer" || requests.Load() <= beforeRequests {
+				t.Fatalf("expected a lookup and normalized Wikidata ID while preserving Goodreads: %+v", stored)
+			}
+		})
+	}
+}
 
 func TestClearAuthorRemovesImage(t *testing.T) {
 	mockDataSourceServer := wikidata.NewMockServer(t, "fixtures/datasource/wikidata")
@@ -35,11 +147,12 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 		name   string
 		style  string
 		cached bool
+		input  string
 	}{
-		{"summary with cached image", "", true},
-		{"document detail with cached image", "?style=clear", true},
-		{"summary without cached image", "", false},
-		{"document detail without cached image", "?style=clear", false},
+		{"summary with cached image", "", true, ""},
+		{"document detail with cached image", "?style=clear", true, "  "},
+		{"summary without cached image", "", false, ""},
+		{"document detail without cached image", "?style=clear", false, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			db := infrastructure.Connect(":memory:", 250)
@@ -66,7 +179,7 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 			author.DataSourceLinks = map[string]string{
 				"website": "https://old.example", "wikipedia:en": "https://en.wikipedia.org/wiki/Old",
 				"wikipedia:es": "https://es.wikipedia.org/wiki/Old",
-				"goodreads":    "/author/show/1.Writer", "catalog": "https://catalog.example/writer",
+				"goodreads":    "1.Writer", "catalog": "https://catalog.example/writer",
 			}
 			if err := idx.IndexAuthor(author); err != nil {
 				t.Fatal(err)
@@ -83,7 +196,7 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 				}
 			}
 
-			response, err = putRequest(url.Values{"sourceID": {""}}, cookie, app, "/authors/john-doe"+tc.style, t)
+			response, err = putRequest(url.Values{"sourceID": {tc.input}}, cookie, app, "/authors/john-doe"+tc.style, t)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -141,7 +254,7 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 				stored.DataSourceLinks["wikipedia:es"] != "" {
 				t.Fatalf("metadata reset restored stale metadata: %+v", stored)
 			}
-			if stored.DataSourceLinks["goodreads"] != "/author/show/1.Writer" ||
+			if stored.DataSourceLinks["goodreads"] != "1.Writer" ||
 				stored.DataSourceLinks["catalog"] != "https://catalog.example/writer" ||
 				stored.DocumentCount != documentCount {
 				t.Fatalf("metadata reset lost independent author data: %+v", stored)
@@ -228,8 +341,12 @@ func TestAuthorSummaryDataSourceLinkTranslations(t *testing.T) {
 					if websiteLink.Length() != 1 || websiteLink.PrevFiltered("i.bi-globe-europe-africa").Length() != 1 {
 						t.Fatal("expected the stored website link and globe icon")
 					}
-					if tc.wikipedia && (wikipediaLink.Length() != 1 || strings.TrimSpace(wikipediaLink.Text()) != locale.wikipediaLabel) {
-						t.Fatalf("expected localized Wikipedia data-source link %q, got %d links with text %q", locale.wikipediaLabel, wikipediaLink.Length(), wikipediaLink.Text())
+					wikipediaLabel := locale.wikipediaLabel
+					if style.name == "summary" {
+						wikipediaLabel = "Wikipedia"
+					}
+					if tc.wikipedia && (wikipediaLink.Length() != 1 || strings.TrimSpace(wikipediaLink.Text()) != wikipediaLabel) {
+						t.Fatalf("expected Wikipedia data-source link %q, got %d links with text %q", wikipediaLabel, wikipediaLink.Length(), wikipediaLink.Text())
 					}
 					if tc.wikipedia && wikipediaLink.PrevFiltered("i.bi-wikipedia").Length() != 1 {
 						t.Fatal("expected the Wikipedia provider's Bootstrap icon")

@@ -43,7 +43,11 @@ func (b *ReviewProvider) Name() string {
 
 // AuthorLink returns the indexed author link without making a network request.
 func (b *ReviewProvider) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
-	return goodreadsDataSourceLink(author.DataSourceLinks["goodreads"], "/author/show/")
+	id := author.DataSourceLinks[Source]
+	if !authorIDPattern.MatchString(id) {
+		return goodreadsDataSourceLink("", goodreadsAuthorPrefix)
+	}
+	return goodreadsDataSourceLink(goodreadsAuthorPrefix+id, goodreadsAuthorPrefix)
 }
 
 // DocumentLink returns the indexed book link without making a network request.

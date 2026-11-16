@@ -18,7 +18,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Upload documents through the web interface.
 * Download as kepub (epub for Kobo devices) converted on the fly thanks to [Kepubify](https://github.com/pgaskin/kepubify).
 * Gather information about authors from [Wikidata](https://wikidata.org).
-* Show Goodreads ratings and book and author links through [BiblioReads](#biblioreads-integration).
+* Show Goodreads ratings, author biographies and book and author links through [BiblioReads](#biblioreads-integration).
 
 ## Installation
 
@@ -99,6 +99,10 @@ coreander --review-source-instances=https://br.example.org,https://br2.example.o
 ```
 
 Alternatively, set `REVIEW_SOURCE_INSTANCES` to the same comma-separated list. The flag may also be repeated and overrides the environment variable. Instance URLs must use HTTP or HTTPS and serve the BiblioReads API.
+
+When lookups are enabled, author pages also show available Goodreads biographies. Biography retrieval requires a BiblioReads instance running version 4.5.1 or newer. Biographies in another language are automatically translated using Google Translate and marked as translations. Click the translation notice to read the original, or "Show more" to expand a long biography.
+
+Admins can open "Is not the right author or data is outdated?" in the author card to correct the Goodreads profile or refresh its biography. Leave the Goodreads field blank to remove the Goodreads link and biography.
 
 ### Email
 

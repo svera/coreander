@@ -106,6 +106,9 @@ func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender S
 	}
 
 	authorsController := author.NewController(highlightsRepository, readingRepository, sender, idx, authorsCfg, authorDataSource, appFs, imagesFS, dataSourceLinkProviders...)
+	if cfg.AuthorBioProvider != nil {
+		authorsController.SetBioProvider(cfg.AuthorBioProvider)
+	}
 	go authorsController.MigrateJPEGsToWebP()
 
 	return Controllers{

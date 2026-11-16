@@ -12,6 +12,43 @@ import (
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 )
 
+func TestAuthorRefreshCacheConcurrentRequest(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		desc := "new"
+		if hits.Add(1) == 1 {
+			close(started)
+			<-release
+			desc = "old"
+		}
+		if err := json.NewEncoder(w).Encode(biblioreads.AuthorResponse{Version: "BiblioReads v4.5.1", Desc: desc}); err != nil {
+			t.Errorf("encode author response: %v", err)
+		}
+	}))
+	defer server.Close()
+	client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
+	done := make(chan error, 1)
+	go func() {
+		_, err := client.Author(context.Background(), "1")
+		done <- err
+	}()
+	<-started
+	refreshed, err := client.RefreshAuthor(context.Background(), "1")
+	close(release)
+	if previousErr := <-done; previousErr != nil {
+		t.Fatal(previousErr)
+	}
+	if err != nil || refreshed.Desc != "new" {
+		t.Fatalf("refresh failed: %+v, %v", refreshed, err)
+	}
+	cached, err := client.Author(context.Background(), "1")
+	if err != nil || cached.Desc != "new" || hits.Load() != 2 {
+		t.Fatalf("older in-flight requests must not overwrite refreshed cache: %+v, %v, hits %d", cached, err, hits.Load())
+	}
+}
+
 func TestIncompleteBookResponsesAreNotCached(t *testing.T) {
 	var hits atomic.Int32
 	server := newCountingServer(t, http.StatusOK, `{"status":"Received","statusCode":200,"rating":"3.92"}`, &hits)
@@ -131,7 +168,7 @@ func TestFailoverResponsesAreCached(t *testing.T) {
 func TestCache(t *testing.T) {
 	t.Run("successful responses are cached per request", func(t *testing.T) {
 		var hits atomic.Int32
-		server := newCountingServer(t, http.StatusOK, `{"status":"Received","statusCode":200,"rating":"3.92","resourceID":"work-id","legacyBookID":5898652,"title":"La Reina Dragon","genres":["Fantasy"],"totalCount":1,"reviews":[{"id":"review-1"}]}`, &hits)
+		server := newCountingServer(t, http.StatusOK, `{"version":"BiblioReads v4.5.1","status":"Received","statusCode":200,"rating":"3.92","resourceID":"work-id","legacyBookID":5898652,"title":"La Reina Dragon","genres":["Fantasy"],"totalCount":1,"reviews":[{"id":"review-1"}]}`, &hits)
 		client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
 
 		first, err := client.Book(context.Background(), "1")
