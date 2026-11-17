@@ -14,6 +14,7 @@ import (
 
 	"github.com/abadojack/whatlanggo"
 	"github.com/microcosm-cc/bluemonday"
+	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/translation"
 	nethtml "golang.org/x/net/html"
@@ -41,7 +42,7 @@ type AuthorClient interface {
 // Translator translates text from a language, or translation.AutoDetect, to another one,
 // returning the translation and the source language.
 type Translator interface {
-	Translate(ctx context.Context, text, from, to string) (string, string, error)
+	Translate(ctx context.Context, text, from, to string, gender translation.Gender) (string, string, error)
 }
 
 type BioIndex interface {
@@ -197,7 +198,14 @@ func (p *BioProvider) lookup(ctx context.Context, author index.Author, language 
 	if from == "" {
 		from = translation.AutoDetect
 	}
-	translated, detected, err := p.translateBio(ctx, original, from, language)
+	var gender translation.Gender
+	switch author.Gender {
+	case wikidata.GenderMale, wikidata.GenderTrasgenderMale:
+		gender = translation.GenderMasculine
+	case wikidata.GenderFemale, wikidata.GenderTrasgenderFemale:
+		gender = translation.GenderFeminine
+	}
+	translated, detected, err := p.translateBio(ctx, original, from, language, gender)
 	if err != nil {
 		if bio.Language != "" {
 			err = errors.Join(err, store(save, author.Slug, bio))
@@ -283,7 +291,7 @@ func primaryProfile(desc string) (string, error) {
 	}
 }
 
-func (p *BioProvider) translateBio(ctx context.Context, text, from, to string) (string, string, error) {
+func (p *BioProvider) translateBio(ctx context.Context, text, from, to string, gender translation.Gender) (string, string, error) {
 	tokens := nethtml.NewTokenizer(strings.NewReader(text))
 	var result strings.Builder
 	for {
@@ -298,7 +306,7 @@ func (p *BioProvider) translateBio(ctx context.Context, text, from, to string) (
 			if strings.ContainsFunc(part, unicode.IsLetter) {
 				leading := part[:len(part)-len(strings.TrimLeftFunc(part, unicode.IsSpace))]
 				trailing := part[len(strings.TrimRightFunc(part, unicode.IsSpace)):]
-				translated, detected, err := p.translator.Translate(ctx, strings.TrimSpace(part), from, to)
+				translated, detected, err := p.translator.Translate(ctx, strings.TrimSpace(part), from, to, gender)
 				if err != nil {
 					return "", "", err
 				}

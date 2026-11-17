@@ -232,6 +232,7 @@
 "Wikidata URL or ID": "Wikidata-URL oder -ID"
 "Wikidata profile": "Wikidata-Profil"
 "Goodreads profile": "Goodreads-Profil"
+"Enter a valid Goodreads author URL or ID.": "Gib eine gültige Goodreads-Autoren-URL oder -ID ein."
 "Update the author's Wikidata or Goodreads profile below. Leave a field blank if the author has no entry on that site.": "Aktualisieren Sie unten das Wikidata- oder Goodreads-Profil des Autors. Lassen Sie ein Feld leer, wenn der Autor auf der jeweiligen Seite keinen Eintrag hat."
 "Update the author's Wikidata profile below, or leave it blank if the author has no Wikidata entry.": "Aktualisieren Sie unten das Wikidata-Profil des Autors oder lassen Sie das Feld leer, wenn er keinen Wikidata-Eintrag hat."
 "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID you can update it here.": "Die Wikidata-ID ist ein eindeutiger Identifikator für den Autor in der Wikidata-Datenbank. Wenn Sie die korrekte ID kennen können Sie sie hier aktualisieren."

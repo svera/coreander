@@ -12,6 +12,7 @@ import (
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/precisiondate"
+	"github.com/svera/coreander/v5/internal/translation"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
 
@@ -34,7 +35,7 @@ func (c *bioAuthorClient) RefreshAuthor(ctx context.Context, id string) (biblior
 
 type bioTranslator struct{ calls int }
 
-func (t *bioTranslator) Translate(_ context.Context, text, from, to string) (string, string, error) {
+func (t *bioTranslator) Translate(_ context.Context, text, from, to string, _ translation.Gender) (string, string, error) {
 	t.calls++
 	return strings.ReplaceAll(text, "John Doe", "John Doe ("+to+")"), from, nil
 }
@@ -538,9 +539,19 @@ func TestAuthorBioRefresh(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		page, err := goquery.NewDocumentFromReader(response.Body)
 		response.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 		if response.StatusCode != http.StatusBadRequest || client.calls != 3 {
 			t.Errorf("invalid ID %q must be rejected before lookup, got %d", invalid, response.StatusCode)
+		}
+		form := page.Find("#author-john-doe #update-author-form-john-doe.show")
+		input := form.Find(`input[name="goodreadsID"][aria-invalid="true"]`)
+		if input.Length() != 1 || input.AttrOr("value", "") != invalid ||
+			form.Find(`#goodreads-error-john-doe[role="alert"]`).Length() != 1 {
+			t.Errorf("invalid ID %q must preserve the author card and input with a visible validation error", invalid)
 		}
 	}
 	response, err = postRequest(url.Values{"goodreadsID": {"  "}}, adminCookie, app, "/authors/john-doe/bio/refresh?l=es", t)

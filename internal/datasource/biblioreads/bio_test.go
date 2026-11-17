@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
+	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/translation"
 )
@@ -45,7 +46,10 @@ func (f *fakeAuthorClient) RefreshAuthor(ctx context.Context, id string) (biblio
 	return f.Author(ctx, id)
 }
 
-type translateCall struct{ text, from, to string }
+type translateCall struct {
+	text, from, to string
+	gender         translation.Gender
+}
 
 type fakeTranslator struct {
 	detected string
@@ -53,8 +57,8 @@ type fakeTranslator struct {
 	calls    []translateCall
 }
 
-func (f *fakeTranslator) Translate(_ context.Context, text, from, to string) (string, string, error) {
-	f.calls = append(f.calls, translateCall{text, from, to})
+func (f *fakeTranslator) Translate(_ context.Context, text, from, to string, gender translation.Gender) (string, string, error) {
+	f.calls = append(f.calls, translateCall{text, from, to, gender})
 	if f.err != nil {
 		return "", "", f.err
 	}
@@ -396,7 +400,7 @@ func TestBioRetrievesAndTranslatesBio(t *testing.T) {
 	if len(client.calls) != 1 || client.calls[0] != "3389.Stephen_King" {
 		t.Fatalf("expected one Goodreads author request, got %q", client.calls)
 	}
-	if len(translator.calls) != 1 || translator.calls[0] != (translateCall{html.UnescapeString(original), "en", "es"}) {
+	if len(translator.calls) != 1 || translator.calls[0] != (translateCall{html.UnescapeString(original), "en", "es", translation.GenderUnknown}) {
 		t.Fatalf("expected the plain text bio to be translated from its detected language, got %+v", translator.calls)
 	}
 	if bio != "[es] "+original {
@@ -425,6 +429,42 @@ func TestBioRetrievesAndTranslatesBio(t *testing.T) {
 	}
 	if last := idx.stored[len(idx.stored)-1]; last.Language != "en" || last.Text["fr"] != "[fr] "+original {
 		t.Errorf("expected the French translation to be stored, got %+v", last)
+	}
+}
+
+func TestBioTranslationUsesAuthorGender(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		gender float64
+		want   translation.Gender
+	}{
+		{"male", wikidata.GenderMale, translation.GenderMasculine},
+		{"female", wikidata.GenderFemale, translation.GenderFeminine},
+		{"transgender male", wikidata.GenderTrasgenderMale, translation.GenderMasculine},
+		{"transgender female", wikidata.GenderTrasgenderFemale, translation.GenderFeminine},
+		{"intersex", wikidata.GenderIntersex, translation.GenderUnknown},
+		{"unknown", wikidata.GenderUnknown, translation.GenderUnknown},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			translator := &fakeTranslator{}
+			provider := biblioreads.NewBioProvider(&fakeAuthorClient{}, translator, &fakeBioIndex{})
+			author := goodreadsAuthor(index.AuthorBio{
+				Source: "3389.Stephen_King", Language: "en",
+				Text: map[string]string{"en": "A writer wrote <i>many books</i> for readers."},
+			})
+			author.Gender = tt.gender
+			if _, _, err := provider.Bio(context.Background(), author, "es"); err != nil {
+				t.Fatal(err)
+			}
+			if len(translator.calls) != 3 {
+				t.Fatalf("expected three translated text fragments, got %d", len(translator.calls))
+			}
+			for _, call := range translator.calls {
+				if call.gender != tt.want {
+					t.Errorf("gender for %q: got %v, want %v", call.text, call.gender, tt.want)
+				}
+			}
+		})
 	}
 }
 

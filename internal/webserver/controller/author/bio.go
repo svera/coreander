@@ -48,13 +48,13 @@ func (a *Controller) RefreshBio(c fiber.Ctx) error {
 				target.User != nil || target.RawQuery != "" || target.Fragment != "" ||
 				!strings.HasPrefix(target.Path, "/author/show/") {
 				log.Printf("Invalid Goodreads author URL for %s: %q", c.Params("slug"), id)
-				return fiber.ErrBadRequest
+				return a.renderInvalidGoodreadsUpdate(c)
 			}
 			id = strings.TrimSuffix(strings.TrimPrefix(target.Path, "/author/show/"), "/")
 		}
 		if id != "" && !goodreadsAuthorID.MatchString(id) {
 			log.Printf("Invalid Goodreads author ID for %s: %q", c.Params("slug"), id)
-			return fiber.ErrBadRequest
+			return a.renderInvalidGoodreadsUpdate(c)
 		}
 		return a.renderBio(c, func(provider BioProvider, ctx context.Context, author index.Author, lang string) (string, string, error) {
 			return provider.UpdateBio(ctx, author, id, lang)
@@ -64,6 +64,37 @@ func (a *Controller) RefreshBio(c fiber.Ctx) error {
 }
 
 var goodreadsAuthorID = regexp.MustCompile(`^[1-9][0-9]*(?:[.][A-Za-z0-9_~-]+)?$`)
+
+func (a *Controller) renderInvalidGoodreadsUpdate(c fiber.Ctx) error {
+	lang := c.Locals("Lang").(string)
+	author, err := a.idx.Author(c.Params("slug"), lang)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+	if author.Name == "" {
+		return fiber.ErrNotFound
+	}
+	c.Status(fiber.StatusBadRequest)
+	return a.renderAuthorSummary(c, author, lang, true)
+}
+
+func (a *Controller) renderAuthorSummary(c fiber.Ctx, author index.Author, lang string, invalidGoodreadsID bool) error {
+	session, _ := c.Locals("Session").(model.Session)
+	vars := fiber.Map{
+		"Author": author, "Lang": lang, "Session": session,
+		"DataSourceLinks":    a.authorDataSourceLinks(author, lang),
+		"ImageVersion":       a.getImageVersion(author.Slug),
+		"InvalidGoodreadsID": invalidGoodreadsID,
+		"GoodreadsInput":     c.FormValue("goodreadsID"),
+	}
+	a.addBioVars(vars, "partials/author-summary", author, lang)
+	if err := c.Render("partials/author-summary", vars); err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+	return nil
+}
 
 type bioFunc func(BioProvider, context.Context, index.Author, string) (string, string, error)
 
@@ -99,17 +130,7 @@ func (a *Controller) renderBio(c fiber.Ctx, retrieve bioFunc) error {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
-		vars := fiber.Map{
-			"Author": author, "Lang": lang, "Session": session,
-			"DataSourceLinks": a.authorDataSourceLinks(author, lang),
-			"ImageVersion":    a.getImageVersion(author.Slug),
-		}
-		a.addBioVars(vars, "partials/author-summary", author, lang)
-		if err := c.Render("partials/author-summary", vars); err != nil {
-			log.Println(err)
-			return fiber.ErrInternalServerError
-		}
-		return nil
+		return a.renderAuthorSummary(c, author, lang, false)
 	}
 	if bio == "" && (!a.bioRefreshAvailable(author) || session.Role != model.RoleAdmin) {
 		return c.SendString("")

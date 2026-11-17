@@ -12,34 +12,38 @@ import (
 
 type fakeClient struct {
 	requests []string
+	genders  []googletranslate.Gender
 	detected string
 	err      error
+	empty    bool
 }
 
-func (f *fakeClient) Translate(_ context.Context, text, _, _ string) (*googletranslate.Translated, error) {
+func (f *fakeClient) TranslateWithGender(_ context.Context, text, _, _ string, gender googletranslate.Gender) (*googletranslate.Translated, error) {
 	f.requests = append(f.requests, text)
+	f.genders = append(f.genders, gender)
 	if f.err != nil {
 		return nil, f.err
 	}
-	// Mimic the service, which decodes the JSON request and adds spaces around line breaks.
+	if f.empty {
+		return &googletranslate.Translated{}, nil
+	}
 	var decoded string
 	if err := json.Unmarshal([]byte(`"`+text+`"`), &decoded); err != nil {
 		return nil, err
 	}
-	translated := strings.ReplaceAll(strings.ToUpper(decoded), "\n", " \n ")
-	result := &googletranslate.Translated{Text: translated}
+	result := &googletranslate.Translated{Text: strings.ReplaceAll(strings.ToUpper(decoded), "\n", " \n ")}
 	result.From.Language.Iso = f.detected
 	return result, nil
 }
 
 func TestTranslateEscapesTextAndKeepsLineBreaks(t *testing.T) {
 	client := &fakeClient{detected: "en"}
-	translated, from, err := (&Google{client: client}).Translate(context.Background(), "He wrote \"It\".\n\nThe end", AutoDetect, "es")
+	translated, from, err := (&Google{client: client}).Translate(context.Background(), "He wrote \"It\".\n\nThe end", AutoDetect, "es", GenderUnknown)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(client.requests) != 1 || client.requests[0] != `He wrote \"It\".\n\nThe end` {
-		t.Fatalf("text must be sent JSON-escaped in one request, got %q", client.requests)
+		t.Fatalf("text must be JSON-escaped in one request, got %q", client.requests)
 	}
 	if translated != "HE WROTE \"IT\".\n\nTHE END" || from != "en" {
 		t.Fatalf("unexpected translation %q from %q", translated, from)
@@ -48,18 +52,55 @@ func TestTranslateEscapesTextAndKeepsLineBreaks(t *testing.T) {
 
 func TestTranslateKeepsGivenSourceLanguage(t *testing.T) {
 	client := &fakeClient{detected: "fr"}
-	_, from, err := (&Google{client: client}).Translate(context.Background(), "Hola", "es", "en")
+	_, from, err := (&Google{client: client}).Translate(context.Background(), "Hola", "es", "en", GenderUnknown)
 	if err != nil || from != "es" {
 		t.Fatalf("expected the given source language, got %q, %v", from, err)
 	}
 }
 
+func TestTranslateKeepsGenderAcrossChunks(t *testing.T) {
+	client := &fakeClient{}
+	if _, _, err := (&Google{client: client}).Translate(context.Background(), strings.Repeat("A long sentence. ", 400), "en", "es", GenderMasculine); err != nil {
+		t.Fatal(err)
+	}
+	if len(client.genders) < 2 {
+		t.Fatal("expected more than one translation request")
+	}
+	for _, gender := range client.genders {
+		if gender != googletranslate.GenderMasculine {
+			t.Fatalf("gender was not preserved across chunks: %v", client.genders)
+		}
+	}
+}
+
+func TestTranslateMapsGender(t *testing.T) {
+	for _, tt := range []struct {
+		gender Gender
+		want   googletranslate.Gender
+	}{
+		{GenderUnknown, googletranslate.GenderUnknown},
+		{GenderMasculine, googletranslate.GenderMasculine},
+		{GenderFeminine, googletranslate.GenderFeminine},
+	} {
+		client := &fakeClient{}
+		if _, _, err := (&Google{client: client}).Translate(context.Background(), "Hello", "en", "es", tt.gender); err != nil {
+			t.Fatal(err)
+		}
+		if len(client.genders) != 1 || client.genders[0] != tt.want {
+			t.Errorf("gender %v: got %v, want %v", tt.gender, client.genders, tt.want)
+		}
+	}
+}
+
 func TestTranslateErrors(t *testing.T) {
-	if _, _, err := (&Google{client: &fakeClient{err: errors.New("boom")}}).Translate(context.Background(), "Hi", AutoDetect, "es"); err == nil {
+	if _, _, err := (&Google{client: &fakeClient{err: errors.New("boom")}}).Translate(context.Background(), "Hi", AutoDetect, "es", GenderUnknown); err == nil {
 		t.Error("expected client errors to be returned")
 	}
-	if _, _, err := (&Google{client: &fakeClient{}}).Translate(context.Background(), "Hi", AutoDetect, "es"); err == nil {
+	if _, _, err := (&Google{client: &fakeClient{}}).Translate(context.Background(), "Hi", AutoDetect, "es", GenderUnknown); err == nil {
 		t.Error("expected an error when the source language is not detected")
+	}
+	if _, _, err := (&Google{client: &fakeClient{empty: true}}).Translate(context.Background(), "Hi", "en", "es", GenderUnknown); err == nil {
+		t.Error("an empty translation must not be accepted")
 	}
 }
 

@@ -14,11 +14,20 @@ import (
 // AutoDetect asks the service to detect the source language.
 const AutoDetect = "auto"
 
+// Gender selects a matching translation when the service provides gendered alternatives.
+type Gender uint8
+
+const (
+	GenderUnknown Gender = iota
+	GenderMasculine
+	GenderFeminine
+)
+
 // maxChunkSize keeps requests below the service limit of 5000 characters per request.
 const maxChunkSize = 4500
 
 type client interface {
-	Translate(ctx context.Context, text, from, to string) (*googletranslate.Translated, error)
+	TranslateWithGender(ctx context.Context, text, from, to string, gender googletranslate.Gender) (*googletranslate.Translated, error)
 }
 
 // Google translates using the free Google Translate web endpoint.
@@ -33,16 +42,26 @@ func NewGoogle() *Google {
 // Translate translates text from the from language (or AutoDetect) to the to language, both ISO 639-1 codes.
 // It returns the translation and the source language, which is the detected one when from is AutoDetect.
 // Line breaks are preserved.
-func (g *Google) Translate(ctx context.Context, text, from, to string) (string, string, error) {
+func (g *Google) Translate(ctx context.Context, text, from, to string, gender Gender) (string, string, error) {
+	var preference googletranslate.Gender
+	switch gender {
+	case GenderMasculine:
+		preference = googletranslate.GenderMasculine
+	case GenderFeminine:
+		preference = googletranslate.GenderFeminine
+	}
 	var translated []string
 	for _, chunk := range chunks(text, maxChunkSize) {
 		if strings.TrimSpace(chunk) == "" {
 			translated = append(translated, chunk)
 			continue
 		}
-		result, err := g.client.Translate(ctx, escape(chunk), from, to)
+		result, err := g.client.TranslateWithGender(ctx, escape(chunk), from, to, preference)
 		if err != nil {
 			return "", "", fmt.Errorf("translating text from %s to %s: %w", from, to, err)
+		}
+		if result == nil || strings.TrimSpace(result.Text) == "" {
+			return "", "", fmt.Errorf("translating text from %s to %s: empty translation", from, to)
 		}
 		if from == AutoDetect {
 			if from = NormalizeLanguage(result.From.Language.Iso); from == "" {
@@ -60,8 +79,7 @@ func NormalizeLanguage(code string) string {
 	return strings.ToLower(code)
 }
 
-// escape works around the client embedding the text in a JSON string without escaping it,
-// which makes requests with quotes, backslashes or line breaks fail.
+// escape compensates for the library embedding text directly in a JSON string.
 func escape(text string) string {
 	encoded, _ := json.Marshal(text)
 	return string(encoded[1 : len(encoded)-1])
