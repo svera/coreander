@@ -108,7 +108,7 @@
         {{if or (not .Author.RetrievedOn.IsZero) .BioRefreshAvailable}}
             <div class="row g-0">
                 <div class="col-12 px-4">
-                    {{template "partials/author-update-form" dict "Lang" .Lang "Author" .Author "Style" "" "BioRefreshAvailable" .BioRefreshAvailable "InvalidGoodreadsID" .InvalidGoodreadsID "GoodreadsInput" .GoodreadsInput}}
+                    {{template "partials/author-update-form" dict "Lang" .Lang "Author" .Author "ProfileInputs" .ProfileInputs "InvalidProfile" .InvalidProfile}}
                 </div>
             </div>
         {{end}}

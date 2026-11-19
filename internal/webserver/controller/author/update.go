@@ -74,6 +74,7 @@ func (a *Controller) Update(c fiber.Ctx) error {
 		"ImageVersion":    a.getImageVersion(author.Slug),
 		"Lang":            lang,
 		"Session":         session,
+		"ProfileInputs":   a.profileInputs(author, c.Query("style"), "", ""),
 	}
 	a.addBioVars(templateVars, template, author, lang)
 

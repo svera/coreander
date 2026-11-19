@@ -365,11 +365,11 @@ func TestAuthorUpdateGuidance(t *testing.T) {
 				}
 				form := page.Find("#update-author-form-john-doe")
 				guidance := form.Find("p")
-				if guidance.Length() != 1 || !strings.Contains(guidance.Text(), "Wikidata") ||
-					strings.Contains(guidance.Text(), "Goodreads") != enabled {
-					t.Fatalf("%s: expected one guidance paragraph for available sources, got %q", lang, guidance.Text())
+				if guidance.Length() != 1 || strings.Contains(guidance.Text(), "Wikidata") ||
+					strings.Contains(guidance.Text(), "Goodreads") {
+					t.Fatalf("%s: expected service-neutral guidance, got %q", lang, guidance.Text())
 				}
-				if lang != "en" && strings.Contains(guidance.Text(), "Update the author's") {
+				if lang != "en" && guidance.Text() == "Update the author's external profile links below. The label on each field identifies its service." {
 					t.Fatalf("%s: guidance was not translated: %q", lang, guidance.Text())
 				}
 				if form.Find(`input[name="sourceID"][aria-label]`).Length() != 1 ||
@@ -378,8 +378,7 @@ func TestAuthorUpdateGuidance(t *testing.T) {
 				}
 				wikidataInput := form.Find(`input[name="sourceID"]`)
 				label := wikidataInput.AttrOr("aria-label", "")
-				if !strings.Contains(label, "Wikidata") || strings.Contains(label, "ID") ||
-					(lang != "en" && label == "Wikidata profile") {
+				if label == "" || (lang != "en" && label == "Wikidata profile") {
 					t.Fatalf("%s: expected a localized Wikidata profile label, got %q", lang, label)
 				}
 				if wikidataInput.Is("[pattern], [maxlength]") {
@@ -387,9 +386,10 @@ func TestAuthorUpdateGuidance(t *testing.T) {
 				}
 				if enabled {
 					goodreadsInput := form.Find(`input[name="goodreadsID"]`)
-					want := strings.Replace(label, "Wikidata", "Goodreads", 1)
-					if goodreadsInput.AttrOr("placeholder", "") != want || goodreadsInput.AttrOr("aria-label", "") != want {
-						t.Fatalf("%s: Goodreads placeholder and label must match Wikidata format", lang)
+					goodreadsLabel := goodreadsInput.AttrOr("aria-label", "")
+					if goodreadsInput.AttrOr("placeholder", "") != goodreadsLabel || goodreadsLabel == label ||
+						(lang != "en" && goodreadsLabel == "Goodreads profile") {
+						t.Fatalf("%s: each profile field must use its service-provided label", lang)
 					}
 				}
 			}
@@ -550,7 +550,7 @@ func TestAuthorBioRefresh(t *testing.T) {
 		form := page.Find("#author-john-doe #update-author-form-john-doe.show")
 		input := form.Find(`input[name="goodreadsID"][aria-invalid="true"]`)
 		if input.Length() != 1 || input.AttrOr("value", "") != invalid ||
-			form.Find(`#goodreads-error-john-doe[role="alert"]`).Length() != 1 {
+			form.Find(`#profile-error-john-doe[role="alert"]`).Length() != 1 {
 			t.Errorf("invalid ID %q must preserve the author card and input with a visible validation error", invalid)
 		}
 	}

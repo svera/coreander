@@ -18,6 +18,7 @@ import (
 
 // BioProvider retrieves author biographies in the reader's language.
 type BioProvider interface {
+	ProfileInputProvider
 	// StoredBio returns an indexed biography without network requests, and whether Bio must be called to get it.
 	// Both methods also return the original language of the biography if it is an automatic translation.
 	StoredBio(author index.Author, language string) (bio, translatedFrom string, pending bool)
@@ -76,17 +77,17 @@ func (a *Controller) renderInvalidGoodreadsUpdate(c fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 	c.Status(fiber.StatusBadRequest)
-	return a.renderAuthorSummary(c, author, lang, true)
+	return a.renderAuthorSummary(c, author, lang, "goodreadsID")
 }
 
-func (a *Controller) renderAuthorSummary(c fiber.Ctx, author index.Author, lang string, invalidGoodreadsID bool) error {
+func (a *Controller) renderAuthorSummary(c fiber.Ctx, author index.Author, lang, invalidProfile string) error {
 	session, _ := c.Locals("Session").(model.Session)
 	vars := fiber.Map{
 		"Author": author, "Lang": lang, "Session": session,
-		"DataSourceLinks":    a.authorDataSourceLinks(author, lang),
-		"ImageVersion":       a.getImageVersion(author.Slug),
-		"InvalidGoodreadsID": invalidGoodreadsID,
-		"GoodreadsInput":     c.FormValue("goodreadsID"),
+		"DataSourceLinks": a.authorDataSourceLinks(author, lang),
+		"ImageVersion":    a.getImageVersion(author.Slug),
+		"ProfileInputs":   a.profileInputs(author, "", invalidProfile, c.FormValue(invalidProfile)),
+		"InvalidProfile":  invalidProfile != "",
 	}
 	a.addBioVars(vars, "partials/author-summary", author, lang)
 	if err := c.Render("partials/author-summary", vars); err != nil {
@@ -130,7 +131,7 @@ func (a *Controller) renderBio(c fiber.Ctx, retrieve bioFunc) error {
 			log.Println(err)
 			return fiber.ErrInternalServerError
 		}
-		return a.renderAuthorSummary(c, author, lang, false)
+		return a.renderAuthorSummary(c, author, lang, "")
 	}
 	if bio == "" && (!a.bioRefreshAvailable(author) || session.Role != model.RoleAdmin) {
 		return c.SendString("")

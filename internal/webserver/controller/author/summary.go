@@ -50,6 +50,7 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 			"Author":          author,
 			"DataSourceLinks": a.authorDataSourceLinks(author, lang),
 			"ImageVersion":    imageVersion,
+			"ProfileInputs":   a.profileInputs(author, c.Query("style"), "", ""),
 		}
 		a.addBioVars(templateVars, template, author, lang)
 
@@ -78,6 +79,7 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 		"Author":          author,
 		"DataSourceLinks": a.authorDataSourceLinks(author, lang),
 		"ImageVersion":    imageVersion,
+		"ProfileInputs":   a.profileInputs(author, c.Query("style"), "", ""),
 	}
 	a.addBioVars(templateVars, template, author, lang)
 

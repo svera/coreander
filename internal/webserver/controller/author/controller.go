@@ -18,6 +18,32 @@ type DataSourceLinkProvider interface {
 	AuthorLink(author index.Author, language string) datasourcemodel.DataSourceLink
 }
 
+type ProfileInputProvider interface {
+	ProfileLabel() string
+	ProfileValue(author index.Author) string
+}
+
+type ProfileInput struct {
+	Name         string
+	Label        string
+	Value        string
+	Method       string
+	Action       string
+	FormID       string
+	Indicator    string
+	Disabled     string
+	Invalid      bool
+	ErrorMessage string
+	ErrorID      string
+}
+
+func NewProfileInput(provider ProfileInputProvider, author index.Author, name, method, action string) ProfileInput {
+	return ProfileInput{
+		Name: name, Label: provider.ProfileLabel(), Value: provider.ProfileValue(author),
+		Method: method, Action: action,
+	}
+}
+
 // IdxReader defines a set of author reading operations over an index
 type IdxReader interface {
 	SearchAuthors(searchFields index.AuthorSearchFields, page, resultsPerPage int) (result.Paginated[[]index.Author], error)
@@ -88,4 +114,29 @@ func DataSourceLinks(author index.Author, language string, providers ...DataSour
 		}
 	}
 	return links
+}
+
+func (a *Controller) profileInputs(author index.Author, style, invalidName, submittedValue string) []ProfileInput {
+	action := "/authors/" + author.Slug
+	if style == "clear" {
+		action += "?style=clear"
+	}
+	var inputs []ProfileInput
+	if a.dataSource != nil {
+		inputs = append(inputs, NewProfileInput(a.dataSource, author, "sourceID", "put", action))
+	}
+	if a.bioProvider != nil {
+		input := NewProfileInput(a.bioProvider, author, "goodreadsID", "post", "/authors/"+author.Slug+"/bio/refresh")
+		input.FormID = "author-bio-refresh"
+		input.Indicator = "#author-bio"
+		input.Disabled = "find button"
+		if invalidName == input.Name {
+			input.Value = submittedValue
+			input.Invalid = true
+			input.ErrorMessage = "Enter a valid profile URL or ID."
+			input.ErrorID = "profile-error-" + author.Slug
+		}
+		inputs = append(inputs, input)
+	}
+	return inputs
 }

@@ -47,6 +47,17 @@ func (WikidataSource) OwnsLink(key string) bool {
 	return (Author{}).OwnsLink(key)
 }
 
+func (WikidataSource) ProfileLabel() string {
+	return "Wikidata profile"
+}
+
+func (WikidataSource) ProfileValue(author index.Author) string {
+	if author.DataSourceID == "" {
+		return ""
+	}
+	return "https://www.wikidata.org/wiki/" + author.DataSourceID
+}
+
 func (WikidataSource) AuthorLink(author index.Author, language string) model.DataSourceLink {
 	url := author.DataSourceLinks["wikipedia:"+language]
 	if url == "" {

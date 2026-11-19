@@ -64,6 +64,17 @@ func NewBioProvider(client AuthorClient, translator Translator, idx BioIndex) *B
 	return &BioProvider{client: client, translator: translator, index: idx}
 }
 
+func (*BioProvider) ProfileLabel() string {
+	return "Goodreads profile"
+}
+
+func (*BioProvider) ProfileValue(author index.Author) string {
+	if id := author.DataSourceLinks[Source]; id != "" {
+		return goodreadsBaseURL + goodreadsAuthorPrefix + id
+	}
+	return ""
+}
+
 // StoredBio returns the indexed biography of author in language without making network requests.
 // translatedFrom is the original language of the biography if it is an automatic translation, empty otherwise.
 // pending reports that Bio has to be called to retrieve or translate it.
