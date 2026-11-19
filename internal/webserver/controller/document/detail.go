@@ -140,6 +140,9 @@ func (d *Controller) authorSummaryFor(authorSlug, lang string) authorSummary {
 	if err != nil {
 		log.Println(err)
 	}
+	if author.Slug == "" {
+		author.Slug = authorSlug
+	}
 
 	links := authorcontroller.DataSourceLinks(author, lang, d.linkProviders...)
 	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug), DataSourceLinks: links}

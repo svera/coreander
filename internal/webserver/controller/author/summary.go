@@ -66,14 +66,12 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	if authorDataSource == nil {
-		return fiber.ErrNotFound
-	}
+	if authorDataSource != nil {
+		index.CombineWithDataSource(&author, authorDataSource, supportedLanguages)
 
-	index.CombineWithDataSource(&author, authorDataSource, supportedLanguages)
-
-	if err := a.idx.IndexAuthor(author); err != nil {
-		log.Println(err)
+		if err := a.idx.IndexAuthor(author); err != nil {
+			log.Println(err)
+		}
 	}
 
 	templateVars := fiber.Map{

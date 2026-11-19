@@ -9,7 +9,7 @@
     <button type="button" class="btn btn-link p-0 mb-2 author-bio-toggle" hidden aria-expanded="false" aria-controls="author-bio-text" data-show-more="{{t .Lang "Show more"}}" data-show-less="{{t .Lang "Show less"}}">{{t .Lang "Show more"}}</button>
     {{end}}
     {{if .TranslatedFrom}}
-        <div class="small text-body-secondary fst-italic"><i class="bi-translate me-1"></i><a href="/authors/{{.Slug}}/bio?original=true&amp;l={{.Lang}}" hx-get="/authors/{{.Slug}}/bio?original=true&amp;l={{.Lang}}" hx-target="#author-bio" hx-swap="outerHTML" hx-indicator="#author-bio">{{t .Lang "Automatically translated. See in original language: %s" .TranslatedFrom}}</a></div>
+        <div class="small text-body-secondary fst-italic mt-2"><i class="bi-translate me-1"></i><a href="/authors/{{.Slug}}/bio?original=true&amp;l={{.Lang}}" hx-get="/authors/{{.Slug}}/bio?original=true&amp;l={{.Lang}}" hx-target="#author-bio" hx-swap="outerHTML" hx-indicator="#author-bio">{{t .Lang "Automatically translated. See in original language: %s" .TranslatedFrom}}</a></div>
     {{end}}
     </div>
     <div class="author-bio-loading placeholder-glow" aria-hidden="true">

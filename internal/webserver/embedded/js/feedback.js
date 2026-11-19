@@ -137,6 +137,19 @@ htmx.on('htmx:sendError', showBackgroundProgressError)
 htmx.on('htmx:responseError', showBackgroundProgressError)
 htmx.on('htmx:timeout', showBackgroundProgressError)
 
+function showAuthorSummaryError(evt) {
+    const placeholder = evt.detail?.elt?.closest('[data-author-summary-placeholder]')
+    if (!placeholder) {
+        return
+    }
+    placeholder.querySelector('[data-author-summary-loading]')?.remove()
+    placeholder.querySelector('[data-author-summary-error]').hidden = false
+}
+
+htmx.on('htmx:sendError', showAuthorSummaryError)
+htmx.on('htmx:responseError', showAuthorSummaryError)
+htmx.on('htmx:timeout', showAuthorSummaryError)
+
 const setUpWarningsListener = () => {
     document.querySelectorAll('[data-warning-once]').forEach((el) => {
         el.addEventListener('click', () => {

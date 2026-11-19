@@ -455,7 +455,8 @@ func TestAuthorSummary(t *testing.T) {
 	}{
 		{"Search for authors", "/authors/john-doe/summary", http.StatusOK, 1},
 		{"Search for authors not indexed", "/authors/not-found/summary", http.StatusNotFound, 0},
-		{"Search for authors indexed but not in Wikidata", "/authors/miguel-de-cervantes-y-saavedra/summary", http.StatusNotFound, 0},
+		{"Search for authors indexed but not in Wikidata", "/authors/miguel-de-cervantes-y-saavedra/summary", http.StatusOK, 0},
+		{"Document summary for authors not in Wikidata", "/authors/miguel-de-cervantes-y-saavedra/summary?style=clear", http.StatusOK, 0},
 	}
 
 	for _, tcase := range cases {
@@ -479,6 +480,12 @@ func TestAuthorSummary(t *testing.T) {
 			}
 			if actualResults := doc.Find("dt:contains('Date of birth')").Length(); actualResults != tcase.expectedDateOfBirth {
 				t.Errorf("Expected %d results, got %d", tcase.expectedDateOfBirth, actualResults)
+			}
+			if strings.Contains(tcase.url, "miguel-de-cervantes") {
+				if doc.Find("#author-miguel-de-cervantes-y-saavedra").Length() != 1 ||
+					!strings.Contains(doc.Text(), "Sorry, we don't have information about this author at the moment") {
+					t.Error("expected an author summary explaining that information is unavailable")
+				}
 			}
 		})
 	}

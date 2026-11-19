@@ -62,7 +62,7 @@
                 {{if not .Author.RetrievedOn.IsZero}}
                     {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" .Author "Session" $.Session "ImageVersion" .ImageVersion "DataSourceLinks" .DataSourceLinks}}
                 {{else}}
-                    {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" .Author.Slug}}
+                    {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" .Author.Slug "Lang" $.Lang}}
                 {{end}}
             {{end}}
         {{end}}
@@ -73,7 +73,7 @@
                 {{if not $entry.Author.RetrievedOn.IsZero}}
                     {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" $entry.Author "Session" $.Session "ImageVersion" $entry.ImageVersion "DataSourceLinks" $entry.DataSourceLinks}}
                 {{else}}
-                    {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" $entry.Author.Slug}}
+                    {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" $entry.Author.Slug "Lang" $.Lang}}
                 {{end}}
             {{end}}
         {{end}}
