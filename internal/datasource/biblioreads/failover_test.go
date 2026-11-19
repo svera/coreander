@@ -295,64 +295,52 @@ func TestAuthorVersionCacheExpiresAfterUpgrade(t *testing.T) {
 	}
 }
 
-func TestAuthorSkipsKnownIncompatibleInstances(t *testing.T) {
-	var firstHits, secondHits, total atomic.Int32
-	handler := func(hits *atomic.Int32) http.HandlerFunc {
-		return func(w http.ResponseWriter, _ *http.Request) {
-			hits.Add(1)
-			version := "BiblioReads v4.5.1"
-			if total.Add(1) == 1 {
-				version = "BiblioReads v4.5.0"
+func TestAuthorInstanceSelection(t *testing.T) {
+	for _, tt := range []struct {
+		name              string
+		firstIncompatible bool
+		wantTotal         int32
+		wantUnusedHits    int32
+	}{
+		{"known incompatible", true, 13, 1},
+		{"known compatible", false, 12, 0},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var firstHits, secondHits, total atomic.Int32
+			handler := func(hits *atomic.Int32) http.HandlerFunc {
+				return func(w http.ResponseWriter, _ *http.Request) {
+					hits.Add(1)
+					attempt := total.Add(1)
+					version := "BiblioReads v4.5.1"
+					if tt.firstIncompatible && attempt == 1 {
+						version = "BiblioReads v4.5.0"
+					}
+					if err := json.NewEncoder(w).Encode(AuthorResponse{Version: version, Desc: "biography"}); err != nil {
+						t.Errorf("encode author response: %v", err)
+					}
+				}
 			}
-			if err := json.NewEncoder(w).Encode(AuthorResponse{Version: version, Desc: "biography"}); err != nil {
-				t.Errorf("encode author response: %v", err)
+			first := httptest.NewServer(handler(&firstHits))
+			defer first.Close()
+			second := httptest.NewServer(handler(&secondHits))
+			defer second.Close()
+			client := newTestClient(WithInstances([]string{first.URL, second.URL}), WithCacheTTL(0))
+			for i := range 12 {
+				id := fmt.Sprint(i + 1)
+				var err error
+				if i%2 == 0 {
+					_, err = client.Author(context.Background(), id)
+				} else {
+					_, err = client.RefreshAuthor(context.Background(), id)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
-		}
-	}
-	first := httptest.NewServer(handler(&firstHits))
-	defer first.Close()
-	second := httptest.NewServer(handler(&secondHits))
-	defer second.Close()
-	client := newTestClient(WithInstances([]string{first.URL, second.URL}), WithCacheTTL(0))
-	for i := range 12 {
-		id := fmt.Sprint(i + 1)
-		var err error
-		if i%2 == 0 {
-			_, err = client.Author(context.Background(), id)
-		} else {
-			_, err = client.RefreshAuthor(context.Background(), id)
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	if total.Load() != 13 || (firstHits.Load() != 1 && secondHits.Load() != 1) {
-		t.Fatalf("expected one incompatible attempt then direct compatible lookups: first=%d second=%d", firstHits.Load(), secondHits.Load())
-	}
-}
-
-func TestAuthorPrefersKnownCompatibleInstance(t *testing.T) {
-	var firstHits, secondHits atomic.Int32
-	handler := func(hits *atomic.Int32) http.HandlerFunc {
-		return func(w http.ResponseWriter, _ *http.Request) {
-			hits.Add(1)
-			if err := json.NewEncoder(w).Encode(AuthorResponse{Version: "BiblioReads v4.5.1", Desc: "biography"}); err != nil {
-				t.Errorf("encode author response: %v", err)
+			if total.Load() != tt.wantTotal || (firstHits.Load() != tt.wantUnusedHits && secondHits.Load() != tt.wantUnusedHits) {
+				t.Fatalf("expected %d total requests and %d to the other instance: first=%d second=%d", tt.wantTotal, tt.wantUnusedHits, firstHits.Load(), secondHits.Load())
 			}
-		}
-	}
-	first := httptest.NewServer(handler(&firstHits))
-	defer first.Close()
-	second := httptest.NewServer(handler(&secondHits))
-	defer second.Close()
-	client := newTestClient(WithInstances([]string{first.URL, second.URL}), WithCacheTTL(0))
-	for i := range 12 {
-		if _, err := client.Author(context.Background(), fmt.Sprint(i+1)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if firstHits.Load()+secondHits.Load() != 12 || (firstHits.Load() != 0 && secondHits.Load() != 0) {
-		t.Fatalf("expected known compatible instance to be preferred: first=%d second=%d", firstHits.Load(), secondHits.Load())
+		})
 	}
 }
 
