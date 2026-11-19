@@ -6,5 +6,4 @@ type DataSourceLink struct {
 	Icon           string
 	IconClass      string
 	IconInvertible bool
-	Label          string
 }

@@ -98,7 +98,6 @@ func (WikidataSource) AuthorLink(author index.Author, language string) model.Dat
 		Source:    "Wikipedia",
 		URL:       url,
 		IconClass: "bi-wikipedia",
-		Label:     "Go to Wikipedia entry",
 	}
 }
 

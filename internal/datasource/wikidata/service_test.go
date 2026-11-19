@@ -95,7 +95,7 @@ func TestWikipediaDataSourceLink(t *testing.T) {
 		},
 	}, "es")
 	if link.Source != "Wikipedia" || link.URL != "https://es.wikipedia.org/wiki/Ejemplo" ||
-		link.IconClass != "bi-wikipedia" || link.Label != "Go to Wikipedia entry" {
+		link.IconClass != "bi-wikipedia" {
 		t.Fatalf("unexpected Wikipedia data-source link: %+v", link)
 	}
 	if missing := source.AuthorLink(index.Author{}, "en"); missing.URL != "" {

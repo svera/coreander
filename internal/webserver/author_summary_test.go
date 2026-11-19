@@ -289,9 +289,9 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 	}
 }
 
-type translatedDataSourceLinks struct{}
+type summaryDataSourceLinks struct{}
 
-func (translatedDataSourceLinks) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
+func (summaryDataSourceLinks) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
 	if author.DataSourceID == "" {
 		return datasourcemodel.DataSourceLink{}
 	}
@@ -301,23 +301,13 @@ func (translatedDataSourceLinks) AuthorLink(author index.Author, _ string) datas
 	}
 }
 
-func TestAuthorSummaryDataSourceLinkTranslations(t *testing.T) {
-	app, idx := newDataSourceProvidersTestApp(t, nil, nil, translatedDataSourceLinks{})
+func TestAuthorSummaryDataSourceLinks(t *testing.T) {
+	app, idx := newDataSourceProvidersTestApp(t, nil, nil, summaryDataSourceLinks{})
 	const (
 		authorURL    = "https://example.org/authors/"
 		wikipediaURL = "https://en.wikipedia.org/wiki/Alice_Borchardt"
 	)
-	locales := []struct {
-		lang           string
-		label          string
-		wikipediaLabel string
-	}{
-		{"en", "Go to Example catalog author page", "Go to Wikipedia entry"},
-		{"es", "Ir a la página del autor en Example catalog", "Ir al artículo en Wikipedia"},
-		{"de", "Zur Autorenseite auf Example catalog", "Zur Wikipedia-Seite"},
-		{"fr", "Voir la page de l'auteur sur Example catalog", "Aller à l'entrée Wikipedia"},
-		{"ru", "Перейти на страницу автора в Example catalog", "Перейти к статье в Википедии"},
-	}
+	locales := []string{"en", "es", "de", "fr", "ru"}
 	for _, tc := range []struct {
 		name          string
 		dataSourceID  string
@@ -334,8 +324,8 @@ func TestAuthorSummaryDataSourceLinkTranslations(t *testing.T) {
 			DataSourceLinks: map[string]string{"website": "https://author.example/" + tc.name},
 		}
 		if tc.wikipedia {
-			for _, locale := range locales {
-				author.DataSourceLinks["wikipedia:"+locale.lang] = strings.Replace(wikipediaURL, "en.wikipedia.org", locale.lang+".wikipedia.org", 1)
+			for _, lang := range locales {
+				author.DataSourceLinks["wikipedia:"+lang] = strings.Replace(wikipediaURL, "en.wikipedia.org", lang+".wikipedia.org", 1)
 			}
 		}
 		if err := idx.IndexAuthor(author); err != nil {
@@ -348,10 +338,10 @@ func TestAuthorSummaryDataSourceLinkTranslations(t *testing.T) {
 			{"summary", ""},
 			{"document-detail", "?style=clear"},
 		} {
-			for _, locale := range locales {
-				t.Run(tc.name+"/"+style.name+"/"+locale.lang, func(t *testing.T) {
+			for _, lang := range locales {
+				t.Run(tc.name+"/"+style.name+"/"+lang, func(t *testing.T) {
 					req := mustGetRequest(t, "/authors/"+tc.name+"/summary"+style.query)
-					req.Header.Set("Accept-Language", locale.lang)
+					req.Header.Set("Accept-Language", lang)
 					response, err := app.Test(req)
 					if err != nil {
 						t.Fatal(err)
@@ -362,17 +352,13 @@ func TestAuthorSummaryDataSourceLinkTranslations(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					wikipediaLink := page.Find(`a[href="https://` + locale.lang + `.wikipedia.org/wiki/Alice_Borchardt"]`)
+					wikipediaLink := page.Find(`a[href="https://` + lang + `.wikipedia.org/wiki/Alice_Borchardt"]`)
 					websiteLink := page.Find(`a[href="https://author.example/` + tc.name + `"]`)
 					if websiteLink.Length() != 1 || websiteLink.PrevFiltered("i.bi-globe-europe-africa").Length() != 1 {
 						t.Fatal("expected the stored website link and globe icon")
 					}
-					wikipediaLabel := locale.wikipediaLabel
-					if style.name == "summary" {
-						wikipediaLabel = "Wikipedia"
-					}
-					if tc.wikipedia && (wikipediaLink.Length() != 1 || strings.TrimSpace(wikipediaLink.Text()) != wikipediaLabel) {
-						t.Fatalf("expected Wikipedia data-source link %q, got %d links with text %q", wikipediaLabel, wikipediaLink.Length(), wikipediaLink.Text())
+					if tc.wikipedia && (wikipediaLink.Length() != 1 || strings.TrimSpace(wikipediaLink.Text()) != "Wikipedia") {
+						t.Fatalf("expected Wikipedia data-source link, got %d links with text %q", wikipediaLink.Length(), wikipediaLink.Text())
 					}
 					if tc.wikipedia && wikipediaLink.PrevFiltered("i.bi-wikipedia").Length() != 1 {
 						t.Fatal("expected the Wikipedia provider's Bootstrap icon")
@@ -387,18 +373,14 @@ func TestAuthorSummaryDataSourceLinkTranslations(t *testing.T) {
 						}
 						return
 					}
-					label := locale.label
-					if style.name == "summary" {
-						label = "Example catalog"
-					}
-					if link.Length() != 1 || strings.TrimSpace(link.Text()) != label {
-						t.Fatalf("expected one data-source link %q, got %d links with text %q", label, link.Length(), link.Text())
+					if link.Length() != 1 || strings.TrimSpace(link.Text()) != "Example catalog" {
+						t.Fatalf("expected one Example catalog data-source link, got %d links with text %q", link.Length(), link.Text())
 					}
 					if link.PrevFiltered("i.bi-bookmark").Length() != 1 {
 						t.Error("expected the provider's Bootstrap icon before the data-source link")
 					}
 					if tc.wikipedia {
-						wantWikipediaURL := strings.Replace(wikipediaURL, "en.wikipedia.org", locale.lang+".wikipedia.org", 1)
+						wantWikipediaURL := strings.Replace(wikipediaURL, "en.wikipedia.org", lang+".wikipedia.org", 1)
 						if href, _ := link.Parent().Prev().Find("a").Attr("href"); href != wantWikipediaURL {
 							t.Fatalf("expected data-source link immediately below Wikipedia, previous link is %q", href)
 						}
@@ -437,14 +419,12 @@ func TestDocumentAuthorProfileUsesMetadataSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, tc := range []struct {
-		path, label string
-	}{
-		{"/authors/jane-doe/summary", "Example catalog"},
-		{"/authors/jane-doe/summary?style=clear", "Go to Example catalog author page"},
-		{"/documents/unlinked", "Go to Example catalog author page"},
+	for _, path := range []string{
+		"/authors/jane-doe/summary",
+		"/authors/jane-doe/summary?style=clear",
+		"/documents/unlinked",
 	} {
-		response, err := getRequest(admin, app, tc.path, t)
+		response, err := getRequest(admin, app, path, t)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -454,10 +434,10 @@ func TestDocumentAuthorProfileUsesMetadataSource(t *testing.T) {
 			t.Fatal(err)
 		}
 		link := page.Find(`a[href="https://example.org/authors/jane-doe"]`)
-		if link.Length() != 1 || link.Text() != tc.label {
-			t.Fatalf("%s: expected provider label %q, got %q", tc.path, tc.label, link.Text())
+		if link.Length() != 1 || link.Text() != "Example catalog" {
+			t.Fatalf("%s: expected provider label Example catalog, got %q", path, link.Text())
 		}
-		if tc.path == "/documents/unlinked" {
+		if path == "/documents/unlinked" {
 			form := page.Find(`#update-author-form-jane-doe`)
 			input := form.Find(`form[hx-put="/authors/jane-doe?style=clear"] input[name="sourceID"]`)
 			if input.Length() != 1 || form.Find(`input[name="sourceID"]`).Length() != 1 ||
@@ -481,24 +461,22 @@ func TestAlternativeDataSourceLinks(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, tc := range []struct {
-		path, label string
-	}{
-		{"/authors/jane-doe", "Another source"},
-		{"/authors/jane-doe/summary", "Another source"},
-		{"/authors/jane-doe/summary?style=clear", "Go to Another source author page"},
-		{"/documents/unlinked", "Go to Another source author page"},
+	for _, path := range []string{
+		"/authors/jane-doe",
+		"/authors/jane-doe/summary",
+		"/authors/jane-doe/summary?style=clear",
+		"/documents/unlinked",
 	} {
-		page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, tc.path)))
+		page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, path)))
 		if err != nil {
 			t.Fatal(err)
 		}
 		link := page.Find(`a[href="https://example.org/authors/jane-doe"]`)
-		if link.Length() != 1 || link.Text() != tc.label {
-			t.Fatalf("%s: expected injected author data-source link %q, got %q", tc.path, tc.label, link.Text())
+		if link.Length() != 1 || link.Text() != "Another source" {
+			t.Fatalf("%s: expected injected author data-source link Another source, got %q", path, link.Text())
 		}
 		if page.Find(`img[src^="/images/goodreads.svg"]`).Length() != 0 {
-			t.Fatalf("%s: unexpected Goodreads branding", tc.path)
+			t.Fatalf("%s: unexpected Goodreads branding", path)
 		}
 	}
 	for path, wantLinks := range map[string]int{"/documents/linked/score": 2, "/documents/linked/reviews": 1} {
