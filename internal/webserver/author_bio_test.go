@@ -85,7 +85,7 @@ type alternateProfileInput struct{ *biblioreads.BioProvider }
 func (alternateProfileInput) ProfileInputName() string   { return "otherProfileID" }
 func (alternateProfileInput) ProfileServiceName() string { return "Other service" }
 
-func TestAuthorBioProfileInputFromProvider(t *testing.T) {
+func testAuthorBioAddProfile(t *testing.T) {
 	client, bioIndex := &bioAuthorClient{}, &lazyBioIndex{}
 	cfg := defaultTestConfig()
 	cfg.AuthorBioProvider = alternateProfileInput{biblioreads.NewBioProvider(client, nil, bioIndex)}
@@ -109,7 +109,7 @@ func TestAuthorBioProfileInputFromProvider(t *testing.T) {
 	}
 	page := parseHTMLResponse(t, response)
 	if page.Find(`input[name="otherProfileID"][aria-label="Other service profile"]`).Length() != 1 ||
-		page.Find(`input[name="goodreadsID"]`).Length() != 0 {
+		client.calls != 0 {
 		t.Fatal("profile input must use the biography provider's name and label")
 	}
 	for _, tc := range []struct {
@@ -136,8 +136,9 @@ func TestAuthorBioProfileInputFromProvider(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if author.DataSourceLinks["goodreads"] != "879" || client.calls != 1 {
-		t.Fatal("valid provider-specific input must update the biography")
+	if cfg.AuthorBioProvider.ProfileValue(author) == "" || author.Bio.Source != "879" ||
+		author.Bio.Text["en"] == "" || client.calls != 1 {
+		t.Fatal("adding a profile must store its link and biography")
 	}
 }
 
@@ -292,7 +293,16 @@ func TestAuthorBio(t *testing.T) {
 	}
 }
 
-func TestAuthorBioRefreshResults(t *testing.T) {
+func TestAuthorBioRefresh(t *testing.T) {
+	t.Run("results", testAuthorBioRefreshResults)
+	t.Run("permissions", testAuthorBioRefreshPermissions)
+	t.Run("profile-editing", func(t *testing.T) {
+		t.Run("add-profile", testAuthorBioAddProfile)
+		t.Run("update-profile", testAuthorBioProfileEditing)
+	})
+}
+
+func testAuthorBioRefreshResults(t *testing.T) {
 	for _, state := range []string{"empty", "populated"} {
 		t.Run(state, func(t *testing.T) {
 			client := &bioAuthorClient{}
@@ -347,43 +357,6 @@ func TestAuthorBioRefreshResults(t *testing.T) {
 				t.Fatalf("refresh must replace the biography and its translations: %+v", stored.Bio)
 			}
 		})
-	}
-}
-
-func TestAuthorBioAddGoodreadsID(t *testing.T) {
-	client := &bioAuthorClient{}
-	app, idx := newAuthorBioTestApp(t, client, &bioTranslator{})
-	author, err := idx.Author("john-doe", "en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	author.RetrievedOn = time.Now()
-	if err := idx.IndexAuthor(author); err != nil {
-		t.Fatal(err)
-	}
-	adminCookie, err := login(app, "admin@example.com", "admin", t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	response, err := getRequest(adminCookie, app, "/authors/john-doe/summary", t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := parseHTMLResponse(t, response)
-	if page.Find(`#author-bio-refresh input[name="goodreadsID"]`).Length() != 1 || client.calls != 0 {
-		t.Fatal("admins must be able to add a Goodreads ID without an existing link")
-	}
-	response, err = postRequest(url.Values{"goodreadsID": {"879"}}, adminCookie, app, "/authors/john-doe/bio", t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	response.Body.Close()
-	stored, err := idx.Author("john-doe", "en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if response.StatusCode != http.StatusOK || stored.DataSourceLinks["goodreads"] != "879" || stored.Bio.Text["en"] == "" {
-		t.Fatal("adding a Goodreads ID must store its link and biography")
 	}
 }
 
@@ -450,7 +423,7 @@ func TestAuthorUpdateGuidance(t *testing.T) {
 	}
 }
 
-func TestAuthorBioRefresh(t *testing.T) {
+func testAuthorBioRefreshPermissions(t *testing.T) {
 	client := &bioAuthorClient{}
 	app, idx := newAuthorBioTestApp(t, client, &bioTranslator{})
 
@@ -505,8 +478,26 @@ func TestAuthorBioRefresh(t *testing.T) {
 	if response.StatusCode != http.StatusForbidden || client.calls != 1 {
 		t.Fatalf("regular users must not refresh biographies, got status %d and %d requests", response.StatusCode, client.calls)
 	}
+}
 
-	response, err = getRequest(adminCookie, app, "/authors/john-doe", t)
+func testAuthorBioProfileEditing(t *testing.T) {
+	client := &bioAuthorClient{}
+	app, idx := newAuthorBioTestApp(t, client, &bioTranslator{})
+	author, err := idx.Author("john-doe", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author.DataSourceLinks = map[string]string{"goodreads": "1.John_Doe"}
+	author.RetrievedOn = time.Now()
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	getBody(t, app, "/authors/john-doe/bio?l=es")
+	adminCookie, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := getRequest(adminCookie, app, "/authors/john-doe", t)
 	if err != nil {
 		t.Fatal(err)
 	}
