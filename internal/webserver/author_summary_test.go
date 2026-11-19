@@ -385,6 +385,61 @@ func (alternativeDataSourceLinks) AuthorLink(author index.Author, _ string) data
 	return datasourcemodel.DataSourceLink{Source: "Another source", URL: "https://example.org/authors/" + author.Slug}
 }
 
+type editableAlternativeLinks struct{}
+
+func (editableAlternativeLinks) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
+	return datasourcemodel.DataSourceLink{
+		Source: "Example catalog", URL: "https://example.org/authors/" + author.Slug,
+		ShortLabel: "Catalog",
+	}
+}
+
+func (editableAlternativeLinks) ProfileServiceName() string       { return "Example catalog" }
+func (editableAlternativeLinks) ProfileValue(index.Author) string { return "catalog-profile" }
+
+func TestDocumentAuthorProfileUsesMetadataSource(t *testing.T) {
+	app, idx := newDataSourceProvidersTestApp(t, nil, nil, editableAlternativeLinks{})
+	if err := idx.IndexAuthor(index.Author{
+		Slug: "jane-doe", Name: "Jane Doe", DataSourceID: "Q1234", RetrievedOn: time.Now().UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	admin, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		path, label string
+	}{
+		{"/authors/jane-doe/summary", "Catalog"},
+		{"/authors/jane-doe/summary?style=clear", "Go to Example catalog author page"},
+		{"/documents/unlinked", "Go to Example catalog author page"},
+	} {
+		response, err := getRequest(admin, app, tc.path, t)
+		if err != nil {
+			t.Fatal(err)
+		}
+		page, err := goquery.NewDocumentFromReader(response.Body)
+		response.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		link := page.Find(`a[href="https://example.org/authors/jane-doe"]`)
+		if link.Length() != 1 || link.Text() != tc.label {
+			t.Fatalf("%s: expected provider label %q, got %q", tc.path, tc.label, link.Text())
+		}
+		if tc.path == "/documents/unlinked" {
+			form := page.Find(`#update-author-form-jane-doe`)
+			input := form.Find(`form[hx-put="/authors/jane-doe?style=clear"] input[name="sourceID"]`)
+			if input.Length() != 1 || form.Find(`input[name="sourceID"]`).Length() != 1 ||
+				input.AttrOr("value", "") != "https://www.wikidata.org/wiki/Q1234" ||
+				input.AttrOr("aria-label", "") != "Wikidata profile" {
+				t.Fatal("document detail must edit only the configured metadata source, not a link provider")
+			}
+		}
+	}
+}
+
 func TestAlternativeDataSourceLinks(t *testing.T) {
 	source := &fakeBookSource{book: biblioreads.BookResponse{
 		Rating: "4", ResourceID: "work", LegacyBookID: 1,

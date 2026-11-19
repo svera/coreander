@@ -288,7 +288,7 @@ const (
 	DefaultAuthorEnrichInterval   = time.Minute / AuthorEnrichRequestsPerMinute
 )
 
-// AuthorDataSource retrieves author metadata from an external source such as Wikidata.
+// AuthorDataSource retrieves author metadata from an external source.
 type AuthorDataSource interface {
 	SearchAuthor(name string, languages []string) (datasourcemodel.Author, error)
 	SearchEntityIDs(name string) ([]string, error)
@@ -350,7 +350,7 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 		return nil
 	}
 
-	log.Printf("Enriching %d authors from Wikidata", len(authors))
+	log.Printf("Enriching %d authors from data source", len(authors))
 
 	b.beginAuthorEnrichment(len(authors) * 2)
 	defer b.endAuthorEnrichment()
@@ -377,7 +377,7 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 
 		ids, err := dataSource.SearchEntityIDs(author.Name)
 		if err != nil {
-			log.Printf("Error searching author %s on Wikidata: %s", author.Name, err)
+			log.Printf("Error searching author %s in data source: %s", author.Name, err)
 			candidates[author.Slug] = nil
 		} else {
 			candidates[author.Slug] = ids

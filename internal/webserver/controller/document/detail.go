@@ -147,12 +147,8 @@ func (d *Controller) authorSummaryFor(authorSlug, lang string) authorSummary {
 
 	links := authorcontroller.DataSourceLinks(author, lang, d.linkProviders...)
 	var profileInputs []authorcontroller.ProfileInput
-	for _, provider := range d.linkProviders {
-		if profileProvider, ok := provider.(authorcontroller.ProfileInputProvider); ok {
-			profileInputs = append(profileInputs, authorcontroller.NewProfileInput(
-				profileProvider, author, "sourceID", "put", "/authors/"+author.Slug+"?style=clear",
-			))
-		}
+	if d.authorDataSource != nil {
+		profileInputs = append(profileInputs, authorcontroller.NewMetadataProfileInput(d.authorDataSource, author, "clear"))
 	}
 	return authorSummary{
 		Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug),

@@ -7,4 +7,5 @@ type DataSourceLink struct {
 	IconClass      string
 	IconInvertible bool
 	Label          string
+	ShortLabel     string
 }

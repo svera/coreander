@@ -44,6 +44,14 @@ func NewProfileInput(provider ProfileInputProvider, author index.Author, name, m
 	}
 }
 
+func NewMetadataProfileInput(provider ProfileInputProvider, author index.Author, style string) ProfileInput {
+	action := "/authors/" + author.Slug
+	if style == "clear" {
+		action += "?style=clear"
+	}
+	return NewProfileInput(provider, author, "sourceID", "put", action)
+}
+
 // IdxReader defines a set of author reading operations over an index
 type IdxReader interface {
 	SearchAuthors(searchFields index.AuthorSearchFields, page, resultsPerPage int) (result.Paginated[[]index.Author], error)
@@ -117,13 +125,9 @@ func DataSourceLinks(author index.Author, language string, providers ...DataSour
 }
 
 func (a *Controller) profileInputs(author index.Author, style, invalidName, submittedValue string) []ProfileInput {
-	action := "/authors/" + author.Slug
-	if style == "clear" {
-		action += "?style=clear"
-	}
 	var inputs []ProfileInput
 	if a.dataSource != nil {
-		inputs = append(inputs, NewProfileInput(a.dataSource, author, "sourceID", "put", action))
+		inputs = append(inputs, NewMetadataProfileInput(a.dataSource, author, style))
 	}
 	if a.bioProvider != nil {
 		input := NewProfileInput(a.bioProvider, author, a.bioProvider.ProfileInputName(), "post", "/authors/"+author.Slug+"/bio/refresh")

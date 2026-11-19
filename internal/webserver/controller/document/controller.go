@@ -103,11 +103,12 @@ type Controller struct {
 	appFs                 afero.Fs
 	translator            i18n.Translator
 	reviewProvider        ReviewProvider
+	authorDataSource      authorcontroller.ProfileInputProvider
 	linkProviders         []authorcontroller.DataSourceLinkProvider
 }
 
 // NewController creates a document controller. A nil reviewProvider disables scores and reviews.
-func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, annotationsRepository annotationsRepository, sender Sender, idx IdxReaderWriter, appFs afero.Fs, cfg Config, translator i18n.Translator, reviewProvider ReviewProvider, linkProviders ...authorcontroller.DataSourceLinkProvider) *Controller {
+func NewController(hlRepository highlightsRepository, usersRepository usersRepository, readingRepository readingRepository, annotationsRepository annotationsRepository, sender Sender, idx IdxReaderWriter, appFs afero.Fs, cfg Config, translator i18n.Translator, reviewProvider ReviewProvider, authorDataSource authorcontroller.ProfileInputProvider, linkProviders ...authorcontroller.DataSourceLinkProvider) *Controller {
 	return &Controller{
 		hlRepository:          hlRepository,
 		usersRepository:       usersRepository,
@@ -119,6 +120,7 @@ func NewController(hlRepository highlightsRepository, usersRepository usersRepos
 		appFs:                 appFs,
 		translator:            translator,
 		reviewProvider:        reviewProvider,
+		authorDataSource:      authorDataSource,
 		linkProviders:         linkProviders,
 	}
 }
