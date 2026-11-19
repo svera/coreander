@@ -119,7 +119,7 @@ func TestAuthorBioProfileInputFromProvider(t *testing.T) {
 		{"invalid", http.StatusBadRequest},
 		{"879", http.StatusOK},
 	} {
-		response, err = postRequest(url.Values{"otherProfileID": {tc.input}}, admin, app, "/authors/john-doe/bio/refresh", t)
+		response, err = postRequest(url.Values{"otherProfileID": {tc.input}}, admin, app, "/authors/john-doe/bio", t)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -334,7 +334,7 @@ func TestAuthorBioRefreshEmpty(t *testing.T) {
 			t.Fatalf("anonymous visitors must not see an empty bio refresh link in %s", path)
 		}
 	}
-	response, err := postRequest(url.Values{}, adminCookie, app, "/authors/john-doe/bio/refresh?l=es", t)
+	response, err := postRequest(url.Values{}, adminCookie, app, "/authors/john-doe/bio?l=es", t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +367,7 @@ func TestAuthorBioAddGoodreadsID(t *testing.T) {
 	if page.Find(`#author-bio-refresh input[name="goodreadsID"]`).Length() != 1 || client.calls != 0 {
 		t.Fatal("admins must be able to add a Goodreads ID without an existing link")
 	}
-	response, err = postRequest(url.Values{"goodreadsID": {"879"}}, adminCookie, app, "/authors/john-doe/bio/refresh", t)
+	response, err = postRequest(url.Values{"goodreadsID": {"879"}}, adminCookie, app, "/authors/john-doe/bio", t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -463,7 +463,7 @@ func TestAuthorBioRefresh(t *testing.T) {
 	if getPage(t, app, "/authors/john-doe").Find("#author-bio-refresh").Length() != 0 {
 		t.Error("only admins can refresh biographies")
 	}
-	response, err := postRequest(url.Values{}, &http.Cookie{Name: "anonymous"}, app, "/authors/john-doe/bio/refresh", t)
+	response, err := postRequest(url.Values{}, &http.Cookie{Name: "anonymous"}, app, "/authors/john-doe/bio", t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -491,7 +491,7 @@ func TestAuthorBioRefresh(t *testing.T) {
 			t.Errorf("regular users must see the bio but not the refresh link in %s", path)
 		}
 	}
-	response, err = postRequest(url.Values{}, regularCookie, app, "/authors/john-doe/bio/refresh", t)
+	response, err = postRequest(url.Values{}, regularCookie, app, "/authors/john-doe/bio", t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -505,7 +505,7 @@ func TestAuthorBioRefresh(t *testing.T) {
 		t.Fatal(err)
 	}
 	page := parseHTMLResponse(t, response)
-	if page.Find(`#author-john-doe #author-bio-refresh[hx-post="/authors/john-doe/bio/refresh"]`).Length() != 1 {
+	if page.Find(`#author-john-doe #author-bio-refresh[hx-post="/authors/john-doe/bio"]`).Length() != 1 {
 		t.Fatal("admins must see a form to update the biography")
 	}
 	if page.Find(`#update-author-form-john-doe.collapse form input[name="goodreadsID"]`).AttrOr("value", "") != "https://www.goodreads.com/author/show/1.John_Doe" ||
@@ -518,7 +518,7 @@ func TestAuthorBioRefresh(t *testing.T) {
 	}
 
 	client.desc = "John Doe is an American novelist and sailor who now lives in Boston with his family."
-	response, err = postRequest(url.Values{}, adminCookie, app, "/authors/john-doe/bio/refresh?l=es", t)
+	response, err = postRequest(url.Values{}, adminCookie, app, "/authors/john-doe/bio?l=es", t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -534,7 +534,7 @@ func TestAuthorBioRefresh(t *testing.T) {
 	if len(stored.Bio.Text) != 2 || !strings.HasPrefix(stored.Bio.Text["en"], "John Doe is an American novelist and sailor") {
 		t.Errorf("the refreshed bio must replace the stored one and its translations, got %+v", stored.Bio)
 	}
-	response, err = postRequest(url.Values{"goodreadsID": {"https://www.goodreads.com/author/show/879.Plato/"}}, adminCookie, app, "/authors/john-doe/bio/refresh?l=es", t)
+	response, err = postRequest(url.Values{"goodreadsID": {"https://www.goodreads.com/author/show/879.Plato/"}}, adminCookie, app, "/authors/john-doe/bio?l=es", t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -549,7 +549,7 @@ func TestAuthorBioRefresh(t *testing.T) {
 		t.Fatalf("updating the Goodreads ID must refresh the whole card and persist the new source, got %+v", stored.Bio)
 	}
 	for _, invalid := range []string{"0", "https://example.com/author/show/879"} {
-		response, err := postRequest(url.Values{"goodreadsID": {invalid}}, adminCookie, app, "/authors/john-doe/bio/refresh", t)
+		response, err := postRequest(url.Values{"goodreadsID": {invalid}}, adminCookie, app, "/authors/john-doe/bio", t)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -564,7 +564,7 @@ func TestAuthorBioRefresh(t *testing.T) {
 			t.Errorf("invalid ID %q must preserve the author card and input with a visible validation error", invalid)
 		}
 	}
-	response, err = postRequest(url.Values{"goodreadsID": {"  "}}, adminCookie, app, "/authors/john-doe/bio/refresh?l=es", t)
+	response, err = postRequest(url.Values{"goodreadsID": {"  "}}, adminCookie, app, "/authors/john-doe/bio?l=es", t)
 	if err != nil {
 		t.Fatal(err)
 	}

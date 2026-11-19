@@ -130,7 +130,7 @@ func (a *Controller) profileInputs(author index.Author, style, invalidName, subm
 		inputs = append(inputs, NewMetadataProfileInput(a.dataSource, author, style))
 	}
 	if a.bioProvider != nil {
-		input := NewProfileInput(a.bioProvider, author, a.bioProvider.ProfileInputName(), "post", "/authors/"+author.Slug+"/bio/refresh")
+		input := NewProfileInput(a.bioProvider, author, a.bioProvider.ProfileInputName(), "post", "/authors/"+author.Slug+"/bio")
 		input.FormID = "author-bio-refresh"
 		input.Indicator = "#author-bio"
 		input.Disabled = "find button"
