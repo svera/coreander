@@ -181,73 +181,81 @@ func TestReviewsLanguageFailsOverFromLegacyInstance(t *testing.T) {
 	}
 }
 
-func TestAuthorVersionFailover(t *testing.T) {
+func TestAuthorVersionCompatibility(t *testing.T) {
 	for _, tt := range []struct {
-		name   string
-		status int
-		body   string
+		name, version string
+		status        int
+		allowed       bool
 	}{
-		{"older", http.StatusOK, `{"version":"BiblioReads v4.5.0","desc":"truncated","name":"stale"}`},
-		{"prerelease", http.StatusOK, `{"version":"BiblioReads v4.5.1-rc.1","desc":"truncated"}`},
-		{"missing", http.StatusOK, `{"desc":"truncated"}`},
-		{"invalid", http.StatusOK, `{"version":"unknown","desc":"truncated"}`},
-		{"old error", http.StatusNotFound, `{"version":"BiblioReads v4.5.0","status":"Error - Invalid Query"}`},
-		{"unversioned error", http.StatusNotFound, `{"status":"Error - Invalid Query"}`},
+		{"missing", "", http.StatusOK, false},
+		{"invalid", "invalid", http.StatusOK, false},
+		{"older", "BiblioReads v4.5.0", http.StatusOK, false},
+		{"prerelease", "BiblioReads v4.5.1-rc.1", http.StatusOK, false},
+		{"minimum", "BiblioReads v4.5.1", http.StatusOK, true},
+		{"bare version", "v4.5.1", http.StatusOK, true},
+		{"newer patch", "BiblioReads v4.5.2", http.StatusOK, true},
+		{"newer major", "BiblioReads v5.0.0", http.StatusOK, true},
+		{"old error", "BiblioReads v4.5.0", http.StatusNotFound, false},
+		{"unversioned error", "", http.StatusNotFound, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			var hits atomic.Int32
-			client := newFailoverClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				if hits.Add(1) == 1 {
-					w.WriteHeader(tt.status)
-					_, _ = w.Write([]byte(tt.body))
-					return
+			for _, fallback := range []bool{false, true} {
+				if fallback && tt.allowed {
+					continue
 				}
-				_, _ = w.Write([]byte(`{"version":"BiblioReads v4.5.1","status":"Received","desc":"complete"}`))
-			}))
-			for range 2 {
-				response, err := client.Author(context.Background(), "1")
-				if err != nil || response.Desc != "complete" || response.Name != "" {
-					t.Fatalf("expected complete biography from compatible instance, got %+v, %v", response, err)
-				}
-			}
-			if hits.Load() != 2 {
-				t.Fatalf("expected failover and a cached compatible response, got %d requests", hits.Load())
-			}
-		})
-	}
-}
-
-func TestAuthorVersionRequirements(t *testing.T) {
-	for _, tt := range []struct {
-		version string
-		allowed bool
-	}{
-		{"", false}, {"invalid", false}, {"BiblioReads v4.5.0", false},
-		{"BiblioReads v4.5.1-rc.1", false}, {"BiblioReads v4.5.1", true},
-		{"v4.5.1", true}, {"BiblioReads v4.5.2", true}, {"BiblioReads v5.0.0", true},
-	} {
-		t.Run(tt.version, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == "/api/book-scraper" {
-					_, _ = w.Write([]byte(validBookResponse))
-					return
-				}
-				if err := json.NewEncoder(w).Encode(AuthorResponse{Version: tt.version, Desc: "biography"}); err != nil {
-					t.Errorf("encode author response: %v", err)
-				}
-			}))
-			defer server.Close()
-			client := newTestClient(WithInstances([]string{server.URL}))
-			response, err := client.Author(context.Background(), "1")
-			if tt.allowed {
-				if err != nil || response.Desc != "biography" {
-					t.Fatalf("expected supported response, got %+v, %v", response, err)
-				}
-			} else if !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), "v4.5.1") {
-				t.Fatalf("expected explicit version error, got %v", err)
-			}
-			if _, err := client.Book(context.Background(), "1"); err != nil {
-				t.Fatalf("author version restrictions must not disable book requests: %v", err)
+				t.Run(fmt.Sprintf("fallback=%t", fallback), func(t *testing.T) {
+					var hits atomic.Int32
+					handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						if r.URL.Path == bookScraperPath {
+							_, _ = w.Write([]byte(validBookResponse))
+							return
+						}
+						attempt := hits.Add(1)
+						response := AuthorResponse{Version: tt.version, Desc: "biography", Name: "original"}
+						status := tt.status
+						if status != http.StatusOK {
+							response.Status = "Error - Invalid Query"
+						}
+						if fallback && attempt > 1 {
+							response = AuthorResponse{Version: "BiblioReads v4.5.1", Desc: "complete"}
+							status = http.StatusOK
+						}
+						w.WriteHeader(status)
+						if err := json.NewEncoder(w).Encode(response); err != nil {
+							t.Errorf("encode author response: %v", err)
+						}
+					})
+					var client *Client
+					if fallback {
+						client = newFailoverClient(t, handler)
+					} else {
+						server := httptest.NewServer(handler)
+						t.Cleanup(server.Close)
+						client = newTestClient(WithInstances([]string{server.URL}))
+					}
+					requests := 1
+					wantDesc, wantName := "biography", "original"
+					if fallback {
+						requests = 2
+						wantDesc, wantName = "complete", ""
+					}
+					for range requests {
+						response, err := client.Author(context.Background(), "1")
+						if !tt.allowed && !fallback {
+							if !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), "v4.5.1") {
+								t.Fatalf("expected explicit version error, got %v", err)
+							}
+						} else if err != nil || response.Desc != wantDesc || response.Name != wantName {
+							t.Fatalf("expected compatible biography without stale fields, got %+v, %v", response, err)
+						}
+					}
+					if fallback && hits.Load() != 2 {
+						t.Fatalf("expected failover and a cached compatible response, got %d requests", hits.Load())
+					}
+					if _, err := client.Book(context.Background(), "1"); err != nil {
+						t.Fatalf("author version restrictions must not disable book requests: %v", err)
+					}
+				})
 			}
 		})
 	}

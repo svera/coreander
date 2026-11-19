@@ -28,6 +28,9 @@ const (
 	reviewsScraperPath = "/api/reviews-scraper"
 
 	authorVersionTTL = 24 * time.Hour
+
+	minAuthorBioVersion      = "v4.5.1"
+	minReviewLanguageVersion = "v4.4.0"
 )
 
 // ErrUnavailable is returned when no instance could serve a request (network errors, rate limits,
@@ -209,7 +212,7 @@ type incompatibleAuthorVersionError struct {
 }
 
 func (e *incompatibleAuthorVersionError) Error() string {
-	return fmt.Sprintf("author biographies require BiblioReads v4.5.1 or newer, got %q", e.version)
+	return fmt.Sprintf("author biographies require BiblioReads %s or newer, got %q", minAuthorBioVersion, e.version)
 }
 
 func (e *unavailableError) Error() string {
@@ -331,7 +334,7 @@ func decodeResponse(body []byte, payload, dest any) (bool, error) {
 		if err := json.Unmarshal(body, response); err != nil {
 			return false, err
 		}
-		if !supportsVersion(response.Version, "v4.5.1") {
+		if !supportsVersion(response.Version, minAuthorBioVersion) {
 			return false, &incompatibleAuthorVersionError{version: response.Version}
 		}
 		return true, nil
@@ -354,7 +357,7 @@ func decodeResponse(body []byte, payload, dest any) (bool, error) {
 			return false, fmt.Errorf("invalid reviews request payload %T", payload)
 		}
 		if request.LanguageCode != "" && !supportsReviewLanguage(response.Version) {
-			return false, fmt.Errorf("review language filtering requires BiblioReads v4.4.0 or newer, got %q", response.Version)
+			return false, fmt.Errorf("review language filtering requires BiblioReads %s or newer, got %q", minReviewLanguageVersion, response.Version)
 		}
 		if response.Status != "Received" || response.StatusCode != http.StatusOK || response.Reviews == nil ||
 			(request.NextPageToken == "" && response.TotalCount > 0 && len(response.Reviews) == 0) {
@@ -368,7 +371,7 @@ func decodeResponse(body []byte, payload, dest any) (bool, error) {
 }
 
 func supportsReviewLanguage(version string) bool {
-	return supportsVersion(version, "v4.4.0")
+	return supportsVersion(version, minReviewLanguageVersion)
 }
 
 func supportsVersion(version, minimum string) bool {
@@ -398,7 +401,7 @@ func (c *Client) acquireInstance(ctx context.Context, tried map[string]bool, wai
 			knownCompatible := false
 			if authorRequest {
 				if version, ok := c.authorVersions[candidate]; ok && now.Before(version.expiresAt) {
-					if !supportsVersion(version.version, "v4.5.1") {
+					if !supportsVersion(version.version, minAuthorBioVersion) {
 						incompatible = append(incompatible, fmt.Errorf("%s: %w", candidate, &incompatibleAuthorVersionError{version: version.version}))
 						continue
 					}
@@ -494,7 +497,7 @@ func (c *Client) postToInstance(ctx context.Context, endpoint string, body []byt
 				Version string `json:"version"`
 			}
 			if err := json.Unmarshal(resp.Body, &authorResponse); err == nil &&
-				!supportsVersion(authorResponse.Version, "v4.5.1") {
+				!supportsVersion(authorResponse.Version, minAuthorBioVersion) {
 				return nil, fmt.Errorf("%s: status code %d: %w", endpoint, resp.StatusCode, &incompatibleAuthorVersionError{version: authorResponse.Version})
 			}
 		}
