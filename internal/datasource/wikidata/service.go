@@ -95,11 +95,10 @@ func (WikidataSource) AuthorLink(author index.Author, language string) model.Dat
 		return model.DataSourceLink{}
 	}
 	return model.DataSourceLink{
-		Source:     "Wikipedia",
-		URL:        url,
-		IconClass:  "bi-wikipedia",
-		Label:      "Go to Wikipedia entry",
-		ShortLabel: "Wikipedia",
+		Source:    "Wikipedia",
+		URL:       url,
+		IconClass: "bi-wikipedia",
+		Label:     "Go to Wikipedia entry",
 	}
 }
 

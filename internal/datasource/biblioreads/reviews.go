@@ -47,9 +47,7 @@ func (b *ReviewProvider) AuthorLink(author index.Author, _ string) datasourcemod
 	if !authorIDPattern.MatchString(id) {
 		return goodreadsDataSourceLink("", goodreadsAuthorPrefix)
 	}
-	link := goodreadsDataSourceLink(goodreadsAuthorPrefix+id, goodreadsAuthorPrefix)
-	link.ShortLabel = Name
-	return link
+	return goodreadsDataSourceLink(goodreadsAuthorPrefix+id, goodreadsAuthorPrefix)
 }
 
 // DocumentLink returns the indexed book link without making a network request.

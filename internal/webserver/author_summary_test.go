@@ -387,8 +387,12 @@ func TestAuthorSummaryDataSourceLinkTranslations(t *testing.T) {
 						}
 						return
 					}
-					if link.Length() != 1 || strings.TrimSpace(link.Text()) != locale.label {
-						t.Fatalf("expected one localized data-source link %q, got %d links with text %q", locale.label, link.Length(), link.Text())
+					label := locale.label
+					if style.name == "summary" {
+						label = "Example catalog"
+					}
+					if link.Length() != 1 || strings.TrimSpace(link.Text()) != label {
+						t.Fatalf("expected one data-source link %q, got %d links with text %q", label, link.Length(), link.Text())
 					}
 					if link.PrevFiltered("i.bi-bookmark").Length() != 1 {
 						t.Error("expected the provider's Bootstrap icon before the data-source link")
@@ -416,7 +420,6 @@ type editableAlternativeLinks struct{}
 func (editableAlternativeLinks) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
 	return datasourcemodel.DataSourceLink{
 		Source: "Example catalog", URL: "https://example.org/authors/" + author.Slug,
-		ShortLabel: "Catalog",
 	}
 }
 
@@ -437,7 +440,7 @@ func TestDocumentAuthorProfileUsesMetadataSource(t *testing.T) {
 	for _, tc := range []struct {
 		path, label string
 	}{
-		{"/authors/jane-doe/summary", "Catalog"},
+		{"/authors/jane-doe/summary", "Example catalog"},
 		{"/authors/jane-doe/summary?style=clear", "Go to Example catalog author page"},
 		{"/documents/unlinked", "Go to Example catalog author page"},
 	} {
@@ -478,20 +481,24 @@ func TestAlternativeDataSourceLinks(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, path := range []string{
-		"/authors/jane-doe", "/authors/jane-doe/summary",
-		"/authors/jane-doe/summary?style=clear", "/documents/unlinked",
+	for _, tc := range []struct {
+		path, label string
+	}{
+		{"/authors/jane-doe", "Another source"},
+		{"/authors/jane-doe/summary", "Another source"},
+		{"/authors/jane-doe/summary?style=clear", "Go to Another source author page"},
+		{"/documents/unlinked", "Go to Another source author page"},
 	} {
-		page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, path)))
+		page, err := goquery.NewDocumentFromReader(strings.NewReader(getBody(t, app, tc.path)))
 		if err != nil {
 			t.Fatal(err)
 		}
 		link := page.Find(`a[href="https://example.org/authors/jane-doe"]`)
-		if link.Length() != 1 || link.Text() != "Go to Another source author page" {
-			t.Fatalf("%s: expected injected author data-source link, got %q", path, link.Text())
+		if link.Length() != 1 || link.Text() != tc.label {
+			t.Fatalf("%s: expected injected author data-source link %q, got %q", tc.path, tc.label, link.Text())
 		}
 		if page.Find(`img[src^="/images/goodreads.svg"]`).Length() != 0 {
-			t.Fatalf("%s: unexpected Goodreads branding", path)
+			t.Fatalf("%s: unexpected Goodreads branding", tc.path)
 		}
 	}
 	for path, wantLinks := range map[string]int{"/documents/linked/score": 2, "/documents/linked/reviews": 1} {
