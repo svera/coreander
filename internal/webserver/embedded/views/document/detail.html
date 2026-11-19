@@ -120,7 +120,7 @@
         </section>
         {{end}}
         {{if .ReviewsEnabled}}
-        <div id="document-reviews-{{.Document.Slug}}" class="mt-5">
+        <div id="document-reviews-{{.Document.Slug}}" class="mt-5" data-document-reviews hx-request='{"timeout":35000}'>
             {{if .DocumentLink.URL}}
             {{template "partials/document-reviews-header" dict "Lang" .Lang "Source" .DocumentLink.Source "BookURL" .DocumentLink.URL "Slug" .Document.Slug "SupportedLanguages" .SupportedLanguages "ReviewLanguage" .Lang}}
             {{end}}

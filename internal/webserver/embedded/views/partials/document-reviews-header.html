@@ -12,3 +12,7 @@
     </select>
     {{end}}
 </header>
+<div data-reviews-error hidden role="alert" class="mt-3">
+    <p>{{t .Lang "Unable to load user reviews."}}</p>
+    <button type="button" class="btn btn-secondary btn-sm" hx-get="/documents/{{.Slug}}/reviews" hx-target="closest [data-document-reviews]" hx-swap="outerHTML" hx-disabled-elt="this" hx-indicator="closest [data-document-reviews]"{{if gt (len .SupportedLanguages) 1}} hx-include="#review-language-{{.Slug}}"{{end}}>{{t .Lang "Try again"}}</button>
+</div>

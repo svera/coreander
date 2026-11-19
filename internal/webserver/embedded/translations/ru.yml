@@ -432,6 +432,7 @@
 "Review information is incomplete. Score filters may omit documents whose ratings have not been retrieved.": "Информация об оценках неполная. Фильтры по оценкам могут пропускать документы, оценки которых ещё не получены."
 "Unable to retrieve background progress.": "Не удалось получить состояние фоновых задач."
 "Unable to load author information.": "Не удалось загрузить информацию об авторе."
+"Unable to load user reviews.": "Не удалось загрузить отзывы пользователей."
 "Try again": "Попробовать снова"
 "Automatically translated. See in original language: %s": "Автоматический перевод. Посмотреть на языке оригинала: %s"
 "Refresh biography": "Обновить биографию"

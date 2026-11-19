@@ -439,6 +439,7 @@
 "Review information is incomplete. Score filters may omit documents whose ratings have not been retrieved.": "Bewertungsinformationen sind unvollständig. Bewertungsfilter können Dokumente auslassen, deren Bewertungen noch nicht abgerufen wurden."
 "Unable to retrieve background progress.": "Der Fortschritt der Hintergrundaufgaben konnte nicht abgerufen werden."
 "Unable to load author information.": "Die Autoreninformationen konnten nicht geladen werden."
+"Unable to load user reviews.": "Die Nutzerrezensionen konnten nicht geladen werden."
 "Try again": "Erneut versuchen"
 "Automatically translated. See in original language: %s": "Automatisch übersetzt. In der Originalsprache ansehen: %s"
 "Refresh biography": "Biografie aktualisieren"

@@ -1,4 +1,4 @@
-<section id="document-reviews-{{.Slug}}" class="document-reviews mt-5">
+<section id="document-reviews-{{.Slug}}" class="document-reviews mt-5" data-document-reviews hx-request='{"timeout":35000}'>
     {{template "partials/document-reviews-header" .}}
     <div class="document-reviews-content">
     {{if not .Unavailable}}
