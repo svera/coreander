@@ -19,13 +19,13 @@ type DataSourceLinkProvider interface {
 }
 
 type ProfileInputProvider interface {
-	ProfileLabel() string
+	ProfileServiceName() string
 	ProfileValue(author index.Author) string
 }
 
 type ProfileInput struct {
 	Name         string
-	Label        string
+	ServiceName  string
 	Value        string
 	Method       string
 	Action       string
@@ -39,7 +39,7 @@ type ProfileInput struct {
 
 func NewProfileInput(provider ProfileInputProvider, author index.Author, name, method, action string) ProfileInput {
 	return ProfileInput{
-		Name: name, Label: provider.ProfileLabel(), Value: provider.ProfileValue(author),
+		Name: name, ServiceName: provider.ProfileServiceName(), Value: provider.ProfileValue(author),
 		Method: method, Action: action,
 	}
 }

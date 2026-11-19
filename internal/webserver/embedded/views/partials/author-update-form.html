@@ -16,7 +16,7 @@
             <form{{if .FormID}} id="{{.FormID}}"{{end}} hx-post="{{.Action}}" hx-target="#author-{{$.Author.Slug}}" hx-swap="outerHTML"{{if .Indicator}} hx-indicator="{{.Indicator}}"{{end}}{{if .Disabled}} hx-disabled-elt="{{.Disabled}}"{{end}}>
             {{end}}
                 <div class="input-group input-group-sm">
-                    <input class="form-control{{if .Invalid}} is-invalid{{end}}" type="text" name="{{.Name}}" value="{{.Value}}" placeholder="{{t $.Lang .Label}}" aria-label="{{t $.Lang .Label}}"{{if .Invalid}} aria-invalid="true" aria-describedby="{{.ErrorID}}"{{end}}>
+                    <input class="form-control{{if .Invalid}} is-invalid{{end}}" type="text" name="{{.Name}}" value="{{.Value}}" placeholder="{{t $.Lang "%s profile" .ServiceName}}" aria-label="{{t $.Lang "%s profile" .ServiceName}}"{{if .Invalid}} aria-invalid="true" aria-describedby="{{.ErrorID}}"{{end}}>
                     <button type="submit" class="btn btn-secondary">{{t $.Lang "Update"}}</button>
                 </div>
                 {{if .Invalid}}<p class="text-danger small mt-1" id="{{.ErrorID}}" role="alert">{{t $.Lang .ErrorMessage}}</p>{{end}}

@@ -64,8 +64,8 @@ func NewBioProvider(client AuthorClient, translator Translator, idx BioIndex) *B
 	return &BioProvider{client: client, translator: translator, index: idx}
 }
 
-func (*BioProvider) ProfileLabel() string {
-	return "Goodreads profile"
+func (*BioProvider) ProfileServiceName() string {
+	return "Goodreads"
 }
 
 func (*BioProvider) ProfileValue(author index.Author) string {

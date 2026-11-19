@@ -47,8 +47,8 @@ func (WikidataSource) OwnsLink(key string) bool {
 	return (Author{}).OwnsLink(key)
 }
 
-func (WikidataSource) ProfileLabel() string {
-	return "Wikidata profile"
+func (WikidataSource) ProfileServiceName() string {
+	return "Wikidata"
 }
 
 func (WikidataSource) ProfileValue(author index.Author) string {
