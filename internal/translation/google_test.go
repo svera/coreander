@@ -2,7 +2,6 @@ package translation
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -27,25 +26,22 @@ func (f *fakeClient) TranslateWithGender(_ context.Context, text, _, _ string, g
 	if f.empty {
 		return &googletranslate.Translated{}, nil
 	}
-	var decoded string
-	if err := json.Unmarshal([]byte(`"`+text+`"`), &decoded); err != nil {
-		return nil, err
-	}
-	result := &googletranslate.Translated{Text: strings.ReplaceAll(strings.ToUpper(decoded), "\n", " \n ")}
+	result := &googletranslate.Translated{Text: strings.ToUpper(text)}
 	result.From.Language.Iso = f.detected
 	return result, nil
 }
 
-func TestTranslateEscapesTextAndKeepsLineBreaks(t *testing.T) {
-	client := &fakeClient{detected: "en"}
-	translated, from, err := (&Google{client: client}).Translate(context.Background(), "He wrote \"It\".\n\nThe end", AutoDetect, "es", GenderUnknown)
+func TestTranslatePassesTextUnchanged(t *testing.T) {
+	client := &fakeClient{detected: "en-US"}
+	text := "He wrote \"It\".\\\n\n" + strings.Repeat("A long sentence. ", 400)
+	translated, from, err := (&Google{client: client}).Translate(context.Background(), text, AutoDetect, "es", GenderUnknown)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(client.requests) != 1 || client.requests[0] != `He wrote \"It\".\n\nThe end` {
-		t.Fatalf("text must be JSON-escaped in one request, got %q", client.requests)
+	if len(client.requests) != 1 || client.requests[0] != text {
+		t.Fatal("text must reach the library unchanged in one call")
 	}
-	if translated != "HE WROTE \"IT\".\n\nTHE END" || from != "en" {
+	if translated != strings.ToUpper(text) || from != "en" {
 		t.Fatalf("unexpected translation %q from %q", translated, from)
 	}
 }
@@ -55,21 +51,6 @@ func TestTranslateKeepsGivenSourceLanguage(t *testing.T) {
 	_, from, err := (&Google{client: client}).Translate(context.Background(), "Hola", "es", "en", GenderUnknown)
 	if err != nil || from != "es" {
 		t.Fatalf("expected the given source language, got %q, %v", from, err)
-	}
-}
-
-func TestTranslateKeepsGenderAcrossChunks(t *testing.T) {
-	client := &fakeClient{}
-	if _, _, err := (&Google{client: client}).Translate(context.Background(), strings.Repeat("A long sentence. ", 400), "en", "es", GenderMasculine); err != nil {
-		t.Fatal(err)
-	}
-	if len(client.genders) < 2 {
-		t.Fatal("expected more than one translation request")
-	}
-	for _, gender := range client.genders {
-		if gender != googletranslate.GenderMasculine {
-			t.Fatalf("gender was not preserved across chunks: %v", client.genders)
-		}
 	}
 }
 
@@ -109,27 +90,5 @@ func TestNormalizeLanguage(t *testing.T) {
 		if got := NormalizeLanguage(code); got != want {
 			t.Errorf("NormalizeLanguage(%q) = %q, want %q", code, got, want)
 		}
-	}
-}
-
-func TestChunks(t *testing.T) {
-	text := "First line.\n\nSecond sentence. Third sentence is long.\nLast"
-	for _, size := range []int{5, 12, 20, 1000} {
-		parts := chunks(text, size)
-		for _, part := range parts {
-			if len(part) > size && size >= 12 {
-				t.Errorf("size %d: chunk %q is too long", size, part)
-			}
-		}
-		if size >= 1000 && (len(parts) != 1 || parts[0] != text) {
-			t.Errorf("short texts must not be split, got %q", parts)
-		}
-		joined := strings.Join(parts, "\n")
-		if strings.Count(joined, "\n\n") < 1 || strings.ReplaceAll(strings.ReplaceAll(joined, "\n", ""), " ", "") != strings.ReplaceAll(strings.ReplaceAll(text, "\n", ""), " ", "") {
-			t.Errorf("size %d: chunks must keep the text and its paragraphs, got %q", size, parts)
-		}
-	}
-	if parts := chunks("ñññ", 3); strings.Join(parts, "") != "ñññ" {
-		t.Errorf("chunks must not split runes, got %q", parts)
 	}
 }

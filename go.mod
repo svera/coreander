@@ -130,4 +130,4 @@ require (
 
 replace github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.3
 
-replace gopkg.gilang.dev/translator/v2 => github.com/svera/translator/v2 v2.0.0-20261117092957-281f783d5a46
+replace gopkg.gilang.dev/translator/v2 => github.com/svera/translator/v2 v2.0.0-20261119111224-4b3e0c866ec8

@@ -3,10 +3,8 @@ package translation
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
-	"unicode/utf8"
 
 	"gopkg.gilang.dev/translator/v2/googletranslate"
 )
@@ -22,9 +20,6 @@ const (
 	GenderMasculine
 	GenderFeminine
 )
-
-// maxChunkSize keeps requests below the service limit of 5000 characters per request.
-const maxChunkSize = 4500
 
 type client interface {
 	TranslateWithGender(ctx context.Context, text, from, to string, gender googletranslate.Gender) (*googletranslate.Translated, error)
@@ -50,86 +45,26 @@ func (g *Google) Translate(ctx context.Context, text, from, to string, gender Ge
 	case GenderFeminine:
 		preference = googletranslate.GenderFeminine
 	}
-	var translated []string
-	for _, chunk := range chunks(text, maxChunkSize) {
-		if strings.TrimSpace(chunk) == "" {
-			translated = append(translated, chunk)
-			continue
-		}
-		result, err := g.client.TranslateWithGender(ctx, escape(chunk), from, to, preference)
-		if err != nil {
-			return "", "", fmt.Errorf("translating text from %s to %s: %w", from, to, err)
-		}
-		if result == nil || strings.TrimSpace(result.Text) == "" {
-			return "", "", fmt.Errorf("translating text from %s to %s: empty translation", from, to)
-		}
-		if from == AutoDetect {
-			if from = NormalizeLanguage(result.From.Language.Iso); from == "" {
-				return "", "", fmt.Errorf("translating text to %s: source language not detected", to)
-			}
-		}
-		translated = append(translated, trimLines(result.Text))
+	if strings.TrimSpace(text) == "" {
+		return text, from, nil
 	}
-	return strings.Join(translated, "\n"), from, nil
+	result, err := g.client.TranslateWithGender(ctx, text, from, to, preference)
+	if err != nil {
+		return "", "", fmt.Errorf("translating text from %s to %s: %w", from, to, err)
+	}
+	if result == nil || strings.TrimSpace(result.Text) == "" {
+		return "", "", fmt.Errorf("translating text from %s to %s: empty translation", from, to)
+	}
+	if from == AutoDetect {
+		if from = NormalizeLanguage(result.From.Language.Iso); from == "" {
+			return "", "", fmt.Errorf("translating text to %s: source language not detected", to)
+		}
+	}
+	return result.Text, from, nil
 }
 
 // NormalizeLanguage reduces language tags such as "zh-CN" to lowercase ISO 639-1 codes.
 func NormalizeLanguage(code string) string {
 	code, _, _ = strings.Cut(strings.TrimSpace(code), "-")
 	return strings.ToLower(code)
-}
-
-// escape compensates for the library embedding text directly in a JSON string.
-func escape(text string) string {
-	encoded, _ := json.Marshal(text)
-	return string(encoded[1 : len(encoded)-1])
-}
-
-// trimLines removes the spaces the service adds around line breaks.
-func trimLines(text string) string {
-	lines := strings.Split(text, "\n")
-	for i, line := range lines {
-		lines[i] = strings.TrimSpace(line)
-	}
-	return strings.Join(lines, "\n")
-}
-
-// chunks splits text at line breaks, or at sentence and word boundaries for longer lines,
-// so each chunk has at most size bytes. Joining the chunks with line breaks restores the text
-// layout.
-func chunks(text string, size int) []string {
-	var (
-		result  []string
-		current []string
-	)
-	length := -1
-	for line := range strings.SplitSeq(text, "\n") {
-		for _, part := range splitLine(line, size) {
-			if len(current) > 0 && length+1+len(part) > size {
-				result = append(result, strings.Join(current, "\n"))
-				current, length = nil, -1
-			}
-			current = append(current, part)
-			length += 1 + len(part)
-		}
-	}
-	return append(result, strings.Join(current, "\n"))
-}
-
-func splitLine(line string, size int) []string {
-	var parts []string
-	for len(line) > size {
-		cut := strings.LastIndex(line[:size], ". ")
-		if cut > 0 {
-			cut++
-		} else if cut = strings.LastIndex(line[:size], " "); cut <= 0 {
-			cut = size
-			for cut > 0 && !utf8.RuneStart(line[cut]) {
-				cut--
-			}
-		}
-		parts = append(parts, strings.TrimSpace(line[:cut]))
-		line = strings.TrimSpace(line[cut:])
-	}
-	return append(parts, line)
 }
