@@ -16,6 +16,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
+	"github.com/svera/coreander/v5/internal/biography"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
@@ -221,7 +222,7 @@ func main() {
 	biblioReads := biblioreads.NewReviewProvider(biblioreadsClient, biblioReadsAdapter)
 	if biblioreadsClient != nil {
 		reviewProvider = biblioReads
-		webserverConfig.AuthorBioProvider = biblioreads.NewBioProvider(biblioreadsClient, translation.NewGoogle(), idx)
+		webserverConfig.AuthorBioProvider = biography.NewService(biblioreads.NewBioSource(biblioreadsClient), translation.NewGoogle(), idx)
 	}
 	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, reviewProvider, dataSource, biblioReads)
 	usersRepository := &model.UserRepository{DB: db}

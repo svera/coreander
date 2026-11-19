@@ -6,6 +6,16 @@ import (
 	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
+// Gender values are persisted in the author index; keep their numeric values stable.
+const (
+	GenderUnknown = iota
+	GenderMale
+	GenderFemale
+	GenderIntersex
+	GenderTransgenderFemale
+	GenderTransgenderMale
+)
+
 type Author interface {
 	BirthName() string
 	Description(language string) string

@@ -10,6 +10,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v3"
+	"github.com/svera/coreander/v5/internal/biography"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/precisiondate"
@@ -60,11 +61,11 @@ func (l *lazyBioIndex) StoreCanonicalAuthorBio(slug, linkKey, previousLink strin
 	return l.idx.StoreCanonicalAuthorBio(slug, linkKey, previousLink, bio)
 }
 
-func newAuthorBioTestApp(t *testing.T, client *bioAuthorClient, translator biblioreads.Translator) (*fiber.App, *index.BleveIndexer) {
+func newAuthorBioTestApp(t *testing.T, client *bioAuthorClient, translator biography.Translator) (*fiber.App, *index.BleveIndexer) {
 	t.Helper()
 	bioIndex := &lazyBioIndex{}
 	cfg := defaultTestConfig()
-	cfg.AuthorBioProvider = biblioreads.NewBioProvider(client, translator, bioIndex)
+	cfg.AuthorBioProvider = biography.NewService(biblioreads.NewBioSource(client), translator, bioIndex)
 	app, idx := bootstrapAppWithIndexer(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), cfg)
 	bioIndex.idx = idx
 	return app, idx
@@ -80,7 +81,7 @@ func parseHTMLResponse(t *testing.T, response *http.Response) *goquery.Document 
 	return page
 }
 
-type alternateProfileInput struct{ *biblioreads.BioProvider }
+type alternateProfileInput struct{ *biography.Service }
 
 func (alternateProfileInput) ProfileInputName() string   { return "otherProfileID" }
 func (alternateProfileInput) ProfileServiceName() string { return "Other service" }
@@ -88,7 +89,7 @@ func (alternateProfileInput) ProfileServiceName() string { return "Other service
 func testAuthorBioAddProfile(t *testing.T) {
 	client, bioIndex := &bioAuthorClient{}, &lazyBioIndex{}
 	cfg := defaultTestConfig()
-	cfg.AuthorBioProvider = alternateProfileInput{biblioreads.NewBioProvider(client, nil, bioIndex)}
+	cfg.AuthorBioProvider = alternateProfileInput{biography.NewService(biblioreads.NewBioSource(client), nil, bioIndex)}
 	app, idx := bootstrapAppWithIndexer(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), cfg)
 	bioIndex.idx = idx
 	author, err := idx.Author("john-doe", "en")
@@ -366,7 +367,7 @@ func TestAuthorUpdateGuidance(t *testing.T) {
 			cfg := defaultTestConfig()
 			bioIndex := &lazyBioIndex{}
 			if enabled {
-				cfg.AuthorBioProvider = biblioreads.NewBioProvider(&bioAuthorClient{}, &bioTranslator{}, bioIndex)
+				cfg.AuthorBioProvider = biography.NewService(biblioreads.NewBioSource(&bioAuthorClient{}), &bioTranslator{}, bioIndex)
 			}
 			app, idx := bootstrapAppWithIndexer(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), cfg)
 			bioIndex.idx = idx
