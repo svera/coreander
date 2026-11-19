@@ -46,8 +46,8 @@ type Translator interface {
 }
 
 type BioIndex interface {
-	StoreAuthorBioForSource(slug, source string, bio index.AuthorBio, merge bool) error
-	StoreCanonicalAuthorBio(slug, previousSource string, bio index.AuthorBio) error
+	StoreAuthorBioForLink(slug, linkKey, expectedLink string, bio index.AuthorBio, merge bool) error
+	StoreCanonicalAuthorBio(slug, linkKey, previousLink string, bio index.AuthorBio) error
 }
 
 // BioProvider retrieves author biographies from Goodreads and translates them to the reader's language.
@@ -131,19 +131,19 @@ func (p *BioProvider) RefreshBio(ctx context.Context, author index.Author, langu
 type storeFunc func(slug string, bio index.AuthorBio) error
 
 func (p *BioProvider) bioStore(author index.Author, merge bool) storeFunc {
-	previousSource := author.DataSourceLinks[Source]
+	previousLink := author.DataSourceLinks[Source]
 	return func(slug string, bio index.AuthorBio) error {
-		if bio.Source != previousSource {
-			return p.index.StoreCanonicalAuthorBio(slug, previousSource, bio)
+		if bio.Source != previousLink {
+			return p.index.StoreCanonicalAuthorBio(slug, Source, previousLink, bio)
 		}
-		return p.index.StoreAuthorBioForSource(slug, previousSource, bio, merge)
+		return p.index.StoreAuthorBioForLink(slug, Source, previousLink, bio, merge)
 	}
 }
 
 // UpdateBio retrieves a biography from a new Goodreads profile, saving the link with the result.
 func (p *BioProvider) UpdateBio(ctx context.Context, author index.Author, id, language string) (string, string, error) {
 	if id == "" {
-		if err := p.index.StoreCanonicalAuthorBio(author.Slug, author.DataSourceLinks[Source], index.AuthorBio{}); err != nil {
+		if err := p.index.StoreCanonicalAuthorBio(author.Slug, Source, author.DataSourceLinks[Source], index.AuthorBio{}); err != nil {
 			return "", "", fmt.Errorf("clearing Goodreads author link: %w", err)
 		}
 		return "", "", nil

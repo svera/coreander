@@ -75,12 +75,12 @@ type fakeBioIndex struct {
 	previousSource string
 }
 
-func (f *fakeBioIndex) StoreCanonicalAuthorBio(slug, previousSource string, bio index.AuthorBio) error {
+func (f *fakeBioIndex) StoreCanonicalAuthorBio(slug, _, previousSource string, bio index.AuthorBio) error {
 	f.previousSource = previousSource
 	return f.ReplaceAuthorBio(slug, bio)
 }
 
-func (f *fakeBioIndex) StoreAuthorBioForSource(slug, source string, bio index.AuthorBio, merge bool) error {
+func (f *fakeBioIndex) StoreAuthorBioForLink(slug, _, _ string, bio index.AuthorBio, merge bool) error {
 	if merge {
 		return f.StoreAuthorBio(slug, bio)
 	}

@@ -124,34 +124,35 @@ func TestReplaceAuthorBio(t *testing.T) {
 func TestStoreCanonicalAuthorBio(t *testing.T) {
 	idx := newAuthorsTestIndex(t)
 	const variant = "18647721.Plat_n"
+	const linkKey = "external-profile"
 	author := index.Author{Slug: "platon", Name: "Platón", DataSourceLinks: map[string]string{
-		"goodreads": variant, "website": "https://example.com",
+		linkKey: variant, "website": "https://example.com",
 	}}
 	if err := idx.IndexAuthor(author); err != nil {
 		t.Fatal(err)
 	}
 	bio := index.AuthorBio{Source: "879.Plato", Language: "en", Text: map[string]string{"en": "Primary bio"}}
-	if err := idx.StoreCanonicalAuthorBio(author.Slug, variant, bio); err != nil {
+	if err := idx.StoreCanonicalAuthorBio(author.Slug, linkKey, variant, bio); err != nil {
 		t.Fatal(err)
 	}
 	stored, err := idx.Author(author.Slug, "en")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.DataSourceLinks["goodreads"] != bio.Source || stored.Bio.Source != bio.Source || !maps.Equal(stored.Bio.Text, bio.Text) || stored.DataSourceLinks["website"] != "https://example.com" || stored.Name != author.Name {
-		t.Fatalf("canonical resolution must update only the Goodreads link and bio: %+v", stored)
+	if stored.DataSourceLinks[linkKey] != bio.Source || stored.Bio.Source != bio.Source || !maps.Equal(stored.Bio.Text, bio.Text) || stored.DataSourceLinks["website"] != "https://example.com" || stored.Name != author.Name {
+		t.Fatalf("canonical resolution must update only the profile link and bio: %+v", stored)
 	}
-	if err := idx.StoreCanonicalAuthorBio(author.Slug, variant, index.AuthorBio{Source: "999"}); err == nil {
+	if err := idx.StoreCanonicalAuthorBio(author.Slug, linkKey, variant, index.AuthorBio{Source: "999"}); err == nil {
 		t.Fatal("a stale resolution must not overwrite a changed author link")
 	}
-	if err := idx.StoreCanonicalAuthorBio(author.Slug, bio.Source, index.AuthorBio{}); err != nil {
+	if err := idx.StoreCanonicalAuthorBio(author.Slug, linkKey, bio.Source, index.AuthorBio{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := idx.StoreAuthorBioForSource(author.Slug, bio.Source, bio, false); err == nil {
+	if err := idx.StoreAuthorBioForLink(author.Slug, linkKey, bio.Source, bio, false); err == nil {
 		t.Fatal("a stale biography must not restore a cleared source")
 	}
 	stored, err = idx.Author(author.Slug, "en")
-	if err != nil || stored.DataSourceLinks["goodreads"] != "" || stored.DataSourceLinks["website"] != "https://example.com" || stored.Bio.Source != "" {
-		t.Fatalf("clearing Goodreads must preserve other author data: %+v, %v", stored, err)
+	if err != nil || stored.DataSourceLinks[linkKey] != "" || stored.DataSourceLinks["website"] != "https://example.com" || stored.Bio.Source != "" {
+		t.Fatalf("clearing the profile link must preserve other author data: %+v, %v", stored, err)
 	}
 }

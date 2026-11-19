@@ -20,7 +20,7 @@ type Author struct {
 	Description  map[string]string
 	DateOfBirth  precisiondate.PrecisionDate
 	DateOfDeath  precisiondate.PrecisionDate
-	// DataSourceLinks contains provider-owned references; the Goodreads author reference is an ID.
+	// DataSourceLinks contains references owned by external data sources.
 	DataSourceLinks map[string]string
 	DataSourceImage string
 	Gender          float64
@@ -34,8 +34,8 @@ type Author struct {
 
 // AuthorBio is a biography retrieved from an external source, along with its translations.
 type AuthorBio struct {
-	// Source identifies the Goodreads author profile the biography was retrieved from. A non-empty Source
-	// with no texts means the source has no biography for the author.
+	// Source identifies the external profile the biography was retrieved from. A non-empty Source with
+	// no texts means the source has no biography for the author.
 	Source string
 	// Language is the detected language of the original text, stored in Text[Language].
 	Language string

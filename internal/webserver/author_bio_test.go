@@ -47,16 +47,16 @@ func (l *lazyBioIndex) StoreAuthorBio(slug string, bio index.AuthorBio) error {
 	return l.idx.StoreAuthorBio(slug, bio)
 }
 
-func (l *lazyBioIndex) StoreAuthorBioForSource(slug, source string, bio index.AuthorBio, merge bool) error {
-	return l.idx.StoreAuthorBioForSource(slug, source, bio, merge)
+func (l *lazyBioIndex) StoreAuthorBioForLink(slug, linkKey, expectedLink string, bio index.AuthorBio, merge bool) error {
+	return l.idx.StoreAuthorBioForLink(slug, linkKey, expectedLink, bio, merge)
 }
 
 func (l *lazyBioIndex) ReplaceAuthorBio(slug string, bio index.AuthorBio) error {
 	return l.idx.ReplaceAuthorBio(slug, bio)
 }
 
-func (l *lazyBioIndex) StoreCanonicalAuthorBio(slug, previousSource string, bio index.AuthorBio) error {
-	return l.idx.StoreCanonicalAuthorBio(slug, previousSource, bio)
+func (l *lazyBioIndex) StoreCanonicalAuthorBio(slug, linkKey, previousLink string, bio index.AuthorBio) error {
+	return l.idx.StoreCanonicalAuthorBio(slug, linkKey, previousLink, bio)
 }
 
 func TestAuthorDetailCardLayout(t *testing.T) {

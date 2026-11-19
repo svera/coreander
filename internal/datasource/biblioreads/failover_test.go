@@ -1,4 +1,4 @@
-package biblioreads_test
+package biblioreads
 
 import (
 	"context"
@@ -7,13 +7,36 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 )
+
+const validBookResponse = `{"status":"Received","statusCode":200,"rating":"3.92","resourceID":"work-id","legacyBookID":5898652}`
+
+func newTestClient(opts ...Option) *Client {
+	return NewClient(append([]Option{WithRequestInterval(0)}, opts...)...)
+}
+
+func newFailoverClient(t *testing.T, handler http.Handler) *Client {
+	t.Helper()
+	first := httptest.NewServer(handler)
+	t.Cleanup(first.Close)
+	second := httptest.NewServer(handler)
+	t.Cleanup(second.Close)
+	return newTestClient(WithInstances([]string{first.URL, second.URL}))
+}
+
+func readFixture(t *testing.T, name string) []byte {
+	t.Helper()
+	contents, err := os.ReadFile("fixtures/" + name)
+	if err != nil {
+		t.Fatalf("couldn't read fixture %s: %v", name, err)
+	}
+	return contents
+}
 
 func TestBookResponseRecovery(t *testing.T) {
 	for _, tt := range []struct {
@@ -133,9 +156,9 @@ func TestReviewsEmptyFallbackSurvivesInvalidResponse(t *testing.T) {
 func TestReviewsLanguageFailsOverFromLegacyInstance(t *testing.T) {
 	var hits atomic.Int32
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := biblioreads.ReviewsResponse{
+		response := ReviewsResponse{
 			Status: "Received", StatusCode: http.StatusOK, TotalCount: 1,
-			Reviews: []biblioreads.Review{{Text: "An unfiltered English review"}},
+			Reviews: []Review{{Text: "An unfiltered English review"}},
 		}
 		if hits.Add(1) > 1 {
 			response.Version = "BiblioReads v4.4.0"
@@ -211,19 +234,19 @@ func TestAuthorVersionRequirements(t *testing.T) {
 					_, _ = w.Write([]byte(validBookResponse))
 					return
 				}
-				if err := json.NewEncoder(w).Encode(biblioreads.AuthorResponse{Version: tt.version, Desc: "biography"}); err != nil {
+				if err := json.NewEncoder(w).Encode(AuthorResponse{Version: tt.version, Desc: "biography"}); err != nil {
 					t.Errorf("encode author response: %v", err)
 				}
 			}))
 			defer server.Close()
-			client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
+			client := newTestClient(WithInstances([]string{server.URL}))
 			for range 2 {
 				response, err := client.Author(context.Background(), "1")
 				if tt.allowed {
 					if err != nil || response.Desc != "biography" {
 						t.Fatalf("expected supported response, got %+v, %v", response, err)
 					}
-				} else if !errors.Is(err, biblioreads.ErrUnavailable) || !strings.Contains(err.Error(), "v4.5.1") {
+				} else if !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), "v4.5.1") {
 					t.Fatalf("expected explicit version error, got %v", err)
 				}
 			}
@@ -237,6 +260,41 @@ func TestAuthorVersionRequirements(t *testing.T) {
 	}
 }
 
+func TestAuthorVersionCacheExpiresAfterUpgrade(t *testing.T) {
+	var upgraded atomic.Bool
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		if upgraded.Load() {
+			_, _ = w.Write([]byte(`{"version":"BiblioReads v4.5.1","desc":"complete"}`))
+		} else {
+			_, _ = w.Write([]byte(`{"version":"BiblioReads v4.5.0","desc":"truncated"}`))
+		}
+	}))
+	defer server.Close()
+	client := NewClient(WithInstances([]string{server.URL}), WithRequestInterval(0), WithCacheTTL(0))
+	if _, err := client.Author(context.Background(), "1"); !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), "v4.5.1") {
+		t.Fatalf("expected incompatible version error, got %v", err)
+	}
+	upgraded.Store(true)
+	if _, err := client.RefreshAuthor(context.Background(), "1"); !errors.Is(err, ErrUnavailable) || hits.Load() != 1 {
+		t.Fatalf("known incompatible instance must be skipped: %v, hits %d", err, hits.Load())
+	}
+	client.mu.Lock()
+	cached := client.authorVersions[server.URL]
+	if remaining := time.Until(cached.expiresAt); remaining < 23*time.Hour || remaining > 24*time.Hour {
+		client.mu.Unlock()
+		t.Fatalf("expected author version to be remembered for 24 hours, got %v", remaining)
+	}
+	cached.expiresAt = time.Now().Add(-time.Second)
+	client.authorVersions[server.URL] = cached
+	client.mu.Unlock()
+	response, err := client.Author(context.Background(), "1")
+	if err != nil || response.Desc != "complete" || hits.Load() != 2 {
+		t.Fatalf("upgraded instance must be retried after expiry: %+v, %v, hits %d", response, err, hits.Load())
+	}
+}
+
 func TestAuthorSkipsKnownIncompatibleInstances(t *testing.T) {
 	var firstHits, secondHits, total atomic.Int32
 	handler := func(hits *atomic.Int32) http.HandlerFunc {
@@ -246,7 +304,7 @@ func TestAuthorSkipsKnownIncompatibleInstances(t *testing.T) {
 			if total.Add(1) == 1 {
 				version = "BiblioReads v4.5.0"
 			}
-			if err := json.NewEncoder(w).Encode(biblioreads.AuthorResponse{Version: version, Desc: "biography"}); err != nil {
+			if err := json.NewEncoder(w).Encode(AuthorResponse{Version: version, Desc: "biography"}); err != nil {
 				t.Errorf("encode author response: %v", err)
 			}
 		}
@@ -255,7 +313,7 @@ func TestAuthorSkipsKnownIncompatibleInstances(t *testing.T) {
 	defer first.Close()
 	second := httptest.NewServer(handler(&secondHits))
 	defer second.Close()
-	client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
+	client := newTestClient(WithInstances([]string{first.URL, second.URL}), WithCacheTTL(0))
 	for i := range 12 {
 		id := fmt.Sprint(i + 1)
 		var err error
@@ -278,7 +336,7 @@ func TestAuthorPrefersKnownCompatibleInstance(t *testing.T) {
 	handler := func(hits *atomic.Int32) http.HandlerFunc {
 		return func(w http.ResponseWriter, _ *http.Request) {
 			hits.Add(1)
-			if err := json.NewEncoder(w).Encode(biblioreads.AuthorResponse{Version: "BiblioReads v4.5.1", Desc: "biography"}); err != nil {
+			if err := json.NewEncoder(w).Encode(AuthorResponse{Version: "BiblioReads v4.5.1", Desc: "biography"}); err != nil {
 				t.Errorf("encode author response: %v", err)
 			}
 		}
@@ -287,7 +345,7 @@ func TestAuthorPrefersKnownCompatibleInstance(t *testing.T) {
 	defer first.Close()
 	second := httptest.NewServer(handler(&secondHits))
 	defer second.Close()
-	client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
+	client := newTestClient(WithInstances([]string{first.URL, second.URL}), WithCacheTTL(0))
 	for i := range 12 {
 		if _, err := client.Author(context.Background(), fmt.Sprint(i+1)); err != nil {
 			t.Fatal(err)
@@ -310,7 +368,7 @@ func TestFailover(t *testing.T) {
 
 		instances := []string{down.URL, unavailable.URL, rateLimited.URL, html.URL, working.URL}
 		for range 20 {
-			client := newTestClient(biblioreads.WithInstances(instances), biblioreads.WithCacheTTL(0))
+			client := newTestClient(WithInstances(instances), WithCacheTTL(0))
 			res, err := client.Book(context.Background(), "12207444")
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -329,7 +387,7 @@ func TestFailover(t *testing.T) {
 		first := newCountingServer(t, http.StatusOK, validBookResponse, &firstHits)
 		second := newCountingServer(t, http.StatusOK, validBookResponse, &secondHits)
 
-		client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(WithInstances([]string{first.URL, second.URL}), WithCacheTTL(0))
 		for range 100 {
 			if _, err := client.Book(context.Background(), "1"); err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -345,12 +403,12 @@ func TestFailover(t *testing.T) {
 		first := newCountingServer(t, http.StatusNotFound, `{"status":"Error - Invalid Query"}`, &hits)
 		second := newCountingServer(t, http.StatusNotFound, `{"status":"Error - Invalid Query"}`, &hits)
 
-		client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(WithInstances([]string{first.URL, second.URL}), WithCacheTTL(0))
 		_, err := client.Book(context.Background(), "0")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if errors.Is(err, biblioreads.ErrUnavailable) {
+		if errors.Is(err, ErrUnavailable) {
 			t.Errorf("expected a non-ErrUnavailable error, got %v", err)
 		}
 		if hits.Load() != 1 {
@@ -363,8 +421,8 @@ func TestFailover(t *testing.T) {
 		first := newCountingServer(t, http.StatusServiceUnavailable, "", &hits)
 		second := newCountingServer(t, http.StatusServiceUnavailable, "", &hits)
 
-		client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
-		if _, err := client.Book(context.Background(), "1"); !errors.Is(err, biblioreads.ErrUnavailable) {
+		client := newTestClient(WithInstances([]string{first.URL, second.URL}), WithCacheTTL(0))
+		if _, err := client.Book(context.Background(), "1"); !errors.Is(err, ErrUnavailable) {
 			t.Fatalf("expected ErrUnavailable, got %v", err)
 		}
 		if hits.Load() != 2 {
@@ -379,7 +437,7 @@ func TestFailover(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(WithInstances([]string{first.URL, second.URL}), WithCacheTTL(0))
 		if _, err := client.Book(ctx, "1"); err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -393,7 +451,7 @@ func TestCooldown(t *testing.T) {
 	t.Run("errors put the instance into cooldown", func(t *testing.T) {
 		var hits atomic.Int32
 		server := newCountingServer(t, http.StatusGatewayTimeout, `{"status":"Error - Book not found"}`, &hits)
-		client := newTestClient(biblioreads.WithInstances([]string{server.URL}))
+		client := newTestClient(WithInstances([]string{server.URL}))
 
 		for range 3 {
 			if _, err := client.Book(context.Background(), "0"); err == nil {
@@ -410,7 +468,7 @@ func TestCooldown(t *testing.T) {
 		bad := newCountingServer(t, http.StatusBadGateway, "<html>Bad Gateway</html>", &badHits)
 		good := newCountingServer(t, http.StatusOK, validBookResponse, &goodHits)
 
-		client := newTestClient(biblioreads.WithInstances([]string{bad.URL, good.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(WithInstances([]string{bad.URL, good.URL}), WithCacheTTL(0))
 		for range 20 {
 			if _, err := client.Book(context.Background(), "1"); err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -437,7 +495,7 @@ func TestCooldown(t *testing.T) {
 		t.Cleanup(limited.Close)
 		other := newCountingServer(t, http.StatusOK, validBookResponse, &otherHits)
 
-		client := newTestClient(biblioreads.WithInstances([]string{limited.URL, other.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(WithInstances([]string{limited.URL, other.URL}), WithCacheTTL(0))
 		for limitedHits.Load() == 0 {
 			if _, err := client.Book(context.Background(), "1"); err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -475,11 +533,11 @@ func TestCooldown(t *testing.T) {
 		}))
 		t.Cleanup(flaky.Close)
 
-		client := newTestClient(biblioreads.WithInstances([]string{flaky.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(WithInstances([]string{flaky.URL}), WithCacheTTL(0))
 		if _, err := client.Book(context.Background(), "1"); err == nil {
 			t.Fatal("expected error on first request, got nil")
 		}
-		if _, err := client.Book(context.Background(), "1"); !errors.Is(err, biblioreads.ErrUnavailable) {
+		if _, err := client.Book(context.Background(), "1"); !errors.Is(err, ErrUnavailable) {
 			t.Fatalf("expected unavailable during cooldown, got %v", err)
 		}
 		time.Sleep(1100 * time.Millisecond)
@@ -494,7 +552,7 @@ func TestCooldown(t *testing.T) {
 		first := newCountingServer(t, http.StatusNotFound, notFound, &firstHits)
 		second := newCountingServer(t, http.StatusNotFound, notFound, &secondHits)
 
-		client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(WithInstances([]string{first.URL, second.URL}), WithCacheTTL(0))
 		for range 20 {
 			if _, err := client.Book(context.Background(), "0"); err == nil {
 				t.Fatal("expected error, got nil")
@@ -513,7 +571,7 @@ func TestCooldown(t *testing.T) {
 		first := newCountingServer(t, http.StatusOK, validBookResponse, &firstHits)
 		second := newCountingServer(t, http.StatusOK, validBookResponse, &secondHits)
 
-		client := newTestClient(biblioreads.WithInstances([]string{first.URL, second.URL}), biblioreads.WithCacheTTL(0))
+		client := newTestClient(WithInstances([]string{first.URL, second.URL}), WithCacheTTL(0))
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		for range 5 {
@@ -528,4 +586,15 @@ func TestCooldown(t *testing.T) {
 			t.Errorf("expected no instance to be benched, got %d and %d hits", firstHits.Load(), secondHits.Load())
 		}
 	})
+}
+
+func newCountingServer(t *testing.T, status int, body string, hits *atomic.Int32) *httptest.Server {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(server.Close)
+	return server
 }
