@@ -68,6 +68,10 @@ func (*BioProvider) ProfileServiceName() string {
 	return "Goodreads"
 }
 
+func (*BioProvider) ProfileInputName() string {
+	return "goodreadsID"
+}
+
 func (*BioProvider) ProfileValue(author index.Author) string {
 	if id := author.DataSourceLinks[Source]; id != "" {
 		return goodreadsBaseURL + goodreadsAuthorPrefix + id

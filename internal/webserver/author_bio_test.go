@@ -59,6 +59,75 @@ func (l *lazyBioIndex) StoreCanonicalAuthorBio(slug, linkKey, previousLink strin
 	return l.idx.StoreCanonicalAuthorBio(slug, linkKey, previousLink, bio)
 }
 
+type alternateProfileInput struct{ *biblioreads.BioProvider }
+
+func (alternateProfileInput) ProfileInputName() string   { return "otherProfileID" }
+func (alternateProfileInput) ProfileServiceName() string { return "Other service" }
+
+func TestAuthorBioProfileInputFromProvider(t *testing.T) {
+	client, bioIndex := &bioAuthorClient{}, &lazyBioIndex{}
+	cfg := defaultTestConfig()
+	cfg.AuthorBioProvider = alternateProfileInput{biblioreads.NewBioProvider(client, nil, bioIndex)}
+	app, idx := bootstrapAppWithIndexer(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), cfg)
+	bioIndex.idx = idx
+	author, err := idx.Author("john-doe", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author.RetrievedOn = time.Now()
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	admin, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := getRequest(admin, app, "/authors/john-doe/summary", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := goquery.NewDocumentFromReader(response.Body)
+	response.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Find(`input[name="otherProfileID"][aria-label="Other service profile"]`).Length() != 1 ||
+		page.Find(`input[name="goodreadsID"]`).Length() != 0 {
+		t.Fatal("profile input must use the biography provider's name and label")
+	}
+	for _, tc := range []struct {
+		input      string
+		wantStatus int
+	}{
+		{"invalid", http.StatusBadRequest},
+		{"879", http.StatusOK},
+	} {
+		response, err = postRequest(url.Values{"otherProfileID": {tc.input}}, admin, app, "/authors/john-doe/bio/refresh", t)
+		if err != nil {
+			t.Fatal(err)
+		}
+		page, err = goquery.NewDocumentFromReader(response.Body)
+		response.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if response.StatusCode != tc.wantStatus {
+			t.Fatalf("%q: status = %d, want %d", tc.input, response.StatusCode, tc.wantStatus)
+		}
+		if tc.wantStatus == http.StatusBadRequest &&
+			page.Find(`input[name="otherProfileID"][aria-invalid="true"]`).AttrOr("value", "") != tc.input {
+			t.Fatal("invalid provider-specific input must be preserved")
+		}
+	}
+	author, err = idx.Author("john-doe", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if author.DataSourceLinks["goodreads"] != "879" || client.calls != 1 {
+		t.Fatal("valid provider-specific input must update the biography")
+	}
+}
+
 func TestAuthorDetailCardLayout(t *testing.T) {
 	bioIndex := &lazyBioIndex{}
 	cfg := defaultTestConfig()

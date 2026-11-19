@@ -73,7 +73,7 @@
                 </p>
             {{end}}
             {{if .BioParagraphs}}
-                {{template "partials/author-bio" dict "Lang" .Lang "Slug" .Author.Slug "Session" .Session "Paragraphs" .BioParagraphs "TranslatedFrom" .BioTranslatedFrom "GoodreadsID" .BioGoodreadsID}}
+                {{template "partials/author-bio" dict "Lang" .Lang "Slug" .Author.Slug "Session" .Session "Paragraphs" .BioParagraphs "TranslatedFrom" .BioTranslatedFrom}}
             {{else if .BioPending}}
                 <div hx-get="/authors/{{.Author.Slug}}/bio" hx-trigger="load" hx-swap="outerHTML" class="mb-3 px-3 placeholder-glow" aria-busy="true">
                     <p class="mb-1"><span class="placeholder col-12"></span></p>
@@ -81,7 +81,7 @@
                     <p><span class="placeholder col-7"></span></p>
                 </div>
             {{else if and .BioRefreshAvailable .Session (eq .Session.Role 2)}}
-                {{template "partials/author-bio" dict "Lang" .Lang "Slug" .Author.Slug "Session" .Session "GoodreadsID" .BioGoodreadsID}}
+                {{template "partials/author-bio" dict "Lang" .Lang "Slug" .Author.Slug "Session" .Session}}
             {{end}}
         </div>
         <div class="author-details-sidebar col-12 col-md-4 col-lg-3 p-3">

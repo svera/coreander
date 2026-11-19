@@ -17,6 +17,7 @@ import (
 // BioProvider retrieves author biographies in the reader's language.
 type BioProvider interface {
 	ProfileInputProvider
+	ProfileInputName() string
 	NormalizeAuthorID(value string) (string, error)
 	// StoredBio returns an indexed biography without network requests, and whether Bio must be called to get it.
 	// Both methods also return the original language of the biography if it is an automatic translation.
@@ -42,11 +43,12 @@ func (a *Controller) RefreshBio(c fiber.Ctx) error {
 	if a.bioProvider == nil {
 		return c.SendString("")
 	}
-	if c.Request().PostArgs().Has("goodreadsID") {
-		id, err := a.bioProvider.NormalizeAuthorID(c.FormValue("goodreadsID"))
+	inputName := a.bioProvider.ProfileInputName()
+	if c.Request().PostArgs().Has(inputName) {
+		id, err := a.bioProvider.NormalizeAuthorID(c.FormValue(inputName))
 		if err != nil {
 			log.Printf("Invalid author profile for %s: %s", c.Params("slug"), err)
-			return a.renderInvalidProfileUpdate(c)
+			return a.renderInvalidProfileUpdate(c, inputName)
 		}
 		return a.renderBio(c, func(provider BioProvider, ctx context.Context, author index.Author, lang string) (string, string, error) {
 			return provider.UpdateBio(ctx, author, id, lang)
@@ -55,7 +57,7 @@ func (a *Controller) RefreshBio(c fiber.Ctx) error {
 	return a.renderBio(c, BioProvider.RefreshBio)
 }
 
-func (a *Controller) renderInvalidProfileUpdate(c fiber.Ctx) error {
+func (a *Controller) renderInvalidProfileUpdate(c fiber.Ctx, inputName string) error {
 	lang := c.Locals("Lang").(string)
 	author, err := a.idx.Author(c.Params("slug"), lang)
 	if err != nil {
@@ -66,7 +68,7 @@ func (a *Controller) renderInvalidProfileUpdate(c fiber.Ctx) error {
 		return fiber.ErrNotFound
 	}
 	c.Status(fiber.StatusBadRequest)
-	return a.renderAuthorSummary(c, author, lang, "goodreadsID")
+	return a.renderAuthorSummary(c, author, lang, inputName)
 }
 
 func (a *Controller) renderAuthorSummary(c fiber.Ctx, author index.Author, lang, invalidProfile string) error {
@@ -109,12 +111,12 @@ func (a *Controller) renderBio(c fiber.Ctx, retrieve bioFunc) error {
 	}
 	if err != nil {
 		log.Printf("Error retrieving biography for author %s: %s", author.Slug, err)
-		if c.Request().PostArgs().Has("goodreadsID") {
+		if c.Request().PostArgs().Has(a.bioProvider.ProfileInputName()) {
 			return fiber.ErrBadGateway
 		}
 	}
 	session, _ := c.Locals("Session").(model.Session)
-	if c.Request().PostArgs().Has("goodreadsID") {
+	if c.Request().PostArgs().Has(a.bioProvider.ProfileInputName()) {
 		author, err = a.idx.Author(author.Slug, lang)
 		if err != nil {
 			log.Println(err)
@@ -128,7 +130,6 @@ func (a *Controller) renderBio(c fiber.Ctx, retrieve bioFunc) error {
 	templateVars := fiber.Map{
 		"Lang":           lang,
 		"Slug":           author.Slug,
-		"GoodreadsID":    author.DataSourceLinks["goodreads"],
 		"Session":        session,
 		"Paragraphs":     bioParagraphs(bio),
 		"TranslatedFrom": languageName(sourceLanguage, lang),
@@ -188,7 +189,6 @@ func (a *Controller) addBioVars(templateVars fiber.Map, template string, author 
 	}
 	templateVars["BioParagraphs"], templateVars["BioTranslatedFrom"], templateVars["BioPending"] = a.storedBio(author, lang)
 	templateVars["BioRefreshAvailable"] = a.bioRefreshAvailable(author)
-	templateVars["BioGoodreadsID"] = author.DataSourceLinks["goodreads"]
 }
 
 func (a *Controller) bioRefreshAvailable(author index.Author) bool {

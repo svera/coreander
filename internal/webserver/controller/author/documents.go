@@ -71,7 +71,6 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		"BioPending":            bioPending,
 		"BioTranslatedFrom":     bioTranslatedFrom,
 		"BioRefreshAvailable":   a.bioRefreshAvailable(author),
-		"BioGoodreadsID":        author.DataSourceLinks["goodreads"],
 		"DataSourceLinks":       a.authorDataSourceLinks(author, lang),
 		"ProfileInputs":         a.profileInputs(author, "", "", ""),
 		"ImageVersion":          a.getImageVersion(author.Slug),
