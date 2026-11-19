@@ -14,8 +14,8 @@ import (
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/precisiondate"
-	"github.com/svera/coreander/v5/internal/translation"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	gt "gopkg.gilang.dev/translator/v2"
 )
 
 type bioAuthorClient struct {
@@ -37,9 +37,16 @@ func (c *bioAuthorClient) RefreshAuthor(ctx context.Context, id string) (biblior
 
 type bioTranslator struct{ calls int }
 
-func (t *bioTranslator) Translate(_ context.Context, text, from, to string, _ translation.Gender) (string, string, error) {
+func (t *bioTranslator) Translate(ctx context.Context, text, from, to string) (*gt.Translated, error) {
+	return t.TranslateWithGender(ctx, text, from, to, gt.GenderUnknown)
+}
+
+func (t *bioTranslator) TranslateWithGender(_ context.Context, text, from, to string, _ gt.Gender) (*gt.Translated, error) {
 	t.calls++
-	return strings.ReplaceAll(text, "John Doe", "John Doe ("+to+")"), from, nil
+	return &gt.Translated{
+		Text: strings.ReplaceAll(text, "John Doe", "John Doe ("+to+")"),
+		From: gt.TranslateFrom{Language: gt.TranslateFromLanguage{Iso: from}},
+	}, nil
 }
 
 // lazyBioIndex lets the provider be configured before the index is created.
@@ -61,7 +68,7 @@ func (l *lazyBioIndex) StoreCanonicalAuthorBio(slug, linkKey, previousLink strin
 	return l.idx.StoreCanonicalAuthorBio(slug, linkKey, previousLink, bio)
 }
 
-func newAuthorBioTestApp(t *testing.T, client *bioAuthorClient, translator biography.Translator) (*fiber.App, *index.BleveIndexer) {
+func newAuthorBioTestApp(t *testing.T, client *bioAuthorClient, translator gt.Translator) (*fiber.App, *index.BleveIndexer) {
 	t.Helper()
 	bioIndex := &lazyBioIndex{}
 	cfg := defaultTestConfig()

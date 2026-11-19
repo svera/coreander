@@ -146,7 +146,7 @@ func testCases(t *testing.T) []testCase {
 				wikidataEntityId: "Q1234",
 				wikipediaLink:    make(map[string]string),
 				description:      make(map[string]string),
-				gender:           GenderMale,
+				gender:           model.GenderMale,
 				website:          "https://douglasadams.com",
 				image:            "https://upload.wikimedia.org/wikipedia/commons/4/44/Duble_herma_of_Socrates_and_Seneca_Antikensammlung_Berlin_07.jpg",
 				dateOfBirth:      precisiondate.NewPrecisionDate("-0004-00-00T00:00:00Z", precisiondate.PrecisionDecade),

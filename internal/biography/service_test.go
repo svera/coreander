@@ -12,7 +12,7 @@ import (
 	"github.com/svera/coreander/v5/internal/biography"
 	"github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
-	"github.com/svera/coreander/v5/internal/translation"
+	gt "gopkg.gilang.dev/translator/v2"
 )
 
 const (
@@ -55,24 +55,39 @@ func (s *fakeSource) RetrieveBio(_ context.Context, id string, refresh bool) (st
 
 type translateCall struct {
 	text, from, to string
-	gender         translation.Gender
+	gender         gt.Gender
 }
 
 type fakeTranslator struct {
-	detected string
-	err      error
-	calls    []translateCall
+	detected  string
+	err       error
+	calls     []translateCall
+	nilResult bool
+	empty     bool
 }
 
-func (f *fakeTranslator) Translate(_ context.Context, text, from, to string, gender translation.Gender) (string, string, error) {
+func (f *fakeTranslator) Translate(ctx context.Context, text, from, to string) (*gt.Translated, error) {
+	return f.TranslateWithGender(ctx, text, from, to, gt.GenderUnknown)
+}
+
+func (f *fakeTranslator) TranslateWithGender(_ context.Context, text, from, to string, gender gt.Gender) (*gt.Translated, error) {
 	f.calls = append(f.calls, translateCall{text, from, to, gender})
 	if f.err != nil {
-		return "", "", f.err
+		return nil, f.err
 	}
-	if from == translation.AutoDetect {
+	if f.nilResult {
+		return nil, nil
+	}
+	if f.empty {
+		return &gt.Translated{}, nil
+	}
+	if from == "auto" || f.detected != "" {
 		from = f.detected
 	}
-	return "[" + to + "] " + text, from, nil
+	return &gt.Translated{
+		Text: "[" + to + "] " + text,
+		From: gt.TranslateFrom{Language: gt.TranslateFromLanguage{Iso: from}},
+	}, nil
 }
 
 type fakeBioIndex struct {
@@ -115,7 +130,7 @@ func TestBioRetrievesAndTranslatesBio(t *testing.T) {
 		{
 			name: "plain text", original: englishBio,
 			spanish: "[es] " + englishBio, french: "[fr] " + englishBio,
-			calls: []translateCall{{html.UnescapeString(englishBio), "en", "es", translation.GenderUnknown}},
+			calls: []translateCall{{html.UnescapeString(englishBio), "en", "es", gt.GenderUnknown}},
 		},
 		{
 			name:     "emphasis",
@@ -180,17 +195,17 @@ func TestBioTranslationUsesAuthorGender(t *testing.T) {
 	for _, tt := range []struct {
 		name   string
 		gender float64
-		want   translation.Gender
+		want   gt.Gender
 	}{
-		{"male", model.GenderMale, translation.GenderMasculine},
-		{"female", model.GenderFemale, translation.GenderFeminine},
-		{"transgender male", model.GenderTransgenderMale, translation.GenderMasculine},
-		{"transgender female", model.GenderTransgenderFemale, translation.GenderFeminine},
-		{"intersex", model.GenderIntersex, translation.GenderUnknown},
-		{"unknown", model.GenderUnknown, translation.GenderUnknown},
+		{"male", model.GenderMale, gt.GenderMasculine},
+		{"female", model.GenderFemale, gt.GenderFeminine},
+		{"transgender male", model.GenderTransgenderMale, gt.GenderMasculine},
+		{"transgender female", model.GenderTransgenderFemale, gt.GenderFeminine},
+		{"intersex", model.GenderIntersex, gt.GenderUnknown},
+		{"unknown", model.GenderUnknown, gt.GenderUnknown},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			translator := &fakeTranslator{}
+			translator := &fakeTranslator{detected: "fr"}
 			provider := biography.NewService(&fakeSource{}, translator, &fakeBioIndex{})
 			author := catalogAuthor(index.AuthorBio{
 				Source: "alice", Language: "en",
@@ -206,6 +221,9 @@ func TestBioTranslationUsesAuthorGender(t *testing.T) {
 			for _, call := range translator.calls {
 				if call.gender != tt.want {
 					t.Errorf("gender for %q: got %v, want %v", call.text, call.gender, tt.want)
+				}
+				if call.from != "en" {
+					t.Errorf("the known source language must be preserved, got %q", call.from)
 				}
 			}
 		})
@@ -229,19 +247,69 @@ func TestBioInReaderLanguageIsNotTranslated(t *testing.T) {
 }
 
 func TestBioUsesTranslatorDetectionForAmbiguousText(t *testing.T) {
-	translator := &fakeTranslator{detected: "fr"}
+	for _, tt := range []struct {
+		detected, language string
+	}{
+		{"fr", "fr"},
+		{" FR-fr ", "fr"},
+		{"zh-CN", "zh"},
+		{" PT ", "pt"},
+	} {
+		t.Run(tt.detected, func(t *testing.T) {
+			translator := &fakeTranslator{detected: tt.detected}
+			idx := &fakeBioIndex{}
+			provider := biography.NewService(&fakeSource{desc: "Bonjour"}, translator, idx)
+			bio, from, err := provider.Bio(context.Background(), catalogAuthor(index.AuthorBio{}), "en")
+			if err != nil || bio != "[en] Bonjour" || from != tt.language {
+				t.Fatalf("unexpected bio %q from %q, %v", bio, from, err)
+			}
+			if len(translator.calls) != 1 || translator.calls[0].from != "auto" {
+				t.Fatalf("expected the translator to detect the language, got %+v", translator.calls)
+			}
+			want := index.AuthorBio{Source: "alice", Language: tt.language, Text: map[string]string{tt.language: "Bonjour", "en": "[en] Bonjour"}}
+			if len(idx.stored) != 1 || !equalBio(idx.stored[0], want) {
+				t.Fatalf("expected the bio to be stored under the normalized detected language, got %+v", idx.stored)
+			}
+		})
+	}
+}
+
+func TestBioRejectsInvalidTranslationResults(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		translator fakeTranslator
+		message    string
+	}{
+		{"nil result", fakeTranslator{nilResult: true}, "empty translation"},
+		{"empty result", fakeTranslator{empty: true}, "empty translation"},
+		{"missing language", fakeTranslator{}, "source language not detected"},
+		{"blank language", fakeTranslator{detected: " \t "}, "source language not detected"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			idx := &fakeBioIndex{}
+			provider := biography.NewService(&fakeSource{desc: "Bonjour"}, &tt.translator, idx)
+			bio, from, err := provider.Bio(context.Background(), catalogAuthor(index.AuthorBio{}), "en")
+			if err == nil || !strings.Contains(err.Error(), tt.message) || bio != "Bonjour" || from != "" {
+				t.Fatalf("expected original text and an explicit translation error: %q, %q, %v", bio, from, err)
+			}
+			if len(idx.stored) != 0 || len(idx.replaced) != 0 {
+				t.Fatal("invalid translations must not be stored")
+			}
+		})
+	}
+}
+
+func TestBioUnsupportedGenderPreference(t *testing.T) {
 	idx := &fakeBioIndex{}
-	provider := biography.NewService(&fakeSource{desc: "Bonjour"}, translator, idx)
-	bio, _, err := provider.Bio(context.Background(), catalogAuthor(index.AuthorBio{}), "en")
-	if err != nil || bio != "[en] Bonjour" {
-		t.Fatalf("unexpected bio %q, %v", bio, err)
+	provider := biography.NewService(&fakeSource{desc: englishBio}, gt.NewDeepLTranslator(), idx)
+	author := catalogAuthor(index.AuthorBio{})
+	author.Gender = model.GenderMale
+	bio, from, err := provider.Bio(context.Background(), author, "es")
+	if !errors.Is(err, gt.ErrUnsupportedOption) || bio != englishBio || from != "" {
+		t.Fatalf("expected the original bio and unsupported-option error: %q, %q, %v", bio, from, err)
 	}
-	if len(translator.calls) != 1 || translator.calls[0].from != translation.AutoDetect {
-		t.Fatalf("expected the translator to detect the language, got %+v", translator.calls)
-	}
-	want := index.AuthorBio{Source: "alice", Language: "fr", Text: map[string]string{"fr": "Bonjour", "en": "[en] Bonjour"}}
-	if len(idx.stored) != 1 || !equalBio(idx.stored[0], want) {
-		t.Fatalf("expected the bio to be stored under the detected language, got %+v", idx.stored)
+	if len(idx.stored) != 1 || len(idx.stored[0].Text) != 1 || idx.stored[0].Text["en"] != englishBio {
+		t.Fatalf("only the original bio must be cached after an unsupported preference: %+v", idx.stored)
 	}
 }
 

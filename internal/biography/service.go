@@ -16,9 +16,9 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
-	"github.com/svera/coreander/v5/internal/translation"
 	nethtml "golang.org/x/net/html"
 	"golang.org/x/sync/singleflight"
+	gt "gopkg.gilang.dev/translator/v2"
 )
 
 const requestTimeout = 3 * time.Minute
@@ -35,11 +35,6 @@ type Source interface {
 	RetrieveBio(ctx context.Context, id string, refresh bool) (text, canonicalID string, err error)
 }
 
-// Translator returns translated text and its source language.
-type Translator interface {
-	Translate(ctx context.Context, text, from, to string, gender translation.Gender) (string, string, error)
-}
-
 type Index interface {
 	StoreAuthorBioForLink(slug, linkKey, expectedLink string, bio index.AuthorBio, merge bool) error
 	StoreCanonicalAuthorBio(slug, linkKey, previousLink string, bio index.AuthorBio) error
@@ -48,13 +43,13 @@ type Index interface {
 // Service manages biography retrieval, translation and indexed originals/translations.
 type Service struct {
 	source     Source
-	translator Translator
+	translator gt.Translator
 	index      Index
 	lookups    singleflight.Group
 }
 
 // NewService shows biographies untranslated when translator is nil.
-func NewService(source Source, translator Translator, idx Index) *Service {
+func NewService(source Source, translator gt.Translator, idx Index) *Service {
 	return &Service{source: source, translator: translator, index: idx}
 }
 
@@ -212,14 +207,14 @@ func (s *Service) lookup(ctx context.Context, author index.Author, language stri
 	}
 	from := bio.Language
 	if from == "" {
-		from = translation.AutoDetect
+		from = "auto"
 	}
-	var gender translation.Gender
+	var gender gt.Gender
 	switch author.Gender {
 	case model.GenderMale, model.GenderTransgenderMale:
-		gender = translation.GenderMasculine
+		gender = gt.GenderMasculine
 	case model.GenderFemale, model.GenderTransgenderFemale:
-		gender = translation.GenderFeminine
+		gender = gt.GenderFeminine
 	}
 	translated, detected, err := s.translateBio(ctx, original, from, language, gender)
 	if err != nil {
@@ -239,7 +234,7 @@ func (s *Service) lookup(ctx context.Context, author index.Author, language stri
 	return translated, bio.Language, store(save, author.Slug, bio)
 }
 
-func (s *Service) translateBio(ctx context.Context, text, from, to string, gender translation.Gender) (string, string, error) {
+func (s *Service) translateBio(ctx context.Context, text, from, to string, gender gt.Gender) (string, string, error) {
 	tokens := nethtml.NewTokenizer(strings.NewReader(text))
 	var result strings.Builder
 	for {
@@ -254,12 +249,21 @@ func (s *Service) translateBio(ctx context.Context, text, from, to string, gende
 			if strings.ContainsFunc(part, unicode.IsLetter) {
 				leading := part[:len(part)-len(strings.TrimLeftFunc(part, unicode.IsSpace))]
 				trailing := part[len(strings.TrimRightFunc(part, unicode.IsSpace)):]
-				translated, detected, err := s.translator.Translate(ctx, strings.TrimSpace(part), from, to, gender)
+				translated, err := s.translator.TranslateWithGender(ctx, strings.TrimSpace(part), from, to, gender)
 				if err != nil {
-					return "", "", err
+					return "", "", fmt.Errorf("translating text from %s to %s: %w", from, to, err)
 				}
-				from = detected
-				part = leading + translated + trailing
+				if translated == nil || strings.TrimSpace(translated.Text) == "" {
+					return "", "", fmt.Errorf("translating text from %s to %s: empty translation", from, to)
+				}
+				if from == "auto" {
+					detected, _, _ := strings.Cut(strings.TrimSpace(translated.From.Language.Iso), "-")
+					from = strings.ToLower(detected)
+					if from == "" {
+						return "", "", fmt.Errorf("translating text to %s: source language not detected", to)
+					}
+				}
+				part = leading + translated.Text + trailing
 			}
 			result.WriteString(html.EscapeString(part))
 		case nethtml.StartTagToken, nethtml.EndTagToken:

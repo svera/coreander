@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
@@ -48,15 +47,6 @@ const (
 	InstancePenName
 	InstanceCollectivePseudonym
 	InstanceHumanWhoseExistenceIsDisputed
-)
-
-const (
-	GenderUnknown          = model.GenderUnknown
-	GenderMale             = model.GenderMale
-	GenderFemale           = model.GenderFemale
-	GenderIntersex         = model.GenderIntersex
-	GenderTrasgenderFemale = model.GenderTransgenderFemale
-	GenderTrasgenderMale   = model.GenderTransgenderMale
 )
 
 type Author struct {

@@ -403,17 +403,17 @@ func getMostAccurateID(ids []string, entities *map[string]gowikidata.Entity) (st
 func parseGender(claim gowikidata.Claim) float64 {
 	switch claim.MainSnak.DataValue.Value.ValueFields.ID {
 	case qidGenderMale:
-		return GenderMale
+		return model.GenderMale
 	case qidGenderFemale:
-		return GenderFemale
+		return model.GenderFemale
 	case qidGenderIntersex:
-		return GenderIntersex
+		return model.GenderIntersex
 	case qidGenderTrasgenderMale:
-		return GenderTrasgenderMale
+		return model.GenderTransgenderMale
 	case qidGenderTrasgenderFemale:
-		return GenderTrasgenderFemale
+		return model.GenderTransgenderFemale
 	}
-	return GenderUnknown
+	return model.GenderUnknown
 }
 
 func parseInstanceOf(claim gowikidata.Claim) float64 {

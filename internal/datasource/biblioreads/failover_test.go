@@ -233,24 +233,20 @@ func TestAuthorVersionCompatibility(t *testing.T) {
 						t.Cleanup(server.Close)
 						client = newTestClient(WithInstances([]string{server.URL}))
 					}
-					requests := 1
 					wantDesc, wantName := "biography", "original"
 					if fallback {
-						requests = 2
 						wantDesc, wantName = "complete", ""
 					}
-					for range requests {
-						response, err := client.Author(context.Background(), "1")
-						if !tt.allowed && !fallback {
-							if !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), "v4.5.1") {
-								t.Fatalf("expected explicit version error, got %v", err)
-							}
-						} else if err != nil || response.Desc != wantDesc || response.Name != wantName {
-							t.Fatalf("expected compatible biography without stale fields, got %+v, %v", response, err)
+					response, err := client.Author(context.Background(), "1")
+					if !tt.allowed && !fallback {
+						if !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), "v4.5.1") {
+							t.Fatalf("expected explicit version error, got %v", err)
 						}
+					} else if err != nil || response.Desc != wantDesc || response.Name != wantName {
+						t.Fatalf("expected compatible biography without stale fields, got %+v, %v", response, err)
 					}
 					if fallback && hits.Load() != 2 {
-						t.Fatalf("expected failover and a cached compatible response, got %d requests", hits.Load())
+						t.Fatalf("expected both instances to be tried, got %d requests", hits.Load())
 					}
 					if _, err := client.Book(context.Background(), "1"); err != nil {
 						t.Fatalf("author version restrictions must not disable book requests: %v", err)

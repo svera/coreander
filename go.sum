@@ -237,8 +237,8 @@ github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWD
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
 github.com/svera/go-wikidata v1.0.3 h1:8pUzDTfJ60PZsv9F2JZ3UfbvIhS51794xyAd+AaBjGw=
 github.com/svera/go-wikidata v1.0.3/go.mod h1:+yaVnLtz5Zit+B+Ajt+u5a1BHQKhi/9Ya/CRoIHxIjE=
-github.com/svera/translator/v2 v2.0.0-20261119111224-4b3e0c866ec8 h1:tZJ6i25PbfmAhu0WWmpdbleXP0q+PPJ7L9nkEwZ4z5w=
-github.com/svera/translator/v2 v2.0.0-20261119111224-4b3e0c866ec8/go.mod h1:Kw28LOt5lxtmfhwG8Q2t5XxVeAwwIwrTE+dPENhy37E=
+github.com/svera/translator/v2 v2.0.0-20261119144413-58c5207d4e0c h1:rBOjPsdOK0PB+YT2IYpn0IIFJt6DnlaIhOLjk17nvUI=
+github.com/svera/translator/v2 v2.0.0-20261119144413-58c5207d4e0c/go.mod h1:Kw28LOt5lxtmfhwG8Q2t5XxVeAwwIwrTE+dPENhy37E=
 github.com/tidwall/gjson v1.18.0 h1:FIDeeyB800efLX89e5a8Y0BNH+LOngJyGrIWxG2FKQY=
 github.com/tidwall/gjson v1.18.0/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/match v1.1.1 h1:+Ho715JplO36QYgwN9PGYNhgZvoUSc9X2c80KVTi+GA=
