@@ -5,23 +5,21 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"os"
 	"reflect"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/precisiondate"
 	"github.com/svera/coreander/v5/internal/webserver"
 	authorcontroller "github.com/svera/coreander/v5/internal/webserver/controller/author"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
@@ -30,6 +28,14 @@ import (
 type alternativeAuthorSource struct {
 	authorcontroller.DataSource
 	retrievedIDs []string
+}
+
+func (*alternativeAuthorSource) ProfileServiceName() string { return "Example catalog" }
+func (*alternativeAuthorSource) ProfileValue(author index.Author) string {
+	return "https://example.org/authors/" + author.DataSourceID
+}
+func (*alternativeAuthorSource) AuthorLink(index.Author, string) datasourcemodel.DataSourceLink {
+	return datasourcemodel.DataSourceLink{}
 }
 
 func (*alternativeAuthorSource) NormalizeAuthorID(value string) (string, error) {
@@ -41,69 +47,34 @@ func (*alternativeAuthorSource) NormalizeAuthorID(value string) (string, error) 
 
 func (s *alternativeAuthorSource) RetrieveAuthor(ids []string, _ []string) (datasourcemodel.Author, error) {
 	s.retrievedIDs = ids
-	return nil, nil
+	return alternativeAuthorMetadata{}, nil
 }
 
-type existingAuthorIndex struct{ authorcontroller.IdxReader }
+type alternativeAuthorMetadata struct{}
 
-func (existingAuthorIndex) Author(slug, _ string) (index.Author, error) {
-	return index.Author{Slug: slug}, nil
+func (alternativeAuthorMetadata) BirthName() string         { return "Alice Example" }
+func (alternativeAuthorMetadata) Description(string) string { return "Updated author metadata" }
+func (alternativeAuthorMetadata) InstanceOf() float64       { return 0 }
+func (alternativeAuthorMetadata) Gender() float64           { return 0 }
+func (alternativeAuthorMetadata) DateOfBirth() precisiondate.PrecisionDate {
+	return precisiondate.PrecisionDate{}
 }
+func (alternativeAuthorMetadata) DateOfDeath() precisiondate.PrecisionDate {
+	return precisiondate.PrecisionDate{}
+}
+func (alternativeAuthorMetadata) Image() string            { return "" }
+func (alternativeAuthorMetadata) Links() map[string]string { return nil }
+func (alternativeAuthorMetadata) OwnsLink(string) bool     { return false }
+func (alternativeAuthorMetadata) SourceID() string         { return "alice" }
+func (alternativeAuthorMetadata) RetrievedOn() time.Time   { return time.Unix(1, 0).UTC() }
+func (alternativeAuthorMetadata) Pseudonyms() []string     { return nil }
 
 func TestUpdateUsesDataSourceProfileParser(t *testing.T) {
 	source := &alternativeAuthorSource{}
-	controller := authorcontroller.NewController(nil, nil, nil, existingAuthorIndex{}, authorcontroller.Config{}, source, nil, nil)
-	app := fiber.New()
-	app.Put("/authors/:slug", func(c fiber.Ctx) error {
-		c.Locals("Lang", "en")
-		c.Locals("SupportedLanguages", []string{"en"})
-		return controller.Update(c)
-	})
-
-	for _, tc := range []struct {
-		input      string
-		wantStatus int
-	}{
-		{"https://example.org/authors/alice", http.StatusNotFound},
-		{"invalid", http.StatusBadRequest},
-	} {
-		source.retrievedIDs = nil
-		req := httptest.NewRequest(http.MethodPut, "/authors/test", strings.NewReader(url.Values{"sourceID": {tc.input}}.Encode()))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		resp, err := app.Test(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		resp.Body.Close()
-		if resp.StatusCode != tc.wantStatus {
-			t.Fatalf("%q: status = %d, want %d", tc.input, resp.StatusCode, tc.wantStatus)
-		}
-		if tc.wantStatus == http.StatusNotFound && (len(source.retrievedIDs) != 1 || source.retrievedIDs[0] != "alice") {
-			t.Fatalf("normalized source ID was not used for retrieval: %v", source.retrievedIDs)
-		}
-		if tc.wantStatus == http.StatusBadRequest && len(source.retrievedIDs) != 0 {
-			t.Fatal("invalid input must not trigger retrieval")
-		}
-	}
-}
-
-func TestUpdateAuthorWikidataInput(t *testing.T) {
-	mock := wikidata.NewMockServer(t, "fixtures/datasource/wikidata")
-	defer mock.Close()
-	var requests atomic.Int64
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests.Add(1)
-		mock.Config.Handler.ServeHTTP(w, r)
-	}))
-	defer server.Close()
-	previousDomain := gowikidata.WikidataDomain
-	gowikidata.WikidataDomain = server.URL
-	defer func() { gowikidata.WikidataDomain = previousDomain }()
-
 	appFS := loadDirInMemoryFs("testdata/library")
 	cfg := defaultTestConfig()
 	cfg.CacheDir = "/cache"
-	app, idx := bootstrapAppWithIndexer(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, appFS, cfg)
+	app, idx := bootstrapAppWithAuthorSource(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, appFS, cfg, source)
 	admin, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
 		t.Fatal(err)
@@ -112,8 +83,8 @@ func TestUpdateAuthorWikidataInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	author.DataSourceID = "Q999"
-	author.DataSourceLinks = map[string]string{"goodreads": "1.Writer"}
+	author.DataSourceID = "old-profile"
+	author.DataSourceLinks = map[string]string{"independent": "https://other.example/author"}
 	if err := idx.IndexAuthor(author); err != nil {
 		t.Fatal(err)
 	}
@@ -127,49 +98,38 @@ func TestUpdateAuthorWikidataInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	initialRequests := requests.Load()
-	for _, input := range []string{
-		"https://evil.example/wiki/Q1234", "https://www.wikidata.org/wiki/Q1234?x=1",
-		"https://www.wikidata.org/wiki/Q1234/extra", "P1234",
-	} {
-		response, err := putRequest(url.Values{"sourceID": {input}}, admin, app, "/authors/john-doe", t)
-		if err != nil {
-			t.Fatal(err)
-		}
-		response.Body.Close()
-		if response.StatusCode != http.StatusBadRequest {
-			t.Errorf("%q: expected bad request, got %d", input, response.StatusCode)
-		}
+	response, err := putRequest(url.Values{"sourceID": {"invalid"}}, admin, app, "/authors/john-doe", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected bad request, got %d", response.StatusCode)
 	}
 	after, err := idx.Author("john-doe", "en")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(before, after) || requests.Load() != initialRequests {
+	if !reflect.DeepEqual(before, after) || len(source.retrievedIDs) != 0 {
 		t.Fatal("invalid input must not alter metadata or trigger a lookup")
 	}
 	if _, err := appFS.Stat("/cache/authors/john-doe.webp"); err != nil {
 		t.Fatalf("invalid input must not remove the cached image: %v", err)
 	}
 
-	response, err := putRequest(url.Values{"sourceID": {"Q1234"}}, &http.Cookie{Name: "anonymous"}, app, "/authors/john-doe", t)
+	response, err = putRequest(url.Values{"sourceID": {"https://example.org/authors/alice"}}, &http.Cookie{Name: "anonymous"}, app, "/authors/john-doe", t)
 	if err != nil {
 		t.Fatal(err)
 	}
 	response.Body.Close()
-	if response.StatusCode == http.StatusOK || requests.Load() != initialRequests {
+	if response.StatusCode == http.StatusOK || len(source.retrievedIDs) != 0 {
 		t.Fatal("anonymous visitors must not update author metadata")
 	}
 
-	for _, tc := range []struct{ input, style string }{
-		{"Q1234", ""},
-		{"q1234", "?style=clear"},
-		{"https://www.wikidata.org/wiki/Q1234", ""},
-		{"http://wikidata.org/entity/q1234/", "?style=clear"},
-	} {
-		t.Run(tc.input+tc.style, func(t *testing.T) {
-			beforeRequests := requests.Load()
-			response, err := putRequest(url.Values{"sourceID": {tc.input}}, admin, app, "/authors/john-doe"+tc.style, t)
+	for _, style := range []string{"", "?style=clear"} {
+		t.Run("style="+style, func(t *testing.T) {
+			source.retrievedIDs = nil
+			response, err := putRequest(url.Values{"sourceID": {"https://example.org/authors/alice"}}, admin, app, "/authors/john-doe"+style, t)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -182,15 +142,18 @@ func TestUpdateAuthorWikidataInput(t *testing.T) {
 			if page.Find(`input[name="sourceID"]`).Length() != 1 {
 				t.Fatal("updated author summary must include the correction form")
 			}
-			if value := page.Find(`input[name="sourceID"]`).AttrOr("value", ""); value != "https://www.wikidata.org/wiki/Q1234" {
-				t.Fatalf("expected the Wikidata profile URL in the form, got %q", value)
+			if value := page.Find(`input[name="sourceID"]`).AttrOr("value", ""); value != "https://example.org/authors/alice" {
+				t.Fatalf("expected the provider profile URL in the form, got %q", value)
 			}
 			stored, err := idx.Author("john-doe", "en")
 			if err != nil {
 				t.Fatal(err)
 			}
-			if stored.DataSourceID != "Q1234" || stored.DataSourceLinks["goodreads"] != "1.Writer" || requests.Load() <= beforeRequests {
-				t.Fatalf("expected a lookup and normalized Wikidata ID while preserving Goodreads: %+v", stored)
+			if stored.DataSourceID != "alice" || stored.BirthName != "Alice Example" ||
+				stored.Description["en"] != "Updated author metadata" ||
+				stored.DataSourceLinks["independent"] != before.DataSourceLinks["independent"] ||
+				!reflect.DeepEqual(source.retrievedIDs, []string{"alice"}) {
+				t.Fatalf("expected normalized ID retrieval and persisted metadata while preserving independent links: %+v", stored)
 			}
 		})
 	}
