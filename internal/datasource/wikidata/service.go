@@ -23,6 +23,7 @@ const imgUrl = "https://upload.wikimedia.org/wikipedia/commons/%s/%s/%s"
 const maxEntitiesPerRequest = 50
 
 var entityFetchProps = []string{"descriptions", "claims", "sitelinks/urls", "labels"}
+var wikidataIDPattern = regexp.MustCompile(`^[Qq][0-9]+$`)
 
 type wikidata interface {
 	NewSearch(string, string) (SearchEntitiesRequest, error)
@@ -56,6 +57,36 @@ func (WikidataSource) ProfileValue(author index.Author) string {
 		return ""
 	}
 	return "https://www.wikidata.org/wiki/" + author.DataSourceID
+}
+
+// NormalizeAuthorID accepts a Wikidata author ID or profile URL.
+func (WikidataSource) NormalizeAuthorID(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	if strings.Contains(value, "://") {
+		target, err := url.Parse(value)
+		if err != nil || (target.Scheme != "https" && target.Scheme != "http") ||
+			(target.Host != "www.wikidata.org" && target.Host != "wikidata.org") ||
+			target.User != nil || target.RawQuery != "" || target.Fragment != "" ||
+			target.RawPath != "" || target.ForceQuery || strings.Contains(value, "#") {
+			return "", fmt.Errorf("invalid Wikidata URL %q", value)
+		}
+		path := strings.TrimSuffix(target.Path, "/")
+		switch {
+		case strings.HasPrefix(path, "/wiki/"):
+			value = strings.TrimPrefix(path, "/wiki/")
+		case strings.HasPrefix(path, "/entity/"):
+			value = strings.TrimPrefix(path, "/entity/")
+		default:
+			return "", fmt.Errorf("invalid Wikidata URL %q", value)
+		}
+	}
+	if !wikidataIDPattern.MatchString(value) {
+		return "", fmt.Errorf("invalid Wikidata ID %q", value)
+	}
+	return "Q" + value[1:], nil
 }
 
 func (WikidataSource) AuthorLink(author index.Author, language string) model.DataSourceLink {
@@ -443,5 +474,5 @@ func validateID(id string) bool {
 	if id == "" {
 		return true
 	}
-	return regexp.MustCompile(`^[Qq]\d+$`).MatchString(id)
+	return wikidataIDPattern.MatchString(id)
 }

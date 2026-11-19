@@ -27,6 +27,36 @@ const (
 	spanishBio = `Arturo Pérez-Reverte es un escritor y periodista español, miembro de la Real Academia Española. Fue corresponsal de guerra durante más de veinte años y es autor de numerosas novelas.`
 )
 
+func TestNormalizeAuthorID(t *testing.T) {
+	provider := biblioreads.NewBioProvider(nil, nil, nil)
+	for _, tc := range []struct {
+		input, want string
+		valid       bool
+	}{
+		{"", "", true},
+		{" \t ", "", true},
+		{" 879.Plato ", "879.Plato", true},
+		{"https://www.goodreads.com/author/show/879.Plato/", "879.Plato", true},
+		{"http://goodreads.com/author/show/879", "879", true},
+		{"0", "", false},
+		{"../879", "", false},
+		{"879?x=y", "", false},
+		{"https://example.com/author/show/879", "", false},
+		{"https://www.goodreads.com/book/show/879", "", false},
+		{"https://user@www.goodreads.com/author/show/879", "", false},
+		{"https://www.goodreads.com/author/show/879?x=y", "", false},
+		{"https://www.goodreads.com/author/show/879#profile", "", false},
+		{"https://www.goodreads.com/author/show/879/extra", "", false},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			got, err := provider.NormalizeAuthorID(tc.input)
+			if (err == nil) != tc.valid || got != tc.want {
+				t.Fatalf("NormalizeAuthorID(%q) = %q, %v; want %q, valid=%v", tc.input, got, err, tc.want, tc.valid)
+			}
+		})
+	}
+}
+
 type fakeAuthorClient struct {
 	desc      string
 	err       error

@@ -4,8 +4,6 @@ import (
 	"context"
 	"html/template"
 	"log"
-	"net/url"
-	"regexp"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -19,6 +17,7 @@ import (
 // BioProvider retrieves author biographies in the reader's language.
 type BioProvider interface {
 	ProfileInputProvider
+	NormalizeAuthorID(value string) (string, error)
 	// StoredBio returns an indexed biography without network requests, and whether Bio must be called to get it.
 	// Both methods also return the original language of the biography if it is an automatic translation.
 	StoredBio(author index.Author, language string) (bio, translatedFrom string, pending bool)
@@ -40,22 +39,14 @@ func (a *Controller) Bio(c fiber.Ctx) error {
 
 // RefreshBio retrieves the biography of an author again, discarding the stored one.
 func (a *Controller) RefreshBio(c fiber.Ctx) error {
+	if a.bioProvider == nil {
+		return c.SendString("")
+	}
 	if c.Request().PostArgs().Has("goodreadsID") {
-		id := strings.TrimSpace(c.FormValue("goodreadsID"))
-		if strings.Contains(id, "://") {
-			target, err := url.Parse(id)
-			if err != nil || (target.Scheme != "https" && target.Scheme != "http") ||
-				(target.Host != "www.goodreads.com" && target.Host != "goodreads.com") ||
-				target.User != nil || target.RawQuery != "" || target.Fragment != "" ||
-				!strings.HasPrefix(target.Path, "/author/show/") {
-				log.Printf("Invalid Goodreads author URL for %s: %q", c.Params("slug"), id)
-				return a.renderInvalidGoodreadsUpdate(c)
-			}
-			id = strings.TrimSuffix(strings.TrimPrefix(target.Path, "/author/show/"), "/")
-		}
-		if id != "" && !goodreadsAuthorID.MatchString(id) {
-			log.Printf("Invalid Goodreads author ID for %s: %q", c.Params("slug"), id)
-			return a.renderInvalidGoodreadsUpdate(c)
+		id, err := a.bioProvider.NormalizeAuthorID(c.FormValue("goodreadsID"))
+		if err != nil {
+			log.Printf("Invalid author profile for %s: %s", c.Params("slug"), err)
+			return a.renderInvalidProfileUpdate(c)
 		}
 		return a.renderBio(c, func(provider BioProvider, ctx context.Context, author index.Author, lang string) (string, string, error) {
 			return provider.UpdateBio(ctx, author, id, lang)
@@ -64,9 +55,7 @@ func (a *Controller) RefreshBio(c fiber.Ctx) error {
 	return a.renderBio(c, BioProvider.RefreshBio)
 }
 
-var goodreadsAuthorID = regexp.MustCompile(`^[1-9][0-9]*(?:[.][A-Za-z0-9_~-]+)?$`)
-
-func (a *Controller) renderInvalidGoodreadsUpdate(c fiber.Ctx) error {
+func (a *Controller) renderInvalidProfileUpdate(c fiber.Ctx) error {
 	lang := c.Locals("Lang").(string)
 	author, err := a.idx.Author(c.Params("slug"), lang)
 	if err != nil {

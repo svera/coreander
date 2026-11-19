@@ -75,6 +75,25 @@ func (*BioProvider) ProfileValue(author index.Author) string {
 	return ""
 }
 
+// NormalizeAuthorID accepts a Goodreads author ID or profile URL.
+func (*BioProvider) NormalizeAuthorID(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if strings.Contains(value, "://") {
+		target, err := url.Parse(value)
+		if err != nil || (target.Scheme != "https" && target.Scheme != "http") ||
+			(target.Host != "www.goodreads.com" && target.Host != "goodreads.com") ||
+			target.User != nil || target.RawQuery != "" || target.Fragment != "" ||
+			!strings.HasPrefix(target.Path, goodreadsAuthorPrefix) {
+			return "", fmt.Errorf("invalid Goodreads author URL %q", value)
+		}
+		value = strings.TrimSuffix(strings.TrimPrefix(target.Path, goodreadsAuthorPrefix), "/")
+	}
+	if value != "" && !authorIDPattern.MatchString(value) {
+		return "", fmt.Errorf("invalid Goodreads author ID %q", value)
+	}
+	return value, nil
+}
+
 // StoredBio returns the indexed biography of author in language without making network requests.
 // translatedFrom is the original language of the biography if it is an automatic translation, empty otherwise.
 // pending reports that Bio has to be called to retrieve or translate it.
