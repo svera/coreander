@@ -2,6 +2,7 @@ package webserver_test
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,14 +16,76 @@ import (
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/webserver"
+	authorcontroller "github.com/svera/coreander/v5/internal/webserver/controller/author"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 )
+
+type alternativeAuthorSource struct {
+	authorcontroller.DataSource
+	retrievedIDs []string
+}
+
+func (*alternativeAuthorSource) NormalizeAuthorID(value string) (string, error) {
+	if value != "https://example.org/authors/alice" {
+		return "", errors.New("invalid profile")
+	}
+	return "alice", nil
+}
+
+func (s *alternativeAuthorSource) RetrieveAuthor(ids []string, _ []string) (datasourcemodel.Author, error) {
+	s.retrievedIDs = ids
+	return nil, nil
+}
+
+type existingAuthorIndex struct{ authorcontroller.IdxReader }
+
+func (existingAuthorIndex) Author(slug, _ string) (index.Author, error) {
+	return index.Author{Slug: slug}, nil
+}
+
+func TestUpdateUsesDataSourceProfileParser(t *testing.T) {
+	source := &alternativeAuthorSource{}
+	controller := authorcontroller.NewController(nil, nil, nil, existingAuthorIndex{}, authorcontroller.Config{}, source, nil, nil)
+	app := fiber.New()
+	app.Put("/authors/:slug", func(c fiber.Ctx) error {
+		c.Locals("Lang", "en")
+		c.Locals("SupportedLanguages", []string{"en"})
+		return controller.Update(c)
+	})
+
+	for _, tc := range []struct {
+		input      string
+		wantStatus int
+	}{
+		{"https://example.org/authors/alice", http.StatusNotFound},
+		{"invalid", http.StatusBadRequest},
+	} {
+		source.retrievedIDs = nil
+		req := httptest.NewRequest(http.MethodPut, "/authors/test", strings.NewReader(url.Values{"sourceID": {tc.input}}.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != tc.wantStatus {
+			t.Fatalf("%q: status = %d, want %d", tc.input, resp.StatusCode, tc.wantStatus)
+		}
+		if tc.wantStatus == http.StatusNotFound && (len(source.retrievedIDs) != 1 || source.retrievedIDs[0] != "alice") {
+			t.Fatalf("normalized source ID was not used for retrieval: %v", source.retrievedIDs)
+		}
+		if tc.wantStatus == http.StatusBadRequest && len(source.retrievedIDs) != 0 {
+			t.Fatal("invalid input must not trigger retrieval")
+		}
+	}
+}
 
 func TestUpdateAuthorWikidataInput(t *testing.T) {
 	mock := wikidata.NewMockServer(t, "fixtures/datasource/wikidata")
