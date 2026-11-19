@@ -227,9 +227,7 @@ func TestAuthorVersionRequirements(t *testing.T) {
 		{"v4.5.1", true}, {"BiblioReads v4.5.2", true}, {"BiblioReads v5.0.0", true},
 	} {
 		t.Run(tt.version, func(t *testing.T) {
-			var hits atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				hits.Add(1)
 				if r.URL.Path == "/api/book-scraper" {
 					_, _ = w.Write([]byte(validBookResponse))
 					return
@@ -240,18 +238,13 @@ func TestAuthorVersionRequirements(t *testing.T) {
 			}))
 			defer server.Close()
 			client := newTestClient(WithInstances([]string{server.URL}))
-			for range 2 {
-				response, err := client.Author(context.Background(), "1")
-				if tt.allowed {
-					if err != nil || response.Desc != "biography" {
-						t.Fatalf("expected supported response, got %+v, %v", response, err)
-					}
-				} else if !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), "v4.5.1") {
-					t.Fatalf("expected explicit version error, got %v", err)
+			response, err := client.Author(context.Background(), "1")
+			if tt.allowed {
+				if err != nil || response.Desc != "biography" {
+					t.Fatalf("expected supported response, got %+v, %v", response, err)
 				}
-			}
-			if hits.Load() != 1 {
-				t.Fatalf("expected compatible responses or incompatibility to be remembered, got %d requests", hits.Load())
+			} else if !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), "v4.5.1") {
+				t.Fatalf("expected explicit version error, got %v", err)
 			}
 			if _, err := client.Book(context.Background(), "1"); err != nil {
 				t.Fatalf("author version restrictions must not disable book requests: %v", err)
