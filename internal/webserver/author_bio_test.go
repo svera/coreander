@@ -141,7 +141,7 @@ func TestAuthorBioProfileInputFromProvider(t *testing.T) {
 	}
 }
 
-func TestAuthorDetailCardLayout(t *testing.T) {
+func TestAuthorDetailCardLayoutAndSanitization(t *testing.T) {
 	app, idx := newAuthorBioTestApp(t, &bioAuthorClient{}, nil)
 	author, err := idx.Author("john-doe", "en")
 	if err != nil {
@@ -161,7 +161,7 @@ func TestAuthorDetailCardLayout(t *testing.T) {
 	}
 	if err := idx.StoreAuthorBio(author.Slug, index.AuthorBio{
 		Source: author.DataSourceLinks["goodreads"], Language: "en",
-		Text: map[string]string{"en": "John Doe wrote many books."},
+		Text: map[string]string{"en": `<b onclick="bad()">John Doe</b> wrote many <i>books</i>.<script>alert(1)</script>`},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -189,6 +189,11 @@ func TestAuthorDetailCardLayout(t *testing.T) {
 				main.Find(`time[datetime="+001920-01-02"]`).Length() != 1 ||
 				main.Find(`time[datetime="+001992-04-06"]`).Length() != 1 {
 				t.Fatal("the left column must contain the biography and dates, not the photo or links")
+			}
+			if main.Find("#author-bio-text b").Text() != "John Doe" ||
+				main.Find("#author-bio-text i").Text() != "books" ||
+				main.Find("#author-bio-text script, #author-bio-text [onclick]").Length() != 0 {
+				t.Fatal("biographies must render safe bold and italic markup only")
 			}
 			if !main.Next().Is(".author-details-sidebar") ||
 				!main.HasClass("col-12") || !main.HasClass("col-md-8") ||
@@ -256,42 +261,27 @@ func TestAuthorBio(t *testing.T) {
 	if originalLink.Length() != 1 || originalLink.AttrOr("hx-target", "") != "#author-bio" {
 		t.Fatal("the translation note must link to the original biography inside the card")
 	}
-	original := getPage(t, app, originalLink.AttrOr("href", ""))
-	if !strings.HasPrefix(original.Find("#author-bio-text p").First().Text(), "John Doe is an American novelist") || original.Find("#author-bio[data-translated-from]").Length() != 0 {
-		t.Fatal("the original biography must be shown without a translation notice")
+	for _, tc := range []struct {
+		path, prefix string
+		translated   bool
+	}{
+		{originalLink.AttrOr("href", ""), "John Doe is an American novelist", false},
+		{"/authors/john-doe?l=es", "John Doe (es) is an American novelist", true},
+		{"/authors/john-doe?l=en", "John Doe is an American novelist", false},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			page := getPage(t, app, tc.path)
+			paragraphs := page.Find("#author-bio-text p")
+			if page.Find(`[hx-get="/authors/john-doe/bio"]`).Length() != 0 ||
+				paragraphs.Length() != 2 || !strings.HasPrefix(paragraphs.First().Text(), tc.prefix) ||
+				(page.Find("#author-bio[data-translated-from]").Length() == 1) != tc.translated {
+				t.Fatalf("unexpected cached biography or translation notice: %q", page.Text())
+			}
+			if client.calls != 1 || translator.calls != 1 {
+				t.Fatal("cached biographies must not be fetched or translated again")
+			}
+		})
 	}
-	if client.calls != 1 || translator.calls != 1 {
-		t.Fatal("showing the original biography must not fetch or translate it again")
-	}
-
-	page = getPage(t, app, "/authors/john-doe?l=es")
-	if page.Find(`[hx-get="/authors/john-doe/bio"]`).Length() != 0 || page.Find("#author-john-doe #author-bio-text p").Length() != 2 {
-		t.Fatal("a stored bio must be rendered with the author page")
-	}
-	if page.Find("#author-bio[data-translated-from]").Length() != 1 {
-		t.Fatal("a stored translated bio must be marked as an automatic translation")
-	}
-	page = getPage(t, app, "/authors/john-doe?l=en")
-	if page.Find(`[hx-get="/authors/john-doe/bio"]`).Length() != 0 || !strings.HasPrefix(page.Find("#author-john-doe #author-bio p").First().Text(), "John Doe is an American") {
-		t.Fatal("the original bio must be rendered without translating it")
-	}
-	if page.Find("#author-bio[data-translated-from]").Length() != 0 {
-		t.Fatal("an original bio must not be marked as translated")
-	}
-	formatted := index.AuthorBio{Source: author.DataSourceLinks["goodreads"], Language: "en", Text: map[string]string{
-		"en": `<b onclick="bad()">John Doe</b> wrote <i>books</i>.<script>alert(1)</script>`,
-	}}
-	if err := idx.ReplaceAuthorBio(author.Slug, formatted); err != nil {
-		t.Fatal(err)
-	}
-	formattedPage := getPage(t, app, "/authors/john-doe/bio?original=true&l=es")
-	if formattedPage.Find("#author-bio-text b").Text() != "John Doe" || formattedPage.Find("#author-bio-text i").Text() != "books" || formattedPage.Find("#author-bio-text script, #author-bio-text [onclick]").Length() != 0 {
-		t.Fatal("biographies must render safe bold and italic markup only")
-	}
-	if client.calls != 1 || translator.calls != 1 {
-		t.Errorf("expected one Goodreads request and one translation, got %d and %d", client.calls, translator.calls)
-	}
-
 	response, err := app.Test(mustGetRequest(t, "/authors/unknown/bio"))
 	if err != nil {
 		t.Fatal(err)
@@ -302,45 +292,61 @@ func TestAuthorBio(t *testing.T) {
 	}
 }
 
-func TestAuthorBioRefreshEmpty(t *testing.T) {
-	client := &bioAuthorClient{}
-	app, idx := newAuthorBioTestApp(t, client, &bioTranslator{})
-	author, err := idx.Author("john-doe", "en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	author.DataSourceLinks = map[string]string{"goodreads": "1.John_Doe"}
-	author.RetrievedOn = time.Now()
-	if err := idx.IndexAuthor(author); err != nil {
-		t.Fatal(err)
-	}
-	if err := idx.StoreAuthorBio(author.Slug, index.AuthorBio{Source: author.DataSourceLinks["goodreads"]}); err != nil {
-		t.Fatal(err)
-	}
-	adminCookie, err := login(app, "admin@example.com", "admin", t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, path := range []string{"/authors/john-doe", "/authors/john-doe/summary"} {
-		response, err := getRequest(adminCookie, app, path, t)
-		if err != nil {
-			t.Fatal(err)
-		}
-		page := parseHTMLResponse(t, response)
-		if page.Find("#author-bio-refresh").Length() != 1 {
-			t.Fatalf("admins must be able to refresh a cached empty bio in %s", path)
-		}
-		if getPage(t, app, path).Find("#author-bio-refresh").Length() != 0 {
-			t.Fatalf("anonymous visitors must not see an empty bio refresh link in %s", path)
-		}
-	}
-	response, err := postRequest(url.Values{}, adminCookie, app, "/authors/john-doe/bio?l=es", t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := parseHTMLResponse(t, response)
-	if response.StatusCode != http.StatusOK || page.Find("#author-bio-text p").Length() != 2 || client.calls != 1 {
-		t.Fatalf("refresh must recover a cached empty bio, got status %d and %d requests", response.StatusCode, client.calls)
+func TestAuthorBioRefreshResults(t *testing.T) {
+	for _, state := range []string{"empty", "populated"} {
+		t.Run(state, func(t *testing.T) {
+			client := &bioAuthorClient{}
+			app, idx := newAuthorBioTestApp(t, client, &bioTranslator{})
+			author, err := idx.Author("john-doe", "en")
+			if err != nil {
+				t.Fatal(err)
+			}
+			author.DataSourceLinks = map[string]string{"goodreads": "1.John_Doe"}
+			author.RetrievedOn = time.Now()
+			if err := idx.IndexAuthor(author); err != nil {
+				t.Fatal(err)
+			}
+			cached := index.AuthorBio{Source: author.DataSourceLinks["goodreads"], Language: "en"}
+			if state == "populated" {
+				cached.Text = map[string]string{"en": "Old biography", "es": "Old translation", "fr": "Stale translation"}
+			}
+			if err := idx.StoreAuthorBio(author.Slug, cached); err != nil {
+				t.Fatal(err)
+			}
+			adminCookie, err := login(app, "admin@example.com", "admin", t)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, path := range []string{"/authors/john-doe", "/authors/john-doe/summary"} {
+				response, err := getRequest(adminCookie, app, path, t)
+				if err != nil {
+					t.Fatal(err)
+				}
+				page := parseHTMLResponse(t, response)
+				if page.Find("#author-bio-refresh").Length() != 1 {
+					t.Fatalf("admins must be able to refresh a cached bio in %s", path)
+				}
+				if getPage(t, app, path).Find("#author-bio-refresh").Length() != 0 {
+					t.Fatalf("anonymous visitors must not see a bio refresh link in %s", path)
+				}
+			}
+			response, err := postRequest(url.Values{}, adminCookie, app, "/authors/john-doe/bio?l=es", t)
+			if err != nil {
+				t.Fatal(err)
+			}
+			page := parseHTMLResponse(t, response)
+			if response.StatusCode != http.StatusOK || page.Find("#author-bio-text p").Length() != 2 || client.calls != 1 {
+				t.Fatalf("refresh must replace a cached bio, got status %d and %d requests", response.StatusCode, client.calls)
+			}
+			stored, err := idx.Author("john-doe", "en")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(stored.Bio.Text) != 2 || !strings.HasPrefix(stored.Bio.Text["en"], "John Doe is an American novelist") ||
+				!strings.HasPrefix(stored.Bio.Text["es"], "John Doe (es) is an American novelist") {
+				t.Fatalf("refresh must replace the biography and its translations: %+v", stored.Bio)
+			}
+		})
 	}
 }
 
@@ -517,29 +523,12 @@ func TestAuthorBioRefresh(t *testing.T) {
 		t.Fatal("refreshing a biography must activate its loading skeleton")
 	}
 
-	client.desc = "John Doe is an American novelist and sailor who now lives in Boston with his family."
-	response, err = postRequest(url.Values{}, adminCookie, app, "/authors/john-doe/bio?l=es", t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	page = parseHTMLResponse(t, response)
-	if response.StatusCode != http.StatusOK || client.calls != 2 || !strings.Contains(page.Find("#author-bio").Text(), "John Doe (es) is an American novelist and sailor") {
-		t.Fatalf("expected the refreshed bio, got status %d, %d requests and %q", response.StatusCode, client.calls, page.Text())
-	}
-
-	stored, err := idx.Author("john-doe", "en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(stored.Bio.Text) != 2 || !strings.HasPrefix(stored.Bio.Text["en"], "John Doe is an American novelist and sailor") {
-		t.Errorf("the refreshed bio must replace the stored one and its translations, got %+v", stored.Bio)
-	}
 	response, err = postRequest(url.Values{"goodreadsID": {"https://www.goodreads.com/author/show/879.Plato/"}}, adminCookie, app, "/authors/john-doe/bio?l=es", t)
 	if err != nil {
 		t.Fatal(err)
 	}
 	page = parseHTMLResponse(t, response)
-	stored, err = idx.Author("john-doe", "en")
+	stored, err := idx.Author("john-doe", "en")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -554,7 +543,7 @@ func TestAuthorBioRefresh(t *testing.T) {
 			t.Fatal(err)
 		}
 		page := parseHTMLResponse(t, response)
-		if response.StatusCode != http.StatusBadRequest || client.calls != 3 {
+		if response.StatusCode != http.StatusBadRequest || client.calls != 2 {
 			t.Errorf("invalid ID %q must be rejected before lookup, got %d", invalid, response.StatusCode)
 		}
 		form := page.Find("#author-john-doe #update-author-form-john-doe.show")
@@ -574,7 +563,7 @@ func TestAuthorBioRefresh(t *testing.T) {
 		t.Fatal(err)
 	}
 	if response.StatusCode != http.StatusOK || stored.DataSourceLinks["goodreads"] != "" || stored.Bio.Source != "" ||
-		len(stored.Bio.Text) != 0 || client.calls != 3 || page.Find(`a[href*="goodreads.com/author/"]`).Length() != 0 ||
+		len(stored.Bio.Text) != 0 || client.calls != 2 || page.Find(`a[href*="goodreads.com/author/"]`).Length() != 0 ||
 		page.Find(`input[name="goodreadsID"]`).AttrOr("value", "") != "" {
 		t.Fatalf("blank Goodreads ID must clear link and biography without lookup: status=%d author=%+v calls=%d", response.StatusCode, stored, client.calls)
 	}
