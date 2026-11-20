@@ -1,0 +1,20 @@
+<div id="author-bio" class="mb-3 px-3"{{if .TranslatedFrom}} data-translated-from="{{.TranslatedFrom}}"{{end}}>
+    <div class="author-bio-content">
+    {{if .Paragraphs}}
+    <div id="author-bio-text" class="author-bio-text clamp">
+    {{range .Paragraphs}}
+        <p>{{range $i, $line := .}}{{if $i}}<br>{{end}}{{$line}}{{end}}</p>
+    {{end}}
+    </div>
+    <button type="button" class="btn btn-link p-0 mb-2 author-bio-toggle" hidden aria-expanded="false" aria-controls="author-bio-text" data-show-more="{{t .Lang "Show more"}}" data-show-less="{{t .Lang "Show less"}}">{{t .Lang "Show more"}}</button>
+    {{end}}
+    {{if .TranslatedFrom}}
+        <div class="small text-body-secondary fst-italic mt-2"><i class="bi-translate me-1"></i><a href="/authors/{{.Slug}}/bio?original=true&amp;l={{.Lang}}" hx-get="/authors/{{.Slug}}/bio?original=true&amp;l={{.Lang}}" hx-target="#author-bio" hx-swap="outerHTML" hx-indicator="#author-bio">{{t .Lang "Automatically translated. See in original language: %s" .TranslatedFrom}}</a></div>
+    {{end}}
+    </div>
+    <div class="author-bio-loading placeholder-glow" aria-hidden="true">
+        <p class="mb-1"><span class="placeholder col-12"></span></p>
+        <p class="mb-1"><span class="placeholder col-11"></span></p>
+        <p><span class="placeholder col-7"></span></p>
+    </div>
+</div>

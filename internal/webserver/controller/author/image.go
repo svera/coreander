@@ -16,7 +16,7 @@ import (
 	"github.com/deepteams/webp"
 	"github.com/gofiber/fiber/v3"
 	"github.com/kovidgoyal/imaging"
-	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/webserver/controller/fsutil"
 )
 
@@ -178,9 +178,9 @@ func (a *Controller) saveImage(img image.Image, filename string) error {
 func (a *Controller) loadDefaultImage(gender float64) ([]byte, error) {
 	var defaultImagePath string
 	switch gender {
-	case wikidata.GenderMale:
+	case model.GenderMale:
 		defaultImagePath = "male.webp"
-	case wikidata.GenderFemale:
+	case model.GenderFemale:
 		defaultImagePath = "female.webp"
 	default:
 		defaultImagePath = "male.webp"

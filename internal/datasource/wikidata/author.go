@@ -49,15 +49,6 @@ const (
 	InstanceHumanWhoseExistenceIsDisputed
 )
 
-const (
-	GenderUnknown = iota
-	GenderMale
-	GenderFemale
-	GenderIntersex
-	GenderTrasgenderFemale
-	GenderTrasgenderMale
-)
-
 type Author struct {
 	birthName        string
 	wikidataEntityId string

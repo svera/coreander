@@ -50,7 +50,9 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 			"Author":          author,
 			"DataSourceLinks": a.authorDataSourceLinks(author, lang),
 			"ImageVersion":    imageVersion,
+			"ProfileInputs":   a.profileInputs(author, c.Query("style"), "", ""),
 		}
+		a.addBioVars(templateVars, template, author, lang)
 
 		if err = c.Render(template, templateVars); err != nil {
 			log.Println(err)
@@ -65,21 +67,21 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
-	if authorDataSource == nil {
-		return fiber.ErrNotFound
-	}
+	if authorDataSource != nil {
+		index.CombineWithDataSource(&author, authorDataSource, supportedLanguages)
 
-	index.CombineWithDataSource(&author, authorDataSource, supportedLanguages)
-
-	if err := a.idx.IndexAuthor(author); err != nil {
-		log.Println(err)
+		if err := a.idx.IndexAuthor(author); err != nil {
+			log.Println(err)
+		}
 	}
 
 	templateVars := fiber.Map{
 		"Author":          author,
 		"DataSourceLinks": a.authorDataSourceLinks(author, lang),
 		"ImageVersion":    imageVersion,
+		"ProfileInputs":   a.profileInputs(author, c.Query("style"), "", ""),
 	}
+	a.addBioVars(templateVars, template, author, lang)
 
 	if err = c.Render(template, templateVars); err != nil {
 		log.Println(err)

@@ -185,10 +185,80 @@ func (b *BleveIndexer) IndexAuthor(author Author) error {
 		}
 	}
 	author.DataSourceLinks = links
+	if current.Slug != "" {
+		author.Bio = current.Bio
+	}
 	if err := indexAuthor(b.authorsIdx, author.Slug, author); err != nil {
 		return err
 	}
 	return nil
+}
+
+// StoreAuthorBio saves a biography for an indexed author. Texts for the same source and
+// original language are merged with the stored ones, so translations accumulate; any other
+// biography replaces the stored one.
+func (b *BleveIndexer) StoreAuthorBio(slug string, bio AuthorBio) error {
+	return b.storeAuthorBio(slug, bio, true)
+}
+
+// ReplaceAuthorBio stores bio as the biography of the author identified by slug, discarding any texts
+// stored before, even if they come from the same source and are in the same language.
+func (b *BleveIndexer) ReplaceAuthorBio(slug string, bio AuthorBio) error {
+	return b.storeAuthorBio(slug, bio, false)
+}
+
+// StoreCanonicalAuthorBio replaces the bio and its source link atomically, unless the link changed.
+func (b *BleveIndexer) StoreCanonicalAuthorBio(slug, linkKey, previousLink string, bio AuthorBio) error {
+	b.authorsMu.Lock()
+	defer b.authorsMu.Unlock()
+	author, err := b.authorBySlugLocked(slug)
+	if err != nil || author.Slug == "" {
+		return err
+	}
+	if author.DataSourceLinks[linkKey] != previousLink {
+		return fmt.Errorf("data source link changed while resolving primary profile for %s", slug)
+	}
+	if author.DataSourceLinks == nil {
+		author.DataSourceLinks = make(map[string]string)
+	}
+	if bio.Source == "" {
+		delete(author.DataSourceLinks, linkKey)
+	} else {
+		author.DataSourceLinks[linkKey] = bio.Source
+	}
+	author.Bio = bio
+	return indexAuthor(b.authorsIdx, slug, author)
+}
+
+func (b *BleveIndexer) storeAuthorBio(slug string, bio AuthorBio, merge bool) error {
+	return b.storeAuthorBioChecked(slug, "", bio, merge, nil)
+}
+
+// StoreAuthorBioForLink rejects biography results when the source link has changed.
+func (b *BleveIndexer) StoreAuthorBioForLink(slug, linkKey, expectedLink string, bio AuthorBio, merge bool) error {
+	return b.storeAuthorBioChecked(slug, linkKey, bio, merge, &expectedLink)
+}
+
+func (b *BleveIndexer) storeAuthorBioChecked(slug, linkKey string, bio AuthorBio, merge bool, expectedLink *string) error {
+	b.authorsMu.Lock()
+	defer b.authorsMu.Unlock()
+	author, err := b.authorBySlugLocked(slug)
+	if err != nil || author.Slug == "" {
+		return err
+	}
+	if expectedLink != nil && author.DataSourceLinks[linkKey] != *expectedLink {
+		return fmt.Errorf("data source link changed while retrieving biography for %s", slug)
+	}
+	if merge && author.Bio.Source == bio.Source && author.Bio.Language == bio.Language {
+		texts := maps.Clone(author.Bio.Text)
+		if texts == nil {
+			texts = make(map[string]string, len(bio.Text))
+		}
+		maps.Copy(texts, bio.Text)
+		bio.Text = texts
+	}
+	author.Bio = bio
+	return indexAuthor(b.authorsIdx, slug, author)
 }
 
 func (b *BleveIndexer) authorBySlugLocked(slug string) (Author, error) {
@@ -218,7 +288,7 @@ const (
 	DefaultAuthorEnrichInterval   = time.Minute / AuthorEnrichRequestsPerMinute
 )
 
-// AuthorDataSource retrieves author metadata from an external source such as Wikidata.
+// AuthorDataSource retrieves author metadata from an external source.
 type AuthorDataSource interface {
 	SearchAuthor(name string, languages []string) (datasourcemodel.Author, error)
 	SearchEntityIDs(name string) ([]string, error)
@@ -280,7 +350,7 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 		return nil
 	}
 
-	log.Printf("Enriching %d authors from Wikidata", len(authors))
+	log.Printf("Enriching %d authors from data source", len(authors))
 
 	b.beginAuthorEnrichment(len(authors) * 2)
 	defer b.endAuthorEnrichment()
@@ -307,7 +377,7 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 
 		ids, err := dataSource.SearchEntityIDs(author.Name)
 		if err != nil {
-			log.Printf("Error searching author %s on Wikidata: %s", author.Name, err)
+			log.Printf("Error searching author %s in data source: %s", author.Name, err)
 			candidates[author.Slug] = nil
 		} else {
 			candidates[author.Slug] = ids

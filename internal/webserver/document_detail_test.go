@@ -158,6 +158,37 @@ func TestDocumentDetail(t *testing.T) {
 	}
 }
 
+func TestDocumentDetailAuthorPlaceholder(t *testing.T) {
+	app, idx := newSearchResultsTestApp(t, []index.Document{{
+		ID: "source.epub", Slug: "source",
+		Metadata: metadata.Metadata{
+			Title: "Source", Format: "EPUB", Authors: []string{"Jane Doe"}, Illustrators: []string{"John Doe"},
+		},
+		AuthorsSlugs: []string{"jane-doe"},
+	}})
+	if err := idx.IndexAuthor(index.Author{Slug: "jane-doe", Name: "Jane Doe"}); err != nil {
+		t.Fatal(err)
+	}
+
+	page := getPage(t, app, "/documents/source?l=es")
+	for _, slug := range []string{"jane-doe", "john-doe"} {
+		path := "/authors/" + slug + "/summary?style=clear&l=es"
+		placeholder := page.Find(`[data-author-summary-placeholder][hx-get="` + path + `"]`)
+		if placeholder.Length() != 1 {
+			t.Fatalf("expected placeholder for %s", slug)
+		}
+		if placeholder.AttrOr("hx-swap", "") != "outerHTML" ||
+			placeholder.AttrOr("hx-request", "") != `{"timeout":120000}` ||
+			placeholder.Find("[data-author-summary-loading]").Length() != 1 ||
+			placeholder.Find(`[data-author-summary-error][hidden] button[hx-get="`+path+`"]`).Length() != 1 {
+			t.Errorf("%s placeholder must have a bounded request and a retryable error state", slug)
+		}
+		if !strings.Contains(placeholder.Find("[data-author-summary-error]").Text(), "No se pudo cargar") {
+			t.Errorf("%s error state must be localized", slug)
+		}
+	}
+}
+
 func TestRelatedDocumentHeadersShowFullTotals(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	sqlDB, err := db.DB()

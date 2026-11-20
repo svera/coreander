@@ -550,7 +550,7 @@ func TestDocumentDetailBiblioReadsSearchesUnlinkedDocuments(t *testing.T) {
 		t.Errorf("expected the found link to be stored, got %+v", stored)
 	}
 	author, err := idx.Author("jane-doe", "")
-	if err != nil || author.DataSourceLinks["goodreads"] != "/author/show/1.Jane_Doe" || author.DocumentCount != 1 {
+	if err != nil || author.DataSourceLinks["goodreads"] != "1.Jane_Doe" || author.DocumentCount != 1 {
 		t.Fatalf("expected missing author entry created with URL and document count, got %+v, %v", author, err)
 	}
 	if mustBiblioReadsData(t, stored).ResourceID != "" || mustBiblioReadsData(t, stored).LegacyBookID != 0 {
@@ -583,7 +583,7 @@ func TestDocumentDetailBiblioReadsSkipsUnmatchedDocuments(t *testing.T) {
 		score := page.Find("li").FilterFunction(func(_ int, item *goquery.Selection) bool {
 			return item.Find("i.bi-star-fill").Length() == 1
 		})
-		if strings.TrimSpace(score.Text()) != "Document not found in Goodreads" || score.Find("a").Length() != 0 {
+		if strings.TrimSpace(score.Text()) != "Not found in Goodreads" || score.Find("a").Length() != 0 {
 			t.Errorf("%s: expected unmatched-document row, got %q", path, score.Text())
 		}
 	}
@@ -653,7 +653,7 @@ func TestDocumentDetailBiblioReadsSearchDoesNotScrape(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if strings.TrimSpace(page.Find("li").Text()) != "Document not found in Goodreads" || page.Find("a").Length() != 0 {
+				if strings.TrimSpace(page.Find("li").Text()) != "Not found in Goodreads" || page.Find("a").Length() != 0 {
 					t.Errorf("expected unmatched-document row without a link, got %q", body)
 				}
 			} else if tt.enriched && len(tt.results) > 0 {

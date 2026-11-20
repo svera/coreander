@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"slices"
 	"strings"
 	"time"
@@ -200,9 +201,14 @@ func (p *Enricher) enrich(ctx context.Context, idx *index.BleveIndexer, document
 		current.DataSourceScoreValue = parseRating(result.Rating, current.ID)
 		if result.AuthorURL != "" {
 			if slug, name := matchedAuthor(current.Document, result.Author); slug != "" {
-				current.AuthorLinks = append(current.AuthorLinks, index.AuthorLink{
-					Slug: slug, Name: name, Source: Source, URL: result.AuthorURL,
-				})
+				if authorProfilePath.MatchString(result.AuthorURL) {
+					id := strings.TrimSuffix(strings.TrimPrefix(result.AuthorURL, goodreadsAuthorPrefix), "/")
+					current.AuthorLinks = append(current.AuthorLinks, index.AuthorLink{
+						Slug: slug, Name: name, Source: Source, Value: id,
+					})
+				} else {
+					log.Printf("Invalid BiblioReads author URL %q for document %s", result.AuthorURL, current.ID)
+				}
 			}
 		}
 		return true, index.SetDataSourceData(&current.Document, Source, data)

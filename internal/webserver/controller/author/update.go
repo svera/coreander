@@ -15,7 +15,11 @@ func (a *Controller) Update(c fiber.Ctx) error {
 	supportedLanguages := c.Locals("SupportedLanguages").([]string)
 	lang := c.Locals("Lang").(string)
 	session, _ := c.Locals("Session").(model.Session)
-	sourceID := c.FormValue("sourceID")
+	sourceID, err := a.dataSource.NormalizeAuthorID(c.FormValue("sourceID"))
+	if err != nil {
+		log.Printf("Invalid author profile for %s: %s", authorSlug, err)
+		return fiber.ErrBadRequest
+	}
 	template := "partials/author-summary"
 	if c.Query("style") == "clear" {
 		template = "partials/author-summary-doc-detail"
@@ -67,7 +71,9 @@ func (a *Controller) Update(c fiber.Ctx) error {
 		"ImageVersion":    a.getImageVersion(author.Slug),
 		"Lang":            lang,
 		"Session":         session,
+		"ProfileInputs":   a.profileInputs(author, c.Query("style"), "", ""),
 	}
+	a.addBioVars(templateVars, template, author, lang)
 
 	if err = c.Render(template, templateVars); err != nil {
 		log.Println(err)

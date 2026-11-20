@@ -212,7 +212,7 @@ func TestAuthorErrors(t *testing.T) {
 		body        string
 		unavailable bool
 	}{
-		{"API error", http.StatusNotFound, `{"status":"Error - Author not found"}`, false},
+		{"API error", http.StatusNotFound, `{"version":"BiblioReads v4.5.1","status":"Error - Author not found"}`, false},
 		{"non-JSON response", http.StatusOK, "<html>Bad Gateway</html>", true},
 		{"invalid field type", http.StatusOK, `{"books":"invalid"}`, false},
 	} {

@@ -18,6 +18,40 @@ type DataSourceLinkProvider interface {
 	AuthorLink(author index.Author, language string) datasourcemodel.DataSourceLink
 }
 
+type ProfileInputProvider interface {
+	ProfileServiceName() string
+	ProfileValue(author index.Author) string
+}
+
+type ProfileInput struct {
+	Name         string
+	ServiceName  string
+	Value        string
+	Method       string
+	Action       string
+	FormID       string
+	Indicator    string
+	Disabled     string
+	Invalid      bool
+	ErrorMessage string
+	ErrorID      string
+}
+
+func NewProfileInput(provider ProfileInputProvider, author index.Author, name, method, action string) ProfileInput {
+	return ProfileInput{
+		Name: name, ServiceName: provider.ProfileServiceName(), Value: provider.ProfileValue(author),
+		Method: method, Action: action,
+	}
+}
+
+func NewMetadataProfileInput(provider ProfileInputProvider, author index.Author, style string) ProfileInput {
+	action := "/authors/" + author.Slug
+	if style == "clear" {
+		action += "?style=clear"
+	}
+	return NewProfileInput(provider, author, "sourceID", "put", action)
+}
+
 // IdxReader defines a set of author reading operations over an index
 type IdxReader interface {
 	SearchAuthors(searchFields index.AuthorSearchFields, page, resultsPerPage int) (result.Paginated[[]index.Author], error)
@@ -55,6 +89,7 @@ type Controller struct {
 	appFs                   afero.Fs
 	embeddedImagesFS        fs.FS
 	dataSourceLinkProviders []DataSourceLinkProvider
+	bioProvider             BioProvider
 }
 
 func NewController(hlRepository highlightsRepository, readingRepository readingRepository, sender Sender, idx IdxReader, cfg Config, dataSource DataSource, appFs afero.Fs, embeddedImagesFS fs.FS, dataSourceLinkProviders ...DataSourceLinkProvider) *Controller {
@@ -87,4 +122,25 @@ func DataSourceLinks(author index.Author, language string, providers ...DataSour
 		}
 	}
 	return links
+}
+
+func (a *Controller) profileInputs(author index.Author, style, invalidName, submittedValue string) []ProfileInput {
+	var inputs []ProfileInput
+	if a.dataSource != nil {
+		inputs = append(inputs, NewMetadataProfileInput(a.dataSource, author, style))
+	}
+	if a.bioProvider != nil {
+		input := NewProfileInput(a.bioProvider, author, a.bioProvider.ProfileInputName(), "post", "/authors/"+author.Slug+"/bio")
+		input.FormID = "author-bio-refresh"
+		input.Indicator = "#author-bio"
+		input.Disabled = "find button"
+		if invalidName == input.Name {
+			input.Value = submittedValue
+			input.Invalid = true
+			input.ErrorMessage = "Enter a valid profile URL or ID."
+			input.ErrorID = "profile-error-" + author.Slug
+		}
+		inputs = append(inputs, input)
+	}
+	return inputs
 }

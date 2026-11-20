@@ -54,7 +54,8 @@ function resolveEmailPlaceholder(message, elt) {
 htmx.on("htmx:beforeSwap", (evt) => {
     // Allow 422 and 400 responses to swap
     // We treat these as form validation errors
-    if (evt.detail.xhr.status === 422 || evt.detail.xhr.status === 400) {
+    if ((evt.detail.xhr.status === 422 || evt.detail.xhr.status === 400) &&
+        !evt.detail.target?.matches('[data-document-reviews]')) {
         evt.detail.shouldSwap = true;
         evt.detail.isError = false;
     }
@@ -136,6 +137,19 @@ function showBackgroundProgressError(evt) {
 htmx.on('htmx:sendError', showBackgroundProgressError)
 htmx.on('htmx:responseError', showBackgroundProgressError)
 htmx.on('htmx:timeout', showBackgroundProgressError)
+
+function showAuthorSummaryError(evt) {
+    const placeholder = evt.detail?.elt?.closest('[data-author-summary-placeholder]')
+    if (!placeholder) {
+        return
+    }
+    placeholder.querySelector('[data-author-summary-loading]')?.remove()
+    placeholder.querySelector('[data-author-summary-error]').hidden = false
+}
+
+htmx.on('htmx:sendError', showAuthorSummaryError)
+htmx.on('htmx:responseError', showAuthorSummaryError)
+htmx.on('htmx:timeout', showAuthorSummaryError)
 
 const setUpWarningsListener = () => {
     document.querySelectorAll('[data-warning-once]').forEach((el) => {

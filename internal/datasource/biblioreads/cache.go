@@ -2,6 +2,7 @@ package biblioreads
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -15,6 +16,7 @@ const cacheSweepInterval = 10 * time.Minute
 type cacheEntry struct {
 	body      []byte
 	expiresAt time.Time
+	requestID uint64
 }
 
 // responseCache is an in-memory cache of raw response bodies with a fixed TTL.
@@ -23,6 +25,7 @@ type responseCache struct {
 	mu        sync.Mutex
 	entries   map[string]cacheEntry
 	lastSweep time.Time
+	requestID atomic.Uint64
 }
 
 func newResponseCache(ttl time.Duration) *responseCache {
@@ -48,11 +51,15 @@ func (c *responseCache) get(key string) ([]byte, bool) {
 	return entry.body, true
 }
 
-func (c *responseCache) set(key string, body []byte) {
+func (c *responseCache) set(key string, body []byte, requestID uint64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	now := time.Now()
+	// A slower request started before a refresh must not overwrite the newer response.
+	if entry, ok := c.entries[key]; ok && now.Before(entry.expiresAt) && entry.requestID > requestID {
+		return
+	}
 	if now.Sub(c.lastSweep) >= cacheSweepInterval {
 		for k, entry := range c.entries {
 			if !now.Before(entry.expiresAt) {
@@ -61,5 +68,5 @@ func (c *responseCache) set(key string, body []byte) {
 		}
 		c.lastSweep = now
 	}
-	c.entries[key] = cacheEntry{body: body, expiresAt: now.Add(c.ttl)}
+	c.entries[key] = cacheEntry{body: body, expiresAt: now.Add(c.ttl), requestID: requestID}
 }

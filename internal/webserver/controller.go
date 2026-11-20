@@ -106,6 +106,9 @@ func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender S
 	}
 
 	authorsController := author.NewController(highlightsRepository, readingRepository, sender, idx, authorsCfg, authorDataSource, appFs, imagesFS, dataSourceLinkProviders...)
+	if cfg.AuthorBioProvider != nil {
+		authorsController.SetBioProvider(cfg.AuthorBioProvider)
+	}
 	go authorsController.MigrateJPEGsToWebP()
 
 	return Controllers{
@@ -114,7 +117,7 @@ func SetupControllers(cfg Config, db *gorm.DB, idx *index.BleveIndexer, sender S
 		Users:       user.NewController(usersRepository, invitationsRepository, usersCfg, sender, translator),
 		Completed:   completed.NewController(readingRepository, idx),
 		Highlights:  highlight.NewController(highlightsRepository, readingRepository, usersRepository, sender, cfg.WordsPerMinute, cfg.ReviewSourceConfigured, idx),
-		Documents:   document.NewController(highlightsRepository, usersRepository, readingRepository, annotationsRepository, sender, idx, appFs, documentsCfg, translator, reviewProvider, dataSourceLinkProviders...),
+		Documents:   document.NewController(highlightsRepository, usersRepository, readingRepository, annotationsRepository, sender, idx, appFs, documentsCfg, translator, reviewProvider, authorDataSource, dataSourceLinkProviders...),
 		Home:        home.NewController(highlightsRepository, readingRepository, sender, idx, homeCfg),
 		Authors:     authorsController,
 		Search:      search.NewController(highlightsRepository, readingRepository, sender, idx, searchCfg),
