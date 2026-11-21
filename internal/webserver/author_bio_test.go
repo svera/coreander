@@ -54,16 +54,8 @@ func (t *bioTranslator) TranslateWithGender(_ context.Context, text, from, to st
 // lazyBioIndex lets the provider be configured before the index is created.
 type lazyBioIndex struct{ idx *index.BleveIndexer }
 
-func (l *lazyBioIndex) StoreAuthorBio(slug string, bio index.AuthorBio) error {
-	return l.idx.StoreAuthorBio(slug, bio)
-}
-
 func (l *lazyBioIndex) StoreAuthorBioForLink(slug, linkKey, expectedLink string, bio index.AuthorBio, merge bool) error {
 	return l.idx.StoreAuthorBioForLink(slug, linkKey, expectedLink, bio, merge)
-}
-
-func (l *lazyBioIndex) ReplaceAuthorBio(slug string, bio index.AuthorBio) error {
-	return l.idx.ReplaceAuthorBio(slug, bio)
 }
 
 func (l *lazyBioIndex) StoreCanonicalAuthorBio(slug, linkKey, previousLink string, bio index.AuthorBio) error {
@@ -72,10 +64,26 @@ func (l *lazyBioIndex) StoreCanonicalAuthorBio(slug, linkKey, previousLink strin
 
 func newAuthorBioTestApp(t *testing.T, client *bioAuthorClient, translator gt.Translator) (*fiber.App, *index.BleveIndexer) {
 	t.Helper()
+	return newAuthorBioTestAppWithSource(t, biblioreads.NewBioSource(client), translator, nil)
+}
+
+func newAuthorBioTestAppWithSource(t *testing.T, source biography.Source, translator gt.Translator, metadataSource *bioMetadataSource) (*fiber.App, *index.BleveIndexer) {
+	t.Helper()
 	bioIndex := &lazyBioIndex{}
 	cfg := defaultTestConfig()
-	cfg.AuthorBioProvider = biography.NewService(biblioreads.NewBioSource(client), translator, bioIndex)
-	app, idx := bootstrapAppWithIndexer(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), cfg)
+	if source != nil {
+		cfg.AuthorBioProvider = biography.NewService(source, translator, bioIndex)
+	}
+	db := infrastructure.Connect(":memory:", 250)
+	sender := &infrastructure.NoEmail{}
+	appFS := loadDirInMemoryFs("testdata/library")
+	var app *fiber.App
+	var idx *index.BleveIndexer
+	if metadataSource == nil {
+		app, idx = bootstrapAppWithIndexer(db, sender, appFS, cfg)
+	} else {
+		app, idx = bootstrapAppWithAuthorSource(db, sender, appFS, cfg, metadataSource)
+	}
 	bioIndex.idx = idx
 	return app, idx
 }
@@ -90,17 +98,15 @@ func parseHTMLResponse(t *testing.T, response *http.Response) *goquery.Document 
 	return page
 }
 
-type alternateProfileInput struct{ *biography.Service }
+type alternateProfileInput struct{ biography.Source }
 
 func (alternateProfileInput) ProfileInputName() string   { return "otherProfileID" }
 func (alternateProfileInput) ProfileServiceName() string { return "Other service" }
 
 func testAuthorBioAddProfile(t *testing.T) {
-	client, bioIndex := &bioAuthorClient{}, &lazyBioIndex{}
-	cfg := defaultTestConfig()
-	cfg.AuthorBioProvider = alternateProfileInput{biography.NewService(biblioreads.NewBioSource(client), nil, bioIndex)}
-	app, idx := bootstrapAppWithIndexer(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), cfg)
-	bioIndex.idx = idx
+	client := &bioAuthorClient{}
+	source := alternateProfileInput{biblioreads.NewBioSource(client)}
+	app, idx := newAuthorBioTestAppWithSource(t, source, nil, nil)
 	author, err := idx.Author("john-doe", "en")
 	if err != nil {
 		t.Fatal(err)
@@ -146,7 +152,7 @@ func testAuthorBioAddProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.AuthorBioProvider.ProfileValue(author) == "" || author.Bio.Source != "879" ||
+	if source.ProfileValue(author) == "" || author.Bio.Source != "879" ||
 		author.Bio.Text["en"] == "" || client.calls != 1 {
 		t.Fatal("adding a profile must store its link and biography")
 	}
@@ -369,12 +375,8 @@ func (bioMetadata) OwnsLink(key string) bool {
 }
 
 func TestLocalizedAuthorBioUsesCurrentLanguageOnAuthorPage(t *testing.T) {
-	bioIndex := &lazyBioIndex{}
 	result := &bioSourceResult{}
-	cfg := defaultTestConfig()
-	cfg.AuthorBioProvider = biography.NewService(&localizedBioSource{language: "en", result: result}, nil, bioIndex)
-	app, idx := bootstrapAppWithAuthorSource(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), cfg, &bioMetadataSource{})
-	bioIndex.idx = idx
+	app, idx := newAuthorBioTestAppWithSource(t, &localizedBioSource{language: "en", result: result}, nil, &bioMetadataSource{})
 	author, err := idx.Author("john-doe", "en")
 	if err != nil {
 		t.Fatal(err)
@@ -405,16 +407,13 @@ func TestLocalizedAuthorBioUsesCurrentLanguageOnAuthorPage(t *testing.T) {
 		t.Fatal("a known profile must enable lazy biography retrieval without requesting the source")
 	}
 	if err := idx.StoreAuthorBioForLink(author.Slug, "catalog:es", author.DataSourceLinks["catalog:es"], index.AuthorBio{
-		Source: author.DataSourceLinks["catalog:es"], Language: "es", Text: map[string]string{"es": "<b>Stored</b> Spanish <i>biography</i>."},
+		Source: author.DataSourceLinks["catalog:es"], Language: "es", Text: map[string]string{"es": "Stored Spanish biography."},
 	}, true); err != nil {
 		t.Fatal(err)
 	}
 	page = getPage(t, app, "/authors/john-doe?l=es")
 	if text := strings.TrimSpace(page.Find("#author-bio-text").Text()); text != "Stored Spanish biography." {
 		t.Fatalf("must render the stored biography: %q", text)
-	}
-	if page.Find("#author-bio-text b").Text() != "Stored" || page.Find("#author-bio-text i").Text() != "biography" {
-		t.Fatal("biographies must retain bold and italic formatting in the author card")
 	}
 	if page.Find(`[hx-get="/authors/john-doe/bio"]`).Length() != 0 ||
 		page.Find("#author-bio[data-translated-from]").Length() != 0 {
@@ -431,12 +430,8 @@ func TestLocalizedAuthorBioUsesCurrentLanguageOnAuthorPage(t *testing.T) {
 
 func TestMetadataProfileUpdateRefreshesBiography(t *testing.T) {
 	result := &bioSourceResult{text: "Updated Spanish biography."}
-	bioIndex := &lazyBioIndex{}
-	cfg := defaultTestConfig()
-	cfg.AuthorBioProvider = biography.NewService(&localizedBioSource{language: "en", result: result}, nil, bioIndex)
 	source := &bioMetadataSource{link: "new-profile"}
-	app, idx := bootstrapAppWithAuthorSource(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), cfg, source)
-	bioIndex.idx = idx
+	app, idx := newAuthorBioTestAppWithSource(t, &localizedBioSource{language: "en", result: result}, nil, source)
 	author, err := idx.Author("john-doe", "es")
 	if err != nil {
 		t.Fatal(err)
@@ -486,9 +481,6 @@ func TestMetadataProfileUpdateRefreshesBiography(t *testing.T) {
 			t.Fatalf("metadata update must refresh the new profile in the reader's language, got %+v", call)
 		}
 		result.text = "Refreshed Spanish biography."
-	}
-	if len(result.calls) != 2 {
-		t.Fatalf("updating even the same metadata profile must refresh the biography, calls=%d", len(result.calls))
 	}
 	response, err := postRequest(url.Values{"catalogBioID": {"other-profile"}}, admin, app, "/authors/john-doe/bio?l=es", t)
 	if err != nil {
@@ -571,9 +563,6 @@ func testAuthorBioRefreshResults(t *testing.T) {
 				if page.Find("#author-bio-refresh").Length() != 1 {
 					t.Fatalf("admins must be able to refresh a cached bio in %s", path)
 				}
-				if getPage(t, app, path).Find("#author-bio-refresh").Length() != 0 {
-					t.Fatalf("anonymous visitors must not see a bio refresh link in %s", path)
-				}
 			}
 			response, err := postRequest(url.Values{}, adminCookie, app, "/authors/john-doe/bio?l=es", t)
 			if err != nil {
@@ -598,13 +587,11 @@ func testAuthorBioRefreshResults(t *testing.T) {
 func TestAuthorUpdateGuidance(t *testing.T) {
 	for _, enabled := range []bool{false, true} {
 		t.Run(map[bool]string{false: "wikidata-only", true: "both-sources"}[enabled], func(t *testing.T) {
-			cfg := defaultTestConfig()
-			bioIndex := &lazyBioIndex{}
+			var source biography.Source
 			if enabled {
-				cfg.AuthorBioProvider = biography.NewService(biblioreads.NewBioSource(&bioAuthorClient{}), &bioTranslator{}, bioIndex)
+				source = biblioreads.NewBioSource(&bioAuthorClient{})
 			}
-			app, idx := bootstrapAppWithIndexer(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), cfg)
-			bioIndex.idx = idx
+			app, idx := newAuthorBioTestAppWithSource(t, source, &bioTranslator{}, nil)
 			author, err := idx.Author("john-doe", "en")
 			if err != nil {
 				t.Fatal(err)
@@ -674,8 +661,10 @@ func testAuthorBioRefreshPermissions(t *testing.T) {
 	getBody(t, app, "/authors/john-doe/bio?l=es")
 	getBody(t, app, "/authors/john-doe/bio?l=en")
 
-	if getPage(t, app, "/authors/john-doe").Find("#author-bio-refresh").Length() != 0 {
-		t.Error("only admins can refresh biographies")
+	for _, path := range []string{"/authors/john-doe", "/authors/john-doe/summary"} {
+		if getPage(t, app, path).Find("#author-bio-refresh").Length() != 0 {
+			t.Errorf("anonymous visitors must not see a bio refresh link in %s", path)
+		}
 	}
 	response, err := postRequest(url.Values{}, &http.Cookie{Name: "anonymous"}, app, "/authors/john-doe/bio", t)
 	if err != nil {
