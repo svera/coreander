@@ -72,7 +72,7 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		"BioTranslatedFrom":     bioTranslatedFrom,
 		"BioRefreshAvailable":   a.bioRefreshAvailable(author),
 		"DataSourceLinks":       a.authorDataSourceLinks(author, lang),
-		"ProfileInputs":         a.profileInputs(author, "", "", ""),
+		"ProfileInputs":         a.profileInputs(author, lang, "", "", ""),
 		"ImageVersion":          a.getImageVersion(author.Slug),
 		"DocumentSearchFields":  searchFields,
 		"DocumentsOnly":         true,

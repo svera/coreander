@@ -26,6 +26,7 @@ require (
 	github.com/rickb777/date/v2 v2.3.12
 	github.com/rjeczalik/notify v0.9.3
 	github.com/spf13/afero v1.15.0
+	github.com/trietmn/go-wiki v1.0.3
 	github.com/wneessen/go-mail v0.8.1
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
 	golang.org/x/mod v0.41.0
@@ -39,6 +40,7 @@ require (
 require (
 	github.com/MicahParks/keyfunc/v2 v2.1.0 // indirect
 	github.com/RoaringBitmap/roaring/v2 v2.19.0 // indirect
+	github.com/anaskhan96/soup v1.2.5 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/beevik/etree v1.6.0 // indirect
 	github.com/blevesearch/go-faiss v1.1.5 // indirect
@@ -129,5 +131,7 @@ require (
 )
 
 replace github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.3
+
+replace github.com/trietmn/go-wiki => github.com/svera/go-wiki v1.0.5-0.20261121102819-097b0190e309
 
 replace gopkg.gilang.dev/translator/v2 => github.com/svera/translator/v2 v2.0.0-20261119144413-58c5207d4e0c
