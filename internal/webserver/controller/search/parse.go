@@ -6,7 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/rickb777/date/v2"
-	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
 )
 
@@ -130,17 +130,17 @@ func parseAuthorSearchQuery(c fiber.Ctx) (index.AuthorSearchFields, error) {
 func parseGenderQuery(value string) (float64, bool) {
 	switch value {
 	case "male":
-		return wikidata.GenderMale, true
+		return model.GenderMale, true
 	case "female":
-		return wikidata.GenderFemale, true
+		return model.GenderFemale, true
 	case "intersex":
-		return wikidata.GenderIntersex, true
+		return model.GenderIntersex, true
 	case "transgender-female":
-		return wikidata.GenderTrasgenderFemale, true
+		return model.GenderTransgenderFemale, true
 	case "transgender-male":
-		return wikidata.GenderTrasgenderMale, true
+		return model.GenderTransgenderMale, true
 	case "unknown":
-		return wikidata.GenderUnknown, true
+		return model.GenderUnknown, true
 	default:
 		return 0, false
 	}

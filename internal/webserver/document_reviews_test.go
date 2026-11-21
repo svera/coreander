@@ -51,6 +51,13 @@ func TestDocumentReviewsCanSelectSupportedLanguage(t *testing.T) {
 		page.Find(`#document-reviews-linked .document-reviews-loading > div`).Length() != 2 {
 		t.Fatal("expected a review skeleton indicator for language changes")
 	}
+	errorState := page.Find(`#document-reviews-linked[data-document-reviews] [data-reviews-error][hidden]`)
+	retry := errorState.Find(`button[hx-get="/documents/linked/reviews"]`)
+	if retry.Length() != 1 || retry.AttrOr("hx-include", "") != "#review-language-linked" ||
+		retry.AttrOr("hx-target", "") != "closest [data-document-reviews]" ||
+		!strings.Contains(errorState.Text(), "No se pudieron cargar las reseñas") {
+		t.Fatal("expected a localized retry that preserves the selected review language")
+	}
 	for _, language := range webserver.SupportedLanguages() {
 		if selectBox.Find(`option[value="`+language+`"]`).Length() != 1 {
 			t.Errorf("expected supported language %q in the review selector", language)
@@ -441,6 +448,11 @@ func TestDocumentReviewsLazyPlaceholder(t *testing.T) {
 	}
 	if placeholder.Find("h2").Text() != "Another service user reviews" || placeholder.Find(`[aria-hidden="true"] h2`).Length() != 0 {
 		t.Fatal("the reviews heading must remain visible and accessible while reviews load")
+	}
+	if !placeholder.Is("[data-document-reviews]") || placeholder.AttrOr("hx-request", "") != `{"timeout":35000}` ||
+		placeholder.Find(`[data-reviews-initial-loading]`).Length() != 1 ||
+		placeholder.Find(`[data-reviews-error][hidden] button[hx-get="/documents/linked/reviews"]`).Length() != 1 {
+		t.Fatal("expected a bounded initial request and a retryable error state")
 	}
 	skeletons := placeholder.Find(".border-top")
 	if skeletons.Length() != 2 || placeholder.Find(`div[aria-hidden="true"]`).Length() != 1 {

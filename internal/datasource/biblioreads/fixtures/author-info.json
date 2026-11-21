@@ -1,4 +1,5 @@
 {
+    "version": "BiblioReads v4.5.1",
     "status": "Received",
     "source": "https://github.com/nesaku/biblioreads",
     "scrapeURL": "https://www.goodreads.com/author/show/151155.Alice_Borchardt",
@@ -6,7 +7,9 @@
     "name": "Alice Borchardt",
     "website": "",
     "genre": ["Historical Fiction", "Science Fiction & Fantasy"],
-    "influences": [],
+    "influences": [
+        {"id": 1, "author": "Robert Bloch", "url": "https://www.goodreads.com/author/show/12540.Robert_Bloch"}
+    ],
     "birthDate": "\n        October 06, 1939\n    ",
     "deathDate": "July 24, 2007",
     "desc": "Author of <a href=\"https://www.goodreads.com/book/show/258657.The_Silver_Wolf\">The Silver Wolf</a>.",

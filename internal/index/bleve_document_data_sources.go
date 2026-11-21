@@ -6,12 +6,12 @@ import (
 	"github.com/blevesearch/bleve/v2"
 )
 
-// AuthorLink is a provider-owned link discovered while enriching a document.
+// AuthorLink is a provider-owned author reference discovered while enriching a document.
 type AuthorLink struct {
 	Slug   string
 	Name   string
 	Source string
-	URL    string
+	Value  string
 }
 
 // DocumentUpdate groups document changes and discovered author links.
@@ -56,8 +56,8 @@ func (b *BleveIndexer) UpdateDocument(id string, update func(*DocumentUpdate) (b
 
 // storeAuthorLinkLocked requires documentsMu to be held.
 func (b *BleveIndexer) storeAuthorLinkLocked(link AuthorLink) error {
-	if link.Slug == "" || link.Source == "" || link.URL == "" {
-		return fmt.Errorf("author link must have a slug, source and URL")
+	if link.Slug == "" || link.Source == "" || link.Value == "" {
+		return fmt.Errorf("author link must have a slug, source and value")
 	}
 	b.authorsMu.Lock()
 	defer b.authorsMu.Unlock()
@@ -83,7 +83,7 @@ func (b *BleveIndexer) storeAuthorLinkLocked(link AuthorLink) error {
 	if author.DataSourceLinks == nil {
 		author.DataSourceLinks = make(map[string]string)
 	}
-	author.DataSourceLinks[link.Source] = link.URL
+	author.DataSourceLinks[link.Source] = link.Value
 	return indexAuthor(b.authorsIdx, link.Slug, author)
 }
 

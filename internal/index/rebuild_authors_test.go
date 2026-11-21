@@ -64,7 +64,7 @@ func TestRebuildAuthorsFromDocuments(t *testing.T) {
 		t.Fatalf("expected DocumentCount=1 for George Orwell, got %d", author.DocumentCount)
 	}
 	author.DataSourceLinks = map[string]string{
-		"goodreads": "/author/show/3706.George_Orwell",
+		"goodreads": "3706.George_Orwell",
 		"other":     "https://example.org/authors/orwell",
 	}
 	if err := idx.IndexAuthor(author); err != nil {
@@ -74,7 +74,7 @@ func TestRebuildAuthorsFromDocuments(t *testing.T) {
 		t.Fatal(err)
 	}
 	author, err = idx.Author("george-orwell", "en")
-	if err != nil || author.DataSourceLinks["goodreads"] != "/author/show/3706.George_Orwell" ||
+	if err != nil || author.DataSourceLinks["goodreads"] != "3706.George_Orwell" ||
 		author.DataSourceLinks["other"] != "https://example.org/authors/orwell" {
 		t.Fatalf("expected existing author URL preserved during rebuild, got %+v, %v", author, err)
 	}

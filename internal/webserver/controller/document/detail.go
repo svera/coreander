@@ -20,6 +20,7 @@ type authorSummary struct {
 	Author          index.Author
 	ImageVersion    string
 	DataSourceLinks []datasourcemodel.DataSourceLink
+	ProfileInputs   []authorcontroller.ProfileInput
 }
 
 func (d *Controller) Detail(c fiber.Ctx) error {
@@ -140,9 +141,19 @@ func (d *Controller) authorSummaryFor(authorSlug, lang string) authorSummary {
 	if err != nil {
 		log.Println(err)
 	}
+	if author.Slug == "" {
+		author.Slug = authorSlug
+	}
 
 	links := authorcontroller.DataSourceLinks(author, lang, d.linkProviders...)
-	return authorSummary{Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug), DataSourceLinks: links}
+	var profileInputs []authorcontroller.ProfileInput
+	if d.authorDataSource != nil {
+		profileInputs = append(profileInputs, authorcontroller.NewMetadataProfileInput(d.authorDataSource, author, "clear"))
+	}
+	return authorSummary{
+		Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug),
+		DataSourceLinks: links, ProfileInputs: profileInputs,
+	}
 }
 
 func (d *Controller) sameSeries(slug string, sessionID int) ([]model.AugmentedDocument, int, error) {

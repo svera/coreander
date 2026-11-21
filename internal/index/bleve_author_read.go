@@ -163,13 +163,21 @@ func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
 			log.Printf("Error reading data source links for author %s: %s", docID, err)
 		}
 	}
-	// Extract descriptions for all languages.
+	author.Bio.Source, _ = fields["Bio.Source"].(string)
+	author.Bio.Language, _ = fields["Bio.Language"].(string)
+	// Extract descriptions and biographies for all languages.
 	for key, value := range fields {
-		if strings.HasPrefix(key, "Description.") {
-			lang := strings.TrimPrefix(key, "Description.")
-			if str, ok := value.(string); ok {
-				author.Description[lang] = str
+		str, ok := value.(string)
+		if !ok {
+			continue
+		}
+		if lang, found := strings.CutPrefix(key, "Description."); found {
+			author.Description[lang] = str
+		} else if lang, found := strings.CutPrefix(key, "Bio.Text."); found {
+			if author.Bio.Text == nil {
+				author.Bio.Text = make(map[string]string)
 			}
+			author.Bio.Text[lang] = str
 		}
 	}
 

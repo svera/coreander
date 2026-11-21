@@ -6,7 +6,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/rickb777/date/v2"
-	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/precisiondate"
@@ -29,7 +29,7 @@ func TestSearchAuthors(t *testing.T) {
 			Slug:        "george-orwell",
 			Name:        "George Orwell",
 			BirthName:   "Eric Arthur Blair",
-			Gender:      float64(wikidata.GenderMale),
+			Gender:      float64(model.GenderMale),
 			DateOfBirth: precisiondate.NewPrecisionDate("+1903-06-25T00:00:00Z", precisiondate.PrecisionDay),
 			DateOfDeath: precisiondate.NewPrecisionDate("+1950-01-21T00:00:00Z", precisiondate.PrecisionDay),
 			RetrievedOn: mustParseTime("2020-01-01T00:00:00Z"),
@@ -37,7 +37,7 @@ func TestSearchAuthors(t *testing.T) {
 		{
 			Slug:        "jane-austen",
 			Name:        "Jane Austen",
-			Gender:      float64(wikidata.GenderFemale),
+			Gender:      float64(model.GenderFemale),
 			DateOfBirth: precisiondate.NewPrecisionDate("+1775-12-16T00:00:00Z", precisiondate.PrecisionDay),
 			DateOfDeath: precisiondate.NewPrecisionDate("+1817-07-18T00:00:00Z", precisiondate.PrecisionDay),
 			RetrievedOn: mustParseTime("2020-01-01T00:00:00Z"),
@@ -45,21 +45,21 @@ func TestSearchAuthors(t *testing.T) {
 		{
 			Slug:        "arturo-perez-reverte",
 			Name:        "Arturo Pérez-Reverte",
-			Gender:      float64(wikidata.GenderMale),
+			Gender:      float64(model.GenderMale),
 			DateOfBirth: precisiondate.NewPrecisionDate("+1951-11-24T00:00:00Z", precisiondate.PrecisionDay),
 			RetrievedOn: mustParseTime("2020-01-01T00:00:00Z"),
 		},
 		{
 			Slug:        "living-author",
 			Name:        "Living Author",
-			Gender:      float64(wikidata.GenderMale),
+			Gender:      float64(model.GenderMale),
 			DateOfBirth: precisiondate.NewPrecisionDate("+1990-01-01T00:00:00Z", precisiondate.PrecisionDay),
 			RetrievedOn: mustParseTime("2020-01-01T00:00:00Z"),
 		},
 		{
 			Slug:        "aristotle",
 			Name:        "Aristotle",
-			Gender:      float64(wikidata.GenderMale),
+			Gender:      float64(model.GenderMale),
 			DateOfBirth: precisiondate.NewPrecisionDate("-0384-01-01T00:00:00Z", precisiondate.PrecisionYear),
 			DateOfDeath: precisiondate.NewPrecisionDate("-0322-01-01T00:00:00Z", precisiondate.PrecisionYear),
 			RetrievedOn: mustParseTime("2020-01-01T00:00:00Z"),
@@ -143,7 +143,7 @@ func TestSearchAuthors(t *testing.T) {
 	})
 
 	t.Run("by gender", func(t *testing.T) {
-		female := float64(wikidata.GenderFemale)
+		female := float64(model.GenderFemale)
 		res, err := idx.SearchAuthors(index.AuthorSearchFields{Gender: &female}, 1, 10)
 		if err != nil {
 			t.Fatal(err)

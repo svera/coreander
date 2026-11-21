@@ -21,6 +21,7 @@ import (
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/webserver"
+	authorcontroller "github.com/svera/coreander/v5/internal/webserver/controller/author"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 	"gorm.io/gorm"
@@ -62,6 +63,13 @@ func bootstrapApp(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserve
 }
 
 func bootstrapAppWithIndexer(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig webserver.Config, metadataReaders ...map[string]metadata.Reader) (*fiber.App, *index.BleveIndexer) {
+	return bootstrapAppWithAuthorSource(db, sender, appFs, webserverConfig, wikidata.NewWikidataSource(wikidata.Gowikidata{}), metadataReaders...)
+}
+
+func bootstrapAppWithAuthorSource(db *gorm.DB, sender webserver.Sender, appFs afero.Fs, webserverConfig webserver.Config, dataSource interface {
+	authorcontroller.DataSource
+	authorcontroller.DataSourceLinkProvider
+}, metadataReaders ...map[string]metadata.Reader) (*fiber.App, *index.BleveIndexer) {
 	readers := testMetadataReaders()
 	if len(metadataReaders) > 0 {
 		readers = metadataReaders[0]
@@ -69,8 +77,6 @@ func bootstrapAppWithIndexer(db *gorm.DB, sender webserver.Sender, appFs afero.F
 	var (
 		idx *index.BleveIndexer
 	)
-
-	dataSource := wikidata.NewWikidataSource(wikidata.Gowikidata{})
 
 	if reflect.ValueOf(webserverConfig).IsZero() {
 		webserverConfig = defaultTestConfig()

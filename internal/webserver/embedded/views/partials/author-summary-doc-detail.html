@@ -80,7 +80,7 @@
                 </li>
             {{end}}
 
-            {{template "partials/author-data-source-link" dict "Lang" .Lang "DataSourceLinks" .DataSourceLinks}}
+            {{template "partials/author-data-source-link" .DataSourceLinks}}
         </ul>
         {{end}}
     </div>
@@ -94,7 +94,7 @@
     {{if not .Author.RetrievedOn.IsZero }}
         <div class="row">
             <div class="col-12">
-                {{template "partials/author-update-form" dict "Lang" .Lang "Author" .Author "Style" "clear"}}
+                {{template "partials/author-update-form" dict "Lang" .Lang "Author" .Author "ProfileInputs" .ProfileInputs}}
             </div>
         </div>
     {{end}}

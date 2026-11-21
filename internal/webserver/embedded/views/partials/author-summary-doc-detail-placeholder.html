@@ -1,11 +1,17 @@
-<div class="row placeholder-glow" hx-get="/authors/{{.AuthorSlug}}/summary?style=clear" hx-trigger="load" hx-target="this">
-    <div class="col-9 ps-0">
-        <h2><span class="placeholder col-4"></span></h2>
-        <p class="mb-0"><span class="placeholder col-8"></span></p>
-    </div>
-    <div class="col-3 d-flex align-items-start px-0">
-        <div class="ratio ratio-1x1 w-100">
-            <span class="placeholder rounded-circle w-100"></span>
+<div data-author-summary-placeholder hx-get="/authors/{{.AuthorSlug}}/summary?style=clear&amp;l={{.Lang}}" hx-trigger="load" hx-swap="outerHTML" hx-request='{"timeout":120000}'>
+    <div class="row placeholder-glow" data-author-summary-loading aria-hidden="true">
+        <div class="col-9 ps-0">
+            <h2><span class="placeholder col-4"></span></h2>
+            <p class="mb-0"><span class="placeholder col-8"></span></p>
         </div>
+        <div class="col-3 d-flex align-items-start px-0">
+            <div class="ratio ratio-1x1 w-100">
+                <span class="placeholder rounded-circle w-100"></span>
+            </div>
+        </div>
+    </div>
+    <div data-author-summary-error hidden role="alert">
+        <p>{{t .Lang "Unable to load author information."}}</p>
+        <button type="button" class="btn btn-secondary btn-sm" hx-get="/authors/{{.AuthorSlug}}/summary?style=clear&amp;l={{.Lang}}" hx-target="closest [data-author-summary-placeholder]" hx-swap="outerHTML" hx-disabled-elt="this">{{t .Lang "Try again"}}</button>
     </div>
 </div>

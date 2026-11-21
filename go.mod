@@ -29,7 +29,9 @@ require (
 	github.com/wneessen/go-mail v0.8.1
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
 	golang.org/x/mod v0.41.0
+	golang.org/x/sync v0.23.0
 	golang.org/x/text v0.42.0
+	gopkg.gilang.dev/translator/v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/gorm v1.31.2
 )
@@ -48,10 +50,13 @@ require (
 	github.com/gofiber/schema v1.8.0 // indirect
 	github.com/gofiber/template/v2 v2.1.0 // indirect
 	github.com/gofiber/utils/v2 v2.1.1 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/govalues/decimal v0.1.36 // indirect
 	github.com/hhrutter/lzw v1.0.0 // indirect
 	github.com/hhrutter/pkcs7 v0.2.2 // indirect
+	github.com/icholy/digest v1.1.0 // indirect
+	github.com/imroc/req/v3 v3.57.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/kovidgoyal/go-parallel v1.1.1 // indirect
@@ -63,13 +68,18 @@ require (
 	github.com/pgaskin/kepubify/_/html v0.0.0-20211223234002-6ee2cc632cdc // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/quic-go/qpack v0.6.0 // indirect
+	github.com/quic-go/quic-go v0.57.1 // indirect
+	github.com/refraction-networking/utls v1.8.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rickb777/period v1.0.27 // indirect
 	github.com/rickb777/plural v1.4.10 // indirect
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
 	modernc.org/libc v1.73.5 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
@@ -119,3 +129,5 @@ require (
 )
 
 replace github.com/Navid2zp/go-wikidata => github.com/svera/go-wikidata v1.0.3
+
+replace gopkg.gilang.dev/translator/v2 => github.com/svera/translator/v2 v2.0.0-20261119144413-58c5207d4e0c

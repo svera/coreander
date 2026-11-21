@@ -220,7 +220,7 @@ func TestUpdateDocumentSkipsUnchangedAndFailedUpdates(t *testing.T) {
 			err = idx.UpdateDocument(document.ID, func(update *DocumentUpdate) (bool, error) {
 				called = true
 				update.Title = "Changed"
-				update.AuthorLinks = []AuthorLink{{Slug: "writer", Name: "Writer", Source: "dummy", URL: "reference"}}
+				update.AuthorLinks = []AuthorLink{{Slug: "writer", Name: "Writer", Source: "dummy", Value: "reference"}}
 				if err := SetDataSourceData(&update.Document, "dummy", testProviderData{Enriched: true}); err != nil {
 					t.Fatal(err)
 				}
@@ -305,7 +305,7 @@ func TestUpdateDocumentStoresAuthorLinksFirstWins(t *testing.T) {
 			for _, url := range []string{"first-reference", "second-reference"} {
 				if err := idx.UpdateDocument("book", func(update *DocumentUpdate) (bool, error) {
 					update.Title = url
-					update.AuthorLinks = []AuthorLink{{Slug: "writer", Name: "Writer", Source: "dummy", URL: url}}
+					update.AuthorLinks = []AuthorLink{{Slug: "writer", Name: "Writer", Source: "dummy", Value: url}}
 					return true, nil
 				}); err != nil {
 					t.Fatal(err)

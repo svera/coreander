@@ -23,6 +23,7 @@ const imgUrl = "https://upload.wikimedia.org/wikipedia/commons/%s/%s/%s"
 const maxEntitiesPerRequest = 50
 
 var entityFetchProps = []string{"descriptions", "claims", "sitelinks/urls", "labels"}
+var wikidataIDPattern = regexp.MustCompile(`^[Qq][0-9]+$`)
 
 type wikidata interface {
 	NewSearch(string, string) (SearchEntitiesRequest, error)
@@ -47,6 +48,47 @@ func (WikidataSource) OwnsLink(key string) bool {
 	return (Author{}).OwnsLink(key)
 }
 
+func (WikidataSource) ProfileServiceName() string {
+	return "Wikidata"
+}
+
+func (WikidataSource) ProfileValue(author index.Author) string {
+	if author.DataSourceID == "" {
+		return ""
+	}
+	return "https://www.wikidata.org/wiki/" + author.DataSourceID
+}
+
+// NormalizeAuthorID accepts a Wikidata author ID or profile URL.
+func (WikidataSource) NormalizeAuthorID(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	if strings.Contains(value, "://") {
+		target, err := url.Parse(value)
+		if err != nil || (target.Scheme != "https" && target.Scheme != "http") ||
+			(target.Host != "www.wikidata.org" && target.Host != "wikidata.org") ||
+			target.User != nil || target.RawQuery != "" || target.Fragment != "" ||
+			target.RawPath != "" || target.ForceQuery || strings.Contains(value, "#") {
+			return "", fmt.Errorf("invalid Wikidata URL %q", value)
+		}
+		path := strings.TrimSuffix(target.Path, "/")
+		switch {
+		case strings.HasPrefix(path, "/wiki/"):
+			value = strings.TrimPrefix(path, "/wiki/")
+		case strings.HasPrefix(path, "/entity/"):
+			value = strings.TrimPrefix(path, "/entity/")
+		default:
+			return "", fmt.Errorf("invalid Wikidata URL %q", value)
+		}
+	}
+	if !wikidataIDPattern.MatchString(value) {
+		return "", fmt.Errorf("invalid Wikidata ID %q", value)
+	}
+	return "Q" + value[1:], nil
+}
+
 func (WikidataSource) AuthorLink(author index.Author, language string) model.DataSourceLink {
 	url := author.DataSourceLinks["wikipedia:"+language]
 	if url == "" {
@@ -56,7 +98,6 @@ func (WikidataSource) AuthorLink(author index.Author, language string) model.Dat
 		Source:    "Wikipedia",
 		URL:       url,
 		IconClass: "bi-wikipedia",
-		Label:     "Go to Wikipedia entry",
 	}
 }
 
@@ -361,17 +402,17 @@ func getMostAccurateID(ids []string, entities *map[string]gowikidata.Entity) (st
 func parseGender(claim gowikidata.Claim) float64 {
 	switch claim.MainSnak.DataValue.Value.ValueFields.ID {
 	case qidGenderMale:
-		return GenderMale
+		return model.GenderMale
 	case qidGenderFemale:
-		return GenderFemale
+		return model.GenderFemale
 	case qidGenderIntersex:
-		return GenderIntersex
+		return model.GenderIntersex
 	case qidGenderTrasgenderMale:
-		return GenderTrasgenderMale
+		return model.GenderTransgenderMale
 	case qidGenderTrasgenderFemale:
-		return GenderTrasgenderFemale
+		return model.GenderTransgenderFemale
 	}
-	return GenderUnknown
+	return model.GenderUnknown
 }
 
 func parseInstanceOf(claim gowikidata.Claim) float64 {
@@ -432,5 +473,5 @@ func validateID(id string) bool {
 	if id == "" {
 		return true
 	}
-	return regexp.MustCompile(`^[Qq]\d+$`).MatchString(id)
+	return wikidataIDPattern.MatchString(id)
 }

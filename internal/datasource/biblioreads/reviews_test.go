@@ -21,7 +21,7 @@ func withBiblioReadsData(t *testing.T, document index.Document, data biblioreads
 func TestBiblioReadsDataSourceLinks(t *testing.T) {
 	provider := biblioreads.NewReviewProvider(nil, nil)
 	author := provider.AuthorLink(index.Author{
-		DataSourceLinks: map[string]string{"goodreads": "/author/show/123.Jane_Doe"},
+		DataSourceLinks: map[string]string{"goodreads": "123.Jane_Doe"},
 	}, "en")
 	if author.URL != "https://www.goodreads.com/author/show/123.Jane_Doe" ||
 		author.Source != "Goodreads" || author.Icon != "/images/goodreads.svg" || !author.IconInvertible {
@@ -38,6 +38,9 @@ func TestBiblioReadsDataSourceLinks(t *testing.T) {
 		{},
 		{"other": "/author/show/123.Jane_Doe"},
 		{"goodreads": "/book/show/456.A_Book"},
+		{"goodreads": "/author/show/123.Jane_Doe"},
+		{"goodreads": "123.Jane_Doe/"},
+		{"goodreads": "123?x=y"},
 	} {
 		if link := provider.AuthorLink(index.Author{DataSourceLinks: links}, "en"); link.URL != "" {
 			t.Errorf("unexpected Goodreads link for %v: %+v", links, link)

@@ -63,10 +63,16 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 		searchResults = a.readingRepository.CompletedPaginatedResult(int(session.ID), searchResults)
 		searchResults = a.hlRepository.HighlightedPaginatedResult(int(session.ID), searchResults)
 	}
+	bioParagraphs, bioTranslatedFrom, bioPending := a.storedBio(author, lang)
 
 	templateVars := fiber.Map{
 		"Author":                author,
+		"BioParagraphs":         bioParagraphs,
+		"BioPending":            bioPending,
+		"BioTranslatedFrom":     bioTranslatedFrom,
+		"BioRefreshAvailable":   a.bioRefreshAvailable(author),
 		"DataSourceLinks":       a.authorDataSourceLinks(author, lang),
+		"ProfileInputs":         a.profileInputs(author, "", "", ""),
 		"ImageVersion":          a.getImageVersion(author.Slug),
 		"DocumentSearchFields":  searchFields,
 		"DocumentsOnly":         true,

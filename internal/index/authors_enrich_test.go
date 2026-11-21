@@ -111,7 +111,7 @@ func TestAuthorMetadataRefreshUpdatesLinks(t *testing.T) {
 			"example:website": "https://old.example",
 			"example:en":      "https://en.example/Old",
 			"example:es":      "https://es.example/Old",
-			"goodreads":       "/author/show/1.Writer",
+			"goodreads":       "1.Writer",
 			"catalog":         "https://catalog.example/writer",
 		},
 	}
@@ -145,7 +145,7 @@ func TestAuthorMetadataRefreshUpdatesLinks(t *testing.T) {
 			got.DataSourceLinks["example:es"] != "" {
 			t.Fatalf("metadata links were not refreshed: %+v", got.DataSourceLinks)
 		}
-		if got.DataSourceLinks["goodreads"] != "/author/show/1.Writer" ||
+		if got.DataSourceLinks["goodreads"] != "1.Writer" ||
 			got.DataSourceLinks["catalog"] != "https://catalog.example/writer" ||
 			got.DataSourceLinks["another-provider"] != "https://another.example/writer" {
 			t.Fatalf("metadata refresh lost independent provider links: %+v", got.DataSourceLinks)
@@ -184,7 +184,7 @@ func TestAuthorMetadataResetPreservesConcurrentProviderLinks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	current.DataSourceLinks["goodreads"] = "/author/show/1.Writer"
+	current.DataSourceLinks["goodreads"] = "1.Writer"
 	if err := idx.IndexAuthor(current); err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +200,7 @@ func TestAuthorMetadataResetPreservesConcurrentProviderLinks(t *testing.T) {
 		t.Fatalf("reset must remove metadata association and owned links: %+v", stored)
 	}
 	if stored.DataSourceLinks["catalog"] != "https://catalog.example/writer" ||
-		stored.DataSourceLinks["goodreads"] != "/author/show/1.Writer" || stored.DocumentCount != 3 {
+		stored.DataSourceLinks["goodreads"] != "1.Writer" || stored.DocumentCount != 3 {
 		t.Fatalf("reset must retain independent and concurrent author data: %+v", stored)
 	}
 	stale := index.Author{Slug: "writer", Name: "Writer"}

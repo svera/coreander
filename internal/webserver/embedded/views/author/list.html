@@ -1,17 +1,17 @@
 {{if ne .Author.Name ""}}
     {{if not .Author.RetrievedOn.IsZero}}
-        {{template "partials/author-summary" dict "Lang" .Lang "Author" .Author "Session" .Session "ImageVersion" .ImageVersion "DataSourceLinks" .DataSourceLinks}}
+        {{template "partials/author-summary" dict "Lang" .Lang "Author" .Author "Session" .Session "ImageVersion" .ImageVersion "DataSourceLinks" .DataSourceLinks "BioParagraphs" .BioParagraphs "BioPending" .BioPending "BioTranslatedFrom" .BioTranslatedFrom "BioRefreshAvailable" .BioRefreshAvailable "ProfileInputs" .ProfileInputs}}
     {{else}}
     <div hx-get="/authors/{{.Author.Slug}}/summary" hx-trigger="load" hx-target="this">
         <div class="card mb-3 bg-body-secondary placeholder-glow">
-            <div class="row">
-                <div class="card-body col-sm-6 col-md-6 col-lg-9">
+            <div class="row g-0">
+                <div class="author-details-main col-12 col-md-8 col-lg-9 p-3">
                     <h1 class="card-title ms-3">{{.Author.Name}}</h1>
                     <p class="ms-3 mb-1"><span class="placeholder col-8"></span></p>
                     <p class="ms-3"><span class="placeholder col-6"></span></p>
                 </div>
-                <div class="col-lg-3 col-md-6 col-sm-6 p-3 d-flex align-items-center">
-                    <div class="ratio ratio-1x1 w-100">
+                <div class="author-details-sidebar col-12 col-md-4 col-lg-3 p-3">
+                    <div class="ratio ratio-1x1 mb-3">
                         <span class="placeholder rounded-circle w-100"></span>
                     </div>
                 </div>
@@ -53,4 +53,5 @@
 <script type="module" src="/js/complete.js{{versionParam}}"></script>
 <script type="module" src="/js/cover.js{{versionParam}}"></script>
 <script type="module" src="/js/datetime.js{{versionParam}}"></script>
+<script type="module" src="/js/author-bio.js{{versionParam}}"></script>
 <script type="module" src="/js/search-filters-sidebar-pin.js{{versionParam}}"></script>

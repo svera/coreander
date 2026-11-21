@@ -1,21 +1,27 @@
 <p class="opacity-75"><small>
     <i class="bi-person-fill-exclamation me-2"></i>
-    <a data-bs-toggle="collapse" href="#update-author-form-{{.Author.Slug}}" aria-expanded="false" aria-controls="update-author-form-{{.Author.Slug}}">
-        {{ t .Lang "Is not the right author or data is outdated?" }}
+    <a data-bs-toggle="collapse" href="#update-author-form-{{.Author.Slug}}" aria-expanded="{{if .InvalidProfile}}true{{else}}false{{end}}" aria-controls="update-author-form-{{.Author.Slug}}">
+        {{t .Lang "Is not the right author or data is outdated?"}}
     </a>
 </small>
 </p>
-<div class="collapse" id="update-author-form-{{.Author.Slug}}">
-    <p class="opacity-75"><small>{{ t .Lang "The Wikidata ID is a unique identifier for the author in the Wikidata database. If you know the correct ID, you can update it here." }}</small></p>
-    <p class="opacity-75"><small>{{ t .Lang "Leave it blank if the author does not have a Wikidata entry yet."}}</small></p>
+<div class="collapse{{if .InvalidProfile}} show{{end}}" id="update-author-form-{{.Author.Slug}}">
+    <p class="opacity-75"><small>{{t .Lang "Update the author's external profile links below. The label on each field identifies its service."}}</small></p>
+    {{range .ProfileInputs}}
     <div class="row pb-3">
         <div class="col-12 col-lg-6">
-            <form hx-put="/authors/{{.Author.Slug}}{{if ne .Style ""}}?style={{.Style}}{{end}}" hx-target="#author-{{.Author.Slug}}" hx-swap="outerHTML">
+            {{if eq .Method "put"}}
+            <form{{if .FormID}} id="{{.FormID}}"{{end}} hx-put="{{.Action}}" hx-target="#author-{{$.Author.Slug}}" hx-swap="outerHTML">
+            {{else}}
+            <form{{if .FormID}} id="{{.FormID}}"{{end}} hx-post="{{.Action}}" hx-target="#author-{{$.Author.Slug}}" hx-swap="outerHTML"{{if .Indicator}} hx-indicator="{{.Indicator}}"{{end}}{{if .Disabled}} hx-disabled-elt="{{.Disabled}}"{{end}}>
+            {{end}}
                 <div class="input-group input-group-sm">
-                    <input class="form-control" type="text" name="sourceID" value="{{.Author.DataSourceID}}" maxlength="10" pattern="^[Qq]\d+$">
-                    <button type="submit" class="btn btn-secondary">{{t .Lang "Update"}}</button>
+                    <input class="form-control{{if .Invalid}} is-invalid{{end}}" type="text" name="{{.Name}}" value="{{.Value}}" placeholder="{{t $.Lang "%s profile" .ServiceName}}" aria-label="{{t $.Lang "%s profile" .ServiceName}}"{{if .Invalid}} aria-invalid="true" aria-describedby="{{.ErrorID}}"{{end}}>
+                    <button type="submit" class="btn btn-secondary">{{t $.Lang "Update"}}</button>
                 </div>
+                {{if .Invalid}}<p class="text-danger small mt-1" id="{{.ErrorID}}" role="alert">{{t $.Lang .ErrorMessage}}</p>{{end}}
             </form>
         </div>
     </div>
+    {{end}}
 </div>
