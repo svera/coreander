@@ -8,6 +8,7 @@ import (
 	"html"
 	"io"
 	"maps"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -22,6 +23,13 @@ import (
 )
 
 const requestTimeout = 3 * time.Minute
+
+var paragraphEnd = regexp.MustCompile(`(?i)</p>`)
+var htmlLineBreak = regexp.MustCompile(`(?i)<br\s*/?>|</div>`)
+var htmlFormatting = bluemonday.NewPolicy().AllowElements("b", "strong", "i", "em")
+
+// spaceBeforePunctuation matches whitespace left by inline elements, as in "<i>Title </i>,".
+var spaceBeforePunctuation = regexp.MustCompile(` +([,.;:!?)\]])`)
 
 // Source supplies cleaned biography HTML (b, strong, i and em, with newline-separated
 // paragraphs) and identifies the profile it belongs to.
@@ -322,6 +330,29 @@ func store(save storeFunc, slug string, bio index.AuthorBio) error {
 		return fmt.Errorf("storing biography for author %s: %w", slug, err)
 	}
 	return nil
+}
+
+// CleanHTML retains safe emphasis and converts HTML block boundaries to newlines.
+func CleanHTML(text string) string {
+	text = strings.Join(strings.Fields(text), " ")
+	text = paragraphEnd.ReplaceAllString(text, "\n\n")
+	text = htmlLineBreak.ReplaceAllString(text, "\n")
+	text = htmlFormatting.Sanitize(text)
+	var lines []string
+	blank := false
+	for line := range strings.SplitSeq(text, "\n") {
+		line = spaceBeforePunctuation.ReplaceAllString(strings.Join(strings.Fields(line), " "), "$1")
+		if line == "" {
+			blank = len(lines) > 0
+			continue
+		}
+		if blank {
+			lines = append(lines, "")
+			blank = false
+		}
+		lines = append(lines, line)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func detectLanguage(text string) string {

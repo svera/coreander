@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/svera/coreander/v5/internal/biography"
+	"github.com/svera/coreander/v5/internal/datasource/httpjson"
 	"github.com/svera/coreander/v5/internal/index"
 	gowiki "github.com/trietmn/go-wiki"
 	"github.com/trietmn/go-wiki/page"
@@ -87,7 +88,7 @@ func (s *BioSource) RetrieveBio(ctx context.Context, id string, _ bool) (string,
 	}
 	gowiki.SetURL("https://%v.wikipedia.org/w/api.php")
 	gowiki.SetLanguage(s.language)
-	gowiki.SetUserAgent("Coreander (https://github.com/svera/coreander)")
+	gowiki.SetUserAgent(httpjson.UserAgent)
 	// GetPage searches even when suggestions are disabled; use the exact known title instead.
 	article, err := page.MakeWikipediaPage(-1, strings.TrimPrefix(target.Path, "/wiki/"), "", true)
 	if err != nil {

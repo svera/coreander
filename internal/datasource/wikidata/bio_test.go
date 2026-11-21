@@ -8,6 +8,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/svera/coreander/v5/internal/biography"
+	"github.com/svera/coreander/v5/internal/datasource/httpjson"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/trietmn/go-wiki/models"
 	"github.com/trietmn/go-wiki/utils"
@@ -55,6 +56,9 @@ func TestBioUsesKnownLinkInCurrentLanguage(t *testing.T) {
 	summary := `<p><b>Hola</b> &amp; <a href="https://example.com">writer</a> wrote <i>Books</i> and <strong>more</strong> <em>stories</em>.</p><p>Second<br>line<script>alert("unsafe")</script><img src="x" onerror="alert(1)"></p>`
 	stubWiki(t, func(args map[string]string) (models.RequestResult, error) {
 		calls++
+		if utils.UserAgent != httpjson.UserAgent {
+			t.Fatalf("Wikipedia requests must use the shared datasource user agent, got %q", utils.UserAgent)
+		}
 		if utils.WikiLanguage != "es" || utils.WikiURL != "https://%v.wikipedia.org/w/api.php" ||
 			args["titles"] != "Autor_\u00f1" || args["list"] != "" {
 			t.Fatalf("must request the exact Spanish article without searching: %+v, language=%s", args, utils.WikiLanguage)
