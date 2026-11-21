@@ -28,6 +28,20 @@ type BioProvider interface {
 	UpdateBio(ctx context.Context, author index.Author, id, language string) (bio, translatedFrom string, err error)
 }
 
+type MetadataBioProvider interface {
+	MetadataServiceName() string
+	RefreshMetadataBio(context.Context, index.Author, string) error
+}
+
+func (a *Controller) metadataBioProvider() (MetadataBioProvider, bool) {
+	provider, ok := a.bioProvider.(MetadataBioProvider)
+	if !ok || a.dataSource == nil || provider.MetadataServiceName() == "" ||
+		provider.MetadataServiceName() != a.dataSource.ProfileServiceName() {
+		return nil, false
+	}
+	return provider, true
+}
+
 // SetBioProvider enables author biographies on author pages.
 func (a *Controller) SetBioProvider(provider BioProvider) {
 	a.bioProvider = provider
@@ -45,6 +59,10 @@ func (a *Controller) RefreshBio(c fiber.Ctx) error {
 	}
 	inputName := a.bioProvider.ProfileInputName()
 	if c.Request().PostArgs().Has(inputName) {
+		if _, unified := a.metadataBioProvider(); unified {
+			log.Printf("Cannot edit biography profile independently of metadata for author %s", c.Params("slug"))
+			return fiber.ErrBadRequest
+		}
 		id, err := a.bioProvider.NormalizeAuthorID(c.FormValue(inputName))
 		if err != nil {
 			log.Printf("Invalid author profile for %s: %s", c.Params("slug"), err)
@@ -77,7 +95,7 @@ func (a *Controller) renderAuthorSummary(c fiber.Ctx, author index.Author, lang,
 		"Author": author, "Lang": lang, "Session": session,
 		"DataSourceLinks": a.authorDataSourceLinks(author, lang),
 		"ImageVersion":    a.getImageVersion(author.Slug),
-		"ProfileInputs":   a.profileInputs(author, "", invalidProfile, c.FormValue(invalidProfile)),
+		"ProfileInputs":   a.profileInputs(author, lang, "", invalidProfile, c.FormValue(invalidProfile)),
 		"InvalidProfile":  invalidProfile != "",
 	}
 	a.addBioVars(vars, "partials/author-summary", author, lang)

@@ -65,13 +65,30 @@ func (a *Controller) Update(c fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 
+	if provider, unified := a.metadataBioProvider(); unified {
+		author, err = a.idx.Author(authorSlug, lang)
+		if err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
+		if err := provider.RefreshMetadataBio(c.Context(), author, lang); err != nil {
+			log.Printf("Error refreshing biography after metadata update for author %s: %s", authorSlug, err)
+			return fiber.ErrInternalServerError
+		}
+		author, err = a.idx.Author(authorSlug, lang)
+		if err != nil {
+			log.Println(err)
+			return fiber.ErrInternalServerError
+		}
+	}
+
 	templateVars := fiber.Map{
 		"Author":          author,
 		"DataSourceLinks": a.authorDataSourceLinks(author, lang),
 		"ImageVersion":    a.getImageVersion(author.Slug),
 		"Lang":            lang,
 		"Session":         session,
-		"ProfileInputs":   a.profileInputs(author, c.Query("style"), "", ""),
+		"ProfileInputs":   a.profileInputs(author, lang, c.Query("style"), "", ""),
 	}
 	a.addBioVars(templateVars, template, author, lang)
 
