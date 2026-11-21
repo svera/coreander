@@ -26,7 +26,6 @@ import (
 	"github.com/svera/coreander/v5/internal/webserver/controller/document"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v5/internal/webserver/model"
-	gt "gopkg.gilang.dev/translator/v2"
 )
 
 var version string = "unknown"
@@ -220,9 +219,9 @@ func main() {
 
 	var reviewProvider document.ReviewProvider
 	biblioReads := biblioreads.NewReviewProvider(biblioreadsClient, biblioReadsAdapter)
+	webserverConfig.AuthorBioProvider = biography.NewService(wikidata.NewBioSource(), nil, idx)
 	if biblioreadsClient != nil {
 		reviewProvider = biblioReads
-		webserverConfig.AuthorBioProvider = biography.NewService(biblioreads.NewBioSource(biblioreadsClient), gt.NewGoogleTranslator(), idx)
 	}
 	controllers := webserver.SetupControllers(webserverConfig, db, idx, sender, appFs, dataSource, reviewProvider, dataSource, biblioReads)
 	usersRepository := &model.UserRepository{DB: db}

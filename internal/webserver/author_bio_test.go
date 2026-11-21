@@ -2,6 +2,7 @@ package webserver_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -12,9 +13,13 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/svera/coreander/v5/internal/biography"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
+	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
+	"github.com/svera/coreander/v5/internal/datasource/wikidata"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/precisiondate"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
+	wikimodels "github.com/trietmn/go-wiki/models"
+	"github.com/trietmn/go-wiki/utils"
 	gt "gopkg.gilang.dev/translator/v2"
 )
 
@@ -298,6 +303,201 @@ func TestAuthorBio(t *testing.T) {
 	response.Body.Close()
 	if response.StatusCode != http.StatusNotFound {
 		t.Errorf("unknown authors must return not found, got %d", response.StatusCode)
+	}
+}
+
+func TestWikipediaBioUsesCurrentLanguageOnAuthorPage(t *testing.T) {
+	bioIndex := &lazyBioIndex{}
+	cfg := defaultTestConfig()
+	cfg.AuthorBioProvider = biography.NewService(wikidata.NewBioSource(), nil, bioIndex)
+	app, idx := bootstrapAppWithIndexer(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), cfg)
+	bioIndex.idx = idx
+	author, err := idx.Author("john-doe", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author.RetrievedOn = time.Now()
+	author.DataSourceLinks = map[string]string{
+		"wikipedia:en": "https://en.wikipedia.org/wiki/John_Doe",
+		"wikipedia:es": "https://es.wikipedia.org/wiki/John_Doe",
+	}
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	admin, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := getRequest(admin, app, "/authors/john-doe/summary?l=es", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := parseHTMLResponse(t, response)
+	form := page.Find("#update-author-form-john-doe")
+	if form.Find(`input[name="sourceID"]`).Length() != 1 || form.Find("input").Length() != 1 ||
+		form.Find(`input[name="wikipediaURL"]`).Length() != 0 {
+		t.Fatal("Wikidata metadata and Wikipedia biographies must share a single profile input")
+	}
+	if page.Find(`[hx-get="/authors/john-doe/bio"]`).Length() != 1 {
+		t.Fatal("a known article must enable lazy biography retrieval without BiblioReads")
+	}
+	if err := idx.StoreAuthorBioForLink(author.Slug, "wikipedia:es", author.DataSourceLinks["wikipedia:es"], index.AuthorBio{
+		Source: author.DataSourceLinks["wikipedia:es"], Language: "es", Text: map[string]string{"es": "<b>Stored</b> Spanish <i>biography</i>."},
+	}, true); err != nil {
+		t.Fatal(err)
+	}
+	page = getPage(t, app, "/authors/john-doe?l=es")
+	if text := strings.TrimSpace(page.Find("#author-bio-text").Text()); text != "Stored Spanish biography." {
+		t.Fatalf("must render the stored Wikipedia biography: %q", text)
+	}
+	if page.Find("#author-bio-text b").Text() != "Stored" || page.Find("#author-bio-text i").Text() != "biography" {
+		t.Fatal("Wikipedia biographies must retain bold and italic formatting in the author card")
+	}
+	if page.Find(`[hx-get="/authors/john-doe/bio"]`).Length() != 0 ||
+		page.Find("#author-bio[data-translated-from]").Length() != 0 {
+		t.Fatal("native Wikipedia biographies must not be requested again or marked as translations")
+	}
+	page = getPage(t, app, "/authors/john-doe?l=fr")
+	if page.Find(`[hx-get="/authors/john-doe/bio"]`).Length() != 0 || page.Find("#author-bio-text").Length() != 0 {
+		t.Fatal("an unknown French article must not display or retrieve another language's biography")
+	}
+}
+
+type wikidataBioMetadataSource struct {
+	wikidata.WikidataSource
+	link string
+}
+
+func (s *wikidataBioMetadataSource) RetrieveAuthor(ids []string, _ []string) (datasourcemodel.Author, error) {
+	return wikidataBioMetadata{sourceID: ids[0], link: s.link}, nil
+}
+
+type wikidataBioMetadata struct {
+	alternativeAuthorMetadata
+	sourceID, link string
+}
+
+func (m wikidataBioMetadata) SourceID() string { return m.sourceID }
+func (m wikidataBioMetadata) Links() map[string]string {
+	if m.link == "" {
+		return nil
+	}
+	return map[string]string{"wikipedia:es": m.link}
+}
+func (wikidataBioMetadata) OwnsLink(key string) bool {
+	return (wikidata.Author{}).OwnsLink(key)
+}
+
+func TestWikidataProfileUpdateRefreshesBiography(t *testing.T) {
+	previousRequester, language, target, agent := utils.WikiRequester, utils.WikiLanguage, utils.WikiURL, utils.UserAgent
+	t.Cleanup(func() {
+		utils.WikiRequester = previousRequester
+		utils.WikiLanguage, utils.WikiURL, utils.UserAgent = language, target, agent
+		utils.Cache.Clear()
+	})
+	calls := 0
+	summary := "Updated Spanish biography."
+	var apiErr error
+	utils.WikiRequester = func(args map[string]string) (wikimodels.RequestResult, error) {
+		calls++
+		if utils.WikiLanguage != "es" || args["titles"] != "New_Writer" {
+			t.Fatalf("must use the updated entity's Spanish article: %+v, language=%s", args, utils.WikiLanguage)
+		}
+		if apiErr != nil {
+			return wikimodels.RequestResult{}, apiErr
+		}
+		return wikimodels.RequestResult{Query: wikimodels.RequestQuery{
+			Page: map[string]wikimodels.InnerPage{"42": {PageID: 42, Title: args["titles"], Extract: summary}},
+		}}, nil
+	}
+	bioIndex := &lazyBioIndex{}
+	cfg := defaultTestConfig()
+	cfg.AuthorBioProvider = biography.NewService(wikidata.NewBioSource(), nil, bioIndex)
+	source := &wikidataBioMetadataSource{link: "https://es.wikipedia.org/wiki/New_Writer"}
+	app, idx := bootstrapAppWithAuthorSource(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{}, loadDirInMemoryFs("testdata/library"), cfg, source)
+	bioIndex.idx = idx
+	author, err := idx.Author("john-doe", "es")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author.DataSourceID = "Q1"
+	author.DataSourceLinks = map[string]string{
+		"wikipedia:es": "https://es.wikipedia.org/wiki/Old_Writer",
+		"goodreads":    "1.John_Doe",
+	}
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.StoreAuthorBio(author.Slug, index.AuthorBio{
+		Source: author.DataSourceLinks["wikipedia:es"], Language: "es", Text: map[string]string{"es": "Stale biography."},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	admin, err := login(app, "admin@example.com", "admin", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, style := range []string{"", "&style=clear"} {
+		response, err := putRequest(url.Values{"sourceID": {"https://www.wikidata.org/wiki/Q2"}}, admin, app, "/authors/john-doe?l=es"+style, t)
+		if err != nil {
+			t.Fatal(err)
+		}
+		page := parseHTMLResponse(t, response)
+		if response.StatusCode != http.StatusOK || page.Find(`input[name="sourceID"]`).Length() != 1 ||
+			page.Find(`input[name="wikipediaURL"]`).Length() != 0 {
+			t.Fatalf("unified update must return a single Wikidata input: status=%d", response.StatusCode)
+		}
+		stored, err := idx.Author(author.Slug, "es")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if stored.DataSourceID != "Q2" || stored.Bio.Source != source.link || stored.Bio.Text["es"] != summary ||
+			stored.DataSourceLinks["goodreads"] != "1.John_Doe" {
+			t.Fatalf("metadata update must refresh and persist its biography while preserving independent links: %+v", stored)
+		}
+		if style == "" && strings.TrimSpace(page.Find("#author-bio-text").Text()) != summary {
+			t.Fatal("the updated author card must display the refreshed biography")
+		}
+		summary = "Refreshed Spanish biography."
+	}
+	if calls != 4 {
+		t.Fatalf("updating even the same Wikidata profile must refresh the biography, calls=%d", calls)
+	}
+	response, err := postRequest(url.Values{"wikipediaURL": {"https://es.wikipedia.org/wiki/Other_Writer"}}, admin, app, "/authors/john-doe/bio?l=es", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusBadRequest || calls != 4 {
+		t.Fatal("the biography profile must not be editable independently of Wikidata")
+	}
+	apiErr = errors.New("Wikipedia unavailable")
+	response, err = putRequest(url.Values{"sourceID": {"Q2"}}, admin, app, "/authors/john-doe?l=es", t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("biography refresh failures must be surfaced, got %d", response.StatusCode)
+	}
+	apiErr = nil
+	source.link = ""
+	for _, sourceID := range []string{"Q3", ""} {
+		beforeCalls := calls
+		response, err := putRequest(url.Values{"sourceID": {sourceID}}, admin, app, "/authors/john-doe?l=es", t)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		stored, err := idx.Author(author.Slug, "es")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if response.StatusCode != http.StatusOK || stored.DataSourceID != sourceID ||
+			stored.Bio.Source != "" || len(stored.Bio.Text) != 0 ||
+			stored.DataSourceLinks["wikipedia:es"] != "" || calls != beforeCalls {
+			t.Fatalf("missing or cleared Wikidata links must clear the biography without requests: %+v", stored)
+		}
 	}
 }
 
