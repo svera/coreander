@@ -88,6 +88,30 @@ func newAuthorBioTestAppWithSource(t *testing.T, source biography.Source, transl
 	return app, idx
 }
 
+func seedBioTestAuthor(t *testing.T, idx *index.BleveIndexer, links map[string]string) index.Author {
+	t.Helper()
+	author, err := idx.Author("john-doe", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author.DataSourceLinks = links
+	author.RetrievedOn = time.Now()
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	return author
+}
+
+func getPageWithCookie(t *testing.T, app *fiber.App, cookie *http.Cookie, path string) *goquery.Document {
+	t.Helper()
+	response, err := getRequest(cookie, app, path, t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustReturnStatus(response, http.StatusOK, t)
+	return parseHTMLResponse(t, response)
+}
+
 func parseHTMLResponse(t *testing.T, response *http.Response) *goquery.Document {
 	t.Helper()
 	defer response.Body.Close()
@@ -107,23 +131,12 @@ func testAuthorBioAddProfile(t *testing.T) {
 	client := &bioAuthorClient{}
 	source := alternateProfileInput{biblioreads.NewBioSource(client)}
 	app, idx := newAuthorBioTestAppWithSource(t, source, nil, nil)
-	author, err := idx.Author("john-doe", "en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	author.RetrievedOn = time.Now()
-	if err := idx.IndexAuthor(author); err != nil {
-		t.Fatal(err)
-	}
+	author := seedBioTestAuthor(t, idx, nil)
 	admin, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, err := getRequest(admin, app, "/authors/john-doe/summary", t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := parseHTMLResponse(t, response)
+	page := getPageWithCookie(t, app, admin, "/authors/john-doe/summary")
 	if page.Find(`input[name="otherProfileID"][aria-label="Other service profile"]`).Length() != 1 ||
 		client.calls != 0 {
 		t.Fatal("profile input must use the biography provider's name and label")
@@ -135,7 +148,7 @@ func testAuthorBioAddProfile(t *testing.T) {
 		{"invalid", http.StatusBadRequest},
 		{"879", http.StatusOK},
 	} {
-		response, err = postRequest(url.Values{"otherProfileID": {tc.input}}, admin, app, "/authors/john-doe/bio", t)
+		response, err := postRequest(url.Values{"otherProfileID": {tc.input}}, admin, app, "/authors/john-doe/bio", t)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -188,12 +201,7 @@ func TestAuthorDetailCardLayoutAndSanitization(t *testing.T) {
 	}
 	for _, path := range []string{"/authors/john-doe?l=en", "/authors/john-doe/summary?l=en"} {
 		t.Run(path, func(t *testing.T) {
-			response, err := getRequest(admin, app, path, t)
-			if err != nil {
-				t.Fatal(err)
-			}
-			mustReturnStatus(response, http.StatusOK, t)
-			page := parseHTMLResponse(t, response)
+			page := getPageWithCookie(t, app, admin, path)
 			card := page.Find("#author-john-doe")
 			main := card.Find(".author-details-main")
 			sidebar := card.Find(".author-details-sidebar")
@@ -240,15 +248,7 @@ func TestAuthorBio(t *testing.T) {
 		t.Fatal("authors without Goodreads link must not request a bio")
 	}
 
-	author, err := idx.Author("john-doe", "en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	author.DataSourceLinks = map[string]string{"goodreads": "1.John_Doe"}
-	author.RetrievedOn = time.Now()
-	if err := idx.IndexAuthor(author); err != nil {
-		t.Fatal(err)
-	}
+	seedBioTestAuthor(t, idx, map[string]string{"goodreads": "1.John_Doe"})
 	summary := getPage(t, app, "/authors/john-doe/summary?l=es")
 	if summary.Find(`#author-john-doe [hx-get="/authors/john-doe/bio"]`).Length() != 1 {
 		t.Fatal("expected the author card summary to load the bio asynchronously")
@@ -377,27 +377,15 @@ func (bioMetadata) OwnsLink(key string) bool {
 func TestLocalizedAuthorBioUsesCurrentLanguageOnAuthorPage(t *testing.T) {
 	result := &bioSourceResult{}
 	app, idx := newAuthorBioTestAppWithSource(t, &localizedBioSource{language: "en", result: result}, nil, &bioMetadataSource{})
-	author, err := idx.Author("john-doe", "en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	author.RetrievedOn = time.Now()
-	author.DataSourceLinks = map[string]string{
+	author := seedBioTestAuthor(t, idx, map[string]string{
 		"catalog:en": "english-profile",
 		"catalog:es": "spanish-profile",
-	}
-	if err := idx.IndexAuthor(author); err != nil {
-		t.Fatal(err)
-	}
+	})
 	admin, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, err := getRequest(admin, app, "/authors/john-doe/summary?l=es", t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := parseHTMLResponse(t, response)
+	page := getPageWithCookie(t, app, admin, "/authors/john-doe/summary?l=es")
 	form := page.Find("#update-author-form-john-doe")
 	if form.Find(`input[name="sourceID"]`).Length() != 1 || form.Find("input").Length() != 1 ||
 		form.Find(`input[name="catalogBioID"]`).Length() != 0 {
@@ -534,15 +522,7 @@ func testAuthorBioRefreshResults(t *testing.T) {
 		t.Run(state, func(t *testing.T) {
 			client := &bioAuthorClient{}
 			app, idx := newAuthorBioTestApp(t, client, &bioTranslator{})
-			author, err := idx.Author("john-doe", "en")
-			if err != nil {
-				t.Fatal(err)
-			}
-			author.DataSourceLinks = map[string]string{"goodreads": "1.John_Doe"}
-			author.RetrievedOn = time.Now()
-			if err := idx.IndexAuthor(author); err != nil {
-				t.Fatal(err)
-			}
+			author := seedBioTestAuthor(t, idx, map[string]string{"goodreads": "1.John_Doe"})
 			cached := index.AuthorBio{Source: author.DataSourceLinks["goodreads"], Language: "en"}
 			if state == "populated" {
 				cached.Text = map[string]string{"en": "Old biography", "es": "Old translation", "fr": "Stale translation"}
@@ -555,11 +535,7 @@ func testAuthorBioRefreshResults(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, path := range []string{"/authors/john-doe", "/authors/john-doe/summary"} {
-				response, err := getRequest(adminCookie, app, path, t)
-				if err != nil {
-					t.Fatal(err)
-				}
-				page := parseHTMLResponse(t, response)
+				page := getPageWithCookie(t, app, adminCookie, path)
 				if page.Find("#author-bio-refresh").Length() != 1 {
 					t.Fatalf("admins must be able to refresh a cached bio in %s", path)
 				}
@@ -592,24 +568,13 @@ func TestAuthorUpdateGuidance(t *testing.T) {
 				source = biblioreads.NewBioSource(&bioAuthorClient{})
 			}
 			app, idx := newAuthorBioTestAppWithSource(t, source, &bioTranslator{}, nil)
-			author, err := idx.Author("john-doe", "en")
-			if err != nil {
-				t.Fatal(err)
-			}
-			author.RetrievedOn = time.Now()
-			if err := idx.IndexAuthor(author); err != nil {
-				t.Fatal(err)
-			}
+			seedBioTestAuthor(t, idx, nil)
 			admin, err := login(app, "admin@example.com", "admin", t)
 			if err != nil {
 				t.Fatal(err)
 			}
 			for _, lang := range []string{"en", "es", "de", "fr", "ru"} {
-				response, err := getRequest(admin, app, "/authors/john-doe/summary?l="+lang, t)
-				if err != nil {
-					t.Fatal(err)
-				}
-				page := parseHTMLResponse(t, response)
+				page := getPageWithCookie(t, app, admin, "/authors/john-doe/summary?l="+lang)
 				form := page.Find("#update-author-form-john-doe")
 				guidance := form.Find("p")
 				if guidance.Length() != 1 || strings.Contains(guidance.Text(), "Wikidata") ||
@@ -649,15 +614,7 @@ func testAuthorBioRefreshPermissions(t *testing.T) {
 	client := &bioAuthorClient{}
 	app, idx := newAuthorBioTestApp(t, client, &bioTranslator{})
 
-	author, err := idx.Author("john-doe", "en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	author.DataSourceLinks = map[string]string{"goodreads": "1.John_Doe"}
-	author.RetrievedOn = time.Now()
-	if err := idx.IndexAuthor(author); err != nil {
-		t.Fatal(err)
-	}
+	seedBioTestAuthor(t, idx, map[string]string{"goodreads": "1.John_Doe"})
 	getBody(t, app, "/authors/john-doe/bio?l=es")
 	getBody(t, app, "/authors/john-doe/bio?l=en")
 
@@ -685,11 +642,7 @@ func testAuthorBioRefreshPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, path := range []string{"/authors/john-doe", "/authors/john-doe/summary", "/authors/john-doe/bio"} {
-		response, err := getRequest(regularCookie, app, path, t)
-		if err != nil {
-			t.Fatal(err)
-		}
-		page := parseHTMLResponse(t, response)
+		page := getPageWithCookie(t, app, regularCookie, path)
 		if page.Find("#author-bio").Length() != 1 || page.Find("#author-bio-refresh").Length() != 0 {
 			t.Errorf("regular users must see the bio but not the refresh link in %s", path)
 		}
@@ -707,25 +660,13 @@ func testAuthorBioRefreshPermissions(t *testing.T) {
 func testAuthorBioProfileEditing(t *testing.T) {
 	client := &bioAuthorClient{}
 	app, idx := newAuthorBioTestApp(t, client, &bioTranslator{})
-	author, err := idx.Author("john-doe", "en")
-	if err != nil {
-		t.Fatal(err)
-	}
-	author.DataSourceLinks = map[string]string{"goodreads": "1.John_Doe"}
-	author.RetrievedOn = time.Now()
-	if err := idx.IndexAuthor(author); err != nil {
-		t.Fatal(err)
-	}
+	seedBioTestAuthor(t, idx, map[string]string{"goodreads": "1.John_Doe"})
 	getBody(t, app, "/authors/john-doe/bio?l=es")
 	adminCookie, err := login(app, "admin@example.com", "admin", t)
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, err := getRequest(adminCookie, app, "/authors/john-doe", t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := parseHTMLResponse(t, response)
+	page := getPageWithCookie(t, app, adminCookie, "/authors/john-doe")
 	if page.Find(`#author-john-doe #author-bio-refresh[hx-post="/authors/john-doe/bio"]`).Length() != 1 {
 		t.Fatal("admins must see a form to update the biography")
 	}
@@ -738,7 +679,7 @@ func testAuthorBioProfileEditing(t *testing.T) {
 		t.Fatal("refreshing a biography must activate its loading skeleton")
 	}
 
-	response, err = postRequest(url.Values{"goodreadsID": {"https://www.goodreads.com/author/show/879.Plato/"}}, adminCookie, app, "/authors/john-doe/bio?l=es", t)
+	response, err := postRequest(url.Values{"goodreadsID": {"https://www.goodreads.com/author/show/879.Plato/"}}, adminCookie, app, "/authors/john-doe/bio?l=es", t)
 	if err != nil {
 		t.Fatal(err)
 	}
