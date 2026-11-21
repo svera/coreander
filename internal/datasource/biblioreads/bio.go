@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/microcosm-cc/bluemonday"
+	"github.com/svera/coreander/v5/internal/biography"
 	"github.com/svera/coreander/v5/internal/index"
 	nethtml "golang.org/x/net/html"
 )
@@ -21,10 +21,6 @@ var authorIDPattern = regexp.MustCompile(`^[1-9][0-9]*(?:[.][A-Za-z0-9_~-]+)?$`)
 var authorProfilePath = regexp.MustCompile(`^/author/show/([1-9][0-9]*)(?:[.][A-Za-z0-9_~-]+)?/?$`)
 
 var bioLineBreak = regexp.MustCompile(`(?i)<br\s*/?>|</p>|</div>`)
-var bioFormatting = bluemonday.NewPolicy().AllowElements("b", "strong", "i", "em")
-
-// spaceBeforePunctuation matches whitespace left before punctuation by inline elements, as in "<i>Title </i>,".
-var spaceBeforePunctuation = regexp.MustCompile(` +([,.;:!?)\]])`)
 
 type AuthorClient interface {
 	Author(ctx context.Context, id string) (AuthorResponse, error)
@@ -162,21 +158,6 @@ func primaryProfile(desc string) (string, error) {
 // of blank lines into one, which separates paragraphs. As in HTML, newlines in the source are
 // just whitespace, only elements such as <br> or <p> break lines.
 func bioText(desc string) string {
-	text := bioLineBreak.ReplaceAllString(strings.Join(strings.Fields(desc), " "), "\n")
-	text = bioFormatting.Sanitize(text)
-	var lines []string
-	blank := false
-	for line := range strings.SplitSeq(text, "\n") {
-		line = spaceBeforePunctuation.ReplaceAllString(strings.Join(strings.Fields(line), " "), "$1")
-		if line == "" {
-			blank = len(lines) > 0
-			continue
-		}
-		if blank {
-			lines = append(lines, "")
-			blank = false
-		}
-		lines = append(lines, line)
-	}
-	return strings.Join(lines, "\n")
+	text := bioLineBreak.ReplaceAllString(strings.Join(strings.Fields(desc), " "), "<br>")
+	return biography.CleanHTML(text)
 }

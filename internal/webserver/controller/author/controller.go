@@ -124,13 +124,19 @@ func DataSourceLinks(author index.Author, language string, providers ...DataSour
 	return links
 }
 
-func (a *Controller) profileInputs(author index.Author, style, invalidName, submittedValue string) []ProfileInput {
+func (a *Controller) profileInputs(author index.Author, lang, style, invalidName, submittedValue string) []ProfileInput {
 	var inputs []ProfileInput
 	if a.dataSource != nil {
 		inputs = append(inputs, NewMetadataProfileInput(a.dataSource, author, style))
 	}
-	if a.bioProvider != nil {
+	_, unifiedBio := a.metadataBioProvider()
+	if a.bioProvider != nil && !unifiedBio {
 		input := NewProfileInput(a.bioProvider, author, a.bioProvider.ProfileInputName(), "post", "/authors/"+author.Slug+"/bio")
+		if provider, ok := a.bioProvider.(interface {
+			ProfileValueForLanguage(index.Author, string) string
+		}); ok {
+			input.Value = provider.ProfileValueForLanguage(author, lang)
+		}
 		input.FormID = "author-bio-refresh"
 		input.Indicator = "#author-bio"
 		input.Disabled = "find button"
