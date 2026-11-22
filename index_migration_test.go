@@ -154,7 +154,7 @@ func TestGetIndexesRebuildsOlderDocuments(t *testing.T) {
 					t.Fatalf("library must be searchable after rebuilding: %+v, %v", book, err)
 				}
 				author, err := idx.Author("existing-author", "")
-				if err != nil || author.DataSourceLinks["wikidata"] != "Q1" || !author.RetrievedOn.Equal(retrieved) {
+				if err != nil || author.DataSourceReferences["wikidata"] != "Q1" || !author.RetrievedOn.Equal(retrieved) {
 					t.Fatalf("rebuilding must preserve author metadata: %+v, %v", author, err)
 				}
 				if err := idx.Close(); err != nil {
@@ -314,7 +314,7 @@ func TestGetIndexesMigratesAuthorsWithoutReindexingDocuments(t *testing.T) {
 		t.Fatalf("author migration changed document enrichment state: %+v, %v", data, err)
 	}
 	author, err := idx.Author("alice-borchardt", "")
-	if err != nil || author.DataSourceLinks["wikidata"] != "Q1" || !author.RetrievedOn.Equal(retrieved) {
+	if err != nil || author.DataSourceReferences["wikidata"] != "Q1" || !author.RetrievedOn.Equal(retrieved) {
 		t.Fatalf("expected existing author metadata preserved: %+v, %v", author, err)
 	}
 	if pending, err := idx.AuthorsWithoutInfo(); err != nil || len(pending) != 0 {

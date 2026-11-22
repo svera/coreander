@@ -117,11 +117,11 @@ func copyAuthors(source, destination bleve.Index, batchSize int) error {
 					source = "wikipedia:" + strings.TrimPrefix(field, "WikipediaLink.")
 				}
 				if link, ok := value.(string); source != "" && ok && link != "" {
-					if author.DataSourceLinks == nil {
-						author.DataSourceLinks = make(map[string]string)
+					if author.DataSourceReferences == nil {
+						author.DataSourceReferences = make(map[string]string)
 					}
-					if author.DataSourceLinks[source] == "" {
-						author.DataSourceLinks[source] = link
+					if author.DataSourceReferences[source] == "" {
+						author.DataSourceReferences[source] = link
 					}
 				}
 			}

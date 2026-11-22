@@ -42,7 +42,7 @@ type ProfileInput struct {
 func NewProfileInput(provider ProfileInputProvider, author index.Author, name, method, action string) ProfileInput {
 	return ProfileInput{
 		Name: name, ServiceName: provider.ProfileServiceName(), Value: provider.ProfileValue(author),
-		Reference: author.DataSourceLinks[provider.LinkKey()],
+		Reference: author.DataSourceReferences[provider.LinkKey()],
 		Method:    method, Action: action,
 	}
 }

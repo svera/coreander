@@ -92,7 +92,7 @@ func TestAuthorLinks(t *testing.T) {
 func TestWikipediaDataSourceLink(t *testing.T) {
 	source := NewWikidataSource(Gowikidata{})
 	link := source.AuthorLink(index.Author{
-		DataSourceLinks: map[string]string{
+		DataSourceReferences: map[string]string{
 			"wikipedia:en": "https://en.wikipedia.org/wiki/Example",
 			"wikipedia:es": "https://es.wikipedia.org/wiki/Ejemplo",
 		},

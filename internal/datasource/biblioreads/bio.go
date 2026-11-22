@@ -47,7 +47,7 @@ func (*BioSource) ProfileInputName() string {
 }
 
 func (*BioSource) ProfileValue(author index.Author) string {
-	if id := author.DataSourceLinks[Source]; id != "" {
+	if id := author.DataSourceReferences[Source]; id != "" {
 		return goodreadsBaseURL + goodreadsAuthorPrefix + id
 	}
 	return ""

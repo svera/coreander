@@ -39,7 +39,7 @@ func (*BioSource) ProfileInputName() string    { return "wikipediaURL" }
 func (*BioSource) MetadataServiceName() string { return "Wikidata" }
 
 func (s *BioSource) ProfileValue(author index.Author) string {
-	return author.DataSourceLinks[s.LinkKey()]
+	return author.DataSourceReferences[s.LinkKey()]
 }
 
 // NormalizeAuthorID accepts article URLs, retaining their language and encoded title.

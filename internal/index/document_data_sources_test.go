@@ -297,7 +297,7 @@ func TestUpdateDocumentStoresAuthorLinksFirstWins(t *testing.T) {
 			if existing {
 				if err := idx.IndexAuthor(Author{
 					Name: "Existing Writer", Slug: "writer", DocumentCount: 42,
-					DataSourceLinks: map[string]string{"wikidata": "external-id", "other": "other-reference"},
+					DataSourceReferences: map[string]string{"wikidata": "external-id", "other": "other-reference"},
 				}); err != nil {
 					t.Fatal(err)
 				}
@@ -312,12 +312,12 @@ func TestUpdateDocumentStoresAuthorLinksFirstWins(t *testing.T) {
 				}
 			}
 			author, err := idx.Author("writer", "")
-			if err != nil || author.DataSourceLinks["dummy"] != "first-reference" {
+			if err != nil || author.DataSourceReferences["dummy"] != "first-reference" {
 				t.Fatalf("first author link lost: %+v, %v", author, err)
 			}
 			if existing {
 				if author.Name != "Existing Writer" || author.DocumentCount != 42 ||
-					author.DataSourceLinks["wikidata"] != "external-id" || author.DataSourceLinks["other"] != "other-reference" {
+					author.DataSourceReferences["wikidata"] != "external-id" || author.DataSourceReferences["other"] != "other-reference" {
 					t.Fatalf("existing author metadata changed: %+v", author)
 				}
 			} else if author.Name != "Writer" || author.DocumentCount != 3 {

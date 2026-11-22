@@ -125,7 +125,7 @@ func TestStoreCanonicalAuthorBio(t *testing.T) {
 	idx := newAuthorsTestIndex(t)
 	const variant = "18647721.Plat_n"
 	const linkKey = "external-profile"
-	author := index.Author{Slug: "platon", Name: "Platón", DataSourceLinks: map[string]string{
+	author := index.Author{Slug: "platon", Name: "Platón", DataSourceReferences: map[string]string{
 		linkKey: variant, "website": "https://example.com",
 	}}
 	if err := idx.IndexAuthor(author); err != nil {
@@ -139,7 +139,7 @@ func TestStoreCanonicalAuthorBio(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.DataSourceLinks[linkKey] != bio.Source || stored.Bio.Source != bio.Source || !maps.Equal(stored.Bio.Text, bio.Text) || stored.DataSourceLinks["website"] != "https://example.com" || stored.Name != author.Name {
+	if stored.DataSourceReferences[linkKey] != bio.Source || stored.Bio.Source != bio.Source || !maps.Equal(stored.Bio.Text, bio.Text) || stored.DataSourceReferences["website"] != "https://example.com" || stored.Name != author.Name {
 		t.Fatalf("canonical resolution must update only the profile link and bio: %+v", stored)
 	}
 	if err := idx.StoreCanonicalAuthorBio(author.Slug, linkKey, variant, index.AuthorBio{Source: "999"}); err == nil {
@@ -152,7 +152,7 @@ func TestStoreCanonicalAuthorBio(t *testing.T) {
 		t.Fatal("a stale biography must not restore a cleared source")
 	}
 	stored, err = idx.Author(author.Slug, "en")
-	if err != nil || stored.DataSourceLinks[linkKey] != "" || stored.DataSourceLinks["website"] != "https://example.com" || stored.Bio.Source != "" {
+	if err != nil || stored.DataSourceReferences[linkKey] != "" || stored.DataSourceReferences["website"] != "https://example.com" || stored.Bio.Source != "" {
 		t.Fatalf("clearing the profile link must preserve other author data: %+v, %v", stored, err)
 	}
 }

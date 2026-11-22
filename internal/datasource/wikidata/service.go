@@ -55,7 +55,7 @@ func (WikidataSource) ProfileServiceName() string {
 }
 
 func (WikidataSource) ProfileValue(author index.Author) string {
-	id := author.DataSourceLinks["wikidata"]
+	id := author.DataSourceReferences["wikidata"]
 	if id == "" {
 		return ""
 	}
@@ -93,7 +93,7 @@ func (WikidataSource) NormalizeAuthorID(value string) (string, error) {
 }
 
 func (WikidataSource) AuthorLink(author index.Author, language string) model.DataSourceLink {
-	url := author.DataSourceLinks["wikipedia:"+language]
+	url := author.DataSourceReferences["wikipedia:"+language]
 	if url == "" {
 		return model.DataSourceLink{}
 	}

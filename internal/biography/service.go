@@ -109,7 +109,7 @@ func (s *Service) RefreshMetadataBio(ctx context.Context, author index.Author, l
 }
 
 func (s *Service) authorLink(author index.Author) (string, bool) {
-	value := author.DataSourceLinks[s.source.LinkKey()]
+	value := author.DataSourceReferences[s.source.LinkKey()]
 	id, err := s.source.NormalizeAuthorID(value)
 	return value, err == nil && id != "" && id == value
 }
@@ -179,7 +179,7 @@ type storeFunc func(slug string, bio index.AuthorBio) error
 
 func (s *Service) bioStore(author index.Author, merge bool) storeFunc {
 	linkKey := s.source.LinkKey()
-	previousLink := author.DataSourceLinks[linkKey]
+	previousLink := author.DataSourceReferences[linkKey]
 	return func(slug string, bio index.AuthorBio) error {
 		if bio.Source != previousLink {
 			return s.index.StoreCanonicalAuthorBio(slug, linkKey, previousLink, bio)
@@ -194,7 +194,7 @@ func (s *Service) UpdateBio(ctx context.Context, author index.Author, id, langua
 	s = s.forLanguage(language)
 	linkKey := s.source.LinkKey()
 	if id == "" {
-		if err := s.index.StoreCanonicalAuthorBio(author.Slug, linkKey, author.DataSourceLinks[linkKey], index.AuthorBio{}); err != nil {
+		if err := s.index.StoreCanonicalAuthorBio(author.Slug, linkKey, author.DataSourceReferences[linkKey], index.AuthorBio{}); err != nil {
 			return "", "", fmt.Errorf("clearing %s author link: %w", s.ProfileServiceName(), err)
 		}
 		return "", "", nil
@@ -207,11 +207,11 @@ func (s *Service) UpdateBio(ctx context.Context, author index.Author, id, langua
 		return "", "", fmt.Errorf("invalid %s author ID %q", s.ProfileServiceName(), id)
 	}
 	save := s.bioStore(author, false)
-	author.DataSourceLinks = maps.Clone(author.DataSourceLinks)
-	if author.DataSourceLinks == nil {
-		author.DataSourceLinks = make(map[string]string)
+	author.DataSourceReferences = maps.Clone(author.DataSourceReferences)
+	if author.DataSourceReferences == nil {
+		author.DataSourceReferences = make(map[string]string)
 	}
-	author.DataSourceLinks[linkKey] = id
+	author.DataSourceReferences[linkKey] = id
 	author.Bio = index.AuthorBio{}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), requestTimeout)
 	defer cancel()

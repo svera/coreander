@@ -287,15 +287,15 @@ func TestAuthorDataSourceLinksAreStoredButNotSearchable(t *testing.T) {
 		"dummy": authorURL,
 		"other": "https://example.org/Zyxwv_Author",
 	}
-	if err := idx.IndexAuthor(index.Author{Slug: "alice", Name: "Example Writer", DataSourceLinks: links}); err != nil {
+	if err := idx.IndexAuthor(index.Author{Slug: "alice", Name: "Example Writer", DataSourceReferences: links}); err != nil {
 		t.Fatal(err)
 	}
 	author, err := idx.Author("alice", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !maps.Equal(author.DataSourceLinks, links) {
-		t.Fatalf("expected stored author links, got %+v", author.DataSourceLinks)
+	if !maps.Equal(author.DataSourceReferences, links) {
+		t.Fatalf("expected stored author links, got %+v", author.DataSourceReferences)
 	}
 	for _, q := range []query.Query{
 		fieldTermQuery("DataSourceLinks", authorURL),

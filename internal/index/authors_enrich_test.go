@@ -119,7 +119,7 @@ func TestAuthorMetadataRefreshUpdatesLinks(t *testing.T) {
 	idx := index.NewBleve(nil, authors, nil, "", nil, index.Config{})
 	author := index.Author{
 		Slug: "writer", Name: "Writer",
-		DataSourceLinks: map[string]string{
+		DataSourceReferences: map[string]string{
 			"example:website": "https://old.example",
 			"example:en":      "https://en.example/Old",
 			"example:es":      "https://es.example/Old",
@@ -141,7 +141,7 @@ func TestAuthorMetadataRefreshUpdatesLinks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		current.DataSourceLinks["another-provider"] = "https://another.example/writer"
+		current.DataSourceReferences["another-provider"] = "https://another.example/writer"
 		if err := idx.IndexAuthor(current); err != nil {
 			t.Fatal(err)
 		}
@@ -152,18 +152,18 @@ func TestAuthorMetadataRefreshUpdatesLinks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got.DataSourceLinks["example:website"] != source.links["example:website"] ||
-			got.DataSourceLinks["example:en"] != source.links["example:en"] ||
-			got.DataSourceLinks["example:es"] != "" {
-			t.Fatalf("metadata links were not refreshed: %+v", got.DataSourceLinks)
+		if got.DataSourceReferences["example:website"] != source.links["example:website"] ||
+			got.DataSourceReferences["example:en"] != source.links["example:en"] ||
+			got.DataSourceReferences["example:es"] != "" {
+			t.Fatalf("metadata links were not refreshed: %+v", got.DataSourceReferences)
 		}
-		if got.DataSourceLinks["goodreads"] != "1.Writer" ||
-			got.DataSourceLinks["catalog"] != "https://catalog.example/writer" ||
-			got.DataSourceLinks["another-provider"] != "https://another.example/writer" {
-			t.Fatalf("metadata refresh lost independent provider links: %+v", got.DataSourceLinks)
+		if got.DataSourceReferences["goodreads"] != "1.Writer" ||
+			got.DataSourceReferences["catalog"] != "https://catalog.example/writer" ||
+			got.DataSourceReferences["another-provider"] != "https://another.example/writer" {
+			t.Fatalf("metadata refresh lost independent provider links: %+v", got.DataSourceReferences)
 		}
 		if source.links != nil {
-			author.DataSourceLinks["example:website"] = "https://caller.example"
+			author.DataSourceReferences["example:website"] = "https://caller.example"
 			if source.links["example:website"] != "https://new.example" {
 				t.Fatal("combining metadata retained a mutable datasource map")
 			}
@@ -180,7 +180,7 @@ func TestAuthorMetadataResetPreservesConcurrentProviderLinks(t *testing.T) {
 	idx := index.NewBleve(nil, authors, nil, "", nil, index.Config{})
 	author := index.Author{
 		Slug: "writer", Name: "Writer", DocumentCount: 3,
-		DataSourceLinks: map[string]string{
+		DataSourceReferences: map[string]string{
 			"example":         "Q1",
 			"example:website": "https://old.example", "example:en": "https://en.example/Old",
 			"catalog": "https://catalog.example/writer",
@@ -190,14 +190,14 @@ func TestAuthorMetadataResetPreservesConcurrentProviderLinks(t *testing.T) {
 		t.Fatal(err)
 	}
 	reset := author.ClearMetadata((stubAuthor{linkPrefix: "example:"}).OwnsLink)
-	if author.DataSourceLinks["example:website"] == "" {
+	if author.DataSourceReferences["example:website"] == "" {
 		t.Fatal("reset must not mutate the caller's links")
 	}
 	current, err := idx.Author("writer", "en")
 	if err != nil {
 		t.Fatal(err)
 	}
-	current.DataSourceLinks["goodreads"] = "1.Writer"
+	current.DataSourceReferences["goodreads"] = "1.Writer"
 	if err := idx.IndexAuthor(current); err != nil {
 		t.Fatal(err)
 	}
@@ -208,12 +208,12 @@ func TestAuthorMetadataResetPreservesConcurrentProviderLinks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.DataSourceLinks["example:website"] != "" || stored.DataSourceLinks["example:en"] != "" ||
-		stored.DataSourceLinks["example"] != "" || stored.RetrievedOn.IsZero() {
+	if stored.DataSourceReferences["example:website"] != "" || stored.DataSourceReferences["example:en"] != "" ||
+		stored.DataSourceReferences["example"] != "" || stored.RetrievedOn.IsZero() {
 		t.Fatalf("reset must remove metadata association and owned links: %+v", stored)
 	}
-	if stored.DataSourceLinks["catalog"] != "https://catalog.example/writer" ||
-		stored.DataSourceLinks["goodreads"] != "1.Writer" || stored.DocumentCount != 3 {
+	if stored.DataSourceReferences["catalog"] != "https://catalog.example/writer" ||
+		stored.DataSourceReferences["goodreads"] != "1.Writer" || stored.DocumentCount != 3 {
 		t.Fatalf("reset must retain independent and concurrent author data: %+v", stored)
 	}
 	stale := index.Author{Slug: "writer", Name: "Writer"}
@@ -224,8 +224,8 @@ func TestAuthorMetadataResetPreservesConcurrentProviderLinks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(stored.DataSourceLinks) != 2 {
-		t.Fatalf("ordinary stale writes must preserve independent links: %+v", stored.DataSourceLinks)
+	if len(stored.DataSourceReferences) != 2 {
+		t.Fatalf("ordinary stale writes must preserve independent links: %+v", stored.DataSourceReferences)
 	}
 }
 
@@ -282,7 +282,7 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := idx.IndexAuthor(index.Author{
-		Slug: "known", Name: "Known Author", DataSourceLinks: map[string]string{"example": "Q2", "other": "unrelated"},
+		Slug: "known", Name: "Known Author", DataSourceReferences: map[string]string{"example": "Q2", "other": "unrelated"},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -320,11 +320,11 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if found.DataSourceLinks["example"] != "Q1" {
-		t.Fatalf("expected enriched author Q1, got %q", found.DataSourceLinks["example"])
+	if found.DataSourceReferences["example"] != "Q1" {
+		t.Fatalf("expected enriched author Q1, got %q", found.DataSourceReferences["example"])
 	}
 	known, err := idx.Author("known", "en")
-	if err != nil || known.DataSourceLinks["example"] != "Q2" || known.DataSourceLinks["other"] != "unrelated" {
+	if err != nil || known.DataSourceReferences["example"] != "Q2" || known.DataSourceReferences["other"] != "unrelated" {
 		t.Fatalf("enrichment lost existing source references: %+v, %v", known, err)
 	}
 
@@ -335,8 +335,8 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	if missing.RetrievedOn.IsZero() {
 		t.Fatal("expected missing author to be marked as processed")
 	}
-	if missing.DataSourceLinks["example"] != "" {
-		t.Fatalf("expected missing author to have no data source id, got %q", missing.DataSourceLinks["example"])
+	if missing.DataSourceReferences["example"] != "" {
+		t.Fatalf("expected missing author to have no data source id, got %q", missing.DataSourceReferences["example"])
 	}
 
 	remaining, err := idx.AuthorsWithoutInfo()

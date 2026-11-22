@@ -11,13 +11,13 @@ import (
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 )
 
-// indexAuthor stores links as one stored-only field so new sources need no mapping changes.
+// indexAuthor retains the stored field name for compatibility with existing indexes.
 func indexAuthor(destination interface{ Index(string, any) error }, id string, author Author) error {
-	links, err := json.Marshal(author.DataSourceLinks)
+	links, err := json.Marshal(author.DataSourceReferences)
 	if err != nil {
 		return err
 	}
-	author.DataSourceLinks = nil
+	author.DataSourceReferences = nil
 	return destination.Index(id, struct {
 		Author
 		DataSourceLinks string
@@ -173,18 +173,18 @@ func (b *BleveIndexer) IndexAuthor(author Author) error {
 		return err
 	}
 	// Link enrichment runs independently of metadata enrichment and UI edits.
-	links := maps.Clone(author.DataSourceLinks)
-	if len(current.DataSourceLinks) > 0 {
+	links := maps.Clone(author.DataSourceReferences)
+	if len(current.DataSourceReferences) > 0 {
 		if links == nil {
 			links = make(map[string]string)
 		}
-		for source, link := range current.DataSourceLinks {
+		for source, link := range current.DataSourceReferences {
 			if author.ownsRefreshedLink == nil || !author.ownsRefreshedLink(source) {
 				links[source] = link
 			}
 		}
 	}
-	author.DataSourceLinks = links
+	author.DataSourceReferences = links
 	if current.Slug != "" {
 		author.Bio = current.Bio
 	}
@@ -215,16 +215,16 @@ func (b *BleveIndexer) StoreCanonicalAuthorBio(slug, linkKey, previousLink strin
 	if err != nil || author.Slug == "" {
 		return err
 	}
-	if author.DataSourceLinks[linkKey] != previousLink {
+	if author.DataSourceReferences[linkKey] != previousLink {
 		return fmt.Errorf("data source link changed while resolving primary profile for %s", slug)
 	}
-	if author.DataSourceLinks == nil {
-		author.DataSourceLinks = make(map[string]string)
+	if author.DataSourceReferences == nil {
+		author.DataSourceReferences = make(map[string]string)
 	}
 	if bio.Source == "" {
-		delete(author.DataSourceLinks, linkKey)
+		delete(author.DataSourceReferences, linkKey)
 	} else {
-		author.DataSourceLinks[linkKey] = bio.Source
+		author.DataSourceReferences[linkKey] = bio.Source
 	}
 	author.Bio = bio
 	return indexAuthor(b.authorsIdx, slug, author)
@@ -246,7 +246,7 @@ func (b *BleveIndexer) storeAuthorBioChecked(slug, linkKey string, bio AuthorBio
 	if err != nil || author.Slug == "" {
 		return err
 	}
-	if expectedLink != nil && author.DataSourceLinks[linkKey] != *expectedLink {
+	if expectedLink != nil && author.DataSourceReferences[linkKey] != *expectedLink {
 		return fmt.Errorf("data source link changed while retrieving biography for %s", slug)
 	}
 	if merge && author.Bio.Source == bio.Source && author.Bio.Language == bio.Language {
@@ -301,14 +301,14 @@ type AuthorDataSource interface {
 func CombineWithDataSource(author *Author, authorDataSource datasourcemodel.Author, supportedLanguages []string) {
 	author.BirthName = authorDataSource.BirthName()
 	author.RetrievedOn = authorDataSource.RetrievedOn()
-	author.DataSourceLinks = maps.Clone(author.DataSourceLinks)
+	author.DataSourceReferences = maps.Clone(author.DataSourceReferences)
 	author.ownsRefreshedLink = authorDataSource.OwnsLink
-	if author.DataSourceLinks == nil {
-		author.DataSourceLinks = make(map[string]string)
+	if author.DataSourceReferences == nil {
+		author.DataSourceReferences = make(map[string]string)
 	}
-	for source := range author.DataSourceLinks {
+	for source := range author.DataSourceReferences {
 		if authorDataSource.OwnsLink(source) {
-			delete(author.DataSourceLinks, source)
+			delete(author.DataSourceReferences, source)
 		}
 	}
 	author.InstanceOf = authorDataSource.InstanceOf()
@@ -317,7 +317,7 @@ func CombineWithDataSource(author *Author, authorDataSource datasourcemodel.Auth
 	author.DateOfDeath = authorDataSource.DateOfDeath()
 	for key, link := range authorDataSource.Links() {
 		if link != "" {
-			author.DataSourceLinks[key] = link
+			author.DataSourceReferences[key] = link
 		}
 	}
 	author.DataSourceImage = authorDataSource.Image()
@@ -364,7 +364,7 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 	searchIndex := 0
 	for _, author := range authors {
 		authorsBySlug[author.Slug] = author
-		if id := author.DataSourceLinks[dataSource.LinkKey()]; id != "" {
+		if id := author.DataSourceReferences[dataSource.LinkKey()]; id != "" {
 			candidates[author.Slug] = []string{id}
 			b.recordAuthorEnrichmentProgress()
 			continue

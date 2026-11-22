@@ -37,7 +37,7 @@ func TestOpenAuthorsIndexMigratesStoredMetadata(t *testing.T) {
 	want := Author{
 		Slug: "alice-borchardt", Name: "Alice Borchardt", BirthName: "Alice O'Brien",
 		RetrievedOn: retrieved,
-		DataSourceLinks: map[string]string{
+		DataSourceReferences: map[string]string{
 			"wikidata":     "Q1",
 			"wikipedia:en": "https://en.wikipedia.org/wiki/Alice_Borchardt",
 			"wikipedia:es": "https://es.wikipedia.org/wiki/Alice_Borchardt",
@@ -55,8 +55,8 @@ func TestOpenAuthorsIndexMigratesStoredMetadata(t *testing.T) {
 			DataSourceID  string
 			Website       string
 			WikipediaLink map[string]string
-		}{author, author.DataSourceLinks["wikidata"], author.DataSourceLinks["website"], map[string]string{
-			"en": author.DataSourceLinks["wikipedia:en"], "es": author.DataSourceLinks["wikipedia:es"],
+		}{author, author.DataSourceReferences["wikidata"], author.DataSourceReferences["website"], map[string]string{
+			"en": author.DataSourceReferences["wikipedia:en"], "es": author.DataSourceReferences["wikipedia:es"],
 		}}); err != nil {
 			t.Fatal(err)
 		}
@@ -94,7 +94,7 @@ func TestOpenAuthorsIndexMigratesStoredMetadata(t *testing.T) {
 		t.Fatalf("expected original index removed after successful migration, got %v", err)
 	}
 
-	got.DataSourceLinks["goodreads"] = "1.Writer"
+	got.DataSourceReferences["goodreads"] = "1.Writer"
 	if err := idx.IndexAuthor(got); err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestOpenAuthorsIndexMigratesStoredMetadata(t *testing.T) {
 	if err != nil || len(result.Hits) != 1 {
 		t.Fatalf("reading reopened author: %v", err)
 	}
-	want.DataSourceLinks["goodreads"] = "1.Writer"
+	want.DataSourceReferences["goodreads"] = "1.Writer"
 	if got := hydrateAuthor(result.Hits[0]); !reflect.DeepEqual(got, want) {
 		t.Fatalf("migrated mapping or URL did not survive reopening: %#v", got)
 	}
@@ -151,21 +151,21 @@ func TestOpenAuthorsIndexMigratesVersion3SourceID(t *testing.T) {
 				Slug: "writer", Name: "Writer", RetrievedOn: time.Now().UTC().Truncate(time.Second),
 				Description: map[string]string{"en": "Writer", "es": "Escritora"}, DocumentCount: 7,
 				Pseudonyms: []string{"Writer Alias"},
-				DataSourceLinks: map[string]string{
+				DataSourceReferences: map[string]string{
 					"goodreads": "1.Writer", "wikipedia:es": "https://es.wikipedia.org/wiki/Writer",
 				},
 				Bio: AuthorBio{Source: "https://es.wikipedia.org/wiki/Writer", Language: "es",
 					Text: map[string]string{"es": "<b>Biografia</b>", "en": "<b>Biography</b>"}},
 			}
 			if referenceID != "" {
-				want.DataSourceLinks["wikidata"] = referenceID
+				want.DataSourceReferences["wikidata"] = referenceID
 			}
-			links, err := json.Marshal(want.DataSourceLinks)
+			links, err := json.Marshal(want.DataSourceReferences)
 			if err != nil {
 				t.Fatal(err)
 			}
 			stored := want
-			stored.DataSourceLinks = nil
+			stored.DataSourceReferences = nil
 			if err := legacy.Index(want.Slug, struct {
 				Author
 				DataSourceID    string
@@ -201,12 +201,64 @@ func TestOpenAuthorsIndexMigratesVersion3SourceID(t *testing.T) {
 				t.Fatal("migration retained the standalone source ID")
 			}
 			if referenceID == "" {
-				want.DataSourceLinks["wikidata"] = "Q1"
+				want.DataSourceReferences["wikidata"] = "Q1"
 			}
 			if got := hydrateAuthor(result.Hits[0]); !reflect.DeepEqual(got, want) {
 				t.Fatalf("migration changed author metadata or references:\ngot: %#v\nwant: %#v", got, want)
 			}
 		})
+	}
+}
+
+func TestAuthorReferencesRemainCompatibleWithCurrentIndex(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "authors_index")
+	authors := CreateAuthorsIndex(path)
+	if err := authors.Index("writer", struct {
+		Author
+		DataSourceLinks string
+	}{
+		Author:          Author{Slug: "writer", Name: "Writer"},
+		DataSourceLinks: `{"wikidata":"Q1","website":"https://example.org"}`,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := authors.Close(); err != nil {
+		t.Fatal(err)
+	}
+	authors, err := OpenAuthorsIndex(path, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx := NewBleve(nil, authors, nil, "", nil, Config{})
+	author, err := idx.Author("writer", "")
+	if err != nil || author.DataSourceReferences["wikidata"] != "Q1" || author.DataSourceReferences["website"] != "https://example.org" {
+		t.Fatalf("existing references lost: %+v, %v", author, err)
+	}
+	author.DataSourceReferences["goodreads"] = "1.Writer"
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	if err := authors.Close(); err != nil {
+		t.Fatal(err)
+	}
+	authors, err = OpenAuthorsIndex(path, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer authors.Close()
+	req := bleve.NewSearchRequest(bleve.NewDocIDQuery([]string{"writer"}))
+	req.Fields = []string{"*"}
+	result, err := authors.Search(req)
+	if err != nil || len(result.Hits) != 1 {
+		t.Fatalf("reading saved author: %v", err)
+	}
+	fields := result.Hits[0].Fields
+	if _, ok := fields["DataSourceLinks"].(string); !ok {
+		t.Fatal("references must retain the existing stored field name")
+	}
+	got := hydrateAuthor(result.Hits[0])
+	if !reflect.DeepEqual(got.DataSourceReferences, author.DataSourceReferences) {
+		t.Fatalf("references did not survive reopening: %+v", got.DataSourceReferences)
 	}
 }
 
@@ -217,7 +269,7 @@ func TestOpenAuthorsIndexRemovesPreviouslyRetainedBackup(t *testing.T) {
 		t.Fatal(err)
 	}
 	current := CreateAuthorsIndex(path)
-	if err := indexAuthor(current, "saved", Author{Slug: "saved", Name: "Saved Author", DataSourceLinks: map[string]string{"wikidata": "Q1"}}); err != nil {
+	if err := indexAuthor(current, "saved", Author{Slug: "saved", Name: "Saved Author", DataSourceReferences: map[string]string{"wikidata": "Q1"}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := current.Close(); err != nil {
@@ -300,13 +352,13 @@ func TestOpenAuthorsIndexMigratesLegacyAuthorLinks(t *testing.T) {
 	}
 	idx := NewBleve(nil, upgraded, nil, "", nil, Config{})
 	author, err := idx.Author("alice", "")
-	if err != nil || author.DataSourceLinks["wikidata"] != "Q1" || author.DocumentCount != 7 ||
-		author.DataSourceLinks["website"] != "https://example.org" ||
-		author.DataSourceLinks["wikipedia:en"] != "https://en.wikipedia.org/wiki/Alice" ||
-		author.DataSourceLinks["wikipedia:es"] != "https://es.wikipedia.org/wiki/Alice" {
+	if err != nil || author.DataSourceReferences["wikidata"] != "Q1" || author.DocumentCount != 7 ||
+		author.DataSourceReferences["website"] != "https://example.org" ||
+		author.DataSourceReferences["wikipedia:en"] != "https://en.wikipedia.org/wiki/Alice" ||
+		author.DataSourceReferences["wikipedia:es"] != "https://es.wikipedia.org/wiki/Alice" {
 		t.Fatalf("migration lost legacy links or metadata: %+v, %v", author, err)
 	}
-	author.DataSourceLinks["other"] = "https://example.org/alice"
+	author.DataSourceReferences["other"] = "https://example.org/alice"
 	if err := idx.IndexAuthor(author); err != nil {
 		t.Fatal(err)
 	}

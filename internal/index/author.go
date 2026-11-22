@@ -19,12 +19,12 @@ type Author struct {
 	Description map[string]string
 	DateOfBirth precisiondate.PrecisionDate
 	DateOfDeath precisiondate.PrecisionDate
-	// DataSourceLinks contains source-owned profile IDs and URLs.
-	DataSourceLinks map[string]string
-	DataSourceImage string
-	Gender          float64
-	Pseudonyms      []string
-	DocumentCount   uint64
+	// DataSourceReferences contains source-owned profile IDs and URLs.
+	DataSourceReferences map[string]string
+	DataSourceImage      string
+	Gender               float64
+	Pseudonyms           []string
+	DocumentCount        uint64
 	// Bio is managed by StoreAuthorBio; IndexAuthor keeps the stored value.
 	Bio AuthorBio
 	// ownsRefreshedLink marks links replaced by a metadata refresh or explicit reset.
@@ -43,7 +43,7 @@ type AuthorBio struct {
 }
 
 func (a Author) ClearMetadata(ownsLink func(string) bool) Author {
-	links := maps.Clone(a.DataSourceLinks)
+	links := maps.Clone(a.DataSourceReferences)
 	for source := range links {
 		if ownsLink(source) {
 			delete(links, source)
@@ -51,7 +51,7 @@ func (a Author) ClearMetadata(ownsLink func(string) bool) Author {
 	}
 	return Author{
 		Slug: a.Slug, Name: a.Name, DocumentCount: a.DocumentCount,
-		RetrievedOn: time.Now().UTC(), DataSourceLinks: links, Bio: a.Bio,
+		RetrievedOn: time.Now().UTC(), DataSourceReferences: links, Bio: a.Bio,
 		ownsRefreshedLink: ownsLink,
 	}
 }
