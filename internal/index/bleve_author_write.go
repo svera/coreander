@@ -290,6 +290,7 @@ const (
 
 // AuthorDataSource retrieves author metadata from an external source.
 type AuthorDataSource interface {
+	LinkKey() string
 	SearchAuthor(name string, languages []string) (datasourcemodel.Author, error)
 	SearchEntityIDs(name string) ([]string, error)
 	RetrieveAuthor(ids []string, languages []string) (datasourcemodel.Author, error)
@@ -298,7 +299,6 @@ type AuthorDataSource interface {
 
 // CombineWithDataSource merges external author metadata into an indexed author.
 func CombineWithDataSource(author *Author, authorDataSource datasourcemodel.Author, supportedLanguages []string) {
-	author.DataSourceID = authorDataSource.SourceID()
 	author.BirthName = authorDataSource.BirthName()
 	author.RetrievedOn = authorDataSource.RetrievedOn()
 	author.DataSourceLinks = maps.Clone(author.DataSourceLinks)
@@ -364,8 +364,8 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 	searchIndex := 0
 	for _, author := range authors {
 		authorsBySlug[author.Slug] = author
-		if author.DataSourceID != "" {
-			candidates[author.Slug] = []string{author.DataSourceID}
+		if id := author.DataSourceLinks[dataSource.LinkKey()]; id != "" {
+			candidates[author.Slug] = []string{id}
 			b.recordAuthorEnrichmentProgress()
 			continue
 		}

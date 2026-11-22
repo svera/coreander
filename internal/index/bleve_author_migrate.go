@@ -11,7 +11,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 )
 
-// OpenAuthorsIndex upgrades version 2 without discarding stored author metadata.
+// OpenAuthorsIndex upgrades versions 2 and 3 without discarding stored author metadata.
 // The previous index is kept only until the migrated index opens successfully.
 func OpenAuthorsIndex(path string, batchSize int) (bleve.Index, error) {
 	authors, err := bleve.Open(path)
@@ -34,7 +34,7 @@ func OpenAuthorsIndex(path string, batchSize int) (bleve.Index, error) {
 	if err != nil {
 		return nil, errors.Join(err, authors.Close())
 	}
-	if string(version) == "2" {
+	if string(version) == "2" || string(version) == "3" {
 		upgraded, err := migrateAuthorsIndex(authors, path, batchSize)
 		if err != nil {
 			return nil, errors.Join(err, authors.Close())
@@ -54,6 +54,7 @@ func migrateAuthorsIndex(authors bleve.Index, path string, batchSize int) (bleve
 	if batchSize <= 0 {
 		return nil, fmt.Errorf("authors migration batch size must be positive")
 	}
+	// Retain the historical path for recovery of interrupted version 2 upgrades.
 	backup := path + ".v2-backup"
 	if _, err := os.Stat(backup); err == nil {
 		return nil, fmt.Errorf("authors migration backup already exists: %s", backup)

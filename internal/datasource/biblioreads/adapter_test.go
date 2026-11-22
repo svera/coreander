@@ -256,7 +256,7 @@ func TestEnrichStoresSecondAuthorURLAndPreservesItOnEdits(t *testing.T) {
 	if err != nil || first.DataSourceLinks["goodreads"] != "" {
 		t.Fatalf("first author must not receive coauthor URL, got %+v, %v", first, err)
 	}
-	stale.DataSourceID = "Q2"
+	stale.DataSourceLinks["wikidata"] = "Q2"
 	stale.RetrievedOn = time.Now().UTC()
 	stale.DataSourceLinks["goodreads"] = "999.Stale"
 	if err := idx.IndexAuthor(stale); err != nil {
@@ -268,7 +268,7 @@ func TestEnrichStoresSecondAuthorURLAndPreservesItOnEdits(t *testing.T) {
 	author, err = idx.Author("second-author", "")
 	if err != nil || author.DataSourceLinks["goodreads"] != "2" ||
 		author.DataSourceLinks["other"] != "https://example.org/second-author" ||
-		author.DataSourceID != "Q2" || author.DocumentCount != 1 {
+		author.DataSourceLinks["wikidata"] != "Q2" || author.DocumentCount != 1 {
 		t.Fatalf("stale author edit lost URL or metadata: %+v, %v", author, err)
 	}
 	if _, err := idx.NewFile("second.pdf", []byte("")); err != nil {

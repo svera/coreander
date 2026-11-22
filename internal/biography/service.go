@@ -74,6 +74,7 @@ func (s *Service) forLanguage(language string) *Service {
 	return s
 }
 
+func (s *Service) LinkKey() string            { return s.source.LinkKey() }
 func (s *Service) ProfileServiceName() string { return s.source.ProfileServiceName() }
 func (s *Service) ProfileInputName() string   { return s.source.ProfileInputName() }
 func (s *Service) ProfileValue(author index.Author) string {

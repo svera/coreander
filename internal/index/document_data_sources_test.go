@@ -296,8 +296,8 @@ func TestUpdateDocumentStoresAuthorLinksFirstWins(t *testing.T) {
 			}
 			if existing {
 				if err := idx.IndexAuthor(Author{
-					Name: "Existing Writer", Slug: "writer", DocumentCount: 42, DataSourceID: "external-id",
-					DataSourceLinks: map[string]string{"other": "other-reference"},
+					Name: "Existing Writer", Slug: "writer", DocumentCount: 42,
+					DataSourceLinks: map[string]string{"wikidata": "external-id", "other": "other-reference"},
 				}); err != nil {
 					t.Fatal(err)
 				}
@@ -317,7 +317,7 @@ func TestUpdateDocumentStoresAuthorLinksFirstWins(t *testing.T) {
 			}
 			if existing {
 				if author.Name != "Existing Writer" || author.DocumentCount != 42 ||
-					author.DataSourceID != "external-id" || author.DataSourceLinks["other"] != "other-reference" {
+					author.DataSourceLinks["wikidata"] != "external-id" || author.DataSourceLinks["other"] != "other-reference" {
 					t.Fatalf("existing author metadata changed: %+v", author)
 				}
 			} else if author.Name != "Writer" || author.DocumentCount != 3 {

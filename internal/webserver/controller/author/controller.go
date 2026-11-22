@@ -19,6 +19,7 @@ type DataSourceLinkProvider interface {
 }
 
 type ProfileInputProvider interface {
+	LinkKey() string
 	ProfileServiceName() string
 	ProfileValue(author index.Author) string
 }
@@ -27,6 +28,7 @@ type ProfileInput struct {
 	Name         string
 	ServiceName  string
 	Value        string
+	Reference    string
 	Method       string
 	Action       string
 	FormID       string
@@ -40,7 +42,8 @@ type ProfileInput struct {
 func NewProfileInput(provider ProfileInputProvider, author index.Author, name, method, action string) ProfileInput {
 	return ProfileInput{
 		Name: name, ServiceName: provider.ProfileServiceName(), Value: provider.ProfileValue(author),
-		Method: method, Action: action,
+		Reference: author.DataSourceLinks[provider.LinkKey()],
+		Method:    method, Action: action,
 	}
 }
 

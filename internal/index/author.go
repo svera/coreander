@@ -11,16 +11,15 @@ import (
 )
 
 type Author struct {
-	Slug         string
-	Name         string
-	BirthName    string
-	DataSourceID string
-	RetrievedOn  time.Time
-	InstanceOf   float64
-	Description  map[string]string
-	DateOfBirth  precisiondate.PrecisionDate
-	DateOfDeath  precisiondate.PrecisionDate
-	// DataSourceLinks contains references owned by external data sources.
+	Slug        string
+	Name        string
+	BirthName   string
+	RetrievedOn time.Time
+	InstanceOf  float64
+	Description map[string]string
+	DateOfBirth precisiondate.PrecisionDate
+	DateOfDeath precisiondate.PrecisionDate
+	// DataSourceLinks contains source-owned profile IDs and URLs.
 	DataSourceLinks map[string]string
 	DataSourceImage string
 	Gender          float64

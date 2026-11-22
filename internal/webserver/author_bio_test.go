@@ -177,12 +177,12 @@ func TestAuthorDetailCardLayoutAndSanitization(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	author.DataSourceID = "Q1234"
 	author.Description = map[string]string{"en": "American novelist"}
 	author.RetrievedOn = time.Now()
 	author.DateOfBirth = precisiondate.NewPrecisionDate("+1920-01-02T00:00:00Z", precisiondate.PrecisionDay)
 	author.DateOfDeath = precisiondate.NewPrecisionDate("+1992-04-06T00:00:00Z", precisiondate.PrecisionDay)
 	author.DataSourceLinks = map[string]string{
+		"wikidata":  "Q1234",
 		"goodreads": "1.John_Doe",
 		"website":   "https://example.com",
 	}
@@ -356,19 +356,22 @@ func (*bioMetadataSource) NormalizeAuthorID(value string) (string, error) {
 func (s *bioMetadataSource) RetrieveAuthor(ids []string, _ []string) (datasourcemodel.Author, error) {
 	return bioMetadata{sourceID: ids[0], link: s.link}, nil
 }
-func (*bioMetadataSource) OwnsLink(key string) bool { return strings.HasPrefix(key, "catalog:") }
+func (*bioMetadataSource) OwnsLink(key string) bool {
+	return key == "example" || strings.HasPrefix(key, "catalog:")
+}
 
 type bioMetadata struct {
 	alternativeAuthorMetadata
 	sourceID, link string
 }
 
-func (m bioMetadata) SourceID() string { return m.sourceID }
 func (m bioMetadata) Links() map[string]string {
+	links := map[string]string{"example": m.sourceID}
 	if m.link == "" {
-		return nil
+		return links
 	}
-	return map[string]string{"catalog:es": m.link}
+	links["catalog:es"] = m.link
+	return links
 }
 func (bioMetadata) OwnsLink(key string) bool {
 	return (&bioMetadataSource{}).OwnsLink(key)
@@ -424,8 +427,8 @@ func TestMetadataProfileUpdateRefreshesBiography(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	author.DataSourceID = "old-author"
 	author.DataSourceLinks = map[string]string{
+		"example":     "old-author",
 		"catalog:es":  "old-profile",
 		"independent": "other-profile",
 	}
@@ -455,7 +458,7 @@ func TestMetadataProfileUpdateRefreshesBiography(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if stored.DataSourceID != "new-author" || stored.Bio.Source != source.link || stored.Bio.Text["es"] != result.text ||
+		if stored.DataSourceLinks["example"] != "new-author" || stored.Bio.Source != source.link || stored.Bio.Text["es"] != result.text ||
 			stored.DataSourceLinks["independent"] != "other-profile" {
 			t.Fatalf("metadata update must refresh and persist its biography while preserving independent links: %+v", stored)
 		}
@@ -500,7 +503,7 @@ func TestMetadataProfileUpdateRefreshesBiography(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if response.StatusCode != http.StatusOK || stored.DataSourceID != sourceID ||
+		if response.StatusCode != http.StatusOK || stored.DataSourceLinks["example"] != sourceID ||
 			stored.Bio.Source != "" || len(stored.Bio.Text) != 0 ||
 			stored.DataSourceLinks["catalog:es"] != "" || len(result.calls) != beforeCalls {
 			t.Fatalf("missing or cleared metadata links must clear the biography without requests: %+v", stored)

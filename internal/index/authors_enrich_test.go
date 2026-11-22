@@ -18,12 +18,15 @@ type mockAuthorDataSource struct {
 	byName        map[string]datasourcemodel.Author
 	bySlug        map[string]datasourcemodel.Author
 	entityIDs     map[string][]string
+	candidates    map[string][]string
 	calls         int
 	searchCalls   int
 	retrieveCalls int
 	delay         time.Duration
 	errName       string
 }
+
+func (*mockAuthorDataSource) LinkKey() string { return "example" }
 
 func (m *mockAuthorDataSource) SearchAuthor(name string, _ []string) (datasourcemodel.Author, error) {
 	m.calls++
@@ -54,7 +57,7 @@ func (m *mockAuthorDataSource) SearchEntityIDs(name string) ([]string, error) {
 		}
 	}
 	if author, ok := m.byName[name]; ok && author != nil {
-		return []string{author.SourceID()}, nil
+		return []string{author.Links()["example"]}, nil
 	}
 	return nil, nil
 }
@@ -68,6 +71,7 @@ func (m *mockAuthorDataSource) RetrieveAuthor(_ []string, _ []string) (datasourc
 func (m *mockAuthorDataSource) RetrieveAuthors(candidates map[string][]string, _ []string, _ time.Duration, onResult func(string, datasourcemodel.Author) error) error {
 	m.calls++
 	m.retrieveCalls++
+	m.candidates = maps.Clone(candidates)
 	for slug := range candidates {
 		author := m.bySlug[slug]
 		if err := onResult(slug, author); err != nil {
@@ -90,11 +94,19 @@ func (a stubAuthor) Gender() float64                          { return 0 }
 func (a stubAuthor) DateOfBirth() precisiondate.PrecisionDate { return precisiondate.PrecisionDate{} }
 func (a stubAuthor) DateOfDeath() precisiondate.PrecisionDate { return precisiondate.PrecisionDate{} }
 func (a stubAuthor) Image() string                            { return "" }
-func (a stubAuthor) Links() map[string]string                 { return maps.Clone(a.links) }
-func (a stubAuthor) OwnsLink(key string) bool {
-	return a.linkPrefix != "" && strings.HasPrefix(key, a.linkPrefix)
+func (a stubAuthor) Links() map[string]string {
+	links := maps.Clone(a.links)
+	if a.sourceID != "" {
+		if links == nil {
+			links = make(map[string]string)
+		}
+		links["example"] = a.sourceID
+	}
+	return links
 }
-func (a stubAuthor) SourceID() string       { return a.sourceID }
+func (a stubAuthor) OwnsLink(key string) bool {
+	return key == "example" || (a.linkPrefix != "" && strings.HasPrefix(key, a.linkPrefix))
+}
 func (a stubAuthor) RetrievedOn() time.Time { return time.Now().UTC() }
 func (a stubAuthor) Pseudonyms() []string   { return nil }
 
@@ -167,8 +179,9 @@ func TestAuthorMetadataResetPreservesConcurrentProviderLinks(t *testing.T) {
 	defer authors.Close()
 	idx := index.NewBleve(nil, authors, nil, "", nil, index.Config{})
 	author := index.Author{
-		Slug: "writer", Name: "Writer", DataSourceID: "Q1", DocumentCount: 3,
+		Slug: "writer", Name: "Writer", DocumentCount: 3,
 		DataSourceLinks: map[string]string{
+			"example":         "Q1",
 			"example:website": "https://old.example", "example:en": "https://en.example/Old",
 			"catalog": "https://catalog.example/writer",
 		},
@@ -196,7 +209,7 @@ func TestAuthorMetadataResetPreservesConcurrentProviderLinks(t *testing.T) {
 		t.Fatal(err)
 	}
 	if stored.DataSourceLinks["example:website"] != "" || stored.DataSourceLinks["example:en"] != "" ||
-		stored.DataSourceID != "" || stored.RetrievedOn.IsZero() {
+		stored.DataSourceLinks["example"] != "" || stored.RetrievedOn.IsZero() {
 		t.Fatalf("reset must remove metadata association and owned links: %+v", stored)
 	}
 	if stored.DataSourceLinks["catalog"] != "https://catalog.example/writer" ||
@@ -268,10 +281,16 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	if err := idx.IndexAuthor(index.Author{Slug: "done", Name: "Done Author", RetrievedOn: time.Now().UTC()}); err != nil {
 		t.Fatal(err)
 	}
+	if err := idx.IndexAuthor(index.Author{
+		Slug: "known", Name: "Known Author", DataSourceLinks: map[string]string{"example": "Q2", "other": "unrelated"},
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	dataSource := &mockAuthorDataSource{
 		bySlug: map[string]datasourcemodel.Author{
 			"found": stubAuthor{sourceID: "Q1"},
+			"known": stubAuthor{sourceID: "Q2"},
 		},
 		entityIDs: map[string][]string{
 			"Found Author": {"Q1"},
@@ -290,6 +309,9 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	if dataSource.retrieveCalls != 1 {
 		t.Fatalf("expected 1 batched Wikidata entity fetch, got %d", dataSource.retrieveCalls)
 	}
+	if ids := dataSource.candidates["known"]; len(ids) != 1 || ids[0] != "Q2" {
+		t.Fatalf("expected the known source reference reused without a name search, got %v", ids)
+	}
 	if elapsed < 50*time.Millisecond {
 		t.Fatalf("expected throttling between lookups, took %s", elapsed)
 	}
@@ -298,8 +320,12 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if found.DataSourceID != "Q1" {
-		t.Fatalf("expected enriched author Q1, got %q", found.DataSourceID)
+	if found.DataSourceLinks["example"] != "Q1" {
+		t.Fatalf("expected enriched author Q1, got %q", found.DataSourceLinks["example"])
+	}
+	known, err := idx.Author("known", "en")
+	if err != nil || known.DataSourceLinks["example"] != "Q2" || known.DataSourceLinks["other"] != "unrelated" {
+		t.Fatalf("enrichment lost existing source references: %+v, %v", known, err)
 	}
 
 	missing, err := idx.Author("missing", "en")
@@ -309,8 +335,8 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	if missing.RetrievedOn.IsZero() {
 		t.Fatal("expected missing author to be marked as processed")
 	}
-	if missing.DataSourceID != "" {
-		t.Fatalf("expected missing author to have no data source id, got %q", missing.DataSourceID)
+	if missing.DataSourceLinks["example"] != "" {
+		t.Fatalf("expected missing author to have no data source id, got %q", missing.DataSourceLinks["example"])
 	}
 
 	remaining, err := idx.AuthorsWithoutInfo()
