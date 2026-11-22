@@ -28,7 +28,7 @@ type fakeSource struct {
 	refreshes                      []bool
 }
 
-func (*fakeSource) LinkKey() string            { return "catalog" }
+func (*fakeSource) ReferenceKey() string       { return "catalog" }
 func (*fakeSource) ProfileServiceName() string { return "Example catalog" }
 func (*fakeSource) ProfileInputName() string   { return "catalogID" }
 func (*fakeSource) ProfileValue(author index.Author) string {

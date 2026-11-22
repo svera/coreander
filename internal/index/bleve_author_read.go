@@ -150,16 +150,10 @@ func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
 		Pseudonyms:      slicer(fields["Pseudonyms"]),
 		DocumentCount:   documentCount,
 	}
-	if references, ok := fields["DataSourceLinks"].(string); ok {
+	if references, ok := fields["DataSourceReferences"].(string); ok {
 		if err := json.Unmarshal([]byte(references), &author.DataSourceReferences); err != nil {
 			log.Printf("Error reading data source references for author %s: %s", docID, err)
 		}
-	}
-	if legacyID, ok := fields["DataSourceID"].(string); ok && legacyID != "" && author.DataSourceReferences["wikidata"] == "" {
-		if author.DataSourceReferences == nil {
-			author.DataSourceReferences = make(map[string]string)
-		}
-		author.DataSourceReferences["wikidata"] = legacyID
 	}
 	author.Bio.Source, _ = fields["Bio.Source"].(string)
 	author.Bio.Language, _ = fields["Bio.Language"].(string)

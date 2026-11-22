@@ -329,12 +329,12 @@ func (s *localizedBioSource) ForLanguage(language string) biography.Source {
 	return &localizedBioSource{language: language, result: s.result}
 }
 func (s *localizedBioSource) Language() string          { return s.language }
-func (s *localizedBioSource) LinkKey() string           { return "catalog:" + s.language }
+func (s *localizedBioSource) ReferenceKey() string      { return "catalog:" + s.language }
 func (*localizedBioSource) ProfileServiceName() string  { return "Example biographies" }
 func (*localizedBioSource) MetadataServiceName() string { return "Example catalog" }
 func (*localizedBioSource) ProfileInputName() string    { return "catalogBioID" }
 func (s *localizedBioSource) ProfileValue(author index.Author) string {
-	return author.DataSourceReferences[s.LinkKey()]
+	return author.DataSourceReferences[s.ReferenceKey()]
 }
 func (*localizedBioSource) NormalizeAuthorID(value string) (string, error) {
 	return strings.TrimSpace(value), nil

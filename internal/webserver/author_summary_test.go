@@ -31,7 +31,7 @@ type alternativeAuthorSource struct {
 }
 
 func (*alternativeAuthorSource) ProfileServiceName() string { return "Example catalog" }
-func (*alternativeAuthorSource) LinkKey() string            { return "example" }
+func (*alternativeAuthorSource) ReferenceKey() string       { return "example" }
 func (*alternativeAuthorSource) OwnsLink(key string) bool   { return key == "example" }
 func (*alternativeAuthorSource) ProfileValue(author index.Author) string {
 	return "https://example.org/authors/" + author.DataSourceReferences["example"]
@@ -414,7 +414,7 @@ func (editableAlternativeLinks) AuthorLink(author index.Author, _ string) dataso
 }
 
 func (editableAlternativeLinks) ProfileServiceName() string       { return "Example catalog" }
-func (editableAlternativeLinks) LinkKey() string                  { return "example" }
+func (editableAlternativeLinks) ReferenceKey() string             { return "example" }
 func (editableAlternativeLinks) ProfileValue(index.Author) string { return "catalog-profile" }
 
 func TestDocumentAuthorProfileUsesMetadataSource(t *testing.T) {

@@ -34,7 +34,7 @@ var spaceBeforePunctuation = regexp.MustCompile(` +([,.;:!?)\]])`)
 // Source supplies cleaned biography HTML (b, strong, i and em, with newline-separated
 // paragraphs) and identifies the profile it belongs to.
 type Source interface {
-	LinkKey() string
+	ReferenceKey() string
 	ProfileServiceName() string
 	ProfileInputName() string
 	ProfileValue(author index.Author) string
@@ -74,7 +74,7 @@ func (s *Service) forLanguage(language string) *Service {
 	return s
 }
 
-func (s *Service) LinkKey() string            { return s.source.LinkKey() }
+func (s *Service) ReferenceKey() string       { return s.source.ReferenceKey() }
 func (s *Service) ProfileServiceName() string { return s.source.ProfileServiceName() }
 func (s *Service) ProfileInputName() string   { return s.source.ProfileInputName() }
 func (s *Service) ProfileValue(author index.Author) string {
@@ -109,7 +109,7 @@ func (s *Service) RefreshMetadataBio(ctx context.Context, author index.Author, l
 }
 
 func (s *Service) authorLink(author index.Author) (string, bool) {
-	value := author.DataSourceReferences[s.source.LinkKey()]
+	value := author.DataSourceReferences[s.source.ReferenceKey()]
 	id, err := s.source.NormalizeAuthorID(value)
 	return value, err == nil && id != "" && id == value
 }
@@ -178,7 +178,7 @@ func (s *Service) RefreshBio(ctx context.Context, author index.Author, language 
 type storeFunc func(slug string, bio index.AuthorBio) error
 
 func (s *Service) bioStore(author index.Author, merge bool) storeFunc {
-	linkKey := s.source.LinkKey()
+	linkKey := s.source.ReferenceKey()
 	previousLink := author.DataSourceReferences[linkKey]
 	return func(slug string, bio index.AuthorBio) error {
 		if bio.Source != previousLink {
@@ -192,7 +192,7 @@ func (s *Service) bioStore(author index.Author, merge bool) storeFunc {
 // An empty ID removes the profile and biography.
 func (s *Service) UpdateBio(ctx context.Context, author index.Author, id, language string) (string, string, error) {
 	s = s.forLanguage(language)
-	linkKey := s.source.LinkKey()
+	linkKey := s.source.ReferenceKey()
 	if id == "" {
 		if err := s.index.StoreCanonicalAuthorBio(author.Slug, linkKey, author.DataSourceReferences[linkKey], index.AuthorBio{}); err != nil {
 			return "", "", fmt.Errorf("clearing %s author link: %w", s.ProfileServiceName(), err)

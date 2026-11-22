@@ -26,7 +26,7 @@ type mockAuthorDataSource struct {
 	errName       string
 }
 
-func (*mockAuthorDataSource) LinkKey() string { return "example" }
+func (*mockAuthorDataSource) ReferenceKey() string { return "example" }
 
 func (m *mockAuthorDataSource) SearchAuthor(name string, _ []string) (datasourcemodel.Author, error) {
 	m.calls++

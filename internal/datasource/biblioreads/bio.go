@@ -36,7 +36,7 @@ func NewBioSource(client AuthorClient) *BioSource {
 	return &BioSource{client: client}
 }
 
-func (*BioSource) LinkKey() string { return Source }
+func (*BioSource) ReferenceKey() string { return Source }
 
 func (*BioSource) ProfileServiceName() string {
 	return "Goodreads"

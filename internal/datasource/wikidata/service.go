@@ -44,7 +44,7 @@ type WikidataSource struct {
 	wikidata wikidata
 }
 
-func (WikidataSource) LinkKey() string { return "wikidata" }
+func (WikidataSource) ReferenceKey() string { return "wikidata" }
 
 func (WikidataSource) OwnsLink(key string) bool {
 	return (Author{}).OwnsLink(key)

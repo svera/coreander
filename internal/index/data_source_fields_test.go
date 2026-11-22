@@ -198,7 +198,7 @@ func TestDataSourceFieldsAreStoredButNotSearchable(t *testing.T) {
 	queries := map[string]bleve.SearchRequest{
 		"provider data field term": *bleve.NewSearchRequest(fieldTermQuery("DataSources", bookURL)),
 		"provider URL field term":  *bleve.NewSearchRequest(fieldTermQuery("DataSources.dummy.url", bookURL)),
-		"author URL field term":    *bleve.NewSearchRequest(fieldTermQuery("DataSourceLinks.dummy", authorURL)),
+		"author URL field term":    *bleve.NewSearchRequest(fieldTermQuery("DataSourceReferences.dummy", authorURL)),
 		"resource ID field term":   *bleve.NewSearchRequest(fieldTermQuery("DataSources.dummy.referenceId", referenceID)),
 		"legacy ID numeric field":  *bleve.NewSearchRequest(providerRecordIDQuery(recordID)),
 		"_all match":               *bleve.NewSearchRequest(bleve.NewMatchQuery("zyxwvbook")),
@@ -275,7 +275,7 @@ func providerRecordIDQuery(id int) *query.NumericRangeQuery {
 	return q
 }
 
-func TestAuthorDataSourceLinksAreStoredButNotSearchable(t *testing.T) {
+func TestAuthorDataSourceReferencesAreStoredButNotSearchable(t *testing.T) {
 	authors, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
 	if err != nil {
 		t.Fatal(err)
@@ -298,12 +298,12 @@ func TestAuthorDataSourceLinksAreStoredButNotSearchable(t *testing.T) {
 		t.Fatalf("expected stored author links, got %+v", author.DataSourceReferences)
 	}
 	for _, q := range []query.Query{
-		fieldTermQuery("DataSourceLinks", authorURL),
-		fieldTermQuery("DataSourceLinks.dummy", authorURL),
-		fieldTermQuery("DataSourceLinks.other", links["other"]),
+		fieldTermQuery("DataSourceReferences", authorURL),
+		fieldTermQuery("DataSourceReferences.dummy", authorURL),
+		fieldTermQuery("DataSourceReferences.other", links["other"]),
 		bleve.NewTermQuery(authorURL),
 		bleve.NewMatchQuery("Zyxwv_Author"),
-		bleve.NewQueryStringQuery(`DataSourceLinks:"` + authorURL + `"`),
+		bleve.NewQueryStringQuery(`DataSourceReferences:"` + authorURL + `"`),
 	} {
 		result, err := authors.Search(bleve.NewSearchRequest(q))
 		if err != nil {

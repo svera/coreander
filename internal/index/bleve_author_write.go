@@ -11,7 +11,7 @@ import (
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 )
 
-// indexAuthor retains the stored field name for compatibility with existing indexes.
+// indexAuthor stores references as one stored-only field so new sources need no mapping changes.
 func indexAuthor(destination interface{ Index(string, any) error }, id string, author Author) error {
 	links, err := json.Marshal(author.DataSourceReferences)
 	if err != nil {
@@ -20,7 +20,7 @@ func indexAuthor(destination interface{ Index(string, any) error }, id string, a
 	author.DataSourceReferences = nil
 	return destination.Index(id, struct {
 		Author
-		DataSourceLinks string
+		DataSourceReferences string
 	}{author, string(links)})
 }
 
@@ -290,7 +290,7 @@ const (
 
 // AuthorDataSource retrieves author metadata from an external source.
 type AuthorDataSource interface {
-	LinkKey() string
+	ReferenceKey() string
 	SearchAuthor(name string, languages []string) (datasourcemodel.Author, error)
 	SearchEntityIDs(name string) ([]string, error)
 	RetrieveAuthor(ids []string, languages []string) (datasourcemodel.Author, error)
@@ -364,7 +364,7 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 	searchIndex := 0
 	for _, author := range authors {
 		authorsBySlug[author.Slug] = author
-		if id := author.DataSourceReferences[dataSource.LinkKey()]; id != "" {
+		if id := author.DataSourceReferences[dataSource.ReferenceKey()]; id != "" {
 			candidates[author.Slug] = []string{id}
 			b.recordAuthorEnrichmentProgress()
 			continue

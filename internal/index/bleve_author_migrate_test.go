@@ -18,7 +18,7 @@ import (
 func legacyAuthorsIndex(t *testing.T, path string) bleve.Index {
 	t.Helper()
 	m := CreateAuthorsMapping().(*mapping.IndexMappingImpl)
-	delete(m.DefaultMapping.Properties, "DataSourceLinks")
+	delete(m.DefaultMapping.Properties, "DataSourceReferences")
 	m.DefaultMapping.AddFieldMappingsAt("DataSourceID", bleve.NewKeywordFieldMapping())
 	idx, err := bleve.New(path, m)
 	if err != nil {
@@ -50,12 +50,14 @@ func TestOpenAuthorsIndexMigratesStoredMetadata(t *testing.T) {
 		Pseudonyms: []string{"Alice", "A. Borchardt"}, DocumentCount: 7,
 	}
 	for _, author := range []Author{want, {Slug: "other", Name: "Other", RetrievedOn: retrieved}, {Slug: "third", Name: "Third", RetrievedOn: retrieved}} {
+		stored := author
+		stored.DataSourceReferences = nil
 		if err := legacy.Index(author.Slug, struct {
 			Author
 			DataSourceID  string
 			Website       string
 			WikipediaLink map[string]string
-		}{author, author.DataSourceReferences["wikidata"], author.DataSourceReferences["website"], map[string]string{
+		}{stored, author.DataSourceReferences["wikidata"], author.DataSourceReferences["website"], map[string]string{
 			"en": author.DataSourceReferences["wikipedia:en"], "es": author.DataSourceReferences["wikipedia:es"],
 		}}); err != nil {
 			t.Fatal(err)
@@ -141,7 +143,7 @@ func TestOpenAuthorsIndexMigratesVersion3SourceID(t *testing.T) {
 	for _, referenceID := range []string{"", "Q2"} {
 		t.Run("reference="+referenceID, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "authors_index")
-			m := CreateAuthorsMapping().(*mapping.IndexMappingImpl)
+			m := oldReferenceAuthorsMapping()
 			m.DefaultMapping.AddFieldMappingsAt("DataSourceID", bleve.NewKeywordFieldMapping())
 			legacy, err := bleve.New(path, m)
 			if err != nil {
@@ -200,6 +202,12 @@ func TestOpenAuthorsIndexMigratesVersion3SourceID(t *testing.T) {
 			if _, found := result.Hits[0].Fields["DataSourceID"]; found {
 				t.Fatal("migration retained the standalone source ID")
 			}
+			if _, found := result.Hits[0].Fields["DataSourceLinks"]; found {
+				t.Fatal("migration retained the old reference field")
+			}
+			if _, found := result.Hits[0].Fields["DataSourceReferences"]; !found {
+				t.Fatal("migration did not store the renamed reference field")
+			}
 			if referenceID == "" {
 				want.DataSourceReferences["wikidata"] = "Q1"
 			}
@@ -210,14 +218,28 @@ func TestOpenAuthorsIndexMigratesVersion3SourceID(t *testing.T) {
 	}
 }
 
-func TestAuthorReferencesRemainCompatibleWithCurrentIndex(t *testing.T) {
+func oldReferenceAuthorsMapping() *mapping.IndexMappingImpl {
+	m := CreateAuthorsMapping().(*mapping.IndexMappingImpl)
+	m.DefaultMapping.Properties["DataSourceLinks"] = m.DefaultMapping.Properties["DataSourceReferences"]
+	delete(m.DefaultMapping.Properties, "DataSourceReferences")
+	return m
+}
+
+func TestOpenAuthorsIndexMigratesDevelopmentVersion4(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "authors_index")
-	authors := CreateAuthorsIndex(path)
+	authors, err := bleve.New(path, oldReferenceAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := authors.SetInternal(internalVersion, []byte(AuthorVersion)); err != nil {
+		t.Fatal(err)
+	}
 	if err := authors.Index("writer", struct {
 		Author
 		DataSourceLinks string
 	}{
-		Author:          Author{Slug: "writer", Name: "Writer"},
+		Author: Author{Slug: "writer", Name: "Writer", DocumentCount: 3,
+			Bio: AuthorBio{Source: "1.Writer", Language: "en", Text: map[string]string{"en": "Biography"}}},
 		DataSourceLinks: `{"wikidata":"Q1","website":"https://example.org"}`,
 	}); err != nil {
 		t.Fatal(err)
@@ -225,13 +247,14 @@ func TestAuthorReferencesRemainCompatibleWithCurrentIndex(t *testing.T) {
 	if err := authors.Close(); err != nil {
 		t.Fatal(err)
 	}
-	authors, err := OpenAuthorsIndex(path, 1)
+	authors, err = OpenAuthorsIndex(path, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	idx := NewBleve(nil, authors, nil, "", nil, Config{})
 	author, err := idx.Author("writer", "")
-	if err != nil || author.DataSourceReferences["wikidata"] != "Q1" || author.DataSourceReferences["website"] != "https://example.org" {
+	if err != nil || author.DataSourceReferences["wikidata"] != "Q1" || author.DataSourceReferences["website"] != "https://example.org" ||
+		author.DocumentCount != 3 || author.Bio.Text["en"] != "Biography" {
 		t.Fatalf("existing references lost: %+v, %v", author, err)
 	}
 	author.DataSourceReferences["goodreads"] = "1.Writer"
@@ -241,7 +264,7 @@ func TestAuthorReferencesRemainCompatibleWithCurrentIndex(t *testing.T) {
 	if err := authors.Close(); err != nil {
 		t.Fatal(err)
 	}
-	authors, err = OpenAuthorsIndex(path, 1)
+	authors, err = OpenAuthorsIndex(path, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,8 +276,11 @@ func TestAuthorReferencesRemainCompatibleWithCurrentIndex(t *testing.T) {
 		t.Fatalf("reading saved author: %v", err)
 	}
 	fields := result.Hits[0].Fields
-	if _, ok := fields["DataSourceLinks"].(string); !ok {
-		t.Fatal("references must retain the existing stored field name")
+	if _, ok := fields["DataSourceReferences"].(string); !ok {
+		t.Fatal("references must use the renamed stored field")
+	}
+	if _, ok := fields["DataSourceLinks"]; ok {
+		t.Fatal("migration retained the old reference field")
 	}
 	got := hydrateAuthor(result.Hits[0])
 	if !reflect.DeepEqual(got.DataSourceReferences, author.DataSourceReferences) {
@@ -317,7 +343,7 @@ func TestOpenAuthorsIndexMigrationFailurePreservesOriginal(t *testing.T) {
 func TestOpenAuthorsIndexMigratesLegacyAuthorLinks(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "authors_index")
 	m := CreateAuthorsMapping().(*mapping.IndexMappingImpl)
-	delete(m.DefaultMapping.Properties, "DataSourceLinks")
+	delete(m.DefaultMapping.Properties, "DataSourceReferences")
 	m.DefaultMapping.AddFieldMappingsAt("DataSourceID", bleve.NewKeywordFieldMapping())
 	legacyURL := bleve.NewKeywordFieldMapping()
 	legacyURL.Index = false

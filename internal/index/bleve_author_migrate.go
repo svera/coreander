@@ -9,9 +9,10 @@ import (
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/mapping"
 )
 
-// OpenAuthorsIndex upgrades versions 2 and 3 without discarding stored author metadata.
+// OpenAuthorsIndex upgrades older author mappings without discarding stored metadata.
 // The previous index is kept only until the migrated index opens successfully.
 func OpenAuthorsIndex(path string, batchSize int) (bleve.Index, error) {
 	authors, err := bleve.Open(path)
@@ -34,7 +35,15 @@ func OpenAuthorsIndex(path string, batchSize int) (bleve.Index, error) {
 	if err != nil {
 		return nil, errors.Join(err, authors.Close())
 	}
-	if string(version) == "2" || string(version) == "3" {
+	legacyMapping := false
+	if string(version) == AuthorVersion {
+		m, ok := authors.Mapping().(*mapping.IndexMappingImpl)
+		if !ok || m.DefaultMapping == nil {
+			return nil, errors.Join(fmt.Errorf("unsupported authors index mapping"), authors.Close())
+		}
+		_, legacyMapping = m.DefaultMapping.Properties["DataSourceLinks"]
+	}
+	if string(version) == "2" || string(version) == "3" || legacyMapping {
 		upgraded, err := migrateAuthorsIndex(authors, path, batchSize)
 		if err != nil {
 			return nil, errors.Join(err, authors.Close())
@@ -107,7 +116,18 @@ func copyAuthors(source, destination bleve.Index, batchSize int) error {
 		}
 		batch := destination.NewBatch()
 		for _, hit := range result.Hits {
+			if _, exists := hit.Fields["DataSourceReferences"]; !exists {
+				if legacyLinks, ok := hit.Fields["DataSourceLinks"]; ok {
+					hit.Fields["DataSourceReferences"] = legacyLinks
+				}
+			}
 			author := hydrateAuthor(hit)
+			if legacyID, ok := hit.Fields["DataSourceID"].(string); ok && legacyID != "" && author.DataSourceReferences["wikidata"] == "" {
+				if author.DataSourceReferences == nil {
+					author.DataSourceReferences = make(map[string]string)
+				}
+				author.DataSourceReferences["wikidata"] = legacyID
+			}
 			for field, value := range hit.Fields {
 				source := ""
 				switch {

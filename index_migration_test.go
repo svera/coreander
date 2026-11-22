@@ -93,10 +93,10 @@ func TestGetIndexesRebuildsOlderDocuments(t *testing.T) {
 				retrieved := time.Now().UTC().Truncate(time.Second)
 				if err := authors.Index("existing-author", struct {
 					index.Author
-					DataSourceLinks string
+					DataSourceReferences string
 				}{
-					Author:          index.Author{Slug: "existing-author", Name: "Existing Author", RetrievedOn: retrieved},
-					DataSourceLinks: `{"wikidata":"Q1"}`,
+					Author:               index.Author{Slug: "existing-author", Name: "Existing Author", RetrievedOn: retrieved},
+					DataSourceReferences: `{"wikidata":"Q1"}`,
 				}); err != nil {
 					t.Fatal(err)
 				}
@@ -273,7 +273,7 @@ func TestGetIndexesMigratesAuthorsWithoutReindexingDocuments(t *testing.T) {
 		t.Fatal(err)
 	}
 	legacyMapping := index.CreateAuthorsMapping().(*mapping.IndexMappingImpl)
-	delete(legacyMapping.DefaultMapping.Properties, "DataSourceLinks")
+	delete(legacyMapping.DefaultMapping.Properties, "DataSourceReferences")
 	legacyMapping.DefaultMapping.AddFieldMappingsAt("DataSourceID", bleve.NewKeywordFieldMapping())
 	authors, err := bleve.New(homeDir+authorsIndexPath, legacyMapping)
 	if err != nil {
