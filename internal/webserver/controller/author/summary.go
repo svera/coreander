@@ -47,10 +47,11 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 
 	if !author.RetrievedOn.IsZero() {
 		templateVars := fiber.Map{
-			"Author":          author,
-			"DataSourceLinks": a.authorDataSourceLinks(author, lang),
-			"ImageVersion":    imageVersion,
-			"ProfileInputs":   a.profileInputs(author, lang, c.Query("style"), "", ""),
+			"Author":            author,
+			"MetadataReference": MetadataReference(author, a.dataSource),
+			"DataSourceLinks":   a.authorDataSourceLinks(author, lang),
+			"ImageVersion":      imageVersion,
+			"ProfileInputs":     a.profileInputs(author, lang, c.Query("style"), "", ""),
 		}
 		a.addBioVars(templateVars, template, author, lang)
 
@@ -76,10 +77,11 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Author":          author,
-		"DataSourceLinks": a.authorDataSourceLinks(author, lang),
-		"ImageVersion":    imageVersion,
-		"ProfileInputs":   a.profileInputs(author, lang, c.Query("style"), "", ""),
+		"Author":            author,
+		"MetadataReference": MetadataReference(author, a.dataSource),
+		"DataSourceLinks":   a.authorDataSourceLinks(author, lang),
+		"ImageVersion":      imageVersion,
+		"ProfileInputs":     a.profileInputs(author, lang, c.Query("style"), "", ""),
 	}
 	a.addBioVars(templateVars, template, author, lang)
 

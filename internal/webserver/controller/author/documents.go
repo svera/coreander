@@ -67,6 +67,7 @@ func (a *Controller) Documents(c fiber.Ctx) error {
 
 	templateVars := fiber.Map{
 		"Author":                author,
+		"MetadataReference":     MetadataReference(author, a.dataSource),
 		"BioParagraphs":         bioParagraphs,
 		"BioPending":            bioPending,
 		"BioTranslatedFrom":     bioTranslatedFrom,

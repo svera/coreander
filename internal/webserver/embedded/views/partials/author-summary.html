@@ -1,5 +1,4 @@
-{{$metadataID := index .Author.DataSourceReferences "wikidata"}}
-{{range .ProfileInputs}}{{if eq .Name "sourceID"}}{{$metadataID = .Reference}}{{end}}{{end}}
+{{$metadataID := .MetadataReference}}
 <div id="author-{{.Author.Slug}}" class="card mb-3 bg-body-secondary">
     <div class="row g-0">
         <div class="author-details-main col-12 col-md-8 col-lg-9 p-3">

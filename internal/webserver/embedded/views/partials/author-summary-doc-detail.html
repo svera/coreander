@@ -1,5 +1,4 @@
-{{$metadataID := index .Author.DataSourceReferences "wikidata"}}
-{{range .ProfileInputs}}{{if eq .Name "sourceID"}}{{$metadataID = .Reference}}{{end}}{{end}}
+{{$metadataID := .MetadataReference}}
 <div id="author-{{.Author.Slug}}">
 <div class="mt-3 row ms-0">
     <div class="col-9 ps-0">

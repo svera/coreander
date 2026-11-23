@@ -165,6 +165,23 @@ func TestUpdateUsesDataSourceProfileParser(t *testing.T) {
 			}
 		})
 	}
+	for _, path := range []string{
+		"/authors/john-doe", "/authors/john-doe/summary", "/authors/john-doe/summary?style=clear",
+		"/documents/john-doe-test-epub",
+	} {
+		t.Run(path, func(t *testing.T) {
+			for _, cookie := range []*http.Cookie{admin, {Name: "anonymous"}} {
+				page := getPageWithCookie(t, app, cookie, path)
+				card := page.Find("#author-john-doe")
+				if got := strings.TrimSpace(card.Find("p.capitalize.lead").Text()); got != "Updated author metadata" {
+					t.Fatalf("%s: expected metadata for the configured source, got %q", path, got)
+				}
+				if got := card.Find(`img[src^="/authors/"]`).AttrOr("src", ""); got != "/authors/john-doe_alice.webp" {
+					t.Fatalf("%s: expected image URL with the configured source reference, got %q", path, got)
+				}
+			}
+		})
+	}
 }
 
 func TestClearAuthorRemovesImage(t *testing.T) {
