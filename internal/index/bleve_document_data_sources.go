@@ -77,13 +77,13 @@ func (b *BleveIndexer) storeAuthorLinkLocked(link AuthorLink) error {
 			author.DocumentCount += result.Total
 		}
 	}
-	if author.DataSourceLinks[link.Source] != "" {
+	if author.DataSourceReferences[link.Source] != "" {
 		return nil
 	}
-	if author.DataSourceLinks == nil {
-		author.DataSourceLinks = make(map[string]string)
+	if author.DataSourceReferences == nil {
+		author.DataSourceReferences = make(map[string]string)
 	}
-	author.DataSourceLinks[link.Source] = link.Value
+	author.DataSourceReferences[link.Source] = link.Value
 	return indexAuthor(b.authorsIdx, link.Slug, author)
 }
 

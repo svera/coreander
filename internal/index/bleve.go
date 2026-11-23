@@ -35,7 +35,7 @@ const DocumentVersion = "v14"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const AuthorVersion = "3"
+const AuthorVersion = "4"
 
 // Metadata fields
 var (
@@ -578,9 +578,8 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Name", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("BirthName", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("RetrievedOn", dateTimeFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceID", keywordFieldMappingNotIndexable)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceImage", keywordFieldMappingNotIndexable)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceLinks", storedOnlyFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceReferences", storedOnlyFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfBirth.Date", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfDeath.Date", numericFieldMapping)

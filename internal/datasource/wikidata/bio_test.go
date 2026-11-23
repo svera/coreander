@@ -43,7 +43,7 @@ func TestBioUsesKnownLinkInCurrentLanguage(t *testing.T) {
 	idx := authorIndex(t)
 	author := index.Author{
 		Slug: "example", Name: "Example",
-		DataSourceLinks: map[string]string{
+		DataSourceReferences: map[string]string{
 			"wikipedia:en": "https://en.wikipedia.org/wiki/Example",
 			"wikipedia:es": "https://es.wikipedia.org/wiki/Autor_%C3%B1",
 		},
@@ -78,7 +78,7 @@ func TestBioUsesKnownLinkInCurrentLanguage(t *testing.T) {
 		}}, nil
 	})
 	provider := biography.NewService(NewBioSource(), nil, idx)
-	if value := provider.ProfileValueForLanguage(author, "es"); value != author.DataSourceLinks["wikipedia:es"] {
+	if value := provider.ProfileValueForLanguage(author, "es"); value != author.DataSourceReferences["wikipedia:es"] {
 		t.Fatalf("profile input must show the current language's link: %q", value)
 	}
 	if _, _, pending := provider.StoredBio(author, "fr"); pending {
@@ -96,7 +96,7 @@ func TestBioUsesKnownLinkInCurrentLanguage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.Bio.Source != author.DataSourceLinks["wikipedia:es"] ||
+	if stored.Bio.Source != author.DataSourceReferences["wikipedia:es"] ||
 		stored.Bio.Language != "es" || stored.Bio.Text["es"] != want {
 		t.Fatalf("must persist safe emphasis and paragraph breaks with the known language: %+v", stored.Bio)
 	}

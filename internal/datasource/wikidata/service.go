@@ -44,6 +44,8 @@ type WikidataSource struct {
 	wikidata wikidata
 }
 
+func (WikidataSource) ReferenceKey() string { return "wikidata" }
+
 func (WikidataSource) OwnsLink(key string) bool {
 	return (Author{}).OwnsLink(key)
 }
@@ -53,10 +55,11 @@ func (WikidataSource) ProfileServiceName() string {
 }
 
 func (WikidataSource) ProfileValue(author index.Author) string {
-	if author.DataSourceID == "" {
+	id := author.DataSourceReferences["wikidata"]
+	if id == "" {
 		return ""
 	}
-	return "https://www.wikidata.org/wiki/" + author.DataSourceID
+	return "https://www.wikidata.org/wiki/" + id
 }
 
 // NormalizeAuthorID accepts a Wikidata author ID or profile URL.
@@ -90,7 +93,7 @@ func (WikidataSource) NormalizeAuthorID(value string) (string, error) {
 }
 
 func (WikidataSource) AuthorLink(author index.Author, language string) model.DataSourceLink {
-	url := author.DataSourceLinks["wikipedia:"+language]
+	url := author.DataSourceReferences["wikipedia:"+language]
 	if url == "" {
 		return model.DataSourceLink{}
 	}

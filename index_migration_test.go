@@ -91,8 +91,12 @@ func TestGetIndexesRebuildsOlderDocuments(t *testing.T) {
 				seedDocumentIndex(t, version)
 				authors := index.CreateAuthorsIndex(homeDir + authorsIndexPath)
 				retrieved := time.Now().UTC().Truncate(time.Second)
-				if err := authors.Index("existing-author", index.Author{
-					Slug: "existing-author", Name: "Existing Author", DataSourceID: "Q1", RetrievedOn: retrieved,
+				if err := authors.Index("existing-author", struct {
+					index.Author
+					DataSourceReferences string
+				}{
+					Author:               index.Author{Slug: "existing-author", Name: "Existing Author", RetrievedOn: retrieved},
+					DataSourceReferences: `{"wikidata":"Q1"}`,
 				}); err != nil {
 					t.Fatal(err)
 				}
@@ -150,7 +154,7 @@ func TestGetIndexesRebuildsOlderDocuments(t *testing.T) {
 					t.Fatalf("library must be searchable after rebuilding: %+v, %v", book, err)
 				}
 				author, err := idx.Author("existing-author", "")
-				if err != nil || author.DataSourceID != "Q1" || !author.RetrievedOn.Equal(retrieved) {
+				if err != nil || author.DataSourceReferences["wikidata"] != "Q1" || !author.RetrievedOn.Equal(retrieved) {
 					t.Fatalf("rebuilding must preserve author metadata: %+v, %v", author, err)
 				}
 				if err := idx.Close(); err != nil {
@@ -269,14 +273,19 @@ func TestGetIndexesMigratesAuthorsWithoutReindexingDocuments(t *testing.T) {
 		t.Fatal(err)
 	}
 	legacyMapping := index.CreateAuthorsMapping().(*mapping.IndexMappingImpl)
-	delete(legacyMapping.DefaultMapping.Properties, "DataSourceLinks")
+	delete(legacyMapping.DefaultMapping.Properties, "DataSourceReferences")
+	legacyMapping.DefaultMapping.AddFieldMappingsAt("DataSourceID", bleve.NewKeywordFieldMapping())
 	authors, err := bleve.New(homeDir+authorsIndexPath, legacyMapping)
 	if err != nil {
 		t.Fatal(err)
 	}
 	retrieved := time.Now().UTC().Truncate(time.Second)
-	if err := authors.Index("alice-borchardt", index.Author{
-		Slug: "alice-borchardt", Name: "Alice Borchardt", DataSourceID: "Q1", RetrievedOn: retrieved,
+	if err := authors.Index("alice-borchardt", struct {
+		index.Author
+		DataSourceID string
+	}{
+		Author:       index.Author{Slug: "alice-borchardt", Name: "Alice Borchardt", RetrievedOn: retrieved},
+		DataSourceID: "Q1",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -305,7 +314,7 @@ func TestGetIndexesMigratesAuthorsWithoutReindexingDocuments(t *testing.T) {
 		t.Fatalf("author migration changed document enrichment state: %+v, %v", data, err)
 	}
 	author, err := idx.Author("alice-borchardt", "")
-	if err != nil || author.DataSourceID != "Q1" || !author.RetrievedOn.Equal(retrieved) {
+	if err != nil || author.DataSourceReferences["wikidata"] != "Q1" || !author.RetrievedOn.Equal(retrieved) {
 		t.Fatalf("expected existing author metadata preserved: %+v, %v", author, err)
 	}
 	if pending, err := idx.AuthorsWithoutInfo(); err != nil || len(pending) != 0 {

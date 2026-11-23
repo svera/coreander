@@ -36,7 +36,7 @@ func NewBioSource(client AuthorClient) *BioSource {
 	return &BioSource{client: client}
 }
 
-func (*BioSource) LinkKey() string { return Source }
+func (*BioSource) ReferenceKey() string { return Source }
 
 func (*BioSource) ProfileServiceName() string {
 	return "Goodreads"
@@ -47,7 +47,7 @@ func (*BioSource) ProfileInputName() string {
 }
 
 func (*BioSource) ProfileValue(author index.Author) string {
-	if id := author.DataSourceLinks[Source]; id != "" {
+	if id := author.DataSourceReferences[Source]; id != "" {
 		return goodreadsBaseURL + goodreadsAuthorPrefix + id
 	}
 	return ""

@@ -167,11 +167,11 @@ func TestEnrichStoresMatchingResult(t *testing.T) {
 		t.Error("expected document to be marked as BiblioReads-enriched")
 	}
 	author, err := idx.Author("alice-borchardt", "")
-	if err != nil || author.DataSourceLinks["goodreads"] != wantAuthorURL {
+	if err != nil || author.DataSourceReferences["goodreads"] != wantAuthorURL {
 		t.Fatalf("expected matching author URL stored, got %+v, %v", author, err)
 	}
 	other, err := idx.Author("second-author", "")
-	if err != nil || other.DataSourceLinks["goodreads"] != "" {
+	if err != nil || other.DataSourceReferences["goodreads"] != "" {
 		t.Fatalf("unmatched coauthor must not receive the URL, got %+v, %v", other, err)
 	}
 	if want := []string{"La Reina Dragon Alice Borchardt", "La Reina Dragon"}; !slices.Equal(source.Queries(), want) {
@@ -240,7 +240,7 @@ func TestEnrichStoresSecondAuthorURLAndPreservesItOnEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stale.DataSourceLinks = map[string]string{"other": "https://example.org/second-author"}
+	stale.DataSourceReferences = map[string]string{"other": "https://example.org/second-author"}
 	if err := idx.IndexAuthor(stale); err != nil {
 		t.Fatal(err)
 	}
@@ -248,34 +248,34 @@ func TestEnrichStoresSecondAuthorURLAndPreservesItOnEdits(t *testing.T) {
 		t.Fatal(err)
 	}
 	author, err := idx.Author("second-author", "")
-	if err != nil || author.DataSourceLinks["goodreads"] != "2" ||
-		author.DataSourceLinks["other"] != "https://example.org/second-author" {
+	if err != nil || author.DataSourceReferences["goodreads"] != "2" ||
+		author.DataSourceReferences["other"] != "https://example.org/second-author" {
 		t.Fatalf("expected second author URL stored, got %+v, %v", author, err)
 	}
 	first, err := idx.Author("alice-borchardt", "")
-	if err != nil || first.DataSourceLinks["goodreads"] != "" {
+	if err != nil || first.DataSourceReferences["goodreads"] != "" {
 		t.Fatalf("first author must not receive coauthor URL, got %+v, %v", first, err)
 	}
-	stale.DataSourceID = "Q2"
+	stale.DataSourceReferences["wikidata"] = "Q2"
 	stale.RetrievedOn = time.Now().UTC()
-	stale.DataSourceLinks["goodreads"] = "999.Stale"
+	stale.DataSourceReferences["goodreads"] = "999.Stale"
 	if err := idx.IndexAuthor(stale); err != nil {
 		t.Fatal(err)
 	}
-	if stale.DataSourceLinks["goodreads"] != "999.Stale" {
+	if stale.DataSourceReferences["goodreads"] != "999.Stale" {
 		t.Fatal("indexing an author mutated the caller's links")
 	}
 	author, err = idx.Author("second-author", "")
-	if err != nil || author.DataSourceLinks["goodreads"] != "2" ||
-		author.DataSourceLinks["other"] != "https://example.org/second-author" ||
-		author.DataSourceID != "Q2" || author.DocumentCount != 1 {
+	if err != nil || author.DataSourceReferences["goodreads"] != "2" ||
+		author.DataSourceReferences["other"] != "https://example.org/second-author" ||
+		author.DataSourceReferences["wikidata"] != "Q2" || author.DocumentCount != 1 {
 		t.Fatalf("stale author edit lost URL or metadata: %+v, %v", author, err)
 	}
 	if _, err := idx.NewFile("second.pdf", []byte("")); err != nil {
 		t.Fatal(err)
 	}
 	author, err = idx.Author("second-author", "")
-	if err != nil || author.DataSourceLinks["goodreads"] != "2" || author.DocumentCount != 2 {
+	if err != nil || author.DataSourceReferences["goodreads"] != "2" || author.DocumentCount != 2 {
 		t.Fatalf("incrementing document count lost author URL: %+v, %v", author, err)
 	}
 }
@@ -292,7 +292,7 @@ func TestEnrichRejectsInvalidAuthorURL(t *testing.T) {
 		t.Fatal(err)
 	}
 	author, err := idx.Author("alice-borchardt", "")
-	if err != nil || author.DataSourceLinks["goodreads"] != "" {
+	if err != nil || author.DataSourceReferences["goodreads"] != "" {
 		t.Fatalf("invalid author paths must not be stored as author IDs: %+v, %v", author, err)
 	}
 	doc, err := idx.DocumentByID(testID)
@@ -700,11 +700,11 @@ func TestBookMatchesKennedyMiddleName(t *testing.T) {
 		t.Fatalf("expected persisted book match and rating, got %+v, %v", stored, err)
 	}
 	author, err := idx.Author("paul-kennedy", "")
-	if err != nil || author.DataSourceLinks["goodreads"] != "8390124.Paul_M_Kennedy" || author.Name != "Paul Kennedy" {
+	if err != nil || author.DataSourceReferences["goodreads"] != "8390124.Paul_M_Kennedy" || author.Name != "Paul Kennedy" {
 		t.Fatalf("expected author URL with original name preserved, got %+v, %v", author, err)
 	}
 	other, err := idx.Author("another-writer", "")
-	if err != nil || other.DataSourceLinks["goodreads"] != "" {
+	if err != nil || other.DataSourceReferences["goodreads"] != "" {
 		t.Fatalf("unmatched coauthor must not receive the URL, got %+v, %v", other, err)
 	}
 	if want := []string{title + " Paul Kennedy", title}; !slices.Equal(source.Queries(), want) {
@@ -1228,7 +1228,7 @@ func TestMatchesTolkienOmnibusSearchResults(t *testing.T) {
 		t.Fatalf("expected persisted omnibus match, got %+v", stored)
 	}
 	author, err := idx.Author("j-r-r-tolkien", "")
-	if err != nil || author.DataSourceLinks["goodreads"] != "656983.J_R_R_Tolkien" {
+	if err != nil || author.DataSourceReferences["goodreads"] != "656983.J_R_R_Tolkien" {
 		t.Fatalf("expected author URL on author record, got %+v, %v", author, err)
 	}
 	if want := []string{title + " J. R. R. Tolkien", title}; !slices.Equal(source.Queries(), want) {

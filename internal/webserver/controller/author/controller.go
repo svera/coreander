@@ -23,6 +23,11 @@ type ProfileInputProvider interface {
 	ProfileValue(author index.Author) string
 }
 
+type AuthorDataSourceProfileProvider interface {
+	ProfileInputProvider
+	ReferenceKey() string
+}
+
 type ProfileInput struct {
 	Name         string
 	ServiceName  string
@@ -42,6 +47,14 @@ func NewProfileInput(provider ProfileInputProvider, author index.Author, name, m
 		Name: name, ServiceName: provider.ProfileServiceName(), Value: provider.ProfileValue(author),
 		Method: method, Action: action,
 	}
+}
+
+func AuthorDataSourceReference(author index.Author, provider AuthorDataSourceProfileProvider) string {
+	key := "wikidata"
+	if provider != nil {
+		key = provider.ReferenceKey()
+	}
+	return author.DataSourceReferences[key]
 }
 
 func NewMetadataProfileInput(provider ProfileInputProvider, author index.Author, style string) ProfileInput {

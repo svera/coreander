@@ -31,8 +31,10 @@ type alternativeAuthorSource struct {
 }
 
 func (*alternativeAuthorSource) ProfileServiceName() string { return "Example catalog" }
+func (*alternativeAuthorSource) ReferenceKey() string       { return "example" }
+func (*alternativeAuthorSource) OwnsLink(key string) bool   { return key == "example" }
 func (*alternativeAuthorSource) ProfileValue(author index.Author) string {
-	return "https://example.org/authors/" + author.DataSourceID
+	return "https://example.org/authors/" + author.DataSourceReferences["example"]
 }
 func (*alternativeAuthorSource) AuthorLink(index.Author, string) datasourcemodel.DataSourceLink {
 	return datasourcemodel.DataSourceLink{}
@@ -62,10 +64,11 @@ func (alternativeAuthorMetadata) DateOfBirth() precisiondate.PrecisionDate {
 func (alternativeAuthorMetadata) DateOfDeath() precisiondate.PrecisionDate {
 	return precisiondate.PrecisionDate{}
 }
-func (alternativeAuthorMetadata) Image() string            { return "" }
-func (alternativeAuthorMetadata) Links() map[string]string { return nil }
-func (alternativeAuthorMetadata) OwnsLink(string) bool     { return false }
-func (alternativeAuthorMetadata) SourceID() string         { return "alice" }
+func (alternativeAuthorMetadata) Image() string { return "" }
+func (alternativeAuthorMetadata) Links() map[string]string {
+	return map[string]string{"example": "alice"}
+}
+func (alternativeAuthorMetadata) OwnsLink(key string) bool { return key == "example" }
 func (alternativeAuthorMetadata) RetrievedOn() time.Time   { return time.Unix(1, 0).UTC() }
 func (alternativeAuthorMetadata) Pseudonyms() []string     { return nil }
 
@@ -83,8 +86,7 @@ func TestUpdateUsesDataSourceProfileParser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	author.DataSourceID = "old-profile"
-	author.DataSourceLinks = map[string]string{"independent": "https://other.example/author"}
+	author.DataSourceReferences = map[string]string{"example": "old-profile", "independent": "https://other.example/author"}
 	if err := idx.IndexAuthor(author); err != nil {
 		t.Fatal(err)
 	}
@@ -145,15 +147,38 @@ func TestUpdateUsesDataSourceProfileParser(t *testing.T) {
 			if value := page.Find(`input[name="sourceID"]`).AttrOr("value", ""); value != "https://example.org/authors/alice" {
 				t.Fatalf("expected the provider profile URL in the form, got %q", value)
 			}
+			if description := strings.TrimSpace(page.Find("p.capitalize.lead").Text()); description != "Updated author metadata" {
+				t.Fatalf("expected metadata rendered from the provider's reference, got %q", description)
+			}
+			if imageURL := page.Find(`img[src^="/authors/"]`).AttrOr("src", ""); imageURL != "/authors/john-doe_alice.webp" {
+				t.Fatalf("expected image URL to use the provider's reference, got %q", imageURL)
+			}
 			stored, err := idx.Author("john-doe", "en")
 			if err != nil {
 				t.Fatal(err)
 			}
-			if stored.DataSourceID != "alice" || stored.BirthName != "Alice Example" ||
+			if stored.DataSourceReferences["example"] != "alice" || stored.BirthName != "Alice Example" ||
 				stored.Description["en"] != "Updated author metadata" ||
-				stored.DataSourceLinks["independent"] != before.DataSourceLinks["independent"] ||
+				stored.DataSourceReferences["independent"] != before.DataSourceReferences["independent"] ||
 				!reflect.DeepEqual(source.retrievedIDs, []string{"alice"}) {
 				t.Fatalf("expected normalized ID retrieval and persisted metadata while preserving independent links: %+v", stored)
+			}
+		})
+	}
+	for _, path := range []string{
+		"/authors/john-doe", "/authors/john-doe/summary", "/authors/john-doe/summary?style=clear",
+		"/documents/john-doe-test-epub",
+	} {
+		t.Run(path, func(t *testing.T) {
+			for _, cookie := range []*http.Cookie{admin, {Name: "anonymous"}} {
+				page := getPageWithCookie(t, app, cookie, path)
+				card := page.Find("#author-john-doe")
+				if got := strings.TrimSpace(card.Find("p.capitalize.lead").Text()); got != "Updated author metadata" {
+					t.Fatalf("%s: expected metadata for the configured source, got %q", path, got)
+				}
+				if got := card.Find(`img[src^="/authors/"]`).AttrOr("src", ""); got != "/authors/john-doe_alice.webp" {
+					t.Fatalf("%s: expected image URL with the configured source reference, got %q", path, got)
+				}
 			}
 		})
 	}
@@ -202,7 +227,7 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			author.DataSourceLinks = map[string]string{
+			author.DataSourceReferences = map[string]string{
 				"website": "https://old.example", "wikipedia:en": "https://en.wikipedia.org/wiki/Old",
 				"wikipedia:es": "https://es.wikipedia.org/wiki/Old",
 				"goodreads":    "1.Writer", "catalog": "https://catalog.example/writer",
@@ -275,13 +300,13 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if stored.DataSourceID != "" || stored.DataSourceImage != "" ||
-				stored.DataSourceLinks["website"] != "" || stored.DataSourceLinks["wikipedia:en"] != "" ||
-				stored.DataSourceLinks["wikipedia:es"] != "" {
+			if stored.DataSourceReferences["wikidata"] != "" || stored.DataSourceImage != "" ||
+				stored.DataSourceReferences["website"] != "" || stored.DataSourceReferences["wikipedia:en"] != "" ||
+				stored.DataSourceReferences["wikipedia:es"] != "" {
 				t.Fatalf("metadata reset restored stale metadata: %+v", stored)
 			}
-			if stored.DataSourceLinks["goodreads"] != "1.Writer" ||
-				stored.DataSourceLinks["catalog"] != "https://catalog.example/writer" ||
+			if stored.DataSourceReferences["goodreads"] != "1.Writer" ||
+				stored.DataSourceReferences["catalog"] != "https://catalog.example/writer" ||
 				stored.DocumentCount != documentCount {
 				t.Fatalf("metadata reset lost independent author data: %+v", stored)
 			}
@@ -292,7 +317,7 @@ func TestClearAuthorRemovesImage(t *testing.T) {
 type summaryDataSourceLinks struct{}
 
 func (summaryDataSourceLinks) AuthorLink(author index.Author, _ string) datasourcemodel.DataSourceLink {
-	if author.DataSourceID == "" {
+	if author.DataSourceReferences["wikidata"] == "" {
 		return datasourcemodel.DataSourceLink{}
 	}
 	return datasourcemodel.DataSourceLink{
@@ -320,12 +345,12 @@ func TestAuthorSummaryDataSourceLinks(t *testing.T) {
 	} {
 		author := index.Author{
 			Slug: tc.name, Name: "Alice Borchardt",
-			DataSourceID: tc.dataSourceID, RetrievedOn: time.Now().UTC(),
-			DataSourceLinks: map[string]string{"website": "https://author.example/" + tc.name},
+			RetrievedOn:          time.Now().UTC(),
+			DataSourceReferences: map[string]string{"wikidata": tc.dataSourceID, "website": "https://author.example/" + tc.name},
 		}
 		if tc.wikipedia {
 			for _, lang := range locales {
-				author.DataSourceLinks["wikipedia:"+lang] = strings.Replace(wikipediaURL, "en.wikipedia.org", lang+".wikipedia.org", 1)
+				author.DataSourceReferences["wikipedia:"+lang] = strings.Replace(wikipediaURL, "en.wikipedia.org", lang+".wikipedia.org", 1)
 			}
 		}
 		if err := idx.IndexAuthor(author); err != nil {
@@ -406,12 +431,13 @@ func (editableAlternativeLinks) AuthorLink(author index.Author, _ string) dataso
 }
 
 func (editableAlternativeLinks) ProfileServiceName() string       { return "Example catalog" }
+func (editableAlternativeLinks) ReferenceKey() string             { return "example" }
 func (editableAlternativeLinks) ProfileValue(index.Author) string { return "catalog-profile" }
 
 func TestDocumentAuthorProfileUsesMetadataSource(t *testing.T) {
 	app, idx := newDataSourceProvidersTestApp(t, nil, nil, editableAlternativeLinks{})
 	if err := idx.IndexAuthor(index.Author{
-		Slug: "jane-doe", Name: "Jane Doe", DataSourceID: "Q1234", RetrievedOn: time.Now().UTC(),
+		Slug: "jane-doe", Name: "Jane Doe", DataSourceReferences: map[string]string{"wikidata": "Q1234"}, RetrievedOn: time.Now().UTC(),
 	}); err != nil {
 		t.Fatal(err)
 	}

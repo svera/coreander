@@ -31,15 +31,15 @@ func (*BioSource) ForLanguage(language string) biography.Source {
 	return &BioSource{language: language}
 }
 
-func (s *BioSource) Language() string { return s.language }
-func (s *BioSource) LinkKey() string  { return "wikipedia:" + s.language }
+func (s *BioSource) Language() string     { return s.language }
+func (s *BioSource) ReferenceKey() string { return "wikipedia:" + s.language }
 
 func (*BioSource) ProfileServiceName() string  { return "Wikipedia" }
 func (*BioSource) ProfileInputName() string    { return "wikipediaURL" }
 func (*BioSource) MetadataServiceName() string { return "Wikidata" }
 
 func (s *BioSource) ProfileValue(author index.Author) string {
-	return author.DataSourceLinks[s.LinkKey()]
+	return author.DataSourceReferences[s.ReferenceKey()]
 }
 
 // NormalizeAuthorID accepts article URLs, retaining their language and encoded title.
