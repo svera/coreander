@@ -83,13 +83,13 @@ func (a *Controller) Update(c fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Author":            author,
-		"MetadataReference": MetadataReference(author, a.dataSource),
-		"DataSourceLinks":   a.authorDataSourceLinks(author, lang),
-		"ImageVersion":      a.getImageVersion(author.Slug),
-		"Lang":              lang,
-		"Session":           session,
-		"ProfileInputs":     a.profileInputs(author, lang, c.Query("style"), "", ""),
+		"Author":                    author,
+		"AuthorDataSourceReference": AuthorDataSourceReference(author, a.dataSource),
+		"DataSourceLinks":           a.authorDataSourceLinks(author, lang),
+		"ImageVersion":              a.getImageVersion(author.Slug),
+		"Lang":                      lang,
+		"Session":                   session,
+		"ProfileInputs":             a.profileInputs(author, lang, c.Query("style"), "", ""),
 	}
 	a.addBioVars(templateVars, template, author, lang)
 

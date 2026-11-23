@@ -17,11 +17,11 @@ import (
 // render eagerly (i.e. without the async /summary htmx round-trip), so it can
 // only fall back to that round-trip when the author hasn't been enriched yet.
 type authorSummary struct {
-	Author            index.Author
-	MetadataReference string
-	ImageVersion      string
-	DataSourceLinks   []datasourcemodel.DataSourceLink
-	ProfileInputs     []authorcontroller.ProfileInput
+	Author                    index.Author
+	AuthorDataSourceReference string
+	ImageVersion              string
+	DataSourceLinks           []datasourcemodel.DataSourceLink
+	ProfileInputs             []authorcontroller.ProfileInput
 }
 
 func (d *Controller) Detail(c fiber.Ctx) error {
@@ -153,8 +153,8 @@ func (d *Controller) authorSummaryFor(authorSlug, lang string) authorSummary {
 	}
 	return authorSummary{
 		Author: author, ImageVersion: fsutil.AuthorImageVersion(d.appFs, d.config.CacheDir, author.Slug),
-		MetadataReference: authorcontroller.MetadataReference(author, d.authorDataSource),
-		DataSourceLinks:   links, ProfileInputs: profileInputs,
+		AuthorDataSourceReference: authorcontroller.AuthorDataSourceReference(author, d.authorDataSource),
+		DataSourceLinks:           links, ProfileInputs: profileInputs,
 	}
 }
 

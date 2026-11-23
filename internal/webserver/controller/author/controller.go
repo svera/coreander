@@ -49,7 +49,7 @@ func NewProfileInput(provider ProfileInputProvider, author index.Author, name, m
 	}
 }
 
-func MetadataReference(author index.Author, provider MetadataProfileProvider) string {
+func AuthorDataSourceReference(author index.Author, provider MetadataProfileProvider) string {
 	key := "wikidata"
 	if provider != nil {
 		key = provider.ReferenceKey()
