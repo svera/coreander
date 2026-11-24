@@ -28,11 +28,11 @@ type fakeSource struct {
 	refreshes                      []bool
 }
 
-func (*fakeSource) LinkKey() string            { return "catalog" }
+func (*fakeSource) ReferenceKey() string       { return "catalog" }
 func (*fakeSource) ProfileServiceName() string { return "Example catalog" }
 func (*fakeSource) ProfileInputName() string   { return "catalogID" }
 func (*fakeSource) ProfileValue(author index.Author) string {
-	return author.DataSourceLinks["catalog"]
+	return author.DataSourceReferences["catalog"]
 }
 func (*fakeSource) NormalizeAuthorID(value string) (string, error) {
 	if value == "invalid" {
@@ -114,7 +114,7 @@ func (f *fakeBioIndex) StoreAuthorBioForLink(_ string, linkKey, previousSource s
 func catalogAuthor(bio index.AuthorBio) index.Author {
 	return index.Author{
 		Slug: "alice", Name: "Alice Example",
-		DataSourceLinks: map[string]string{"catalog": "alice"}, Bio: bio,
+		DataSourceReferences: map[string]string{"catalog": "alice"}, Bio: bio,
 	}
 }
 
@@ -423,7 +423,7 @@ func TestUpdateBio(t *testing.T) {
 			source := &fakeSource{desc: englishBio, canonical: "primary"}
 			idx := &fakeBioIndex{}
 			provider := biography.NewService(source, &fakeTranslator{}, idx)
-			author := index.Author{Slug: "alice", DataSourceLinks: map[string]string{"catalog": previous}}
+			author := index.Author{Slug: "alice", DataSourceReferences: map[string]string{"catalog": previous}}
 			text, _, err := provider.UpdateBio(context.Background(), author, "variant", "es")
 			if err != nil || text != "[es] "+englishBio || idx.linkKey != "catalog" || idx.previousSource != previous ||
 				len(idx.replaced) != 1 || idx.replaced[0].Source != "primary" {
@@ -432,7 +432,7 @@ func TestUpdateBio(t *testing.T) {
 			if !slices.Equal(source.calls, []string{"variant"}) || !slices.Equal(source.refreshes, []bool{true}) {
 				t.Fatalf("profile edits must bypass source caches, got %q, refresh=%v", source.calls, source.refreshes)
 			}
-			if author.DataSourceLinks["catalog"] != previous {
+			if author.DataSourceReferences["catalog"] != previous {
 				t.Fatal("updating must not mutate the caller's author")
 			}
 		})

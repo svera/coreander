@@ -50,7 +50,8 @@ func TestNormalizeAuthorID(t *testing.T) {
 
 func TestAuthorLinks(t *testing.T) {
 	author := Author{
-		website: "https://author.example",
+		wikidataEntityId: "Q1234",
+		website:          "https://author.example",
 		wikipediaLink: map[string]string{
 			"en": "https://en.wikipedia.org/wiki/Example",
 			"es": "https://es.wikipedia.org/wiki/Ejemplo",
@@ -58,6 +59,7 @@ func TestAuthorLinks(t *testing.T) {
 		},
 	}
 	want := map[string]string{
+		"wikidata":     "Q1234",
 		"website":      "https://author.example",
 		"wikipedia:en": "https://en.wikipedia.org/wiki/Example",
 		"wikipedia:es": "https://es.wikipedia.org/wiki/Ejemplo",
@@ -66,12 +68,13 @@ func TestAuthorLinks(t *testing.T) {
 		t.Fatalf("unexpected author links: %+v", got)
 	}
 	links := author.Links()
+	links["wikidata"] = "Q1"
 	links["website"] = "https://changed.example"
 	links["wikipedia:en"] = "https://changed.example/en"
 	if got := author.Links(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("caller mutated author links: %+v", got)
 	}
-	for _, key := range []string{"website", "wikipedia:en", "wikipedia:de"} {
+	for _, key := range []string{"wikidata", "website", "wikipedia:en", "wikipedia:de"} {
 		if !author.OwnsLink(key) {
 			t.Errorf("Wikidata should own %q, including missing language links", key)
 		}
@@ -89,7 +92,7 @@ func TestAuthorLinks(t *testing.T) {
 func TestWikipediaDataSourceLink(t *testing.T) {
 	source := NewWikidataSource(Gowikidata{})
 	link := source.AuthorLink(index.Author{
-		DataSourceLinks: map[string]string{
+		DataSourceReferences: map[string]string{
 			"wikipedia:en": "https://en.wikipedia.org/wiki/Example",
 			"wikipedia:es": "https://es.wikipedia.org/wiki/Ejemplo",
 		},
@@ -186,7 +189,7 @@ func TestRetrieveAuthorsBatch(t *testing.T) {
 	if len(authors) != 1 {
 		t.Fatalf("expected 1 author from batch retrieve, got %d", len(authors))
 	}
-	if authors["miguel"].SourceID() != "Q1234" {
-		t.Fatalf("expected Q1234, got %q", authors["miguel"].SourceID())
+	if authors["miguel"].Links()["wikidata"] != "Q1234" {
+		t.Fatalf("expected Q1234, got %q", authors["miguel"].Links()["wikidata"])
 	}
 }

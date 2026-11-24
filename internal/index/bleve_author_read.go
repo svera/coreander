@@ -108,13 +108,6 @@ func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
 		}
 	}
 
-	dataSourceID := ""
-	if val, ok := fields["DataSourceID"]; ok && val != nil {
-		if str, ok := val.(string); ok {
-			dataSourceID = str
-		}
-	}
-
 	dataSourceImage := ""
 	if val, ok := fields["DataSourceImage"]; ok && val != nil {
 		if str, ok := val.(string); ok {
@@ -147,7 +140,6 @@ func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
 		Name:            name,
 		BirthName:       birthName,
 		Slug:            slug,
-		DataSourceID:    dataSourceID,
 		RetrievedOn:     retrievedOn,
 		InstanceOf:      instanceOf,
 		Description:     make(map[string]string),
@@ -158,9 +150,9 @@ func hydrateAuthorFromFields(fields map[string]any, docID string) Author {
 		Pseudonyms:      slicer(fields["Pseudonyms"]),
 		DocumentCount:   documentCount,
 	}
-	if links, ok := fields["DataSourceLinks"].(string); ok {
-		if err := json.Unmarshal([]byte(links), &author.DataSourceLinks); err != nil {
-			log.Printf("Error reading data source links for author %s: %s", docID, err)
+	if references, ok := fields["DataSourceReferences"].(string); ok {
+		if err := json.Unmarshal([]byte(references), &author.DataSourceReferences); err != nil {
+			log.Printf("Error reading data source references for author %s: %s", docID, err)
 		}
 	}
 	author.Bio.Source, _ = fields["Bio.Source"].(string)

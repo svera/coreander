@@ -83,7 +83,10 @@ func (a Author) DateOfDeath() precisiondate.PrecisionDate {
 }
 
 func (a Author) Links() map[string]string {
-	links := make(map[string]string, len(a.wikipediaLink)+1)
+	links := make(map[string]string, len(a.wikipediaLink)+2)
+	if a.wikidataEntityId != "" {
+		links["wikidata"] = a.wikidataEntityId
+	}
 	if a.website != "" {
 		links["website"] = a.website
 	}
@@ -96,7 +99,7 @@ func (a Author) Links() map[string]string {
 }
 
 func (a Author) OwnsLink(key string) bool {
-	return key == "website" || strings.HasPrefix(key, "wikipedia:")
+	return key == "wikidata" || key == "website" || strings.HasPrefix(key, "wikipedia:")
 }
 
 func (a Author) Image() string {
@@ -109,10 +112,6 @@ func (a Author) InstanceOf() float64 {
 
 func (a Author) Gender() float64 {
 	return a.gender
-}
-
-func (a Author) SourceID() string {
-	return a.wikidataEntityId
 }
 
 func (a Author) RetrievedOn() time.Time {

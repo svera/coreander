@@ -1,3 +1,4 @@
+{{$authorDataSourceReference := .AuthorDataSourceReference}}
 <div id="author-{{.Author.Slug}}" class="card mb-3 bg-body-secondary">
     <div class="row g-0">
         <div class="author-details-main col-12 col-md-8 col-lg-9 p-3">
@@ -7,14 +8,14 @@
                     <p class="text-body-secondary float-start px-3">{{.Author.BirthName}}</p>
                 {{end}}
             </div>
-            {{if eq .Author.DataSourceID ""}}
+            {{if eq $authorDataSourceReference ""}}
                 {{if not (or .BioParagraphs .BioPending)}}
                     <p class=" px-3"><i>{{t .Lang "Sorry, we don't have information about this author at the moment"}}</i></p>
                 {{end}}
             {{else if index .Author.Description .Lang}}
                 <p class="card-text capitalize lead px-3">{{index .Author.Description .Lang}}</p>
             {{end}}
-            {{if ne .Author.DataSourceID ""}}
+            {{if ne $authorDataSourceReference ""}}
             <dl class="px-3">
                 {{if ne .Author.DateOfBirth.Date 0}}
                     <dt>{{t .Lang "Date of birth"}}</dt>
@@ -86,12 +87,12 @@
         </div>
         <div class="author-details-sidebar col-12 col-md-4 col-lg-3 p-3">
             <div class="ratio ratio-1x1 mb-3">
-                <img src="/authors/{{.Author.Slug}}_{{.Author.DataSourceID}}.webp{{.ImageVersion}}" fetchpriority="high" class="img-fluid object-fit-cover w-100 rounded-circle p-3{{if and .Session (eq .Session.Role 2)}} author-image-upload cursor-pointer{{end}}" alt="{{.Author.Name}}"{{if and .Session (eq .Session.Role 2)}} data-author-slug="{{.Author.Slug}}" data-invalid-file-type='{{t .Lang "Invalid file type. Only JPEG and PNG images are allowed."}}' data-upload-failed='{{t .Lang "Failed to upload image"}}' data-upload-error='{{t .Lang "An error occurred while uploading the image"}}' title='{{t .Lang "Click to upload a custom image"}}'{{end}}>
+                <img src="/authors/{{.Author.Slug}}_{{$authorDataSourceReference}}.webp{{.ImageVersion}}" fetchpriority="high" class="img-fluid object-fit-cover w-100 rounded-circle p-3{{if and .Session (eq .Session.Role 2)}} author-image-upload cursor-pointer{{end}}" alt="{{.Author.Name}}"{{if and .Session (eq .Session.Role 2)}} data-author-slug="{{.Author.Slug}}" data-invalid-file-type='{{t .Lang "Invalid file type. Only JPEG and PNG images are allowed."}}' data-upload-failed='{{t .Lang "Failed to upload image"}}' data-upload-error='{{t .Lang "An error occurred while uploading the image"}}' title='{{t .Lang "Click to upload a custom image"}}'{{end}}>
             </div>
-            {{if or (index .Author.DataSourceLinks "website") .DataSourceLinks}}
+            {{if or (index .Author.DataSourceReferences "website") .DataSourceLinks}}
             <div class="text-center">
             <ul class="list-unstyled px-3 d-inline-block text-start">
-                {{with index .Author.DataSourceLinks "website"}}
+                {{with index .Author.DataSourceReferences "website"}}
                     <li>
                         <i class="bi-globe-europe-africa me-2"></i>
                         <a href="{{.}}">{{t $.Lang "Website"}}</a>

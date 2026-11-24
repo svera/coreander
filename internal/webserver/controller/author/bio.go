@@ -93,10 +93,11 @@ func (a *Controller) renderAuthorSummary(c fiber.Ctx, author index.Author, lang,
 	session, _ := c.Locals("Session").(model.Session)
 	vars := fiber.Map{
 		"Author": author, "Lang": lang, "Session": session,
-		"DataSourceLinks": a.authorDataSourceLinks(author, lang),
-		"ImageVersion":    a.getImageVersion(author.Slug),
-		"ProfileInputs":   a.profileInputs(author, lang, "", invalidProfile, c.FormValue(invalidProfile)),
-		"InvalidProfile":  invalidProfile != "",
+		"AuthorDataSourceReference": AuthorDataSourceReference(author, a.dataSource),
+		"DataSourceLinks":           a.authorDataSourceLinks(author, lang),
+		"ImageVersion":              a.getImageVersion(author.Slug),
+		"ProfileInputs":             a.profileInputs(author, lang, "", invalidProfile, c.FormValue(invalidProfile)),
+		"InvalidProfile":            invalidProfile != "",
 	}
 	a.addBioVars(vars, "partials/author-summary", author, lang)
 	if err := c.Render("partials/author-summary", vars); err != nil {

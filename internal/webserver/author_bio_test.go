@@ -94,7 +94,7 @@ func seedBioTestAuthor(t *testing.T, idx *index.BleveIndexer, links map[string]s
 	if err != nil {
 		t.Fatal(err)
 	}
-	author.DataSourceLinks = links
+	author.DataSourceReferences = links
 	author.RetrievedOn = time.Now()
 	if err := idx.IndexAuthor(author); err != nil {
 		t.Fatal(err)
@@ -177,12 +177,12 @@ func TestAuthorDetailCardLayoutAndSanitization(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	author.DataSourceID = "Q1234"
 	author.Description = map[string]string{"en": "American novelist"}
 	author.RetrievedOn = time.Now()
 	author.DateOfBirth = precisiondate.NewPrecisionDate("+1920-01-02T00:00:00Z", precisiondate.PrecisionDay)
 	author.DateOfDeath = precisiondate.NewPrecisionDate("+1992-04-06T00:00:00Z", precisiondate.PrecisionDay)
-	author.DataSourceLinks = map[string]string{
+	author.DataSourceReferences = map[string]string{
+		"wikidata":  "Q1234",
 		"goodreads": "1.John_Doe",
 		"website":   "https://example.com",
 	}
@@ -190,7 +190,7 @@ func TestAuthorDetailCardLayoutAndSanitization(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := idx.StoreAuthorBio(author.Slug, index.AuthorBio{
-		Source: author.DataSourceLinks["goodreads"], Language: "en",
+		Source: author.DataSourceReferences["goodreads"], Language: "en",
 		Text: map[string]string{"en": `<b onclick="bad()">John Doe</b> wrote many <i>books</i>.<script>alert(1)</script>`},
 	}); err != nil {
 		t.Fatal(err)
@@ -329,12 +329,12 @@ func (s *localizedBioSource) ForLanguage(language string) biography.Source {
 	return &localizedBioSource{language: language, result: s.result}
 }
 func (s *localizedBioSource) Language() string          { return s.language }
-func (s *localizedBioSource) LinkKey() string           { return "catalog:" + s.language }
+func (s *localizedBioSource) ReferenceKey() string      { return "catalog:" + s.language }
 func (*localizedBioSource) ProfileServiceName() string  { return "Example biographies" }
 func (*localizedBioSource) MetadataServiceName() string { return "Example catalog" }
 func (*localizedBioSource) ProfileInputName() string    { return "catalogBioID" }
 func (s *localizedBioSource) ProfileValue(author index.Author) string {
-	return author.DataSourceLinks[s.LinkKey()]
+	return author.DataSourceReferences[s.ReferenceKey()]
 }
 func (*localizedBioSource) NormalizeAuthorID(value string) (string, error) {
 	return strings.TrimSpace(value), nil
@@ -356,19 +356,22 @@ func (*bioMetadataSource) NormalizeAuthorID(value string) (string, error) {
 func (s *bioMetadataSource) RetrieveAuthor(ids []string, _ []string) (datasourcemodel.Author, error) {
 	return bioMetadata{sourceID: ids[0], link: s.link}, nil
 }
-func (*bioMetadataSource) OwnsLink(key string) bool { return strings.HasPrefix(key, "catalog:") }
+func (*bioMetadataSource) OwnsLink(key string) bool {
+	return key == "example" || strings.HasPrefix(key, "catalog:")
+}
 
 type bioMetadata struct {
 	alternativeAuthorMetadata
 	sourceID, link string
 }
 
-func (m bioMetadata) SourceID() string { return m.sourceID }
 func (m bioMetadata) Links() map[string]string {
+	links := map[string]string{"example": m.sourceID}
 	if m.link == "" {
-		return nil
+		return links
 	}
-	return map[string]string{"catalog:es": m.link}
+	links["catalog:es"] = m.link
+	return links
 }
 func (bioMetadata) OwnsLink(key string) bool {
 	return (&bioMetadataSource{}).OwnsLink(key)
@@ -394,8 +397,8 @@ func TestLocalizedAuthorBioUsesCurrentLanguageOnAuthorPage(t *testing.T) {
 	if page.Find(`[hx-get="/authors/john-doe/bio"]`).Length() != 1 || len(result.calls) != 0 {
 		t.Fatal("a known profile must enable lazy biography retrieval without requesting the source")
 	}
-	if err := idx.StoreAuthorBioForLink(author.Slug, "catalog:es", author.DataSourceLinks["catalog:es"], index.AuthorBio{
-		Source: author.DataSourceLinks["catalog:es"], Language: "es", Text: map[string]string{"es": "Stored Spanish biography."},
+	if err := idx.StoreAuthorBioForLink(author.Slug, "catalog:es", author.DataSourceReferences["catalog:es"], index.AuthorBio{
+		Source: author.DataSourceReferences["catalog:es"], Language: "es", Text: map[string]string{"es": "Stored Spanish biography."},
 	}, true); err != nil {
 		t.Fatal(err)
 	}
@@ -424,8 +427,8 @@ func TestMetadataProfileUpdateRefreshesBiography(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	author.DataSourceID = "old-author"
-	author.DataSourceLinks = map[string]string{
+	author.DataSourceReferences = map[string]string{
+		"example":     "old-author",
 		"catalog:es":  "old-profile",
 		"independent": "other-profile",
 	}
@@ -433,7 +436,7 @@ func TestMetadataProfileUpdateRefreshesBiography(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := idx.StoreAuthorBio(author.Slug, index.AuthorBio{
-		Source: author.DataSourceLinks["catalog:es"], Language: "es", Text: map[string]string{"es": "Stale biography."},
+		Source: author.DataSourceReferences["catalog:es"], Language: "es", Text: map[string]string{"es": "Stale biography."},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -455,8 +458,8 @@ func TestMetadataProfileUpdateRefreshesBiography(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if stored.DataSourceID != "new-author" || stored.Bio.Source != source.link || stored.Bio.Text["es"] != result.text ||
-			stored.DataSourceLinks["independent"] != "other-profile" {
+		if stored.DataSourceReferences["example"] != "new-author" || stored.Bio.Source != source.link || stored.Bio.Text["es"] != result.text ||
+			stored.DataSourceReferences["independent"] != "other-profile" {
 			t.Fatalf("metadata update must refresh and persist its biography while preserving independent links: %+v", stored)
 		}
 		if style == "" && strings.TrimSpace(page.Find("#author-bio-text").Text()) != result.text {
@@ -500,9 +503,9 @@ func TestMetadataProfileUpdateRefreshesBiography(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if response.StatusCode != http.StatusOK || stored.DataSourceID != sourceID ||
+		if response.StatusCode != http.StatusOK || stored.DataSourceReferences["example"] != sourceID ||
 			stored.Bio.Source != "" || len(stored.Bio.Text) != 0 ||
-			stored.DataSourceLinks["catalog:es"] != "" || len(result.calls) != beforeCalls {
+			stored.DataSourceReferences["catalog:es"] != "" || len(result.calls) != beforeCalls {
 			t.Fatalf("missing or cleared metadata links must clear the biography without requests: %+v", stored)
 		}
 	}
@@ -523,7 +526,7 @@ func testAuthorBioRefreshResults(t *testing.T) {
 			client := &bioAuthorClient{}
 			app, idx := newAuthorBioTestApp(t, client, &bioTranslator{})
 			author := seedBioTestAuthor(t, idx, map[string]string{"goodreads": "1.John_Doe"})
-			cached := index.AuthorBio{Source: author.DataSourceLinks["goodreads"], Language: "en"}
+			cached := index.AuthorBio{Source: author.DataSourceReferences["goodreads"], Language: "en"}
 			if state == "populated" {
 				cached.Text = map[string]string{"en": "Old biography", "es": "Old translation", "fr": "Stale translation"}
 			}
@@ -688,7 +691,7 @@ func testAuthorBioProfileEditing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.StatusCode != http.StatusOK || stored.DataSourceLinks["goodreads"] != "879.Plato" || stored.Bio.Source != "879.Plato" ||
+	if response.StatusCode != http.StatusOK || stored.DataSourceReferences["goodreads"] != "879.Plato" || stored.Bio.Source != "879.Plato" ||
 		page.Find("#author-john-doe").Length() != 1 || page.Find(`a[href="https://www.goodreads.com/author/show/879.Plato"]`).Length() != 1 ||
 		page.Find(`input[name="goodreadsID"]`).AttrOr("value", "") != "https://www.goodreads.com/author/show/879.Plato" {
 		t.Fatalf("updating the Goodreads ID must refresh the whole card and persist the new source, got %+v", stored.Bio)
@@ -718,7 +721,7 @@ func testAuthorBioProfileEditing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.StatusCode != http.StatusOK || stored.DataSourceLinks["goodreads"] != "" || stored.Bio.Source != "" ||
+	if response.StatusCode != http.StatusOK || stored.DataSourceReferences["goodreads"] != "" || stored.Bio.Source != "" ||
 		len(stored.Bio.Text) != 0 || client.calls != 2 || page.Find(`a[href*="goodreads.com/author/"]`).Length() != 0 ||
 		page.Find(`input[name="goodreadsID"]`).AttrOr("value", "") != "" {
 		t.Fatalf("blank Goodreads ID must clear link and biography without lookup: status=%d author=%+v calls=%d", response.StatusCode, stored, client.calls)

@@ -9,9 +9,10 @@ import (
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/mapping"
 )
 
-// OpenAuthorsIndex upgrades version 2 without discarding stored author metadata.
+// OpenAuthorsIndex upgrades older author mappings without discarding stored metadata.
 // The previous index is kept only until the migrated index opens successfully.
 func OpenAuthorsIndex(path string, batchSize int) (bleve.Index, error) {
 	authors, err := bleve.Open(path)
@@ -34,7 +35,15 @@ func OpenAuthorsIndex(path string, batchSize int) (bleve.Index, error) {
 	if err != nil {
 		return nil, errors.Join(err, authors.Close())
 	}
-	if string(version) == "2" {
+	legacyMapping := false
+	if string(version) == AuthorVersion {
+		m, ok := authors.Mapping().(*mapping.IndexMappingImpl)
+		if !ok || m.DefaultMapping == nil {
+			return nil, errors.Join(fmt.Errorf("unsupported authors index mapping"), authors.Close())
+		}
+		_, legacyMapping = m.DefaultMapping.Properties["DataSourceLinks"]
+	}
+	if string(version) == "2" || string(version) == "3" || legacyMapping {
 		upgraded, err := migrateAuthorsIndex(authors, path, batchSize)
 		if err != nil {
 			return nil, errors.Join(err, authors.Close())
@@ -54,6 +63,7 @@ func migrateAuthorsIndex(authors bleve.Index, path string, batchSize int) (bleve
 	if batchSize <= 0 {
 		return nil, fmt.Errorf("authors migration batch size must be positive")
 	}
+	// Retain the historical path for recovery of interrupted version 2 upgrades.
 	backup := path + ".v2-backup"
 	if _, err := os.Stat(backup); err == nil {
 		return nil, fmt.Errorf("authors migration backup already exists: %s", backup)
@@ -106,7 +116,18 @@ func copyAuthors(source, destination bleve.Index, batchSize int) error {
 		}
 		batch := destination.NewBatch()
 		for _, hit := range result.Hits {
+			if _, exists := hit.Fields["DataSourceReferences"]; !exists {
+				if legacyLinks, ok := hit.Fields["DataSourceLinks"]; ok {
+					hit.Fields["DataSourceReferences"] = legacyLinks
+				}
+			}
 			author := hydrateAuthor(hit)
+			if legacyID, ok := hit.Fields["DataSourceID"].(string); ok && legacyID != "" && author.DataSourceReferences["wikidata"] == "" {
+				if author.DataSourceReferences == nil {
+					author.DataSourceReferences = make(map[string]string)
+				}
+				author.DataSourceReferences["wikidata"] = legacyID
+			}
 			for field, value := range hit.Fields {
 				source := ""
 				switch {
@@ -116,11 +137,11 @@ func copyAuthors(source, destination bleve.Index, batchSize int) error {
 					source = "wikipedia:" + strings.TrimPrefix(field, "WikipediaLink.")
 				}
 				if link, ok := value.(string); source != "" && ok && link != "" {
-					if author.DataSourceLinks == nil {
-						author.DataSourceLinks = make(map[string]string)
+					if author.DataSourceReferences == nil {
+						author.DataSourceReferences = make(map[string]string)
 					}
-					if author.DataSourceLinks[source] == "" {
-						author.DataSourceLinks[source] = link
+					if author.DataSourceReferences[source] == "" {
+						author.DataSourceReferences[source] = link
 					}
 				}
 			}
