@@ -13,6 +13,7 @@ import (
 	"time"
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
+	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/precisiondate"
@@ -108,7 +109,7 @@ func NewWikidataSource(w wikidata) WikidataSource {
 	return WikidataSource{w}
 }
 
-func (a WikidataSource) SearchAuthor(name string, languages []string) (model.Author, error) {
+func (a WikidataSource) SearchAuthor(name string, languages []string, latestPublicationDate date.Date) (model.Author, error) {
 	ids, err := a.SearchEntityIDs(name)
 	if err != nil {
 		return nil, err
@@ -118,7 +119,7 @@ func (a WikidataSource) SearchAuthor(name string, languages []string) (model.Aut
 		return nil, nil
 	}
 
-	return a.RetrieveAuthor(ids, languages)
+	return a.retrieveAuthor(ids, languages, latestPublicationDate)
 }
 
 // SearchEntityIDs returns Wikidata entity IDs matching the given author name.
@@ -145,6 +146,10 @@ func (a WikidataSource) SearchEntityIDs(name string) ([]string, error) {
 
 // RetrieveAuthor returns the first match from the list of passed Wikidata entity IDs that represents a human
 func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.Author, error) {
+	return a.retrieveAuthor(ids, languages, date.Zero)
+}
+
+func (a WikidataSource) retrieveAuthor(ids []string, languages []string, latestPublicationDate date.Date) (model.Author, error) {
 	for _, id := range ids {
 		if !validateID(id) {
 			return Author{}, fmt.Errorf("invalid author ID %s", id)
@@ -156,7 +161,7 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.
 		return nil, err
 	}
 
-	author, err := a.authorFromEntityIDs(ids, entities, languages)
+	author, err := a.authorFromEntityIDs(ids, entities, languages, latestPublicationDate)
 	if err != nil {
 		return nil, err
 	}
@@ -167,26 +172,27 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.
 }
 
 // RetrieveAuthors fetches metadata for multiple authors in as few Wikidata requests as possible.
-// Keys are caller-defined identifiers (for example author slugs). Values are Wikidata entity ID
-// candidates for each author, in search-result order. onResult is called for each author as soon
+// Keys are caller-defined identifiers (for example author slugs). Values contain Wikidata entity
+// IDs in search-result order and an optional publication date constraint. onResult is called as soon
 // as all its candidate IDs have been requested, passing nil when no matching person was found.
-func (a WikidataSource) RetrieveAuthors(candidates map[string][]string, languages []string, batchInterval time.Duration, onResult func(slug string, author model.Author) error) error {
+func (a WikidataSource) RetrieveAuthors(candidates map[string]model.AuthorCandidates, languages []string, batchInterval time.Duration, onResult func(slug string, author model.Author) error) error {
 	if len(candidates) == 0 {
 		return nil
 	}
 
 	uniqueIDs := make([]string, 0)
 	seen := make(map[string]struct{})
-	pending := make(map[string][]string)
+	pending := make(map[string]model.AuthorCandidates)
 
-	for slug, ids := range candidates {
+	for slug, candidate := range candidates {
+		ids := candidate.IDs
 		if len(ids) == 0 {
 			if err := onResult(slug, nil); err != nil {
 				return err
 			}
 			continue
 		}
-		pending[slug] = ids
+		pending[slug] = candidate
 		for _, id := range ids {
 			if id == "" {
 				continue
@@ -232,19 +238,19 @@ func (a WikidataSource) RetrieveAuthors(candidates map[string][]string, language
 			entities[id] = entity
 		}
 
-		for slug, ids := range pending {
-			if !allIDsRequested(ids, requested) {
+		for slug, candidate := range pending {
+			if !allIDsRequested(candidate.IDs, requested) {
 				continue
 			}
-			if err := a.resolveAndNotify(slug, ids, entities, languages, onResult); err != nil {
+			if err := a.resolveAndNotify(slug, candidate, entities, languages, onResult); err != nil {
 				return err
 			}
 			delete(pending, slug)
 		}
 	}
 
-	for slug, ids := range pending {
-		if err := a.resolveAndNotify(slug, ids, entities, languages, onResult); err != nil {
+	for slug, candidate := range pending {
+		if err := a.resolveAndNotify(slug, candidate, entities, languages, onResult); err != nil {
 			return err
 		}
 	}
@@ -252,8 +258,8 @@ func (a WikidataSource) RetrieveAuthors(candidates map[string][]string, language
 	return nil
 }
 
-func (a WikidataSource) resolveAndNotify(slug string, ids []string, entities map[string]gowikidata.Entity, languages []string, onResult func(string, model.Author) error) error {
-	author, err := a.authorFromEntityIDs(ids, entities, languages)
+func (a WikidataSource) resolveAndNotify(slug string, candidate model.AuthorCandidates, entities map[string]gowikidata.Entity, languages []string, onResult func(string, model.Author) error) error {
+	author, err := a.authorFromEntityIDs(candidate.IDs, entities, languages, candidate.LatestPublicationDate)
 	if err != nil {
 		return err
 	}
@@ -309,7 +315,7 @@ func (a WikidataSource) fetchEntitiesBatched(ids []string, languages []string, b
 	return entities, nil
 }
 
-func (a WikidataSource) authorFromEntityIDs(ids []string, entities map[string]gowikidata.Entity, languages []string) (Author, error) {
+func (a WikidataSource) authorFromEntityIDs(ids []string, entities map[string]gowikidata.Entity, languages []string, latestPublicationDate date.Date) (Author, error) {
 	author := Author{
 		wikipediaLink: make(map[string]string),
 		description:   make(map[string]string),
@@ -319,7 +325,7 @@ func (a WikidataSource) authorFromEntityIDs(ids []string, entities map[string]go
 	}
 
 	entityPtr := &entities
-	author.wikidataEntityId, author.instanceOf = getMostAccurateID(ids, entityPtr)
+	author.wikidataEntityId, author.instanceOf = getMostAccurateID(ids, entityPtr, latestPublicationDate)
 	if author.instanceOf == InstanceUnknown {
 		return author, nil
 	}
@@ -384,9 +390,12 @@ func (a WikidataSource) authorFromEntityIDs(ids []string, entities map[string]go
 	return author, nil
 }
 
-func getMostAccurateID(ids []string, entities *map[string]gowikidata.Entity) (string, float64) {
+func getMostAccurateID(ids []string, entities *map[string]gowikidata.Entity, latestPublicationDate date.Date) (string, float64) {
 	for _, rank := range ranks {
 		for _, id := range ids {
+			if bornAfterPublication((*entities)[id].Claims[propertyDateOfBirth], latestPublicationDate) {
+				continue
+			}
 			claimValue, exists := (*entities)[id].Claims[propertyInstanceOf]
 			if !exists {
 				continue
@@ -400,6 +409,28 @@ func getMostAccurateID(ids []string, entities *map[string]gowikidata.Entity) (st
 	}
 
 	return "", InstanceUnknown
+}
+
+func bornAfterPublication(claim []gowikidata.Claim, latestPublicationDate date.Date) bool {
+	if latestPublicationDate == date.Zero || len(claim) == 0 {
+		return false
+	}
+	birth := parseDate(claim)
+	if birth.Date == date.Zero {
+		return false
+	}
+	var earliest date.Date
+	switch birth.Precision {
+	case precisiondate.PrecisionYear:
+		earliest = date.New(birth.Year(), time.January, 1)
+	case precisiondate.PrecisionMonth:
+		earliest = date.New(birth.Year(), birth.Month(), 1)
+	case precisiondate.PrecisionDay:
+		earliest = birth.Date
+	default:
+		return false
+	}
+	return earliest > latestPublicationDate
 }
 
 func parseGender(claim gowikidata.Claim) float64 {

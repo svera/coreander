@@ -803,6 +803,42 @@ func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPe
 	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 }
 
+// EarliestAuthorPublicationDate returns the earliest latest-possible publication
+// date for the author's documents, or zero when no usable date is known.
+func (b *BleveIndexer) EarliestAuthorPublicationDate(slug string) (date.Date, error) {
+	var earliest date.Date
+	const pageSize = 100
+	for page := 1; ; page++ {
+		results, err := b.SearchByAuthor(SearchFields{AuthorSlug: slug, SortBy: []string{"_id"}}, page, pageSize)
+		if err != nil {
+			return date.Zero, err
+		}
+		for _, doc := range results.Hits() {
+			publication := doc.Publication
+			if publication.Date == date.Zero {
+				continue
+			}
+			var latest date.Date
+			switch publication.Precision {
+			case precisiondate.PrecisionYear:
+				latest = date.New(publication.Year(), time.December, 31)
+			case precisiondate.PrecisionMonth:
+				latest = date.New(publication.Year(), publication.Month(), publication.LastDayOfMonth())
+			case precisiondate.PrecisionDay:
+				latest = publication.Date
+			default:
+				continue
+			}
+			if earliest == date.Zero || latest < earliest {
+				earliest = latest
+			}
+		}
+		if page*pageSize >= results.TotalHits() {
+			return earliest, nil
+		}
+	}
+}
+
 func documentQueryByAuthorSlug(authorSlug string) query.Query {
 	byAuthor := bleve.NewTermQuery(authorSlug)
 	byAuthor.SetField("AuthorsSlugs")
