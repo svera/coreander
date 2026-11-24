@@ -2,6 +2,7 @@ package index_test
 
 import (
 	"errors"
+	"fmt"
 	"maps"
 	"strings"
 	"sync"
@@ -9,8 +10,10 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/rickb777/date/v2"
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
@@ -18,7 +21,7 @@ type mockAuthorDataSource struct {
 	byName        map[string]datasourcemodel.Author
 	bySlug        map[string]datasourcemodel.Author
 	entityIDs     map[string][]string
-	candidates    map[string][]string
+	candidates    map[string]datasourcemodel.AuthorCandidates
 	calls         int
 	searchCalls   int
 	retrieveCalls int
@@ -28,7 +31,7 @@ type mockAuthorDataSource struct {
 
 func (*mockAuthorDataSource) ReferenceKey() string { return "example" }
 
-func (m *mockAuthorDataSource) SearchAuthor(name string, _ []string) (datasourcemodel.Author, error) {
+func (m *mockAuthorDataSource) SearchAuthor(name string, _ []string, _ date.Date) (datasourcemodel.Author, error) {
 	m.calls++
 	m.searchCalls++
 	if m.delay > 0 {
@@ -62,13 +65,13 @@ func (m *mockAuthorDataSource) SearchEntityIDs(name string) ([]string, error) {
 	return nil, nil
 }
 
-func (m *mockAuthorDataSource) RetrieveAuthor(_ []string, _ []string) (datasourcemodel.Author, error) {
+func (m *mockAuthorDataSource) RetrieveAuthor(_ []string, _ []string, _ date.Date) (datasourcemodel.Author, error) {
 	m.calls++
 	m.retrieveCalls++
 	return nil, nil
 }
 
-func (m *mockAuthorDataSource) RetrieveAuthors(candidates map[string][]string, _ []string, _ time.Duration, onResult func(string, datasourcemodel.Author) error) error {
+func (m *mockAuthorDataSource) RetrieveAuthors(candidates map[string]datasourcemodel.AuthorCandidates, _ []string, _ time.Duration, onResult func(string, datasourcemodel.Author) error) error {
 	m.calls++
 	m.retrieveCalls++
 	m.candidates = maps.Clone(candidates)
@@ -260,6 +263,41 @@ func TestAuthorsWithoutInfo(t *testing.T) {
 	}
 }
 
+func TestFirstAuthorPublicationDateUpperBound(t *testing.T) {
+	documents, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer documents.Close()
+	idx := index.NewBleve(documents, nil, nil, "", nil, index.Config{})
+	for i := 0; i < 105; i++ {
+		doc := index.Document{ID: fmt.Sprintf("book-%03d", i), AuthorsSlugs: []string{"writer"}}
+		switch i {
+		case 0:
+			doc.Publication = precisiondate.PrecisionDate{Date: date.New(1899, 1, 1), Precision: precisiondate.PrecisionYear}
+		case 104:
+			doc.Publication = precisiondate.PrecisionDate{Date: date.New(1899, 2, 1), Precision: precisiondate.PrecisionMonth}
+		}
+		if err := index.IndexDocument(documents, doc.ID, doc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	other := index.Document{ID: "other", AuthorsSlugs: []string{"other"}, Metadata: metadata.Metadata{
+		Publication: precisiondate.PrecisionDate{Date: date.New(1700, 1, 1), Precision: precisiondate.PrecisionDay},
+	}}
+	if err := index.IndexDocument(documents, other.ID, other); err != nil {
+		t.Fatal(err)
+	}
+	got, err := idx.FirstAuthorPublicationDateUpperBound("writer")
+	if err != nil || got != date.New(1899, 2, 28) {
+		t.Fatalf("got cutoff %v, %v; want 1899-02-28", got, err)
+	}
+	got, err = idx.FirstAuthorPublicationDateUpperBound("missing")
+	if err != nil || got != date.Zero {
+		t.Fatalf("missing author: got %v, %v", got, err)
+	}
+}
+
 func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	authorsIndexMem, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
 	if err != nil {
@@ -286,6 +324,18 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	for _, doc := range []index.Document{
+		{ID: "found-book", AuthorsSlugs: []string{"found"}, Metadata: metadata.Metadata{
+			Publication: precisiondate.PrecisionDate{Date: date.New(1900, 1, 1), Precision: precisiondate.PrecisionYear},
+		}},
+		{ID: "known-book", AuthorsSlugs: []string{"known"}, Metadata: metadata.Metadata{
+			Publication: precisiondate.PrecisionDate{Date: date.New(1800, 1, 1), Precision: precisiondate.PrecisionDay},
+		}},
+	} {
+		if err := index.IndexDocument(documentsIndexMem, doc.ID, doc); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	dataSource := &mockAuthorDataSource{
 		bySlug: map[string]datasourcemodel.Author{
@@ -309,8 +359,14 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	if dataSource.retrieveCalls != 1 {
 		t.Fatalf("expected 1 batched Wikidata entity fetch, got %d", dataSource.retrieveCalls)
 	}
-	if ids := dataSource.candidates["known"]; len(ids) != 1 || ids[0] != "Q2" {
+	if ids := dataSource.candidates["known"].IDs; len(ids) != 1 || ids[0] != "Q2" {
 		t.Fatalf("expected the known source reference reused without a name search, got %v", ids)
+	}
+	if got := dataSource.candidates["found"].FirstPublicationDateUpperBound; got != date.New(1900, 12, 31) {
+		t.Fatalf("expected year-precision publication cutoff, got %v", got)
+	}
+	if got := dataSource.candidates["known"].FirstPublicationDateUpperBound; got != date.Zero {
+		t.Fatalf("explicitly linked profile must not be filtered, got cutoff %v", got)
 	}
 	if elapsed < 50*time.Millisecond {
 		t.Fatalf("expected throttling between lookups, took %s", elapsed)

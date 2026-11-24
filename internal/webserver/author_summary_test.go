@@ -14,6 +14,7 @@ import (
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/rickb777/date/v2"
 	"github.com/spf13/afero"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
@@ -27,7 +28,32 @@ import (
 
 type alternativeAuthorSource struct {
 	authorcontroller.DataSource
-	retrievedIDs []string
+	retrievedIDs    []string
+	retrievedCutoff date.Date
+}
+
+type publicationAwareAuthorSource struct {
+	alternativeAuthorSource
+	cutoff date.Date
+}
+
+func (s *publicationAwareAuthorSource) SearchAuthor(_ string, _ []string, cutoff date.Date) (datasourcemodel.Author, error) {
+	s.cutoff = cutoff
+	return nil, nil
+}
+
+func TestAuthorSummaryUsesPublicationDate(t *testing.T) {
+	source := &publicationAwareAuthorSource{}
+	app, _ := bootstrapAppWithAuthorSource(infrastructure.Connect(":memory:", 250), &infrastructure.NoEmail{},
+		loadDirInMemoryFs("testdata/library"), defaultTestConfig(), source)
+	response, err := app.Test(mustGetRequest(t, "/authors/john-doe/summary"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK || source.cutoff != date.New(2020, 1, 1) {
+		t.Fatalf("summary status %d, search cutoff %v", response.StatusCode, source.cutoff)
+	}
 }
 
 func (*alternativeAuthorSource) ProfileServiceName() string { return "Example catalog" }
@@ -47,8 +73,9 @@ func (*alternativeAuthorSource) NormalizeAuthorID(value string) (string, error) 
 	return "alice", nil
 }
 
-func (s *alternativeAuthorSource) RetrieveAuthor(ids []string, _ []string) (datasourcemodel.Author, error) {
+func (s *alternativeAuthorSource) RetrieveAuthor(ids []string, _ []string, cutoff date.Date) (datasourcemodel.Author, error) {
 	s.retrievedIDs = ids
+	s.retrievedCutoff = cutoff
 	return alternativeAuthorMetadata{}, nil
 }
 
@@ -131,6 +158,7 @@ func TestUpdateUsesDataSourceProfileParser(t *testing.T) {
 	for _, style := range []string{"", "?style=clear"} {
 		t.Run("style="+style, func(t *testing.T) {
 			source.retrievedIDs = nil
+			source.retrievedCutoff = date.New(1900, 1, 1)
 			response, err := putRequest(url.Values{"sourceID": {"https://example.org/authors/alice"}}, admin, app, "/authors/john-doe"+style, t)
 			if err != nil {
 				t.Fatal(err)
@@ -160,7 +188,7 @@ func TestUpdateUsesDataSourceProfileParser(t *testing.T) {
 			if stored.DataSourceReferences["example"] != "alice" || stored.BirthName != "Alice Example" ||
 				stored.Description["en"] != "Updated author metadata" ||
 				stored.DataSourceReferences["independent"] != before.DataSourceReferences["independent"] ||
-				!reflect.DeepEqual(source.retrievedIDs, []string{"alice"}) {
+				!reflect.DeepEqual(source.retrievedIDs, []string{"alice"}) || source.retrievedCutoff != date.Zero {
 				t.Fatalf("expected normalized ID retrieval and persisted metadata while preserving independent links: %+v", stored)
 			}
 		})

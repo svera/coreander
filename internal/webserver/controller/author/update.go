@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 )
@@ -42,7 +43,7 @@ func (a *Controller) Update(c fiber.Ctx) error {
 	if sourceID == "" {
 		author = author.ClearMetadata(a.dataSource.OwnsLink)
 	} else {
-		authorDataSource, err := a.dataSource.RetrieveAuthor([]string{sourceID}, supportedLanguages)
+		authorDataSource, err := a.dataSource.RetrieveAuthor([]string{sourceID}, supportedLanguages, date.Zero)
 		if err != nil {
 			log.Println(err)
 			return fiber.ErrInternalServerError

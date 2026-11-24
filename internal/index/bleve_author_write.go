@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/rickb777/date/v2"
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 )
 
@@ -291,10 +292,10 @@ const (
 // AuthorDataSource retrieves author metadata from an external source.
 type AuthorDataSource interface {
 	ReferenceKey() string
-	SearchAuthor(name string, languages []string) (datasourcemodel.Author, error)
+	SearchAuthor(name string, languages []string, firstPublicationDateUpperBound date.Date) (datasourcemodel.Author, error)
 	SearchEntityIDs(name string) ([]string, error)
-	RetrieveAuthor(ids []string, languages []string) (datasourcemodel.Author, error)
-	RetrieveAuthors(candidates map[string][]string, languages []string, batchInterval time.Duration, onResult func(slug string, author datasourcemodel.Author) error) error
+	RetrieveAuthor(ids []string, languages []string, firstPublicationDateUpperBound date.Date) (datasourcemodel.Author, error)
+	RetrieveAuthors(candidates map[string]datasourcemodel.AuthorCandidates, languages []string, batchInterval time.Duration, onResult func(slug string, author datasourcemodel.Author) error) error
 }
 
 // CombineWithDataSource merges external author metadata into an indexed author.
@@ -358,14 +359,14 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	candidates := make(map[string][]string, len(authors))
+	candidates := make(map[string]datasourcemodel.AuthorCandidates, len(authors))
 	authorsBySlug := make(map[string]Author, len(authors))
 
 	searchIndex := 0
 	for _, author := range authors {
 		authorsBySlug[author.Slug] = author
 		if id := author.DataSourceReferences[dataSource.ReferenceKey()]; id != "" {
-			candidates[author.Slug] = []string{id}
+			candidates[author.Slug] = datasourcemodel.AuthorCandidates{IDs: []string{id}}
 			b.recordAuthorEnrichmentProgress()
 			continue
 		}
@@ -378,10 +379,15 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 		ids, err := dataSource.SearchEntityIDs(author.Name)
 		if err != nil {
 			log.Printf("Error searching author %s in data source: %s", author.Name, err)
-			candidates[author.Slug] = nil
-		} else {
-			candidates[author.Slug] = ids
 		}
+		var firstPublicationDateUpperBound date.Date
+		if len(ids) > 0 {
+			firstPublicationDateUpperBound, err = b.FirstAuthorPublicationDateUpperBound(author.Slug)
+			if err != nil {
+				return fmt.Errorf("finding publication date for author %s: %w", author.Name, err)
+			}
+		}
+		candidates[author.Slug] = datasourcemodel.AuthorCandidates{IDs: ids, FirstPublicationDateUpperBound: firstPublicationDateUpperBound}
 		b.recordAuthorEnrichmentProgress()
 	}
 

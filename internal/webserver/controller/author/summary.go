@@ -62,7 +62,12 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 		return nil
 	}
 
-	authorDataSource, err = a.dataSource.SearchAuthor(author.Name, supportedLanguages)
+	firstPublicationDateUpperBound, err := a.idx.FirstAuthorPublicationDateUpperBound(author.Slug)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+	authorDataSource, err = a.dataSource.SearchAuthor(author.Name, supportedLanguages, firstPublicationDateUpperBound)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
