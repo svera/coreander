@@ -18,6 +18,7 @@ import (
 	"github.com/svera/coreander/v5/internal/i18n"
 	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/versioncheck"
+	"github.com/svera/coreander/v5/internal/webserver/controller/author"
 	"github.com/svera/coreander/v5/internal/webserver/infrastructure"
 	"github.com/svera/coreander/v5/internal/webserver/model"
 	"golang.org/x/exp/slices"
@@ -57,12 +58,16 @@ type Config struct {
 	ClientDynamicImageCacheTTL int
 	ServerStaticCacheTTL       int
 	ServerDynamicImageCacheTTL int
+	ReviewSourceConfigured     bool
+	ReviewSourceCacheTTL       int
 	ShareCommentMaxSize        int
 	ShareMaxRecipients         int
 	IllustratedMinAmount       int
 	InviteEmailListMaxLength   int
 	InviteMaxRecipients        int
 	VersionChecker             *versioncheck.Checker
+	// AuthorBioProvider enables author biographies on author pages when set.
+	AuthorBioProvider author.BioProvider
 }
 
 type Sender interface {
@@ -74,6 +79,7 @@ type Sender interface {
 
 type IndexInfo interface {
 	IndexingProgress() (index.Progress, error)
+	BackgroundProgress() ([]index.Progress, error)
 	Languages() ([]string, error)
 	Formats() ([]string, error)
 }
@@ -134,6 +140,15 @@ func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, user
 	if err != nil {
 		log.Fatal(err)
 	}
+	engine.AddFunc("storedDocumentScore", controllers.Documents.StoredScore)
+	engine.AddFunc("remainingTime", fmtRemainingTime)
+	engine.AddFunc("backgroundProgress", func() fiber.Map {
+		tasks, err := idx.BackgroundProgress()
+		if err != nil {
+			log.Printf("Error reading background progress: %s", err)
+		}
+		return fiber.Map{"Tasks": tasks, "Error": err != nil}
+	})
 
 	// UploadDocumentMaxSize <= 0 means "unlimited", but fiber has no such
 	// sentinel for BodyLimit - it coerces any value <= 0 to its own 4MB
@@ -154,9 +169,11 @@ func New(cfg Config, controllers Controllers, sender Sender, idx IndexInfo, user
 
 	app.Use(
 		SetFQDN(cfg),
-		SetProgress(idx),
 		favicon.New(),
 		cache.New(cache.Config{
+			Next: func(c fiber.Ctx) bool {
+				return c.Path() == "/background-progress"
+			},
 			ExpirationGenerator: func(c fiber.Ctx, cfg *cache.Config) time.Duration {
 				newCacheTime, _ := strconv.Atoi(c.GetRespHeader("Cache-Time", "0"))
 				return time.Second * time.Duration(newCacheTime)

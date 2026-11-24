@@ -146,7 +146,7 @@ func TestIndexFileUpdatesHashWithoutMetadataChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	doc.TextRankWords = []string{"enriched"}
-	if err := idx.documentsIdx.Index(doc.ID, doc); err != nil {
+	if err := IndexDocument(idx.documentsIdx, doc.ID, doc); err != nil {
 		t.Fatal(err)
 	}
 	for _, content := range []string{"original content", "modified content", "modified content"} {

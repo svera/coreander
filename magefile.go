@@ -71,53 +71,33 @@ func binaryName(platform string) string {
 }
 
 func env(platform string) (map[string]string, error) {
-	env := map[string]string{}
+	env := map[string]string{"CGO_ENABLED": "0"}
 
 	switch platform {
 	case "linux32":
-		return map[string]string{
-			"GOOS":   "linux",
-			"GOARCH": "386",
-		}, nil
+		env["GOOS"], env["GOARCH"] = "linux", "386"
 	case "linux64":
-		return map[string]string{
-			"GOOS":   "linux",
-			"GOARCH": "amd64",
-		}, nil
+		env["GOOS"], env["GOARCH"] = "linux", "amd64"
 	case "linuxarm32":
-		return map[string]string{
-			"GOOS":   "linux",
-			"GOARCH": "arm",
-			"GOARM":  "7",
-		}, nil
+		env["GOOS"], env["GOARCH"], env["GOARM"] = "linux", "arm", "7"
 	case "linuxarm64":
-		return map[string]string{
-			"GOOS":   "linux",
-			"GOARCH": "arm64",
-		}, nil
+		env["GOOS"], env["GOARCH"] = "linux", "arm64"
 	case "osxintel":
-		return map[string]string{
-			"GOOS":   "darwin",
-			"GOARCH": "amd64",
-		}, nil
+		env["GOOS"], env["GOARCH"] = "darwin", "amd64"
 	case "osxapple":
-		return map[string]string{
-			"GOOS":   "darwin",
-			"GOARCH": "arm64",
-		}, nil
+		env["GOOS"], env["GOARCH"] = "darwin", "arm64"
 	case "win32":
-		return map[string]string{
-			"GOOS":   "windows",
-			"GOARCH": "386",
-		}, nil
+		env["GOOS"], env["GOARCH"] = "windows", "386"
 	case "win64":
-		return map[string]string{
-			"GOOS":   "windows",
-			"GOARCH": "amd64",
-		}, nil
+		env["GOOS"], env["GOARCH"] = "windows", "amd64"
+	default:
+		return nil, fmt.Errorf("Platform '%s' not supported", platform)
 	}
 
-	return env, fmt.Errorf("Platform '%s' not supported", platform)
+	if env["GOARCH"] == "amd64" {
+		env["GOAMD64"] = "v1"
+	}
+	return env, nil
 }
 
 func createZip(fileName, zipFileName string) error {

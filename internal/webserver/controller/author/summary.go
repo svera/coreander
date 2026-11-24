@@ -47,9 +47,13 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 
 	if !author.RetrievedOn.IsZero() {
 		templateVars := fiber.Map{
-			"Author":       author,
-			"ImageVersion": imageVersion,
+			"Author":                    author,
+			"AuthorDataSourceReference": AuthorDataSourceReference(author, a.dataSource),
+			"DataSourceLinks":           a.authorDataSourceLinks(author, lang),
+			"ImageVersion":              imageVersion,
+			"ProfileInputs":             a.profileInputs(author, lang, c.Query("style"), "", ""),
 		}
+		a.addBioVars(templateVars, template, author, lang)
 
 		if err = c.Render(template, templateVars); err != nil {
 			log.Println(err)
@@ -58,26 +62,33 @@ func (a *Controller) Summary(c fiber.Ctx) error {
 		return nil
 	}
 
-	authorDataSource, err = a.dataSource.SearchAuthor(author.Name, supportedLanguages)
+	firstPublicationDateUpperBound, err := a.idx.FirstAuthorPublicationDateUpperBound(author.Slug)
+	if err != nil {
+		log.Println(err)
+		return fiber.ErrInternalServerError
+	}
+	authorDataSource, err = a.dataSource.SearchAuthor(author.Name, supportedLanguages, firstPublicationDateUpperBound)
 	if err != nil {
 		log.Println(err)
 		return fiber.ErrInternalServerError
 	}
 
-	if authorDataSource == nil {
-		return fiber.ErrNotFound
-	}
+	if authorDataSource != nil {
+		index.CombineWithDataSource(&author, authorDataSource, supportedLanguages)
 
-	index.CombineWithDataSource(&author, authorDataSource, supportedLanguages)
-
-	if err := a.idx.IndexAuthor(author); err != nil {
-		log.Println(err)
+		if err := a.idx.IndexAuthor(author); err != nil {
+			log.Println(err)
+		}
 	}
 
 	templateVars := fiber.Map{
-		"Author":       author,
-		"ImageVersion": imageVersion,
+		"Author":                    author,
+		"AuthorDataSourceReference": AuthorDataSourceReference(author, a.dataSource),
+		"DataSourceLinks":           a.authorDataSourceLinks(author, lang),
+		"ImageVersion":              imageVersion,
+		"ProfileInputs":             a.profileInputs(author, lang, c.Query("style"), "", ""),
 	}
+	a.addBioVars(templateVars, template, author, lang)
 
 	if err = c.Render(template, templateVars); err != nil {
 		log.Println(err)

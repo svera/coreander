@@ -53,8 +53,14 @@ func validateDate(ISOdate string, precision float64) bool {
 	// Parse date part
 	var yearStr string
 	if strings.HasPrefix(datePart, "-") || strings.HasPrefix(datePart, "+") {
+		if len(datePart) < 5 {
+			return false
+		}
 		yearStr = datePart[:5]
 	} else {
+		if len(datePart) < 4 {
+			return false
+		}
 		yearStr = datePart[:4]
 	}
 
@@ -75,7 +81,7 @@ func validateDate(ISOdate string, precision float64) bool {
 
 	// For month precision, validate month
 	if precision == PrecisionMonth {
-		parts := strings.Split(datePart, "-")
+		parts := strings.Split(strings.TrimPrefix(datePart, "-"), "-")
 		if len(parts) < 2 {
 			return false
 		}
@@ -88,7 +94,7 @@ func validateDate(ISOdate string, precision float64) bool {
 
 	// For day precision, validate the full date
 	if precision == PrecisionDay {
-		parts := strings.Split(datePart, "-")
+		parts := strings.Split(strings.TrimPrefix(datePart, "-"), "-")
 		if len(parts) != 3 {
 			return false
 		}

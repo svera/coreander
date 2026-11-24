@@ -1,12 +1,29 @@
 package index
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
+	"maps"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/rickb777/date/v2"
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 )
+
+// indexAuthor stores references as one stored-only field so new sources need no mapping changes.
+func indexAuthor(destination interface{ Index(string, any) error }, id string, author Author) error {
+	links, err := json.Marshal(author.DataSourceReferences)
+	if err != nil {
+		return err
+	}
+	author.DataSourceReferences = nil
+	return destination.Index(id, struct {
+		Author
+		DataSourceReferences string
+	}{author, string(links)})
+}
 
 func (b *BleveIndexer) incrementAuthorCounts(names, slugs []string) error {
 	for i, name := range names {
@@ -25,7 +42,9 @@ func (b *BleveIndexer) incrementAuthorCount(name, authorSlug string) error {
 	if name == "" || authorSlug == "" {
 		return nil
 	}
-	existing, err := b.Author(authorSlug, "")
+	b.authorsMu.Lock()
+	defer b.authorsMu.Unlock()
+	existing, err := b.authorBySlugLocked(authorSlug)
 	if err != nil {
 		return err
 	}
@@ -34,9 +53,7 @@ func (b *BleveIndexer) incrementAuthorCount(name, authorSlug string) error {
 	} else {
 		existing.DocumentCount++
 	}
-	b.authorsMu.Lock()
-	defer b.authorsMu.Unlock()
-	return b.authorsIdx.Index(authorSlug, existing)
+	return indexAuthor(b.authorsIdx, authorSlug, existing)
 }
 
 // RebuildAuthorsFromDocuments recalculates DocumentCount for every author from the documents
@@ -51,10 +68,10 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 	}
 
 	// Fetch all existing authors so their enriched metadata is preserved.
-	b.authorsMu.RLock()
+	b.authorsMu.Lock()
+	defer b.authorsMu.Unlock()
 	authorDocCount, err := b.authorsIdx.DocCount()
 	if err != nil {
-		b.authorsMu.RUnlock()
 		return err
 	}
 	existingAuthors := make(map[string]Author, authorDocCount)
@@ -63,7 +80,6 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 		req.Fields = []string{"*"}
 		result, err := b.authorsIdx.Search(req)
 		if err != nil {
-			b.authorsMu.RUnlock()
 			return err
 		}
 		for _, hit := range result.Hits {
@@ -71,7 +87,6 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 			existingAuthors[a.Slug] = a
 		}
 	}
-	b.authorsMu.RUnlock()
 
 	batch := b.authorsIdx.NewBatch()
 	for authorSlug, count := range counts {
@@ -80,13 +95,11 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 			author = Author{Name: names[authorSlug], Slug: authorSlug}
 		}
 		author.DocumentCount = count
-		if err := batch.Index(authorSlug, author); err != nil {
+		if err := indexAuthor(batch, authorSlug, author); err != nil {
 			return err
 		}
 		if batch.Size() >= batchSize {
-			b.authorsMu.Lock()
 			err := b.authorsIdx.Batch(batch)
-			b.authorsMu.Unlock()
 			if err != nil {
 				return err
 			}
@@ -94,8 +107,6 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 		}
 	}
 	if batch.Size() > 0 {
-		b.authorsMu.Lock()
-		defer b.authorsMu.Unlock()
 		return b.authorsIdx.Batch(batch)
 	}
 	return nil
@@ -105,6 +116,9 @@ func (b *BleveIndexer) RebuildAuthorsFromDocuments(batchSize int) error {
 // and one representative name per author slug. Pages through the index batchSize documents
 // at a time, requesting only the four contributor fields it needs.
 func (b *BleveIndexer) countDocumentsPerAuthor(batchSize int) (counts map[string]uint64, names map[string]string, err error) {
+	if batchSize <= 0 {
+		return nil, nil, fmt.Errorf("author rebuild batch size must be positive")
+	}
 	b.documentsMu.RLock()
 	docCount, err := b.documentsIdx.DocCount()
 	b.documentsMu.RUnlock()
@@ -121,6 +135,7 @@ func (b *BleveIndexer) countDocumentsPerAuthor(batchSize int) (counts map[string
 	for from := 0; uint64(from) < docCount; from += batchSize {
 		req := bleve.NewSearchRequestOptions(bleve.NewMatchAllQuery(), batchSize, from, false)
 		req.Fields = []string{"Authors", "AuthorsSlugs", "Illustrators", "IllustratorsSlugs"}
+		req.SortBy([]string{"_id"})
 		b.documentsMu.RLock()
 		result, err := b.documentsIdx.Search(req)
 		b.documentsMu.RUnlock()
@@ -154,10 +169,107 @@ func accumulateContributors(counts map[string]uint64, names map[string]string, s
 func (b *BleveIndexer) IndexAuthor(author Author) error {
 	b.authorsMu.Lock()
 	defer b.authorsMu.Unlock()
-	if err := b.authorsIdx.Index(author.Slug, author); err != nil {
+	current, err := b.authorBySlugLocked(author.Slug)
+	if err != nil {
+		return err
+	}
+	// Link enrichment runs independently of metadata enrichment and UI edits.
+	links := maps.Clone(author.DataSourceReferences)
+	if len(current.DataSourceReferences) > 0 {
+		if links == nil {
+			links = make(map[string]string)
+		}
+		for source, link := range current.DataSourceReferences {
+			if author.ownsRefreshedLink == nil || !author.ownsRefreshedLink(source) {
+				links[source] = link
+			}
+		}
+	}
+	author.DataSourceReferences = links
+	if current.Slug != "" {
+		author.Bio = current.Bio
+	}
+	if err := indexAuthor(b.authorsIdx, author.Slug, author); err != nil {
 		return err
 	}
 	return nil
+}
+
+// StoreAuthorBio saves a biography for an indexed author. Texts for the same source and
+// original language are merged with the stored ones, so translations accumulate; any other
+// biography replaces the stored one.
+func (b *BleveIndexer) StoreAuthorBio(slug string, bio AuthorBio) error {
+	return b.storeAuthorBio(slug, bio, true)
+}
+
+// ReplaceAuthorBio stores bio as the biography of the author identified by slug, discarding any texts
+// stored before, even if they come from the same source and are in the same language.
+func (b *BleveIndexer) ReplaceAuthorBio(slug string, bio AuthorBio) error {
+	return b.storeAuthorBio(slug, bio, false)
+}
+
+// StoreCanonicalAuthorBio replaces the bio and its source link atomically, unless the link changed.
+func (b *BleveIndexer) StoreCanonicalAuthorBio(slug, linkKey, previousLink string, bio AuthorBio) error {
+	b.authorsMu.Lock()
+	defer b.authorsMu.Unlock()
+	author, err := b.authorBySlugLocked(slug)
+	if err != nil || author.Slug == "" {
+		return err
+	}
+	if author.DataSourceReferences[linkKey] != previousLink {
+		return fmt.Errorf("data source link changed while resolving primary profile for %s", slug)
+	}
+	if author.DataSourceReferences == nil {
+		author.DataSourceReferences = make(map[string]string)
+	}
+	if bio.Source == "" {
+		delete(author.DataSourceReferences, linkKey)
+	} else {
+		author.DataSourceReferences[linkKey] = bio.Source
+	}
+	author.Bio = bio
+	return indexAuthor(b.authorsIdx, slug, author)
+}
+
+func (b *BleveIndexer) storeAuthorBio(slug string, bio AuthorBio, merge bool) error {
+	return b.storeAuthorBioChecked(slug, "", bio, merge, nil)
+}
+
+// StoreAuthorBioForLink rejects biography results when the source link has changed.
+func (b *BleveIndexer) StoreAuthorBioForLink(slug, linkKey, expectedLink string, bio AuthorBio, merge bool) error {
+	return b.storeAuthorBioChecked(slug, linkKey, bio, merge, &expectedLink)
+}
+
+func (b *BleveIndexer) storeAuthorBioChecked(slug, linkKey string, bio AuthorBio, merge bool, expectedLink *string) error {
+	b.authorsMu.Lock()
+	defer b.authorsMu.Unlock()
+	author, err := b.authorBySlugLocked(slug)
+	if err != nil || author.Slug == "" {
+		return err
+	}
+	if expectedLink != nil && author.DataSourceReferences[linkKey] != *expectedLink {
+		return fmt.Errorf("data source link changed while retrieving biography for %s", slug)
+	}
+	if merge && author.Bio.Source == bio.Source && author.Bio.Language == bio.Language {
+		texts := maps.Clone(author.Bio.Text)
+		if texts == nil {
+			texts = make(map[string]string, len(bio.Text))
+		}
+		maps.Copy(texts, bio.Text)
+		bio.Text = texts
+	}
+	author.Bio = bio
+	return indexAuthor(b.authorsIdx, slug, author)
+}
+
+func (b *BleveIndexer) authorBySlugLocked(slug string) (Author, error) {
+	req := bleve.NewSearchRequest(bleve.NewDocIDQuery([]string{slug}))
+	req.Fields = []string{"*"}
+	result, err := b.authorsIdx.Search(req)
+	if err != nil || len(result.Hits) == 0 {
+		return Author{}, err
+	}
+	return hydrateAuthor(result.Hits[0]), nil
 }
 
 func (b *BleveIndexer) beginAuthorEnrichment(total int) {
@@ -177,25 +289,38 @@ const (
 	DefaultAuthorEnrichInterval   = time.Minute / AuthorEnrichRequestsPerMinute
 )
 
-// AuthorDataSource retrieves author metadata from an external source such as Wikidata.
+// AuthorDataSource retrieves author metadata from an external source.
 type AuthorDataSource interface {
-	SearchAuthor(name string, languages []string) (datasourcemodel.Author, error)
+	ReferenceKey() string
+	SearchAuthor(name string, languages []string, firstPublicationDateUpperBound date.Date) (datasourcemodel.Author, error)
 	SearchEntityIDs(name string) ([]string, error)
-	RetrieveAuthor(ids []string, languages []string) (datasourcemodel.Author, error)
-	RetrieveAuthors(candidates map[string][]string, languages []string, batchInterval time.Duration, onResult func(slug string, author datasourcemodel.Author) error) error
+	RetrieveAuthor(ids []string, languages []string, firstPublicationDateUpperBound date.Date) (datasourcemodel.Author, error)
+	RetrieveAuthors(candidates map[string]datasourcemodel.AuthorCandidates, languages []string, batchInterval time.Duration, onResult func(slug string, author datasourcemodel.Author) error) error
 }
 
 // CombineWithDataSource merges external author metadata into an indexed author.
 func CombineWithDataSource(author *Author, authorDataSource datasourcemodel.Author, supportedLanguages []string) {
-	author.DataSourceID = authorDataSource.SourceID()
 	author.BirthName = authorDataSource.BirthName()
 	author.RetrievedOn = authorDataSource.RetrievedOn()
-	author.WikipediaLink = make(map[string]string)
+	author.DataSourceReferences = maps.Clone(author.DataSourceReferences)
+	author.ownsRefreshedLink = authorDataSource.OwnsLink
+	if author.DataSourceReferences == nil {
+		author.DataSourceReferences = make(map[string]string)
+	}
+	for source := range author.DataSourceReferences {
+		if authorDataSource.OwnsLink(source) {
+			delete(author.DataSourceReferences, source)
+		}
+	}
 	author.InstanceOf = authorDataSource.InstanceOf()
 	author.Description = make(map[string]string)
 	author.DateOfBirth = authorDataSource.DateOfBirth()
 	author.DateOfDeath = authorDataSource.DateOfDeath()
-	author.Website = authorDataSource.Website()
+	for key, link := range authorDataSource.Links() {
+		if link != "" {
+			author.DataSourceReferences[key] = link
+		}
+	}
 	author.DataSourceImage = authorDataSource.Image()
 	author.Gender = authorDataSource.Gender()
 	author.Pseudonyms = make([]string, 0, len(authorDataSource.Pseudonyms()))
@@ -207,7 +332,6 @@ func CombineWithDataSource(author *Author, authorDataSource datasourcemodel.Auth
 	}
 
 	for _, lang := range supportedLanguages {
-		author.WikipediaLink[lang] = authorDataSource.WikipediaLink(lang)
 		author.Description[lang] = authorDataSource.Description(lang)
 	}
 }
@@ -227,7 +351,7 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 		return nil
 	}
 
-	log.Printf("Enriching %d authors from Wikidata", len(authors))
+	log.Printf("Enriching %d authors from data source", len(authors))
 
 	b.beginAuthorEnrichment(len(authors) * 2)
 	defer b.endAuthorEnrichment()
@@ -235,14 +359,14 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	candidates := make(map[string][]string, len(authors))
+	candidates := make(map[string]datasourcemodel.AuthorCandidates, len(authors))
 	authorsBySlug := make(map[string]Author, len(authors))
 
 	searchIndex := 0
 	for _, author := range authors {
 		authorsBySlug[author.Slug] = author
-		if author.DataSourceID != "" {
-			candidates[author.Slug] = []string{author.DataSourceID}
+		if id := author.DataSourceReferences[dataSource.ReferenceKey()]; id != "" {
+			candidates[author.Slug] = datasourcemodel.AuthorCandidates{IDs: []string{id}}
 			b.recordAuthorEnrichmentProgress()
 			continue
 		}
@@ -254,11 +378,16 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 
 		ids, err := dataSource.SearchEntityIDs(author.Name)
 		if err != nil {
-			log.Printf("Error searching author %s on Wikidata: %s", author.Name, err)
-			candidates[author.Slug] = nil
-		} else {
-			candidates[author.Slug] = ids
+			log.Printf("Error searching author %s in data source: %s", author.Name, err)
 		}
+		var firstPublicationDateUpperBound date.Date
+		if len(ids) > 0 {
+			firstPublicationDateUpperBound, err = b.FirstAuthorPublicationDateUpperBound(author.Slug)
+			if err != nil {
+				return fmt.Errorf("finding publication date for author %s: %w", author.Name, err)
+			}
+		}
+		candidates[author.Slug] = datasourcemodel.AuthorCandidates{IDs: ids, FirstPublicationDateUpperBound: firstPublicationDateUpperBound}
 		b.recordAuthorEnrichmentProgress()
 	}
 

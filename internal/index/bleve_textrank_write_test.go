@@ -29,14 +29,14 @@ func newTestTextRankIndexer(t *testing.T, cfg Config) (idx *BleveIndexer, docume
 }
 
 // TestCommonTextRankEntriesNeedPrune guards the gate EnrichTextRankKeywords
-// uses to skip pruneCommonTextRankEntries when nothing changed.
+// uses to skip maintainTextRankEntries when nothing changed.
 func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 	idx, documentsIndexMem := newTestTextRankIndexer(t, Config{
 		PruneChangeTriggerRatio: 0.5,
 	})
 
 	for i := 0; i < 4; i++ {
-		if err := documentsIndexMem.Index(strconv.Itoa(i), Document{ID: strconv.Itoa(i)}); err != nil {
+		if err := IndexDocument(documentsIndexMem, strconv.Itoa(i), Document{ID: strconv.Itoa(i)}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -45,11 +45,7 @@ func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 		t.Error("expected pruning to be needed when no prune has ever run")
 	}
 
-	docCount, err := documentsIndexMem.DocCount()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := documentsIndexMem.SetInternal(internalDocCountAtLastPrune, []byte(strconv.FormatUint(docCount, 10))); err != nil {
+	if err := idx.maintainTextRankEntries(10); err != nil {
 		t.Fatal(err)
 	}
 
@@ -60,7 +56,7 @@ func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 	// PruneChangeTriggerRatio is 0.5 of the 4 documents recorded above (i.e.
 	// 2), so 3 more documents is enough to cross it.
 	for i := 0; i < 3; i++ {
-		if err := documentsIndexMem.Index("extra"+strconv.Itoa(i), Document{ID: "extra" + strconv.Itoa(i)}); err != nil {
+		if err := IndexDocument(documentsIndexMem, "extra"+strconv.Itoa(i), Document{ID: "extra" + strconv.Itoa(i)}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -71,7 +67,7 @@ func TestCommonTextRankEntriesNeedPrune(t *testing.T) {
 }
 
 // TestPruningReportsProgress guards IndexingProgress surfacing Kind
-// ProgressPruning while pruneCommonTextRankEntries runs.
+// ProgressPruning while maintainTextRankEntries runs.
 func TestPruningReportsProgress(t *testing.T) {
 	idx, documentsIndexMem := newTestTextRankIndexer(t, Config{})
 
@@ -83,7 +79,7 @@ func TestPruningReportsProgress(t *testing.T) {
 			TextRankPhrases: []string{"phrase " + id},
 			TextRankWords:   []string{"word" + id},
 		}
-		if err := documentsIndexMem.Index(id, document); err != nil {
+		if err := IndexDocument(documentsIndexMem, id, document); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -92,7 +88,7 @@ func TestPruningReportsProgress(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := idx.pruneCommonTextRankEntries(10); err != nil {
+		if err := idx.maintainTextRankEntries(10); err != nil {
 			t.Error(err)
 		}
 	}()
@@ -119,7 +115,7 @@ func TestPruningReportsProgress(t *testing.T) {
 	if p, err := idx.IndexingProgress(); err != nil {
 		t.Fatal(err)
 	} else if p.InProgress {
-		t.Error("expected pruning progress to no longer be in progress once pruneCommonTextRankEntries returns")
+		t.Error("expected pruning progress to no longer be in progress once maintainTextRankEntries returns")
 	}
 }
 
@@ -132,7 +128,7 @@ func TestPruneCommonTextRankEntriesRewritesCommonEntries(t *testing.T) {
 		MinCommonTextRankAbsoluteCount: 1,
 	})
 
-	const docCount = 10
+	const docCount = 23
 	for i := 0; i < docCount; i++ {
 		id := strconv.Itoa(i)
 		document := Document{
@@ -140,12 +136,12 @@ func TestPruneCommonTextRankEntriesRewritesCommonEntries(t *testing.T) {
 			TextRankPhrases: []string{"common phrase", "commonword distinctive" + id, "unique phrase " + id},
 			TextRankWords:   []string{"commonword", "unique" + id},
 		}
-		if err := documentsIndexMem.Index(id, document); err != nil {
+		if err := IndexDocument(documentsIndexMem, id, document); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	if err := idx.pruneCommonTextRankEntries(3); err != nil {
+	if err := idx.maintainTextRankEntries(3); err != nil {
 		t.Fatal(err)
 	}
 

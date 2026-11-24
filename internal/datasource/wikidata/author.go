@@ -1,6 +1,7 @@
 package wikidata
 
 import (
+	"strings"
 	"time"
 
 	"github.com/svera/coreander/v5/internal/precisiondate"
@@ -48,15 +49,6 @@ const (
 	InstanceHumanWhoseExistenceIsDisputed
 )
 
-const (
-	GenderUnknown = iota
-	GenderMale
-	GenderFemale
-	GenderIntersex
-	GenderTrasgenderFemale
-	GenderTrasgenderMale
-)
-
 type Author struct {
 	birthName        string
 	wikidataEntityId string
@@ -90,8 +82,24 @@ func (a Author) DateOfDeath() precisiondate.PrecisionDate {
 	return a.dateOfDeath
 }
 
-func (a Author) Website() string {
-	return a.website
+func (a Author) Links() map[string]string {
+	links := make(map[string]string, len(a.wikipediaLink)+2)
+	if a.wikidataEntityId != "" {
+		links["wikidata"] = a.wikidataEntityId
+	}
+	if a.website != "" {
+		links["website"] = a.website
+	}
+	for language, url := range a.wikipediaLink {
+		if url != "" {
+			links["wikipedia:"+language] = url
+		}
+	}
+	return links
+}
+
+func (a Author) OwnsLink(key string) bool {
+	return key == "wikidata" || key == "website" || strings.HasPrefix(key, "wikipedia:")
 }
 
 func (a Author) Image() string {
@@ -102,16 +110,8 @@ func (a Author) InstanceOf() float64 {
 	return a.instanceOf
 }
 
-func (a Author) WikipediaLink(language string) string {
-	return a.wikipediaLink[language]
-}
-
 func (a Author) Gender() float64 {
 	return a.gender
-}
-
-func (a Author) SourceID() string {
-	return a.wikidataEntityId
 }
 
 func (a Author) RetrievedOn() time.Time {

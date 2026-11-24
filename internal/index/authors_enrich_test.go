@@ -2,13 +2,18 @@ package index_test
 
 import (
 	"errors"
+	"fmt"
+	"maps"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
+	"github.com/rickb777/date/v2"
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
+	"github.com/svera/coreander/v5/internal/metadata"
 	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
@@ -16,6 +21,7 @@ type mockAuthorDataSource struct {
 	byName        map[string]datasourcemodel.Author
 	bySlug        map[string]datasourcemodel.Author
 	entityIDs     map[string][]string
+	candidates    map[string]datasourcemodel.AuthorCandidates
 	calls         int
 	searchCalls   int
 	retrieveCalls int
@@ -23,7 +29,9 @@ type mockAuthorDataSource struct {
 	errName       string
 }
 
-func (m *mockAuthorDataSource) SearchAuthor(name string, _ []string) (datasourcemodel.Author, error) {
+func (*mockAuthorDataSource) ReferenceKey() string { return "example" }
+
+func (m *mockAuthorDataSource) SearchAuthor(name string, _ []string, _ date.Date) (datasourcemodel.Author, error) {
 	m.calls++
 	m.searchCalls++
 	if m.delay > 0 {
@@ -52,20 +60,21 @@ func (m *mockAuthorDataSource) SearchEntityIDs(name string) ([]string, error) {
 		}
 	}
 	if author, ok := m.byName[name]; ok && author != nil {
-		return []string{author.SourceID()}, nil
+		return []string{author.Links()["example"]}, nil
 	}
 	return nil, nil
 }
 
-func (m *mockAuthorDataSource) RetrieveAuthor(_ []string, _ []string) (datasourcemodel.Author, error) {
+func (m *mockAuthorDataSource) RetrieveAuthor(_ []string, _ []string, _ date.Date) (datasourcemodel.Author, error) {
 	m.calls++
 	m.retrieveCalls++
 	return nil, nil
 }
 
-func (m *mockAuthorDataSource) RetrieveAuthors(candidates map[string][]string, _ []string, _ time.Duration, onResult func(string, datasourcemodel.Author) error) error {
+func (m *mockAuthorDataSource) RetrieveAuthors(candidates map[string]datasourcemodel.AuthorCandidates, _ []string, _ time.Duration, onResult func(string, datasourcemodel.Author) error) error {
 	m.calls++
 	m.retrieveCalls++
+	m.candidates = maps.Clone(candidates)
 	for slug := range candidates {
 		author := m.bySlug[slug]
 		if err := onResult(slug, author); err != nil {
@@ -76,7 +85,9 @@ func (m *mockAuthorDataSource) RetrieveAuthors(candidates map[string][]string, _
 }
 
 type stubAuthor struct {
-	sourceID string
+	sourceID   string
+	links      map[string]string
+	linkPrefix string
 }
 
 func (a stubAuthor) BirthName() string                        { return "" }
@@ -86,11 +97,140 @@ func (a stubAuthor) Gender() float64                          { return 0 }
 func (a stubAuthor) DateOfBirth() precisiondate.PrecisionDate { return precisiondate.PrecisionDate{} }
 func (a stubAuthor) DateOfDeath() precisiondate.PrecisionDate { return precisiondate.PrecisionDate{} }
 func (a stubAuthor) Image() string                            { return "" }
-func (a stubAuthor) Website() string                          { return "" }
-func (a stubAuthor) WikipediaLink(string) string              { return "" }
-func (a stubAuthor) SourceID() string                         { return a.sourceID }
-func (a stubAuthor) RetrievedOn() time.Time                   { return time.Now().UTC() }
-func (a stubAuthor) Pseudonyms() []string                     { return nil }
+func (a stubAuthor) Links() map[string]string {
+	links := maps.Clone(a.links)
+	if a.sourceID != "" {
+		if links == nil {
+			links = make(map[string]string)
+		}
+		links["example"] = a.sourceID
+	}
+	return links
+}
+func (a stubAuthor) OwnsLink(key string) bool {
+	return key == "example" || (a.linkPrefix != "" && strings.HasPrefix(key, a.linkPrefix))
+}
+func (a stubAuthor) RetrievedOn() time.Time { return time.Now().UTC() }
+func (a stubAuthor) Pseudonyms() []string   { return nil }
+
+func TestAuthorMetadataRefreshUpdatesLinks(t *testing.T) {
+	authors, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer authors.Close()
+	idx := index.NewBleve(nil, authors, nil, "", nil, index.Config{})
+	author := index.Author{
+		Slug: "writer", Name: "Writer",
+		DataSourceReferences: map[string]string{
+			"example:website": "https://old.example",
+			"example:en":      "https://en.example/Old",
+			"example:es":      "https://es.example/Old",
+			"goodreads":       "1.Writer",
+			"catalog":         "https://catalog.example/writer",
+		},
+	}
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range []stubAuthor{
+		{sourceID: "Q1", linkPrefix: "example:", links: map[string]string{
+			"example:website": "https://new.example", "example:en": "https://en.example/New",
+		}},
+		{sourceID: "Q1", linkPrefix: "example:"},
+	} {
+		index.CombineWithDataSource(&author, source, []string{"en", "es"})
+		current, err := idx.Author("writer", "en")
+		if err != nil {
+			t.Fatal(err)
+		}
+		current.DataSourceReferences["another-provider"] = "https://another.example/writer"
+		if err := idx.IndexAuthor(current); err != nil {
+			t.Fatal(err)
+		}
+		if err := idx.IndexAuthor(author); err != nil {
+			t.Fatal(err)
+		}
+		got, err := idx.Author("writer", "en")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.DataSourceReferences["example:website"] != source.links["example:website"] ||
+			got.DataSourceReferences["example:en"] != source.links["example:en"] ||
+			got.DataSourceReferences["example:es"] != "" {
+			t.Fatalf("metadata links were not refreshed: %+v", got.DataSourceReferences)
+		}
+		if got.DataSourceReferences["goodreads"] != "1.Writer" ||
+			got.DataSourceReferences["catalog"] != "https://catalog.example/writer" ||
+			got.DataSourceReferences["another-provider"] != "https://another.example/writer" {
+			t.Fatalf("metadata refresh lost independent provider links: %+v", got.DataSourceReferences)
+		}
+		if source.links != nil {
+			author.DataSourceReferences["example:website"] = "https://caller.example"
+			if source.links["example:website"] != "https://new.example" {
+				t.Fatal("combining metadata retained a mutable datasource map")
+			}
+		}
+	}
+}
+
+func TestAuthorMetadataResetPreservesConcurrentProviderLinks(t *testing.T) {
+	authors, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer authors.Close()
+	idx := index.NewBleve(nil, authors, nil, "", nil, index.Config{})
+	author := index.Author{
+		Slug: "writer", Name: "Writer", DocumentCount: 3,
+		DataSourceReferences: map[string]string{
+			"example":         "Q1",
+			"example:website": "https://old.example", "example:en": "https://en.example/Old",
+			"catalog": "https://catalog.example/writer",
+		},
+	}
+	if err := idx.IndexAuthor(author); err != nil {
+		t.Fatal(err)
+	}
+	reset := author.ClearMetadata((stubAuthor{linkPrefix: "example:"}).OwnsLink)
+	if author.DataSourceReferences["example:website"] == "" {
+		t.Fatal("reset must not mutate the caller's links")
+	}
+	current, err := idx.Author("writer", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	current.DataSourceReferences["goodreads"] = "1.Writer"
+	if err := idx.IndexAuthor(current); err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.IndexAuthor(reset); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := idx.Author("writer", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.DataSourceReferences["example:website"] != "" || stored.DataSourceReferences["example:en"] != "" ||
+		stored.DataSourceReferences["example"] != "" || stored.RetrievedOn.IsZero() {
+		t.Fatalf("reset must remove metadata association and owned links: %+v", stored)
+	}
+	if stored.DataSourceReferences["catalog"] != "https://catalog.example/writer" ||
+		stored.DataSourceReferences["goodreads"] != "1.Writer" || stored.DocumentCount != 3 {
+		t.Fatalf("reset must retain independent and concurrent author data: %+v", stored)
+	}
+	stale := index.Author{Slug: "writer", Name: "Writer"}
+	if err := idx.IndexAuthor(stale); err != nil {
+		t.Fatal(err)
+	}
+	stored, err = idx.Author("writer", "en")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stored.DataSourceReferences) != 2 {
+		t.Fatalf("ordinary stale writes must preserve independent links: %+v", stored.DataSourceReferences)
+	}
+}
 
 func TestAuthorsWithoutInfo(t *testing.T) {
 	authorsIndexMem, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
@@ -123,6 +263,41 @@ func TestAuthorsWithoutInfo(t *testing.T) {
 	}
 }
 
+func TestFirstAuthorPublicationDateUpperBound(t *testing.T) {
+	documents, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer documents.Close()
+	idx := index.NewBleve(documents, nil, nil, "", nil, index.Config{})
+	for i := 0; i < 105; i++ {
+		doc := index.Document{ID: fmt.Sprintf("book-%03d", i), AuthorsSlugs: []string{"writer"}}
+		switch i {
+		case 0:
+			doc.Publication = precisiondate.PrecisionDate{Date: date.New(1899, 1, 1), Precision: precisiondate.PrecisionYear}
+		case 104:
+			doc.Publication = precisiondate.PrecisionDate{Date: date.New(1899, 2, 1), Precision: precisiondate.PrecisionMonth}
+		}
+		if err := index.IndexDocument(documents, doc.ID, doc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	other := index.Document{ID: "other", AuthorsSlugs: []string{"other"}, Metadata: metadata.Metadata{
+		Publication: precisiondate.PrecisionDate{Date: date.New(1700, 1, 1), Precision: precisiondate.PrecisionDay},
+	}}
+	if err := index.IndexDocument(documents, other.ID, other); err != nil {
+		t.Fatal(err)
+	}
+	got, err := idx.FirstAuthorPublicationDateUpperBound("writer")
+	if err != nil || got != date.New(1899, 2, 28) {
+		t.Fatalf("got cutoff %v, %v; want 1899-02-28", got, err)
+	}
+	got, err = idx.FirstAuthorPublicationDateUpperBound("missing")
+	if err != nil || got != date.Zero {
+		t.Fatalf("missing author: got %v, %v", got, err)
+	}
+}
+
 func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	authorsIndexMem, err := bleve.NewMemOnly(index.CreateAuthorsMapping())
 	if err != nil {
@@ -144,10 +319,28 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	if err := idx.IndexAuthor(index.Author{Slug: "done", Name: "Done Author", RetrievedOn: time.Now().UTC()}); err != nil {
 		t.Fatal(err)
 	}
+	if err := idx.IndexAuthor(index.Author{
+		Slug: "known", Name: "Known Author", DataSourceReferences: map[string]string{"example": "Q2", "other": "unrelated"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, doc := range []index.Document{
+		{ID: "found-book", AuthorsSlugs: []string{"found"}, Metadata: metadata.Metadata{
+			Publication: precisiondate.PrecisionDate{Date: date.New(1900, 1, 1), Precision: precisiondate.PrecisionYear},
+		}},
+		{ID: "known-book", AuthorsSlugs: []string{"known"}, Metadata: metadata.Metadata{
+			Publication: precisiondate.PrecisionDate{Date: date.New(1800, 1, 1), Precision: precisiondate.PrecisionDay},
+		}},
+	} {
+		if err := index.IndexDocument(documentsIndexMem, doc.ID, doc); err != nil {
+			t.Fatal(err)
+		}
+	}
 
 	dataSource := &mockAuthorDataSource{
 		bySlug: map[string]datasourcemodel.Author{
 			"found": stubAuthor{sourceID: "Q1"},
+			"known": stubAuthor{sourceID: "Q2"},
 		},
 		entityIDs: map[string][]string{
 			"Found Author": {"Q1"},
@@ -166,6 +359,15 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	if dataSource.retrieveCalls != 1 {
 		t.Fatalf("expected 1 batched Wikidata entity fetch, got %d", dataSource.retrieveCalls)
 	}
+	if ids := dataSource.candidates["known"].IDs; len(ids) != 1 || ids[0] != "Q2" {
+		t.Fatalf("expected the known source reference reused without a name search, got %v", ids)
+	}
+	if got := dataSource.candidates["found"].FirstPublicationDateUpperBound; got != date.New(1900, 12, 31) {
+		t.Fatalf("expected year-precision publication cutoff, got %v", got)
+	}
+	if got := dataSource.candidates["known"].FirstPublicationDateUpperBound; got != date.Zero {
+		t.Fatalf("explicitly linked profile must not be filtered, got cutoff %v", got)
+	}
 	if elapsed < 50*time.Millisecond {
 		t.Fatalf("expected throttling between lookups, took %s", elapsed)
 	}
@@ -174,8 +376,12 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if found.DataSourceID != "Q1" {
-		t.Fatalf("expected enriched author Q1, got %q", found.DataSourceID)
+	if found.DataSourceReferences["example"] != "Q1" {
+		t.Fatalf("expected enriched author Q1, got %q", found.DataSourceReferences["example"])
+	}
+	known, err := idx.Author("known", "en")
+	if err != nil || known.DataSourceReferences["example"] != "Q2" || known.DataSourceReferences["other"] != "unrelated" {
+		t.Fatalf("enrichment lost existing source references: %+v, %v", known, err)
 	}
 
 	missing, err := idx.Author("missing", "en")
@@ -185,8 +391,8 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	if missing.RetrievedOn.IsZero() {
 		t.Fatal("expected missing author to be marked as processed")
 	}
-	if missing.DataSourceID != "" {
-		t.Fatalf("expected missing author to have no data source id, got %q", missing.DataSourceID)
+	if missing.DataSourceReferences["example"] != "" {
+		t.Fatalf("expected missing author to have no data source id, got %q", missing.DataSourceReferences["example"])
 	}
 
 	remaining, err := idx.AuthorsWithoutInfo()

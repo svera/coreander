@@ -18,6 +18,7 @@ A personal documents server, Coreander indexes the documents (EPUBs and PDFs wit
 * Upload documents through the web interface.
 * Download as kepub (epub for Kobo devices) converted on the fly thanks to [Kepubify](https://github.com/pgaskin/kepubify).
 * Gather information about authors from [Wikidata](https://wikidata.org).
+* Show Goodreads ratings, author biographies and book and author links through [BiblioReads](#biblioreads-integration).
 
 ## Installation
 
@@ -35,6 +36,8 @@ git clone git@github.com:svera/coreander.git --recurse-submodules
 There are two possibilities for building Coreander from source:
 * If you have [Mage](https://magefile.org) installed in your system, just type `mage install` from the source code folder.
 * Otherwise, a simple `go build` or `go install` will do, although no version information will be added to the executable.
+
+Release builds (`mage build <platform>` or `mage release`) disable cgo and explicitly target the baseline `GOAMD64=v1` on x86-64, so they do not depend on the build machine's native C compiler CPU settings. For an equivalent portable Linux x86-64 build from source, use `CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOAMD64=v1 go build`.
 
 Reader interaction regression tests can be run with Node.js using its built-in test runner: `node --test internal/webserver/js-tests/*.test.mjs`.
 
@@ -84,6 +87,22 @@ coreander.example.com {
 Refer to [Caddy documentation](https://caddyserver.com/docs) for more information.
 
 When using a reverse proxy, include its client-facing port in `FQDN`, for example `FQDN=coreander.example.com:443` for the HTTPS setup above (or `:80` for HTTP), so generated links do not use Coreander's internal listening port.
+
+### BiblioReads integration
+
+Coreander can use [BiblioReads](https://github.com/nesaku/biblioreads), an alternative Goodreads front-end, to find Goodreads book and author links and display book ratings on document detail pages. Lookups are disabled by default and require explicitly configured endpoints. BiblioReads asks API and automation users to host their own instance; configure an instance you host, or one whose operator explicitly permits automated library-wide requests. No API key or Goodreads account is required. **You can find a list of public endpoints at https://github.com/nesaku/BiblioReads#instances**.
+
+To enable lookups, pass your permitted endpoints as a comma-separated list. Requests are spread across only these endpoints, with automatic failover when one is unavailable. Configuring multiple permitted instances can improve lookup throughput by spreading requests across them; actual performance depends on each instance's availability and capacity. There are no built-in public endpoints or public-instance fallback:
+
+```sh
+coreander --review-source-instances=https://br.example.org,https://br2.example.org /absolute/path/to/library
+```
+
+Alternatively, set `REVIEW_SOURCE_INSTANCES` to the same comma-separated list. The flag may also be repeated and overrides the environment variable. Instance URLs must use HTTP or HTTPS and serve the BiblioReads API.
+
+When lookups are enabled, author pages also show available Goodreads biographies. Biography retrieval requires a BiblioReads instance running version 4.5.1 or newer. Biographies in another language are automatically translated using Google Translate and marked as translations. When gendered alternatives are available, the author's Wikidata gender is used if known. Click the translation notice to read the original, or "Show more" to expand a long biography.
+
+Admins can open "Is not the right author or data is outdated?" in the author card to correct the Goodreads profile or refresh its biography and cached translations. Leave the Goodreads field blank to remove the Goodreads link and biography.
 
 ### Email
 
@@ -138,12 +157,23 @@ Not every word or phrase TextRank finds is kept: only those whose occurrence cou
 
 Separately, once keywords exist across the whole library, any phrase or word that turns out to be too common there (a genre-wide word, or a series' recurring character name) is stripped from every document that has it. A phrase is also stripped if either of its words is too common, since a pair built around a common word may not be distinctive enough to relate documents. This whole-library pruning pass runs after every full (re)indexing, and again in the background whenever enough documents are added or removed since the last pass, controlled by `--common-textrank-entry-ratio`, `--min-common-textrank-absolute-count` and `--prune-change-trigger-ratio` (see table below).
 
+To avoid suggesting unrelated books, recommendations normally require at least two different shared keyword phrases. Phrases found throughout the library are ignored for recommendations, but remain available for ordinary searches. If no books are a close enough match, no recommendations are shown.
+
+Subjects help narrow the results too: when both books have subjects that are uncommon in your library, they must share at least one. Broad labels are ignored if too many books use them. Books without subjects can still be recommended based on their shared phrases. Subject names are not translated or matched by meaning, so related books with different labels may be missed.
+
+Recommendations update in the background as your library changes, so new books or edited subjects may not affect them immediately. After an upgrade or a change to `--max-similarity-phrase-frequency`, recommendations may be temporarily unavailable while Coreander updates them. You do not need to force a reindex when changing the three recommendation settings below.
+
+Library-wide keyword clean-up uses temporary disk space to keep memory usage down on large libraries. Ensure the system's temporary directory has free space. If it is RAM-backed or too small, set `TMPDIR` to a directory on a disk with enough space. Temporary counting files are removed when the pass finishes, including when it reports an error; if the process is forcibly killed, its `coreander-textrank-*` temporary directory may remain.
+
 You can fine-tune this behavior with the following flags:
 
 |Flag|Environment variable|Description|
 |----|--------------------|-----------|
 |`--min-occurrence-ratio`             |`MIN_OCCURRENCE_RATIO`               |Raise it to keep only the most frequent, most representative keywords per document (fewer, more precise search/similarity matches); lower it (down to 0, which disables text ranking altogether) to keep more of the long tail of less frequent keywords (broader matches, more noise).|
 |`--max-similarity-phrases`           |`MAX_SIMILARITY_PHRASES`             |Raise it so documents with many phrases are matched more accurately when looking for similar documents, at the cost of slower queries; lower it for faster queries that only rely on each document's most important phrases.|
+|`--max-similarity-phrase-frequency`  |`MAX_SIMILARITY_PHRASE_FREQUENCY`    |Controls which phrases are too common to use for recommendations. Defaults to `0.01` (1% of books). Raise it to allow more common phrases; lower it for stricter matching. Phrases shared by up to 20 books are allowed regardless of this percentage, to accommodate small libraries. Accepts values greater than 0 and up to 1.|
+|`--min-similarity-shared-phrases`    |`MIN_SIMILARITY_SHARED_PHRASES`      |How many different uncommon keyword phrases two books must share. Raise it for fewer, stronger matches; lower it for more suggestions that may be less relevant. Defaults to `2`; must be at least `1`.|
+|`--max-similarity-subject-frequency`|`MAX_SIMILARITY_SUBJECT_FREQUENCY`   |Controls which subjects are too broad to help narrow recommendations. Defaults to `0.20` (20% of books). Raise it to use broader subjects; lower it to ignore more common labels. Subjects used by up to 20 books are allowed regardless of this percentage, to accommodate small libraries. Accepts values greater than 0 and up to 1.|
 |`--max-similarity-candidates`        |`MAX_SIMILARITY_CANDIDATES`          |Doesn't affect TextRank extraction itself, but controls how strict the "similar documents" feature is once keywords exist. Maximum number of top-scoring matches a "similar document" query considers before pruning by `min-similarity-score-ratio` and paginating. Higher values lower the chance of a genuinely similar document being cut off before scoring, at the cost of slower queries; lower values speed queries up but risk missing weaker true matches. Defaults to 200.|
 |`--min-similarity-score-ratio`       |`MIN_SIMILARITY_SCORE_RATIO`         |Doesn't affect TextRank extraction itself, but controls how strict the "similar documents" feature is once keywords exist. Minimum fraction of the best match's score a document must reach to be considered similar enough to show in a "similar document" query. Higher values give fewer but more relevant results (a "similar documents" list can end up empty); lower values show more results but risk weak, coincidental matches. Defaults to 0.3.|
 |`--max-textrank-words`               |`MAX_TEXTRANK_WORDS`                 |Caps how many words of a document's text TextRank analysis considers. If a document's text is longer, only its first `max-textrank-words` words are analyzed, and its keywords end up based on that opening portion rather than the whole text (its word count still reflects the whole document). TextRank builds an in-memory graph that grows with every word occurrence, not just distinct words, so a very long or repetitive document can use a large amount of RAM for a single document, even without concurrent indexing. Defaults to `-1`, which computes a safe value automatically from the host's total RAM and the number of indexing workers (see `--index-workers`); set it to a positive number to override that with an explicit cap, or to `0` to disable the cap entirely.|
@@ -175,6 +205,8 @@ In case both a flag and its equivalent environment variable are passed, flag tak
 |`--client-dynamic-image-cache-ttl`   |`CLIENT_DYNAMIC_IMAGE_CACHE_TTL`  | Client-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 86400 (24 hours).
 |`--server-static-cache-ttl`          |`SERVER_STATIC_CACHE_TTL`         | Server-side cache duration for static assets (CSS, JS, images) in seconds. Defaults to 31536000 (1 year).
 |`--server-dynamic-image-cache-ttl`   |`SERVER_DYNAMIC_IMAGE_CACHE_TTL`  | Server-side cache duration for dynamically generated images (covers, author images) in seconds. Defaults to 86400 (24 hours).
+|`--review-source-instances`         |`REVIEW_SOURCE_INSTANCES`        | Comma-separated HTTP or HTTPS BiblioReads endpoints you host or whose operators permit automation. Multiple instances can improve lookup throughput. Required to enable lookups; defaults to none. Omit and unset the environment variable to disable lookups. The flag may be repeated. For example: `--review-source-instances=http://localhost:8080`.
+|`--review-source-cache-ttl`         |`REVIEW_SOURCE_CACHE_TTL`        | Duration in seconds for which review-source responses are cached in memory. Set to 0 to disable caching. Defaults to 86400 (24 hours).
 |`-f` or `--force-indexing`           |`FORCE_INDEXING`          | Whether to force indexing already indexed documents or not. Defaults to false.
 |`-s` or `--jwt-secret`               |`JWT_SECRET`              | String to use to sign JWTs.
 |`-a` or `--require-auth`             |`REQUIRE_AUTH`            | Require authentication to access the application if true. Defaults to false.

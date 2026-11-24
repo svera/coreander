@@ -46,7 +46,7 @@ func (uploadErrorView) Render(out io.Writer, _ string, binding any, _ ...string)
 }
 
 func TestUploadRejectedDuringBulkIndexing(t *testing.T) {
-	controller := document.NewController(nil, nil, nil, nil, nil, busyUploadIndex{}, nil, document.Config{}, nil)
+	controller := document.NewController(nil, nil, nil, nil, nil, busyUploadIndex{}, nil, document.Config{}, nil, nil, nil)
 	app := fiber.New(fiber.Config{Views: uploadErrorView{}})
 	app.Post("/documents", controller.Upload)
 	app.Delete("/documents/:slug", controller.Delete)

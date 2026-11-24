@@ -1,8 +1,14 @@
 package author
 
-import "github.com/svera/coreander/v5/internal/datasource/model"
+import (
+	"github.com/rickb777/date/v2"
+	"github.com/svera/coreander/v5/internal/datasource/model"
+)
 
 type DataSource interface {
-	SearchAuthor(name string, languages []string) (model.Author, error)
-	RetrieveAuthor(IDs []string, languages []string) (model.Author, error)
+	AuthorDataSourceProfileProvider
+	OwnsLink(key string) bool
+	NormalizeAuthorID(value string) (string, error)
+	SearchAuthor(name string, languages []string, firstPublicationDateUpperBound date.Date) (model.Author, error)
+	RetrieveAuthor(IDs []string, languages []string, firstPublicationDateUpperBound date.Date) (model.Author, error)
 }

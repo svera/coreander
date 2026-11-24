@@ -6,26 +6,33 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/rickb777/date/v2"
-	"github.com/svera/coreander/v5/internal/datasource/wikidata"
+	"github.com/svera/coreander/v5/internal/datasource/model"
 	"github.com/svera/coreander/v5/internal/index"
 )
 
 // ParseDocumentSearchQuery reads document search/filter query params (search,
 // language, subjects, similar, sort-by, pub-date-from/to, est-read-time-from/to,
-// pages-from/to, illustrated-only) into an index.SearchFields.
+// pages-from/to, review score, illustrated-only) into an index.SearchFields.
 func ParseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.SearchFields, error) {
 	searchFields := index.SearchFields{
-		Keywords:        c.Query("search"),
-		Language:        c.Query("language"),
-		Subjects:        c.Query("subjects"),
-		SimilarTo:       similarToSlug(c),
-		SortBy:          parseDocumentSortBy(c),
-		EstReadTimeFrom: fiber.Query[float64](c, "est-read-time-from", 0),
-		EstReadTimeTo:   fiber.Query[float64](c, "est-read-time-to", 0),
-		WordsPerMinute:  wordsPerMinute,
-		PagesFrom:       fiber.Query[float64](c, "pages-from", 0),
-		PagesTo:         fiber.Query[float64](c, "pages-to", 0),
-		IllustratedOnly: c.Query("illustrated-only") == "on" || c.Query("illustrated-only") == "1",
+		Keywords:            c.Query("search"),
+		Language:            c.Query("language"),
+		Subjects:            c.Query("subjects"),
+		SimilarTo:           similarToSlug(c),
+		SortBy:              parseDocumentSortBy(c),
+		EstReadTimeFrom:     fiber.Query[float64](c, "est-read-time-from", 0),
+		EstReadTimeTo:       fiber.Query[float64](c, "est-read-time-to", 0),
+		WordsPerMinute:      wordsPerMinute,
+		PagesFrom:           fiber.Query[float64](c, "pages-from", 0),
+		PagesTo:             fiber.Query[float64](c, "pages-to", 0),
+		DataSourceScoreFrom: fiber.Query[float64](c, "review-score-from", 0),
+		DataSourceScoreTo:   new(fiber.Query[float64](c, "review-score-to", 5)),
+		IllustratedOnly:     c.Query("illustrated-only") == "on" || c.Query("illustrated-only") == "1",
+	}
+	// Preserve existing links using the former no-score query value.
+	if c.Query("review-score-from") == "none" || c.Query("review-score-to") == "none" {
+		searchFields.DataSourceScoreFrom = 0
+		searchFields.DataSourceScoreTo = new(0.0)
 	}
 
 	if c.Query("pub-date-from") != "" {
@@ -54,6 +61,10 @@ func ParseDocumentSearchQuery(c fiber.Ctx, wordsPerMinute float64) (index.Search
 
 	if searchFields.PagesTo != 0 && searchFields.PagesFrom > searchFields.PagesTo {
 		searchFields.PagesFrom, searchFields.PagesTo = searchFields.PagesTo, searchFields.PagesFrom
+	}
+
+	if searchFields.DataSourceScoreFrom > *searchFields.DataSourceScoreTo {
+		searchFields.DataSourceScoreFrom, *searchFields.DataSourceScoreTo = *searchFields.DataSourceScoreTo, searchFields.DataSourceScoreFrom
 	}
 
 	return searchFields, nil
@@ -119,17 +130,17 @@ func parseAuthorSearchQuery(c fiber.Ctx) (index.AuthorSearchFields, error) {
 func parseGenderQuery(value string) (float64, bool) {
 	switch value {
 	case "male":
-		return wikidata.GenderMale, true
+		return model.GenderMale, true
 	case "female":
-		return wikidata.GenderFemale, true
+		return model.GenderFemale, true
 	case "intersex":
-		return wikidata.GenderIntersex, true
+		return model.GenderIntersex, true
 	case "transgender-female":
-		return wikidata.GenderTrasgenderFemale, true
+		return model.GenderTransgenderFemale, true
 	case "transgender-male":
-		return wikidata.GenderTrasgenderMale, true
+		return model.GenderTransgenderMale, true
 	case "unknown":
-		return wikidata.GenderUnknown, true
+		return model.GenderUnknown, true
 	default:
 		return 0, false
 	}
@@ -146,6 +157,10 @@ func parseDocumentSortBy(c fiber.Ctx) []string {
 			return []string{"Words"}
 		case "est-read-time-longer-first":
 			return []string{"-Words"}
+		case "review-score-asc":
+			return []string{index.DataSourceScoreValueSortField}
+		case "review-score-desc":
+			return []string{"-" + index.DataSourceScoreValueSortField}
 		}
 	}
 	return index.DefaultDocumentSortBy

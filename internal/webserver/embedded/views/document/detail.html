@@ -1,38 +1,37 @@
 {{$lang := .Lang}}
-<div class="row mt-5">
+<div class="row">
     <div class="col-12">
         <div class="mb-2">
             <a href="#" class="text-decoration-none" onclick="event.preventDefault(); history.back();">&larr; {{t $lang "Return"}}</a>
         </div>
         <hr />
-        {{ if ne .Document.Series "" }} {{$seriesTitle := t $lang "Search for more titles belonging to %s" .Document.Series}}
+    </div>
+</div>
+<div class="row document-detail-layout">
+    <header class="mt-3 ps-md-3 document-detail-title">
+        {{ if ne .Document.Series "" }}
             <p class="text-start text-muted text-uppercase mb-1">{{.Document.Series}}{{ if ne .Document.SeriesIndex 0.0 }} {{.Document.SeriesIndex}}{{end}}</p>
         {{ end }}
-        <header>
-            <h1>
-                {{.Document.Title}}
-            </h1>
-
-            {{if .Document.Authors}}
-                <p class="fs-2 mb-0">
-                    {{range $i, $author := .Document.Authors}}{{if $i}}, {{end}}<a href="/authors/{{index $.Document.AuthorsSlugs $i}}" class="text-decoration-none">{{$author}}</a>{{end}}
-                </p>
-            {{else}}
-                <p class="fs-2 mb-0">{{t .Lang "Unknown author"}}</p>
-            {{end}}
-            {{if .Document.Illustrators}}
-                <p class="fs-2"><span class="text-muted">{{t $lang "Illustrations"}}:</span> {{join .Document.Illustrators ", "}}</p>
-            {{end}}
-        </header>
-    </div>
-    <div class="col-12 col-md-4 mt-3 pe-md-3">
+        <h1>{{.Document.Title}}</h1>
+        {{if .Document.Authors}}
+            <p class="fs-2 mb-0">
+                {{range $i, $author := .Document.Authors}}{{if $i}}, {{end}}<a href="/authors/{{index $.Document.AuthorsSlugs $i}}" class="text-decoration-none">{{$author}}</a>{{end}}
+            </p>
+        {{else}}
+            <p class="fs-2 mb-0">{{t .Lang "Unknown author"}}</p>
+        {{end}}
+        {{if .Document.Illustrators}}
+            <p class="fs-2"><span class="text-muted">{{t $lang "Illustrations"}}:</span> {{join .Document.Illustrators ", "}}</p>
+        {{end}}
+    </header>
+    <div class="mt-3 pe-md-3 document-detail-sidebar">
         <div class="mb-3">
             {{template "partials/cover" dict "Lang" .Lang "Document" .Document "Session" .Session "DisableCoverMainLink" true "Eager" true}}
         </div>
         {{template "partials/actions" dict "Lang" .Lang "Document" .Document "Session" .Session "FQDN" .fqdn "EmailSendingConfigured" .EmailSendingConfigured "DefaultAction" .DefaultAction "CanShare" .CanShare "PreferredEpub" .PreferredEpub "EmailFrom" .EmailFrom "ShareMaxRecipients" .ShareMaxRecipients "ShareCommentMaxSize" .ShareCommentMaxSize "ButtonSize" "btn-lg" "ButtonStyle" "btn-primary"}}
 
         <div id="document-metadata-{{.Document.Slug}}">
-            {{template "partials/document-metadata" dict "Lang" .Lang "Document" .Document "Session" .Session "WordsPerMinute" .WordsPerMinute "IllustratedMinAmount" .IllustratedMinAmount}}
+            {{template "partials/document-metadata" dict "Lang" .Lang "Document" .Document "Session" .Session "WordsPerMinute" .WordsPerMinute "IllustratedMinAmount" .IllustratedMinAmount "ReviewsEnabled" .ReviewsEnabled "StoredScore" .StoredScore}}
         </div>
 
 
@@ -46,7 +45,7 @@
         </ul>
         {{ end }}
     </div>
-    <div class="col-12 col-md-8 ps-md-3">
+    <div class="ps-md-3 document-detail-content">
         <div class="row">
             <div class="col-12 text-start">
                 {{if .Document.Description}}
@@ -61,9 +60,9 @@
             <hr>
             {{range .AuthorSummaries}}
                 {{if not .Author.RetrievedOn.IsZero}}
-                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" .Author "Session" $.Session "ImageVersion" .ImageVersion}}
+                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" .Author "Session" $.Session "AuthorDataSourceReference" .AuthorDataSourceReference "ImageVersion" .ImageVersion "DataSourceLinks" .DataSourceLinks "ProfileInputs" .ProfileInputs}}
                 {{else}}
-                    {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" .Author.Slug}}
+                    {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" .Author.Slug "Lang" $.Lang}}
                 {{end}}
             {{end}}
         {{end}}
@@ -72,9 +71,9 @@
             {{range $i, $entry := .IllustratorSummaries}}
                 {{if eq $i 0}}<hr>{{end}}
                 {{if not $entry.Author.RetrievedOn.IsZero}}
-                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" $entry.Author "Session" $.Session "ImageVersion" $entry.ImageVersion}}
+                    {{template "partials/author-summary-doc-detail" dict "Lang" $.Lang "Author" $entry.Author "Session" $.Session "AuthorDataSourceReference" $entry.AuthorDataSourceReference "ImageVersion" $entry.ImageVersion "DataSourceLinks" $entry.DataSourceLinks "ProfileInputs" $entry.ProfileInputs}}
                 {{else}}
-                    {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" $entry.Author.Slug}}
+                    {{template "partials/author-summary-doc-detail-placeholder" dict "AuthorSlug" $entry.Author.Slug "Lang" $.Lang}}
                 {{end}}
             {{end}}
         {{end}}
@@ -120,6 +119,13 @@
             </div>
         </section>
         {{end}}
+        {{if .ReviewsEnabled}}
+        <div id="document-reviews-{{.Document.Slug}}" class="mt-5" data-document-reviews hx-request='{"timeout":35000}'>
+            {{if .DocumentLink.URL}}
+            {{template "partials/document-reviews-header" dict "Lang" .Lang "Source" .DocumentLink.Source "BookURL" .DocumentLink.URL "Slug" .Document.Slug "SupportedLanguages" .SupportedLanguages "ReviewLanguage" .Lang}}
+            {{end}}
+        </div>
+        {{end}}
     </div>
 </div>
 
@@ -127,3 +133,6 @@
 <script type="module" src="/js/complete.js{{versionParam}}"></script>
 <script type="module" src="/js/cover.js{{versionParam}}"></script>
 <script type="module" src="/js/datetime.js{{versionParam}}"></script>
+{{if .ReviewsEnabled}}
+<script type="module" src="/js/document-reviews.js{{versionParam}}"></script>
+{{end}}

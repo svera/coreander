@@ -175,6 +175,24 @@ main .form-control:focus {
     margin-inline: 0;
 }
 
+@media (min-width: 768px) {
+    .document-detail-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+        grid-template-rows: auto 1fr;
+    }
+
+    .document-detail-sidebar {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        position: sticky;
+        top: 5rem;
+        align-self: flex-start;
+        max-height: calc(100dvh - 6rem);
+        overflow-y: auto;
+    }
+}
+
 /* Only pin/stick the filters box when it's rendered inline (desktop sidebar).
    Below this breakpoint it may be a Bootstrap .offcanvas-xl drawer instead, whose
    own position:fixed (while hidden/sliding in) must not be fought by this rule. */
@@ -327,6 +345,54 @@ main .form-control:focus {
     -webkit-line-clamp: 6;
     line-clamp: 6;
     overflow: hidden;
+}
+
+.review-content.clamp {
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
+}
+
+.author-details-sidebar > .ratio {
+    max-width: 18rem;
+    margin-inline: auto;
+}
+
+.author-bio-text.clamp {
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
+    max-height: 5lh;
+}
+
+.author-bio-text p:last-child {
+    margin-bottom: 0;
+}
+
+.document-reviews-loading,
+.author-bio-loading {
+    display: none;
+}
+
+.document-reviews.htmx-request .document-reviews-content,
+#author-bio.htmx-request .author-bio-content {
+    display: none;
+}
+
+.document-reviews.htmx-request .document-reviews-loading,
+#author-bio.htmx-request .author-bio-loading {
+    display: block;
+}
+
+.review-star {
+    position: relative;
+    display: inline-block;
+}
+
+.review-star-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 #searchbox-container .input-group .form-control:focus {

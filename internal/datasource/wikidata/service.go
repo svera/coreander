@@ -13,7 +13,9 @@ import (
 	"time"
 
 	gowikidata "github.com/Navid2zp/go-wikidata"
+	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v5/internal/datasource/model"
+	"github.com/svera/coreander/v5/internal/index"
 	"github.com/svera/coreander/v5/internal/precisiondate"
 )
 
@@ -22,6 +24,7 @@ const imgUrl = "https://upload.wikimedia.org/wikipedia/commons/%s/%s/%s"
 const maxEntitiesPerRequest = 50
 
 var entityFetchProps = []string{"descriptions", "claims", "sitelinks/urls", "labels"}
+var wikidataIDPattern = regexp.MustCompile(`^[Qq][0-9]+$`)
 
 type wikidata interface {
 	NewSearch(string, string) (SearchEntitiesRequest, error)
@@ -42,11 +45,71 @@ type WikidataSource struct {
 	wikidata wikidata
 }
 
+func (WikidataSource) ReferenceKey() string { return "wikidata" }
+
+func (WikidataSource) OwnsLink(key string) bool {
+	return (Author{}).OwnsLink(key)
+}
+
+func (WikidataSource) ProfileServiceName() string {
+	return "Wikidata"
+}
+
+func (WikidataSource) ProfileValue(author index.Author) string {
+	id := author.DataSourceReferences["wikidata"]
+	if id == "" {
+		return ""
+	}
+	return "https://www.wikidata.org/wiki/" + id
+}
+
+// NormalizeAuthorID accepts a Wikidata author ID or profile URL.
+func (WikidataSource) NormalizeAuthorID(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	if strings.Contains(value, "://") {
+		target, err := url.Parse(value)
+		if err != nil || (target.Scheme != "https" && target.Scheme != "http") ||
+			(target.Host != "www.wikidata.org" && target.Host != "wikidata.org") ||
+			target.User != nil || target.RawQuery != "" || target.Fragment != "" ||
+			target.RawPath != "" || target.ForceQuery || strings.Contains(value, "#") {
+			return "", fmt.Errorf("invalid Wikidata URL %q", value)
+		}
+		path := strings.TrimSuffix(target.Path, "/")
+		switch {
+		case strings.HasPrefix(path, "/wiki/"):
+			value = strings.TrimPrefix(path, "/wiki/")
+		case strings.HasPrefix(path, "/entity/"):
+			value = strings.TrimPrefix(path, "/entity/")
+		default:
+			return "", fmt.Errorf("invalid Wikidata URL %q", value)
+		}
+	}
+	if !wikidataIDPattern.MatchString(value) {
+		return "", fmt.Errorf("invalid Wikidata ID %q", value)
+	}
+	return "Q" + value[1:], nil
+}
+
+func (WikidataSource) AuthorLink(author index.Author, language string) model.DataSourceLink {
+	url := author.DataSourceReferences["wikipedia:"+language]
+	if url == "" {
+		return model.DataSourceLink{}
+	}
+	return model.DataSourceLink{
+		Source:    "Wikipedia",
+		URL:       url,
+		IconClass: "bi-wikipedia",
+	}
+}
+
 func NewWikidataSource(w wikidata) WikidataSource {
 	return WikidataSource{w}
 }
 
-func (a WikidataSource) SearchAuthor(name string, languages []string) (model.Author, error) {
+func (a WikidataSource) SearchAuthor(name string, languages []string, firstPublicationDateUpperBound date.Date) (model.Author, error) {
 	ids, err := a.SearchEntityIDs(name)
 	if err != nil {
 		return nil, err
@@ -56,7 +119,7 @@ func (a WikidataSource) SearchAuthor(name string, languages []string) (model.Aut
 		return nil, nil
 	}
 
-	return a.RetrieveAuthor(ids, languages)
+	return a.RetrieveAuthor(ids, languages, firstPublicationDateUpperBound)
 }
 
 // SearchEntityIDs returns Wikidata entity IDs matching the given author name.
@@ -81,8 +144,8 @@ func (a WikidataSource) SearchEntityIDs(name string) ([]string, error) {
 	return ids, nil
 }
 
-// RetrieveAuthor returns the first match from the list of passed Wikidata entity IDs that represents a human
-func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.Author, error) {
+// RetrieveAuthor returns the first matching person compatible with the optional publication date.
+func (a WikidataSource) RetrieveAuthor(ids []string, languages []string, firstPublicationDateUpperBound date.Date) (model.Author, error) {
 	for _, id := range ids {
 		if !validateID(id) {
 			return Author{}, fmt.Errorf("invalid author ID %s", id)
@@ -94,7 +157,7 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.
 		return nil, err
 	}
 
-	author, err := a.authorFromEntityIDs(ids, entities, languages)
+	author, err := a.authorFromEntityIDs(ids, entities, languages, firstPublicationDateUpperBound)
 	if err != nil {
 		return nil, err
 	}
@@ -105,26 +168,27 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.
 }
 
 // RetrieveAuthors fetches metadata for multiple authors in as few Wikidata requests as possible.
-// Keys are caller-defined identifiers (for example author slugs). Values are Wikidata entity ID
-// candidates for each author, in search-result order. onResult is called for each author as soon
+// Keys are caller-defined identifiers (for example author slugs). Values contain Wikidata entity
+// IDs in search-result order and an optional publication date constraint. onResult is called as soon
 // as all its candidate IDs have been requested, passing nil when no matching person was found.
-func (a WikidataSource) RetrieveAuthors(candidates map[string][]string, languages []string, batchInterval time.Duration, onResult func(slug string, author model.Author) error) error {
+func (a WikidataSource) RetrieveAuthors(candidates map[string]model.AuthorCandidates, languages []string, batchInterval time.Duration, onResult func(slug string, author model.Author) error) error {
 	if len(candidates) == 0 {
 		return nil
 	}
 
 	uniqueIDs := make([]string, 0)
 	seen := make(map[string]struct{})
-	pending := make(map[string][]string)
+	pending := make(map[string]model.AuthorCandidates)
 
-	for slug, ids := range candidates {
+	for slug, candidate := range candidates {
+		ids := candidate.IDs
 		if len(ids) == 0 {
 			if err := onResult(slug, nil); err != nil {
 				return err
 			}
 			continue
 		}
-		pending[slug] = ids
+		pending[slug] = candidate
 		for _, id := range ids {
 			if id == "" {
 				continue
@@ -170,19 +234,19 @@ func (a WikidataSource) RetrieveAuthors(candidates map[string][]string, language
 			entities[id] = entity
 		}
 
-		for slug, ids := range pending {
-			if !allIDsRequested(ids, requested) {
+		for slug, candidate := range pending {
+			if !allIDsRequested(candidate.IDs, requested) {
 				continue
 			}
-			if err := a.resolveAndNotify(slug, ids, entities, languages, onResult); err != nil {
+			if err := a.resolveAndNotify(slug, candidate, entities, languages, onResult); err != nil {
 				return err
 			}
 			delete(pending, slug)
 		}
 	}
 
-	for slug, ids := range pending {
-		if err := a.resolveAndNotify(slug, ids, entities, languages, onResult); err != nil {
+	for slug, candidate := range pending {
+		if err := a.resolveAndNotify(slug, candidate, entities, languages, onResult); err != nil {
 			return err
 		}
 	}
@@ -190,8 +254,8 @@ func (a WikidataSource) RetrieveAuthors(candidates map[string][]string, language
 	return nil
 }
 
-func (a WikidataSource) resolveAndNotify(slug string, ids []string, entities map[string]gowikidata.Entity, languages []string, onResult func(string, model.Author) error) error {
-	author, err := a.authorFromEntityIDs(ids, entities, languages)
+func (a WikidataSource) resolveAndNotify(slug string, candidate model.AuthorCandidates, entities map[string]gowikidata.Entity, languages []string, onResult func(string, model.Author) error) error {
+	author, err := a.authorFromEntityIDs(candidate.IDs, entities, languages, candidate.FirstPublicationDateUpperBound)
 	if err != nil {
 		return err
 	}
@@ -247,7 +311,7 @@ func (a WikidataSource) fetchEntitiesBatched(ids []string, languages []string, b
 	return entities, nil
 }
 
-func (a WikidataSource) authorFromEntityIDs(ids []string, entities map[string]gowikidata.Entity, languages []string) (Author, error) {
+func (a WikidataSource) authorFromEntityIDs(ids []string, entities map[string]gowikidata.Entity, languages []string, firstPublicationDateUpperBound date.Date) (Author, error) {
 	author := Author{
 		wikipediaLink: make(map[string]string),
 		description:   make(map[string]string),
@@ -257,7 +321,7 @@ func (a WikidataSource) authorFromEntityIDs(ids []string, entities map[string]go
 	}
 
 	entityPtr := &entities
-	author.wikidataEntityId, author.instanceOf = getMostAccurateID(ids, entityPtr)
+	author.wikidataEntityId, author.instanceOf = getMostAccurateID(ids, entityPtr, firstPublicationDateUpperBound)
 	if author.instanceOf == InstanceUnknown {
 		return author, nil
 	}
@@ -322,9 +386,12 @@ func (a WikidataSource) authorFromEntityIDs(ids []string, entities map[string]go
 	return author, nil
 }
 
-func getMostAccurateID(ids []string, entities *map[string]gowikidata.Entity) (string, float64) {
+func getMostAccurateID(ids []string, entities *map[string]gowikidata.Entity, firstPublicationDateUpperBound date.Date) (string, float64) {
 	for _, rank := range ranks {
 		for _, id := range ids {
+			if bornAfterPublication((*entities)[id].Claims[propertyDateOfBirth], firstPublicationDateUpperBound) {
+				continue
+			}
 			claimValue, exists := (*entities)[id].Claims[propertyInstanceOf]
 			if !exists {
 				continue
@@ -340,20 +407,42 @@ func getMostAccurateID(ids []string, entities *map[string]gowikidata.Entity) (st
 	return "", InstanceUnknown
 }
 
+func bornAfterPublication(claim []gowikidata.Claim, firstPublicationDateUpperBound date.Date) bool {
+	if firstPublicationDateUpperBound == date.Zero || len(claim) == 0 {
+		return false
+	}
+	birth := parseDate(claim)
+	if birth.Date == date.Zero {
+		return false
+	}
+	var earliest date.Date
+	switch birth.Precision {
+	case precisiondate.PrecisionYear:
+		earliest = date.New(birth.Year(), time.January, 1)
+	case precisiondate.PrecisionMonth:
+		earliest = date.New(birth.Year(), birth.Month(), 1)
+	case precisiondate.PrecisionDay:
+		earliest = birth.Date
+	default:
+		return false
+	}
+	return earliest > firstPublicationDateUpperBound
+}
+
 func parseGender(claim gowikidata.Claim) float64 {
 	switch claim.MainSnak.DataValue.Value.ValueFields.ID {
 	case qidGenderMale:
-		return GenderMale
+		return model.GenderMale
 	case qidGenderFemale:
-		return GenderFemale
+		return model.GenderFemale
 	case qidGenderIntersex:
-		return GenderIntersex
+		return model.GenderIntersex
 	case qidGenderTrasgenderMale:
-		return GenderTrasgenderMale
+		return model.GenderTransgenderMale
 	case qidGenderTrasgenderFemale:
-		return GenderTrasgenderFemale
+		return model.GenderTransgenderFemale
 	}
-	return GenderUnknown
+	return model.GenderUnknown
 }
 
 func parseInstanceOf(claim gowikidata.Claim) float64 {
@@ -414,5 +503,5 @@ func validateID(id string) bool {
 	if id == "" {
 		return true
 	}
-	return regexp.MustCompile(`^[Qq]\d+$`).MatchString(id)
+	return wikidataIDPattern.MatchString(id)
 }

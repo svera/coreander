@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,11 +31,11 @@ import (
 
 // DocumentVersion identifies the mapping used for indexing documents. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const DocumentVersion = "v13"
+const DocumentVersion = "v14"
 
 // AuthorVersion identifies the mapping used for indexing authors. Any changes in the mapping requires an increase
 // of version, to signal that a new index needs to be created.
-const AuthorVersion = "2"
+const AuthorVersion = "4"
 
 // Metadata fields
 var (
@@ -88,7 +89,10 @@ const (
 	// it's never substituted by NewBleve for a zero Config value - 0 is
 	// itself a legitimate, documented choice there (disable the cap) - so
 	// this only exists to back the CLI flag's own default via kong.Vars.
-	DefaultMaxSimilarityPhrases = 60
+	DefaultMaxSimilarityPhrases          = 60
+	DefaultMaxSimilarityPhraseFrequency  = 0.01
+	DefaultMinSimilaritySharedPhrases    = 2
+	DefaultMaxSimilaritySubjectFrequency = 0.20
 	// DefaultCommonTextRankEntryRatio is the fraction of the library a TextRank
 	// phrase or word may appear in before pruneCommonTextRankEntries treats it
 	// as too generic to be useful for keyword search or "similar document"
@@ -104,7 +108,7 @@ const (
 	DefaultMinCommonTextRankAbsoluteCount = 20
 	// DefaultPruneChangeTriggerRatio is the fraction of documents added or
 	// removed (relative to the doc count recorded after the last
-	// pruneCommonTextRankEntries pass) that triggers an out-of-band prune pass
+	// maintainTextRankEntries pass) that triggers an out-of-band maintenance pass
 	// via maybePruneForLibraryChange.
 	DefaultPruneChangeTriggerRatio = 0.01
 )
@@ -140,6 +144,12 @@ type Config struct {
 	// every one of those clauses for every candidate document. A value of 0
 	// disables the cap.
 	MaxSimilarityPhrases int
+	// Frequency limits are fractions in (0, 1]; zero uses the defaults.
+	MaxSimilarityPhraseFrequency  float64
+	MaxSimilaritySubjectFrequency float64
+	// MinSimilaritySharedPhrases is the required number of distinct shared
+	// phrases, independent of their document frequency. Zero uses the default.
+	MinSimilaritySharedPhrases int
 	// MaxTextRankWords caps how many words of a document's extracted text
 	// TextRank analysis considers: only the first MaxTextRankWords words are
 	// analyzed for a document whose text exceeds this, so its TextRankPhrases
@@ -182,6 +192,7 @@ type Config struct {
 	// to already be resolved (e.g. via ResolveMetadataWorkers); <= 0 falls
 	// back to 1.
 	TextRankEnrichWorkers int
+	DocumentEnrichers     []DocumentEnricher
 }
 
 type BleveIndexer struct {
@@ -202,12 +213,18 @@ type BleveIndexer struct {
 	authorEnrichProgress           progressTracker
 	textRankEnrichProgress         progressTracker
 	pruneProgress                  progressTracker
+	similarityStatsMu              sync.Mutex
+	similarityStats                *similarityStatistics
+	similarityStatsLoaded          bool
 	illustratedMinAmount           int     // minimum number of illustrations (excl. cover) for a document to be considered illustrated
 	illustratedMinSize             float64 // minimum size in megapixels for an image to count as an illustration
 	minOccurrenceRatio             float64 // minimum occurrence ratio for a TextRank phrase/word to be kept; see Config.MinOccurrenceRatio
 	maxSimilarityCandidates        int     // cap on top-scoring matches considered by a "similar document" query; see Config.MaxSimilarityCandidates
 	minSimilarityScoreRatio        float64 // minimum fraction of the best match's score to be considered similar; see Config.MinSimilarityScoreRatio
 	maxSimilarityPhrases           int     // cap on how many TextRankPhrases are used to find "similar" documents; see Config.MaxSimilarityPhrases
+	maxSimilarityPhraseFrequency   float64
+	maxSimilaritySubjectFrequency  float64
+	minSimilaritySharedPhrases     int
 	maxTextRankWords               int     // word count above which TextRank analysis only considers a document's first maxTextRankWords words; see Config.MaxTextRankWords
 	commonTextRankEntryRatio       float64 // fraction of the library a TextRank phrase/word may appear in before being pruned as too generic; see Config.CommonTextRankEntryRatio
 	minCommonTextRankAbsoluteCount int     // floor for the document-count threshold computed from commonTextRankEntryRatio; see Config.MinCommonTextRankAbsoluteCount
@@ -215,6 +232,15 @@ type BleveIndexer struct {
 	// textRankEnrichJobs feeds documents queued by indexFile to a fixed-size
 	// pool of long-lived worker goroutines; see runTextRankEnrichWorker.
 	textRankEnrichJobs chan Document
+	documentEnrichJobs chan string
+	documentEnrichers  []DocumentEnricher
+	// documentEnrichProgress measures each provider's current run rate, by enricher index.
+	documentEnrichProgress        []progressTracker
+	providerProgressMu            sync.Mutex
+	providerProgressUntil         time.Time
+	providerProgress              []providerProgressCount
+	providerProgressVersion       atomic.Uint64
+	cachedProviderProgressVersion uint64
 	// fileLocks holds a *sync.Mutex per document ID, serializing concurrent
 	// indexFile calls for the same file (upload vs. file watcher reacting to
 	// the same write).
@@ -233,11 +259,13 @@ type progressTracker struct {
 	startNanos atomic.Int64
 	processed  atomic.Uint64
 	total      atomic.Uint64
+	failed     atomic.Bool
 }
 
 // begin marks the phase as started, resetting processed to 0 and total to
 // the given count.
 func (p *progressTracker) begin(total int) {
+	p.failed.Store(false)
 	p.startNanos.Store(time.Now().UnixNano())
 	p.processed.Store(0)
 	p.total.Store(uint64(total))
@@ -261,6 +289,16 @@ func (p *progressTracker) recordN(n int) {
 	p.processed.Add(uint64(n))
 }
 
+// remainingTime estimates how long the given remaining entries take at the current run's rate.
+func (p *progressTracker) remainingTime(remaining uint64) time.Duration {
+	start, processed := p.startNanos.Load(), p.processed.Load()
+	if start == 0 || processed == 0 || remaining == 0 {
+		return 0
+	}
+	elapsed := float64(time.Now().UnixNano() - start)
+	return time.Duration(elapsed * float64(remaining) / float64(processed))
+}
+
 // NewBleve creates a new BleveIndexer instance using the passed parameters
 func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs, libraryPath string, read map[string]metadata.Reader, cfg Config) *BleveIndexer {
 	maxSimilarityCandidates := cfg.MaxSimilarityCandidates
@@ -281,6 +319,18 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 	// default, not a substitution here; only callers that construct a bare Config{}
 	// directly (e.g. tests) get 0 (uncapped) rather than defaultMaxSimilarityPhrases.
 	maxSimilarityPhrases := cfg.MaxSimilarityPhrases
+	maxSimilarityPhraseFrequency := cfg.MaxSimilarityPhraseFrequency
+	if maxSimilarityPhraseFrequency <= 0 {
+		maxSimilarityPhraseFrequency = DefaultMaxSimilarityPhraseFrequency
+	}
+	maxSimilaritySubjectFrequency := cfg.MaxSimilaritySubjectFrequency
+	if maxSimilaritySubjectFrequency <= 0 {
+		maxSimilaritySubjectFrequency = DefaultMaxSimilaritySubjectFrequency
+	}
+	minSimilaritySharedPhrases := cfg.MinSimilaritySharedPhrases
+	if minSimilaritySharedPhrases <= 0 {
+		minSimilaritySharedPhrases = DefaultMinSimilaritySharedPhrases
+	}
 
 	commonTextRankEntryRatio := cfg.CommonTextRankEntryRatio
 	if commonTextRankEntryRatio <= 0 {
@@ -314,15 +364,27 @@ func NewBleve(documentsIndex bleve.Index, authorsIndex bleve.Index, fs afero.Fs,
 		maxSimilarityCandidates:        maxSimilarityCandidates,
 		minSimilarityScoreRatio:        minSimilarityScoreRatio,
 		maxSimilarityPhrases:           maxSimilarityPhrases,
+		maxSimilarityPhraseFrequency:   maxSimilarityPhraseFrequency,
+		maxSimilaritySubjectFrequency:  maxSimilaritySubjectFrequency,
+		minSimilaritySharedPhrases:     minSimilaritySharedPhrases,
 		maxTextRankWords:               cfg.MaxTextRankWords,
 		commonTextRankEntryRatio:       commonTextRankEntryRatio,
 		minCommonTextRankAbsoluteCount: minCommonTextRankAbsoluteCount,
 		pruneChangeTriggerRatio:        pruneChangeTriggerRatio,
 		textRankEnrichJobs:             make(chan Document, textRankEnrichWorkers),
+		documentEnrichers:              slices.Clone(cfg.DocumentEnrichers),
+		documentEnrichProgress:         make([]progressTracker, len(cfg.DocumentEnrichers)),
 	}
 
 	for range textRankEnrichWorkers {
 		go b.runTextRankEnrichWorker()
+	}
+
+	if len(b.documentEnrichers) > 0 {
+		b.documentEnrichJobs = make(chan string, documentEnrichWorkers)
+		for range documentEnrichWorkers {
+			go b.runDocumentEnrichWorker()
+		}
 	}
 
 	return b
@@ -375,6 +437,17 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	}
 
 	keywordFieldMapping := bleve.NewKeywordFieldMapping()
+
+	// Stored only, so the field can be read back but never matches a search.
+	// IncludeInAll=false is redundant with Index=false today, but keeps the
+	// field out of the composite _all field explicitly.
+	storedOnlyFieldMapping := bleve.NewKeywordFieldMapping()
+	storedOnlyFieldMapping.Index = false
+	storedOnlyFieldMapping.IncludeInAll = false
+	storedOnlyFieldMapping.DocValues = false
+
+	enrichedSourcesFieldMapping := bleve.NewKeywordFieldMapping()
+	enrichedSourcesFieldMapping.IncludeInAll = false
 
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
@@ -434,6 +507,9 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("Illustrations", numericFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 		indexMapping.TypeMapping[lang].AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("DataSources", storedOnlyFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("EnrichedDataSources", enrichedSourcesFieldMapping)
+		indexMapping.TypeMapping[lang].AddFieldMappingsAt("DataSourceScoreValue", numericFieldMapping)
 	}
 
 	indexMapping.DefaultMapping.DefaultAnalyzer = defaultAnalyzer
@@ -458,6 +534,9 @@ func CreateDocumentsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Illustrations", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("AddedOn", dateTimeFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("TextRankEnriched", booleanFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSources", storedOnlyFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("EnrichedDataSources", enrichedSourcesFieldMapping)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceScoreValue", numericFieldMapping)
 
 	return indexMapping
 }
@@ -483,6 +562,10 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	keywordFieldMapping := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable := bleve.NewKeywordFieldMapping()
 	keywordFieldMappingNotIndexable.Index = false
+	storedOnlyFieldMapping := bleve.NewKeywordFieldMapping()
+	storedOnlyFieldMapping.Index = false
+	storedOnlyFieldMapping.IncludeInAll = false
+	storedOnlyFieldMapping.DocValues = false
 
 	simpleTextFieldMapping := bleve.NewTextFieldMapping()
 	simpleTextFieldMapping.Analyzer = defaultAnalyzer
@@ -495,9 +578,8 @@ func CreateAuthorsMapping() mapping.IndexMapping {
 	indexMapping.DefaultMapping.AddFieldMappingsAt("Name", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("BirthName", simpleTextFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("RetrievedOn", dateTimeFieldMapping)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceID", keywordFieldMappingNotIndexable)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceImage", keywordFieldMappingNotIndexable)
-	indexMapping.DefaultMapping.AddFieldMappingsAt("Website", keywordFieldMappingNotIndexable)
+	indexMapping.DefaultMapping.AddFieldMappingsAt("DataSourceReferences", storedOnlyFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfBirth.Date", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfBirth.Precision", numericFieldMapping)
 	indexMapping.DefaultMapping.AddFieldMappingsAt("DateOfDeath.Date", numericFieldMapping)

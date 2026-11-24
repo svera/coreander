@@ -87,6 +87,26 @@ func TestDocumentPageTitles(t *testing.T) {
 				if got := doc.Find("title").Text(); got != page.title {
 					t.Errorf("%s title = %q, want %q", page.path, got, page.title)
 				}
+				if page.path == detailPath {
+					content := doc.Find(".document-detail-content")
+					title := doc.Find(".document-detail-title")
+					if got := strings.TrimSpace(title.Find("h1").Text()); got != "TheArcade_PDF" {
+						t.Errorf("document heading = %q, want TheArcade_PDF", got)
+					}
+					if doc.Find("main h1").Length() != 1 {
+						t.Error("document detail must have exactly one title heading")
+					}
+					sidebar := doc.Find(".document-detail-sidebar")
+					if sidebar.Length() != 1 || sidebar.Find("figure").Length() != 1 || sidebar.Find("[id^='document-metadata-']").Length() != 1 {
+						t.Error("sticky sidebar must contain the cover and document metadata")
+					}
+					if content.Prev().Is(".document-detail-sidebar") == false {
+						t.Error("description column must follow the sticky sidebar")
+					}
+					if !sidebar.Prev().Is(".document-detail-title") {
+						t.Error("title must precede the cover on mobile")
+					}
+				}
 				if page.path == detailPath+"/read" {
 					if got, ok := doc.Find("meta[name='author']").Attr("content"); !ok || got != tc.author {
 						t.Errorf("%s author metadata = %q (present: %v), want %q", page.path, got, ok, tc.author)
@@ -138,6 +158,37 @@ func TestDocumentDetail(t *testing.T) {
 	}
 }
 
+func TestDocumentDetailAuthorPlaceholder(t *testing.T) {
+	app, idx := newSearchResultsTestApp(t, []index.Document{{
+		ID: "source.epub", Slug: "source",
+		Metadata: metadata.Metadata{
+			Title: "Source", Format: "EPUB", Authors: []string{"Jane Doe"}, Illustrators: []string{"John Doe"},
+		},
+		AuthorsSlugs: []string{"jane-doe"},
+	}})
+	if err := idx.IndexAuthor(index.Author{Slug: "jane-doe", Name: "Jane Doe"}); err != nil {
+		t.Fatal(err)
+	}
+
+	page := getPage(t, app, "/documents/source?l=es")
+	for _, slug := range []string{"jane-doe", "john-doe"} {
+		path := "/authors/" + slug + "/summary?style=clear&l=es"
+		placeholder := page.Find(`[data-author-summary-placeholder][hx-get="` + path + `"]`)
+		if placeholder.Length() != 1 {
+			t.Fatalf("expected placeholder for %s", slug)
+		}
+		if placeholder.AttrOr("hx-swap", "") != "outerHTML" ||
+			placeholder.AttrOr("hx-request", "") != `{"timeout":120000}` ||
+			placeholder.Find("[data-author-summary-loading]").Length() != 1 ||
+			placeholder.Find(`[data-author-summary-error][hidden] button[hx-get="`+path+`"]`).Length() != 1 {
+			t.Errorf("%s placeholder must have a bounded request and a retryable error state", slug)
+		}
+		if !strings.Contains(placeholder.Find("[data-author-summary-error]").Text(), "No se pudo cargar") {
+			t.Errorf("%s error state must be localized", slug)
+		}
+	}
+}
+
 func TestRelatedDocumentHeadersShowFullTotals(t *testing.T) {
 	db := infrastructure.Connect(":memory:", 250)
 	sqlDB, err := db.DB()
@@ -160,17 +211,19 @@ func TestRelatedDocumentHeadersShowFullTotals(t *testing.T) {
 
 	source := index.Document{
 		ID: "source.epub", Slug: "source", SeriesSlug: "collection",
-		Metadata:        metadata.Metadata{Title: "Source", Series: "Collection", Format: "EPUB"},
-		TextRankPhrases: []string{"atomic bomb", "los alamos"},
+		Metadata:         metadata.Metadata{Title: "Source", Series: "Collection", Format: "EPUB"},
+		TextRankPhrases:  []string{"atomic bomb", "los alamos"},
+		TextRankEnriched: true,
 	}
-	if err := documents.Index(source.ID, source); err != nil {
+	if err := index.IndexDocument(documents, source.ID, source); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 6; i++ {
 		for _, kind := range []string{"series", "similar"} {
 			doc := index.Document{
 				ID: fmt.Sprintf("%s-%d.epub", kind, i), Slug: fmt.Sprintf("%s-%d", kind, i),
-				Metadata: metadata.Metadata{Title: fmt.Sprintf("%s %d", kind, i), Format: "EPUB"},
+				Metadata:         metadata.Metadata{Title: fmt.Sprintf("%s %d", kind, i), Format: "EPUB"},
+				TextRankEnriched: true,
 			}
 			if kind == "series" {
 				doc.Series = source.Series
@@ -178,17 +231,46 @@ func TestRelatedDocumentHeadersShowFullTotals(t *testing.T) {
 			} else {
 				doc.TextRankPhrases = source.TextRankPhrases
 			}
-			if err := documents.Index(doc.ID, doc); err != nil {
+			if err := index.IndexDocument(documents, doc.ID, doc); err != nil {
 				t.Fatal(err)
 			}
 		}
 	}
+	weak := index.Document{
+		ID: "weak.epub", Slug: "weak",
+		Metadata:        metadata.Metadata{Title: "Weak", Format: "EPUB"},
+		TextRankPhrases: []string{"atomic bomb"}, TextRankEnriched: true,
+	}
+	if err := index.IndexDocument(documents, weak.ID, weak); err != nil {
+		t.Fatal(err)
+	}
+	if err := idx.EnrichTextRankKeywords(100, 1); err != nil {
+		t.Fatal(err)
+	}
 
 	cfg := defaultTestConfig()
 	sender := &infrastructure.NoEmail{}
-	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, nil)
+	controllers := webserver.SetupControllers(cfg, db, idx, sender, appFS, nil, nil, nil)
 	app := webserver.New(cfg, controllers, sender, idx, &model.UserRepository{DB: db})
 	t.Cleanup(func() { _ = app.Shutdown() })
+
+	t.Run("weak evidence hides recommendations", func(t *testing.T) {
+		response, err := app.Test(mustGetRequest(t, "/documents/weak/similar?widget=1"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusOK)
+		}
+		page, err := goquery.NewDocumentFromReader(response.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if page.Find("h2, figure").Length() != 0 {
+			t.Fatal("weak evidence should display neither a heading nor recommendations")
+		}
+	})
 
 	for _, tc := range []struct {
 		name string

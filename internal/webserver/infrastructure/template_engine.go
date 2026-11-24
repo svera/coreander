@@ -7,12 +7,16 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/template/html/v3"
 	"github.com/gosimple/slug"
 	"github.com/svera/coreander/v5/internal/i18n"
 )
+
+var groupedCount = regexp.MustCompile(`^[0-9]{1,3}(?:,[0-9]{3})+$`)
 
 // TemplateEngine builds the html/template engine. assetVersion is a cache-busting
 // token for static assets (CSS/JS/images), independent of the application's release
@@ -25,6 +29,18 @@ func TemplateEngine(viewsFS fs.FS, translator i18n.Translator, assetVersion stri
 
 	engine.AddFunc("t", func(lang, key string, values ...any) template.HTML {
 		return template.HTML(translator.T(lang, key, values...))
+	})
+
+	engine.AddFunc("ratingCount", func(lang, count string) string {
+		value := strings.TrimSpace(count)
+		if groupedCount.MatchString(value) {
+			value = strings.ReplaceAll(value, ",", "")
+		}
+		n, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return count
+		}
+		return translator.T(lang, "%d", n)
 	})
 
 	engine.AddFunc("language", func(lang string) template.HTML {

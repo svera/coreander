@@ -79,16 +79,17 @@ func (h *Controller) List(c fiber.Ctx) error {
 	}
 
 	templateVars := fiber.Map{
-		"Results":            paginatedResults,
-		"Paginator":          view.Pagination(model.MaxPagesNavigator, paginatedResults, c.Queries()),
-		"Title":              "Highlights",
-		"EmailFrom":          h.sender.From(),
-		"WordsPerMinute":     h.wordsPerMinute,
-		"SortURL":            view.BaseURLWithout(c, "sort-by", "page"),
-		"SortBy":             c.Query("sort-by"),
-		"HighlightsFilter":   filter,
-		"SearchFields":       searchFields,
-		"HighlightsTotalAll": totalAll,
+		"Results":                paginatedResults,
+		"Paginator":              view.Pagination(model.MaxPagesNavigator, paginatedResults, c.Queries()),
+		"Title":                  "Highlights",
+		"ReviewSourceConfigured": h.reviewSourceConfigured,
+		"EmailFrom":              h.sender.From(),
+		"WordsPerMinute":         h.wordsPerMinute,
+		"SortURL":                view.BaseURLWithout(c, "sort-by", "page"),
+		"SortBy":                 c.Query("sort-by"),
+		"HighlightsFilter":       filter,
+		"SearchFields":           searchFields,
+		"HighlightsTotalAll":     totalAll,
 		"AdditionalSortOptions": []struct {
 			Key   string
 			Value string
