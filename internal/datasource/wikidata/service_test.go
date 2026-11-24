@@ -269,7 +269,7 @@ func TestAuthorSearchPublicationConstraint(t *testing.T) {
 			}
 			var batched model.Author
 			err = source.RetrieveAuthors(map[string]model.AuthorCandidates{
-				"example": {IDs: []string{"Q1", "Q2"}, LatestPublicationDate: tt.cutoff},
+				"example": {IDs: []string{"Q1", "Q2"}, FirstPublicationDateUpperBound: tt.cutoff},
 			}, nil, 0, func(_ string, author model.Author) error {
 				batched = author
 				return nil
@@ -292,7 +292,7 @@ func TestAuthorSearchNoCompatibleCandidatesAndExplicitID(t *testing.T) {
 	}
 	var batched model.Author
 	err = source.RetrieveAuthors(map[string]model.AuthorCandidates{
-		"example": {IDs: []string{"Q1", "Q2"}, LatestPublicationDate: date.New(1900, 12, 31)},
+		"example": {IDs: []string{"Q1", "Q2"}, FirstPublicationDateUpperBound: date.New(1900, 12, 31)},
 	}, nil, 0, func(_ string, author model.Author) error {
 		batched = author
 		return nil

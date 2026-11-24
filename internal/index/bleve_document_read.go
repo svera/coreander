@@ -803,9 +803,9 @@ func (b *BleveIndexer) SearchByAuthor(searchFields SearchFields, page, resultsPe
 	return b.runPaginatedQuery(filtersQuery, page, resultsPerPage, searchFields.SortBy)
 }
 
-// EarliestAuthorPublicationDate returns the earliest latest-possible publication
+// FirstAuthorPublicationDateUpperBound returns the earliest latest-possible publication
 // date for the author's documents, or zero when no usable date is known.
-func (b *BleveIndexer) EarliestAuthorPublicationDate(slug string) (date.Date, error) {
+func (b *BleveIndexer) FirstAuthorPublicationDateUpperBound(slug string) (date.Date, error) {
 	var earliest date.Date
 	const pageSize = 100
 	for page := 1; ; page++ {

@@ -109,7 +109,7 @@ func NewWikidataSource(w wikidata) WikidataSource {
 	return WikidataSource{w}
 }
 
-func (a WikidataSource) SearchAuthor(name string, languages []string, latestPublicationDate date.Date) (model.Author, error) {
+func (a WikidataSource) SearchAuthor(name string, languages []string, firstPublicationDateUpperBound date.Date) (model.Author, error) {
 	ids, err := a.SearchEntityIDs(name)
 	if err != nil {
 		return nil, err
@@ -119,7 +119,7 @@ func (a WikidataSource) SearchAuthor(name string, languages []string, latestPubl
 		return nil, nil
 	}
 
-	return a.retrieveAuthor(ids, languages, latestPublicationDate)
+	return a.retrieveAuthor(ids, languages, firstPublicationDateUpperBound)
 }
 
 // SearchEntityIDs returns Wikidata entity IDs matching the given author name.
@@ -149,7 +149,7 @@ func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.
 	return a.retrieveAuthor(ids, languages, date.Zero)
 }
 
-func (a WikidataSource) retrieveAuthor(ids []string, languages []string, latestPublicationDate date.Date) (model.Author, error) {
+func (a WikidataSource) retrieveAuthor(ids []string, languages []string, firstPublicationDateUpperBound date.Date) (model.Author, error) {
 	for _, id := range ids {
 		if !validateID(id) {
 			return Author{}, fmt.Errorf("invalid author ID %s", id)
@@ -161,7 +161,7 @@ func (a WikidataSource) retrieveAuthor(ids []string, languages []string, latestP
 		return nil, err
 	}
 
-	author, err := a.authorFromEntityIDs(ids, entities, languages, latestPublicationDate)
+	author, err := a.authorFromEntityIDs(ids, entities, languages, firstPublicationDateUpperBound)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +259,7 @@ func (a WikidataSource) RetrieveAuthors(candidates map[string]model.AuthorCandid
 }
 
 func (a WikidataSource) resolveAndNotify(slug string, candidate model.AuthorCandidates, entities map[string]gowikidata.Entity, languages []string, onResult func(string, model.Author) error) error {
-	author, err := a.authorFromEntityIDs(candidate.IDs, entities, languages, candidate.LatestPublicationDate)
+	author, err := a.authorFromEntityIDs(candidate.IDs, entities, languages, candidate.FirstPublicationDateUpperBound)
 	if err != nil {
 		return err
 	}
@@ -315,7 +315,7 @@ func (a WikidataSource) fetchEntitiesBatched(ids []string, languages []string, b
 	return entities, nil
 }
 
-func (a WikidataSource) authorFromEntityIDs(ids []string, entities map[string]gowikidata.Entity, languages []string, latestPublicationDate date.Date) (Author, error) {
+func (a WikidataSource) authorFromEntityIDs(ids []string, entities map[string]gowikidata.Entity, languages []string, firstPublicationDateUpperBound date.Date) (Author, error) {
 	author := Author{
 		wikipediaLink: make(map[string]string),
 		description:   make(map[string]string),
@@ -325,7 +325,7 @@ func (a WikidataSource) authorFromEntityIDs(ids []string, entities map[string]go
 	}
 
 	entityPtr := &entities
-	author.wikidataEntityId, author.instanceOf = getMostAccurateID(ids, entityPtr, latestPublicationDate)
+	author.wikidataEntityId, author.instanceOf = getMostAccurateID(ids, entityPtr, firstPublicationDateUpperBound)
 	if author.instanceOf == InstanceUnknown {
 		return author, nil
 	}
@@ -390,10 +390,10 @@ func (a WikidataSource) authorFromEntityIDs(ids []string, entities map[string]go
 	return author, nil
 }
 
-func getMostAccurateID(ids []string, entities *map[string]gowikidata.Entity, latestPublicationDate date.Date) (string, float64) {
+func getMostAccurateID(ids []string, entities *map[string]gowikidata.Entity, firstPublicationDateUpperBound date.Date) (string, float64) {
 	for _, rank := range ranks {
 		for _, id := range ids {
-			if bornAfterPublication((*entities)[id].Claims[propertyDateOfBirth], latestPublicationDate) {
+			if bornAfterPublication((*entities)[id].Claims[propertyDateOfBirth], firstPublicationDateUpperBound) {
 				continue
 			}
 			claimValue, exists := (*entities)[id].Claims[propertyInstanceOf]
@@ -411,8 +411,8 @@ func getMostAccurateID(ids []string, entities *map[string]gowikidata.Entity, lat
 	return "", InstanceUnknown
 }
 
-func bornAfterPublication(claim []gowikidata.Claim, latestPublicationDate date.Date) bool {
-	if latestPublicationDate == date.Zero || len(claim) == 0 {
+func bornAfterPublication(claim []gowikidata.Claim, firstPublicationDateUpperBound date.Date) bool {
+	if firstPublicationDateUpperBound == date.Zero || len(claim) == 0 {
 		return false
 	}
 	birth := parseDate(claim)
@@ -430,7 +430,7 @@ func bornAfterPublication(claim []gowikidata.Claim, latestPublicationDate date.D
 	default:
 		return false
 	}
-	return earliest > latestPublicationDate
+	return earliest > firstPublicationDateUpperBound
 }
 
 func parseGender(claim gowikidata.Claim) float64 {

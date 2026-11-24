@@ -10,8 +10,8 @@ import (
 // AuthorCandidates holds search results and the latest possible publication date
 // of the author's earliest dated document. A zero date means no constraint.
 type AuthorCandidates struct {
-	IDs                   []string
-	LatestPublicationDate date.Date
+	IDs                            []string
+	FirstPublicationDateUpperBound date.Date
 }
 
 // Gender values are persisted in the author index; keep their numeric values stable.

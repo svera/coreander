@@ -263,7 +263,7 @@ func TestAuthorsWithoutInfo(t *testing.T) {
 	}
 }
 
-func TestEarliestAuthorPublicationDate(t *testing.T) {
+func TestFirstAuthorPublicationDateUpperBound(t *testing.T) {
 	documents, err := bleve.NewMemOnly(index.CreateDocumentsMapping())
 	if err != nil {
 		t.Fatal(err)
@@ -288,11 +288,11 @@ func TestEarliestAuthorPublicationDate(t *testing.T) {
 	if err := index.IndexDocument(documents, other.ID, other); err != nil {
 		t.Fatal(err)
 	}
-	got, err := idx.EarliestAuthorPublicationDate("writer")
+	got, err := idx.FirstAuthorPublicationDateUpperBound("writer")
 	if err != nil || got != date.New(1899, 2, 28) {
 		t.Fatalf("got cutoff %v, %v; want 1899-02-28", got, err)
 	}
-	got, err = idx.EarliestAuthorPublicationDate("missing")
+	got, err = idx.FirstAuthorPublicationDateUpperBound("missing")
 	if err != nil || got != date.Zero {
 		t.Fatalf("missing author: got %v, %v", got, err)
 	}
@@ -362,10 +362,10 @@ func TestEnrichAuthorsFromDataSource(t *testing.T) {
 	if ids := dataSource.candidates["known"].IDs; len(ids) != 1 || ids[0] != "Q2" {
 		t.Fatalf("expected the known source reference reused without a name search, got %v", ids)
 	}
-	if got := dataSource.candidates["found"].LatestPublicationDate; got != date.New(1900, 12, 31) {
+	if got := dataSource.candidates["found"].FirstPublicationDateUpperBound; got != date.New(1900, 12, 31) {
 		t.Fatalf("expected year-precision publication cutoff, got %v", got)
 	}
-	if got := dataSource.candidates["known"].LatestPublicationDate; got != date.Zero {
+	if got := dataSource.candidates["known"].FirstPublicationDateUpperBound; got != date.Zero {
 		t.Fatalf("explicitly linked profile must not be filtered, got cutoff %v", got)
 	}
 	if elapsed < 50*time.Millisecond {

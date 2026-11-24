@@ -292,7 +292,7 @@ const (
 // AuthorDataSource retrieves author metadata from an external source.
 type AuthorDataSource interface {
 	ReferenceKey() string
-	SearchAuthor(name string, languages []string, latestPublicationDate date.Date) (datasourcemodel.Author, error)
+	SearchAuthor(name string, languages []string, firstPublicationDateUpperBound date.Date) (datasourcemodel.Author, error)
 	SearchEntityIDs(name string) ([]string, error)
 	RetrieveAuthor(ids []string, languages []string) (datasourcemodel.Author, error)
 	RetrieveAuthors(candidates map[string]datasourcemodel.AuthorCandidates, languages []string, batchInterval time.Duration, onResult func(slug string, author datasourcemodel.Author) error) error
@@ -380,14 +380,14 @@ func (b *BleveIndexer) EnrichAuthorsFromDataSource(dataSource AuthorDataSource, 
 		if err != nil {
 			log.Printf("Error searching author %s in data source: %s", author.Name, err)
 		}
-		var latestPublicationDate date.Date
+		var firstPublicationDateUpperBound date.Date
 		if len(ids) > 0 {
-			latestPublicationDate, err = b.EarliestAuthorPublicationDate(author.Slug)
+			firstPublicationDateUpperBound, err = b.FirstAuthorPublicationDateUpperBound(author.Slug)
 			if err != nil {
 				return fmt.Errorf("finding publication date for author %s: %w", author.Name, err)
 			}
 		}
-		candidates[author.Slug] = datasourcemodel.AuthorCandidates{IDs: ids, LatestPublicationDate: latestPublicationDate}
+		candidates[author.Slug] = datasourcemodel.AuthorCandidates{IDs: ids, FirstPublicationDateUpperBound: firstPublicationDateUpperBound}
 		b.recordAuthorEnrichmentProgress()
 	}
 

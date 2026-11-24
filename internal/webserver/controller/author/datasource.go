@@ -9,6 +9,6 @@ type DataSource interface {
 	AuthorDataSourceProfileProvider
 	OwnsLink(key string) bool
 	NormalizeAuthorID(value string) (string, error)
-	SearchAuthor(name string, languages []string, latestPublicationDate date.Date) (model.Author, error)
+	SearchAuthor(name string, languages []string, firstPublicationDateUpperBound date.Date) (model.Author, error)
 	RetrieveAuthor(IDs []string, languages []string) (model.Author, error)
 }

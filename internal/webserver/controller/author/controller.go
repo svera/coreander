@@ -70,7 +70,7 @@ func NewMetadataProfileInput(provider ProfileInputProvider, author index.Author,
 type IdxReader interface {
 	SearchAuthors(searchFields index.AuthorSearchFields, page, resultsPerPage int) (result.Paginated[[]index.Author], error)
 	SearchByAuthor(searchFields index.SearchFields, page, resultsPerPage int) (result.Paginated[[]index.Document], error)
-	EarliestAuthorPublicationDate(slug string) (date.Date, error)
+	FirstAuthorPublicationDateUpperBound(slug string) (date.Date, error)
 	Author(slug, lang string) (index.Author, error)
 	IndexAuthor(author index.Author) error
 	Languages() ([]string, error)
