@@ -300,7 +300,7 @@ func TestAuthorSearchNoCompatibleCandidatesAndExplicitID(t *testing.T) {
 	if err != nil || batched != nil {
 		t.Fatalf("expected no compatible batched candidate, got %v, %v", batched, err)
 	}
-	author, err = source.RetrieveAuthor([]string{"Q1"}, nil)
+	author, err = source.RetrieveAuthor([]string{"Q1"}, nil, date.Zero)
 	if err != nil || author == nil || author.Links()["wikidata"] != "Q1" {
 		t.Fatalf("explicit ID should remain available, got %v, %v", author, err)
 	}

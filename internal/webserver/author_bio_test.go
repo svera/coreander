@@ -11,6 +11,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gofiber/fiber/v3"
+	"github.com/rickb777/date/v2"
 	"github.com/svera/coreander/v5/internal/biography"
 	"github.com/svera/coreander/v5/internal/datasource/biblioreads"
 	datasourcemodel "github.com/svera/coreander/v5/internal/datasource/model"
@@ -353,7 +354,7 @@ type bioMetadataSource struct {
 func (*bioMetadataSource) NormalizeAuthorID(value string) (string, error) {
 	return strings.TrimPrefix(strings.TrimSpace(value), "https://example.org/authors/"), nil
 }
-func (s *bioMetadataSource) RetrieveAuthor(ids []string, _ []string) (datasourcemodel.Author, error) {
+func (s *bioMetadataSource) RetrieveAuthor(ids []string, _ []string, _ date.Date) (datasourcemodel.Author, error) {
 	return bioMetadata{sourceID: ids[0], link: s.link}, nil
 }
 func (*bioMetadataSource) OwnsLink(key string) bool {

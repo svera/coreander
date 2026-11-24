@@ -65,7 +65,7 @@ func (m *mockAuthorDataSource) SearchEntityIDs(name string) ([]string, error) {
 	return nil, nil
 }
 
-func (m *mockAuthorDataSource) RetrieveAuthor(_ []string, _ []string) (datasourcemodel.Author, error) {
+func (m *mockAuthorDataSource) RetrieveAuthor(_ []string, _ []string, _ date.Date) (datasourcemodel.Author, error) {
 	m.calls++
 	m.retrieveCalls++
 	return nil, nil

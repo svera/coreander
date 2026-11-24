@@ -10,5 +10,5 @@ type DataSource interface {
 	OwnsLink(key string) bool
 	NormalizeAuthorID(value string) (string, error)
 	SearchAuthor(name string, languages []string, firstPublicationDateUpperBound date.Date) (model.Author, error)
-	RetrieveAuthor(IDs []string, languages []string) (model.Author, error)
+	RetrieveAuthor(IDs []string, languages []string, firstPublicationDateUpperBound date.Date) (model.Author, error)
 }

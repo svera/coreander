@@ -294,7 +294,7 @@ type AuthorDataSource interface {
 	ReferenceKey() string
 	SearchAuthor(name string, languages []string, firstPublicationDateUpperBound date.Date) (datasourcemodel.Author, error)
 	SearchEntityIDs(name string) ([]string, error)
-	RetrieveAuthor(ids []string, languages []string) (datasourcemodel.Author, error)
+	RetrieveAuthor(ids []string, languages []string, firstPublicationDateUpperBound date.Date) (datasourcemodel.Author, error)
 	RetrieveAuthors(candidates map[string]datasourcemodel.AuthorCandidates, languages []string, batchInterval time.Duration, onResult func(slug string, author datasourcemodel.Author) error) error
 }
 

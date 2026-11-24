@@ -28,7 +28,8 @@ import (
 
 type alternativeAuthorSource struct {
 	authorcontroller.DataSource
-	retrievedIDs []string
+	retrievedIDs    []string
+	retrievedCutoff date.Date
 }
 
 type publicationAwareAuthorSource struct {
@@ -72,8 +73,9 @@ func (*alternativeAuthorSource) NormalizeAuthorID(value string) (string, error) 
 	return "alice", nil
 }
 
-func (s *alternativeAuthorSource) RetrieveAuthor(ids []string, _ []string) (datasourcemodel.Author, error) {
+func (s *alternativeAuthorSource) RetrieveAuthor(ids []string, _ []string, cutoff date.Date) (datasourcemodel.Author, error) {
 	s.retrievedIDs = ids
+	s.retrievedCutoff = cutoff
 	return alternativeAuthorMetadata{}, nil
 }
 
@@ -156,6 +158,7 @@ func TestUpdateUsesDataSourceProfileParser(t *testing.T) {
 	for _, style := range []string{"", "?style=clear"} {
 		t.Run("style="+style, func(t *testing.T) {
 			source.retrievedIDs = nil
+			source.retrievedCutoff = date.New(1900, 1, 1)
 			response, err := putRequest(url.Values{"sourceID": {"https://example.org/authors/alice"}}, admin, app, "/authors/john-doe"+style, t)
 			if err != nil {
 				t.Fatal(err)
@@ -185,7 +188,7 @@ func TestUpdateUsesDataSourceProfileParser(t *testing.T) {
 			if stored.DataSourceReferences["example"] != "alice" || stored.BirthName != "Alice Example" ||
 				stored.Description["en"] != "Updated author metadata" ||
 				stored.DataSourceReferences["independent"] != before.DataSourceReferences["independent"] ||
-				!reflect.DeepEqual(source.retrievedIDs, []string{"alice"}) {
+				!reflect.DeepEqual(source.retrievedIDs, []string{"alice"}) || source.retrievedCutoff != date.Zero {
 				t.Fatalf("expected normalized ID retrieval and persisted metadata while preserving independent links: %+v", stored)
 			}
 		})

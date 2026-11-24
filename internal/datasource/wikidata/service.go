@@ -119,7 +119,7 @@ func (a WikidataSource) SearchAuthor(name string, languages []string, firstPubli
 		return nil, nil
 	}
 
-	return a.retrieveAuthor(ids, languages, firstPublicationDateUpperBound)
+	return a.RetrieveAuthor(ids, languages, firstPublicationDateUpperBound)
 }
 
 // SearchEntityIDs returns Wikidata entity IDs matching the given author name.
@@ -144,12 +144,8 @@ func (a WikidataSource) SearchEntityIDs(name string) ([]string, error) {
 	return ids, nil
 }
 
-// RetrieveAuthor returns the first match from the list of passed Wikidata entity IDs that represents a human
-func (a WikidataSource) RetrieveAuthor(ids []string, languages []string) (model.Author, error) {
-	return a.retrieveAuthor(ids, languages, date.Zero)
-}
-
-func (a WikidataSource) retrieveAuthor(ids []string, languages []string, firstPublicationDateUpperBound date.Date) (model.Author, error) {
+// RetrieveAuthor returns the first matching person compatible with the optional publication date.
+func (a WikidataSource) RetrieveAuthor(ids []string, languages []string, firstPublicationDateUpperBound date.Date) (model.Author, error) {
 	for _, id := range ids {
 		if !validateID(id) {
 			return Author{}, fmt.Errorf("invalid author ID %s", id)
